@@ -50,21 +50,6 @@ export const DashboardHeader = ({
 }: DashboardHeaderProps) => {
   return (
     <header className="bg-[#1e3a5f] text-white px-6 py-4 flex items-center justify-between gap-4">
-      {/* Left side - Settings icon */}
-      <Popover open={isSettingsOpen} onOpenChange={onSettingsOpenChange}>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="text-white hover:bg-blue-700">
-            <Settings className="h-5 w-5" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-80" align="start" dir="rtl">
-          <ColumnSettings
-            columnVisibility={columnVisibility}
-            onToggleColumn={onToggleColumn}
-          />
-        </PopoverContent>
-      </Popover>
-
       {/* Center - Filters */}
       <div className="flex-1 flex items-center gap-4 justify-center">
         <Select
@@ -110,8 +95,21 @@ export const DashboardHeader = ({
         />
       </div>
 
-      {/* Right side - User info and logout */}
+      {/* Right side - Settings, User info and logout */}
       <div className="flex items-center gap-2">
+        <Popover open={isSettingsOpen} onOpenChange={onSettingsOpenChange}>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-blue-700">
+              <Settings className="h-5 w-5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end" dir="rtl">
+            <ColumnSettings
+              columnVisibility={columnVisibility}
+              onToggleColumn={onToggleColumn}
+            />
+          </PopoverContent>
+        </Popover>
         <span className="text-sm">{userEmail}</span>
         <Button variant="ghost" size="sm" onClick={onLogout} className="text-white hover:bg-blue-700">
           התנתק
