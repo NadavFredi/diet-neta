@@ -1,6 +1,26 @@
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadList } from '@/components/dashboard/LeadList';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { he } from 'date-fns/locale';
+import {
+  formatDate,
+  STATUS_OPTIONS,
+  FITNESS_GOAL_OPTIONS,
+  ACTIVITY_LEVEL_OPTIONS,
+  PREFERRED_TIME_OPTIONS,
+  SOURCE_OPTIONS,
+} from '@/utils/dashboard';
 import { useDashboardPage } from './Dashboard';
 
 const Dashboard = () => {
@@ -9,6 +29,13 @@ const Dashboard = () => {
     searchQuery,
     selectedDate,
     selectedStatus,
+    selectedAge,
+    selectedHeight,
+    selectedWeight,
+    selectedFitnessGoal,
+    selectedActivityLevel,
+    selectedPreferredTime,
+    selectedSource,
     columnVisibility,
     user,
     isSettingsOpen,
@@ -16,40 +43,240 @@ const Dashboard = () => {
     handleSearchChange,
     handleDateSelect,
     handleStatusChange,
+    handleAgeChange,
+    handleHeightChange,
+    handleWeightChange,
+    handleFitnessGoalChange,
+    handleActivityLevelChange,
+    handlePreferredTimeChange,
+    handleSourceChange,
     handleToggleColumn,
     handleLogout,
     setIsSettingsOpen,
     setDatePickerOpen,
   } = useDashboardPage();
 
-  return (
-    <div className="h-screen flex flex-col overflow-hidden" dir="rtl">
-      <DashboardHeader
-        searchQuery={searchQuery}
-        selectedDate={selectedDate}
-        selectedStatus={selectedStatus}
-        columnVisibility={columnVisibility}
-        userEmail={user?.email}
-        isSettingsOpen={isSettingsOpen}
-        datePickerOpen={datePickerOpen}
-        onSearchChange={handleSearchChange}
-        onDateSelect={handleDateSelect}
-        onStatusChange={handleStatusChange}
-        onToggleColumn={handleToggleColumn}
-        onLogout={handleLogout}
-        onSettingsOpenChange={setIsSettingsOpen}
-        onDatePickerOpenChange={setDatePickerOpen}
-      />
+  // Unique values for filters
+  const ageOptions = ['24', '26', '28', '29', '31', '32', '35', '39', '45', '52'];
+  const heightOptions = ['160', '163', '165', '168', '170', '172', '175', '178', '182', '185'];
+  const weightOptions = ['58', '62', '65', '68', '70', '78', '80', '85', '88', '92'];
 
-      <div className="flex flex-1 overflow-hidden">
-        <DashboardSidebar />
-        <main className="flex-1 bg-gray-100 overflow-y-auto">
-          <div className="p-6">
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <LeadList leads={filteredLeads} columnVisibility={columnVisibility} />
+  return (
+    <div className="min-h-screen flex flex-col" dir="rtl">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <DashboardHeader
+          searchQuery={searchQuery}
+          columnVisibility={columnVisibility}
+          userEmail={user?.email}
+          isSettingsOpen={isSettingsOpen}
+          onSearchChange={handleSearchChange}
+          onToggleColumn={handleToggleColumn}
+          onLogout={handleLogout}
+          onSettingsOpenChange={setIsSettingsOpen}
+        />
+
+        <div className="flex flex-1 overflow-hidden">
+          <DashboardSidebar />
+          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto">
+            <div className="p-6">
+              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-2xl font-bold text-gray-900">ניהול לידים</h2>
+                  </div>
+                  <div className="mb-3">
+                    <div className="grid grid-cols-9 gap-2">
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          תאריך יצירה
+                        </label>
+                        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="bg-gray-50 text-gray-900 hover:bg-white border border-gray-200 shadow-sm transition-all hover:shadow-md h-9 text-xs px-2"
+                            >
+                              <CalendarIcon className="ml-1 h-3 w-3" />
+                              {selectedDate ? formatDate(selectedDate) : 'בחר תאריך'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 shadow-xl" align="start" dir="rtl">
+                            <Calendar
+                              mode="single"
+                              selected={selectedDate ? new Date(selectedDate) : undefined}
+                              onSelect={handleDateSelect}
+                              locale={he}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          סטטוס
+                        </label>
+                        <Select
+                          value={selectedStatus || 'all'}
+                          onValueChange={handleStatusChange}
+                        >
+                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                            <SelectValue placeholder="הכל" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl" className="shadow-xl">
+                            <SelectItem value="all">הכל</SelectItem>
+                            {STATUS_OPTIONS.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          גיל
+                        </label>
+                        <Select value={selectedAge || 'all'} onValueChange={handleAgeChange}>
+                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                            <SelectValue placeholder="הכל" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl" className="shadow-xl">
+                            <SelectItem value="all">הכל</SelectItem>
+                            {ageOptions.map((age) => (
+                              <SelectItem key={age} value={age}>
+                                {age}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          גובה
+                        </label>
+                        <Select value={selectedHeight || 'all'} onValueChange={handleHeightChange}>
+                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                            <SelectValue placeholder="הכל" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl" className="shadow-xl">
+                            <SelectItem value="all">הכל</SelectItem>
+                            {heightOptions.map((height) => (
+                              <SelectItem key={height} value={height}>
+                                {height} ס"מ
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          משקל
+                        </label>
+                        <Select value={selectedWeight || 'all'} onValueChange={handleWeightChange}>
+                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                            <SelectValue placeholder="הכל" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl" className="shadow-xl">
+                            <SelectItem value="all">הכל</SelectItem>
+                            {weightOptions.map((weight) => (
+                              <SelectItem key={weight} value={weight}>
+                                {weight} ק"ג
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          מטרת כושר
+                        </label>
+                        <Select
+                          value={selectedFitnessGoal || 'all'}
+                          onValueChange={handleFitnessGoalChange}
+                        >
+                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                            <SelectValue placeholder="הכל" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl" className="shadow-xl">
+                            <SelectItem value="all">הכל</SelectItem>
+                            {FITNESS_GOAL_OPTIONS.map((goal) => (
+                              <SelectItem key={goal} value={goal}>
+                                {goal}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          רמת פעילות
+                        </label>
+                        <Select
+                          value={selectedActivityLevel || 'all'}
+                          onValueChange={handleActivityLevelChange}
+                        >
+                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                            <SelectValue placeholder="הכל" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl" className="shadow-xl">
+                            <SelectItem value="all">הכל</SelectItem>
+                            {ACTIVITY_LEVEL_OPTIONS.map((level) => (
+                              <SelectItem key={level} value={level}>
+                                {level}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          זמן מועדף
+                        </label>
+                        <Select
+                          value={selectedPreferredTime || 'all'}
+                          onValueChange={handlePreferredTimeChange}
+                        >
+                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                            <SelectValue placeholder="הכל" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl" className="shadow-xl">
+                            <SelectItem value="all">הכל</SelectItem>
+                            {PREFERRED_TIME_OPTIONS.map((time) => (
+                              <SelectItem key={time} value={time}>
+                                {time}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          מקור
+                        </label>
+                        <Select value={selectedSource || 'all'} onValueChange={handleSourceChange}>
+                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                            <SelectValue placeholder="הכל" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl" className="shadow-xl">
+                            <SelectItem value="all">הכל</SelectItem>
+                            {SOURCE_OPTIONS.map((source) => (
+                              <SelectItem key={source} value={source}>
+                                {source}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {filteredLeads.length} {filteredLeads.length === 1 ? 'ליד' : 'לידים'} נמצאו
+                  </p>
+                </div>
+                <LeadList leads={filteredLeads} columnVisibility={columnVisibility} />
+              </div>
             </div>
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </div>
   );

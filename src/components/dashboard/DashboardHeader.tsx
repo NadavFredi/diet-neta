@@ -1,130 +1,80 @@
-import { Settings, Calendar as CalendarIcon } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { he } from 'date-fns/locale';
 import { ColumnSettings } from './ColumnSettings';
-import { formatDate, STATUS_OPTIONS } from '@/utils/dashboard';
 import type { ColumnVisibility } from '@/utils/dashboard';
 
 interface DashboardHeaderProps {
   searchQuery: string;
-  selectedDate: string | null;
-  selectedStatus: string | null;
   columnVisibility: ColumnVisibility;
   userEmail: string | undefined;
   isSettingsOpen: boolean;
-  datePickerOpen: boolean;
   onSearchChange: (value: string) => void;
-  onDateSelect: (date: Date | undefined) => void;
-  onStatusChange: (value: string) => void;
   onToggleColumn: (key: keyof ColumnVisibility) => void;
   onLogout: () => void;
   onSettingsOpenChange: (open: boolean) => void;
-  onDatePickerOpenChange: (open: boolean) => void;
 }
 
 export const DashboardHeader = ({
   searchQuery,
-  selectedDate,
-  selectedStatus,
   columnVisibility,
   userEmail,
   isSettingsOpen,
-  datePickerOpen,
   onSearchChange,
-  onDateSelect,
-  onStatusChange,
   onToggleColumn,
   onLogout,
   onSettingsOpenChange,
-  onDatePickerOpenChange,
 }: DashboardHeaderProps) => {
   return (
-    <header className="bg-[#1e3a5f] text-white px-6 py-4 flex items-center justify-between gap-4">
+    <header className="bg-white text-gray-900 px-6 py-4 flex items-center justify-between gap-4 shadow-sm border-b border-gray-200">
       {/* Left side - Logo (appears on right in RTL) */}
       <div className="flex items-center flex-shrink-0 pr-2">
-        <img 
-          src="/logo.svg" 
-          alt="Easy Flow Logo" 
-          className="h-16 w-auto object-contain"
-          style={{ 
-            minHeight: '56px',
-            display: 'block'
-          }}
+        <img
+          src="/logo.svg"
+          alt="Easy Flow logo"
+          className="h-10 w-auto"
         />
       </div>
 
-      {/* Center - Filters */}
-      <div className="flex-1 flex items-center gap-4 justify-center">
-        <Select
-          value={selectedStatus || 'all'}
-          onValueChange={onStatusChange}
-        >
-          <SelectTrigger className="w-[180px] bg-white text-gray-900">
-            <SelectValue placeholder="סטטוס" />
-          </SelectTrigger>
-          <SelectContent dir="rtl">
-            <SelectItem value="all">הכל</SelectItem>
-            {STATUS_OPTIONS.map((status) => (
-              <SelectItem key={status} value={status}>
-                {status}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Popover open={datePickerOpen} onOpenChange={onDatePickerOpenChange}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="bg-white text-gray-900 hover:bg-gray-100"
-            >
-              <CalendarIcon className="ml-2 h-4 w-4" />
-              {selectedDate ? formatDate(selectedDate) : 'תאריך יצירה'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start" dir="rtl">
-            <Calendar
-              mode="single"
-              selected={selectedDate ? new Date(selectedDate) : undefined}
-              onSelect={onDateSelect}
-              locale={he}
-            />
-          </PopoverContent>
-        </Popover>
+      {/* Center - Search */}
+      <div className="flex-1 flex items-center gap-3 justify-center">
         <Input
           placeholder="חיפוש לפי שם..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="max-w-xs bg-white text-gray-900"
+          className="max-w-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
         />
       </div>
 
       {/* Right side - Settings, User info and logout */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <Popover open={isSettingsOpen} onOpenChange={onSettingsOpenChange}>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-blue-700">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-gray-700 hover:bg-gray-100 transition-all rounded-lg"
+            >
               <Settings className="h-5 w-5" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80" align="end" dir="rtl">
+          <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
             <ColumnSettings
               columnVisibility={columnVisibility}
               onToggleColumn={onToggleColumn}
             />
           </PopoverContent>
         </Popover>
-        <span className="text-sm">{userEmail}</span>
-        <Button variant="ghost" size="sm" onClick={onLogout} className="text-white hover:bg-blue-700">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200">
+          <span className="text-sm font-medium text-gray-700">{userEmail}</span>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={onLogout} 
+          className="text-gray-700 hover:bg-gray-100 transition-all rounded-lg"
+        >
           התנתק
         </Button>
       </div>

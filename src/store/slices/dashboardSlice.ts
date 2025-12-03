@@ -8,6 +8,13 @@ export interface Lead {
   phone: string;
   email: string;
   source: string;
+  age: number;
+  height: number; // in cm
+  weight: number; // in kg
+  fitnessGoal: string;
+  activityLevel: string;
+  preferredTime: string;
+  notes?: string;
 }
 
 interface ColumnVisibility {
@@ -18,6 +25,13 @@ interface ColumnVisibility {
   phone: boolean;
   email: boolean;
   source: boolean;
+  age: boolean;
+  height: boolean;
+  weight: boolean;
+  fitnessGoal: boolean;
+  activityLevel: boolean;
+  preferredTime: boolean;
+  notes: boolean;
 }
 
 interface DashboardState {
@@ -26,6 +40,13 @@ interface DashboardState {
   searchQuery: string;
   selectedDate: string | null;
   selectedStatus: string | null;
+  selectedAge: string | null;
+  selectedHeight: string | null;
+  selectedWeight: string | null;
+  selectedFitnessGoal: string | null;
+  selectedActivityLevel: string | null;
+  selectedPreferredTime: string | null;
+  selectedSource: string | null;
   columnVisibility: ColumnVisibility;
 }
 
@@ -37,9 +58,16 @@ const initialColumnVisibility: ColumnVisibility = {
   phone: true,
   email: true,
   source: true,
+  age: true,
+  height: true,
+  weight: true,
+  fitnessGoal: true,
+  activityLevel: true,
+  preferredTime: true,
+  notes: false,
 };
 
-// Mock data for gym trainer leads
+// Mock data for fitness trainer leads
 const mockLeads: Lead[] = [
   {
     id: '1',
@@ -49,6 +77,13 @@ const mockLeads: Lead[] = [
     phone: '050-1234567',
     email: 'yohanan@example.com',
     source: 'פייסבוק',
+    age: 32,
+    height: 178,
+    weight: 85,
+    fitnessGoal: 'ירידה במשקל',
+    activityLevel: 'מתחיל',
+    preferredTime: 'בוקר',
+    notes: 'מעוניין בתוכנית אישית',
   },
   {
     id: '2',
@@ -58,6 +93,13 @@ const mockLeads: Lead[] = [
     phone: '052-2345678',
     email: 'sara@example.com',
     source: 'המלצה',
+    age: 28,
+    height: 165,
+    weight: 62,
+    fitnessGoal: 'חיטוב',
+    activityLevel: 'בינוני',
+    preferredTime: 'ערב',
+    notes: 'מתאמנת בעבר',
   },
   {
     id: '3',
@@ -67,6 +109,13 @@ const mockLeads: Lead[] = [
     phone: '054-3456789',
     email: 'david@example.com',
     source: 'אינסטגרם',
+    age: 45,
+    height: 182,
+    weight: 92,
+    fitnessGoal: 'בניית שרירים',
+    activityLevel: 'מתקדם',
+    preferredTime: 'בוקר',
+    notes: '',
   },
   {
     id: '4',
@@ -76,6 +125,13 @@ const mockLeads: Lead[] = [
     phone: '050-4567890',
     email: 'rachel@example.com',
     source: 'פייסבוק',
+    age: 35,
+    height: 160,
+    weight: 68,
+    fitnessGoal: 'כושר כללי',
+    activityLevel: 'בינוני',
+    preferredTime: 'צהריים',
+    notes: 'סיימה תוכנית בהצלחה',
   },
   {
     id: '5',
@@ -85,6 +141,13 @@ const mockLeads: Lead[] = [
     phone: '052-5678901',
     email: 'moshe@example.com',
     source: 'המלצה',
+    age: 39,
+    height: 175,
+    weight: 78,
+    fitnessGoal: 'שיפור סיבולת',
+    activityLevel: 'מתחיל',
+    preferredTime: 'ערב',
+    notes: 'יש בעיות גב קלות',
   },
   {
     id: '6',
@@ -94,6 +157,13 @@ const mockLeads: Lead[] = [
     phone: '054-6789012',
     email: 'miriam@example.com',
     source: 'אינסטגרם',
+    age: 26,
+    height: 168,
+    weight: 58,
+    fitnessGoal: 'חיטוב',
+    activityLevel: 'בינוני',
+    preferredTime: 'בוקר',
+    notes: '',
   },
   {
     id: '7',
@@ -103,6 +173,61 @@ const mockLeads: Lead[] = [
     phone: '050-7890123',
     email: 'avraham@example.com',
     source: 'פייסבוק',
+    age: 52,
+    height: 170,
+    weight: 88,
+    fitnessGoal: 'בריאות כללית',
+    activityLevel: 'מתחיל',
+    preferredTime: 'בוקר',
+    notes: 'צריך תוכנית עדינה',
+  },
+  {
+    id: '8',
+    name: 'תמר כהן',
+    createdDate: '2024-01-22',
+    status: 'חדש',
+    phone: '052-8901234',
+    email: 'tamar@example.com',
+    source: 'אינסטגרם',
+    age: 31,
+    height: 172,
+    weight: 70,
+    fitnessGoal: 'ירידה במשקל',
+    activityLevel: 'מתחיל',
+    preferredTime: 'ערב',
+    notes: '',
+  },
+  {
+    id: '9',
+    name: 'אלון ישראלי',
+    createdDate: '2024-01-23',
+    status: 'בטיפול',
+    phone: '054-9012345',
+    email: 'alon@example.com',
+    source: 'המלצה',
+    age: 24,
+    height: 185,
+    weight: 80,
+    fitnessGoal: 'בניית שרירים',
+    activityLevel: 'מתקדם',
+    preferredTime: 'בוקר',
+    notes: 'מתאמן באופן קבוע',
+  },
+  {
+    id: '10',
+    name: 'נועה לוי',
+    createdDate: '2024-01-24',
+    status: 'חדש',
+    phone: '050-0123456',
+    email: 'noa@example.com',
+    source: 'פייסבוק',
+    age: 29,
+    height: 163,
+    weight: 65,
+    fitnessGoal: 'חיטוב',
+    activityLevel: 'בינוני',
+    preferredTime: 'צהריים',
+    notes: '',
   },
 ];
 
@@ -112,6 +237,13 @@ const initialState: DashboardState = {
   searchQuery: '',
   selectedDate: null,
   selectedStatus: null,
+  selectedAge: null,
+  selectedHeight: null,
+  selectedWeight: null,
+  selectedFitnessGoal: null,
+  selectedActivityLevel: null,
+  selectedPreferredTime: null,
+  selectedSource: null,
   columnVisibility: initialColumnVisibility,
 };
 
@@ -129,6 +261,34 @@ const dashboardSlice = createSlice({
     },
     setSelectedStatus: (state, action: PayloadAction<string | null>) => {
       state.selectedStatus = action.payload;
+      state.filteredLeads = applyFilters(state);
+    },
+    setSelectedAge: (state, action: PayloadAction<string | null>) => {
+      state.selectedAge = action.payload;
+      state.filteredLeads = applyFilters(state);
+    },
+    setSelectedHeight: (state, action: PayloadAction<string | null>) => {
+      state.selectedHeight = action.payload;
+      state.filteredLeads = applyFilters(state);
+    },
+    setSelectedWeight: (state, action: PayloadAction<string | null>) => {
+      state.selectedWeight = action.payload;
+      state.filteredLeads = applyFilters(state);
+    },
+    setSelectedFitnessGoal: (state, action: PayloadAction<string | null>) => {
+      state.selectedFitnessGoal = action.payload;
+      state.filteredLeads = applyFilters(state);
+    },
+    setSelectedActivityLevel: (state, action: PayloadAction<string | null>) => {
+      state.selectedActivityLevel = action.payload;
+      state.filteredLeads = applyFilters(state);
+    },
+    setSelectedPreferredTime: (state, action: PayloadAction<string | null>) => {
+      state.selectedPreferredTime = action.payload;
+      state.filteredLeads = applyFilters(state);
+    },
+    setSelectedSource: (state, action: PayloadAction<string | null>) => {
+      state.selectedSource = action.payload;
       state.filteredLeads = applyFilters(state);
     },
     toggleColumnVisibility: (state, action: PayloadAction<keyof ColumnVisibility>) => {
@@ -150,7 +310,14 @@ function applyFilters(state: DashboardState): Lead[] {
       (lead) =>
         lead.name.toLowerCase().includes(query) ||
         lead.email.toLowerCase().includes(query) ||
-        lead.phone.includes(query)
+        lead.phone.includes(query) ||
+        lead.fitnessGoal.toLowerCase().includes(query) ||
+        lead.activityLevel.toLowerCase().includes(query) ||
+        lead.preferredTime.toLowerCase().includes(query) ||
+        (lead.notes && lead.notes.toLowerCase().includes(query)) ||
+        lead.age.toString().includes(query) ||
+        lead.height.toString().includes(query) ||
+        lead.weight.toString().includes(query)
     );
   }
 
@@ -164,6 +331,41 @@ function applyFilters(state: DashboardState): Lead[] {
     filtered = filtered.filter((lead) => lead.status === state.selectedStatus);
   }
 
+  // Apply age filter
+  if (state.selectedAge) {
+    filtered = filtered.filter((lead) => lead.age.toString() === state.selectedAge);
+  }
+
+  // Apply height filter
+  if (state.selectedHeight) {
+    filtered = filtered.filter((lead) => lead.height.toString() === state.selectedHeight);
+  }
+
+  // Apply weight filter
+  if (state.selectedWeight) {
+    filtered = filtered.filter((lead) => lead.weight.toString() === state.selectedWeight);
+  }
+
+  // Apply fitness goal filter
+  if (state.selectedFitnessGoal) {
+    filtered = filtered.filter((lead) => lead.fitnessGoal === state.selectedFitnessGoal);
+  }
+
+  // Apply activity level filter
+  if (state.selectedActivityLevel) {
+    filtered = filtered.filter((lead) => lead.activityLevel === state.selectedActivityLevel);
+  }
+
+  // Apply preferred time filter
+  if (state.selectedPreferredTime) {
+    filtered = filtered.filter((lead) => lead.preferredTime === state.selectedPreferredTime);
+  }
+
+  // Apply source filter
+  if (state.selectedSource) {
+    filtered = filtered.filter((lead) => lead.source === state.selectedSource);
+  }
+
   return filtered;
 }
 
@@ -171,6 +373,13 @@ export const {
   setSearchQuery,
   setSelectedDate,
   setSelectedStatus,
+  setSelectedAge,
+  setSelectedHeight,
+  setSelectedWeight,
+  setSelectedFitnessGoal,
+  setSelectedActivityLevel,
+  setSelectedPreferredTime,
+  setSelectedSource,
   toggleColumnVisibility,
   setColumnVisibility,
 } = dashboardSlice.actions;
