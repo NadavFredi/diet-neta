@@ -75,6 +75,15 @@
 
   html {
     scroll-behavior: smooth;
+    direction: rtl;
+  }
+
+  html[dir="rtl"] {
+    direction: rtl;
+  }
+
+  html[dir="ltr"] {
+    direction: ltr;
   }
 }
 
