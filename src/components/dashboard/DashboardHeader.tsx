@@ -50,6 +50,19 @@ export const DashboardHeader = ({
 }: DashboardHeaderProps) => {
   return (
     <header className="bg-[#1e3a5f] text-white px-6 py-4 flex items-center justify-between gap-4">
+      {/* Left side - Logo (appears on right in RTL) */}
+      <div className="flex items-center flex-shrink-0 pr-2">
+        <img 
+          src="/logo.svg" 
+          alt="Easy Flow Logo" 
+          className="h-16 w-auto object-contain"
+          style={{ 
+            minHeight: '56px',
+            display: 'block'
+          }}
+        />
+      </div>
+
       {/* Center - Filters */}
       <div className="flex-1 flex items-center gap-4 justify-center">
         <Select
