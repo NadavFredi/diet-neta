@@ -1,5 +1,6 @@
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { LeadRow } from './LeadRow';
+import { COLUMN_ORDER, getColumnLabel } from '@/utils/dashboard';
 import type { ColumnVisibility } from '@/utils/dashboard';
 
 interface LeadListProps {
@@ -8,6 +9,8 @@ interface LeadListProps {
 }
 
 export const LeadList = ({ leads, columnVisibility }: LeadListProps) => {
+  const visibleColumns = COLUMN_ORDER.filter((col) => columnVisibility[col]);
+
   if (leads.length === 0) {
     return (
       <div className="text-center py-16">
@@ -23,16 +26,40 @@ export const LeadList = ({ leads, columnVisibility }: LeadListProps) => {
   }
 
   return (
-    <div className="space-y-4">
-      {leads.map((lead, index) => (
-        <div 
-          key={lead.id} 
-          className="animate-fade-in"
-          style={{ animationDelay: `${index * 0.05}s` }}
+    <div className="overflow-x-auto">
+      <div className="min-w-full">
+        {/* Table Header */}
+        <div
+          className="bg-gray-100 border-b-2 border-gray-300 rounded-t-lg px-7 py-4"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(0, 1fr))`,
+            gap: '1.25rem',
+          }}
         >
-          <LeadRow lead={lead} columnVisibility={columnVisibility} />
+          {visibleColumns.map((col) => (
+            <div
+              key={col}
+              className="text-sm font-bold text-gray-700 text-right uppercase tracking-wide"
+            >
+              {getColumnLabel(col)}
+            </div>
+          ))}
         </div>
-      ))}
+
+        {/* Table Rows */}
+        <div className="space-y-2">
+          {leads.map((lead, index) => (
+            <div
+              key={lead.id}
+              className="animate-fade-in"
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              <LeadRow lead={lead} columnVisibility={columnVisibility} />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

@@ -12,3 +12,4 @@ export const getUserTypeLabel = (type: UserType): string => {
   return type === 'client' ? 'לקוח עסקי' : 'לקוח קצה';
 };
 
+
