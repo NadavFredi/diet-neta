@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 
-export type ColumnKey = 'id' | 'name' | 'createdDate' | 'status' | 'phone' | 'email' | 'source' | 'age' | 'height' | 'weight' | 'fitnessGoal' | 'activityLevel' | 'preferredTime' | 'notes';
+export type ColumnKey = 'id' | 'name' | 'createdDate' | 'status' | 'phone' | 'email' | 'source' | 'age' | 'birthDate' | 'height' | 'weight' | 'fitnessGoal' | 'activityLevel' | 'preferredTime' | 'notes';
 
 export interface ColumnVisibility {
   id: boolean;
@@ -12,6 +12,7 @@ export interface ColumnVisibility {
   email: boolean;
   source: boolean;
   age: boolean;
+  birthDate: boolean;
   height: boolean;
   weight: boolean;
   fitnessGoal: boolean;
@@ -24,6 +25,7 @@ export const COLUMN_ORDER: ColumnKey[] = [
   'id',
   'name',
   'age',
+  'birthDate',
   'height',
   'weight',
   'fitnessGoal',
@@ -64,6 +66,7 @@ export const getColumnLabel = (key: ColumnKey): string => {
     email: 'אימייל',
     source: 'מקור',
     age: 'גיל',
+    birthDate: 'תאריך לידה',
     height: 'גובה (ס"מ)',
     weight: 'משקל (ק"ג)',
     fitnessGoal: 'מטרת כושר',

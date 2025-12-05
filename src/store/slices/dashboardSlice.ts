@@ -9,6 +9,7 @@ export interface Lead {
   email: string;
   source: string;
   age: number;
+  birthDate: string;
   height: number; // in cm
   weight: number; // in kg
   fitnessGoal: string;
@@ -26,6 +27,7 @@ interface ColumnVisibility {
   email: boolean;
   source: boolean;
   age: boolean;
+  birthDate: boolean;
   height: boolean;
   weight: boolean;
   fitnessGoal: boolean;
@@ -59,6 +61,7 @@ const initialColumnVisibility: ColumnVisibility = {
   email: true,
   source: true,
   age: true,
+  birthDate: true,
   height: true,
   weight: true,
   fitnessGoal: true,
@@ -78,6 +81,7 @@ const mockLeads: Lead[] = [
     email: 'yohanan@example.com',
     source: 'פייסבוק',
     age: 32,
+    birthDate: '1992-03-15',
     height: 178,
     weight: 85,
     fitnessGoal: 'ירידה במשקל',
@@ -94,6 +98,7 @@ const mockLeads: Lead[] = [
     email: 'sara@example.com',
     source: 'המלצה',
     age: 28,
+    birthDate: '1996-05-22',
     height: 165,
     weight: 62,
     fitnessGoal: 'חיטוב',
@@ -110,6 +115,7 @@ const mockLeads: Lead[] = [
     email: 'david@example.com',
     source: 'אינסטגרם',
     age: 45,
+    birthDate: '1979-08-10',
     height: 182,
     weight: 92,
     fitnessGoal: 'בניית שרירים',
@@ -126,6 +132,7 @@ const mockLeads: Lead[] = [
     email: 'rachel@example.com',
     source: 'פייסבוק',
     age: 35,
+    birthDate: '1989-11-05',
     height: 160,
     weight: 68,
     fitnessGoal: 'כושר כללי',
@@ -142,6 +149,7 @@ const mockLeads: Lead[] = [
     email: 'moshe@example.com',
     source: 'המלצה',
     age: 39,
+    birthDate: '1985-07-18',
     height: 175,
     weight: 78,
     fitnessGoal: 'שיפור סיבולת',
@@ -158,6 +166,7 @@ const mockLeads: Lead[] = [
     email: 'miriam@example.com',
     source: 'אינסטגרם',
     age: 26,
+    birthDate: '1998-02-14',
     height: 168,
     weight: 58,
     fitnessGoal: 'חיטוב',
@@ -174,6 +183,7 @@ const mockLeads: Lead[] = [
     email: 'avraham@example.com',
     source: 'פייסבוק',
     age: 52,
+    birthDate: '1972-09-30',
     height: 170,
     weight: 88,
     fitnessGoal: 'בריאות כללית',
@@ -190,6 +200,7 @@ const mockLeads: Lead[] = [
     email: 'tamar@example.com',
     source: 'אינסטגרם',
     age: 31,
+    birthDate: '1993-04-25',
     height: 172,
     weight: 70,
     fitnessGoal: 'ירידה במשקל',
@@ -206,6 +217,7 @@ const mockLeads: Lead[] = [
     email: 'alon@example.com',
     source: 'המלצה',
     age: 24,
+    birthDate: '2000-06-12',
     height: 185,
     weight: 80,
     fitnessGoal: 'בניית שרירים',
@@ -222,6 +234,7 @@ const mockLeads: Lead[] = [
     email: 'noa@example.com',
     source: 'פייסבוק',
     age: 29,
+    birthDate: '1995-12-08',
     height: 163,
     weight: 65,
     fitnessGoal: 'חיטוב',
@@ -316,6 +329,7 @@ function applyFilters(state: DashboardState): Lead[] {
         lead.preferredTime.toLowerCase().includes(query) ||
         (lead.notes && lead.notes.toLowerCase().includes(query)) ||
         lead.age.toString().includes(query) ||
+        lead.birthDate.includes(query) ||
         lead.height.toString().includes(query) ||
         lead.weight.toString().includes(query)
     );
