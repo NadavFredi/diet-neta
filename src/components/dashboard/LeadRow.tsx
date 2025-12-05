@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { formatDate, COLUMN_ORDER } from '@/utils/dashboard';
 import type { ColumnVisibility } from '@/utils/dashboard';
@@ -8,6 +9,11 @@ interface LeadRowProps {
 }
 
 export const LeadRow = ({ lead, columnVisibility }: LeadRowProps) => {
+  const navigate = useNavigate();
+
+  const handleRowClick = () => {
+    navigate(`/leads/${lead.id}`);
+  };
   const visibleColumns = COLUMN_ORDER.filter((col) => columnVisibility[col]);
 
   const getStatusColor = (status: string) => {
@@ -24,7 +30,10 @@ export const LeadRow = ({ lead, columnVisibility }: LeadRowProps) => {
   };
 
   return (
-    <div className="bg-white border-b border-gray-200 px-7 py-4 hover:bg-gray-50 transition-all duration-200 cursor-pointer">
+    <div
+      onClick={handleRowClick}
+      className="bg-white border-b border-gray-200 px-7 py-4 hover:bg-gray-50 transition-all duration-200 cursor-pointer"
+    >
       <div
         className="grid items-center"
         style={{
@@ -67,6 +76,9 @@ export const LeadRow = ({ lead, columnVisibility }: LeadRowProps) => {
               )}
               {col === 'age' && (
                 <span className="text-gray-700">{lead.age} שנים</span>
+              )}
+              {col === 'birthDate' && (
+                <span className="text-gray-700">{formatDate(lead.birthDate)}</span>
               )}
               {col === 'height' && (
                 <span className="text-gray-700">{lead.height} ס"מ</span>
