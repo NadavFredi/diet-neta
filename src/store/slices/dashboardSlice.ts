@@ -16,6 +16,9 @@ export interface Lead {
   activityLevel: string;
   preferredTime: string;
   notes?: string;
+  dailyStepsGoal: number;
+  weeklyWorkouts: number;
+  dailySupplements: string[];
 }
 
 interface ColumnVisibility {
@@ -88,6 +91,9 @@ const mockLeads: Lead[] = [
     activityLevel: 'מתחיל',
     preferredTime: 'בוקר',
     notes: 'מעוניין בתוכנית אישית',
+    dailyStepsGoal: 8000,
+    weeklyWorkouts: 3,
+    dailySupplements: ['אומגה 3', 'מגנזיום', 'ויטמין D'],
   },
   {
     id: '2',
@@ -105,6 +111,9 @@ const mockLeads: Lead[] = [
     activityLevel: 'בינוני',
     preferredTime: 'ערב',
     notes: 'מתאמנת בעבר',
+    dailyStepsGoal: 10000,
+    weeklyWorkouts: 4,
+    dailySupplements: ['אומגה 3', 'ברזל', 'קולגן'],
   },
   {
     id: '3',
@@ -122,6 +131,9 @@ const mockLeads: Lead[] = [
     activityLevel: 'מתקדם',
     preferredTime: 'בוקר',
     notes: '',
+    dailyStepsGoal: 12000,
+    weeklyWorkouts: 5,
+    dailySupplements: ['חלבון', 'קריאטין', 'אומגה 3', 'ויטמין D'],
   },
   {
     id: '4',
@@ -139,6 +151,9 @@ const mockLeads: Lead[] = [
     activityLevel: 'בינוני',
     preferredTime: 'צהריים',
     notes: 'סיימה תוכנית בהצלחה',
+    dailyStepsGoal: 10000,
+    weeklyWorkouts: 4,
+    dailySupplements: ['מולטי ויטמין', 'אומגה 3', 'מגנזיום'],
   },
   {
     id: '5',
@@ -156,6 +171,9 @@ const mockLeads: Lead[] = [
     activityLevel: 'מתחיל',
     preferredTime: 'ערב',
     notes: 'יש בעיות גב קלות',
+    dailyStepsGoal: 7000,
+    weeklyWorkouts: 2,
+    dailySupplements: ['מגנזיום', 'ויטמין D', 'גלוקוזאמין'],
   },
   {
     id: '6',
@@ -173,6 +191,9 @@ const mockLeads: Lead[] = [
     activityLevel: 'בינוני',
     preferredTime: 'בוקר',
     notes: '',
+    dailyStepsGoal: 10000,
+    weeklyWorkouts: 4,
+    dailySupplements: ['אומגה 3', 'ברזל', 'קולגן', 'ויטמין C'],
   },
   {
     id: '7',
@@ -190,6 +211,9 @@ const mockLeads: Lead[] = [
     activityLevel: 'מתחיל',
     preferredTime: 'בוקר',
     notes: 'צריך תוכנית עדינה',
+    dailyStepsGoal: 6000,
+    weeklyWorkouts: 2,
+    dailySupplements: ['מולטי ויטמין', 'אומגה 3', 'קו-אנזים Q10'],
   },
   {
     id: '8',
@@ -207,6 +231,9 @@ const mockLeads: Lead[] = [
     activityLevel: 'מתחיל',
     preferredTime: 'ערב',
     notes: '',
+    dailyStepsGoal: 9000,
+    weeklyWorkouts: 3,
+    dailySupplements: ['אומגה 3', 'מגנזיום', 'L-קרניטין'],
   },
   {
     id: '9',
@@ -224,6 +251,9 @@ const mockLeads: Lead[] = [
     activityLevel: 'מתקדם',
     preferredTime: 'בוקר',
     notes: 'מתאמן באופן קבוע',
+    dailyStepsGoal: 12000,
+    weeklyWorkouts: 6,
+    dailySupplements: ['חלבון', 'קריאטין', 'BCAA', 'אומגה 3', 'ויטמין D'],
   },
   {
     id: '10',
@@ -241,6 +271,9 @@ const mockLeads: Lead[] = [
     activityLevel: 'בינוני',
     preferredTime: 'צהריים',
     notes: '',
+    dailyStepsGoal: 10000,
+    weeklyWorkouts: 4,
+    dailySupplements: ['אומגה 3', 'ברזל', 'קולגן', 'ויטמין B12'],
   },
 ];
 

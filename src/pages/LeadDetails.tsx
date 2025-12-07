@@ -23,6 +23,9 @@ import {
   User,
   FileText,
   Edit,
+  Dumbbell,
+  Footprints,
+  CheckCircle2,
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { useAppSelector } from '@/store/hooks';
@@ -289,6 +292,67 @@ const LeadDetails = () => {
             </div>
           </Card>
         </div>
+
+        {/* Fitness & Wellness Protocol */}
+        <Card className="p-6 bg-white border-gray-200 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <Activity className="h-5 w-5 text-blue-600" />
+            פרוטוקול יומי
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Part A: Activity Targets */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">יעדי פעילות</h3>
+              
+              {/* Weekly Workouts */}
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5 border border-orange-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-orange-600 mb-2">כמות אימונים שבועית</p>
+                    <p className="text-4xl font-bold text-orange-900">{lead.weeklyWorkouts}</p>
+                    <p className="text-xs text-orange-700 mt-1">אימונים בשבוע</p>
+                  </div>
+                  <div className="w-16 h-16 rounded-full bg-orange-200 flex items-center justify-center">
+                    <Dumbbell className="h-8 w-8 text-orange-700" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Daily Steps */}
+              <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl p-5 border border-cyan-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-cyan-600 mb-2">יעד צעדים יומי</p>
+                    <p className="text-4xl font-bold text-cyan-900">
+                      {lead.dailyStepsGoal.toLocaleString('he-IL')}
+                    </p>
+                    <p className="text-xs text-cyan-700 mt-1">צעדים</p>
+                  </div>
+                  <div className="w-16 h-16 rounded-full bg-cyan-200 flex items-center justify-center">
+                    <Footprints className="h-8 w-8 text-cyan-700" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Part B: Supplements Stack */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">תוספים יומיים</h3>
+              <div className="space-y-3">
+                {lead.dailySupplements.map((supplement, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200 hover:shadow-md transition-shadow"
+                  >
+                    <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    <span className="text-base font-medium text-gray-800">{supplement}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Info Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
