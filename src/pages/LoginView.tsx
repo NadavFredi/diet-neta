@@ -45,8 +45,7 @@ const LoginView = ({
                   className="h-12 w-auto object-contain max-h-12"
                 />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">Easy Flow</h1>
-              <p className="text-sm text-gray-600">ניהול לידים ולקוחות</p>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">נטע הירש- דיאטה</h1>
             </div>
 
             {/* Welcome Text */}
