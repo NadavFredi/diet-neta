@@ -310,6 +310,14 @@ const dashboardSlice = createSlice({
     setColumnVisibility: (state, action: PayloadAction<ColumnVisibility>) => {
       state.columnVisibility = action.payload;
     },
+    updateLeadStatus: (state, action: PayloadAction<{ leadId: string; status: string }>) => {
+      const { leadId, status } = action.payload;
+      const lead = state.leads.find((l) => l.id === leadId);
+      if (lead) {
+        lead.status = status;
+        state.filteredLeads = applyFilters(state);
+      }
+    },
   },
 });
 
@@ -396,6 +404,7 @@ export const {
   setSelectedSource,
   toggleColumnVisibility,
   setColumnVisibility,
+  updateLeadStatus,
 } = dashboardSlice.actions;
 export default dashboardSlice.reducer;
 

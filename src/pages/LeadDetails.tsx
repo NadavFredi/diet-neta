@@ -4,6 +4,14 @@ import { useLeadDetailsPage } from './LeadDetails';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
   ArrowRight,
   Phone,
   MessageCircle,
@@ -14,13 +22,31 @@ import {
   Target,
   User,
   FileText,
+  Edit,
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { useAppSelector } from '@/store/hooks';
+import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 
 const LeadDetails = () => {
-  const { lead, bmi, handleBack, handleCall, handleWhatsApp, handleEmail } =
-    useLeadDetailsPage();
+  const {
+    lead,
+    bmi,
+    handleBack,
+    handleCall,
+    handleWhatsApp,
+    handleEmail,
+    isOpen,
+    selectedCategory,
+    selectedSubStatus,
+    handleOpen,
+    handleClose,
+    handleCategoryChange,
+    handleSubStatusChange,
+    handleSave,
+    hasSubStatuses,
+    selectedCategoryData,
+  } = useLeadDetailsPage();
   
   const { columnVisibility } = useAppSelector((state) => state.dashboard);
   const { user } = useAppSelector((state) => state.auth);
@@ -39,6 +65,18 @@ const LeadDetails = () => {
   }
 
   const getStatusColor = (status: string) => {
+    // Check if status matches any category or sub-status
+    if (status === 'מתקדמת לתהליך') {
+      return 'bg-green-50 text-green-700 border-green-200';
+    }
+    if (status === 'לא רלוונטי' || status === 'יקר לי' || status === 'חוסר התאמה' || 
+        status === 'לא מאמינה במוצר' || status === 'פחד' || status === 'לא הזמן המתאים') {
+      return 'bg-red-50 text-red-700 border-red-200';
+    }
+    if (status === 'פולואפ' || status === 'ראשוני' || status === 'איכותי') {
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    }
+    // Legacy statuses
     switch (status) {
       case 'חדש':
         return 'bg-blue-50 text-blue-700 border-blue-200';
@@ -99,11 +137,81 @@ const LeadDetails = () => {
                       <div>
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">{lead.name}</h1>
                         <div className="flex items-center gap-3">
-                          <span
-                            className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold border ${getStatusColor(lead.status)}`}
-                          >
-                            {lead.status}
-                          </span>
+                          <Popover open={isOpen} onOpenChange={(open) => open ? handleOpen() : handleClose()}>
+                            <PopoverTrigger asChild>
+                              <button
+                                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border ${getStatusColor(lead.status)} hover:opacity-80 transition-opacity cursor-pointer`}
+                              >
+                                {lead.status}
+                                <Edit className="h-3 w-3" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 p-4" align="start" dir="rtl">
+                              <div className="space-y-4">
+                                <h3 className="font-semibold text-gray-900 mb-3">עדכן סטטוס</h3>
+                                
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium text-gray-700">
+                                    סטטוס ראשי
+                                  </label>
+                                  <Select
+                                    value={selectedCategory}
+                                    onValueChange={handleCategoryChange}
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="בחר סטטוס ראשי" />
+                                    </SelectTrigger>
+                                    <SelectContent dir="rtl">
+                                      {STATUS_CATEGORIES.map((category) => (
+                                        <SelectItem key={category.id} value={category.id}>
+                                          {category.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                {hasSubStatuses && selectedCategoryData?.subStatuses && (
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700">
+                                      סטטוס משני
+                                    </label>
+                                    <Select
+                                      value={selectedSubStatus}
+                                      onValueChange={handleSubStatusChange}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="בחר סטטוס משני" />
+                                      </SelectTrigger>
+                                      <SelectContent dir="rtl">
+                                        {selectedCategoryData.subStatuses.map((subStatus) => (
+                                          <SelectItem key={subStatus.id} value={subStatus.id}>
+                                            {subStatus.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+
+                                <div className="flex items-center gap-2 pt-2">
+                                  <Button
+                                    onClick={handleSave}
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                                  >
+                                    שמור
+                                  </Button>
+                                  <Button
+                                    onClick={handleClose}
+                                    variant="outline"
+                                    className="flex-1"
+                                  >
+                                    ביטול
+                                  </Button>
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                           <span className="text-sm text-gray-500">
                             ID: <span className="font-mono">{lead.id}</span>
                           </span>
