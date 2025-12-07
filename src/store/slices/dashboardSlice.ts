@@ -1,5 +1,32 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+export interface WorkoutProgram {
+  programName: string;
+  startDate: string;
+  validUntil: string;
+  duration: string;
+  description: string;
+  strengthCount: number;
+  cardioCount: number;
+  intervalsCount: number;
+}
+
+export interface StepsHistory {
+  weekNumber: string | number;
+  startDate: string;
+  endDate: string;
+  target: number;
+}
+
+export interface SubscriptionInfo {
+  joinDate: string;
+  initialPackageMonths: number;
+  initialPrice: number;
+  monthlyRenewalPrice: number;
+  currentWeekInProgram: number;
+  timeInCurrentBudget: string;
+}
+
 export interface Lead {
   id: string;
   name: string;
@@ -19,6 +46,9 @@ export interface Lead {
   dailyStepsGoal: number;
   weeklyWorkouts: number;
   dailySupplements: string[];
+  subscription: SubscriptionInfo;
+  workoutProgramsHistory: WorkoutProgram[];
+  stepsHistory: StepsHistory[];
 }
 
 interface ColumnVisibility {
@@ -94,6 +124,46 @@ const mockLeads: Lead[] = [
     dailyStepsGoal: 8000,
     weeklyWorkouts: 3,
     dailySupplements: ['אומגה 3', 'מגנזיום', 'ויטמין D'],
+    subscription: {
+      joinDate: '2024-01-15',
+      initialPackageMonths: 3,
+      initialPrice: 1200,
+      monthlyRenewalPrice: 450,
+      currentWeekInProgram: 8,
+      timeInCurrentBudget: '3 חודשים',
+    },
+    workoutProgramsHistory: [
+      {
+        programName: 'תוכנית ירידה במשקל - מתחיל',
+        startDate: '2024-01-15',
+        validUntil: '2024-04-15',
+        duration: '12 שבועות',
+        description: 'תוכנית מותאמת למתחילים עם דגש על ירידה במשקל ושיפור סיבולת לב-ריאה',
+        strengthCount: 2,
+        cardioCount: 3,
+        intervalsCount: 1,
+      },
+    ],
+    stepsHistory: [
+      {
+        weekNumber: 'שבוע 1-4',
+        startDate: '2024-01-15',
+        endDate: '2024-02-11',
+        target: 6000,
+      },
+      {
+        weekNumber: 'שבוע 5-8',
+        startDate: '2024-02-12',
+        endDate: '2024-03-10',
+        target: 7000,
+      },
+      {
+        weekNumber: 'שבוע 9-12',
+        startDate: '2024-03-11',
+        endDate: '2024-04-07',
+        target: 8000,
+      },
+    ],
   },
   {
     id: '2',
@@ -114,6 +184,46 @@ const mockLeads: Lead[] = [
     dailyStepsGoal: 10000,
     weeklyWorkouts: 4,
     dailySupplements: ['אומגה 3', 'ברזל', 'קולגן'],
+    subscription: {
+      joinDate: '2024-01-16',
+      initialPackageMonths: 6,
+      initialPrice: 2400,
+      monthlyRenewalPrice: 400,
+      currentWeekInProgram: 12,
+      timeInCurrentBudget: '6 חודשים',
+    },
+    workoutProgramsHistory: [
+      {
+        programName: 'תוכנית חיטוב - בינוני',
+        startDate: '2024-01-16',
+        validUntil: '2024-07-16',
+        duration: '24 שבועות',
+        description: 'תוכנית חיטוב מתקדמת עם דגש על אימוני כוח וסיבולת',
+        strengthCount: 3,
+        cardioCount: 2,
+        intervalsCount: 2,
+      },
+    ],
+    stepsHistory: [
+      {
+        weekNumber: 'שבוע 1-6',
+        startDate: '2024-01-16',
+        endDate: '2024-02-26',
+        target: 8000,
+      },
+      {
+        weekNumber: 'שבוע 7-12',
+        startDate: '2024-02-27',
+        endDate: '2024-04-08',
+        target: 9000,
+      },
+      {
+        weekNumber: 'שבוע 13-18',
+        startDate: '2024-04-09',
+        endDate: '2024-05-20',
+        target: 10000,
+      },
+    ],
   },
   {
     id: '3',
@@ -134,6 +244,46 @@ const mockLeads: Lead[] = [
     dailyStepsGoal: 12000,
     weeklyWorkouts: 5,
     dailySupplements: ['חלבון', 'קריאטין', 'אומגה 3', 'ויטמין D'],
+    subscription: {
+      joinDate: '2024-01-17',
+      initialPackageMonths: 12,
+      initialPrice: 4800,
+      monthlyRenewalPrice: 400,
+      currentWeekInProgram: 4,
+      timeInCurrentBudget: '12 חודשים',
+    },
+    workoutProgramsHistory: [
+      {
+        programName: 'תוכנית בניית שרירים - מתקדם',
+        startDate: '2024-01-17',
+        validUntil: '2025-01-17',
+        duration: '52 שבועות',
+        description: 'תוכנית אינטנסיבית לבניית מסת שריר עם דגש על אימוני כוח מתקדמים',
+        strengthCount: 4,
+        cardioCount: 1,
+        intervalsCount: 2,
+      },
+    ],
+    stepsHistory: [
+      {
+        weekNumber: 'שבוע 1-4',
+        startDate: '2024-01-17',
+        endDate: '2024-02-13',
+        target: 10000,
+      },
+      {
+        weekNumber: 'שבוע 5-8',
+        startDate: '2024-02-14',
+        endDate: '2024-03-12',
+        target: 11000,
+      },
+      {
+        weekNumber: 'שבוע 9-12',
+        startDate: '2024-03-13',
+        endDate: '2024-04-09',
+        target: 12000,
+      },
+    ],
   },
   {
     id: '4',
@@ -154,6 +304,46 @@ const mockLeads: Lead[] = [
     dailyStepsGoal: 10000,
     weeklyWorkouts: 4,
     dailySupplements: ['מולטי ויטמין', 'אומגה 3', 'מגנזיום'],
+    subscription: {
+      joinDate: '2023-10-18',
+      initialPackageMonths: 6,
+      initialPrice: 2400,
+      monthlyRenewalPrice: 400,
+      currentWeekInProgram: 24,
+      timeInCurrentBudget: '6 חודשים',
+    },
+    workoutProgramsHistory: [
+      {
+        programName: 'תוכנית כושר כללי - בינוני',
+        startDate: '2023-10-18',
+        validUntil: '2024-04-18',
+        duration: '24 שבועות',
+        description: 'תוכנית מאוזנת לשיפור כושר כללי עם שילוב של אימוני כוח וסיבולת',
+        strengthCount: 2,
+        cardioCount: 2,
+        intervalsCount: 1,
+      },
+    ],
+    stepsHistory: [
+      {
+        weekNumber: 'שבוע 1-8',
+        startDate: '2023-10-18',
+        endDate: '2023-12-12',
+        target: 8000,
+      },
+      {
+        weekNumber: 'שבוע 9-16',
+        startDate: '2023-12-13',
+        endDate: '2024-02-06',
+        target: 9000,
+      },
+      {
+        weekNumber: 'שבוע 17-24',
+        startDate: '2024-02-07',
+        endDate: '2024-04-02',
+        target: 10000,
+      },
+    ],
   },
   {
     id: '5',
@@ -174,6 +364,46 @@ const mockLeads: Lead[] = [
     dailyStepsGoal: 7000,
     weeklyWorkouts: 2,
     dailySupplements: ['מגנזיום', 'ויטמין D', 'גלוקוזאמין'],
+    subscription: {
+      joinDate: '2024-01-19',
+      initialPackageMonths: 3,
+      initialPrice: 1200,
+      monthlyRenewalPrice: 450,
+      currentWeekInProgram: 6,
+      timeInCurrentBudget: '3 חודשים',
+    },
+    workoutProgramsHistory: [
+      {
+        programName: 'תוכנית שיפור סיבולת - מתחיל',
+        startDate: '2024-01-19',
+        validUntil: '2024-04-19',
+        duration: '12 שבועות',
+        description: 'תוכנית עדינה לשיפור סיבולת עם התאמה לבעיות גב',
+        strengthCount: 1,
+        cardioCount: 2,
+        intervalsCount: 1,
+      },
+    ],
+    stepsHistory: [
+      {
+        weekNumber: 'שבוע 1-4',
+        startDate: '2024-01-19',
+        endDate: '2024-02-15',
+        target: 5000,
+      },
+      {
+        weekNumber: 'שבוע 5-8',
+        startDate: '2024-02-16',
+        endDate: '2024-03-14',
+        target: 6000,
+      },
+      {
+        weekNumber: 'שבוע 9-12',
+        startDate: '2024-03-15',
+        endDate: '2024-04-11',
+        target: 7000,
+      },
+    ],
   },
   {
     id: '6',
@@ -194,6 +424,46 @@ const mockLeads: Lead[] = [
     dailyStepsGoal: 10000,
     weeklyWorkouts: 4,
     dailySupplements: ['אומגה 3', 'ברזל', 'קולגן', 'ויטמין C'],
+    subscription: {
+      joinDate: '2024-01-20',
+      initialPackageMonths: 6,
+      initialPrice: 2400,
+      monthlyRenewalPrice: 400,
+      currentWeekInProgram: 10,
+      timeInCurrentBudget: '6 חודשים',
+    },
+    workoutProgramsHistory: [
+      {
+        programName: 'תוכנית חיטוב - בינוני',
+        startDate: '2024-01-20',
+        validUntil: '2024-07-20',
+        duration: '24 שבועות',
+        description: 'תוכנית חיטוב מתקדמת עם דגש על אימוני כוח וסיבולת',
+        strengthCount: 3,
+        cardioCount: 2,
+        intervalsCount: 2,
+      },
+    ],
+    stepsHistory: [
+      {
+        weekNumber: 'שבוע 1-6',
+        startDate: '2024-01-20',
+        endDate: '2024-03-02',
+        target: 8000,
+      },
+      {
+        weekNumber: 'שבוע 7-12',
+        startDate: '2024-03-03',
+        endDate: '2024-04-13',
+        target: 9000,
+      },
+      {
+        weekNumber: 'שבוע 13-18',
+        startDate: '2024-04-14',
+        endDate: '2024-05-25',
+        target: 10000,
+      },
+    ],
   },
   {
     id: '7',
@@ -214,6 +484,46 @@ const mockLeads: Lead[] = [
     dailyStepsGoal: 6000,
     weeklyWorkouts: 2,
     dailySupplements: ['מולטי ויטמין', 'אומגה 3', 'קו-אנזים Q10'],
+    subscription: {
+      joinDate: '2024-01-21',
+      initialPackageMonths: 3,
+      initialPrice: 1200,
+      monthlyRenewalPrice: 450,
+      currentWeekInProgram: 5,
+      timeInCurrentBudget: '3 חודשים',
+    },
+    workoutProgramsHistory: [
+      {
+        programName: 'תוכנית בריאות כללית - מתחיל',
+        startDate: '2024-01-21',
+        validUntil: '2024-04-21',
+        duration: '12 שבועות',
+        description: 'תוכנית עדינה לשיפור בריאות כללית עם דגש על תנועה עדינה',
+        strengthCount: 1,
+        cardioCount: 2,
+        intervalsCount: 0,
+      },
+    ],
+    stepsHistory: [
+      {
+        weekNumber: 'שבוע 1-4',
+        startDate: '2024-01-21',
+        endDate: '2024-02-17',
+        target: 4000,
+      },
+      {
+        weekNumber: 'שבוע 5-8',
+        startDate: '2024-02-18',
+        endDate: '2024-03-16',
+        target: 5000,
+      },
+      {
+        weekNumber: 'שבוע 9-12',
+        startDate: '2024-03-17',
+        endDate: '2024-04-13',
+        target: 6000,
+      },
+    ],
   },
   {
     id: '8',
@@ -234,6 +544,46 @@ const mockLeads: Lead[] = [
     dailyStepsGoal: 9000,
     weeklyWorkouts: 3,
     dailySupplements: ['אומגה 3', 'מגנזיום', 'L-קרניטין'],
+    subscription: {
+      joinDate: '2024-01-22',
+      initialPackageMonths: 3,
+      initialPrice: 1200,
+      monthlyRenewalPrice: 450,
+      currentWeekInProgram: 7,
+      timeInCurrentBudget: '3 חודשים',
+    },
+    workoutProgramsHistory: [
+      {
+        programName: 'תוכנית ירידה במשקל - מתחיל',
+        startDate: '2024-01-22',
+        validUntil: '2024-04-22',
+        duration: '12 שבועות',
+        description: 'תוכנית מותאמת למתחילים עם דגש על ירידה במשקל ושיפור סיבולת',
+        strengthCount: 2,
+        cardioCount: 3,
+        intervalsCount: 1,
+      },
+    ],
+    stepsHistory: [
+      {
+        weekNumber: 'שבוע 1-4',
+        startDate: '2024-01-22',
+        endDate: '2024-02-18',
+        target: 7000,
+      },
+      {
+        weekNumber: 'שבוע 5-8',
+        startDate: '2024-02-19',
+        endDate: '2024-03-17',
+        target: 8000,
+      },
+      {
+        weekNumber: 'שבוע 9-12',
+        startDate: '2024-03-18',
+        endDate: '2024-04-14',
+        target: 9000,
+      },
+    ],
   },
   {
     id: '9',
@@ -254,6 +604,46 @@ const mockLeads: Lead[] = [
     dailyStepsGoal: 12000,
     weeklyWorkouts: 6,
     dailySupplements: ['חלבון', 'קריאטין', 'BCAA', 'אומגה 3', 'ויטמין D'],
+    subscription: {
+      joinDate: '2023-12-23',
+      initialPackageMonths: 12,
+      initialPrice: 4800,
+      monthlyRenewalPrice: 400,
+      currentWeekInProgram: 18,
+      timeInCurrentBudget: '12 חודשים',
+    },
+    workoutProgramsHistory: [
+      {
+        programName: 'תוכנית בניית שרירים - מתקדם',
+        startDate: '2023-12-23',
+        validUntil: '2024-12-23',
+        duration: '52 שבועות',
+        description: 'תוכנית אינטנסיבית לבניית מסת שריר עם דגש על אימוני כוח מתקדמים',
+        strengthCount: 4,
+        cardioCount: 1,
+        intervalsCount: 2,
+      },
+    ],
+    stepsHistory: [
+      {
+        weekNumber: 'שבוע 1-12',
+        startDate: '2023-12-23',
+        endDate: '2024-03-16',
+        target: 10000,
+      },
+      {
+        weekNumber: 'שבוע 13-24',
+        startDate: '2024-03-17',
+        endDate: '2024-06-08',
+        target: 11000,
+      },
+      {
+        weekNumber: 'שבוע 25-36',
+        startDate: '2024-06-09',
+        endDate: '2024-08-31',
+        target: 12000,
+      },
+    ],
   },
   {
     id: '10',
@@ -274,6 +664,46 @@ const mockLeads: Lead[] = [
     dailyStepsGoal: 10000,
     weeklyWorkouts: 4,
     dailySupplements: ['אומגה 3', 'ברזל', 'קולגן', 'ויטמין B12'],
+    subscription: {
+      joinDate: '2024-01-24',
+      initialPackageMonths: 6,
+      initialPrice: 2400,
+      monthlyRenewalPrice: 400,
+      currentWeekInProgram: 3,
+      timeInCurrentBudget: '6 חודשים',
+    },
+    workoutProgramsHistory: [
+      {
+        programName: 'תוכנית חיטוב - בינוני',
+        startDate: '2024-01-24',
+        validUntil: '2024-07-24',
+        duration: '24 שבועות',
+        description: 'תוכנית חיטוב מתקדמת עם דגש על אימוני כוח וסיבולת',
+        strengthCount: 3,
+        cardioCount: 2,
+        intervalsCount: 2,
+      },
+    ],
+    stepsHistory: [
+      {
+        weekNumber: 'שבוע 1-6',
+        startDate: '2024-01-24',
+        endDate: '2024-03-05',
+        target: 8000,
+      },
+      {
+        weekNumber: 'שבוע 7-12',
+        startDate: '2024-03-06',
+        endDate: '2024-04-16',
+        target: 9000,
+      },
+      {
+        weekNumber: 'שבוע 13-18',
+        startDate: '2024-04-17',
+        endDate: '2024-05-28',
+        target: 10000,
+      },
+    ],
   },
 ];
 

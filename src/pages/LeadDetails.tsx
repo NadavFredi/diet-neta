@@ -26,6 +26,10 @@ import {
   Dumbbell,
   Footprints,
   CheckCircle2,
+  Calendar,
+  Wallet,
+  Clock,
+  TrendingUp,
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { useAppSelector } from '@/store/hooks';
@@ -353,6 +357,187 @@ const LeadDetails = () => {
             </div>
           </div>
         </Card>
+
+        {/* Customer Journey & History */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Column 1: Workout Plans History (Larger - 2 columns) */}
+          <div className="lg:col-span-2">
+            <Card className="p-6 bg-white border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <Dumbbell className="h-5 w-5 text-blue-600" />
+                היסטוריית תוכניות אימון
+              </h2>
+              <div className="space-y-4">
+                {lead.workoutProgramsHistory.map((program, index) => (
+                  <div
+                    key={index}
+                    className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border border-gray-200 hover:shadow-md transition-shadow"
+                  >
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-gray-900 mb-1">
+                          {program.programName}
+                        </h3>
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            {formatDate(program.startDate)} - {formatDate(program.validUntil)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {program.duration}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Body */}
+                    <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                      {program.description}
+                    </p>
+
+                    {/* Footer - Training Breakdown */}
+                    <div className="flex items-center gap-4 pt-3 border-t border-gray-200">
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-sm font-medium border border-blue-100">
+                        כוח: {program.strengthCount}
+                      </span>
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-sm font-medium border border-red-100">
+                        קרדיו: {program.cardioCount}
+                      </span>
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 text-sm font-medium border border-purple-100">
+                        אינטרוולים: {program.intervalsCount}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          {/* Column 2: Subscription & Steps (Smaller - 1 column) */}
+          <div className="space-y-6">
+            {/* Subscription Details Card */}
+            <Card className="p-6 bg-white border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-green-600" />
+                פרטי מנוי
+              </h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    תאריך הצטרפות
+                  </span>
+                  <span className="text-base font-semibold text-gray-900">
+                    {formatDate(lead.subscription.joinDate)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100 bg-blue-50 rounded-lg px-3">
+                  <span className="text-sm font-medium text-blue-700 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    שבוע נוכחי
+                  </span>
+                  <span className="text-base font-bold text-blue-900">
+                    {lead.subscription.currentWeekInProgram}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm font-medium text-gray-500">חבילה ראשונית</span>
+                  <span className="text-base font-semibold text-gray-900">
+                    {lead.subscription.initialPackageMonths} חודשים
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm font-medium text-gray-500">מחיר ראשוני</span>
+                  <span className="text-base font-semibold text-gray-900">
+                    ₪{lead.subscription.initialPrice.toLocaleString('he-IL')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm font-medium text-gray-500">מחיר חידוש חודשי</span>
+                  <span className="text-base font-semibold text-gray-900">
+                    ₪{lead.subscription.monthlyRenewalPrice.toLocaleString('he-IL')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm font-medium text-gray-500">זמן בתקציב נוכחי</span>
+                  <span className="text-base font-semibold text-gray-900">
+                    {lead.subscription.timeInCurrentBudget}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Steps Progression Card */}
+            <Card className="p-6 bg-white border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Footprints className="h-5 w-5 text-cyan-600" />
+                היסטוריית צעדים
+              </h2>
+              <div className="space-y-4">
+                {lead.stepsHistory.map((step, index) => {
+                  const isCurrent = index === lead.stepsHistory.length - 1;
+                  return (
+                    <div
+                      key={index}
+                      className={`relative pr-4 ${
+                        index < lead.stepsHistory.length - 1 ? 'pb-6' : ''
+                      }`}
+                    >
+                      {/* Timeline line */}
+                      {index < lead.stepsHistory.length - 1 && (
+                        <div className="absolute right-2 top-8 bottom-0 w-0.5 bg-gray-200" />
+                      )}
+                      
+                      {/* Timeline dot */}
+                      <div
+                        className={`absolute right-0 top-1 w-4 h-4 rounded-full border-2 ${
+                          isCurrent
+                            ? 'bg-cyan-500 border-cyan-600'
+                            : 'bg-white border-gray-300'
+                        }`}
+                      />
+
+                      {/* Content */}
+                      <div
+                        className={`rounded-lg p-4 ${
+                          isCurrent
+                            ? 'bg-gradient-to-br from-cyan-50 to-cyan-100 border-2 border-cyan-200'
+                            : 'bg-gray-50 border border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span
+                            className={`text-sm font-semibold ${
+                              isCurrent ? 'text-cyan-900' : 'text-gray-700'
+                            }`}
+                          >
+                            {step.weekNumber}
+                          </span>
+                          {isCurrent && (
+                            <span className="text-xs font-medium text-cyan-700 bg-cyan-200 px-2 py-1 rounded-full">
+                              פעיל
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-600 mb-2">
+                          {formatDate(step.startDate)} - {formatDate(step.endDate)}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Footprints className="h-4 w-4 text-gray-500" />
+                          <span className="text-base font-bold text-gray-900">
+                            {step.target.toLocaleString('he-IL')} צעדים
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          </div>
+        </div>
 
         {/* Info Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

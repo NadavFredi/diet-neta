@@ -20,7 +20,7 @@ export const LoginForm = ({ onSubmit, isLoading }: LoginFormProps) => {
   };
 
   return (
-    <Card className="w-full max-w-md shadow-2xl border-0 overflow-hidden">
+    <Card className="w-full max-w-md shadow-2xl border-0 overflow-hidden bg-white">
       <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 text-white">
         <div className="flex items-center justify-center mb-4">
           <img 
