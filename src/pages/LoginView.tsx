@@ -86,8 +86,8 @@ const LoginView = ({
                   <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
                     מספר טלפון
                   </Label>
-                  <div className="flex rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
-                    <div className="flex items-center gap-2 px-4 bg-gray-50 border-l border-gray-300 min-w-[100px]">
+                  <div className="flex rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all" dir="ltr">
+                    <div className="flex items-center gap-2 px-4 bg-gray-50 border-r border-gray-300 min-w-[100px]">
                       <span className="text-lg">🇮🇱</span>
                       <span className="text-sm font-medium text-gray-700">+972</span>
                     </div>
@@ -97,7 +97,8 @@ const LoginView = ({
                       placeholder="הכנס את מספר הטלפון שלך"
                       value={phoneNumber}
                       onChange={(e) => onPhoneChange(e.target.value)}
-                      className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-11"
+                      className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-11 text-left"
+                      dir="ltr"
                     />
                   </div>
                 </div>
