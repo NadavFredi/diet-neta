@@ -27,16 +27,22 @@ const LoginView = ({
     <div className="min-h-screen flex flex-col bg-gray-50" dir="rtl">
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-lg">
           {/* Login Card */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
             {/* Logo Area */}
             <div className="text-center mb-6">
-              <div className="flex items-center justify-center mb-3">
+              <div className="flex flex-row items-center justify-center gap-6 mb-3">
+                <img 
+                  src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
+                  alt="Diet Neta Logo" 
+                  className="h-12 w-auto object-contain max-h-12"
+                />
+                <div className="h-8 w-px bg-gray-200"></div>
                 <img 
                   src="/logo.svg" 
                   alt="Easy Flow Logo" 
-                  className="h-16 w-auto object-contain"
+                  className="h-12 w-auto object-contain max-h-12"
                 />
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">Easy Flow</h1>
