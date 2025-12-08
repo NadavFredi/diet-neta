@@ -1,6 +1,7 @@
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadList } from '@/components/dashboard/LeadList';
+import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -40,6 +41,7 @@ const Dashboard = () => {
     user,
     isSettingsOpen,
     datePickerOpen,
+    isAddLeadDialogOpen,
     handleSearchChange,
     handleDateSelect,
     handleStatusChange,
@@ -52,8 +54,10 @@ const Dashboard = () => {
     handleSourceChange,
     handleToggleColumn,
     handleLogout,
+    handleAddLead,
     setIsSettingsOpen,
     setDatePickerOpen,
+    setIsAddLeadDialogOpen,
   } = useDashboardPage();
 
   // Unique values for filters
@@ -73,6 +77,7 @@ const Dashboard = () => {
           onToggleColumn={handleToggleColumn}
           onLogout={handleLogout}
           onSettingsOpenChange={setIsSettingsOpen}
+          onAddLead={handleAddLead}
         />
 
         <div className="flex flex-1 overflow-hidden">
@@ -278,6 +283,12 @@ const Dashboard = () => {
           </main>
         </div>
       </div>
+
+      {/* Add Lead Dialog */}
+      <AddLeadDialog
+        isOpen={isAddLeadDialogOpen}
+        onOpenChange={setIsAddLeadDialogOpen}
+      />
     </div>
   );
 };

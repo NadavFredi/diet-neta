@@ -40,6 +40,7 @@ export const useDashboard = () => {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
 
   const handleSearchChange = (value: string) => {
     dispatch(setSearchQuery(value));
@@ -91,6 +92,10 @@ export const useDashboard = () => {
     navigate('/login');
   };
 
+  const handleAddLead = () => {
+    setIsAddLeadDialogOpen(true);
+  };
+
   return {
     // State
     filteredLeads,
@@ -108,6 +113,7 @@ export const useDashboard = () => {
     user,
     isSettingsOpen,
     datePickerOpen,
+    isAddLeadDialogOpen,
     
     // Actions
     handleSearchChange,
@@ -122,8 +128,10 @@ export const useDashboard = () => {
     handleSourceChange,
     handleToggleColumn,
     handleLogout,
+    handleAddLead,
     setIsSettingsOpen,
     setDatePickerOpen,
+    setIsAddLeadDialogOpen,
   };
 };
 

@@ -1,4 +1,4 @@
-import { Settings } from 'lucide-react';
+import { Settings, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -14,6 +14,7 @@ interface DashboardHeaderProps {
   onToggleColumn: (key: keyof ColumnVisibility) => void;
   onLogout: () => void;
   onSettingsOpenChange: (open: boolean) => void;
+  onAddLead: () => void;
 }
 
 export const DashboardHeader = ({
@@ -25,6 +26,7 @@ export const DashboardHeader = ({
   onToggleColumn,
   onLogout,
   onSettingsOpenChange,
+  onAddLead,
 }: DashboardHeaderProps) => {
   return (
     <header className="bg-white text-gray-900 px-6 py-4 flex items-center justify-between gap-4 shadow-sm border-b border-gray-200">
@@ -47,8 +49,16 @@ export const DashboardHeader = ({
         />
       </div>
 
-      {/* Right side - Settings, User info and logout */}
+      {/* Right side - Add Lead, Settings, User info and logout */}
       <div className="flex items-center gap-3">
+        <Button
+          onClick={onAddLead}
+          className="bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm hover:shadow-md flex items-center gap-2"
+          size="sm"
+        >
+          <Plus className="h-4 w-4" />
+          <span>הוסף ליד</span>
+        </Button>
         <Popover open={isSettingsOpen} onOpenChange={onSettingsOpenChange}>
           <PopoverTrigger asChild>
             <Button 

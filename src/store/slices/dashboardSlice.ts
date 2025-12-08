@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import { supabase } from '@/lib/supabaseClient';
 
 export interface WorkoutProgram {
   programName: string;
@@ -83,7 +84,153 @@ interface DashboardState {
   selectedPreferredTime: string | null;
   selectedSource: string | null;
   columnVisibility: ColumnVisibility;
+  isLoading: boolean;
+  error: string | null;
 }
+
+// Database Lead type (matches Supabase schema)
+interface DBLead {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  assigned_to: string | null;
+  full_name: string;
+  phone: string;
+  email: string | null;
+  city: string | null;
+  birth_date: string | null;
+  gender: string | null;
+  status_main: string | null;
+  status_sub: string | null;
+  height: number | null;
+  weight: number | null;
+  bmi: number | null;
+  join_date: string | null;
+  subscription_data: any;
+  daily_protocol: any;
+  workout_history: any;
+  steps_history: any;
+  source: string | null;
+  fitness_goal: string | null;
+  activity_level: string | null;
+  preferred_time: string | null;
+  notes: string | null;
+}
+
+// Helper function to calculate age from birth date
+function calculateAge(birthDate: string | null): number {
+  if (!birthDate) return 0;
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+// Helper function to format date to YYYY-MM-DD
+function formatDateString(date: string | null): string {
+  if (!date) return '';
+  return new Date(date).toISOString().split('T')[0];
+}
+
+// Helper function to map DB lead to UI Lead format
+function mapDBLeadToUILead(dbLead: DBLead): Lead {
+  // Extract daily protocol data
+  const dailyProtocol = dbLead.daily_protocol || {};
+  const dailyStepsGoal = dailyProtocol.stepsGoal || 0;
+  const weeklyWorkouts = dailyProtocol.workoutGoal || 0;
+  const dailySupplements = dailyProtocol.supplements || [];
+
+  // Extract subscription data
+  const subscriptionData = dbLead.subscription_data || {};
+  const subscription: SubscriptionInfo = {
+    joinDate: dbLead.join_date ? formatDateString(dbLead.join_date) : '',
+    initialPackageMonths: subscriptionData.months || 0,
+    initialPrice: subscriptionData.initialPrice || 0,
+    monthlyRenewalPrice: subscriptionData.renewalPrice || 0,
+    currentWeekInProgram: subscriptionData.currentWeekInProgram || 0,
+    timeInCurrentBudget: subscriptionData.timeInCurrentBudget || '',
+  };
+
+  // Map workout history
+  const workoutHistory: WorkoutProgram[] = (dbLead.workout_history || []).map((workout: any) => ({
+    programName: workout.name || '',
+    startDate: workout.startDate ? formatDateString(workout.startDate) : '',
+    validUntil: workout.validUntil ? formatDateString(workout.validUntil) : '',
+    duration: workout.duration || '',
+    description: workout.description || '',
+    strengthCount: workout.split?.strength || workout.strengthCount || 0,
+    cardioCount: workout.split?.cardio || workout.cardioCount || 0,
+    intervalsCount: workout.split?.intervals || workout.intervalsCount || 0,
+  }));
+
+  // Map steps history
+  const stepsHistory: StepsHistory[] = (dbLead.steps_history || []).map((step: any) => ({
+    weekNumber: step.weekNumber || step.week || '',
+    startDate: step.startDate ? formatDateString(step.startDate) : step.dates || '',
+    endDate: step.endDate ? formatDateString(step.endDate) : '',
+    target: step.target || 0,
+  }));
+
+  // Determine status (combine main and sub if needed, or use main)
+  const status = dbLead.status_main || 'חדש';
+
+  return {
+    id: dbLead.id,
+    name: dbLead.full_name,
+    createdDate: formatDateString(dbLead.created_at),
+    status,
+    phone: dbLead.phone,
+    email: dbLead.email || '',
+    source: dbLead.source || '',
+    age: calculateAge(dbLead.birth_date),
+    birthDate: dbLead.birth_date ? formatDateString(dbLead.birth_date) : '',
+    height: dbLead.height || 0,
+    weight: dbLead.weight || 0,
+    fitnessGoal: dbLead.fitness_goal || '',
+    activityLevel: dbLead.activity_level || '',
+    preferredTime: dbLead.preferred_time || '',
+    notes: dbLead.notes || undefined,
+    dailyStepsGoal,
+    weeklyWorkouts,
+    dailySupplements,
+    subscription,
+    workoutProgramsHistory: workoutHistory,
+    stepsHistory,
+  };
+}
+
+// Async thunk to fetch leads from Supabase
+export const fetchLeads = createAsyncThunk(
+  'dashboard/fetchLeads',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching leads:', error);
+        return rejectWithValue(error.message);
+      }
+
+      // Handle empty data gracefully
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      // Map database leads to UI format
+      return data.map(mapDBLeadToUILead);
+    } catch (err) {
+      console.error('Unexpected error fetching leads:', err);
+      return rejectWithValue('Failed to fetch leads');
+    }
+  }
+);
 
 const initialColumnVisibility: ColumnVisibility = {
   id: true,
@@ -103,7 +250,9 @@ const initialColumnVisibility: ColumnVisibility = {
   notes: false,
 };
 
-// Mock data for fitness trainer leads
+// Mock data removed - now fetching from Supabase
+// Legacy mock data kept for reference (commented out):
+/*
 const mockLeads: Lead[] = [
   {
     id: '1',
@@ -706,10 +855,11 @@ const mockLeads: Lead[] = [
     ],
   },
 ];
+*/
 
 const initialState: DashboardState = {
-  leads: mockLeads,
-  filteredLeads: mockLeads,
+  leads: [],
+  filteredLeads: [],
   searchQuery: '',
   selectedDate: null,
   selectedStatus: null,
@@ -721,12 +871,18 @@ const initialState: DashboardState = {
   selectedPreferredTime: null,
   selectedSource: null,
   columnVisibility: initialColumnVisibility,
+  isLoading: false,
+  error: null,
 };
 
 const dashboardSlice = createSlice({
   name: 'dashboard',
   initialState,
   reducers: {
+    setLeads: (state, action: PayloadAction<Lead[]>) => {
+      state.leads = action.payload;
+      state.filteredLeads = applyFilters({ ...state, leads: action.payload });
+    },
     setSearchQuery: (state, action: PayloadAction<string>) => {
       state.searchQuery = action.payload;
       state.filteredLeads = applyFilters(state);
@@ -781,6 +937,24 @@ const dashboardSlice = createSlice({
         state.filteredLeads = applyFilters(state);
       }
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchLeads.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchLeads.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.error = null;
+        state.leads = action.payload;
+        state.filteredLeads = applyFilters({ ...state, leads: action.payload });
+      })
+      .addCase(fetchLeads.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+        // Keep existing leads on error, don't clear them
+      });
   },
 });
 
@@ -855,6 +1029,7 @@ function applyFilters(state: DashboardState): Lead[] {
 }
 
 export const {
+  setLeads,
   setSearchQuery,
   setSelectedDate,
   setSelectedStatus,
