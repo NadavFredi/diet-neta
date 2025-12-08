@@ -2,8 +2,11 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadList } from '@/components/dashboard/LeadList';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
-import { Plus } from 'lucide-react';
+import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
+import { Plus, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -68,36 +71,52 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col" dir="rtl">
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardHeader
-          searchQuery={searchQuery}
-          columnVisibility={columnVisibility}
-          userEmail={user?.email}
-          isSettingsOpen={isSettingsOpen}
-          onSearchChange={handleSearchChange}
-          onToggleColumn={handleToggleColumn}
-          onLogout={handleLogout}
-          onSettingsOpenChange={setIsSettingsOpen}
-        />
-
-        <div className="flex flex-1 overflow-hidden">
+      <DashboardHeader
+        userEmail={user?.email}
+        onLogout={handleLogout}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ marginTop: '88px' }}>
+        <div className="flex flex-1 overflow-hidden relative">
           <DashboardSidebar />
-          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto mr-64">
+          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
             <div className="p-6">
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
                 <div className="mb-4">
-                  <div className="mb-3">
-                    <h2 className="text-2xl font-bold text-gray-900">ניהול לידים</h2>
-                  </div>
-                  <div className="mb-3 flex items-center justify-start" dir="rtl">
-                    <Button
-                      onClick={handleAddLead}
-                      className="bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm hover:shadow-md flex items-center gap-2"
-                      size="sm"
-                    >
-                      <Plus className="h-4 w-4" />
-                      <span>הוסף ליד</span>
-                    </Button>
+                  <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
+                    <h2 className="text-2xl font-bold text-gray-900 whitespace-nowrap">ניהול לידים</h2>
+                    <div className="flex items-center gap-3 flex-1 justify-center">
+                      <Input
+                        placeholder="חיפוש לפי שם..."
+                        value={searchQuery}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        className="flex-1 max-w-md bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
+                      />
+                      <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                        <PopoverTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-gray-700 hover:bg-gray-100 transition-all rounded-lg flex-shrink-0"
+                          >
+                            <Settings className="h-6 w-6" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
+                          <ColumnSettings
+                            columnVisibility={columnVisibility}
+                            onToggleColumn={handleToggleColumn}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Button
+                        onClick={handleAddLead}
+                        className="bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm hover:shadow-md flex items-center gap-2 flex-shrink-0"
+                        size="sm"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>הוסף ליד</span>
+                      </Button>
+                    </div>
                   </div>
                   <div className="mb-3">
                     <div className="grid grid-cols-9 gap-2">

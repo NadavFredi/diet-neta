@@ -1,79 +1,44 @@
-import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ColumnSettings } from './ColumnSettings';
-import type { ColumnVisibility } from '@/utils/dashboard';
 
 interface DashboardHeaderProps {
-  searchQuery: string;
-  columnVisibility: ColumnVisibility;
   userEmail: string | undefined;
-  isSettingsOpen: boolean;
-  onSearchChange: (value: string) => void;
-  onToggleColumn: (key: keyof ColumnVisibility) => void;
   onLogout: () => void;
-  onSettingsOpenChange: (open: boolean) => void;
 }
 
 export const DashboardHeader = ({
-  searchQuery,
-  columnVisibility,
   userEmail,
-  isSettingsOpen,
-  onSearchChange,
-  onToggleColumn,
   onLogout,
-  onSettingsOpenChange,
 }: DashboardHeaderProps) => {
   return (
-    <header className="bg-white text-gray-900 px-6 py-4 flex items-center justify-between gap-4 shadow-sm border-b border-gray-200">
-      {/* Left side - Logo (appears on right in RTL) */}
-      <div className="flex items-center flex-shrink-0 pr-2">
-        <img
-          src="/logo.svg"
-          alt="Easy Flow logo"
-          className="h-10 w-auto"
-        />
+    <header className="fixed top-0 left-0 right-0 bg-white text-gray-900 px-6 py-5 flex items-center justify-between gap-4 shadow-sm border-b border-gray-200 z-40">
+      {/* Left side - Logos with separator and text (appears on right in RTL) */}
+      <div className="flex items-center flex-shrink-0 pr-2 gap-6">
+        <div className="flex items-center gap-8">
+          <img 
+            src="/logo.svg" 
+            alt="Easy Flow Logo" 
+            className="h-14 w-auto object-contain max-h-14"
+          />
+          <div className="h-10 w-px bg-gray-200"></div>
+          <img 
+            src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
+            alt="Diet Neta Logo" 
+            className="h-14 w-auto object-contain max-h-14"
+          />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 whitespace-nowrap">נטע הירש- דיאטה</h1>
       </div>
 
-      {/* Center - Search */}
-      <div className="flex-1 flex items-center gap-3 justify-center">
-        <Input
-          placeholder="חיפוש לפי שם..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="max-w-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
-        />
-      </div>
-
-      {/* Right side - Settings, User info and logout */}
-      <div className="flex items-center gap-3">
-        <Popover open={isSettingsOpen} onOpenChange={onSettingsOpenChange}>
-          <PopoverTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-gray-700 hover:bg-gray-100 transition-all rounded-lg"
-            >
-              <Settings className="h-5 w-5" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
-            <ColumnSettings
-              columnVisibility={columnVisibility}
-              onToggleColumn={onToggleColumn}
-            />
-          </PopoverContent>
-        </Popover>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200">
-          <span className="text-sm font-medium text-gray-700">{userEmail}</span>
+      {/* Right side - User info and logout */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200">
+          <span className="text-base font-semibold text-gray-700">{userEmail}</span>
         </div>
         <Button 
           variant="ghost" 
-          size="sm" 
+          size="default" 
           onClick={onLogout} 
-          className="text-gray-700 hover:bg-gray-100 transition-all rounded-lg"
+          className="text-base font-semibold text-gray-700 hover:bg-gray-100 transition-all rounded-lg px-4 py-2"
         >
           התנתק
         </Button>

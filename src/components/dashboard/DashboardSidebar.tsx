@@ -49,7 +49,8 @@ export const DashboardSidebar = () => {
 
   return (
     <aside
-      className="fixed right-0 top-[73px] h-[calc(100vh-73px)] w-64 bg-white border-l border-gray-200 flex flex-col shadow-sm z-10"
+      className="fixed right-0 top-0 h-screen w-64 bg-white border-l border-gray-200 flex flex-col shadow-sm z-30"
+      style={{ paddingTop: '88px' }}
       dir="rtl"
     >
       {/* Navigation List */}

@@ -55,7 +55,6 @@ const LeadDetails = () => {
     selectedCategoryData,
   } = useLeadDetailsPage();
   
-  const { columnVisibility } = useAppSelector((state) => state.dashboard);
   const { user } = useAppSelector((state) => state.auth);
 
   if (!lead) {
@@ -112,21 +111,14 @@ const LeadDetails = () => {
 
   return (
     <div className="min-h-screen flex flex-col" dir="rtl">
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardHeader
-          searchQuery=""
-          columnVisibility={columnVisibility}
-          userEmail={user?.email}
-          isSettingsOpen={false}
-          onSearchChange={() => {}}
-          onToggleColumn={() => {}}
-          onLogout={() => {}}
-          onSettingsOpenChange={() => {}}
-        />
-
-        <div className="flex flex-1 overflow-hidden">
+      <DashboardHeader
+        userEmail={user?.email}
+        onLogout={() => {}}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ marginTop: '88px' }}>
+        <div className="flex flex-1 overflow-hidden relative">
           <DashboardSidebar />
-          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto">
+          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
             <div className="p-6">
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
                 {/* Header */}
