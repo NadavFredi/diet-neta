@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { he } from 'date-fns/locale';
@@ -84,21 +83,24 @@ const Dashboard = () => {
                 <div className="mb-4">
                   <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
                     <h2 className="text-2xl font-bold text-gray-900 whitespace-nowrap">ניהול לידים</h2>
-                    <div className="flex items-center gap-3 flex-1 justify-center">
+                    <div className="flex items-center gap-3">
                       <Input
                         placeholder="חיפוש לפי שם..."
                         value={searchQuery}
                         onChange={(e) => handleSearchChange(e.target.value)}
-                        className="flex-1 max-w-md bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
+                        className="w-64 bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
                       />
                       <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
                         <PopoverTrigger asChild>
                           <Button 
-                            variant="ghost" 
+                            type="button"
+                            variant="outline" 
                             size="icon" 
-                            className="text-gray-700 hover:bg-gray-100 transition-all rounded-lg flex-shrink-0"
+                            className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-gray-300 transition-all rounded-lg flex-shrink-0 w-11 h-11 bg-white shadow-sm"
+                            title="הגדרות עמודות"
+                            aria-label="הגדרות עמודות"
                           >
-                            <Settings className="h-6 w-6" />
+                            <Settings className="h-6 w-6 flex-shrink-0" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
