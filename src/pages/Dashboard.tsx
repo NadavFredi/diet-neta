@@ -82,7 +82,7 @@ const Dashboard = () => {
 
         <div className="flex flex-1 overflow-hidden">
           <DashboardSidebar />
-          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto">
+          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto mr-64">
             <div className="p-6">
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
                 <div className="mb-4">
