@@ -160,6 +160,7 @@ export const useAddLead = () => {
         subscription_data: {},
       };
 
+      // Insert into leads table (public schema is default)
       const { data, error } = await supabase
         .from('leads')
         .insert([dbData])
@@ -168,9 +169,28 @@ export const useAddLead = () => {
 
       if (error) {
         console.error('Error adding lead:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        
+        // Provide more helpful error messages
+        let errorMessage = 'נכשל בהוספת הליד';
+        if (error.message?.includes('schema cache')) {
+          errorMessage = 'הטבלה לא נמצאה. אנא ודא שהמיגרציה רצה בהצלחה.';
+        } else if (error.message?.includes('permission denied') || error.code === '42501') {
+          errorMessage = 'אין הרשאה להוסיף ליד. אנא בדוק את מדיניות RLS.';
+        } else if (error.message?.includes('duplicate key') || error.code === '23505') {
+          errorMessage = 'מספר טלפון זה כבר קיים במערכת.';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
         toast({
           title: 'שגיאה',
-          description: error.message || 'נכשל בהוספת הליד',
+          description: errorMessage,
           variant: 'destructive',
         });
         return;
