@@ -8,9 +8,12 @@ interface LoginViewProps {
   loginMethod: LoginMethod;
   phoneNumber: string;
   email: string;
+  password: string;
+  isLoading: boolean;
   onMethodToggle: (method: LoginMethod) => void;
   onPhoneChange: (value: string) => void;
   onEmailChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
   onLogin: () => void;
 }
 
@@ -18,9 +21,12 @@ const LoginView = ({
   loginMethod,
   phoneNumber,
   email,
+  password,
+  isLoading,
   onMethodToggle,
   onPhoneChange,
   onEmailChange,
+  onPasswordChange,
   onLogin,
 }: LoginViewProps) => {
   return (
@@ -108,18 +114,33 @@ const LoginView = ({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                    אימייל
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="הכנס את כתובת האימייל שלך"
-                    value={email}
-                    onChange={(e) => onEmailChange(e.target.value)}
-                    className="h-11"
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                      אימייל
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="הכנס את כתובת האימייל שלך"
+                      value={email}
+                      onChange={(e) => onEmailChange(e.target.value)}
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                      סיסמה
+                    </Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="הכנס את הסיסמה שלך"
+                      value={password}
+                      onChange={(e) => onPasswordChange(e.target.value)}
+                      className="h-11"
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -127,9 +148,10 @@ const LoginView = ({
             {/* Login Button */}
             <Button
               onClick={onLogin}
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold mb-4"
+              disabled={isLoading || (loginMethod === 'email' && (!email || !password)) || (loginMethod === 'phone' && !phoneNumber)}
+              className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              כניסה למערכת
+              {isLoading ? 'מתחבר...' : 'כניסה למערכת'}
             </Button>
 
             {/* Separator */}

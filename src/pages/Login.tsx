@@ -6,9 +6,12 @@ const Login = () => {
     loginMethod,
     phoneNumber,
     email,
+    password,
+    isLoading,
     handleMethodToggle,
     handlePhoneChange,
     handleEmailChange,
+    handlePasswordChange,
     handleLogin,
   } = useLoginLogic();
 
@@ -17,9 +20,12 @@ const Login = () => {
       loginMethod={loginMethod}
       phoneNumber={phoneNumber}
       email={email}
+      password={password}
+      isLoading={isLoading}
       onMethodToggle={handleMethodToggle}
       onPhoneChange={handlePhoneChange}
       onEmailChange={handleEmailChange}
+      onPasswordChange={handlePasswordChange}
       onLogin={handleLogin}
     />
   );
