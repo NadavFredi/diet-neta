@@ -257,6 +257,17 @@ const LeadDetails = () => {
                   </div>
                 </div>
 
+                {/* Notes Section - Top Priority */}
+                {lead.notes && (
+                  <Card className="p-6 bg-white border-gray-200 mb-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-gray-600" />
+                      הערות
+                    </h2>
+                    <p className="text-gray-700 leading-relaxed">{lead.notes}</p>
+                  </Card>
+                )}
+
                 {/* ROW 1: Bio & Status Row - 3 Equal Columns */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   {/* Card A: Personal Info */}
@@ -570,17 +581,6 @@ const LeadDetails = () => {
                     </Card>
                   </div>
                 </div>
-
-                {/* Notes Section */}
-                {lead.notes && (
-                  <Card className="p-6 bg-white border-gray-200 mt-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-gray-600" />
-                      הערות
-                    </h2>
-                    <p className="text-gray-700 leading-relaxed">{lead.notes}</p>
-                  </Card>
-                )}
               </div>
             </div>
           </main>
