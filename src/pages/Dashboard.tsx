@@ -2,6 +2,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadList } from '@/components/dashboard/LeadList';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -77,7 +78,6 @@ const Dashboard = () => {
           onToggleColumn={handleToggleColumn}
           onLogout={handleLogout}
           onSettingsOpenChange={setIsSettingsOpen}
-          onAddLead={handleAddLead}
         />
 
         <div className="flex flex-1 overflow-hidden">
@@ -86,8 +86,18 @@ const Dashboard = () => {
             <div className="p-6">
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
                 <div className="mb-4">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="mb-3">
                     <h2 className="text-2xl font-bold text-gray-900">ניהול לידים</h2>
+                  </div>
+                  <div className="mb-3 flex items-center justify-start" dir="rtl">
+                    <Button
+                      onClick={handleAddLead}
+                      className="bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm hover:shadow-md flex items-center gap-2"
+                      size="sm"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>הוסף ליד</span>
+                    </Button>
                   </div>
                   <div className="mb-3">
                     <div className="grid grid-cols-9 gap-2">
