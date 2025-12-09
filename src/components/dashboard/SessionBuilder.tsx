@@ -16,12 +16,14 @@ interface SessionBuilderProps {
 }
 
 export const SessionBuilder = ({ day, onUpdate }: SessionBuilderProps) => {
-  const [isActive, setIsActive] = useState(day.isActive);
+  const [isActive, setIsActive] = useState(day?.isActive ?? false);
 
-  // Sync local state with prop changes
+  // Sync local state with prop changes - watch the entire day object
   useEffect(() => {
-    setIsActive(day.isActive);
-  }, [day.isActive]);
+    if (day) {
+      setIsActive(day.isActive ?? false);
+    }
+  }, [day?.isActive, day]);
 
   const handleToggleActive = () => {
     const newActive = !isActive;
@@ -73,26 +75,10 @@ export const SessionBuilder = ({ day, onUpdate }: SessionBuilderProps) => {
   };
 
   const currentExercises = day.exercises || [];
-
-  if (!isActive && currentExercises.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[400px] bg-slate-50 rounded-lg border-2 border-dashed border-slate-300" dir="rtl">
-        <Dumbbell className="h-16 w-16 text-slate-400 mb-4" />
-        <h3 className="text-xl font-semibold text-slate-700 mb-2">יום מנוחה</h3>
-        <p className="text-sm text-slate-500 mb-6">אין אימון מתוכנן ליום זה</p>
-        <Button
-          onClick={handleToggleActive}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Plus className="h-4 w-4 ml-2" />
-          הוסף אימון
-        </Button>
-      </div>
-    );
-  }
-
   const totalSets = currentExercises.reduce((sum, ex) => sum + ex.sets, 0);
 
+  // ALWAYS show the full UI layout - never conditionally hide the footer
+  // The footer is completely decoupled from the exercise list state
   return (
     <div className="flex flex-col h-full min-h-0" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }} dir="rtl">
       {/* Session Header - Fixed, Never Shrinks */}
@@ -104,6 +90,12 @@ export const SessionBuilder = ({ day, onUpdate }: SessionBuilderProps) => {
           <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-sm px-3 py-1">
             {totalSets} סטים
           </Badge>
+          {/* Show rest day indicator if inactive */}
+          {!isActive && (
+            <Badge variant="outline" className="bg-slate-200 text-slate-600 border-slate-300 text-sm px-3 py-1">
+              יום מנוחה
+            </Badge>
+          )}
         </div>
         <Button
           type="button"
@@ -112,12 +104,22 @@ export const SessionBuilder = ({ day, onUpdate }: SessionBuilderProps) => {
           onClick={handleToggleActive}
           className="text-slate-600 hover:text-slate-900"
         >
-          <X className="h-4 w-4 ml-1" />
-          יום מנוחה
+          {isActive ? (
+            <>
+              <X className="h-4 w-4 ml-1" />
+              יום מנוחה
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4 ml-1" />
+              הפעל יום
+            </>
+          )}
         </Button>
       </div>
 
       {/* Scrollable Exercises List - Flex Grow with overflow-y-auto */}
+      {/* This section is completely independent from the footer */}
       <div 
         className="flex-1 overflow-y-auto min-h-0 py-4" 
         style={{ 
@@ -127,26 +129,45 @@ export const SessionBuilder = ({ day, onUpdate }: SessionBuilderProps) => {
           scrollbarGutter: 'stable'
         }}
       >
-        <div className="space-y-3">
-          {currentExercises.map((exercise, index) => (
-            <ExerciseRow
-              key={exercise.id}
-              exercise={exercise}
-              index={index}
-              onUpdate={(updates) => handleUpdateExercise(exercise.id, updates)}
-              onRemove={() => handleRemoveExercise(exercise.id)}
-              onMoveUp={index > 0 ? () => handleMoveExercise(index, index - 1) : undefined}
-              onMoveDown={
-                index < currentExercises.length - 1
-                  ? () => handleMoveExercise(index, index + 1)
-                  : undefined
-              }
-            />
-          ))}
-        </div>
+        {/* Empty State - Show when no exercises (regardless of active state) */}
+        {currentExercises.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center" dir="rtl">
+            <Dumbbell className="h-12 w-12 text-slate-300 mb-3" />
+            {!isActive ? (
+              <>
+                <p className="text-sm text-slate-500 mb-2">יום מנוחה</p>
+                <p className="text-xs text-slate-400">לחץ על "הפעל יום" למעלה או הוסף תרגיל למטה</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500 mb-2">אין תרגילים ליום זה</p>
+                <p className="text-xs text-slate-400">הוסף תרגיל ראשון באמצעות הכפתורים למטה</p>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {currentExercises.map((exercise, index) => (
+              <ExerciseRow
+                key={exercise.id}
+                exercise={exercise}
+                index={index}
+                onUpdate={(updates) => handleUpdateExercise(exercise.id, updates)}
+                onRemove={() => handleRemoveExercise(exercise.id)}
+                onMoveUp={index > 0 ? () => handleMoveExercise(index, index - 1) : undefined}
+                onMoveDown={
+                  index < currentExercises.length - 1
+                    ? () => handleMoveExercise(index, index + 1)
+                    : undefined
+                }
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Footer - Add Exercise Section - Fixed, Never Shrinks */}
+      {/* Footer - Add Exercise Section - ALWAYS VISIBLE, UNCONDITIONAL */}
+      {/* This footer is completely decoupled from exercise list state */}
       <div className="flex-shrink-0 pt-4 border-t border-slate-200 space-y-3 bg-white" style={{ flexShrink: 0 }}>
         <div className="flex items-center gap-2">
           <QuickAddExercise onSelect={handleAddExercise} />

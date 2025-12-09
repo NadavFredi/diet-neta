@@ -120,7 +120,7 @@ export const WeeklyWorkoutBuilder = ({
 
   const updateDay = (dayKey: keyof WeeklyWorkout['days'], updates: Partial<DayWorkout> | ((prev: DayWorkout) => Partial<DayWorkout>)) => {
     setWeeklyWorkout((prev) => {
-      const currentDay = prev.days[dayKey];
+      const currentDay = prev.days[dayKey] || { day: dayKey, isActive: false, exercises: [] };
       const newUpdates = typeof updates === 'function' ? updates(currentDay) : updates;
       return {
         ...prev,
@@ -129,6 +129,8 @@ export const WeeklyWorkoutBuilder = ({
           [dayKey]: {
             ...currentDay,
             ...newUpdates,
+            // Ensure exercises array always exists
+            exercises: newUpdates.exercises !== undefined ? newUpdates.exercises : (currentDay.exercises || []),
           },
         },
       };
@@ -258,7 +260,48 @@ export const WeeklyWorkoutBuilder = ({
 
       {/* Day Tabs - Flex Grow Container */}
       <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0" style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <Tabs 
+          value={activeTab} 
+          onValueChange={(value) => {
+            const dayKey = value as keyof WeeklyWorkout['days'];
+            // Auto-activate day when tab is selected to ensure "Add Exercise" is always available
+            setWeeklyWorkout((prev) => {
+              const dayData = prev.days[dayKey] || { day: dayKey, isActive: false, exercises: [] };
+              // Auto-activate if inactive and empty - this ensures users can always add exercises
+              if (!dayData.isActive && dayData.exercises.length === 0) {
+                return {
+                  ...prev,
+                  days: {
+                    ...prev.days,
+                    [dayKey]: {
+                      ...dayData,
+                      isActive: true,
+                      exercises: dayData.exercises || [],
+                    },
+                  },
+                };
+              }
+              // Ensure day exists even if not activating
+              if (!prev.days[dayKey]) {
+                return {
+                  ...prev,
+                  days: {
+                    ...prev.days,
+                    [dayKey]: {
+                      day: dayKey,
+                      isActive: true,
+                      exercises: [],
+                    },
+                  },
+                };
+              }
+              return prev;
+            });
+            setActiveTab(value);
+          }} 
+          className="flex-1 flex flex-col min-h-0" 
+          style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+        >
           {/* Tabs Header - Fixed, Never Shrinks */}
           <div className="flex-shrink-0 border-b border-slate-200 bg-white" style={{ flexShrink: 0 }} dir="rtl">
             <TabsList className="w-full justify-start h-auto p-2 bg-transparent" dir="rtl">
@@ -357,7 +400,14 @@ export const WeeklyWorkoutBuilder = ({
           {/* Day Content - Scrollable Middle Section */}
           <div className="flex-1 overflow-hidden min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
             {DAYS.map((day) => {
-              const dayData = weeklyWorkout.days[day.key as keyof WeeklyWorkout['days']];
+              const dayKey = day.key as keyof WeeklyWorkout['days'];
+              const dayData = weeklyWorkout.days[dayKey];
+              // Ensure day data exists and has proper structure
+              const safeDayData: DayWorkout = dayData || {
+                day: dayKey,
+                isActive: false,
+                exercises: [],
+              };
               return (
                 <TabsContent
                   key={day.key}
@@ -367,8 +417,8 @@ export const WeeklyWorkoutBuilder = ({
                   dir="rtl"
                 >
                   <SessionBuilder
-                    day={dayData}
-                    onUpdate={(updates) => updateDay(day.key as keyof WeeklyWorkout['days'], updates)}
+                    day={safeDayData}
+                    onUpdate={(updates) => updateDay(dayKey, updates)}
                   />
                 </TabsContent>
               );
