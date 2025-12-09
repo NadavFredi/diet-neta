@@ -122,19 +122,23 @@ export const WorkoutPlanCard = ({
                   <Edit className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0" dir="rtl">
-                <DialogHeader className="px-6 pt-6 pb-4 border-b">
+              <DialogContent 
+                className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden" 
+                style={{ height: '90vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+                dir="rtl"
+              >
+                <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0" style={{ flexShrink: 0 }}>
                   <DialogTitle>עריכת תוכנית אימונים</DialogTitle>
                 </DialogHeader>
-                <div className="flex-1 overflow-hidden px-6 pb-6">
-                <WorkoutPlanForm
-                  initialData={workoutPlan}
-                  onSave={(updatedPlan) => {
-                    onUpdate?.(updatedPlan);
-                    setIsEditOpen(false);
-                  }}
-                  onCancel={() => setIsEditOpen(false)}
-                />
+                <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <WorkoutPlanForm
+                    initialData={workoutPlan}
+                    onSave={(updatedPlan) => {
+                      onUpdate?.(updatedPlan);
+                      setIsEditOpen(false);
+                    }}
+                    onCancel={() => setIsEditOpen(false)}
+                  />
                 </div>
               </DialogContent>
             </Dialog>
@@ -238,12 +242,6 @@ export const WorkoutPlanCard = ({
                             <span className="font-medium">{ex.name}</span>
                             <span className="text-slate-500 mr-2">
                               {' '}• {ex.sets}x{ex.reps}
-                              {ex.weight !== undefined && ex.weight !== null && ex.weight > 0 
-                                ? ` • ${ex.weight}ק"ג` 
-                                : ' • משקל —'}
-                              {ex.rpe !== undefined && ex.rpe !== null && ex.rpe > 0 
-                                ? ` • RPE ${ex.rpe}` 
-                                : ' • RPE —'}
                             </span>
                           </div>
                         ))}

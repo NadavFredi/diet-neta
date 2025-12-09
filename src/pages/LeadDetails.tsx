@@ -307,11 +307,15 @@ const LeadDetails = () => {
                               צור תוכנית אימונים
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0" dir="rtl">
-                            <DialogHeader className="px-6 pt-6 pb-4 border-b">
+                          <DialogContent 
+                            className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden" 
+                            style={{ height: '90vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+                            dir="rtl"
+                          >
+                            <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0" style={{ flexShrink: 0 }}>
                               <DialogTitle>צור תוכנית אימונים חדשה</DialogTitle>
                             </DialogHeader>
-                            <div className="flex-1 overflow-hidden px-6 pb-6">
+                            <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
                               <WorkoutPlanForm
                                 leadId={lead.id}
                                 onSave={async (planData) => {

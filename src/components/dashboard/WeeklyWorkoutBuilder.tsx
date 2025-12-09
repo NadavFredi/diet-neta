@@ -31,8 +31,6 @@ export interface Exercise {
   name: string;
   sets: number;
   reps: number;
-  weight?: number; // Optional for bodyweight exercises
-  rpe?: number; // Optional
   notes?: string;
 }
 
@@ -57,6 +55,7 @@ export interface WeeklyWorkout {
   };
 }
 
+// Days ordered for RTL - Sunday on far right (first in array with justify-start)
 const DAYS = [
   { key: 'sunday', label: 'ראשון', short: 'א' },
   { key: 'monday', label: 'שני', short: 'ב' },
@@ -80,7 +79,7 @@ export const WeeklyWorkoutBuilder = ({
   onCancel,
   leadId,
 }: WeeklyWorkoutBuilderProps) => {
-  const [activeTab, setActiveTab] = useState('sunday');
+  const [activeTab, setActiveTab] = useState('sunday'); // Start with Sunday (rightmost in RTL)
   const [startDate, setStartDate] = useState<Date | undefined>(
     initialData?.start_date ? new Date(initialData.start_date) : new Date()
   );
@@ -119,17 +118,21 @@ export const WeeklyWorkoutBuilder = ({
     }
   }, [initialData]);
 
-  const updateDay = (dayKey: keyof WeeklyWorkout['days'], updates: Partial<DayWorkout>) => {
-    setWeeklyWorkout((prev) => ({
-      ...prev,
-      days: {
-        ...prev.days,
-        [dayKey]: {
-          ...prev.days[dayKey],
-          ...updates,
+  const updateDay = (dayKey: keyof WeeklyWorkout['days'], updates: Partial<DayWorkout> | ((prev: DayWorkout) => Partial<DayWorkout>)) => {
+    setWeeklyWorkout((prev) => {
+      const currentDay = prev.days[dayKey];
+      const newUpdates = typeof updates === 'function' ? updates(currentDay) : updates;
+      return {
+        ...prev,
+        days: {
+          ...prev.days,
+          [dayKey]: {
+            ...currentDay,
+            ...newUpdates,
+          },
         },
-      },
-    }));
+      };
+    });
   };
 
   const duplicateDay = (sourceDay: keyof WeeklyWorkout['days'], targetDay: keyof WeeklyWorkout['days']) => {
@@ -154,33 +157,33 @@ export const WeeklyWorkoutBuilder = ({
   const copyFromTemplate = (template: 'push' | 'pull' | 'legs' | 'upper' | 'lower') => {
     const templates = {
       push: [
-        { name: 'ספסל לחיצה', sets: 4, reps: 8, weight: undefined, rpe: undefined },
-        { name: 'לחיצת כתפיים', sets: 3, reps: 10, weight: undefined, rpe: undefined },
-        { name: 'דיפים', sets: 3, reps: 12, weight: undefined, rpe: undefined },
-        { name: 'טריצפס', sets: 3, reps: 12, weight: undefined, rpe: undefined },
+        { name: 'ספסל לחיצה', sets: 4, reps: 8 },
+        { name: 'לחיצת כתפיים', sets: 3, reps: 10 },
+        { name: 'דיפים', sets: 3, reps: 12 },
+        { name: 'טריצפס', sets: 3, reps: 12 },
       ],
       pull: [
-        { name: 'משיכה עליונה', sets: 4, reps: 8, weight: undefined, rpe: undefined },
-        { name: 'משיכה אופקית', sets: 3, reps: 10, weight: undefined, rpe: undefined },
-        { name: 'ביצפס', sets: 3, reps: 12, weight: undefined, rpe: undefined },
-        { name: 'פארמר', sets: 2, reps: 15, weight: undefined, rpe: undefined },
+        { name: 'משיכה עליונה', sets: 4, reps: 8 },
+        { name: 'משיכה אופקית', sets: 3, reps: 10 },
+        { name: 'ביצפס', sets: 3, reps: 12 },
+        { name: 'פארמר', sets: 2, reps: 15 },
       ],
       legs: [
-        { name: 'סקוואט', sets: 4, reps: 8, weight: undefined, rpe: undefined },
-        { name: 'דדליפט', sets: 3, reps: 6, weight: undefined, rpe: undefined },
-        { name: 'לחיצת רגליים', sets: 3, reps: 12, weight: undefined, rpe: undefined },
-        { name: 'לנג\'ס', sets: 3, reps: 10, weight: undefined, rpe: undefined },
+        { name: 'סקוואט', sets: 4, reps: 8 },
+        { name: 'דדליפט', sets: 3, reps: 6 },
+        { name: 'לחיצת רגליים', sets: 3, reps: 12 },
+        { name: 'לנג\'ס', sets: 3, reps: 10 },
       ],
       upper: [
-        { name: 'ספסל לחיצה', sets: 3, reps: 8, weight: undefined, rpe: undefined },
-        { name: 'משיכה עליונה', sets: 3, reps: 8, weight: undefined, rpe: undefined },
-        { name: 'לחיצת כתפיים', sets: 2, reps: 10, weight: undefined, rpe: undefined },
-        { name: 'ביצפס', sets: 2, reps: 12, weight: undefined, rpe: undefined },
+        { name: 'ספסל לחיצה', sets: 3, reps: 8 },
+        { name: 'משיכה עליונה', sets: 3, reps: 8 },
+        { name: 'לחיצת כתפיים', sets: 2, reps: 10 },
+        { name: 'ביצפס', sets: 2, reps: 12 },
       ],
       lower: [
-        { name: 'סקוואט', sets: 4, reps: 8, weight: undefined, rpe: undefined },
-        { name: 'דדליפט', sets: 3, reps: 6, weight: undefined, rpe: undefined },
-        { name: 'לחיצת רגליים', sets: 3, reps: 12, weight: undefined, rpe: undefined },
+        { name: 'סקוואט', sets: 4, reps: 8 },
+        { name: 'דדליפט', sets: 3, reps: 6 },
+        { name: 'לחיצת רגליים', sets: 3, reps: 12 },
       ],
     };
 
@@ -190,8 +193,6 @@ export const WeeklyWorkoutBuilder = ({
       name: ex.name,
       sets: ex.sets,
       reps: ex.reps,
-      weight: ex.weight,
-      rpe: ex.rpe,
     }));
 
     updateDay(currentDay, {
@@ -241,23 +242,26 @@ export const WeeklyWorkoutBuilder = ({
   const activeDaysCount = Object.values(weeklyWorkout.days).filter((d) => d.isActive).length;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-full" dir="rtl">
-      {/* Sticky Header */}
-      <WorkoutBuilderHeader
-        startDate={startDate}
-        setStartDate={setStartDate}
-        description={description}
-        setDescription={setDescription}
-        generalGoals={generalGoals}
-        setGeneralGoals={setGeneralGoals}
-        activeDaysCount={activeDaysCount}
-      />
+    <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0" style={{ height: '100%' }} dir="rtl">
+      {/* Header - Fixed, Never Shrinks */}
+      <div className="flex-shrink-0" style={{ flexShrink: 0 }}>
+        <WorkoutBuilderHeader
+          startDate={startDate}
+          setStartDate={setStartDate}
+          description={description}
+          setDescription={setDescription}
+          generalGoals={generalGoals}
+          setGeneralGoals={setGeneralGoals}
+          activeDaysCount={activeDaysCount}
+        />
+      </div>
 
-      {/* Day Tabs */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <div className="border-b border-slate-200 bg-white sticky top-0 z-10">
-            <TabsList className="w-full justify-start h-auto p-2 bg-transparent">
+      {/* Day Tabs - Flex Grow Container */}
+      <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0" style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          {/* Tabs Header - Fixed, Never Shrinks */}
+          <div className="flex-shrink-0 border-b border-slate-200 bg-white" style={{ flexShrink: 0 }} dir="rtl">
+            <TabsList className="w-full justify-start h-auto p-2 bg-transparent" dir="rtl">
               {DAYS.map((day) => {
                 const dayData = weeklyWorkout.days[day.key as keyof WeeklyWorkout['days']];
                 const exerciseCount = dayData.exercises.length;
@@ -289,7 +293,7 @@ export const WeeklyWorkoutBuilder = ({
                 onClick={() => copyFromTemplate('push')}
                 className="h-7 text-xs"
               >
-                Push
+                דחיפה
               </Button>
               <Button
                 type="button"
@@ -298,7 +302,7 @@ export const WeeklyWorkoutBuilder = ({
                 onClick={() => copyFromTemplate('pull')}
                 className="h-7 text-xs"
               >
-                Pull
+                משיכה
               </Button>
               <Button
                 type="button"
@@ -307,7 +311,7 @@ export const WeeklyWorkoutBuilder = ({
                 onClick={() => copyFromTemplate('legs')}
                 className="h-7 text-xs"
               >
-                Legs
+                רגליים
               </Button>
               <Button
                 type="button"
@@ -316,7 +320,7 @@ export const WeeklyWorkoutBuilder = ({
                 onClick={() => copyFromTemplate('upper')}
                 className="h-7 text-xs"
               >
-                Upper
+                פלג עליון
               </Button>
               <Button
                 type="button"
@@ -325,7 +329,7 @@ export const WeeklyWorkoutBuilder = ({
                 onClick={() => copyFromTemplate('lower')}
                 className="h-7 text-xs"
               >
-                Lower
+                פלג תחתון
               </Button>
               <div className="flex-1" />
               <Button
@@ -334,7 +338,9 @@ export const WeeklyWorkoutBuilder = ({
                 size="sm"
                 onClick={() => {
                   const currentDay = activeTab as keyof WeeklyWorkout['days'];
-                  const nextDayIndex = DAYS.findIndex((d) => d.key === currentDay) + 1;
+                  const currentIndex = DAYS.findIndex((d) => d.key === currentDay);
+                  // In RTL, "next" means going left (increasing index in our array)
+                  const nextDayIndex = currentIndex + 1;
                   if (nextDayIndex < DAYS.length) {
                     duplicateDay(currentDay, DAYS[nextDayIndex].key as keyof WeeklyWorkout['days']);
                   }
@@ -348,15 +354,16 @@ export const WeeklyWorkoutBuilder = ({
             </div>
           </div>
 
-          {/* Day Content */}
-          <div className="flex-1 overflow-hidden">
+          {/* Day Content - Scrollable Middle Section */}
+          <div className="flex-1 overflow-hidden min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
             {DAYS.map((day) => {
               const dayData = weeklyWorkout.days[day.key as keyof WeeklyWorkout['days']];
               return (
                 <TabsContent
                   key={day.key}
                   value={day.key}
-                  className="mt-0 p-6 h-full flex flex-col"
+                  className="mt-0 p-6 h-full flex flex-col min-h-0 overflow-hidden"
+                  style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
                   dir="rtl"
                 >
                   <SessionBuilder
@@ -370,8 +377,8 @@ export const WeeklyWorkoutBuilder = ({
         </Tabs>
       </div>
 
-      {/* Footer Actions */}
-      <div className="border-t border-slate-200 bg-white p-4 flex gap-3 sticky bottom-0 z-10 flex-shrink-0" dir="rtl">
+      {/* Footer Actions - Fixed, Never Shrinks */}
+      <div className="flex-shrink-0 border-t border-slate-200 bg-white p-4 flex gap-3" style={{ flexShrink: 0 }} dir="rtl">
         <Button
           type="submit"
           className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"

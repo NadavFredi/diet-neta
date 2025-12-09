@@ -15,7 +15,7 @@ export const WorkoutPlanForm = ({
   leadId 
 }: WorkoutPlanFormProps) => {
   return (
-    <div className="h-[calc(100vh-200px)] flex flex-col">
+    <div className="h-full flex flex-col min-h-0" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <WeeklyWorkoutBuilder
         initialData={initialData}
         onSave={onSave}

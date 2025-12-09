@@ -22,26 +22,6 @@ export const ExerciseRow = ({
   onMoveUp,
   onMoveDown,
 }: ExerciseRowProps) => {
-  const handleWeightChange = (value: string) => {
-    if (value === '' || value === undefined) {
-      onUpdate({ weight: undefined });
-    } else {
-      const numValue = Number(value);
-      onUpdate({ weight: isNaN(numValue) ? undefined : numValue });
-    }
-  };
-
-  const handleRPEChange = (value: string) => {
-    if (value === '' || value === undefined) {
-      onUpdate({ rpe: undefined });
-    } else {
-      const numValue = Number(value);
-      if (!isNaN(numValue) && numValue >= 1 && numValue <= 10) {
-        onUpdate({ rpe: numValue });
-      }
-    }
-  };
-
   return (
     <Card className="border-2 border-slate-200 hover:border-blue-300 transition-colors" dir="rtl">
       <CardContent className="p-4">
@@ -76,7 +56,7 @@ export const ExerciseRow = ({
           {/* Exercise Content */}
           <div className="flex-1 grid grid-cols-12 gap-3">
             {/* Exercise Name */}
-            <div className="col-span-12 md:col-span-4">
+            <div className="col-span-12 md:col-span-6">
               <Label className="text-xs font-medium text-slate-600 mb-1 block text-right">
                 שם התרגיל
               </Label>
@@ -90,7 +70,7 @@ export const ExerciseRow = ({
             </div>
 
             {/* Sets */}
-            <div className="col-span-3 md:col-span-2">
+            <div className="col-span-4 md:col-span-2">
               <Label className="text-xs font-medium text-slate-600 mb-1 block text-right">
                 סטים
               </Label>
@@ -105,7 +85,7 @@ export const ExerciseRow = ({
             </div>
 
             {/* Reps */}
-            <div className="col-span-3 md:col-span-2">
+            <div className="col-span-4 md:col-span-2">
               <Label className="text-xs font-medium text-slate-600 mb-1 block text-right">
                 חזרות
               </Label>
@@ -117,58 +97,6 @@ export const ExerciseRow = ({
                 className="text-center"
                 dir="ltr"
               />
-            </div>
-
-            {/* Weight - Optional */}
-            <div className="col-span-3 md:col-span-2">
-              <Label className="text-xs font-medium text-slate-600 mb-1 block text-right">
-                משקל (ק"ג) <span className="text-slate-400 font-normal">אופציונלי</span>
-              </Label>
-              {exercise.weight !== undefined && exercise.weight !== null && exercise.weight !== 0 ? (
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={exercise.weight}
-                  onChange={(e) => handleWeightChange(e.target.value)}
-                  className="text-center"
-                  dir="ltr"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onUpdate({ weight: 0 })}
-                  className="w-full h-10 border-2 border-dashed border-slate-300 rounded-md flex items-center justify-center bg-slate-50 hover:bg-slate-100 hover:border-blue-400 transition-colors cursor-pointer"
-                >
-                  <span className="text-xs text-slate-400">—</span>
-                </button>
-              )}
-            </div>
-
-            {/* RPE - Optional */}
-            <div className="col-span-3 md:col-span-2">
-              <Label className="text-xs font-medium text-slate-600 mb-1 block text-right">
-                RPE <span className="text-slate-400 font-normal">אופציונלי</span>
-              </Label>
-              {exercise.rpe !== undefined && exercise.rpe !== null && exercise.rpe !== 0 ? (
-                <Input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={exercise.rpe}
-                  onChange={(e) => handleRPEChange(e.target.value)}
-                  className="text-center"
-                  dir="ltr"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onUpdate({ rpe: 7 })}
-                  className="w-full h-10 border-2 border-dashed border-slate-300 rounded-md flex items-center justify-center bg-slate-50 hover:bg-slate-100 hover:border-blue-400 transition-colors cursor-pointer"
-                >
-                  <span className="text-xs text-slate-400">—</span>
-                </button>
-              )}
             </div>
           </div>
 

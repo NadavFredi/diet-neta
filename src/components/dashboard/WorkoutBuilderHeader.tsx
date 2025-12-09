@@ -29,7 +29,7 @@ export const WorkoutBuilderHeader = ({
   activeDaysCount,
 }: WorkoutBuilderHeaderProps) => {
   return (
-    <div className="sticky top-0 z-20 bg-white border-b-2 border-slate-200 shadow-sm">
+    <div className="bg-white border-b-2 border-slate-200 shadow-sm" style={{ flexShrink: 0 }}>
       <div className="p-4 space-y-4">
         {/* First Row: Date and Active Days */}
         <div className="flex items-center gap-4 flex-wrap">
