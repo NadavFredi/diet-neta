@@ -307,23 +307,25 @@ const LeadDetails = () => {
                               צור תוכנית אימונים
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
-                            <DialogHeader>
+                          <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0" dir="rtl">
+                            <DialogHeader className="px-6 pt-6 pb-4 border-b">
                               <DialogTitle>צור תוכנית אימונים חדשה</DialogTitle>
                             </DialogHeader>
-                            <WorkoutPlanForm
-                              leadId={lead.id}
-                              onSave={async (planData) => {
-                                try {
-                                  await createWorkoutPlan(planData);
-                                  setIsCreateDialogOpen(false);
-                                  await fetchWorkoutPlan();
-                                } catch (error) {
-                                  console.error('Failed to create workout plan:', error);
-                                }
-                              }}
-                              onCancel={() => setIsCreateDialogOpen(false)}
-                            />
+                            <div className="flex-1 overflow-hidden px-6 pb-6">
+                              <WorkoutPlanForm
+                                leadId={lead.id}
+                                onSave={async (planData) => {
+                                  try {
+                                    await createWorkoutPlan(planData);
+                                    setIsCreateDialogOpen(false);
+                                    await fetchWorkoutPlan();
+                                  } catch (error) {
+                                    console.error('Failed to create workout plan:', error);
+                                  }
+                                }}
+                                onCancel={() => setIsCreateDialogOpen(false)}
+                              />
+                            </div>
                           </DialogContent>
                         </Dialog>
                       </div>

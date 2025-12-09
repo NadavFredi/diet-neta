@@ -8,7 +8,8 @@ import {
   Clock,
   FileText,
   Edit,
-  Plus
+  Plus,
+  Target
 } from 'lucide-react';
 import { format, differenceInDays, differenceInWeeks, differenceInMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -16,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { WorkoutPlanForm } from './WorkoutPlanForm';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import type { WeeklyWorkout } from './WeeklyWorkoutBuilder';
 
 export interface CustomField {
   fieldName: string;
@@ -41,7 +43,7 @@ export interface WorkoutPlan {
 
 interface WorkoutPlanCardProps {
   workoutPlan: WorkoutPlan;
-  onUpdate?: (plan: WorkoutPlan) => void;
+  onUpdate?: (plan: Partial<WorkoutPlan>) => void;
   isEditable?: boolean;
 }
 
@@ -120,10 +122,11 @@ export const WorkoutPlanCard = ({
                   <Edit className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
-                <DialogHeader>
+              <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0" dir="rtl">
+                <DialogHeader className="px-6 pt-6 pb-4 border-b">
                   <DialogTitle>עריכת תוכנית אימונים</DialogTitle>
                 </DialogHeader>
+                <div className="flex-1 overflow-hidden px-6 pb-6">
                 <WorkoutPlanForm
                   initialData={workoutPlan}
                   onSave={(updatedPlan) => {
@@ -132,6 +135,7 @@ export const WorkoutPlanCard = ({
                   }}
                   onCancel={() => setIsEditOpen(false)}
                 />
+                </div>
               </DialogContent>
             </Dialog>
           )}
@@ -191,8 +195,74 @@ export const WorkoutPlanCard = ({
           </div>
         </div>
 
-        {/* Custom Fields Section */}
-        {workoutPlan.custom_attributes?.schema && workoutPlan.custom_attributes.schema.length > 0 && (
+        {/* Weekly Workout Schedule */}
+        {workoutPlan.custom_attributes?.data?.weeklyWorkout && (
+          <div className="mt-6 pt-6 border-t-2 border-slate-200">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+              <Target className="h-5 w-5 text-blue-600" />
+              תוכנית שבועית
+            </h3>
+            {workoutPlan.custom_attributes.data.weeklyWorkout.generalGoals && (
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm font-medium text-blue-900">
+                  {workoutPlan.custom_attributes.data.weeklyWorkout.generalGoals}
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {Object.entries(workoutPlan.custom_attributes.data.weeklyWorkout.days || {}).map(([dayKey, dayData]: [string, any]) => {
+                if (!dayData.isActive || !dayData.exercises || dayData.exercises.length === 0) return null;
+                
+                const dayLabels: Record<string, string> = {
+                  sunday: 'ראשון',
+                  monday: 'שני',
+                  tuesday: 'שלישי',
+                  wednesday: 'רביעי',
+                  thursday: 'חמישי',
+                  friday: 'שישי',
+                  saturday: 'שבת',
+                };
+
+                return (
+                  <Card key={dayKey} className="border-2 border-slate-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-slate-900">{dayLabels[dayKey] || dayKey}</h4>
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                          {dayData.exercises.length} תרגילים
+                        </Badge>
+                      </div>
+                      <div className="space-y-2">
+                        {dayData.exercises.slice(0, 3).map((ex: any, idx: number) => (
+                          <div key={idx} className="text-sm text-slate-700">
+                            <span className="font-medium">{ex.name}</span>
+                            <span className="text-slate-500 mr-2">
+                              {' '}• {ex.sets}x{ex.reps}
+                              {ex.weight !== undefined && ex.weight !== null && ex.weight > 0 
+                                ? ` • ${ex.weight}ק"ג` 
+                                : ' • משקל —'}
+                              {ex.rpe !== undefined && ex.rpe !== null && ex.rpe > 0 
+                                ? ` • RPE ${ex.rpe}` 
+                                : ' • RPE —'}
+                            </span>
+                          </div>
+                        ))}
+                        {dayData.exercises.length > 3 && (
+                          <p className="text-xs text-slate-500">
+                            +{dayData.exercises.length - 3} תרגילים נוספים
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Custom Fields Section (Legacy) */}
+        {workoutPlan.custom_attributes?.schema && workoutPlan.custom_attributes.schema.length > 0 && !workoutPlan.custom_attributes.data?.weeklyWorkout && (
           <div className="mt-6 pt-6 border-t-2 border-slate-200">
             <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <Plus className="h-5 w-5 text-slate-600" />
