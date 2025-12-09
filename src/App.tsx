@@ -23,6 +23,7 @@ const queryClient = new QueryClient();
 const AppContent = () => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
+  const isDashboardPage = location.pathname === '/dashboard' || location.pathname.startsWith('/leads');
   
   return (
     <div className="flex min-h-screen flex-col">
@@ -53,7 +54,7 @@ const AppContent = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      {!isLoginPage && <AppFooter />}
+      {!isLoginPage && !isDashboardPage && <AppFooter />}
     </div>
   );
 };

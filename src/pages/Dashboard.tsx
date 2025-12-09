@@ -3,6 +3,7 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadList } from '@/components/dashboard/LeadList';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
+import { AppFooter } from '@/components/layout/AppFooter';
 import { Plus, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,17 +70,25 @@ const Dashboard = () => {
   const weightOptions = ['58', '62', '65', '68', '70', '78', '80', '85', '88', '92'];
 
   return (
-    <div className="min-h-screen flex flex-col" dir="rtl">
-      <DashboardHeader
-        userEmail={user?.email}
-        onLogout={handleLogout}
-      />
-      <div className="flex-1 flex flex-col overflow-hidden" style={{ marginTop: '88px' }}>
-        <div className="flex flex-1 overflow-hidden relative">
-          <DashboardSidebar />
-          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
-            <div className="p-6">
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
+    <>
+    <div className="min-h-screen grid grid-rows-[auto_1fr_auto] grid-cols-1" dir="rtl">
+      {/* Header - spans full width */}
+      <div style={{ gridColumn: '1 / -1' }}>
+        <DashboardHeader
+          userEmail={user?.email}
+          onLogout={handleLogout}
+        />
+      </div>
+
+      {/* Main content area with sidebar */}
+      <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1' }}>
+        {/* Sidebar - fixed positioning */}
+        <DashboardSidebar />
+        
+        {/* Main content */}
+        <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
+          <div className="p-6">
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
                 <div className="mb-4">
                   <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
                     <h2 className="text-2xl font-bold text-gray-900 whitespace-nowrap">ניהול לידים</h2>
@@ -312,15 +321,20 @@ const Dashboard = () => {
               </div>
             </div>
           </main>
-        </div>
       </div>
 
-      {/* Add Lead Dialog */}
-      <AddLeadDialog
-        isOpen={isAddLeadDialogOpen}
-        onOpenChange={setIsAddLeadDialogOpen}
-      />
+      {/* Footer - spans full width across all columns, positioned below everything */}
+      <footer className="w-full" style={{ gridColumn: '1 / -1', width: '100%' }}>
+        <AppFooter style={{ paddingRight: '256px' }} />
+      </footer>
     </div>
+
+    {/* Add Lead Dialog */}
+    <AddLeadDialog
+      isOpen={isAddLeadDialogOpen}
+      onOpenChange={setIsAddLeadDialogOpen}
+    />
+    </>
   );
 };
 
