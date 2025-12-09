@@ -3,6 +3,9 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { useLeadDetailsPage } from './LeadDetails';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
+import { WorkoutPlanForm } from '@/components/dashboard/WorkoutPlanForm';
+import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import {
   Select,
   SelectContent,
@@ -30,10 +33,13 @@ import {
   Wallet,
   Clock,
   TrendingUp,
+  Plus,
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { useAppSelector } from '@/store/hooks';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useState } from 'react';
 
 const LeadDetails = () => {
   const {
@@ -56,6 +62,8 @@ const LeadDetails = () => {
   } = useLeadDetailsPage();
   
   const { user } = useAppSelector((state) => state.auth);
+  const { workoutPlan, isLoading: workoutLoading, createWorkoutPlan, updateWorkoutPlan, fetchWorkoutPlan } = useWorkoutPlan(lead?.id);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   if (!lead) {
     return (
@@ -259,6 +267,69 @@ const LeadDetails = () => {
                     <p className="text-gray-700 leading-relaxed">{lead.notes}</p>
                   </Card>
                 )}
+
+                {/* Workout Plan Section */}
+                <div className="mb-6">
+                  {workoutLoading ? (
+                    <Card className="p-6 bg-white border-gray-200">
+                      <div className="text-center py-8">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <p className="mt-4 text-gray-600">טוען תוכנית אימונים...</p>
+                      </div>
+                    </Card>
+                  ) : workoutPlan ? (
+                    <WorkoutPlanCard
+                      workoutPlan={workoutPlan}
+                      onUpdate={async (updatedPlan) => {
+                        try {
+                          await updateWorkoutPlan(updatedPlan);
+                          await fetchWorkoutPlan();
+                        } catch (error) {
+                          console.error('Failed to update workout plan:', error);
+                        }
+                      }}
+                      isEditable={true}
+                    />
+                  ) : (
+                    <Card className="p-6 bg-white border-gray-200 border-2 border-dashed">
+                      <div className="text-center py-8">
+                        <Dumbbell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          אין תוכנית אימונים
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-6">
+                          צור תוכנית אימונים חדשה עבור הלקוח
+                        </p>
+                        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                              <Plus className="h-4 w-4 ml-2" />
+                              צור תוכנית אימונים
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
+                            <DialogHeader>
+                              <DialogTitle>צור תוכנית אימונים חדשה</DialogTitle>
+                            </DialogHeader>
+                            <WorkoutPlanForm
+                              leadId={lead.id}
+                              onSave={async (planData) => {
+                                try {
+                                  await createWorkoutPlan(planData);
+                                  setIsCreateDialogOpen(false);
+                                  await fetchWorkoutPlan();
+                                } catch (error) {
+                                  console.error('Failed to create workout plan:', error);
+                                }
+                              }}
+                              onCancel={() => setIsCreateDialogOpen(false)}
+                            />
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </Card>
+                  )}
+                </div>
 
                 {/* ROW 1: Bio & Status Row - 3 Equal Columns */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
