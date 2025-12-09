@@ -67,3 +67,4 @@ CREATE POLICY "Allow anonymous read leads"
     TO anon
     USING (true);
 
+

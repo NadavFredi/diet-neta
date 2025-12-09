@@ -185,3 +185,4 @@ CREATE POLICY "Users can delete assigned leads"
 -- Add comment for documentation
 COMMENT ON TABLE public.leads IS 'Central entity for CRM leads/trainees with flexible JSONB columns for dynamic data';
 
+

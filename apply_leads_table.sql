@@ -176,3 +176,4 @@ GRANT ALL ON public.leads TO service_role;
 -- Add comment for documentation
 COMMENT ON TABLE public.leads IS 'Central entity for CRM leads/trainees with flexible JSONB columns for dynamic data';
 
+
