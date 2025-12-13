@@ -432,7 +432,9 @@ const TemplatesManagement = () => {
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
                 <div className="mb-4">
                   <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
-                    <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">תכניות אימונים</h2>
+                    <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">
+                      {savedView?.view_name || 'תכניות אימונים'}
+                    </h2>
                     <div className="flex items-center gap-3">
                       <Input
                         placeholder="חיפוש לפי שם, תיאור, שם ליד, טלפון או אימייל..."

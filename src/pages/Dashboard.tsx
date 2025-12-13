@@ -29,6 +29,7 @@ import {
 } from '@/utils/dashboard';
 import { useDashboardPage } from './Dashboard';
 import { useDefaultView } from '@/hooks/useDefaultView';
+import { useSavedView } from '@/hooks/useSavedViews';
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -37,6 +38,7 @@ const Dashboard = () => {
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
   const { defaultView } = useDefaultView('leads');
+  const { data: savedView } = useSavedView(viewId);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -116,7 +118,9 @@ const Dashboard = () => {
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
                 <div className="mb-4">
                   <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
-                    <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">ניהול לידים</h2>
+                    <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">
+                      {savedView?.view_name || 'ניהול לידים'}
+                    </h2>
                     <div className="flex items-center gap-3">
                       <Input
                         placeholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."

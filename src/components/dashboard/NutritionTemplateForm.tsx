@@ -220,25 +220,25 @@ export const NutritionTemplateForm = ({
     description?: string;
   }) => (
     <Card className="border-2 hover:border-opacity-80 transition-colors" style={{ borderColor: color }}>
-      <CardHeader className="pb-2 pt-3 px-3">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${color}20` }}>
-            <Icon className="h-4 w-4" style={{ color }} />
+      <CardHeader className="pb-1 pt-2 px-2">
+        <div className="flex items-center gap-1.5">
+          <div className="p-1 rounded-md" style={{ backgroundColor: `${color}20` }}>
+            <Icon className="h-3 w-3" style={{ color }} />
           </div>
-          <CardTitle className="text-sm font-semibold">{label}</CardTitle>
+          <CardTitle className="text-xs font-semibold">{label}</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="px-3 pb-3 pt-0">
-        <div className="flex items-center gap-2">
+      <CardContent className="px-2 pb-2 pt-0">
+        <div className="flex items-center gap-1.5">
           <Input
             type="number"
             value={value || ''}
             onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-            className="text-xl font-bold text-center h-10"
+            className="text-base font-bold text-center h-8"
             dir="ltr"
             min="0"
           />
-          <span className="text-sm font-semibold text-muted-foreground whitespace-nowrap">{unit}</span>
+          <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">{unit}</span>
         </div>
       </CardContent>
     </Card>
@@ -246,11 +246,11 @@ export const NutritionTemplateForm = ({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0" dir="rtl">
-      <div className="flex-1 overflow-hidden p-4 space-y-3">
-        {/* Header Section - Horizontal Layout */}
-        <div className="grid grid-cols-2 gap-3">
+      <div className="flex-1 overflow-hidden p-3 space-y-2.5">
+        {/* Header Section - Stacked Layout */}
+        <div className="space-y-2">
           <div>
-            <Label htmlFor="name" className="text-sm font-semibold mb-1 block">
+            <Label htmlFor="name" className="text-xs font-semibold mb-1 block">
               {mode === 'template' ? 'שם התבנית' : 'שם התוכנית'}
             </Label>
             <Input
@@ -259,33 +259,34 @@ export const NutritionTemplateForm = ({
               onChange={(e) => setName(e.target.value)}
               placeholder={mode === 'template' ? 'לדוגמה: תבנית חיטוב' : 'שם התוכנית'}
               required
-              className="text-sm h-9"
+              className="text-sm h-8"
             />
           </div>
           <div>
-            <Label htmlFor="description" className="text-sm font-semibold mb-1 block">
+            <Label htmlFor="description" className="text-xs font-semibold mb-1 block">
               תיאור
             </Label>
-            <Input
+            <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="תיאור התבנית או התוכנית..."
-              className="text-sm h-9"
+              className="text-sm h-16 resize-none"
+              rows={2}
             />
           </div>
         </div>
 
-        {/* Macro Budget Inputs - 5 Cards */}
+        {/* Macro Budget Inputs - Compact Grid */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-base font-bold flex items-center gap-2">
-              <Target className="h-4 w-4" />
+          <div className="flex items-center justify-between mb-1.5">
+            <h3 className="text-sm font-bold flex items-center gap-1.5">
+              <Target className="h-3.5 w-3.5" />
               תקציב מקרו-נוטריאנטים
             </h3>
             <Collapsible open={calculatorOpen} onOpenChange={setCalculatorOpen}>
               <CollapsibleTrigger asChild>
-                <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
+                <Button type="button" variant="outline" size="sm" className="h-7 text-xs px-2">
                   <Calculator className="h-3 w-3 ml-1" />
                   מחשבון
                   {calculatorOpen ? (
@@ -301,15 +302,15 @@ export const NutritionTemplateForm = ({
           {/* BMR/TDEE Calculator */}
           <Collapsible open={calculatorOpen} onOpenChange={setCalculatorOpen}>
             <CollapsibleContent>
-              <Card className="mb-3 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-                <CardHeader className="pb-2 pt-3 px-3">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <Calculator className="h-4 w-4 text-blue-600" />
+              <Card className="mb-2 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+                <CardHeader className="pb-1.5 pt-2 px-2.5">
+                  <CardTitle className="flex items-center gap-1.5 text-xs">
+                    <Calculator className="h-3.5 w-3.5 text-blue-600" />
                     מחשבון BMR/TDEE
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 px-3 pb-3">
-                  <div className="grid grid-cols-3 gap-2">
+                <CardContent className="space-y-1.5 px-2.5 pb-2.5">
+                  <div className="grid grid-cols-3 gap-1.5">
                     <div>
                       <Label htmlFor="calc-weight" className="text-xs">משקל (ק"ג)</Label>
                       <Input
@@ -319,7 +320,7 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('weight', parseFloat(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
-                        className="h-8 text-sm"
+                        className="h-7 text-xs"
                       />
                     </div>
                     <div>
@@ -331,7 +332,7 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('height', parseFloat(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
-                        className="h-8 text-sm"
+                        className="h-7 text-xs"
                       />
                     </div>
                     <div>
@@ -343,7 +344,7 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('age', parseInt(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
-                        className="h-8 text-sm"
+                        className="h-7 text-xs"
                       />
                     </div>
                     <div>
@@ -352,7 +353,7 @@ export const NutritionTemplateForm = ({
                         value={calculatorInputs.gender}
                         onValueChange={(value: 'male' | 'female') => setCalculatorInput('gender', value)}
                       >
-                        <SelectTrigger id="calc-gender" className="h-8 text-sm">
+                        <SelectTrigger id="calc-gender" className="h-7 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -367,7 +368,7 @@ export const NutritionTemplateForm = ({
                         value={calculatorInputs.activityLevel}
                         onValueChange={(value: any) => setCalculatorInput('activityLevel', value)}
                       >
-                        <SelectTrigger id="calc-activity" className="h-8 text-sm">
+                        <SelectTrigger id="calc-activity" className="h-7 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -385,7 +386,7 @@ export const NutritionTemplateForm = ({
                         value={calculatorInputs.goal}
                         onValueChange={(value: any) => setCalculatorInput('goal', value)}
                       >
-                        <SelectTrigger id="calc-goal" className="h-8 text-sm">
+                        <SelectTrigger id="calc-goal" className="h-7 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -399,22 +400,22 @@ export const NutritionTemplateForm = ({
                     </div>
                   </div>
 
-                  <Separator className="my-2" />
+                  <Separator className="my-1.5" />
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="text-center p-2 bg-white rounded-lg border">
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div className="text-center p-1.5 bg-white rounded-lg border">
                       <p className="text-xs text-muted-foreground mb-0.5">BMR</p>
-                      <p className="text-lg font-bold">{bmr}</p>
+                      <p className="text-base font-bold">{bmr}</p>
                       <p className="text-xs text-muted-foreground">קק״ל/יום</p>
                     </div>
-                    <div className="text-center p-2 bg-white rounded-lg border">
+                    <div className="text-center p-1.5 bg-white rounded-lg border">
                       <p className="text-xs text-muted-foreground mb-0.5">TDEE</p>
-                      <p className="text-lg font-bold">{tdee}</p>
+                      <p className="text-base font-bold">{tdee}</p>
                       <p className="text-xs text-muted-foreground">קק״ל/יום</p>
                     </div>
-                    <div className="text-center p-2 bg-white rounded-lg border">
+                    <div className="text-center p-1.5 bg-white rounded-lg border">
                       <p className="text-xs text-muted-foreground mb-0.5">מטרה</p>
-                      <p className="text-lg font-bold">
+                      <p className="text-base font-bold">
                         {tdee + (calculatorInputs.goal === 'cut' ? -500 : calculatorInputs.goal === 'bulk' ? 500 : 0)}
                       </p>
                       <p className="text-xs text-muted-foreground">קק״ל/יום</p>
@@ -424,7 +425,7 @@ export const NutritionTemplateForm = ({
                   <Button
                     type="button"
                     onClick={applyCalculatedValues}
-                    className="w-full h-8 text-sm"
+                    className="w-full h-7 text-xs"
                     variant="default"
                   >
                     <Target className="h-3 w-3 ml-1" />
@@ -435,7 +436,7 @@ export const NutritionTemplateForm = ({
             </CollapsibleContent>
           </Collapsible>
 
-          <div className="grid grid-cols-5 gap-2 mb-3">
+          <div className="grid grid-cols-3 gap-1.5 mb-2">
             <MacroInputCard
               label="קלוריות"
               icon={Flame}
@@ -484,16 +485,16 @@ export const NutritionTemplateForm = ({
           </div>
         </div>
 
-        {/* Macro Distribution Visualization - Compact Horizontal Layout */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Macro Distribution Visualization - Stacked Compact Layout */}
+        <div className="space-y-2">
           {/* Pie Chart */}
           <Card>
-            <CardHeader className="pb-2 pt-3 px-3">
-              <CardTitle className="text-sm">התפלגות מקרו-נוטריאנטים</CardTitle>
+            <CardHeader className="pb-1 pt-2 px-2.5">
+              <CardTitle className="text-xs">התפלגות מקרו-נוטריאנטים</CardTitle>
             </CardHeader>
-            <CardContent className="px-3 pb-3">
+            <CardContent className="px-2.5 pb-2.5">
               {pieChartData.length > 0 && (
-                <div className="h-40">
+                <div className="h-32">
                   <ChartContainer
                     config={{
                       protein: { label: 'חלבון', color: MACRO_COLORS.protein },
@@ -509,7 +510,7 @@ export const NutritionTemplateForm = ({
                         cy="50%"
                         labelLine={false}
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={60}
+                        outerRadius={50}
                         fill="#8884d8"
                         dataKey="value"
                       >
@@ -527,40 +528,40 @@ export const NutritionTemplateForm = ({
 
           {/* Progress Bars */}
           <Card>
-            <CardHeader className="pb-2 pt-3 px-3">
-              <CardTitle className="text-sm">אחוזים</CardTitle>
+            <CardHeader className="pb-1 pt-2 px-2.5">
+              <CardTitle className="text-xs">אחוזים</CardTitle>
             </CardHeader>
-            <CardContent className="px-3 pb-3">
-              <div className="space-y-2">
+            <CardContent className="px-2.5 pb-2.5">
+              <div className="space-y-1.5">
                 <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-medium flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: MACRO_COLORS.protein }} />
+                  <div className="flex justify-between items-center mb-0.5">
+                    <span className="text-xs font-medium flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: MACRO_COLORS.protein }} />
                       חלבון
                     </span>
                     <span className="text-xs font-bold">{macroPercentages.protein}%</span>
                   </div>
-                  <Progress value={macroPercentages.protein} className="h-2" />
+                  <Progress value={macroPercentages.protein} className="h-1.5" />
                 </div>
                 <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-medium flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: MACRO_COLORS.carbs }} />
+                  <div className="flex justify-between items-center mb-0.5">
+                    <span className="text-xs font-medium flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: MACRO_COLORS.carbs }} />
                       פחמימות
                     </span>
                     <span className="text-xs font-bold">{macroPercentages.carbs}%</span>
                   </div>
-                  <Progress value={macroPercentages.carbs} className="h-2" />
+                  <Progress value={macroPercentages.carbs} className="h-1.5" />
                 </div>
                 <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-medium flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: MACRO_COLORS.fat }} />
+                  <div className="flex justify-between items-center mb-0.5">
+                    <span className="text-xs font-medium flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: MACRO_COLORS.fat }} />
                       שומן
                     </span>
                     <span className="text-xs font-bold">{macroPercentages.fat}%</span>
                   </div>
-                  <Progress value={macroPercentages.fat} className="h-2" />
+                  <Progress value={macroPercentages.fat} className="h-1.5" />
                 </div>
               </div>
             </CardContent>
@@ -634,10 +635,10 @@ export const NutritionTemplateForm = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="border-t bg-white p-3 flex gap-2 flex-shrink-0" dir="rtl">
+      <div className="border-t bg-white p-2.5 flex gap-2 flex-shrink-0" dir="rtl">
         <Button
           type="submit"
-          className="flex-1 h-9"
+          className="flex-1 h-8 text-sm"
           disabled={isSubmitting || !name.trim()}
         >
           שמור {mode === 'template' ? 'תבנית' : 'תוכנית'}
@@ -646,7 +647,7 @@ export const NutritionTemplateForm = ({
           type="button"
           variant="outline"
           onClick={onCancel}
-          className="flex-1 h-9"
+          className="flex-1 h-8 text-sm"
         >
           ביטול
         </Button>

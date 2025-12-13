@@ -651,9 +651,9 @@ const LeadDetails = () => {
 
                 {/* Import Nutrition Plan from Template Dialog */}
                 <Dialog open={isNutritionImportFormOpen} onOpenChange={setIsNutritionImportFormOpen}>
-                  <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden" dir="rtl">
-                    <DialogHeader className="px-4 pt-4 pb-3 border-b flex-shrink-0">
-                      <DialogTitle className="text-lg">
+                  <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden" dir="rtl">
+                    <DialogHeader className="px-3 pt-3 pb-2 border-b flex-shrink-0">
+                      <DialogTitle className="text-base">
                         ייבוא מתבנית תזונה: {selectedNutritionTemplate?.name}
                       </DialogTitle>
                     </DialogHeader>
