@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadList } from '@/components/dashboard/LeadList';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
+import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
 import { AppFooter } from '@/components/layout/AppFooter';
 import { Plus, Settings } from 'lucide-react';
@@ -62,7 +64,16 @@ const Dashboard = () => {
     setIsSettingsOpen,
     setDatePickerOpen,
     setIsAddLeadDialogOpen,
+    getCurrentFilterConfig,
   } = useDashboardPage();
+
+  const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
+  const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
+
+  const handleSaveViewClick = (resourceKey: string) => {
+    setSaveViewResourceKey(resourceKey);
+    setIsSaveViewModalOpen(true);
+  };
 
   // Unique values for filters
   const ageOptions = ['24', '26', '28', '29', '31', '32', '35', '39', '45', '52'];
@@ -83,7 +94,7 @@ const Dashboard = () => {
       {/* Main content area with sidebar */}
       <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1' }}>
         {/* Sidebar - fixed positioning */}
-        <DashboardSidebar />
+        <DashboardSidebar onSaveViewClick={handleSaveViewClick} />
         
         {/* Main content */}
         <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
@@ -333,6 +344,14 @@ const Dashboard = () => {
     <AddLeadDialog
       isOpen={isAddLeadDialogOpen}
       onOpenChange={setIsAddLeadDialogOpen}
+    />
+
+    {/* Save View Modal */}
+    <SaveViewModal
+      isOpen={isSaveViewModalOpen}
+      onOpenChange={setIsSaveViewModalOpen}
+      resourceKey={saveViewResourceKey}
+      filterConfig={getCurrentFilterConfig()}
     />
     </>
   );
