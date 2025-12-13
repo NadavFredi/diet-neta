@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Settings, FileText, Link2, ChevronLeft, Plus, X, Dumbbell } from 'lucide-react';
+import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -144,7 +144,13 @@ const ResourceItem = ({
         <div className="relative group">
           <div className="flex items-center">
             <button
-              onClick={onResourceClick}
+              onClick={(e) => {
+                if (supportsViews && !isExpanded) {
+                  e.stopPropagation();
+                  onToggle();
+                }
+                onResourceClick();
+              }}
               className={cn(
                 'flex-1 flex items-center gap-4 px-5 py-4 rounded-lg text-right transition-all duration-200',
                 'text-base font-medium',
@@ -180,16 +186,6 @@ const ResourceItem = ({
                     <Plus className="h-4 w-4" />
                   </button>
                 )}
-                <CollapsibleTrigger asChild>
-                  <button
-                    className="sr-only"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggle();
-                    }}
-                  >
-                  </button>
-                </CollapsibleTrigger>
               </>
             )}
           </div>
