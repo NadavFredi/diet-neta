@@ -40,6 +40,18 @@ import { useAppSelector } from '@/store/hooks';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useState } from 'react';
+import { useWorkoutTemplates, type WorkoutTemplate } from '@/hooks/useWorkoutTemplates';
+import { WorkoutBuilderForm } from '@/components/dashboard/WorkoutBuilderForm';
+import { Download, Loader2 } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
 
 const LeadDetails = () => {
   const {
@@ -64,6 +76,11 @@ const LeadDetails = () => {
   const { user } = useAppSelector((state) => state.auth);
   const { workoutPlan, isLoading: workoutLoading, createWorkoutPlan, updateWorkoutPlan, fetchWorkoutPlan } = useWorkoutPlan(lead?.id);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isImportFormOpen, setIsImportFormOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null);
+  const { data: templates = [], isLoading: templatesLoading } = useWorkoutTemplates();
+  const { toast } = useToast();
 
   if (!lead) {
     return (
@@ -300,42 +317,147 @@ const LeadDetails = () => {
                         <p className="text-sm text-gray-600 mb-6">
                           צור תוכנית אימונים חדשה עבור הלקוח
                         </p>
-                        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                              <Plus className="h-4 w-4 ml-2" />
-                              צור תוכנית אימונים
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent 
-                            className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden" 
-                            style={{ height: '90vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-                            dir="rtl"
-                          >
-                            <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0" style={{ flexShrink: 0 }}>
-                              <DialogTitle>צור תוכנית אימונים חדשה</DialogTitle>
-                            </DialogHeader>
-                            <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
-                              <WorkoutPlanForm
-                                leadId={lead.id}
-                                onSave={async (planData) => {
-                                  try {
-                                    await createWorkoutPlan(planData);
-                                    setIsCreateDialogOpen(false);
-                                    await fetchWorkoutPlan();
-                                  } catch (error) {
-                                    console.error('Failed to create workout plan:', error);
-                                  }
-                                }}
-                                onCancel={() => setIsCreateDialogOpen(false)}
-                              />
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                        <div className="flex gap-3 justify-center">
+                          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                            <DialogTrigger asChild>
+                              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                                <Plus className="h-4 w-4 ml-2" />
+                                צור תוכנית אימונים
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent 
+                              className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden" 
+                              style={{ height: '90vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+                              dir="rtl"
+                            >
+                              <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0" style={{ flexShrink: 0 }}>
+                                <DialogTitle>צור תוכנית אימונים חדשה</DialogTitle>
+                              </DialogHeader>
+                              <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+                                <WorkoutPlanForm
+                                  leadId={lead.id}
+                                  onSave={async (planData) => {
+                                    try {
+                                      await createWorkoutPlan(planData);
+                                      setIsCreateDialogOpen(false);
+                                      await fetchWorkoutPlan();
+                                    } catch (error) {
+                                      console.error('Failed to create workout plan:', error);
+                                    }
+                                  }}
+                                  onCancel={() => setIsCreateDialogOpen(false)}
+                                />
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+                                <Download className="h-4 w-4 ml-2" />
+                                ייבא מתבנית
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col" dir="rtl">
+                              <DialogHeader>
+                                <DialogTitle>בחר תבנית לייבוא</DialogTitle>
+                              </DialogHeader>
+                              <div className="flex-1 overflow-y-auto">
+                                {templatesLoading ? (
+                                  <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                                  </div>
+                                ) : templates.length === 0 ? (
+                                  <div className="text-center py-8 text-gray-500">
+                                    אין תבניות זמינות
+                                  </div>
+                                ) : (
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="text-right">שם התבנית</TableHead>
+                                        <TableHead className="text-right">תיאור</TableHead>
+                                        <TableHead className="text-right">פעולה</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {templates.map((template) => (
+                                        <TableRow key={template.id}>
+                                          <TableCell className="font-medium">{template.name}</TableCell>
+                                          <TableCell className="text-gray-600 max-w-md truncate">
+                                            {template.description || '-'}
+                                          </TableCell>
+                                          <TableCell>
+                                            <Button
+                                              size="sm"
+                                              onClick={() => {
+                                                setSelectedTemplate(template);
+                                                setIsImportDialogOpen(false);
+                                                setIsImportFormOpen(true);
+                                              }}
+                                            >
+                                              בחר
+                                            </Button>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                       </div>
                     </Card>
                   )}
                 </div>
+
+                {/* Import from Template Dialog */}
+                <Dialog open={isImportFormOpen} onOpenChange={setIsImportFormOpen} dir="rtl">
+                  <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
+                      <DialogTitle>
+                        ייבוא מתבנית: {selectedTemplate?.name}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
+                      {selectedTemplate && (
+                        <WorkoutBuilderForm
+                          mode="user"
+                          leadId={lead.id}
+                          initialData={{
+                            routine_data: JSON.parse(JSON.stringify(selectedTemplate.routine_data)),
+                          }}
+                          onSave={async (planData) => {
+                            try {
+                              // Deep clone the template data to ensure independence
+                              const clonedData = JSON.parse(JSON.stringify(planData));
+                              await createWorkoutPlan(clonedData);
+                              setIsImportFormOpen(false);
+                              setSelectedTemplate(null);
+                              await fetchWorkoutPlan();
+                              toast({
+                                title: 'הצלחה',
+                                description: 'התוכנית יובאה בהצלחה מתבנית',
+                              });
+                            } catch (error: any) {
+                              console.error('Failed to import workout plan:', error);
+                              toast({
+                                title: 'שגיאה',
+                                description: error?.message || 'נכשל בייבוא התוכנית',
+                                variant: 'destructive',
+                              });
+                            }
+                          }}
+                          onCancel={() => {
+                            setIsImportFormOpen(false);
+                            setSelectedTemplate(null);
+                          }}
+                        />
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
 
                 {/* ROW 1: Bio & Status Row - 3 Equal Columns */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">

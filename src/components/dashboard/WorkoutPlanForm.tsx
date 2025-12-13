@@ -1,5 +1,5 @@
 import type { WorkoutPlan } from './WorkoutPlanCard';
-import { WeeklyWorkoutBuilder } from './WeeklyWorkoutBuilder';
+import { WorkoutBuilderForm } from './WorkoutBuilderForm';
 
 interface WorkoutPlanFormProps {
   initialData?: WorkoutPlan;
@@ -16,7 +16,8 @@ export const WorkoutPlanForm = ({
 }: WorkoutPlanFormProps) => {
   return (
     <div className="h-full flex flex-col min-h-0" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <WeeklyWorkoutBuilder
+      <WorkoutBuilderForm
+        mode="user"
         initialData={initialData}
         onSave={onSave}
         onCancel={onCancel}

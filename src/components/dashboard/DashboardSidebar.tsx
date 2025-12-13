@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Settings, FileText, Link2, ChevronLeft, Plus, X } from 'lucide-react';
+import { LayoutDashboard, Settings, FileText, Link2, ChevronLeft, Plus, X, Dumbbell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -31,6 +31,13 @@ const navigationItems: NavItem[] = [
     label: 'ניהול לידים',
     icon: LayoutDashboard,
     path: '/dashboard',
+  },
+  {
+    id: 'templates',
+    resourceKey: 'templates',
+    label: 'תבניות אימונים',
+    icon: Dumbbell,
+    path: '/dashboard/templates',
   },
   {
     id: 'interfaces',
@@ -81,7 +88,7 @@ const ResourceItem = ({
   onSaveViewClick,
 }: ResourceItemProps) => {
   const Icon = item.icon;
-  const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'workouts';
+  const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'workouts' || item.resourceKey === 'templates';
   const { data: savedViews = [] } = supportsViews ? useSavedViews(item.resourceKey) : { data: [] };
   const deleteView = useDeleteSavedView();
   const { toast } = useToast();
@@ -157,27 +164,6 @@ const ResourceItem = ({
             
             {supportsViews && (
               <>
-                <CollapsibleTrigger asChild>
-                  <button
-                    className={cn(
-                      'p-2 rounded-md transition-colors',
-                      'text-gray-500 hover:text-gray-700 hover:bg-gray-100',
-                      isExpanded && 'text-gray-700'
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggle();
-                    }}
-                  >
-                    <ChevronLeft
-                      className={cn(
-                        'h-4 w-4 transition-transform duration-200',
-                        isExpanded && 'rotate-90'
-                      )}
-                    />
-                  </button>
-                </CollapsibleTrigger>
-                
                 {onSaveViewClick && (
                   <button
                     className={cn(
@@ -194,6 +180,16 @@ const ResourceItem = ({
                     <Plus className="h-4 w-4" />
                   </button>
                 )}
+                <CollapsibleTrigger asChild>
+                  <button
+                    className="sr-only"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggle();
+                    }}
+                  >
+                  </button>
+                </CollapsibleTrigger>
               </>
             )}
           </div>

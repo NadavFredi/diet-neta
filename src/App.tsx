@@ -13,6 +13,8 @@ import Login from "./pages/Login.tsx";
 import Register from "./pages/Register.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import LeadDetails from "./pages/LeadDetails.tsx";
+import Templates from "./pages/Templates.tsx";
+import TemplatesManagement from "./pages/TemplatesManagement.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
@@ -40,6 +42,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/templates"
+            element={
+              <ProtectedRoute>
+                <TemplatesManagement />
               </ProtectedRoute>
             }
           />
