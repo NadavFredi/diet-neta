@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useAppDispatch } from '@/store/hooks';
 import { updateLeadStatus } from '@/store/slices/dashboardSlice';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
 
 export interface StatusCategory {
   id: string;
@@ -15,6 +17,14 @@ export interface StatusSubCategory {
 
 // Status hierarchy data structure
 export const STATUS_CATEGORIES: StatusCategory[] = [
+  {
+    id: 'active',
+    label: 'פעיל',
+  },
+  {
+    id: 'inactive',
+    label: 'לא פעיל',
+  },
   {
     id: 'advanced',
     label: 'מתקדמת לתהליך',
@@ -95,25 +105,69 @@ export const useLeadStatus = (leadId: string | undefined, currentStatus: string)
     setSelectedSubStatus(subStatusId);
   };
 
-  const handleSave = () => {
+  const { toast } = useToast();
+
+  const handleSave = async () => {
     if (!leadId || !selectedCategory) return;
 
     const category = STATUS_CATEGORIES.find((cat) => cat.id === selectedCategory);
     if (!category) return;
 
     let newStatus: string;
+    let statusMain: string;
+    let statusSub: string | null = null;
 
     // If category has sub-statuses and one is selected, use sub-status label
     if (category.subStatuses && selectedSubStatus) {
       const subStatus = category.subStatuses.find((sub) => sub.id === selectedSubStatus);
       newStatus = subStatus ? subStatus.label : category.label;
+      statusMain = category.label;
+      statusSub = subStatus ? subStatus.label : null;
     } else {
       // Otherwise use category label
       newStatus = category.label;
+      statusMain = category.label;
+      statusSub = null;
     }
 
-    dispatch(updateLeadStatus({ leadId, status: newStatus }));
-    handleClose();
+    try {
+      // Update in database
+      const { error } = await supabase
+        .from('leads')
+        .update({
+          status_main: statusMain,
+          status_sub: statusSub,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', leadId);
+
+      if (error) {
+        console.error('Error updating lead status:', error);
+        toast({
+          title: 'שגיאה',
+          description: 'נכשל בעדכון הסטטוס',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Update Redux state
+      dispatch(updateLeadStatus({ leadId, status: newStatus }));
+      
+      toast({
+        title: 'הצלחה',
+        description: 'הסטטוס עודכן בהצלחה',
+      });
+      
+      handleClose();
+    } catch (error: any) {
+      console.error('Error updating lead status:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון הסטטוס',
+        variant: 'destructive',
+      });
+    }
   };
 
   const selectedCategoryData = STATUS_CATEGORIES.find((cat) => cat.id === selectedCategory);

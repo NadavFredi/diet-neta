@@ -56,6 +56,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabaseClient';
 
 const LeadDetails = () => {
   const {
@@ -117,6 +118,12 @@ const LeadDetails = () => {
 
   const getStatusColor = (status: string) => {
     // Check if status matches any category or sub-status
+    if (status === 'פעיל') {
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    }
+    if (status === 'לא פעיל') {
+      return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
     if (status === 'מתקדמת לתהליך') {
       return 'bg-green-50 text-green-700 border-green-200';
     }
@@ -330,9 +337,64 @@ const LeadDetails = () => {
                             <Dumbbell className="h-5 w-5 text-blue-600" />
                             <h3 className="text-lg font-semibold text-gray-900">תוכנית אימונים</h3>
                           </div>
-                          <Badge className="bg-blue-100 text-blue-700 border-blue-200">
-                            פעילה
-                          </Badge>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Select
+                              value={workoutPlan.is_active !== false ? 'active' : 'inactive'}
+                              onValueChange={async (value) => {
+                                try {
+                                  const { error } = await supabase
+                                    .from('workout_plans')
+                                    .update({
+                                      is_active: value === 'active',
+                                      updated_at: new Date().toISOString(),
+                                    })
+                                    .eq('id', workoutPlan.id);
+
+                                  if (error) throw error;
+
+                                  await fetchWorkoutPlan();
+
+                                  toast({
+                                    title: 'הצלחה',
+                                    description: 'הסטטוס עודכן בהצלחה',
+                                  });
+                                } catch (error: any) {
+                                  console.error('Failed to update workout plan status:', error);
+                                  toast({
+                                    title: 'שגיאה',
+                                    description: error?.message || 'נכשל בעדכון הסטטוס',
+                                    variant: 'destructive',
+                                  });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-7 w-24 border-0 p-0 bg-transparent hover:bg-transparent">
+                                <SelectValue>
+                                  {workoutPlan.is_active !== false ? (
+                                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 cursor-pointer hover:opacity-80">
+                                      פעילה
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-gray-100 text-gray-700 border-gray-200 cursor-pointer hover:opacity-80">
+                                      לא פעילה
+                                    </Badge>
+                                  )}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent dir="rtl">
+                                <SelectItem value="active">
+                                  <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                                    פעילה
+                                  </Badge>
+                                </SelectItem>
+                                <SelectItem value="inactive">
+                                  <Badge className="bg-gray-100 text-gray-700 border-gray-200">
+                                    לא פעילה
+                                  </Badge>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                           <div className="bg-blue-50 rounded-lg p-2 text-center">
@@ -397,9 +459,39 @@ const LeadDetails = () => {
                             <Flame className="h-5 w-5 text-orange-600" />
                             <h3 className="text-lg font-semibold text-gray-900">תוכנית תזונה</h3>
                           </div>
-                          <Badge className="bg-orange-100 text-orange-700 border-orange-200">
-                            פעילה
-                          </Badge>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Select
+                              value="active"
+                              onValueChange={async (value) => {
+                                // Note: Nutrition plans don't have is_active field yet
+                                // This is a placeholder for future implementation
+                                toast({
+                                  title: 'מידע',
+                                  description: 'שינוי סטטוס תזונה יושם בקרוב',
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="h-7 w-24 border-0 p-0 bg-transparent hover:bg-transparent">
+                                <SelectValue>
+                                  <Badge className="bg-orange-100 text-orange-700 border-orange-200 cursor-pointer hover:opacity-80">
+                                    פעילה
+                                  </Badge>
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent dir="rtl">
+                                <SelectItem value="active">
+                                  <Badge className="bg-orange-100 text-orange-700 border-orange-200">
+                                    פעילה
+                                  </Badge>
+                                </SelectItem>
+                                <SelectItem value="inactive">
+                                  <Badge className="bg-gray-100 text-gray-700 border-gray-200">
+                                    לא פעילה
+                                  </Badge>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                           <div className="bg-orange-50 rounded-lg p-2 text-center">
@@ -944,16 +1036,67 @@ const LeadDetails = () => {
                                       {plan.intervals}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell>
-                                    {plan.is_active ? (
-                                      <Badge className="bg-green-100 text-green-700 border-green-200">
-                                        פעיל
-                                      </Badge>
-                                    ) : (
-                                      <Badge className="bg-gray-100 text-gray-700 border-gray-200">
-                                        לא פעיל
-                                      </Badge>
-                                    )}
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Select
+                                      value={plan.is_active ? 'active' : 'inactive'}
+                                      onValueChange={async (value) => {
+                                        try {
+                                          const { error } = await supabase
+                                            .from('workout_plans')
+                                            .update({
+                                              is_active: value === 'active',
+                                              updated_at: new Date().toISOString(),
+                                            })
+                                            .eq('id', plan.id);
+
+                                          if (error) throw error;
+
+                                          // Refresh history
+                                          if (fetchWorkoutPlanHistory) {
+                                            const history = await fetchWorkoutPlanHistory();
+                                            setWorkoutPlanHistory(history);
+                                          }
+
+                                          toast({
+                                            title: 'הצלחה',
+                                            description: 'הסטטוס עודכן בהצלחה',
+                                          });
+                                        } catch (error: any) {
+                                          console.error('Failed to update workout plan status:', error);
+                                          toast({
+                                            title: 'שגיאה',
+                                            description: error?.message || 'נכשל בעדכון הסטטוס',
+                                            variant: 'destructive',
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-7 w-24 border-0 p-0">
+                                        <SelectValue>
+                                          {plan.is_active ? (
+                                            <Badge className="bg-green-100 text-green-700 border-green-200 cursor-pointer">
+                                              פעיל
+                                            </Badge>
+                                          ) : (
+                                            <Badge className="bg-gray-100 text-gray-700 border-gray-200 cursor-pointer">
+                                              לא פעיל
+                                            </Badge>
+                                          )}
+                                        </SelectValue>
+                                      </SelectTrigger>
+                                      <SelectContent dir="rtl">
+                                        <SelectItem value="active">
+                                          <Badge className="bg-green-100 text-green-700 border-green-200">
+                                            פעיל
+                                          </Badge>
+                                        </SelectItem>
+                                        <SelectItem value="inactive">
+                                          <Badge className="bg-gray-100 text-gray-700 border-gray-200">
+                                            לא פעיל
+                                          </Badge>
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   </TableCell>
                                   <TableCell className="text-sm text-gray-500">
                                     {plan.deleted_at ? formatDate(plan.deleted_at) : '-'}
