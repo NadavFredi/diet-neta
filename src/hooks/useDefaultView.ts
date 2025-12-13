@@ -126,8 +126,8 @@ export const useDefaultView = (resourceKey: string) => {
       const viewName = resourceKey === 'leads' 
         ? 'כל הלידים' 
         : resourceKey === 'templates'
-        ? 'כל תכניות האימונים'
-        : 'כל תבניות התזונה';
+        ? 'כל התכניות'
+        : 'כל התכניות';
 
       const { data: newView, error } = await supabase
         .from('saved_views')
@@ -146,8 +146,10 @@ export const useDefaultView = (resourceKey: string) => {
         return null;
       }
 
-      // Invalidate savedViews query so sidebar updates
-      queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey] });
+      // Invalidate savedViews query so sidebar updates immediately
+      await queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey] });
+      // Also refetch to ensure the sidebar gets the new view
+      await queryClient.refetchQueries({ queryKey: ['savedViews', resourceKey] });
 
       return newView;
     },

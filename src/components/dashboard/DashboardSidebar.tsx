@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,9 +81,11 @@ interface ResourceItemProps {
   isExpanded: boolean;
   onToggle: () => void;
   onResourceClick: () => void;
-  onViewClick: (view: SavedView) => void;
+  onViewClick: (view: SavedView, resourcePath?: string) => void;
   onSaveViewClick?: (resourceKey: string) => void;
 }
+
+// Note: isExpanded and onToggle are kept for compatibility but not used in the new flat structure
 
 const ResourceItem = ({
   item,
@@ -100,8 +101,8 @@ const ResourceItem = ({
   const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'workouts' || item.resourceKey === 'templates' || item.resourceKey === 'nutrition_templates';
   
   // Ensure default view exists for resources that support views
-  // Always call the hook, but it will only run if supportsViews is true (enabled check inside)
-  useDefaultView(supportsViews ? item.resourceKey : '');
+  // Always call the hook (React rules), but it will only run if resourceKey is valid (enabled check inside)
+  const { defaultView } = useDefaultView(item.resourceKey);
   
   const { data: savedViews = [] } = supportsViews ? useSavedViews(item.resourceKey) : { data: [] };
   const deleteView = useDeleteSavedView();
@@ -114,6 +115,15 @@ const ResourceItem = ({
 
   const handleDeleteClick = (e: React.MouseEvent, view: SavedView) => {
     e.stopPropagation();
+    // Prevent deletion of default views
+    if (view.is_default) {
+      toast({
+        title: 'לא ניתן למחוק',
+        description: 'לא ניתן למחוק את התצוגה הראשית. זו התצוגה הראשית שממנה ניתן ליצור תצוגות נוספות.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setViewToDelete({ id: view.id, name: view.view_name });
     setDeleteDialogOpen(true);
   };
@@ -148,30 +158,21 @@ const ResourceItem = ({
     }
   };
 
-  // If this resource supports views, always keep it expanded (will have default view)
-  // If there are saved views, always keep it expanded (can't hide)
-  const shouldBeExpanded = supportsViews ? true : (savedViews.length > 0 ? true : isExpanded);
-  const canToggle = !supportsViews && savedViews.length === 0;
 
   return (
-    <li>
-      <Collapsible
-        open={shouldBeExpanded}
-        onOpenChange={canToggle ? onToggle : undefined}
-        disabled={!supportsViews}
-      >
+    <>
+      {/* Main Interface Button */}
+      <li>
         <div className="relative group">
           <div className="flex items-center">
             <button
-              onClick={(e) => {
-                if (supportsViews && canToggle && !isExpanded) {
-                  e.stopPropagation();
-                  onToggle();
-                }
+              onClick={() => {
+                // Always navigate to base path - the page component will handle redirecting to default view
+                // This ensures the page loads even if defaultView isn't ready yet
                 onResourceClick();
               }}
               className={cn(
-                'flex-1 flex items-center gap-4 px-5 py-4 rounded-lg text-right transition-all duration-200',
+                'flex-1 flex items-center gap-4 px-5 py-3 rounded-lg text-right transition-all duration-200',
                 'text-base font-medium',
                 active && !activeViewId
                   ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
@@ -187,98 +188,96 @@ const ResourceItem = ({
               <span className="flex-1">{item.label}</span>
             </button>
             
-            {supportsViews && (
-              <>
-                {onSaveViewClick && (
-                  <button
-                    className={cn(
-                      'p-2 rounded-md transition-colors opacity-0 group-hover:opacity-100',
-                      'text-gray-500 hover:text-gray-700 hover:bg-gray-100',
-                      'focus:opacity-100 focus:outline-none'
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSaveViewClick(item.resourceKey);
-                    }}
-                    title="שמור תצוגה חדשה"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
+            {supportsViews && onSaveViewClick && (
+              <button
+                className={cn(
+                  'p-2 rounded-md transition-colors opacity-0 group-hover:opacity-100',
+                  'text-gray-500 hover:text-gray-700 hover:bg-gray-100',
+                  'focus:opacity-100 focus:outline-none'
                 )}
-              </>
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSaveViewClick(item.resourceKey);
+                }}
+                title="שמור תצוגה חדשה"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             )}
           </div>
-          
-          {supportsViews && savedViews.length > 0 && (
-            <CollapsibleContent>
-              <ul className="mt-1 space-y-1 pr-8">
-                {savedViews.map((view) => {
-                  const isViewActive = activeViewId === view.id;
-                  return (
-                    <li key={view.id} className="group/view-item">
-                      <div className="relative flex items-center">
-                        <button
-                          onClick={() => onViewClick(view)}
-                          className={cn(
-                            'flex-1 flex items-center gap-3 px-4 py-2.5 rounded-lg text-right transition-all duration-200',
-                            'text-sm font-medium',
-                            isViewActive
-                              ? 'bg-pink-50 text-pink-700 border-r-2 border-pink-500'
-                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                          )}
-                        >
-                          <span className="flex-1 text-right">{view.view_name}</span>
-                          {view.is_default && (
-                            <span className="text-xs text-gray-400">(ברירת מחדל)</span>
-                          )}
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteClick(e, view)}
-                          className={cn(
-                            'p-1.5 rounded-md transition-all duration-200 opacity-0 group-hover/view-item:opacity-100',
-                            'text-gray-400 hover:text-red-600 hover:bg-red-50',
-                            'focus:opacity-100 focus:outline-none',
-                            'mr-2 flex-shrink-0'
-                          )}
-                          title="מחק תצוגה"
-                          disabled={deleteView.isPending}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </CollapsibleContent>
-          )}
-
-          {/* Delete Confirmation Dialog */}
-          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-            <AlertDialogContent dir="rtl">
-              <AlertDialogHeader>
-                <AlertDialogTitle>מחיקת תצוגה</AlertDialogTitle>
-                <AlertDialogDescription>
-                  האם אתה בטוח שברצונך למחוק את התצוגה "{viewToDelete?.name}"? פעולה זו לא ניתנת לביטול.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={deleteView.isPending}>
-                  ביטול
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleConfirmDelete}
-                  disabled={deleteView.isPending}
-                  className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                >
-                  {deleteView.isPending ? 'מוחק...' : 'מחק'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
-      </Collapsible>
-    </li>
+      </li>
+
+      {/* Saved Views - Each as Separate Row */}
+      {supportsViews && savedViews.length > 0 && (
+        <>
+          {savedViews.map((view) => {
+            const isViewActive = activeViewId === view.id;
+            const isDefaultView = view.is_default;
+            return (
+              <li key={view.id} className="group/view-item">
+                <div className="relative flex items-center">
+                  <button
+                    onClick={() => onViewClick(view, item.path)}
+                    className={cn(
+                      'flex-1 flex items-center gap-3 px-5 py-3 pr-12 rounded-lg text-right transition-all duration-200',
+                      'text-sm font-medium',
+                      isViewActive
+                        ? 'bg-pink-50 text-pink-700 border-r-2 border-pink-500'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    )}
+                  >
+                    <div className={cn(
+                      'h-1.5 w-1.5 rounded-full flex-shrink-0 transition-colors',
+                      isViewActive ? 'bg-pink-500' : 'bg-gray-400'
+                    )} />
+                    <span className="flex-1 text-right">{view.view_name}</span>
+                  </button>
+                  {!isDefaultView && (
+                    <button
+                      onClick={(e) => handleDeleteClick(e, view)}
+                      className={cn(
+                        'absolute left-2 p-1.5 rounded-md transition-all duration-200 opacity-0 group-hover/view-item:opacity-100',
+                        'text-gray-400 hover:text-red-600 hover:bg-red-50',
+                        'focus:opacity-100 focus:outline-none'
+                      )}
+                      title="מחק תצוגה"
+                      disabled={deleteView.isPending}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת תצוגה</AlertDialogTitle>
+            <AlertDialogDescription>
+              האם אתה בטוח שברצונך למחוק את התצוגה "{viewToDelete?.name}"? פעולה זו לא ניתנת לביטול.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteView.isPending}>
+              ביטול
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleteView.isPending}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {deleteView.isPending ? 'מוחק...' : 'מחק'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
@@ -288,9 +287,6 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
   const [searchParams] = useSearchParams();
   const activeViewId = searchParams.get('view_id');
   
-  // Track which resources are expanded (default: expand resources that have saved views)
-  const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['leads', 'templates', 'nutrition_templates']));
-
   const isActive = (path: string) => {
     if (path === '/dashboard') {
       return location.pathname === '/dashboard' || location.pathname.startsWith('/leads');
@@ -299,25 +295,12 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
   };
 
   const toggleResource = (resourceKey: string) => {
-    // Get saved views for this resource to check if it has views
-    const item = navigationItems.find(i => i.resourceKey === resourceKey);
-    const supportsViews = item?.resourceKey === 'leads' || item?.resourceKey === 'workouts' || item?.resourceKey === 'templates' || item?.resourceKey === 'nutrition_templates';
-    
-    // If this resource has saved views, don't allow collapsing
-    // We'll check this in the ResourceItem component instead
-    setExpandedResources((prev) => {
-      const next = new Set(prev);
-      if (next.has(resourceKey)) {
-        next.delete(resourceKey);
-      } else {
-        next.add(resourceKey);
-      }
-      return next;
-    });
+    // Not used in flat structure, but kept for compatibility
   };
 
-  const handleViewClick = (view: SavedView) => {
-    navigate(`${location.pathname}?view_id=${view.id}`);
+  const handleViewClick = (view: SavedView, resourcePath?: string) => {
+    const path = resourcePath || location.pathname;
+    navigate(`${path}?view_id=${view.id}`);
   };
 
   const handleResourceClick = (item: NavItem) => {
@@ -344,8 +327,8 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
               item={item}
               active={isActive(item.path)}
               activeViewId={activeViewId}
-              isExpanded={expandedResources.has(item.resourceKey)}
-              onToggle={() => toggleResource(item.resourceKey)}
+              isExpanded={true}
+              onToggle={() => {}}
               onResourceClick={() => handleResourceClick(item)}
               onViewClick={handleViewClick}
               onSaveViewClick={onSaveViewClick}

@@ -124,26 +124,28 @@ const TemplatesManagement = () => {
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
   const [hasAppliedView, setHasAppliedView] = useState(false);
-  const { defaultView } = useDefaultView('templates');
+  const { defaultView, isLoading: isLoadingDefaultView } = useDefaultView('templates');
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
-    if (!viewId && defaultView) {
-      navigate(`/dashboard/templates?view_id=${defaultView.id}`, { replace: true });
+    if (!viewId && !isLoadingDefaultView) {
+      if (defaultView) {
+        navigate(`/dashboard/templates?view_id=${defaultView.id}`, { replace: true });
+      }
     }
-  }, [viewId, defaultView, navigate]);
+  }, [viewId, defaultView, navigate, isLoadingDefaultView]);
 
-  // Reset filters when navigating to base resource (no view_id)
+  // Reset filters when navigating to base resource (no view_id) - but only if we're not loading default view
   useEffect(() => {
-    if (!viewId) {
+    if (!viewId && !isLoadingDefaultView && !defaultView) {
       setSearchQuery('');
       setSelectedTags([]);
       setSelectedDate(undefined);
       setSelectedHasLeads('all');
       setHasAppliedView(false);
     }
-  }, [viewId]);
+  }, [viewId, isLoadingDefaultView, defaultView]);
 
   // Apply saved view filter config when view is loaded
   useEffect(() => {
@@ -172,7 +174,7 @@ const TemplatesManagement = () => {
       
       setHasAppliedView(true);
     }
-  }, [savedView, hasAppliedView, isLoadingView, viewId, setColumnVisibility]);
+  }, [savedView, hasAppliedView, isLoadingView, viewId]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -550,7 +552,7 @@ const TemplatesManagement = () => {
 
                 {/* Templates Table */}
                 <div className="bg-white rounded-lg border border-gray-200">
-                  {isLoading ? (
+                  {(isLoading || isLoadingDefaultView) ? (
                     <div className="p-8 text-center text-gray-500">טוען...</div>
                   ) : filteredTemplates.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
