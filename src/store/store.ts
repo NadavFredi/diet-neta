@@ -1,4 +1,4 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, Middleware } from '@reduxjs/toolkit';
 import { api } from './api/apiSlice';
 import authReducer from './slices/authSlice';
 import dashboardReducer from './slices/dashboardSlice';
@@ -9,8 +9,30 @@ export const store = configureStore({
     dashboard: dashboardReducer,
     [api.reducerPath]: api.reducer,
   },
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(api.middleware),
+  middleware: (getDefaultMiddleware) => {
+    // Middleware to persist auth state to localStorage
+    const authPersistMiddleware: Middleware = (store) => (next) => (action) => {
+      const result = next(action);
+      
+      // Save auth state to localStorage after any auth-related action
+      if (action.type?.startsWith('auth/')) {
+        const state = store.getState();
+        try {
+          if (state.auth.isAuthenticated && state.auth.user) {
+            localStorage.setItem('auth', JSON.stringify(state.auth));
+          } else {
+            localStorage.removeItem('auth');
+          }
+        } catch (error) {
+          console.error('Error persisting auth state:', error);
+        }
+      }
+      
+      return result;
+    };
+
+    return getDefaultMiddleware().concat(api.middleware, authPersistMiddleware);
+  },
 });
 
 export type RootState = ReturnType<typeof store.getState>;

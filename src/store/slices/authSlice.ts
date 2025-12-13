@@ -10,10 +10,29 @@ interface AuthState {
   } | null;
 }
 
-const initialState: AuthState = {
-  isAuthenticated: false,
-  user: null,
+// Load initial state from localStorage
+const loadAuthFromStorage = (): AuthState => {
+  try {
+    const stored = localStorage.getItem('auth');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Validate the stored data structure
+      if (parsed && typeof parsed === 'object' && parsed.isAuthenticated && parsed.user) {
+        return parsed;
+      }
+    }
+  } catch (error) {
+    console.error('Error loading auth from localStorage:', error);
+    // Clear corrupted data
+    localStorage.removeItem('auth');
+  }
+  return {
+    isAuthenticated: false,
+    user: null,
+  };
 };
+
+const initialState: AuthState = loadAuthFromStorage();
 
 const authSlice = createSlice({
   name: 'auth',
