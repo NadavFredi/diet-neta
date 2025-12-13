@@ -262,13 +262,13 @@ const NutritionTemplatesManagement = () => {
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
                 <div className="mb-4">
                   <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
-                    <h2 className="text-2xl font-bold text-gray-900 whitespace-nowrap">תבניות תזונה</h2>
+                    <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">תבניות תזונה</h2>
                     <div className="flex items-center gap-3">
                       <Input
                         placeholder="חיפוש לפי שם או תיאור..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-64 bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
+                        className="w-64 h-11 text-base bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
                         dir="rtl"
                       />
                       <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -304,14 +304,14 @@ const NutritionTemplatesManagement = () => {
                   <div className="mb-3">
                     <div className="grid grid-cols-4 gap-2">
                       <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
                           תאריך יצירה
                         </label>
                         <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
-                              className="bg-gray-50 text-gray-900 hover:bg-white border border-gray-200 shadow-sm transition-all hover:shadow-md h-9 text-xs px-2"
+                              className="bg-gray-50 text-gray-900 hover:bg-white border border-gray-200 shadow-sm transition-all hover:shadow-md h-10 text-sm px-3"
                             >
                               <CalendarIcon className="ml-1 h-3 w-3" />
                               {selectedDate ? formatDate(format(selectedDate, 'yyyy-MM-dd')) : 'בחר תאריך'}
@@ -329,7 +329,7 @@ const NutritionTemplatesManagement = () => {
                       </div>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1 mb-3">
+                  <p className="text-base text-gray-600 mt-2 mb-3 font-medium">
                     {filteredTemplates.length} {filteredTemplates.length === 1 ? 'תבנית' : 'תבניות'} נמצאו
                   </p>
                 </div>

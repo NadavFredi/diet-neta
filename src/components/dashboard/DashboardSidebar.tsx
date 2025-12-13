@@ -179,8 +179,8 @@ const ResourceItem = ({
               onResourceClick();
             }}
             className={cn(
-              'w-full flex items-center gap-4 px-4 py-3 text-right transition-all duration-200 relative',
-              'text-base font-medium',
+              'w-full flex items-center gap-4 px-4 py-3.5 text-right transition-all duration-200 relative',
+              'text-lg font-semibold',
               isMainInterfaceActive
                 ? 'text-white'
                 : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -189,12 +189,12 @@ const ResourceItem = ({
               backgroundColor: '#4f60a8',
             } : {}}
           >
-            <Icon
-              className={cn(
-                'h-6 w-6 flex-shrink-0',
-                isMainInterfaceActive ? 'text-white' : 'text-gray-500'
-              )}
-            />
+              <Icon
+                className={cn(
+                  'h-7 w-7 flex-shrink-0',
+                  isMainInterfaceActive ? 'text-white' : 'text-gray-500'
+                )}
+              />
             <span className="flex-1">{item.label}</span>
             
             {supportsViews && onSaveViewClick && (
@@ -232,7 +232,7 @@ const ResourceItem = ({
                     onClick={() => onViewClick(view, item.path)}
                     className={cn(
                       'w-full flex items-center gap-3 px-4 py-3 text-right transition-all duration-200',
-                      'text-sm font-medium relative',
+                      'text-base font-medium relative',
                       isViewActive
                         ? 'text-white'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -328,14 +328,14 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
       className="fixed right-0 w-64 bg-white border-l flex flex-col shadow-sm z-30"
       style={{ 
         top: '88px',
-        bottom: '120px',
+        height: 'calc(100vh - 88px)',
         borderLeftColor: '#4f60a8',
         borderLeftWidth: '3px'
       }}
       dir="rtl"
     >
       {/* Navigation List */}
-      <nav className="flex-1 py-6 overflow-y-auto">
+      <nav className="flex-1 py-6 overflow-y-auto text-base">
         <ul className="space-y-1 w-full">
           {navigationItems.map((item) => (
             <ResourceItem

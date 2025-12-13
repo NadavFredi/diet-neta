@@ -10,7 +10,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useCreateSavedView, type FilterConfig } from '@/hooks/useSavedViews';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +30,6 @@ export const SaveViewModal = ({
   onSuccess,
 }: SaveViewModalProps) => {
   const [viewName, setViewName] = useState('');
-  const [isDefault, setIsDefault] = useState(false);
   const createView = useCreateSavedView();
   const { toast } = useToast();
 
@@ -39,7 +37,6 @@ export const SaveViewModal = ({
   useEffect(() => {
     if (isOpen) {
       setViewName('');
-      setIsDefault(false);
     }
   }, [isOpen]);
 
@@ -57,13 +54,13 @@ export const SaveViewModal = ({
     }
 
     try {
-      console.log('Saving view with:', { resourceKey, viewName: viewName.trim(), filterConfig, isDefault });
+      console.log('Saving view with:', { resourceKey, viewName: viewName.trim(), filterConfig });
       
       await createView.mutateAsync({
         resourceKey,
         viewName: viewName.trim(),
         filterConfig,
-        isDefault,
+        isDefault: false, // Always false - default view is always the one with all filters and columns
       });
       
       toast({
@@ -72,7 +69,6 @@ export const SaveViewModal = ({
       });
       
       setViewName('');
-      setIsDefault(false);
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
@@ -88,14 +84,13 @@ export const SaveViewModal = ({
   const handleClose = (open: boolean) => {
     if (!open && !createView.isPending) {
       setViewName('');
-      setIsDefault(false);
       onOpenChange(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose} dir="rtl">
-      <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => {
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[425px]" dir="rtl" onInteractOutside={(e) => {
         if (createView.isPending) {
           e.preventDefault();
         }
@@ -120,20 +115,6 @@ export const SaveViewModal = ({
                 className="text-right"
                 autoFocus
               />
-            </div>
-            <div className="flex items-center space-x-2 space-x-reverse">
-              <Checkbox
-                id="is-default"
-                checked={isDefault}
-                onCheckedChange={(checked) => setIsDefault(checked === true)}
-                disabled={createView.isPending}
-              />
-              <Label
-                htmlFor="is-default"
-                className="text-sm font-normal cursor-pointer"
-              >
-                הגדר כתצוגת ברירת מחדל
-              </Label>
             </div>
           </div>
           <DialogFooter>

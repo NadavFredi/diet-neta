@@ -32,9 +32,10 @@ export const useWorkoutPlan = (leadId?: string) => {
         .from('workout_plans')
         .select('*')
         .eq('lead_id', leadId)
+        .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (fetchError && fetchError.code !== 'PGRST116') {
         throw fetchError;
@@ -52,6 +53,8 @@ export const useWorkoutPlan = (leadId?: string) => {
           cardio: data.cardio || 0,
           intervals: data.intervals || 0,
           custom_attributes: data.custom_attributes || { schema: [], data: {} },
+          is_active: data.is_active ?? true,
+          deleted_at: data.deleted_at,
           created_at: data.created_at,
           updated_at: data.updated_at,
         });
@@ -106,6 +109,8 @@ export const useWorkoutPlan = (leadId?: string) => {
           cardio: data.cardio || 0,
           intervals: data.intervals || 0,
           custom_attributes: data.custom_attributes || { schema: [], data: {} },
+          is_active: data.is_active ?? true,
+          deleted_at: data.deleted_at,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -155,6 +160,8 @@ export const useWorkoutPlan = (leadId?: string) => {
           cardio: data.cardio || 0,
           intervals: data.intervals || 0,
           custom_attributes: data.custom_attributes || { schema: [], data: {} },
+          is_active: data.is_active ?? true,
+          deleted_at: data.deleted_at,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -176,18 +183,61 @@ export const useWorkoutPlan = (leadId?: string) => {
     try {
       setError(null);
 
-      const { error: deleteError } = await supabase
+      // Mark as inactive instead of deleting
+      const { error: updateError } = await supabase
         .from('workout_plans')
-        .delete()
+        .update({
+          is_active: false,
+          deleted_at: new Date().toISOString(),
+        })
         .eq('id', workoutPlan.id);
 
-      if (deleteError) throw deleteError;
+      if (updateError) throw updateError;
 
       setWorkoutPlan(null);
     } catch (err) {
       console.error('Error deleting workout plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete workout plan');
       throw err;
+    }
+  };
+
+  const fetchWorkoutPlanHistory = async () => {
+    if (!leadId) return [];
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from('workout_plans')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('created_at', { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      return (data || []).map((plan) => ({
+        id: plan.id,
+        user_id: plan.user_id,
+        lead_id: plan.lead_id,
+        template_id: plan.template_id,
+        start_date: plan.start_date,
+        description: plan.description || '',
+        strength: plan.strength || 0,
+        cardio: plan.cardio || 0,
+        intervals: plan.intervals || 0,
+        custom_attributes: plan.custom_attributes || { schema: [], data: {} },
+        is_active: plan.is_active ?? true,
+        deleted_at: plan.deleted_at,
+        created_at: plan.created_at,
+        updated_at: plan.updated_at,
+      }));
+    } catch (err) {
+      console.error('Error fetching workout plan history:', err);
+      return [];
     }
   };
 
@@ -199,6 +249,7 @@ export const useWorkoutPlan = (leadId?: string) => {
     createWorkoutPlan,
     updateWorkoutPlan,
     deleteWorkoutPlan,
+    fetchWorkoutPlanHistory,
   };
 };
 

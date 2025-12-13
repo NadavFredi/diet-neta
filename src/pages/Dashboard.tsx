@@ -117,13 +117,13 @@ const Dashboard = () => {
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
                 <div className="mb-4">
                   <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
-                    <h2 className="text-2xl font-bold text-gray-900 whitespace-nowrap">ניהול לידים</h2>
+                    <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">ניהול לידים</h2>
                     <div className="flex items-center gap-3">
                       <Input
                         placeholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
                         value={searchQuery}
                         onChange={(e) => handleSearchChange(e.target.value)}
-                        className="w-64 bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
+                        className="w-64 h-11 text-base bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
                       />
                       <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
                         <PopoverTrigger asChild>
@@ -158,14 +158,14 @@ const Dashboard = () => {
                   <div className="mb-3">
                     <div className="grid grid-cols-9 gap-2">
                       <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
                           תאריך יצירה
                         </label>
                         <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
-                              className="bg-gray-50 text-gray-900 hover:bg-white border border-gray-200 shadow-sm transition-all hover:shadow-md h-9 text-xs px-2"
+                              className="bg-gray-50 text-gray-900 hover:bg-white border border-gray-200 shadow-sm transition-all hover:shadow-md h-10 text-sm px-3"
                             >
                               <CalendarIcon className="ml-1 h-3 w-3" />
                               {selectedDate ? formatDate(selectedDate) : 'בחר תאריך'}
@@ -182,14 +182,14 @@ const Dashboard = () => {
                         </Popover>
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
                           סטטוס
                         </label>
                         <Select
                           value={selectedStatus || 'all'}
                           onValueChange={handleStatusChange}
                         >
-                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -203,11 +203,11 @@ const Dashboard = () => {
                         </Select>
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
                           גיל
                         </label>
                         <Select value={selectedAge || 'all'} onValueChange={handleAgeChange}>
-                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -221,11 +221,11 @@ const Dashboard = () => {
                         </Select>
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
                           גובה
                         </label>
                         <Select value={selectedHeight || 'all'} onValueChange={handleHeightChange}>
-                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -239,11 +239,11 @@ const Dashboard = () => {
                         </Select>
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
                           משקל
                         </label>
                         <Select value={selectedWeight || 'all'} onValueChange={handleWeightChange}>
-                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -257,14 +257,14 @@ const Dashboard = () => {
                         </Select>
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
                           מטרת כושר
                         </label>
                         <Select
                           value={selectedFitnessGoal || 'all'}
                           onValueChange={handleFitnessGoalChange}
                         >
-                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -278,14 +278,14 @@ const Dashboard = () => {
                         </Select>
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
                           רמת פעילות
                         </label>
                         <Select
                           value={selectedActivityLevel || 'all'}
                           onValueChange={handleActivityLevelChange}
                         >
-                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -299,14 +299,14 @@ const Dashboard = () => {
                         </Select>
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
                           זמן מועדף
                         </label>
                         <Select
                           value={selectedPreferredTime || 'all'}
                           onValueChange={handlePreferredTimeChange}
                         >
-                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -320,11 +320,11 @@ const Dashboard = () => {
                         </Select>
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
                           מקור
                         </label>
                         <Select value={selectedSource || 'all'} onValueChange={handleSourceChange}>
-                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -339,7 +339,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-base text-gray-600 mt-2 font-medium">
                     {filteredLeads.length} {filteredLeads.length === 1 ? 'ליד' : 'לידים'} נמצאו
                   </p>
                 </div>
