@@ -7,6 +7,7 @@ import { Plus, Settings, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { useDefaultView } from '@/hooks/useDefaultView';
 import {
   Table,
   TableBody,
@@ -57,6 +58,14 @@ const NutritionTemplatesManagement = () => {
   const [hasAppliedView, setHasAppliedView] = useState(false);
   
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
+  const { defaultView } = useDefaultView('nutrition_templates');
+
+  // Auto-navigate to default view if no view_id is present
+  useEffect(() => {
+    if (!viewId && defaultView) {
+      navigate(`/dashboard/nutrition-templates?view_id=${defaultView.id}`, { replace: true });
+    }
+  }, [viewId, defaultView, navigate]);
 
   const handleLogout = () => {
     dispatch(logout());

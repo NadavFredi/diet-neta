@@ -24,6 +24,8 @@ export interface FilterConfig {
   selectedActivityLevel?: string | null;
   selectedPreferredTime?: string | null;
   selectedSource?: string | null;
+  selectedTags?: string[];
+  selectedHasLeads?: string;
   columnVisibility?: Record<string, boolean>;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';

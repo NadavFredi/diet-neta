@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabaseClient';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
@@ -14,6 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useSavedViews, useDeleteSavedView, type SavedView } from '@/hooks/useSavedViews';
+import { useDefaultView } from '@/hooks/useDefaultView';
 import { useToast } from '@/hooks/use-toast';
 
 interface NavItem {
@@ -96,6 +98,11 @@ const ResourceItem = ({
 }: ResourceItemProps) => {
   const Icon = item.icon;
   const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'workouts' || item.resourceKey === 'templates' || item.resourceKey === 'nutrition_templates';
+  
+  // Ensure default view exists for resources that support views
+  // Always call the hook, but it will only run if supportsViews is true (enabled check inside)
+  useDefaultView(supportsViews ? item.resourceKey : '');
+  
   const { data: savedViews = [] } = supportsViews ? useSavedViews(item.resourceKey) : { data: [] };
   const deleteView = useDeleteSavedView();
   const { toast } = useToast();
@@ -141,9 +148,10 @@ const ResourceItem = ({
     }
   };
 
+  // If this resource supports views, always keep it expanded (will have default view)
   // If there are saved views, always keep it expanded (can't hide)
-  const shouldBeExpanded = supportsViews && savedViews.length > 0 ? true : isExpanded;
-  const canToggle = supportsViews && savedViews.length === 0;
+  const shouldBeExpanded = supportsViews ? true : (savedViews.length > 0 ? true : isExpanded);
+  const canToggle = !supportsViews && savedViews.length === 0;
 
   return (
     <li>
@@ -280,8 +288,8 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
   const [searchParams] = useSearchParams();
   const activeViewId = searchParams.get('view_id');
   
-  // Track which resources are expanded (default: leads is expanded)
-  const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['leads']));
+  // Track which resources are expanded (default: expand resources that have saved views)
+  const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['leads', 'templates', 'nutrition_templates']));
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -313,7 +321,8 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
   };
 
   const handleResourceClick = (item: NavItem) => {
-    // Navigate to resource base path, clear view_id
+    // For resources that support views, navigate to base path
+    // The page component will automatically redirect to default view if needed
     navigate(item.path);
   };
 

@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
+import { useDefaultView } from '@/hooks/useDefaultView';
+import { useSavedView } from '@/hooks/useSavedViews';
 import { AppFooter } from '@/components/layout/AppFooter';
 import { Plus, Settings, Search, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,8 +45,7 @@ import { he } from 'date-fns/locale';
 import { formatDate } from '@/utils/dashboard';
 import { useToast } from '@/hooks/use-toast';
 import { logout } from '@/store/slices/authSlice';
-import { useNavigate } from 'react-router-dom';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTemplateLeads } from '@/hooks/useTemplateLeads';
 import { useTemplatesWithLeads } from '@/hooks/useTemplatesWithLeads';
 import { Users, ExternalLink, Calendar as CalendarIcon } from 'lucide-react';
@@ -122,6 +123,56 @@ const TemplatesManagement = () => {
   const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
+  const [hasAppliedView, setHasAppliedView] = useState(false);
+  const { defaultView } = useDefaultView('templates');
+  const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
+
+  // Auto-navigate to default view if no view_id is present
+  useEffect(() => {
+    if (!viewId && defaultView) {
+      navigate(`/dashboard/templates?view_id=${defaultView.id}`, { replace: true });
+    }
+  }, [viewId, defaultView, navigate]);
+
+  // Reset filters when navigating to base resource (no view_id)
+  useEffect(() => {
+    if (!viewId) {
+      setSearchQuery('');
+      setSelectedTags([]);
+      setSelectedDate(undefined);
+      setSelectedHasLeads('all');
+      setHasAppliedView(false);
+    }
+  }, [viewId]);
+
+  // Apply saved view filter config when view is loaded
+  useEffect(() => {
+    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
+      const filterConfig = savedView.filter_config as any;
+      
+      // Apply all filters from the saved view
+      if (filterConfig.searchQuery !== undefined) {
+        setSearchQuery(filterConfig.searchQuery);
+      }
+      if (filterConfig.selectedDate !== undefined && filterConfig.selectedDate) {
+        setSelectedDate(new Date(filterConfig.selectedDate));
+      }
+      if (filterConfig.selectedTags !== undefined) {
+        setSelectedTags(filterConfig.selectedTags || []);
+      }
+      if (filterConfig.selectedHasLeads !== undefined) {
+        setSelectedHasLeads(filterConfig.selectedHasLeads || 'all');
+      }
+      if (filterConfig.columnVisibility) {
+        setColumnVisibility((prev) => ({
+          ...prev,
+          ...filterConfig.columnVisibility,
+        }));
+      }
+      
+      setHasAppliedView(true);
+    }
+  }, [savedView, hasAppliedView, isLoadingView, viewId, setColumnVisibility]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -615,8 +666,8 @@ const TemplatesManagement = () => {
       </div>
 
       {/* Add Template Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} dir="rtl">
-        <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden">
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" dir="rtl">
           <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
             <DialogTitle>יצירת תוכנית אימונים חדשה</DialogTitle>
           </DialogHeader>
@@ -631,8 +682,8 @@ const TemplatesManagement = () => {
       </Dialog>
 
       {/* Edit Template Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} dir="rtl">
-        <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden">
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" dir="rtl">
           <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
             <DialogTitle>עריכת תוכנית אימונים</DialogTitle>
           </DialogHeader>
@@ -658,8 +709,8 @@ const TemplatesManagement = () => {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} dir="rtl">
-        <AlertDialogContent>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
             <AlertDialogTitle>מחיקת תבנית</AlertDialogTitle>
             <AlertDialogDescription>

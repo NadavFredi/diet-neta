@@ -29,8 +29,23 @@ import {
   SOURCE_OPTIONS,
 } from '@/utils/dashboard';
 import { useDashboardPage } from './Dashboard';
+import { useDefaultView } from '@/hooks/useDefaultView';
+import { useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const viewId = searchParams.get('view_id');
+  const { defaultView } = useDefaultView('leads');
+
+  // Auto-navigate to default view if no view_id is present
+  useEffect(() => {
+    if (!viewId && defaultView) {
+      navigate(`/dashboard?view_id=${defaultView.id}`, { replace: true });
+    }
+  }, [viewId, defaultView, navigate]);
+
   const {
     filteredLeads,
     searchQuery,
