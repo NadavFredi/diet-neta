@@ -405,11 +405,11 @@ const NutritionTemplatesManagement = () => {
 
       {/* Add Template Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} dir="rtl">
-        <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-            <DialogTitle>יצירת תבנית תזונה חדשה</DialogTitle>
+        <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-3 border-b flex-shrink-0">
+            <DialogTitle className="text-lg">יצירת תבנית תזונה חדשה</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
+          <div className="flex-1 overflow-hidden min-h-0">
             <NutritionTemplateForm
               mode="template"
               onSave={handleSaveTemplate}
@@ -421,11 +421,11 @@ const NutritionTemplatesManagement = () => {
 
       {/* Edit Template Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} dir="rtl">
-        <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-            <DialogTitle>עריכת תבנית תזונה</DialogTitle>
+        <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-3 border-b flex-shrink-0">
+            <DialogTitle className="text-lg">עריכת תבנית תזונה</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
+          <div className="flex-1 overflow-hidden min-h-0">
             {editingTemplate && (
               <NutritionTemplateForm
                 mode="template"
