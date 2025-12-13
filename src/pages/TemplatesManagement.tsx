@@ -325,7 +325,7 @@ const TemplatesManagement = () => {
 
       {/* Add Template Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} dir="rtl">
-        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
             <DialogTitle>יצירת תבנית אימונים חדשה</DialogTitle>
           </DialogHeader>
@@ -341,7 +341,7 @@ const TemplatesManagement = () => {
 
       {/* Edit Template Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} dir="rtl">
-        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
             <DialogTitle>עריכת תבנית אימונים</DialogTitle>
           </DialogHeader>

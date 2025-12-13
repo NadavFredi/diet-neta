@@ -326,8 +326,8 @@ const LeadDetails = () => {
                               </Button>
                             </DialogTrigger>
                             <DialogContent 
-                              className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden" 
-                              style={{ height: '90vh', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+                              className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" 
+                              style={{ height: '95vh', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
                               dir="rtl"
                             >
                               <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0" style={{ flexShrink: 0 }}>
@@ -414,7 +414,7 @@ const LeadDetails = () => {
 
                 {/* Import from Template Dialog */}
                 <Dialog open={isImportFormOpen} onOpenChange={setIsImportFormOpen} dir="rtl">
-                  <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden">
+                  <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden">
                     <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
                       <DialogTitle>
                         ייבוא מתבנית: {selectedTemplate?.name}
