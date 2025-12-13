@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { DndContext, DragOverlay, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -364,6 +364,14 @@ export const WorkoutBoard = ({ mode, initialData, leadId, onSave, onCancel }: Wo
     getDndContext,
   } = useWorkoutBoard(mode, initialData, leadId);
 
+  // Local state for tags input to allow typing commas freely
+  const [tagsInput, setTagsInput] = useState(goalTags.join(', '));
+
+  // Sync tagsInput with goalTags when goalTags change (e.g., when editing existing template)
+  useEffect(() => {
+    setTagsInput(goalTags.join(', '));
+  }, [goalTags]);
+
   const dndContext = getDndContext();
   const activeDaysCount = Object.values(weeklyWorkout.days).filter((d) => d.isActive).length;
 
@@ -463,13 +471,30 @@ export const WorkoutBoard = ({ mode, initialData, leadId, onSave, onCancel }: Wo
               <div className="space-y-2">
                 <Input
                   id="goalTags"
-                  value={goalTags.join(', ')}
+                  value={tagsInput}
                   onChange={(e) => {
-                    const tags = e.target.value
+                    setTagsInput(e.target.value);
+                  }}
+                  onBlur={() => {
+                    // Parse tags when user finishes typing
+                    const tags = tagsInput
                       .split(',')
                       .map(tag => tag.trim())
                       .filter(tag => tag.length > 0);
                     setGoalTags(tags);
+                    setTagsInput(tags.join(', '));
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      // Parse tags when user presses Enter
+                      const tags = tagsInput
+                        .split(',')
+                        .map(tag => tag.trim())
+                        .filter(tag => tag.length > 0);
+                      setGoalTags(tags);
+                      setTagsInput(tags.join(', '));
+                    }
                   }}
                   placeholder="לדוגמה: חיטוב, כוח, סיבולת"
                   className="w-full"

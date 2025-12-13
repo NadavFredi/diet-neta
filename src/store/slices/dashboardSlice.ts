@@ -974,23 +974,103 @@ const dashboardSlice = createSlice({
 function applyFilters(state: DashboardState): Lead[] {
   let filtered = [...state.leads];
 
-  // Apply search filter
+  // Apply search filter - search across all lead fields
   if (state.searchQuery) {
     const query = state.searchQuery.toLowerCase();
-    filtered = filtered.filter(
-      (lead) =>
-        lead.name.toLowerCase().includes(query) ||
-        lead.email.toLowerCase().includes(query) ||
-        lead.phone.includes(query) ||
-        lead.fitnessGoal.toLowerCase().includes(query) ||
-        lead.activityLevel.toLowerCase().includes(query) ||
-        lead.preferredTime.toLowerCase().includes(query) ||
-        (lead.notes && lead.notes.toLowerCase().includes(query)) ||
-        lead.age.toString().includes(query) ||
-        lead.birthDate.includes(query) ||
-        lead.height.toString().includes(query) ||
-        lead.weight.toString().includes(query)
-    );
+    filtered = filtered.filter((lead) => {
+      // Search in name
+      const nameMatch = lead.name?.toLowerCase().includes(query) || false;
+      
+      // Search in email
+      const emailMatch = lead.email?.toLowerCase().includes(query) || false;
+      
+      // Search in phone (exact match, not case-sensitive)
+      const phoneMatch = lead.phone?.includes(query) || false;
+      
+      // Search in fitness goal
+      const fitnessGoalMatch = lead.fitnessGoal?.toLowerCase().includes(query) || false;
+      
+      // Search in activity level
+      const activityLevelMatch = lead.activityLevel?.toLowerCase().includes(query) || false;
+      
+      // Search in preferred time
+      const preferredTimeMatch = lead.preferredTime?.toLowerCase().includes(query) || false;
+      
+      // Search in source
+      const sourceMatch = lead.source?.toLowerCase().includes(query) || false;
+      
+      // Search in notes
+      const notesMatch = lead.notes?.toLowerCase().includes(query) || false;
+      
+      // Search in age (as string)
+      const ageMatch = lead.age?.toString().includes(query) || false;
+      
+      // Search in birth date
+      const birthDateMatch = lead.birthDate?.includes(query) || false;
+      
+      // Search in height (as string)
+      const heightMatch = lead.height?.toString().includes(query) || false;
+      
+      // Search in weight (as string)
+      const weightMatch = lead.weight?.toString().includes(query) || false;
+      
+      // Search in created date
+      const createdDateMatch = lead.createdDate?.includes(query) || false;
+      
+      // Search in status
+      const statusMatch = lead.status?.toLowerCase().includes(query) || false;
+      
+      // Search in subscription data
+      const subscriptionMatch = 
+        lead.subscription?.joinDate?.includes(query) ||
+        lead.subscription?.timeInCurrentBudget?.toLowerCase().includes(query) ||
+        lead.subscription?.initialPackageMonths?.toString().includes(query) ||
+        lead.subscription?.currentWeekInProgram?.toString().includes(query) ||
+        false;
+      
+      // Search in workout programs
+      const workoutProgramsMatch = lead.workoutProgramsHistory?.some((program) =>
+        program.programName?.toLowerCase().includes(query) ||
+        program.description?.toLowerCase().includes(query) ||
+        program.startDate?.includes(query) ||
+        program.validUntil?.includes(query) ||
+        program.duration?.toLowerCase().includes(query) ||
+        false
+      ) || false;
+      
+      // Search in daily supplements
+      const supplementsMatch = lead.dailySupplements?.some((supplement) =>
+        supplement.toLowerCase().includes(query)
+      ) || false;
+      
+      // Search in daily steps goal
+      const stepsGoalMatch = lead.dailyStepsGoal?.toString().includes(query) || false;
+      
+      // Search in weekly workouts
+      const weeklyWorkoutsMatch = lead.weeklyWorkouts?.toString().includes(query) || false;
+
+      return (
+        nameMatch ||
+        emailMatch ||
+        phoneMatch ||
+        fitnessGoalMatch ||
+        activityLevelMatch ||
+        preferredTimeMatch ||
+        sourceMatch ||
+        notesMatch ||
+        ageMatch ||
+        birthDateMatch ||
+        heightMatch ||
+        weightMatch ||
+        createdDateMatch ||
+        statusMatch ||
+        subscriptionMatch ||
+        workoutProgramsMatch ||
+        supplementsMatch ||
+        stepsGoalMatch ||
+        weeklyWorkoutsMatch
+      );
+    });
   }
 
   // Apply date filter

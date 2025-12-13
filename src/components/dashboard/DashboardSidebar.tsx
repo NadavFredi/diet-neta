@@ -134,18 +134,22 @@ const ResourceItem = ({
     }
   };
 
+  // If there are saved views, always keep it expanded (can't hide)
+  const shouldBeExpanded = supportsViews && savedViews.length > 0 ? true : isExpanded;
+  const canToggle = supportsViews && savedViews.length === 0;
+
   return (
     <li>
       <Collapsible
-        open={isExpanded}
-        onOpenChange={onToggle}
+        open={shouldBeExpanded}
+        onOpenChange={canToggle ? onToggle : undefined}
         disabled={!supportsViews}
       >
         <div className="relative group">
           <div className="flex items-center">
             <button
               onClick={(e) => {
-                if (supportsViews && !isExpanded) {
+                if (supportsViews && canToggle && !isExpanded) {
                   e.stopPropagation();
                   onToggle();
                 }
@@ -190,7 +194,7 @@ const ResourceItem = ({
             )}
           </div>
           
-          {supportsViews && (
+          {supportsViews && savedViews.length > 0 && (
             <CollapsibleContent>
               <ul className="mt-1 space-y-1 pr-8">
                 {savedViews.map((view) => {
@@ -230,11 +234,6 @@ const ResourceItem = ({
                     </li>
                   );
                 })}
-                {savedViews.length === 0 && (
-                  <li className="px-4 py-2 text-xs text-gray-400 text-right">
-                    אין תצוגות שמורות
-                  </li>
-                )}
               </ul>
             </CollapsibleContent>
           )}
@@ -285,6 +284,12 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
   };
 
   const toggleResource = (resourceKey: string) => {
+    // Get saved views for this resource to check if it has views
+    const item = navigationItems.find(i => i.resourceKey === resourceKey);
+    const supportsViews = item?.resourceKey === 'leads' || item?.resourceKey === 'workouts' || item?.resourceKey === 'templates';
+    
+    // If this resource has saved views, don't allow collapsing
+    // We'll check this in the ResourceItem component instead
     setExpandedResources((prev) => {
       const next = new Set(prev);
       if (next.has(resourceKey)) {

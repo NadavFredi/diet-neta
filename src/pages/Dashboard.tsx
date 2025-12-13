@@ -105,7 +105,7 @@ const Dashboard = () => {
                     <h2 className="text-2xl font-bold text-gray-900 whitespace-nowrap">ניהול לידים</h2>
                     <div className="flex items-center gap-3">
                       <Input
-                        placeholder="חיפוש לפי שם..."
+                        placeholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
                         value={searchQuery}
                         onChange={(e) => handleSearchChange(e.target.value)}
                         className="w-64 bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"

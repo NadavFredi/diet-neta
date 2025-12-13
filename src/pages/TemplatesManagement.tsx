@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TemplateColumnSettings, type TemplateColumnVisibility, TEMPLATE_COLUMN_ORDER } from '@/components/dashboard/TemplateColumnSettings';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,13 +40,18 @@ import { WorkoutBuilderForm } from '@/components/dashboard/WorkoutBuilderForm';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { formatDate } from '@/utils/dashboard';
 import { useToast } from '@/hooks/use-toast';
 import { logout } from '@/store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
 import { useTemplateLeads } from '@/hooks/useTemplateLeads';
-import { Users, ExternalLink } from 'lucide-react';
+import { useTemplatesWithLeads } from '@/hooks/useTemplatesWithLeads';
+import { Users, ExternalLink, Calendar as CalendarIcon } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabaseClient';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 // Component to display connected leads for a template
 const TemplateLeadsCell = ({ templateId }: { templateId: string }) => {
@@ -126,22 +132,99 @@ const TemplatesManagement = () => {
     return {
       searchQuery,
       selectedTags,
+      selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
+      selectedHasLeads,
     };
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    setDatePickerOpen(false);
   };
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedHasLeads, setSelectedHasLeads] = useState<string>('all');
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<WorkoutTemplate | null>(null);
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<TemplateColumnVisibility>({
+    name: true,
+    description: true,
+    tags: true,
+    connectedLeads: true,
+    createdDate: true,
+    actions: true,
+  });
   const { toast } = useToast();
 
+  const handleToggleColumn = (key: keyof TemplateColumnVisibility) => {
+    setColumnVisibility((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
   const { data: templates = [], isLoading } = useWorkoutTemplates({
-    search: searchQuery || undefined,
+    search: undefined, // We'll do search client-side to include lead data
     goalTags: selectedTags.length > 0 ? selectedTags : undefined,
+  });
+  const { data: templatesWithLeadsSet = new Set<string>() } = useTemplatesWithLeads();
+  
+  // Fetch all templates with their connected leads for search
+  const { data: templatesWithLeadsData } = useQuery({
+    queryKey: ['templates-with-leads-data'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('workout_plans')
+          .select(`
+            template_id,
+            leads:lead_id (
+              id,
+              full_name,
+              phone,
+              email
+            )
+          `)
+          .not('template_id', 'is', null)
+          .not('lead_id', 'is', null);
+
+        if (error) {
+          console.error('Error fetching templates with leads data:', error);
+          return new Map<string, Array<{ name: string; phone: string; email?: string }>>();
+        }
+
+        // Group by template_id and collect all leads
+        const templateLeadsMap = new Map<string, Array<{ name: string; phone: string; email?: string }>>();
+        if (data) {
+          data.forEach((plan: any) => {
+            if (plan.template_id && plan.leads) {
+              const leads = templateLeadsMap.get(plan.template_id) || [];
+              leads.push({
+                name: plan.leads.full_name || '',
+                phone: plan.leads.phone || '',
+                email: plan.leads.email || '',
+              });
+              templateLeadsMap.set(plan.template_id, leads);
+            }
+          });
+        }
+
+        return templateLeadsMap;
+      } catch (err) {
+        console.error('Error in templates with leads query:', err);
+        return new Map<string, Array<{ name: string; phone: string; email?: string }>>();
+      }
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
   });
   const createTemplate = useCreateWorkoutTemplate();
   const updateTemplate = useUpdateWorkoutTemplate();
@@ -157,8 +240,51 @@ const TemplatesManagement = () => {
   }, [templates]);
 
   const filteredTemplates = useMemo(() => {
-    return templates;
-  }, [templates]);
+    let filtered = templates;
+
+    // Filter by search query (including lead data)
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      filtered = filtered.filter((template) => {
+        // Search in template name and description
+        const nameMatch = template.name?.toLowerCase().includes(searchLower);
+        const descMatch = template.description?.toLowerCase().includes(searchLower);
+        
+        // Search in connected leads data
+        let leadMatch = false;
+        if (templatesWithLeadsData) {
+          const templateLeads = templatesWithLeadsData.get(template.id) || [];
+          leadMatch = templateLeads.some((lead) => {
+            return (
+              lead.name?.toLowerCase().includes(searchLower) ||
+              lead.phone?.includes(searchQuery) ||
+              lead.email?.toLowerCase().includes(searchLower)
+            );
+          });
+        }
+
+        return nameMatch || descMatch || leadMatch;
+      });
+    }
+
+    // Filter by date
+    if (selectedDate) {
+      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+      filtered = filtered.filter((template) => {
+        const templateDate = format(new Date(template.created_at), 'yyyy-MM-dd');
+        return templateDate === selectedDateStr;
+      });
+    }
+
+    // Filter by connected leads
+    if (selectedHasLeads === 'has') {
+      filtered = filtered.filter((template) => templatesWithLeadsSet.has(template.id));
+    } else if (selectedHasLeads === 'none') {
+      filtered = filtered.filter((template) => !templatesWithLeadsSet.has(template.id));
+    }
+
+    return filtered;
+  }, [templates, searchQuery, selectedDate, selectedHasLeads, templatesWithLeadsSet, templatesWithLeadsData]);
 
   const handleAddTemplate = () => {
     setEditingTemplate(null);
@@ -257,12 +383,32 @@ const TemplatesManagement = () => {
                     <h2 className="text-2xl font-bold text-gray-900 whitespace-nowrap">תכניות אימונים</h2>
                     <div className="flex items-center gap-3">
                       <Input
-                        placeholder="חיפוש לפי שם או תיאור..."
+                        placeholder="חיפוש לפי שם, תיאור, שם ליד, טלפון או אימייל..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-64 bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
                         dir="rtl"
                       />
+                      <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                        <PopoverTrigger asChild>
+                          <Button 
+                            type="button"
+                            variant="outline" 
+                            size="icon" 
+                            className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-gray-300 transition-all rounded-lg flex-shrink-0 w-11 h-11 bg-white shadow-sm"
+                            title="הגדרות עמודות"
+                            aria-label="הגדרות עמודות"
+                          >
+                            <Settings className="h-6 w-6 flex-shrink-0" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
+                          <TemplateColumnSettings
+                            columnVisibility={columnVisibility}
+                            onToggleColumn={handleToggleColumn}
+                          />
+                        </PopoverContent>
+                      </Popover>
                       <Button
                         onClick={handleAddTemplate}
                         className="bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm hover:shadow-md flex items-center gap-2 flex-shrink-0"
@@ -273,44 +419,82 @@ const TemplatesManagement = () => {
                       </Button>
                     </div>
                   </div>
-                  {allTags.length > 0 && (
-                    <div className="mb-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Label className="text-xs font-medium text-gray-600">
-                          סינון לפי תגיות:
-                        </Label>
-                        <div className="flex gap-2 flex-wrap">
-                          {allTags.map((tag) => (
+                  <div className="mb-3">
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          תאריך יצירה
+                        </label>
+                        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                          <PopoverTrigger asChild>
                             <Button
-                              key={tag}
-                              variant={selectedTags.includes(tag) ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => {
-                                setSelectedTags(prev =>
-                                  prev.includes(tag)
-                                    ? prev.filter(t => t !== tag)
-                                    : [...prev, tag]
-                                );
-                              }}
-                              className="text-xs h-7"
+                              variant="outline"
+                              className="bg-gray-50 text-gray-900 hover:bg-white border border-gray-200 shadow-sm transition-all hover:shadow-md h-9 text-xs px-2"
                             >
-                              {tag}
+                              <CalendarIcon className="ml-1 h-3 w-3" />
+                              {selectedDate ? formatDate(format(selectedDate, 'yyyy-MM-dd')) : 'בחר תאריך'}
                             </Button>
-                          ))}
-                          {selectedTags.length > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedTags([])}
-                              className="text-xs h-7 text-gray-500"
-                            >
-                              נקה סינון
-                            </Button>
-                          )}
-                        </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 shadow-xl" align="start" dir="rtl">
+                            <Calendar
+                              mode="single"
+                              selected={selectedDate}
+                              onSelect={handleDateSelect}
+                              locale={he}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          תגיות
+                        </label>
+                        <Select
+                          value={selectedTags.length > 0 ? selectedTags[0] : 'all'}
+                          onValueChange={(value) => {
+                            if (value === 'all') {
+                              setSelectedTags([]);
+                            } else {
+                              setSelectedTags([value]);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                            <SelectValue placeholder="הכל" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl" className="shadow-xl">
+                            <SelectItem value="all">הכל</SelectItem>
+                            {allTags.map((tag) => (
+                              <SelectItem key={tag} value={tag}>
+                                {tag}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
+                          לידים מחוברים
+                        </label>
+                        <Select
+                          value={selectedHasLeads}
+                          onValueChange={setSelectedHasLeads}
+                        >
+                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                            <SelectValue placeholder="הכל" />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl" className="shadow-xl">
+                            <SelectItem value="all">הכל</SelectItem>
+                            <SelectItem value="has">יש לידים מחוברים</SelectItem>
+                            <SelectItem value="none">אין לידים מחוברים</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                  )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1 mb-3">
+                    {filteredTemplates.length} {filteredTemplates.length === 1 ? 'תוכנית' : 'תוכניות'} נמצאו
+                  </p>
                 </div>
 
                 {/* Templates Table */}
@@ -325,12 +509,24 @@ const TemplatesManagement = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-right">שם התוכנית</TableHead>
-                          <TableHead className="text-right">תיאור</TableHead>
-                          <TableHead className="text-right">תגיות</TableHead>
-                          <TableHead className="text-right">לידים מחוברים</TableHead>
-                          <TableHead className="text-right">תאריך יצירה</TableHead>
-                          <TableHead className="text-right">פעולות</TableHead>
+                          {columnVisibility.name && (
+                            <TableHead className="text-right">שם התוכנית</TableHead>
+                          )}
+                          {columnVisibility.description && (
+                            <TableHead className="text-right">תיאור</TableHead>
+                          )}
+                          {columnVisibility.tags && (
+                            <TableHead className="text-right">תגיות</TableHead>
+                          )}
+                          {columnVisibility.connectedLeads && (
+                            <TableHead className="text-right">לידים מחוברים</TableHead>
+                          )}
+                          {columnVisibility.createdDate && (
+                            <TableHead className="text-right">תאריך יצירה</TableHead>
+                          )}
+                          {columnVisibility.actions && (
+                            <TableHead className="text-right">פעולות</TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -340,55 +536,67 @@ const TemplatesManagement = () => {
                             className="hover:bg-gray-50 cursor-pointer"
                             onClick={() => handleEditTemplate(template)}
                           >
-                            <TableCell className="font-medium">{template.name}</TableCell>
-                            <TableCell className="text-gray-600 max-w-md truncate">
-                              {template.description || '-'}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1 flex-wrap">
-                                {template.goal_tags.length > 0 ? (
-                                  template.goal_tags.map((tag, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs">
-                                      {tag}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-sm">-</span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <TemplateLeadsCell templateId={template.id} />
-                            </TableCell>
-                            <TableCell className="text-gray-600">
-                              {format(new Date(template.created_at), 'dd/MM/yyyy', { locale: he })}
-                            </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditTemplate(template);
-                                  }}
-                                  className="hover:bg-blue-50"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteClick(template);
-                                  }}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
+                            {columnVisibility.name && (
+                              <TableCell className="font-medium">{template.name}</TableCell>
+                            )}
+                            {columnVisibility.description && (
+                              <TableCell className="text-gray-600 max-w-md truncate">
+                                {template.description || '-'}
+                              </TableCell>
+                            )}
+                            {columnVisibility.tags && (
+                              <TableCell>
+                                <div className="flex gap-1 flex-wrap">
+                                  {template.goal_tags.length > 0 ? (
+                                    template.goal_tags.map((tag, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        {tag}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-gray-400 text-sm">-</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                            )}
+                            {columnVisibility.connectedLeads && (
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <TemplateLeadsCell templateId={template.id} />
+                              </TableCell>
+                            )}
+                            {columnVisibility.createdDate && (
+                              <TableCell className="text-gray-600">
+                                {format(new Date(template.created_at), 'dd/MM/yyyy', { locale: he })}
+                              </TableCell>
+                            )}
+                            {columnVisibility.actions && (
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditTemplate(template);
+                                    }}
+                                    className="hover:bg-blue-50"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteClick(template);
+                                    }}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
