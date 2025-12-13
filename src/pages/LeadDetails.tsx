@@ -4,7 +4,6 @@ import { useLeadDetailsPage } from './LeadDetails';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
-import { WorkoutPlanForm } from '@/components/dashboard/WorkoutPlanForm';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import {
   Select,
@@ -33,7 +32,6 @@ import {
   Wallet,
   Clock,
   TrendingUp,
-  Plus,
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { useAppSelector } from '@/store/hooks';
@@ -74,8 +72,7 @@ const LeadDetails = () => {
   } = useLeadDetailsPage();
   
   const { user } = useAppSelector((state) => state.auth);
-  const { workoutPlan, isLoading: workoutLoading, createWorkoutPlan, updateWorkoutPlan, fetchWorkoutPlan } = useWorkoutPlan(lead?.id);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const { workoutPlan, isLoading: workoutLoading, createWorkoutPlan, updateWorkoutPlan, deleteWorkoutPlan, fetchWorkoutPlan } = useWorkoutPlan(lead?.id);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isImportFormOpen, setIsImportFormOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null);
@@ -305,6 +302,23 @@ const LeadDetails = () => {
                           console.error('Failed to update workout plan:', error);
                         }
                       }}
+                      onDelete={async () => {
+                        try {
+                          await deleteWorkoutPlan();
+                          await fetchWorkoutPlan();
+                          toast({
+                            title: 'הצלחה',
+                            description: 'תוכנית האימונים נמחקה בהצלחה',
+                          });
+                        } catch (error: any) {
+                          console.error('Failed to delete workout plan:', error);
+                          toast({
+                            title: 'שגיאה',
+                            description: error?.message || 'נכשל במחיקת התוכנית',
+                            variant: 'destructive',
+                          });
+                        }
+                      }}
                       isEditable={true}
                     />
                   ) : (
@@ -315,46 +329,14 @@ const LeadDetails = () => {
                           אין תוכנית אימונים
                         </h3>
                         <p className="text-sm text-gray-600 mb-6">
-                          צור תוכנית אימונים חדשה עבור הלקוח
+                          בחר תוכנית אימונים מהתבניות הקיימות
                         </p>
                         <div className="flex gap-3 justify-center">
-                          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                            <DialogTrigger asChild>
-                              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                                <Plus className="h-4 w-4 ml-2" />
-                                צור תוכנית אימונים
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent 
-                              className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" 
-                              style={{ height: '95vh', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-                              dir="rtl"
-                            >
-                              <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0" style={{ flexShrink: 0 }}>
-                                <DialogTitle>צור תוכנית אימונים חדשה</DialogTitle>
-                              </DialogHeader>
-                              <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
-                                <WorkoutPlanForm
-                                  leadId={lead.id}
-                                  onSave={async (planData) => {
-                                    try {
-                                      await createWorkoutPlan(planData);
-                                      setIsCreateDialogOpen(false);
-                                      await fetchWorkoutPlan();
-                                    } catch (error) {
-                                      console.error('Failed to create workout plan:', error);
-                                    }
-                                  }}
-                                  onCancel={() => setIsCreateDialogOpen(false)}
-                                />
-                              </div>
-                            </DialogContent>
-                          </Dialog>
                           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
                             <DialogTrigger asChild>
-                              <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+                              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                                 <Download className="h-4 w-4 ml-2" />
-                                ייבא מתבנית
+                                בחר תוכנית אימונים
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col" dir="rtl">
@@ -432,7 +414,11 @@ const LeadDetails = () => {
                             try {
                               // Deep clone the template data to ensure independence
                               const clonedData = JSON.parse(JSON.stringify(planData));
-                              await createWorkoutPlan(clonedData);
+                              // Add template_id reference (snapshot pattern - changes to template won't affect this plan)
+                              await createWorkoutPlan({
+                                ...clonedData,
+                                template_id: selectedTemplate.id,
+                              });
                               setIsImportFormOpen(false);
                               setSelectedTemplate(null);
                               await fetchWorkoutPlan();

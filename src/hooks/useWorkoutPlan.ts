@@ -45,6 +45,7 @@ export const useWorkoutPlan = (leadId?: string) => {
           id: data.id,
           user_id: data.user_id,
           lead_id: data.lead_id,
+          template_id: data.template_id,
           start_date: data.start_date,
           description: data.description || '',
           strength: data.strength || 0,
@@ -79,6 +80,7 @@ export const useWorkoutPlan = (leadId?: string) => {
         .insert({
           user_id: user.id,
           lead_id: leadId,
+          template_id: planData.template_id,
           start_date: planData.start_date,
           description: planData.description,
           strength: planData.strength,
@@ -97,6 +99,7 @@ export const useWorkoutPlan = (leadId?: string) => {
           id: data.id,
           user_id: data.user_id,
           lead_id: data.lead_id,
+          template_id: data.template_id,
           start_date: data.start_date,
           description: data.description || '',
           strength: data.strength || 0,
@@ -145,6 +148,7 @@ export const useWorkoutPlan = (leadId?: string) => {
           id: data.id,
           user_id: data.user_id,
           lead_id: data.lead_id,
+          template_id: data.template_id,
           start_date: data.start_date,
           description: data.description || '',
           strength: data.strength || 0,
@@ -164,6 +168,29 @@ export const useWorkoutPlan = (leadId?: string) => {
     }
   };
 
+  const deleteWorkoutPlan = async () => {
+    if (!workoutPlan) {
+      throw new Error('No workout plan to delete');
+    }
+
+    try {
+      setError(null);
+
+      const { error: deleteError } = await supabase
+        .from('workout_plans')
+        .delete()
+        .eq('id', workoutPlan.id);
+
+      if (deleteError) throw deleteError;
+
+      setWorkoutPlan(null);
+    } catch (err) {
+      console.error('Error deleting workout plan:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete workout plan');
+      throw err;
+    }
+  };
+
   return {
     workoutPlan,
     isLoading,
@@ -171,6 +198,7 @@ export const useWorkoutPlan = (leadId?: string) => {
     fetchWorkoutPlan,
     createWorkoutPlan,
     updateWorkoutPlan,
+    deleteWorkoutPlan,
   };
 };
 

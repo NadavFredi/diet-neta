@@ -3,9 +3,10 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { AppFooter } from '@/components/layout/AppFooter';
-import { Plus, Settings, Search, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Settings, Search, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -42,6 +43,72 @@ import { useToast } from '@/hooks/use-toast';
 import { logout } from '@/store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
+import { useTemplateLeads } from '@/hooks/useTemplateLeads';
+import { Users, ExternalLink } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
+// Component to display connected leads for a template
+const TemplateLeadsCell = ({ templateId }: { templateId: string }) => {
+  const { data: leads = [], isLoading } = useTemplateLeads(templateId);
+  const navigate = useNavigate();
+
+  if (isLoading) {
+    return <span className="text-gray-400 text-sm">טוען...</span>;
+  }
+
+  if (leads.length === 0) {
+    return <span className="text-gray-400 text-sm">אין לידים מחוברים</span>;
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="hover:bg-blue-50 text-blue-600 hover:text-blue-700"
+        >
+          <Users className="h-4 w-4 ml-1" />
+          <span>{leads.length} ליד{leads.length > 1 ? 'ים' : ''}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80" dir="rtl">
+        <div className="space-y-2">
+          <div className="font-semibold text-sm mb-3 pb-2 border-b">
+            לידים מחוברים לתוכנית זו
+            <p className="text-xs font-normal text-gray-500 mt-1">
+              שינוי התוכנית לא ישפיע על התוכניות הקיימות של הלידים
+            </p>
+          </div>
+          <div className="max-h-60 overflow-y-auto space-y-2">
+            {leads.map((lead) => (
+              <div
+                key={lead.plan_id}
+                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer group"
+                onClick={() => navigate(`/leads/${lead.lead_id}`)}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-gray-900 truncate">
+                    {lead.lead_name}
+                  </div>
+                  {lead.lead_email && (
+                    <div className="text-xs text-gray-500 truncate">
+                      {lead.lead_email}
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-400 mt-1">
+                    נוצר: {format(new Date(lead.plan_created_at), 'dd/MM/yyyy', { locale: he })}
+                  </div>
+                </div>
+                <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0 mr-2" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const TemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -58,12 +125,12 @@ const TemplatesManagement = () => {
   const getCurrentFilterConfig = () => {
     return {
       searchQuery,
-      selectedVisibility,
+      selectedTags,
     };
   };
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedVisibility, setSelectedVisibility] = useState<string>('all');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
@@ -74,24 +141,24 @@ const TemplatesManagement = () => {
 
   const { data: templates = [], isLoading } = useWorkoutTemplates({
     search: searchQuery || undefined,
-    isPublic: selectedVisibility === 'all' ? undefined : selectedVisibility === 'public',
+    goalTags: selectedTags.length > 0 ? selectedTags : undefined,
   });
   const createTemplate = useCreateWorkoutTemplate();
   const updateTemplate = useUpdateWorkoutTemplate();
   const deleteTemplate = useDeleteWorkoutTemplate();
 
+  // Get all unique tags from templates
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    templates.forEach(template => {
+      template.goal_tags.forEach(tag => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [templates]);
+
   const filteredTemplates = useMemo(() => {
-    let filtered = templates;
-
-    // Apply visibility filter
-    if (selectedVisibility === 'public') {
-      filtered = filtered.filter((t) => t.is_public);
-    } else if (selectedVisibility === 'private') {
-      filtered = filtered.filter((t) => !t.is_public);
-    }
-
-    return filtered;
-  }, [templates, selectedVisibility]);
+    return templates;
+  }, [templates]);
 
   const handleAddTemplate = () => {
     setEditingTemplate(null);
@@ -187,7 +254,7 @@ const TemplatesManagement = () => {
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
                 <div className="mb-4">
                   <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
-                    <h2 className="text-2xl font-bold text-gray-900 whitespace-nowrap">תבניות אימונים</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 whitespace-nowrap">תכניות אימונים</h2>
                     <div className="flex items-center gap-3">
                       <Input
                         placeholder="חיפוש לפי שם או תיאור..."
@@ -202,32 +269,48 @@ const TemplatesManagement = () => {
                         size="sm"
                       >
                         <Plus className="h-4 w-4" />
-                        <span>הוסף תבנית</span>
+                        <span>הוסף תוכנית</span>
                       </Button>
                     </div>
                   </div>
-                  <div className="mb-3">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="flex flex-col">
-                        <label className="text-xs font-medium text-gray-600 mb-1 text-right">
-                          סטטוס
-                        </label>
-                        <Select
-                          value={selectedVisibility}
-                          onValueChange={setSelectedVisibility}
-                        >
-                          <SelectTrigger className="h-9 text-xs bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
-                            <SelectValue placeholder="הכל" />
-                          </SelectTrigger>
-                          <SelectContent dir="rtl" className="shadow-xl">
-                            <SelectItem value="all">הכל</SelectItem>
-                            <SelectItem value="public">ציבורי</SelectItem>
-                            <SelectItem value="private">פרטי</SelectItem>
-                          </SelectContent>
-                        </Select>
+                  {allTags.length > 0 && (
+                    <div className="mb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Label className="text-xs font-medium text-gray-600">
+                          סינון לפי תגיות:
+                        </Label>
+                        <div className="flex gap-2 flex-wrap">
+                          {allTags.map((tag) => (
+                            <Button
+                              key={tag}
+                              variant={selectedTags.includes(tag) ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => {
+                                setSelectedTags(prev =>
+                                  prev.includes(tag)
+                                    ? prev.filter(t => t !== tag)
+                                    : [...prev, tag]
+                                );
+                              }}
+                              className="text-xs h-7"
+                            >
+                              {tag}
+                            </Button>
+                          ))}
+                          {selectedTags.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedTags([])}
+                              className="text-xs h-7 text-gray-500"
+                            >
+                              נקה סינון
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Templates Table */}
@@ -236,23 +319,27 @@ const TemplatesManagement = () => {
                     <div className="p-8 text-center text-gray-500">טוען...</div>
                   ) : filteredTemplates.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
-                      {searchQuery ? 'לא נמצאו תבניות התואמות לחיפוש' : 'אין תבניות. צור תבנית חדשה כדי להתחיל'}
+                      {searchQuery ? 'לא נמצאו תוכניות התואמות לחיפוש' : 'אין תוכניות. צור תוכנית חדשה כדי להתחיל'}
                     </div>
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-right">שם התבנית</TableHead>
+                          <TableHead className="text-right">שם התוכנית</TableHead>
                           <TableHead className="text-right">תיאור</TableHead>
                           <TableHead className="text-right">תגיות</TableHead>
-                          <TableHead className="text-right">סטטוס</TableHead>
+                          <TableHead className="text-right">לידים מחוברים</TableHead>
                           <TableHead className="text-right">תאריך יצירה</TableHead>
                           <TableHead className="text-right">פעולות</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {filteredTemplates.map((template) => (
-                          <TableRow key={template.id} className="hover:bg-gray-50">
+                          <TableRow 
+                            key={template.id} 
+                            className="hover:bg-gray-50 cursor-pointer"
+                            onClick={() => handleEditTemplate(template)}
+                          >
                             <TableCell className="font-medium">{template.name}</TableCell>
                             <TableCell className="text-gray-600 max-w-md truncate">
                               {template.description || '-'}
@@ -270,28 +357,21 @@ const TemplatesManagement = () => {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              {template.is_public ? (
-                                <Badge className="bg-green-100 text-green-800">
-                                  <Eye className="h-3 w-3 ml-1" />
-                                  ציבורי
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-gray-100 text-gray-800">
-                                  <EyeOff className="h-3 w-3 ml-1" />
-                                  פרטי
-                                </Badge>
-                              )}
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <TemplateLeadsCell templateId={template.id} />
                             </TableCell>
                             <TableCell className="text-gray-600">
                               {format(new Date(template.created_at), 'dd/MM/yyyy', { locale: he })}
                             </TableCell>
-                            <TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
                               <div className="flex gap-2">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleEditTemplate(template)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditTemplate(template);
+                                  }}
                                   className="hover:bg-blue-50"
                                 >
                                   <Edit className="h-4 w-4" />
@@ -299,7 +379,10 @@ const TemplatesManagement = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDeleteClick(template)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteClick(template);
+                                  }}
                                   className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -327,7 +410,7 @@ const TemplatesManagement = () => {
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} dir="rtl">
         <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-            <DialogTitle>יצירת תבנית אימונים חדשה</DialogTitle>
+            <DialogTitle>יצירת תוכנית אימונים חדשה</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
             <WorkoutBuilderForm
@@ -343,7 +426,7 @@ const TemplatesManagement = () => {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} dir="rtl">
         <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-            <DialogTitle>עריכת תבנית אימונים</DialogTitle>
+            <DialogTitle>עריכת תוכנית אימונים</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
             {editingTemplate && (
@@ -353,6 +436,7 @@ const TemplatesManagement = () => {
                   routine_data: editingTemplate.routine_data,
                   description: editingTemplate.name,
                   generalGoals: editingTemplate.description || '',
+                  goal_tags: editingTemplate.goal_tags || [],
                 } as any}
                 onSave={handleSaveTemplate}
                 onCancel={() => {

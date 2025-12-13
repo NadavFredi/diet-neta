@@ -10,6 +10,7 @@ export interface WorkoutBoardState {
   startDate: Date | undefined;
   description: string;
   generalGoals: string;
+  goalTags: string[];
   weeklyWorkout: WeeklyWorkout;
   activeId: string | null;
 }
@@ -18,6 +19,7 @@ export interface WorkoutBoardActions {
   setStartDate: (date: Date | undefined) => void;
   setDescription: (desc: string) => void;
   setGeneralGoals: (goals: string) => void;
+  setGoalTags: (tags: string[]) => void;
   updateDay: (dayKey: keyof WeeklyWorkout['days'], updates: Partial<DayWorkout> | ((prev: DayWorkout) => Partial<DayWorkout>)) => void;
   addExercise: (dayKey: keyof WeeklyWorkout['days'], exercise: Exercise) => void;
   updateExercise: (dayKey: keyof WeeklyWorkout['days'], exerciseId: string, updates: Partial<Exercise>) => void;
@@ -95,6 +97,13 @@ export const useWorkoutBoard = (
     initialData && 'description' in initialData ? initialData.description || '' : ''
   );
   const [generalGoals, setGeneralGoals] = useState('');
+  const [goalTags, setGoalTags] = useState<string[]>(() => {
+    // Initialize from template data if available
+    if (initialData && 'goal_tags' in initialData) {
+      return (initialData as any).goal_tags || [];
+    }
+    return [];
+  });
   const [weeklyWorkout, setWeeklyWorkout] = useState<WeeklyWorkout>(() => initializeWeeklyWorkout(initialData));
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -408,19 +417,20 @@ export const useWorkoutBoard = (
         templateData: {
           name: description || 'תבנית ללא שם',
           description: generalGoals || '',
-          goal_tags: [],
+          goal_tags: goalTags,
           routine_data: {
             weeklyWorkout: updatedWorkout,
           },
         },
       };
     }
-  }, [mode, startDate, description, generalGoals, weeklyWorkout, leadId]);
+  }, [mode, startDate, description, generalGoals, goalTags, weeklyWorkout, leadId]);
 
   const reset = useCallback(() => {
     setStartDate(new Date());
     setDescription('');
     setGeneralGoals('');
+    setGoalTags([]);
     setWeeklyWorkout(initializeWeeklyWorkout());
   }, []);
 
@@ -436,12 +446,14 @@ export const useWorkoutBoard = (
     startDate,
     description,
     generalGoals,
+    goalTags,
     weeklyWorkout,
     activeId,
     // Actions
     setStartDate,
     setDescription,
     setGeneralGoals,
+    setGoalTags,
     updateDay,
     addExercise,
     updateExercise,

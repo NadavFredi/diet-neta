@@ -9,7 +9,8 @@ import {
   FileText,
   Edit,
   Plus,
-  Target
+  Target,
+  Trash2
 } from 'lucide-react';
 import { format, differenceInDays, differenceInWeeks, differenceInMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -17,6 +18,17 @@ import { Button } from '@/components/ui/button';
 import { WorkoutPlanForm } from './WorkoutPlanForm';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import type { WeeklyWorkout } from './WeeklyWorkoutBuilder';
 
 export interface CustomField {
@@ -28,6 +40,7 @@ export interface WorkoutPlan {
   id: string;
   user_id: string;
   lead_id?: string;
+  template_id?: string;
   start_date: string;
   description?: string;
   strength: number;
@@ -44,15 +57,18 @@ export interface WorkoutPlan {
 interface WorkoutPlanCardProps {
   workoutPlan: WorkoutPlan;
   onUpdate?: (plan: Partial<WorkoutPlan>) => void;
+  onDelete?: () => void;
   isEditable?: boolean;
 }
 
 export const WorkoutPlanCard = ({ 
   workoutPlan, 
   onUpdate,
+  onDelete,
   isEditable = true 
 }: WorkoutPlanCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   
   const startDate = new Date(workoutPlan.start_date);
   const today = new Date();
@@ -112,36 +128,69 @@ export const WorkoutPlanCard = ({
             </div>
           </div>
           {isEditable && (
-            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  className="h-9 w-9 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            <div className="flex items-center gap-2">
+              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="h-9 w-9 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent 
+                  className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" 
+                  style={{ height: '95vh', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+                  dir="rtl"
                 >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent 
-                className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" 
-                style={{ height: '95vh', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-                dir="rtl"
-              >
-                <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0" style={{ flexShrink: 0 }}>
-                  <DialogTitle>עריכת תוכנית אימונים</DialogTitle>
-                </DialogHeader>
-                <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
-                  <WorkoutPlanForm
-                    initialData={workoutPlan}
-                    onSave={(updatedPlan) => {
-                      onUpdate?.(updatedPlan);
-                      setIsEditOpen(false);
-                    }}
-                    onCancel={() => setIsEditOpen(false)}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
+                  <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0" style={{ flexShrink: 0 }}>
+                    <DialogTitle>עריכת תוכנית אימונים</DialogTitle>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0" style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+                    <WorkoutPlanForm
+                      initialData={workoutPlan}
+                      onSave={(updatedPlan) => {
+                        onUpdate?.(updatedPlan);
+                        setIsEditOpen(false);
+                      }}
+                      onCancel={() => setIsEditOpen(false)}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="h-9 w-9 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent dir="rtl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>מחיקת תוכנית אימונים</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      האם אתה בטוח שברצונך למחוק את תוכנית האימונים? פעולה זו לא ניתנת לביטול.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>ביטול</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        onDelete?.();
+                        setIsDeleteOpen(false);
+                      }}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      מחק
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           )}
         </div>
       </CardHeader>

@@ -35,7 +35,7 @@ const navigationItems: NavItem[] = [
   {
     id: 'templates',
     resourceKey: 'templates',
-    label: 'תבניות אימונים',
+    label: 'תכניות אימונים',
     icon: Dumbbell,
     path: '/dashboard/templates',
   },

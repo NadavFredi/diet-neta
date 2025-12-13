@@ -347,11 +347,13 @@ export const WorkoutBoard = ({ mode, initialData, leadId, onSave, onCancel }: Wo
     startDate,
     description,
     generalGoals,
+    goalTags,
     weeklyWorkout,
     activeId,
     setStartDate,
     setDescription,
     setGeneralGoals,
+    setGoalTags,
     addExercise,
     updateExercise,
     removeExercise,
@@ -452,6 +454,39 @@ export const WorkoutBoard = ({ mode, initialData, leadId, onSave, onCancel }: Wo
               />
             </div>
           </div>
+          {mode === 'template' && (
+            <div>
+              <Label htmlFor="goalTags" className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2">
+                <Zap className="h-4 w-4" />
+                תגיות (מופרדות בפסיק)
+              </Label>
+              <div className="space-y-2">
+                <Input
+                  id="goalTags"
+                  value={goalTags.join(', ')}
+                  onChange={(e) => {
+                    const tags = e.target.value
+                      .split(',')
+                      .map(tag => tag.trim())
+                      .filter(tag => tag.length > 0);
+                    setGoalTags(tags);
+                  }}
+                  placeholder="לדוגמה: חיטוב, כוח, סיבולת"
+                  className="w-full"
+                  dir="rtl"
+                />
+                {goalTags.length > 0 && (
+                  <div className="flex gap-1 flex-wrap">
+                    {goalTags.map((tag, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
