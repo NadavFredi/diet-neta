@@ -929,6 +929,19 @@ const dashboardSlice = createSlice({
     setColumnVisibility: (state, action: PayloadAction<ColumnVisibility>) => {
       state.columnVisibility = action.payload;
     },
+    resetFilters: (state) => {
+      state.searchQuery = '';
+      state.selectedDate = null;
+      state.selectedStatus = null;
+      state.selectedAge = null;
+      state.selectedHeight = null;
+      state.selectedWeight = null;
+      state.selectedFitnessGoal = null;
+      state.selectedActivityLevel = null;
+      state.selectedPreferredTime = null;
+      state.selectedSource = null;
+      state.filteredLeads = applyFilters(state);
+    },
     updateLeadStatus: (state, action: PayloadAction<{ leadId: string; status: string }>) => {
       const { leadId, status } = action.payload;
       const lead = state.leads.find((l) => l.id === leadId);
@@ -1042,6 +1055,7 @@ export const {
   setSelectedSource,
   toggleColumnVisibility,
   setColumnVisibility,
+  resetFilters,
   updateLeadStatus,
 } = dashboardSlice.actions;
 export default dashboardSlice.reducer;

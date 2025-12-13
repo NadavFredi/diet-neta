@@ -16,6 +16,7 @@ import {
   setSelectedPreferredTime,
   setSelectedSource,
   setColumnVisibility,
+  resetFilters,
 } from '@/store/slices/dashboardSlice';
 import { format } from 'date-fns';
 
@@ -33,9 +34,18 @@ export const useDashboardPage = () => {
     dispatch(fetchLeads());
   }, [dispatch]);
 
+  // Reset filters when navigating to base resource (no view_id)
+  useEffect(() => {
+    if (!viewId) {
+      // Always reset filters when on base page (no view_id)
+      dispatch(resetFilters());
+      setHasAppliedView(false);
+    }
+  }, [viewId, dispatch]);
+
   // Apply saved view filter config when view is loaded
   useEffect(() => {
-    if (savedView && !hasAppliedView && !isLoadingView) {
+    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
       const filterConfig = savedView.filter_config as FilterConfig;
       
       // Apply all filters from the saved view
@@ -74,9 +84,6 @@ export const useDashboardPage = () => {
       }
       
       setHasAppliedView(true);
-    } else if (!viewId && hasAppliedView) {
-      // Reset applied view flag when view_id is cleared
-      setHasAppliedView(false);
     }
   }, [savedView, hasAppliedView, isLoadingView, viewId, dispatch]);
 
