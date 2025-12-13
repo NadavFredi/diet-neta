@@ -3,8 +3,11 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { useLeadDetailsPage } from './LeadDetails';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
+import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
+import { useNutritionPlan } from '@/hooks/useNutritionPlan';
 import {
   Select,
   SelectContent,
@@ -32,6 +35,7 @@ import {
   Wallet,
   Clock,
   TrendingUp,
+  Flame,
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { useAppSelector } from '@/store/hooks';
@@ -39,7 +43,9 @@ import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useState } from 'react';
 import { useWorkoutTemplates, type WorkoutTemplate } from '@/hooks/useWorkoutTemplates';
+import { useNutritionTemplates, type NutritionTemplate } from '@/hooks/useNutritionTemplates';
 import { WorkoutBuilderForm } from '@/components/dashboard/WorkoutBuilderForm';
+import { NutritionTemplateForm } from '@/components/dashboard/NutritionTemplateForm';
 import { Download, Loader2 } from 'lucide-react';
 import {
   Table,
@@ -73,10 +79,15 @@ const LeadDetails = () => {
   
   const { user } = useAppSelector((state) => state.auth);
   const { workoutPlan, isLoading: workoutLoading, createWorkoutPlan, updateWorkoutPlan, deleteWorkoutPlan, fetchWorkoutPlan } = useWorkoutPlan(lead?.id);
+  const { nutritionPlan, isLoading: nutritionLoading, createNutritionPlan, updateNutritionPlan, deleteNutritionPlan, fetchNutritionPlan } = useNutritionPlan(lead?.id);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isImportFormOpen, setIsImportFormOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null);
+  const [isNutritionImportDialogOpen, setIsNutritionImportDialogOpen] = useState(false);
+  const [isNutritionImportFormOpen, setIsNutritionImportFormOpen] = useState(false);
+  const [selectedNutritionTemplate, setSelectedNutritionTemplate] = useState<NutritionTemplate | null>(null);
   const { data: templates = [], isLoading: templatesLoading } = useWorkoutTemplates();
+  const { data: nutritionTemplates = [], isLoading: nutritionTemplatesLoading } = useNutritionTemplates();
   const { toast } = useToast();
 
   if (!lead) {
@@ -394,9 +405,132 @@ const LeadDetails = () => {
                   )}
                 </div>
 
+                {/* Nutrition Plan Section */}
+                <div className="mb-6">
+                  {nutritionLoading ? (
+                    <Card className="p-6 bg-white border-gray-200">
+                      <div className="text-center py-8">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+                        <p className="mt-4 text-gray-600">טוען תוכנית תזונה...</p>
+                      </div>
+                    </Card>
+                  ) : nutritionPlan ? (
+                    <NutritionPlanCard
+                      nutritionPlan={nutritionPlan}
+                      onUpdate={async (updatedPlan) => {
+                        try {
+                          await updateNutritionPlan(updatedPlan);
+                          await fetchNutritionPlan();
+                        } catch (error) {
+                          console.error('Failed to update nutrition plan:', error);
+                        }
+                      }}
+                      onDelete={async () => {
+                        try {
+                          await deleteNutritionPlan();
+                          await fetchNutritionPlan();
+                          toast({
+                            title: 'הצלחה',
+                            description: 'תוכנית התזונה נמחקה בהצלחה',
+                          });
+                        } catch (error: any) {
+                          console.error('Failed to delete nutrition plan:', error);
+                          toast({
+                            title: 'שגיאה',
+                            description: error?.message || 'נכשל במחיקת התוכנית',
+                            variant: 'destructive',
+                          });
+                        }
+                      }}
+                      isEditable={true}
+                    />
+                  ) : (
+                    <Card className="p-6 bg-white border-gray-200 border-2 border-dashed">
+                      <div className="text-center py-8">
+                        <Flame className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          אין תוכנית תזונה
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-6">
+                          בחר תוכנית תזונה מהתבניות הקיימות
+                        </p>
+                        <div className="flex gap-3 justify-center">
+                          <Dialog open={isNutritionImportDialogOpen} onOpenChange={setIsNutritionImportDialogOpen}>
+                            <DialogTrigger asChild>
+                              <Button className="bg-orange-600 hover:bg-orange-700 text-white">
+                                <Download className="h-4 w-4 ml-2" />
+                                בחר תוכנית תזונה
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col" dir="rtl">
+                              <DialogHeader>
+                                <DialogTitle>בחר תבנית תזונה לייבוא</DialogTitle>
+                              </DialogHeader>
+                              <div className="flex-1 overflow-y-auto">
+                                {nutritionTemplatesLoading ? (
+                                  <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
+                                  </div>
+                                ) : nutritionTemplates.length === 0 ? (
+                                  <div className="text-center py-8 text-gray-500">
+                                    אין תבניות זמינות
+                                  </div>
+                                ) : (
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="text-right">שם התבנית</TableHead>
+                                        <TableHead className="text-right">תיאור</TableHead>
+                                        <TableHead className="text-right">מקרו-נוטריאנטים</TableHead>
+                                        <TableHead className="text-right">פעולה</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {nutritionTemplates.map((template) => (
+                                        <TableRow key={template.id}>
+                                          <TableCell className="font-medium">{template.name}</TableCell>
+                                          <TableCell className="text-gray-600 max-w-md truncate">
+                                            {template.description || '-'}
+                                          </TableCell>
+                                          <TableCell>
+                                            <div className="flex gap-1 flex-wrap">
+                                              <Badge variant="outline" className="text-xs">
+                                                {template.targets.calories} קק״ל
+                                              </Badge>
+                                              <Badge variant="outline" className="text-xs">
+                                                {template.targets.protein}ג חלבון
+                                              </Badge>
+                                            </div>
+                                          </TableCell>
+                                          <TableCell>
+                                            <Button
+                                              size="sm"
+                                              onClick={() => {
+                                                setSelectedNutritionTemplate(template);
+                                                setIsNutritionImportDialogOpen(false);
+                                                setIsNutritionImportFormOpen(true);
+                                              }}
+                                            >
+                                              בחר
+                                            </Button>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+
                 {/* Import from Template Dialog */}
-                <Dialog open={isImportFormOpen} onOpenChange={setIsImportFormOpen} dir="rtl">
-                  <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden">
+                <Dialog open={isImportFormOpen} onOpenChange={setIsImportFormOpen}>
+                  <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" dir="rtl">
                     <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
                       <DialogTitle>
                         ייבוא מתבנית: {selectedTemplate?.name}
@@ -438,6 +572,57 @@ const LeadDetails = () => {
                           onCancel={() => {
                             setIsImportFormOpen(false);
                             setSelectedTemplate(null);
+                          }}
+                        />
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Import Nutrition Plan from Template Dialog */}
+                <Dialog open={isNutritionImportFormOpen} onOpenChange={setIsNutritionImportFormOpen}>
+                  <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden" dir="rtl">
+                    <DialogHeader className="px-4 pt-4 pb-3 border-b flex-shrink-0">
+                      <DialogTitle className="text-lg">
+                        ייבוא מתבנית תזונה: {selectedNutritionTemplate?.name}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-hidden min-h-0">
+                      {selectedNutritionTemplate && (
+                        <NutritionTemplateForm
+                          mode="user"
+                          initialData={selectedNutritionTemplate}
+                          onSave={async (data) => {
+                            try {
+                              // In user mode, data is just the targets object
+                              // Deep clone the template data to ensure independence (snapshot pattern)
+                              const clonedTargets = JSON.parse(JSON.stringify(data));
+                              // Add template_id reference (changes to template won't affect this plan)
+                              await createNutritionPlan({
+                                description: selectedNutritionTemplate.description || '',
+                                targets: clonedTargets,
+                                start_date: new Date().toISOString().split('T')[0],
+                                template_id: selectedNutritionTemplate.id,
+                              });
+                              setIsNutritionImportFormOpen(false);
+                              setSelectedNutritionTemplate(null);
+                              await fetchNutritionPlan();
+                              toast({
+                                title: 'הצלחה',
+                                description: 'תוכנית התזונה יובאה בהצלחה מתבנית',
+                              });
+                            } catch (error: any) {
+                              console.error('Failed to import nutrition plan:', error);
+                              toast({
+                                title: 'שגיאה',
+                                description: error?.message || 'נכשל בייבוא התוכנית',
+                                variant: 'destructive',
+                              });
+                            }
+                          }}
+                          onCancel={() => {
+                            setIsNutritionImportFormOpen(false);
+                            setSelectedNutritionTemplate(null);
                           }}
                         />
                       )}

@@ -95,7 +95,7 @@ const ResourceItem = ({
   onSaveViewClick,
 }: ResourceItemProps) => {
   const Icon = item.icon;
-  const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'workouts' || item.resourceKey === 'templates';
+  const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'workouts' || item.resourceKey === 'templates' || item.resourceKey === 'nutrition_templates';
   const { data: savedViews = [] } = supportsViews ? useSavedViews(item.resourceKey) : { data: [] };
   const deleteView = useDeleteSavedView();
   const { toast } = useToast();
@@ -246,8 +246,8 @@ const ResourceItem = ({
           )}
 
           {/* Delete Confirmation Dialog */}
-          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} dir="rtl">
-            <AlertDialogContent>
+          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialogContent dir="rtl">
               <AlertDialogHeader>
                 <AlertDialogTitle>מחיקת תצוגה</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -293,7 +293,7 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
   const toggleResource = (resourceKey: string) => {
     // Get saved views for this resource to check if it has views
     const item = navigationItems.find(i => i.resourceKey === resourceKey);
-    const supportsViews = item?.resourceKey === 'leads' || item?.resourceKey === 'workouts' || item?.resourceKey === 'templates';
+    const supportsViews = item?.resourceKey === 'leads' || item?.resourceKey === 'workouts' || item?.resourceKey === 'templates' || item?.resourceKey === 'nutrition_templates';
     
     // If this resource has saved views, don't allow collapsing
     // We'll check this in the ResourceItem component instead

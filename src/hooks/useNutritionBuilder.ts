@@ -96,7 +96,7 @@ const CALORIES_PER_GRAM = {
  * BMR = (10 × weight in kg) + (6.25 × height in cm) - (5 × age in years) + s
  * where s = +5 for males, -161 for females
  */
-const calculateBMR = (weight: number, height: number, age: number, gender: 'male' | 'female'): number => {
+const calculateBMRValue = (weight: number, height: number, age: number, gender: 'male' | 'female'): number => {
   const baseBMR = (10 * weight) + (6.25 * height) - (5 * age);
   const genderAdjustment = gender === 'male' ? 5 : -161;
   return Math.round(baseBMR + genderAdjustment);
@@ -106,14 +106,14 @@ const calculateBMR = (weight: number, height: number, age: number, gender: 'male
  * Calculate TDEE (Total Daily Energy Expenditure)
  * TDEE = BMR × Activity Multiplier
  */
-const calculateTDEE = (bmr: number, activityLevel: keyof typeof ACTIVITY_MULTIPLIERS): number => {
+const calculateTDEEValue = (bmr: number, activityLevel: keyof typeof ACTIVITY_MULTIPLIERS): number => {
   return Math.round(bmr * ACTIVITY_MULTIPLIERS[activityLevel]);
 };
 
 /**
  * Calculate macro targets based on TDEE and goal
  */
-const calculateMacros = (
+const calculateMacrosValue = (
   tdee: number,
   goal: 'cut' | 'maintain' | 'bulk',
   weight: number
@@ -218,7 +218,7 @@ export const useNutritionBuilder = (
   }, []);
 
   const calculateBMR = useCallback(() => {
-    return calculateBMR(
+    return calculateBMRValue(
       calculatorInputs.weight,
       calculatorInputs.height,
       calculatorInputs.age,
@@ -228,12 +228,12 @@ export const useNutritionBuilder = (
 
   const calculateTDEE = useCallback(() => {
     const bmr = calculateBMR();
-    return calculateTDEE(bmr, calculatorInputs.activityLevel);
+    return calculateTDEEValue(bmr, calculatorInputs.activityLevel);
   }, [calculatorInputs, calculateBMR]);
 
   const calculateMacros = useCallback(() => {
     const tdee = calculateTDEE();
-    return calculateMacros(
+    return calculateMacrosValue(
       tdee,
       calculatorInputs.goal,
       calculatorInputs.weight

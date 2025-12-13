@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
@@ -6,6 +6,7 @@ import { AppFooter } from '@/components/layout/AppFooter';
 import { Plus, Settings, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useSavedView } from '@/hooks/useSavedViews';
 import {
   Table,
   TableBody,
@@ -53,6 +54,9 @@ const NutritionTemplatesManagement = () => {
   const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
+  const [hasAppliedView, setHasAppliedView] = useState(false);
+  
+  const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -73,6 +77,32 @@ const NutritionTemplatesManagement = () => {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+
+  // Reset filters when navigating to base resource (no view_id)
+  useEffect(() => {
+    if (!viewId) {
+      setSearchQuery('');
+      setSelectedDate(undefined);
+      setHasAppliedView(false);
+    }
+  }, [viewId]);
+
+  // Apply saved view filter config when view is loaded
+  useEffect(() => {
+    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
+      const filterConfig = savedView.filter_config as any;
+      
+      // Apply all filters from the saved view
+      if (filterConfig.searchQuery !== undefined) {
+        setSearchQuery(filterConfig.searchQuery);
+      }
+      if (filterConfig.selectedDate !== undefined && filterConfig.selectedDate) {
+        setSelectedDate(new Date(filterConfig.selectedDate));
+      }
+      
+      setHasAppliedView(true);
+    }
+  }, [savedView, hasAppliedView, isLoadingView, viewId]);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
