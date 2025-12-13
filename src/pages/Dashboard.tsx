@@ -5,7 +5,6 @@ import { LeadList } from '@/components/dashboard/LeadList';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
-import { AppFooter } from '@/components/layout/AppFooter';
 import { Plus, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -349,10 +348,6 @@ const Dashboard = () => {
           </main>
       </div>
 
-      {/* Footer - spans full width across all columns, positioned below everything */}
-      <footer className="w-full" style={{ gridColumn: '1 / -1', width: '100%' }}>
-        <AppFooter style={{ paddingRight: '256px' }} />
-      </footer>
     </div>
 
     {/* Add Lead Dialog */}

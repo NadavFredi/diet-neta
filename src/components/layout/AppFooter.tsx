@@ -1,32 +1,19 @@
 import React from "react"
 
-interface AppFooterProps {
-    className?: string;
-    style?: React.CSSProperties;
-}
-
-export function AppFooter({ className = "", style }: AppFooterProps) {
-    const contentPadding = style?.paddingRight || style?.padding || undefined;
-    
+export function AppFooter() {
     return (
-        <footer 
-            className={`w-full ${className}`} 
-            dir="rtl"
-        >
+        <footer className="mt-10" dir="rtl">
             <div
-                className="text-white w-full"
+                className="text-white"
                 style={{
                     backgroundColor: "#4f60a8",
                 }}
             >
-                <div 
-                    className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row"
-                    style={contentPadding ? { paddingRight: contentPadding } : undefined}
-                >
+                <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row">
                     <div className="flex items-center gap-3 md:flex-row">
                         <img
                             src="/logo.svg"
-                            alt="Easy Flow logo"
+                            alt="Easyflow logo"
                             className="h-10 w-auto"
                         />
                         <div className="text-right text-sm md:text-base">

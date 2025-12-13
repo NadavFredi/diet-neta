@@ -4,7 +4,6 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
-import { AppFooter } from '@/components/layout/AppFooter';
 import { Plus, Settings, Search, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -661,10 +660,6 @@ const TemplatesManagement = () => {
           </main>
         </div>
 
-        {/* Footer */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <AppFooter />
-        </div>
       </div>
 
       {/* Add Template Dialog */}

@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
-import { AppFooter } from '@/components/layout/AppFooter';
 import { Plus, Search, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -266,10 +265,6 @@ const Templates = () => {
           </main>
         </div>
 
-        {/* Footer */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <AppFooter />
-        </div>
       </div>
 
       {/* Add Template Dialog */}

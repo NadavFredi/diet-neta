@@ -73,7 +73,7 @@ const AppContent = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      {!isLoginPage && !isDashboardPage && <AppFooter />}
+      {!isLoginPage && <AppFooter />}
     </div>
   );
 };
