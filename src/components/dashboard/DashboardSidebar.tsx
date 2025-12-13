@@ -105,6 +105,14 @@ const ResourceItem = ({
   const { defaultView } = useDefaultView(item.resourceKey);
   
   const { data: savedViews = [] } = supportsViews ? useSavedViews(item.resourceKey) : { data: [] };
+  
+  // Check if any view for this resource is active
+  const hasActiveView = supportsViews && activeViewId && savedViews.some(view => view.id === activeViewId);
+  
+  // Main interface is active if:
+  // 1. It's directly active (no view_id in URL), OR
+  // 2. Any of its views is active (view_id matches one of this resource's views)
+  const isMainInterfaceActive = active && (hasActiveView || !activeViewId);
   const deleteView = useDeleteSavedView();
   const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -162,38 +170,41 @@ const ResourceItem = ({
   return (
     <>
       {/* Main Interface Button */}
-      <li>
-        <div className="relative group">
-          <div className="flex items-center">
-            <button
-              onClick={() => {
-                // Always navigate to base path - the page component will handle redirecting to default view
-                // This ensures the page loads even if defaultView isn't ready yet
-                onResourceClick();
-              }}
+      <li className="w-full">
+        <div className="relative group w-full">
+          <button
+            onClick={() => {
+              // Always navigate to base path - the page component will handle redirecting to default view
+              // This ensures the page loads even if defaultView isn't ready yet
+              onResourceClick();
+            }}
+            className={cn(
+              'w-full flex items-center gap-4 px-4 py-3 text-right transition-all duration-200 relative',
+              'text-base font-medium',
+              isMainInterfaceActive
+                ? 'text-white'
+                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+            )}
+            style={isMainInterfaceActive ? {
+              backgroundColor: '#4f60a8',
+            } : {}}
+          >
+            <Icon
               className={cn(
-                'flex-1 flex items-center gap-4 px-5 py-3 rounded-lg text-right transition-all duration-200',
-                'text-base font-medium',
-                active && !activeViewId
-                  ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                'h-6 w-6 flex-shrink-0',
+                isMainInterfaceActive ? 'text-white' : 'text-gray-500'
               )}
-            >
-              <Icon
-                className={cn(
-                  'h-6 w-6 flex-shrink-0',
-                  active && !activeViewId ? 'text-blue-600' : 'text-gray-500'
-                )}
-              />
-              <span className="flex-1">{item.label}</span>
-            </button>
+            />
+            <span className="flex-1">{item.label}</span>
             
             {supportsViews && onSaveViewClick && (
               <button
                 className={cn(
-                  'p-2 rounded-md transition-colors opacity-0 group-hover:opacity-100',
-                  'text-gray-500 hover:text-gray-700 hover:bg-gray-100',
-                  'focus:opacity-100 focus:outline-none'
+                  'p-1.5 rounded-md transition-colors opacity-0 group-hover:opacity-100',
+                  'focus:opacity-100 focus:outline-none flex-shrink-0',
+                  isMainInterfaceActive 
+                    ? 'text-white hover:bg-white/20' 
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 )}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -204,7 +215,7 @@ const ResourceItem = ({
                 <Plus className="h-4 w-4" />
               </button>
             )}
-          </div>
+          </button>
         </div>
       </li>
 
@@ -215,21 +226,24 @@ const ResourceItem = ({
             const isViewActive = activeViewId === view.id;
             const isDefaultView = view.is_default;
             return (
-              <li key={view.id} className="group/view-item">
-                <div className="relative flex items-center">
+              <li key={view.id} className="group/view-item w-full">
+                <div className="relative flex items-center w-full">
                   <button
                     onClick={() => onViewClick(view, item.path)}
                     className={cn(
-                      'flex-1 flex items-center gap-3 px-5 py-3 pr-12 rounded-lg text-right transition-all duration-200',
-                      'text-sm font-medium',
+                      'w-full flex items-center gap-3 px-4 py-3 text-right transition-all duration-200',
+                      'text-sm font-medium relative',
                       isViewActive
-                        ? 'bg-pink-50 text-pink-700 border-r-2 border-pink-500'
+                        ? 'text-white'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     )}
+                    style={isViewActive ? {
+                      backgroundColor: '#4f60a8',
+                    } : {}}
                   >
                     <div className={cn(
                       'h-1.5 w-1.5 rounded-full flex-shrink-0 transition-colors',
-                      isViewActive ? 'bg-pink-500' : 'bg-gray-400'
+                      isViewActive ? 'bg-white' : 'bg-gray-400'
                     )} />
                     <span className="flex-1 text-right">{view.view_name}</span>
                   </button>
@@ -311,16 +325,18 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
 
   return (
     <aside
-      className="fixed right-0 w-64 bg-white border-l border-gray-200 flex flex-col shadow-sm z-30"
+      className="fixed right-0 w-64 bg-white border-l flex flex-col shadow-sm z-30"
       style={{ 
         top: '88px',
-        bottom: '120px'
+        bottom: '120px',
+        borderLeftColor: '#4f60a8',
+        borderLeftWidth: '3px'
       }}
       dir="rtl"
     >
       {/* Navigation List */}
-      <nav className="flex-1 px-4 py-6 overflow-y-auto">
-        <ul className="space-y-1">
+      <nav className="flex-1 py-6 overflow-y-auto">
+        <ul className="space-y-1 w-full">
           {navigationItems.map((item) => (
             <ResourceItem
               key={item.id}
@@ -337,13 +353,6 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
         </ul>
       </nav>
 
-      {/* Footer Section */}
-      <div className="px-6 py-4 border-t border-gray-200">
-        <div className="text-xs text-gray-500 space-y-1">
-          <div className="font-medium text-gray-700 mb-2">חשבון</div>
-          <div className="text-gray-500">פאנל ניהול</div>
-        </div>
-      </div>
     </aside>
   );
 };
