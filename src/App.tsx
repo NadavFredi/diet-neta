@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import LeadDetails from "./pages/LeadDetails.tsx";
 import Templates from "./pages/Templates.tsx";
 import TemplatesManagement from "./pages/TemplatesManagement.tsx";
+import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
@@ -50,6 +51,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <TemplatesManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/nutrition-templates"
+            element={
+              <ProtectedRoute>
+                <NutritionTemplatesManagement />
               </ProtectedRoute>
             }
           />

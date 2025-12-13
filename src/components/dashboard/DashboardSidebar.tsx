@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell } from 'lucide-react';
+import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -38,6 +38,13 @@ const navigationItems: NavItem[] = [
     label: 'תכניות אימונים',
     icon: Dumbbell,
     path: '/dashboard/templates',
+  },
+  {
+    id: 'nutrition-templates',
+    resourceKey: 'nutrition_templates',
+    label: 'תבניות תזונה',
+    icon: Apple,
+    path: '/dashboard/nutrition-templates',
   },
   {
     id: 'interfaces',
