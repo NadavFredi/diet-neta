@@ -15,15 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Settings, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon } from 'lucide-react';
@@ -126,9 +118,6 @@ const CustomersManagement = () => {
     return filtered;
   }, [customers, searchQuery, selectedDate]);
 
-  const handleCustomerClick = (customerId: string) => {
-    navigate(`/dashboard/customers/${customerId}`);
-  };
 
   return (
     <>
@@ -201,46 +190,7 @@ const CustomersManagement = () => {
                     <div className="mb-4 text-base font-medium text-gray-700">
                       {filteredCustomers.length} לקוח נמצאו
                     </div>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-right">שם</TableHead>
-                            <TableHead className="text-right">טלפון</TableHead>
-                            <TableHead className="text-right">אימייל</TableHead>
-                            <TableHead className="text-right">מספר לידים</TableHead>
-                            <TableHead className="text-right">תאריך יצירה</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredCustomers.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                                לא נמצאו לקוחות
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            filteredCustomers.map((customer) => (
-                              <TableRow
-                                key={customer.id}
-                                className="cursor-pointer hover:bg-gray-50"
-                                onClick={() => handleCustomerClick(customer.id)}
-                              >
-                                <TableCell className="font-medium">{customer.full_name}</TableCell>
-                                <TableCell className="font-mono">{customer.phone}</TableCell>
-                                <TableCell>{customer.email || '-'}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                    {customer.total_leads || 0}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{formatDate(customer.created_at)}</TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
+                    <CustomersDataTable customers={filteredCustomers} />
                   </>
                 )}
               </div>

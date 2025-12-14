@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
-import { LeadList } from '@/components/dashboard/LeadList';
+import { LeadsDataTable } from '@/components/dashboard/LeadsDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
@@ -346,7 +346,7 @@ const Dashboard = () => {
                     {filteredLeads.length} {filteredLeads.length === 1 ? 'ליד' : 'לידים'} נמצאו
                   </p>
                 </div>
-                <LeadList leads={filteredLeads} columnVisibility={columnVisibility} />
+                <LeadsDataTable leads={filteredLeads} columnVisibility={columnVisibility} />
               </div>
             </div>
           </main>

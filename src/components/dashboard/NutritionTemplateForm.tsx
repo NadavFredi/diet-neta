@@ -24,8 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { PieChart, Pie, Cell, Legend } from 'recharts';
+import Highcharts from 'highcharts';
+import HighchartsReact from 'highcharts-react-official';
 import {
   Calculator,
   Flame,
@@ -138,11 +138,15 @@ export const NutritionTemplateForm = ({
     }
   }, [calculateMacros]);
 
-  // Calculate pie chart data
-  const pieChartData = useMemo(() => {
+  // Calculate Highcharts pie chart options
+  const pieChartOptions = useMemo((): Highcharts.Options => {
     try {
       if (!targets || typeof targets.protein !== 'number' || typeof targets.carbs !== 'number' || typeof targets.fat !== 'number') {
-        return [];
+        return {
+          chart: { type: 'pie', height: 300 },
+          title: { text: '' },
+          series: [{ type: 'pie', data: [] }],
+        };
       }
       
       const proteinCalories = (targets.protein || 0) * 4;
@@ -150,16 +154,116 @@ export const NutritionTemplateForm = ({
       const fatCalories = (targets.fat || 0) * 9;
       const total = proteinCalories + carbsCalories + fatCalories;
 
-      if (total === 0 || !isFinite(total)) return [];
+      if (total === 0 || !isFinite(total)) {
+        return {
+          chart: { type: 'pie', height: 300 },
+          title: { text: '' },
+          series: [{ type: 'pie', data: [] }],
+        };
+      }
 
-      return [
-        { name: 'חלבון', value: Math.round((proteinCalories / total) * 100), color: MACRO_COLORS.protein },
-        { name: 'פחמימות', value: Math.round((carbsCalories / total) * 100), color: MACRO_COLORS.carbs },
-        { name: 'שומן', value: Math.round((fatCalories / total) * 100), color: MACRO_COLORS.fat },
-      ];
+      const proteinPercent = Math.round((proteinCalories / total) * 100);
+      const carbsPercent = Math.round((carbsCalories / total) * 100);
+      const fatPercent = Math.round((fatCalories / total) * 100);
+
+      return {
+        chart: {
+          type: 'pie',
+          height: 300,
+          backgroundColor: 'transparent',
+          spacing: [20, 20, 20, 20],
+        },
+        title: {
+          text: 'התפלגות קלוריות לפי מקרו-נוטריאנטים',
+          style: {
+            fontSize: '16px',
+            fontWeight: 'bold',
+            fontFamily: 'inherit',
+          },
+        },
+        credits: {
+          enabled: false,
+        },
+        tooltip: {
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          borderColor: '#e5e7eb',
+          borderRadius: 8,
+          shadow: {
+            color: 'rgba(0, 0, 0, 0.1)',
+            width: 2,
+            offsetX: 0,
+            offsetY: 2,
+          },
+          formatter: function() {
+            return `<b>${this.point.name}</b><br/>${this.percentage.toFixed(1)}% (${this.y} קק״ל)`;
+          },
+          style: {
+            fontFamily: 'inherit',
+            fontSize: '12px',
+          },
+        },
+        plotOptions: {
+          pie: {
+            allowPointSelect: true,
+            cursor: 'pointer',
+            dataLabels: {
+              enabled: true,
+              format: '<b>{point.name}</b>: {point.percentage:.1f}%',
+              style: {
+                fontFamily: 'inherit',
+                fontSize: '12px',
+                fontWeight: '500',
+              },
+              distance: 20,
+            },
+            showInLegend: true,
+            states: {
+              hover: {
+                brightness: 0.1,
+              },
+            },
+          },
+        },
+        legend: {
+          layout: 'vertical',
+          align: 'right',
+          verticalAlign: 'middle',
+          itemStyle: {
+            fontFamily: 'inherit',
+            fontSize: '12px',
+          },
+        },
+        series: [
+          {
+            type: 'pie',
+            name: 'קלוריות',
+            data: [
+              {
+                name: 'חלבון',
+                y: proteinCalories,
+                color: MACRO_COLORS.protein,
+              },
+              {
+                name: 'פחמימות',
+                y: carbsCalories,
+                color: MACRO_COLORS.carbs,
+              },
+              {
+                name: 'שומן',
+                y: fatCalories,
+                color: MACRO_COLORS.fat,
+              },
+            ],
+          },
+        ],
+      };
     } catch (error) {
       console.error('Error calculating pie chart data:', error);
-      return [];
+      return {
+        chart: { type: 'pie', height: 300 },
+        title: { text: '' },
+        series: [{ type: 'pie', data: [] }],
+      };
     }
   }, [targets]);
 
@@ -493,34 +597,13 @@ export const NutritionTemplateForm = ({
               <CardTitle className="text-xs">התפלגות מקרו-נוטריאנטים</CardTitle>
             </CardHeader>
             <CardContent className="px-2.5 pb-2.5">
-              {pieChartData.length > 0 && (
-                <div className="h-32">
-                  <ChartContainer
-                    config={{
-                      protein: { label: 'חלבון', color: MACRO_COLORS.protein },
-                      carbs: { label: 'פחמימות', color: MACRO_COLORS.carbs },
-                      fat: { label: 'שומן', color: MACRO_COLORS.fat },
-                    }}
-                    className="h-full"
-                  >
-                    <PieChart>
-                      <Pie
-                        data={pieChartData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={50}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {pieChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ChartContainer>
+              {pieChartOptions.series && (pieChartOptions.series[0] as any)?.data?.length > 0 && (
+                <div className="h-80">
+                  <HighchartsReact
+                    highcharts={Highcharts}
+                    options={pieChartOptions}
+                    containerProps={{ style: { height: '100%', width: '100%' } }}
+                  />
                 </div>
               )}
             </CardContent>

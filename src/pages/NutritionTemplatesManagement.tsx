@@ -7,15 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { NutritionTemplatesDataTable } from '@/components/dashboard/NutritionTemplatesDataTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TemplateColumnSettings, type TemplateColumnVisibility, TEMPLATE_COLUMN_ORDER } from '@/components/dashboard/TemplateColumnSettings';
 import {
@@ -46,7 +38,6 @@ import { useSearchParams } from 'react-router-dom';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { formatDate } from '@/utils/dashboard';
 
 const NutritionTemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -336,102 +327,16 @@ const NutritionTemplatesManagement = () => {
                 </div>
 
                 {/* Templates Table */}
-                <div className="bg-white rounded-lg border border-gray-200">
-                  {isLoading ? (
-                    <div className="p-8 text-center text-gray-500">טוען...</div>
-                  ) : filteredTemplates.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      {searchQuery ? 'לא נמצאו תבניות התואמות לחיפוש' : 'אין תבניות. צור תבנית חדשה כדי להתחיל'}
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {columnVisibility.name && (
-                            <TableHead className="text-right">שם התבנית</TableHead>
-                          )}
-                          {columnVisibility.description && (
-                            <TableHead className="text-right">תיאור</TableHead>
-                          )}
-                          <TableHead className="text-right">מקרו-נוטריאנטים</TableHead>
-                          {columnVisibility.createdDate && (
-                            <TableHead className="text-right">תאריך יצירה</TableHead>
-                          )}
-                          {columnVisibility.actions && (
-                            <TableHead className="text-right">פעולות</TableHead>
-                          )}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredTemplates.map((template) => (
-                          <TableRow 
-                            key={template.id} 
-                            className="hover:bg-gray-50 cursor-pointer"
-                            onClick={() => handleEditTemplate(template)}
-                          >
-                            {columnVisibility.name && (
-                              <TableCell className="font-medium">{template.name}</TableCell>
-                            )}
-                            {columnVisibility.description && (
-                              <TableCell className="text-gray-600 max-w-md truncate">
-                                {template.description || '-'}
-                              </TableCell>
-                            )}
-                            <TableCell>
-                              <div className="flex gap-2 flex-wrap">
-                                <Badge variant="outline" className="text-xs">
-                                  {template.targets.calories} קק״ל
-                                </Badge>
-                                <Badge variant="outline" className="text-xs">
-                                  {template.targets.protein}ג חלבון
-                                </Badge>
-                                <Badge variant="outline" className="text-xs">
-                                  {template.targets.carbs}ג פחמימות
-                                </Badge>
-                                <Badge variant="outline" className="text-xs">
-                                  {template.targets.fat}ג שומן
-                                </Badge>
-                              </div>
-                            </TableCell>
-                            {columnVisibility.createdDate && (
-                              <TableCell className="text-gray-600">
-                                {format(new Date(template.created_at), 'dd/MM/yyyy', { locale: he })}
-                              </TableCell>
-                            )}
-                            {columnVisibility.actions && (
-                              <TableCell onClick={(e) => e.stopPropagation()}>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditTemplate(template);
-                                    }}
-                                    className="hover:bg-blue-50"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteClick(template);
-                                    }}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
+                {isLoading ? (
+                  <div className="p-8 text-center text-gray-500">טוען...</div>
+                ) : (
+                  <NutritionTemplatesDataTable
+                    templates={filteredTemplates}
+                    columnVisibility={columnVisibility}
+                    onEdit={handleEditTemplate}
+                    onDelete={handleDeleteClick}
+                  />
+                )}
               </div>
             </div>
           </main>

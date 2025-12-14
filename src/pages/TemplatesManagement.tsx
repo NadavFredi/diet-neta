@@ -8,15 +8,7 @@ import { Plus, Settings, Search, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { WorkoutTemplatesDataTable } from '@/components/dashboard/WorkoutTemplatesDataTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TemplateColumnSettings, type TemplateColumnVisibility, TEMPLATE_COLUMN_ORDER } from '@/components/dashboard/TemplateColumnSettings';
 import {
@@ -45,76 +37,13 @@ import { formatDate } from '@/utils/dashboard';
 import { useToast } from '@/hooks/use-toast';
 import { logout } from '@/store/slices/authSlice';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useTemplateLeads } from '@/hooks/useTemplateLeads';
 import { useTemplatesWithLeads } from '@/hooks/useTemplatesWithLeads';
-import { Users, ExternalLink, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 
-// Component to display connected leads for a template
-const TemplateLeadsCell = ({ templateId }: { templateId: string }) => {
-  const { data: leads = [], isLoading } = useTemplateLeads(templateId);
-  const navigate = useNavigate();
-
-  if (isLoading) {
-    return <span className="text-gray-400 text-sm">טוען...</span>;
-  }
-
-  if (leads.length === 0) {
-    return <span className="text-gray-400 text-sm">אין לידים מחוברים</span>;
-  }
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="hover:bg-blue-50 text-blue-600 hover:text-blue-700"
-        >
-          <Users className="h-4 w-4 ml-1" />
-          <span>{leads.length} ליד{leads.length > 1 ? 'ים' : ''}</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80" dir="rtl">
-        <div className="space-y-2">
-          <div className="font-semibold text-sm mb-3 pb-2 border-b">
-            לידים מחוברים לתוכנית זו
-            <p className="text-xs font-normal text-gray-500 mt-1">
-              שינוי התוכנית לא ישפיע על התוכניות הקיימות של הלידים
-            </p>
-          </div>
-          <div className="max-h-60 overflow-y-auto space-y-2">
-            {leads.map((lead) => (
-              <div
-                key={lead.plan_id}
-                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer group"
-                onClick={() => navigate(`/leads/${lead.lead_id}`)}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-gray-900 truncate">
-                    {lead.lead_name}
-                  </div>
-                  {lead.lead_email && (
-                    <div className="text-xs text-gray-500 truncate">
-                      {lead.lead_email}
-                    </div>
-                  )}
-                  <div className="text-xs text-gray-400 mt-1">
-                    נוצר: {format(new Date(lead.plan_created_at), 'dd/MM/yyyy', { locale: he })}
-                  </div>
-                </div>
-                <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0 mr-2" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
 
 const TemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -555,111 +484,16 @@ const TemplatesManagement = () => {
                 </div>
 
                 {/* Templates Table */}
-                <div className="bg-white rounded-lg border border-gray-200">
-                  {(isLoading || isLoadingDefaultView) ? (
-                    <div className="p-8 text-center text-gray-500">טוען...</div>
-                  ) : filteredTemplates.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      {searchQuery ? 'לא נמצאו תוכניות התואמות לחיפוש' : 'אין תוכניות. צור תוכנית חדשה כדי להתחיל'}
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {columnVisibility.name && (
-                            <TableHead className="text-right">שם התוכנית</TableHead>
-                          )}
-                          {columnVisibility.description && (
-                            <TableHead className="text-right">תיאור</TableHead>
-                          )}
-                          {columnVisibility.tags && (
-                            <TableHead className="text-right">תגיות</TableHead>
-                          )}
-                          {columnVisibility.connectedLeads && (
-                            <TableHead className="text-right">לידים מחוברים</TableHead>
-                          )}
-                          {columnVisibility.createdDate && (
-                            <TableHead className="text-right">תאריך יצירה</TableHead>
-                          )}
-                          {columnVisibility.actions && (
-                            <TableHead className="text-right">פעולות</TableHead>
-                          )}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredTemplates.map((template) => (
-                          <TableRow 
-                            key={template.id} 
-                            className="hover:bg-gray-50 cursor-pointer"
-                            onClick={() => handleEditTemplate(template)}
-                          >
-                            {columnVisibility.name && (
-                              <TableCell className="font-medium">{template.name}</TableCell>
-                            )}
-                            {columnVisibility.description && (
-                              <TableCell className="text-gray-600 max-w-md truncate">
-                                {template.description || '-'}
-                              </TableCell>
-                            )}
-                            {columnVisibility.tags && (
-                              <TableCell>
-                                <div className="flex gap-1 flex-wrap">
-                                  {template.goal_tags.length > 0 ? (
-                                    template.goal_tags.map((tag, idx) => (
-                                      <Badge key={idx} variant="outline" className="text-xs">
-                                        {tag}
-                                      </Badge>
-                                    ))
-                                  ) : (
-                                    <span className="text-gray-400 text-sm">-</span>
-                                  )}
-                                </div>
-                              </TableCell>
-                            )}
-                            {columnVisibility.connectedLeads && (
-                              <TableCell onClick={(e) => e.stopPropagation()}>
-                                <TemplateLeadsCell templateId={template.id} />
-                              </TableCell>
-                            )}
-                            {columnVisibility.createdDate && (
-                              <TableCell className="text-gray-600">
-                                {format(new Date(template.created_at), 'dd/MM/yyyy', { locale: he })}
-                              </TableCell>
-                            )}
-                            {columnVisibility.actions && (
-                              <TableCell onClick={(e) => e.stopPropagation()}>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditTemplate(template);
-                                    }}
-                                    className="hover:bg-blue-50"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteClick(template);
-                                    }}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
+                {(isLoading || isLoadingDefaultView) ? (
+                  <div className="p-8 text-center text-gray-500">טוען...</div>
+                ) : (
+                  <WorkoutTemplatesDataTable
+                    templates={filteredTemplates}
+                    columnVisibility={columnVisibility}
+                    onEdit={handleEditTemplate}
+                    onDelete={handleDeleteClick}
+                  />
+                )}
               </div>
             </div>
           </main>
