@@ -42,6 +42,7 @@ import { useAppSelector } from '@/store/hooks';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWorkoutTemplates, type WorkoutTemplate } from '@/hooks/useWorkoutTemplates';
 import { useNutritionTemplates, type NutritionTemplate } from '@/hooks/useNutritionTemplates';
 import { WorkoutBuilderForm } from '@/components/dashboard/WorkoutBuilderForm';
@@ -59,8 +60,10 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 
 const LeadDetails = () => {
+  const navigate = useNavigate();
   const {
     lead,
+    isLoading: isLoadingLead,
     bmi,
     handleBack,
     handleCall,
@@ -102,6 +105,17 @@ const LeadDetails = () => {
       fetchWorkoutPlanHistory().then(setWorkoutPlanHistory);
     }
   }, [lead?.id, fetchWorkoutPlanHistory]);
+
+  if (isLoadingLead) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100" dir="rtl">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">טוען פרטי ליד...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!lead) {
     return (
@@ -186,7 +200,21 @@ const LeadDetails = () => {
                         חזור לדשבורד
                       </Button>
                       <div>
-                        <h1 className="text-2xl font-bold text-gray-900 mb-1">{lead.name}</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                          {lead.customerId ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/dashboard/customers/${lead.customerId}`);
+                              }}
+                              className="hover:underline text-blue-600 hover:text-blue-700"
+                            >
+                              {lead.name}
+                            </button>
+                          ) : (
+                            lead.name
+                          )}
+                        </h1>
                         <div className="flex items-center gap-3">
                           <Popover open={isOpen} onOpenChange={(open) => open ? handleOpen() : handleClose()}>
                             <PopoverTrigger asChild>

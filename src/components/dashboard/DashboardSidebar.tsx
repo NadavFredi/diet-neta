@@ -34,6 +34,13 @@ const navigationItems: NavItem[] = [
     path: '/dashboard',
   },
   {
+    id: 'customers',
+    resourceKey: 'customers',
+    label: 'ניהול לקוחות',
+    icon: LayoutDashboard,
+    path: '/dashboard/customers',
+  },
+  {
     id: 'templates',
     resourceKey: 'templates',
     label: 'תכניות אימונים',
@@ -98,7 +105,7 @@ const ResourceItem = ({
   onSaveViewClick,
 }: ResourceItemProps) => {
   const Icon = item.icon;
-  const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'workouts' || item.resourceKey === 'templates' || item.resourceKey === 'nutrition_templates';
+  const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'customers' || item.resourceKey === 'workouts' || item.resourceKey === 'templates' || item.resourceKey === 'nutrition_templates';
   
   // Ensure default view exists for resources that support views
   // Always call the hook (React rules), but it will only run if resourceKey is valid (enabled check inside)

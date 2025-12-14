@@ -16,6 +16,8 @@ import LeadDetails from "./pages/LeadDetails.tsx";
 import Templates from "./pages/Templates.tsx";
 import TemplatesManagement from "./pages/TemplatesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
+import CustomersManagement from "./pages/CustomersManagement.tsx";
+import CustomerProfile from "./pages/CustomerProfile.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
@@ -59,6 +61,22 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <NutritionTemplatesManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/customers"
+            element={
+              <ProtectedRoute>
+                <CustomersManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/customers/:id"
+            element={
+              <ProtectedRoute>
+                <CustomerProfile />
               </ProtectedRoute>
             }
           />

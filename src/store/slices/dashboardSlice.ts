@@ -50,6 +50,7 @@ export interface Lead {
   subscription: SubscriptionInfo;
   workoutProgramsHistory: WorkoutProgram[];
   stepsHistory: StepsHistory[];
+  customerId?: string; // Link to customer
 }
 
 interface ColumnVisibility {
@@ -88,15 +89,23 @@ interface DashboardState {
   error: string | null;
 }
 
-// Database Lead type (matches Supabase schema)
+// Database Customer type (matches Supabase schema)
+interface DBCustomer {
+  id: string;
+  full_name: string;
+  phone: string;
+  email: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Database Lead type (matches Supabase schema - normalized)
 interface DBLead {
   id: string;
   created_at: string;
   updated_at: string;
   assigned_to: string | null;
-  full_name: string;
-  phone: string;
-  email: string | null;
+  customer_id: string;
   city: string | null;
   birth_date: string | null;
   gender: string | null;
@@ -115,6 +124,8 @@ interface DBLead {
   activity_level: string | null;
   preferred_time: string | null;
   notes: string | null;
+  // Joined customer data
+  customer?: DBCustomer;
 }
 
 // Helper function to calculate age from birth date
@@ -178,13 +189,21 @@ function mapDBLeadToUILead(dbLead: DBLead): Lead {
   // Determine status (combine main and sub if needed, or use main)
   const status = dbLead.status_main || 'חדש';
 
+  // Extract customer data (from JOIN)
+  // Supabase may return it as 'customers' or 'customer' depending on the relationship name
+  const customer = (dbLead as any).customers || dbLead.customer;
+  if (!customer) {
+    // This should never happen if the JOIN is correct, but TypeScript needs this check
+    throw new Error(`Customer data is required for lead mapping. Lead ID: ${dbLead.id}`);
+  }
+
   return {
     id: dbLead.id,
-    name: dbLead.full_name,
+    name: customer.full_name,
     createdDate: formatDateString(dbLead.created_at),
     status,
-    phone: dbLead.phone,
-    email: dbLead.email || '',
+    phone: customer.phone,
+    email: customer.email || '',
     source: dbLead.source || '',
     age: calculateAge(dbLead.birth_date),
     birthDate: dbLead.birth_date ? formatDateString(dbLead.birth_date) : '',
@@ -200,31 +219,70 @@ function mapDBLeadToUILead(dbLead: DBLead): Lead {
     subscription,
     workoutProgramsHistory: workoutHistory,
     stepsHistory,
+    customerId: customer.id, // Add customer ID for linking
   };
 }
 
-// Async thunk to fetch leads from Supabase
+// Async thunk to fetch leads from Supabase (with customer JOIN)
 export const fetchLeads = createAsyncThunk(
   'dashboard/fetchLeads',
   async (_, { rejectWithValue }) => {
     try {
+      // Use the foreign key relationship - Supabase uses the table name
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
+        .select(`
+          *,
+          customers(*)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching leads:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
         return rejectWithValue(error.message);
       }
 
       // Handle empty data gracefully
       if (!data || data.length === 0) {
+        console.log('No leads found in database');
         return [];
       }
 
-      // Map database leads to UI format
-      return data.map(mapDBLeadToUILead);
+      console.log(`Fetched ${data.length} leads from database`);
+
+      // Map database leads to UI format (with customer data)
+      // Note: Supabase returns the joined table as 'customers' not 'customer'
+      const mappedLeads = data
+        .map((lead: any) => {
+          // Supabase returns the joined table with the relationship name
+          // Try both 'customers' and 'customer' for compatibility
+          const customer = lead.customers || lead.customer;
+          
+          if (!customer) {
+            console.error(`Lead ${lead.id} has no customer data. Lead data:`, {
+              id: lead.id,
+              customer_id: lead.customer_id,
+              hasCustomers: !!lead.customers,
+              hasCustomer: !!lead.customer,
+            });
+            return null;
+          }
+
+          try {
+            return mapDBLeadToUILead({
+              ...lead,
+              customer: customer,
+            });
+          } catch (err) {
+            console.error(`Error mapping lead ${lead.id}:`, err);
+            return null;
+          }
+        })
+        .filter((lead): lead is Lead => lead !== null);
+
+      console.log(`Successfully mapped ${mappedLeads.length} leads`);
+      return mappedLeads;
     } catch (err) {
       console.error('Unexpected error fetching leads:', err);
       return rejectWithValue('Failed to fetch leads');

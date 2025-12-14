@@ -238,11 +238,14 @@ const TemplatesManagement = () => {
           .from('workout_plans')
           .select(`
             template_id,
-            leads:lead_id (
+            leads!inner (
               id,
-              full_name,
-              phone,
-              email
+              customer_id,
+              customer:customers!inner (
+                full_name,
+                phone,
+                email
+              )
             )
           `)
           .not('template_id', 'is', null)
@@ -260,9 +263,9 @@ const TemplatesManagement = () => {
             if (plan.template_id && plan.leads) {
               const leads = templateLeadsMap.get(plan.template_id) || [];
               leads.push({
-                name: plan.leads.full_name || '',
-                phone: plan.leads.phone || '',
-                email: plan.leads.email || '',
+                name: plan.leads.customer?.full_name || '',
+                phone: plan.leads.customer?.phone || '',
+                email: plan.leads.customer?.email || '',
               });
               templateLeadsMap.set(plan.template_id, leads);
             }

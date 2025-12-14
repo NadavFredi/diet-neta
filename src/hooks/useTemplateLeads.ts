@@ -21,10 +21,14 @@ export const useTemplateLeads = (templateId: string) => {
           id,
           lead_id,
           created_at,
-          leads:lead_id (
+          leads!inner (
             id,
-            full_name,
-            email
+            customer_id,
+            customer:customers!inner (
+              full_name,
+              phone,
+              email
+            )
           )
         `)
         .eq('template_id', templateId)
@@ -42,8 +46,8 @@ export const useTemplateLeads = (templateId: string) => {
         .filter((plan: any) => plan.leads) // Filter out null leads
         .map((plan: any) => ({
           lead_id: plan.lead_id,
-          lead_name: plan.leads?.full_name || 'ללא שם',
-          lead_email: plan.leads?.email,
+          lead_name: plan.leads?.customer?.full_name || 'ללא שם',
+          lead_email: plan.leads?.customer?.email,
           plan_id: plan.id,
           plan_created_at: plan.created_at,
         })) as TemplateLead[];

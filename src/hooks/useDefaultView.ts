@@ -60,6 +60,11 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
           notes: true,
         },
       };
+    case 'customers':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+      };
     case 'templates':
       return {
         searchQuery: '',
@@ -125,6 +130,8 @@ export const useDefaultView = (resourceKey: string) => {
       const defaultFilterConfig = getDefaultFilterConfig(resourceKey);
       const viewName = resourceKey === 'leads' 
         ? 'כל הלידים' 
+        : resourceKey === 'customers'
+        ? 'כל הלקוחות'
         : resourceKey === 'templates'
         ? 'כל התכניות'
         : 'כל התכניות';

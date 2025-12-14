@@ -136,11 +136,90 @@ export const useAddLead = () => {
     setIsSubmitting(true);
 
     try {
-      // Prepare data for database insertion
-      const dbData: any = {
-        full_name: formData.full_name.trim(),
-        phone: formData.phone.replace(/-/g, '').trim(),
-        email: formData.email.trim() || null,
+      const cleanPhone = formData.phone.replace(/-/g, '').trim();
+      const cleanEmail = formData.email.trim() || null;
+      const cleanName = formData.full_name.trim();
+
+      // Step 1: Check if customer exists by phone
+      const { data: existingCustomer, error: checkError } = await supabase
+        .from('customers')
+        .select('id, email')
+        .eq('phone', cleanPhone)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      let customerId: string;
+
+      // Step 2: Handle Identity (Upsert Customer)
+      if (existingCustomer) {
+        // Customer exists - use existing ID
+        customerId = existingCustomer.id;
+        
+        // Update customer with latest details (Last Write Wins)
+        if (cleanEmail) {
+          const { error: updateError } = await supabase
+            .from('customers')
+            .update({
+              full_name: cleanName,
+              email: cleanEmail,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', customerId);
+
+          if (updateError) throw updateError;
+        } else {
+          // Update name even if email is not provided
+          const { error: updateError } = await supabase
+            .from('customers')
+            .update({
+              full_name: cleanName,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', customerId);
+
+          if (updateError) throw updateError;
+        }
+      } else {
+        // New customer - create it
+        const { data: newCustomer, error: createCustomerError } = await supabase
+          .from('customers')
+          .insert({
+            full_name: cleanName,
+            phone: cleanPhone,
+            email: cleanEmail,
+          })
+          .select('id')
+          .single();
+
+        if (createCustomerError) {
+          // Handle unique constraint violation
+          if (createCustomerError.code === '23505') {
+            // Phone already exists (race condition) - fetch existing
+            const { data: raceCustomer } = await supabase
+              .from('customers')
+              .select('id')
+              .eq('phone', cleanPhone)
+              .single();
+            
+            if (raceCustomer) {
+              customerId = raceCustomer.id;
+            } else {
+              throw createCustomerError;
+            }
+          } else {
+            throw createCustomerError;
+          }
+        } else {
+          customerId = newCustomer.id;
+        }
+      }
+
+      // Step 3: Create Lead (wrapped in transaction via RPC or sequential with error handling)
+      const leadData: any = {
+        customer_id: customerId,
         city: formData.city.trim() || null,
         birth_date: formData.birth_date || null,
         gender: formData.gender || null,
@@ -160,32 +239,21 @@ export const useAddLead = () => {
         subscription_data: {},
       };
 
-      // Insert into leads table (public schema is default)
-      const { data, error } = await supabase
+      const { data: newLead, error: leadError } = await supabase
         .from('leads')
-        .insert([dbData])
+        .insert([leadData])
         .select()
         .single();
 
-      if (error) {
-        console.error('Error adding lead:', error);
-        console.error('Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        });
-        
-        // Provide more helpful error messages
+      if (leadError) {
+        console.error('Error adding lead:', leadError);
         let errorMessage = 'נכשל בהוספת הליד';
-        if (error.message?.includes('schema cache')) {
+        if (leadError.message?.includes('schema cache')) {
           errorMessage = 'הטבלה לא נמצאה. אנא ודא שהמיגרציה רצה בהצלחה.';
-        } else if (error.message?.includes('permission denied') || error.code === '42501') {
+        } else if (leadError.message?.includes('permission denied') || leadError.code === '42501') {
           errorMessage = 'אין הרשאה להוסיף ליד. אנא בדוק את מדיניות RLS.';
-        } else if (error.message?.includes('duplicate key') || error.code === '23505') {
-          errorMessage = 'מספר טלפון זה כבר קיים במערכת.';
-        } else if (error.message) {
-          errorMessage = error.message;
+        } else if (leadError.message) {
+          errorMessage = leadError.message;
         }
         
         toast({
@@ -206,11 +274,11 @@ export const useAddLead = () => {
 
       // Reset form (dialog will be closed by parent component)
       resetForm();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Unexpected error adding lead:', err);
       toast({
         title: 'שגיאה',
-        description: 'אירעה שגיאה בלתי צפויה',
+        description: err?.message || 'אירעה שגיאה בלתי צפויה',
         variant: 'destructive',
       });
     } finally {
