@@ -70,7 +70,8 @@ interface WeeklyWorkoutBuilderProps {
   initialData?: WorkoutPlan;
   onSave: (plan: Partial<WorkoutPlan>) => void;
   onCancel: () => void;
-  leadId?: string;
+  leadId?: string; // DEPRECATED: Use customerId instead
+  customerId?: string;
 }
 
 export const WeeklyWorkoutBuilder = ({
@@ -235,7 +236,7 @@ export const WeeklyWorkoutBuilder = ({
           },
         },
       },
-      ...(leadId && { lead_id: leadId }),
+      ...(customerId && { customer_id: customerId }),
     };
 
     onSave(planData);

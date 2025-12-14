@@ -31,7 +31,8 @@ import { cn } from '@/lib/utils';
 interface WorkoutBoardProps {
   mode: 'user' | 'template';
   initialData?: any;
-  leadId?: string;
+  leadId?: string; // DEPRECATED: Use customerId instead
+  customerId?: string;
   onSave: (data: any) => void;
   onCancel: () => void;
 }
@@ -342,7 +343,7 @@ const DayColumn = ({
   );
 };
 
-export const WorkoutBoard = ({ mode, initialData, leadId, onSave, onCancel }: WorkoutBoardProps) => {
+export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, onCancel }: WorkoutBoardProps) => {
   const {
     startDate,
     description,
@@ -362,7 +363,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, onSave, onCancel }: Wo
     duplicateDay,
     getWorkoutData,
     getDndContext,
-  } = useWorkoutBoard(mode, initialData, leadId);
+  } = useWorkoutBoard(mode, initialData, customerId || leadId); // Use customerId, fallback to leadId for backward compatibility
 
   // Local state for tags input to allow typing commas freely
   const [tagsInput, setTagsInput] = useState(goalTags.join(', '));

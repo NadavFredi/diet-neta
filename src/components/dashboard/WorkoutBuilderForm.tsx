@@ -6,7 +6,8 @@ interface WorkoutBuilderFormProps {
   initialData?: any;
   onSave: (data: any) => void;
   onCancel: () => void;
-  leadId?: string;
+  leadId?: string; // DEPRECATED: Use customerId instead
+  customerId?: string;
 }
 
 export const WorkoutBuilderForm = ({
@@ -14,14 +15,16 @@ export const WorkoutBuilderForm = ({
   initialData,
   onSave,
   onCancel,
-  leadId,
+  leadId, // DEPRECATED
+  customerId,
 }: WorkoutBuilderFormProps) => {
   return (
     <div className="h-full flex flex-col min-h-0" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <WorkoutBoard
         mode={mode}
         initialData={initialData}
-        leadId={leadId}
+        leadId={leadId} // DEPRECATED
+        customerId={customerId}
         onSave={onSave}
         onCancel={onCancel}
       />

@@ -13,6 +13,34 @@ export interface Customer {
 }
 
 export interface CustomerWithLeads extends Customer {
+  daily_protocol?: {
+    stepsGoal?: number;
+    workoutGoal?: number;
+    supplements?: string[];
+  };
+  workout_history?: Array<{
+    name?: string;
+    startDate?: string;
+    validUntil?: string;
+    duration?: string;
+    description?: string;
+    split?: {
+      strength?: number;
+      cardio?: number;
+      intervals?: number;
+    };
+    strengthCount?: number;
+    cardioCount?: number;
+    intervalsCount?: number;
+  }>;
+  steps_history?: Array<{
+    weekNumber?: string;
+    week?: string;
+    startDate?: string;
+    dates?: string;
+    endDate?: string;
+    target?: number;
+  }>;
   leads: Array<{
     id: string;
     created_at: string;
@@ -102,6 +130,9 @@ export const useCustomer = (customerId: string | undefined) => {
         email: data.email,
         created_at: data.created_at,
         updated_at: data.updated_at,
+        daily_protocol: data.daily_protocol || {},
+        workout_history: data.workout_history || [],
+        steps_history: data.steps_history || [],
         leads: (data.leads || []).map((lead: any) => ({
           id: lead.id,
           created_at: lead.created_at,

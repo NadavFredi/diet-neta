@@ -14,22 +14,22 @@ export interface NutritionPlan {
   updated_at: string;
 }
 
-export const useNutritionPlan = (leadId?: string) => {
+export const useNutritionPlan = (customerId?: string) => {
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!leadId) {
+    if (!customerId) {
       setIsLoading(false);
       return;
     }
 
     fetchNutritionPlan();
-  }, [leadId]);
+  }, [customerId]);
 
   const fetchNutritionPlan = async () => {
-    if (!leadId) return;
+    if (!customerId) return;
 
     try {
       setIsLoading(true);
@@ -43,7 +43,7 @@ export const useNutritionPlan = (leadId?: string) => {
       const { data, error: fetchError } = await supabase
         .from('nutrition_plans')
         .select('*')
-        .eq('lead_id', leadId)
+        .eq('customer_id', customerId)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -94,7 +94,7 @@ export const useNutritionPlan = (leadId?: string) => {
         .from('nutrition_plans')
         .insert({
           user_id: user.id,
-          lead_id: leadId,
+          customer_id: customerId,
           template_id: planData.template_id,
           start_date: planData.start_date,
           description: planData.description,

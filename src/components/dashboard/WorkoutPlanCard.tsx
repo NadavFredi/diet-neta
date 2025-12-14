@@ -39,7 +39,8 @@ export interface CustomField {
 export interface WorkoutPlan {
   id: string;
   user_id: string;
-  lead_id?: string;
+  lead_id?: string; // DEPRECATED: Use customer_id instead
+  customer_id?: string;
   template_id?: string;
   start_date: string;
   description?: string;

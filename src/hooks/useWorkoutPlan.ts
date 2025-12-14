@@ -2,22 +2,22 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import type { WorkoutPlan } from '@/components/dashboard/WorkoutPlanCard';
 
-export const useWorkoutPlan = (leadId?: string) => {
+export const useWorkoutPlan = (customerId?: string) => {
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!leadId) {
+    if (!customerId) {
       setIsLoading(false);
       return;
     }
 
     fetchWorkoutPlan();
-  }, [leadId]);
+  }, [customerId]);
 
   const fetchWorkoutPlan = async () => {
-    if (!leadId) return;
+    if (!customerId) return;
 
     try {
       setIsLoading(true);
@@ -31,7 +31,7 @@ export const useWorkoutPlan = (leadId?: string) => {
       const { data, error: fetchError } = await supabase
         .from('workout_plans')
         .select('*')
-        .eq('lead_id', leadId)
+        .eq('customer_id', customerId)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -82,7 +82,7 @@ export const useWorkoutPlan = (leadId?: string) => {
         .from('workout_plans')
         .insert({
           user_id: user.id,
-          lead_id: leadId,
+          customer_id: customerId,
           template_id: planData.template_id,
           start_date: planData.start_date,
           description: planData.description,
@@ -203,7 +203,7 @@ export const useWorkoutPlan = (leadId?: string) => {
   };
 
   const fetchWorkoutPlanHistory = async () => {
-    if (!leadId) return [];
+    if (!customerId) return [];
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -214,7 +214,7 @@ export const useWorkoutPlan = (leadId?: string) => {
       const { data, error: fetchError } = await supabase
         .from('workout_plans')
         .select('*')
-        .eq('lead_id', leadId)
+        .eq('customer_id', customerId)
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;

@@ -73,7 +73,7 @@ const initializeWeeklyWorkout = (initialData?: WorkoutPlan | { routine_data?: an
 export const useWorkoutBuilder = (
   mode: WorkoutBuilderMode,
   initialData?: WorkoutPlan | { routine_data?: any },
-  leadId?: string
+  customerId?: string // Changed from leadId to customerId
 ): WorkoutBuilderState & WorkoutBuilderActions => {
   const [activeTab, setActiveTab] = useState('sunday');
   const [startDate, setStartDate] = useState<Date | undefined>(
@@ -220,7 +220,7 @@ export const useWorkoutBuilder = (
             weeklyWorkout: updatedWorkout,
           },
         },
-        ...(leadId && { lead_id: leadId }),
+        ...(customerId && { customer_id: customerId }),
       };
 
       return {
@@ -241,7 +241,7 @@ export const useWorkoutBuilder = (
         },
       };
     }
-  }, [mode, startDate, description, generalGoals, weeklyWorkout, leadId]);
+  }, [mode, startDate, description, generalGoals, weeklyWorkout, customerId]);
 
   const reset = useCallback(() => {
     setActiveTab('sunday');

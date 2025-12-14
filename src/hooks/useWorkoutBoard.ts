@@ -83,10 +83,11 @@ const initializeWeeklyWorkout = (initialData?: WorkoutPlan | { routine_data?: an
   };
 };
 
+// Note: useWorkoutBoard uses useWorkoutBuilder internally, which now uses customerId
 export const useWorkoutBoard = (
   mode: WorkoutBuilderMode,
   initialData?: WorkoutPlan | { routine_data?: any },
-  leadId?: string
+  customerId?: string // Changed from leadId to customerId
 ): WorkoutBoardState & WorkoutBoardActions => {
   const [startDate, setStartDate] = useState<Date | undefined>(
     initialData && 'start_date' in initialData && initialData.start_date
@@ -404,7 +405,7 @@ export const useWorkoutBoard = (
             weeklyWorkout: updatedWorkout,
           },
         },
-        ...(leadId && { lead_id: leadId }),
+        ...(customerId && { customer_id: customerId }),
       };
 
       return {
@@ -424,7 +425,7 @@ export const useWorkoutBoard = (
         },
       };
     }
-  }, [mode, startDate, description, generalGoals, goalTags, weeklyWorkout, leadId]);
+  }, [mode, startDate, description, generalGoals, goalTags, weeklyWorkout, customerId]);
 
   const reset = useCallback(() => {
     setStartDate(new Date());
