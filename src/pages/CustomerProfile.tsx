@@ -8,8 +8,6 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Phone, Mail, Calendar, Plus, User, Dumbbell, Footprints, Activity, CheckCircle2, Flame, Download, Loader2, Droplet, MessageCircle, Edit, FileText } from 'lucide-react';
-import Highcharts from 'highcharts';
-import HighchartsReact from 'highcharts-react-official';
 import { formatDate } from '@/utils/dashboard';
 import { format, differenceInDays, differenceInMonths, differenceInWeeks } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -43,12 +41,116 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 
+// Simple CSS-based donut chart component - no Highcharts to avoid crashes
+const NutritionChart = ({ 
+  protein, 
+  carbs, 
+  fat, 
+  calories 
+}: { 
+  protein: number; 
+  carbs: number; 
+  fat: number; 
+  calories: number; 
+}) => {
+  const proteinCal = protein * 4;
+  const carbsCal = carbs * 4;
+  const fatCal = fat * 9;
+  const totalCal = proteinCal + carbsCal + fatCal;
+
+  if (totalCal <= 0) {
+    return (
+      <div className="h-[200px] w-[200px] flex items-center justify-center rounded-full border-8 border-gray-200">
+        <div className="text-center text-gray-400">
+          <Flame className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-xs">אין נתונים</p>
+        </div>
+      </div>
+    );
+  }
+
+  const proteinPercent = (proteinCal / totalCal) * 100;
+  const carbsPercent = (carbsCal / totalCal) * 100;
+  const fatPercent = (fatCal / totalCal) * 100;
+
+  // Calculate stroke-dasharray for each segment
+  const radius = 70;
+  const circumference = 2 * Math.PI * radius;
+  const proteinDash = (proteinPercent / 100) * circumference;
+  const carbsDash = (carbsPercent / 100) * circumference;
+  const fatDash = (fatPercent / 100) * circumference;
+  
+  const carbsOffset = -proteinDash;
+  const fatOffset = -(proteinDash + carbsDash);
+
+  return (
+    <div className="h-[200px] w-[200px] flex-shrink-0 relative flex items-center justify-center">
+      <svg className="transform -rotate-90" width="200" height="200" viewBox="0 0 200 200">
+        {/* Background circle */}
+        <circle
+          cx="100"
+          cy="100"
+          r={radius}
+          fill="none"
+          stroke="#e5e7eb"
+          strokeWidth="20"
+        />
+        {/* Protein - Red */}
+        {proteinPercent > 0 && (
+          <circle
+            cx="100"
+            cy="100"
+            r={radius}
+            fill="none"
+            stroke="#ef4444"
+            strokeWidth="20"
+            strokeDasharray={`${proteinDash} ${circumference}`}
+            strokeDashoffset="0"
+            strokeLinecap="round"
+            className="transition-all duration-300"
+          />
+        )}
+        {/* Carbs - Blue */}
+        {carbsPercent > 0 && (
+          <circle
+            cx="100"
+            cy="100"
+            r={radius}
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth="20"
+            strokeDasharray={`${carbsDash} ${circumference}`}
+            strokeDashoffset={carbsOffset}
+            strokeLinecap="round"
+            className="transition-all duration-300"
+          />
+        )}
+        {/* Fat - Amber */}
+        {fatPercent > 0 && (
+          <circle
+            cx="100"
+            cy="100"
+            r={radius}
+            fill="none"
+            stroke="#f59e0b"
+            strokeWidth="20"
+            strokeDasharray={`${fatDash} ${circumference}`}
+            strokeDashoffset={fatOffset}
+            strokeLinecap="round"
+            className="transition-all duration-300"
+          />
+        )}
+      </svg>
+    </div>
+  );
+};
+
 const CustomerProfile = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
-  const { data: customer, isLoading } = useCustomer(id);
+  const { data: customer, isLoading, error: customerError } = useCustomer(id);
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
   const [activeHistoryTab, setActiveHistoryTab] = useState('leads');
   
@@ -69,6 +171,23 @@ const CustomerProfile = () => {
   const { data: templates = [], isLoading: templatesLoading } = useWorkoutTemplates();
   const { data: nutritionTemplates = [], isLoading: nutritionTemplatesLoading } = useNutritionTemplates();
   const { toast } = useToast();
+  
+  // Get stable nutrition data for chart - only when plan exists and is loaded
+  const chartData = useMemo(() => {
+    if (!nutritionPlan?.targets || nutritionLoading) {
+      return null;
+    }
+    
+    const { protein, carbs, fat, calories } = nutritionPlan.targets;
+    
+    // Validate data
+    if (!isFinite(protein) || !isFinite(carbs) || !isFinite(fat) || !isFinite(calories) ||
+        protein < 0 || carbs < 0 || fat < 0 || calories <= 0) {
+      return null;
+    }
+    
+    return { protein, carbs, fat, calories };
+  }, [nutritionPlan?.targets?.protein, nutritionPlan?.targets?.carbs, nutritionPlan?.targets?.fat, nutritionPlan?.targets?.calories, nutritionLoading]);
 
   // Fetch workout plan history on mount
   useEffect(() => {
@@ -144,136 +263,6 @@ const CustomerProfile = () => {
       .map(e => e.name);
   };
 
-  // Prepare Highcharts options for nutrition donut chart (memoized)
-  const nutritionChartOptions = useMemo((): Highcharts.Options => {
-    if (!nutritionPlan?.targets || nutritionLoading) {
-      return {
-        chart: {
-          type: 'pie',
-          height: 200,
-          backgroundColor: 'transparent',
-        },
-        title: {
-          text: '',
-        },
-        credits: {
-          enabled: false,
-        },
-        series: [
-          {
-            type: 'pie',
-            data: [],
-          },
-        ],
-      };
-    }
-
-    const { protein, carbs, fat } = nutritionPlan.targets;
-    const proteinCalories = protein * 4;
-    const carbsCalories = carbs * 4;
-    const fatCalories = fat * 9;
-    const totalCalories = proteinCalories + carbsCalories + fatCalories;
-
-    // Validate data
-    if (totalCalories <= 0 || !isFinite(totalCalories)) {
-      return {
-        chart: {
-          type: 'pie',
-          height: 200,
-          backgroundColor: 'transparent',
-        },
-        title: {
-          text: '',
-        },
-        credits: {
-          enabled: false,
-        },
-        series: [
-          {
-            type: 'pie',
-            data: [],
-          },
-        ],
-      };
-    }
-
-    return {
-      chart: {
-        type: 'pie',
-        height: 200,
-        backgroundColor: 'transparent',
-        animation: {
-          duration: 500,
-        },
-      },
-      title: {
-        text: '',
-      },
-      credits: {
-        enabled: false,
-      },
-      tooltip: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderColor: '#e5e7eb',
-        borderRadius: 8,
-        shadow: {
-          color: 'rgba(0, 0, 0, 0.1)',
-          width: 2,
-          offsetX: 0,
-          offsetY: 2,
-        },
-        formatter: function() {
-          const percentage = ((this.y as number) / totalCalories * 100).toFixed(1);
-          return `<b>${this.point.name}</b><br/>${this.y} קק״ל (${percentage}%)`;
-        },
-        style: {
-          fontFamily: 'inherit',
-          fontSize: '12px',
-        },
-      },
-      plotOptions: {
-        pie: {
-          innerSize: '60%',
-          borderWidth: 0,
-          dataLabels: {
-            enabled: false,
-          },
-          showInLegend: false,
-          states: {
-            hover: {
-              brightness: 0.1,
-            },
-          },
-          animation: {
-            duration: 500,
-          },
-        },
-      },
-      series: [
-        {
-          type: 'pie',
-          name: 'מקרו-נוטריאנטים',
-          data: [
-            {
-              name: 'חלבון',
-              y: proteinCalories,
-              color: '#ef4444',
-            },
-            {
-              name: 'פחמימות',
-              y: carbsCalories,
-              color: '#3b82f6',
-            },
-            {
-              name: 'שומן',
-              y: fatCalories,
-              color: '#f59e0b',
-            },
-          ],
-        },
-      ],
-    };
-  }, [nutritionPlan?.targets, nutritionLoading]);
 
   const getStatusColor = (status: string | null) => {
     if (!status) return 'bg-gray-50 text-gray-700 border-gray-200';
@@ -289,6 +278,20 @@ const CustomerProfile = () => {
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
           <p className="text-gray-600">טוען פרטי לקוח...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (customerError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100" dir="rtl">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">שגיאה בטעינת לקוח</h2>
+          <p className="text-gray-600 mb-4">{customerError instanceof Error ? customerError.message : 'אירעה שגיאה'}</p>
+          <Button onClick={handleBack} variant="outline">
+            חזור לרשימת לקוחות
+          </Button>
         </div>
       </div>
     );
@@ -661,28 +664,22 @@ const CustomerProfile = () => {
                             <Flame className="h-5 w-5 text-orange-600" />
                             <h3 className="text-base font-bold text-gray-900">תוכנית תזונה</h3>
                           </div>
-                          {/* Donut Chart */}
+                          {/* Donut Chart - Always render chart component to prevent flashing */}
                           <div className="flex items-center gap-4">
-                            <div className="flex-shrink-0">
-                              {nutritionLoading ? (
-                                <div className="h-[200px] w-[200px] flex items-center justify-center">
-                                  <div className="text-center text-gray-400">
-                                    <Flame className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p className="text-xs">טוען נתונים...</p>
-                                  </div>
-                                </div>
-                              ) : nutritionPlan?.targets && nutritionChartOptions.series?.[0]?.data?.length > 0 ? (
-                                <HighchartsReact
-                                  highcharts={Highcharts}
-                                  options={nutritionChartOptions}
-                                  containerProps={{ style: { height: '200px', width: '200px' } }}
-                                  key={`nutrition-chart-${nutritionPlan.id || 'default'}`}
+                            <div className="flex-shrink-0 h-[200px] w-[200px] relative">
+                              {/* Always render chart - it handles empty data internally */}
+                              {chartData ? (
+                                <NutritionChart 
+                                  protein={chartData.protein}
+                                  carbs={chartData.carbs}
+                                  fat={chartData.fat}
+                                  calories={chartData.calories}
                                 />
                               ) : (
                                 <div className="h-[200px] w-[200px] flex items-center justify-center">
                                   <div className="text-center text-gray-400">
                                     <Flame className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p className="text-xs">אין נתונים</p>
+                                    <p className="text-xs">{nutritionLoading ? 'טוען נתונים...' : 'אין נתונים'}</p>
                                   </div>
                                 </div>
                               )}
@@ -693,26 +690,26 @@ const CustomerProfile = () => {
                                   <div className="w-3 h-3 rounded-full bg-red-500"></div>
                                   <span className="text-xs text-gray-600">חלבון</span>
                                 </div>
-                                <span className="text-sm font-bold text-gray-900">{nutritionPlan.targets.protein}ג</span>
+                                <span className="text-sm font-bold text-gray-900">{nutritionPlan?.targets?.protein || 0}ג</span>
                               </div>
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                                   <span className="text-xs text-gray-600">פחמימות</span>
                                 </div>
-                                <span className="text-sm font-bold text-gray-900">{nutritionPlan.targets.carbs}ג</span>
+                                <span className="text-sm font-bold text-gray-900">{nutritionPlan?.targets?.carbs || 0}ג</span>
                               </div>
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <div className="w-3 h-3 rounded-full bg-amber-500"></div>
                                   <span className="text-xs text-gray-600">שומן</span>
                                 </div>
-                                <span className="text-sm font-bold text-gray-900">{nutritionPlan.targets.fat || 0}ג</span>
+                                <span className="text-sm font-bold text-gray-900">{nutritionPlan?.targets?.fat || 0}ג</span>
                               </div>
                               <div className="pt-2 border-t border-gray-100">
                                 <div className="flex items-center justify-between">
                                   <span className="text-xs text-gray-600">סה"כ קלוריות</span>
-                                  <span className="text-lg font-bold text-orange-900">{nutritionPlan.targets.calories}</span>
+                                  <span className="text-lg font-bold text-orange-900">{nutritionPlan?.targets?.calories || 0}</span>
                                 </div>
                               </div>
                             </div>
