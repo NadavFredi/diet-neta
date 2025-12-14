@@ -290,22 +290,24 @@ export const fetchLeads = createAsyncThunk(
   }
 );
 
+// Default column visibility - only essential columns shown by default
+// Users can add more columns via the column visibility menu
 const initialColumnVisibility: ColumnVisibility = {
-  id: true,
-  name: true,
-  createdDate: true,
-  status: true,
-  phone: true,
-  email: true,
-  source: true,
-  age: true,
-  birthDate: true,
-  height: true,
-  weight: true,
-  fitnessGoal: true,
-  activityLevel: true,
-  preferredTime: true,
-  notes: false,
+  id: true,           // Essential: Lead identifier
+  name: true,         // Essential: Lead name
+  status: true,       // Essential: Workflow status
+  phone: true,        // Essential: Contact information
+  email: false,       // Can be added if needed
+  createdDate: false, // Can be added if needed
+  source: false,      // Can be added if needed
+  age: false,         // Can be added if needed
+  birthDate: false,   // Can be added if needed
+  height: false,      // Can be added if needed
+  weight: false,      // Can be added if needed
+  fitnessGoal: false, // Can be added if needed
+  activityLevel: false, // Can be added if needed
+  preferredTime: false, // Can be added if needed
+  notes: false,       // Hidden by default
 };
 
 // Mock data removed - now fetching from Supabase

@@ -144,13 +144,27 @@ const CustomerProfile = () => {
       .map(e => e.name);
   };
 
-  // Prepare Highcharts options for nutrition donut chart
-  const getNutritionChartOptions = (): Highcharts.Options => {
-    if (!nutritionPlan?.targets) {
+  // Prepare Highcharts options for nutrition donut chart (memoized)
+  const nutritionChartOptions = useMemo((): Highcharts.Options => {
+    if (!nutritionPlan?.targets || nutritionLoading) {
       return {
-        chart: { type: 'pie', height: 200 },
-        title: { text: '' },
-        series: [{ type: 'pie', data: [] }],
+        chart: {
+          type: 'pie',
+          height: 200,
+          backgroundColor: 'transparent',
+        },
+        title: {
+          text: '',
+        },
+        credits: {
+          enabled: false,
+        },
+        series: [
+          {
+            type: 'pie',
+            data: [],
+          },
+        ],
       };
     }
 
@@ -160,11 +174,37 @@ const CustomerProfile = () => {
     const fatCalories = fat * 9;
     const totalCalories = proteinCalories + carbsCalories + fatCalories;
 
+    // Validate data
+    if (totalCalories <= 0 || !isFinite(totalCalories)) {
+      return {
+        chart: {
+          type: 'pie',
+          height: 200,
+          backgroundColor: 'transparent',
+        },
+        title: {
+          text: '',
+        },
+        credits: {
+          enabled: false,
+        },
+        series: [
+          {
+            type: 'pie',
+            data: [],
+          },
+        ],
+      };
+    }
+
     return {
       chart: {
         type: 'pie',
         height: 200,
         backgroundColor: 'transparent',
+        animation: {
+          duration: 500,
+        },
       },
       title: {
         text: '',
@@ -204,6 +244,9 @@ const CustomerProfile = () => {
               brightness: 0.1,
             },
           },
+          animation: {
+            duration: 500,
+          },
         },
       },
       series: [
@@ -230,7 +273,7 @@ const CustomerProfile = () => {
         },
       ],
     };
-  };
+  }, [nutritionPlan?.targets, nutritionLoading]);
 
   const getStatusColor = (status: string | null) => {
     if (!status) return 'bg-gray-50 text-gray-700 border-gray-200';
@@ -621,18 +664,25 @@ const CustomerProfile = () => {
                           {/* Donut Chart */}
                           <div className="flex items-center gap-4">
                             <div className="flex-shrink-0">
-                              {nutritionChartOptions ? (
+                              {nutritionLoading ? (
+                                <div className="h-[200px] w-[200px] flex items-center justify-center">
+                                  <div className="text-center text-gray-400">
+                                    <Flame className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                    <p className="text-xs">טוען נתונים...</p>
+                                  </div>
+                                </div>
+                              ) : nutritionPlan?.targets && nutritionChartOptions.series?.[0]?.data?.length > 0 ? (
                                 <HighchartsReact
                                   highcharts={Highcharts}
                                   options={nutritionChartOptions}
                                   containerProps={{ style: { height: '200px', width: '200px' } }}
-                                  key={`nutrition-chart-${nutritionPlan.id}`}
+                                  key={`nutrition-chart-${nutritionPlan.id || 'default'}`}
                                 />
                               ) : (
                                 <div className="h-[200px] w-[200px] flex items-center justify-center">
                                   <div className="text-center text-gray-400">
                                     <Flame className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p className="text-xs">טוען נתונים...</p>
+                                    <p className="text-xs">אין נתונים</p>
                                   </div>
                                 </div>
                               )}
