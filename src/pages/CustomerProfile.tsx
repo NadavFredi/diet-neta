@@ -7,7 +7,9 @@ import { logout } from '@/store/slices/authSlice';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Phone, Mail, Calendar, Plus, User, Dumbbell, Footprints, Activity, CheckCircle2, Flame, Download, Loader2 } from 'lucide-react';
+import { ArrowRight, Phone, Mail, Calendar, Plus, User, Dumbbell, Footprints, Activity, CheckCircle2, Flame, Download, Loader2, Droplet, MessageCircle, Edit, FileText } from 'lucide-react';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { PieChart, Pie, Cell } from 'recharts';
 import { formatDate } from '@/utils/dashboard';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -21,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WorkoutPlanCard, type WorkoutPlan } from '@/components/dashboard/WorkoutPlanCard';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
@@ -47,6 +50,7 @@ const CustomerProfile = () => {
   const { user } = useAppSelector((state) => state.auth);
   const { data: customer, isLoading } = useCustomer(id);
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
+  const [activeHistoryTab, setActiveHistoryTab] = useState('leads');
   
   // Coaching data hooks - using customer_id
   const { workoutPlan, isLoading: workoutLoading, createWorkoutPlan, updateWorkoutPlan, deleteWorkoutPlan, fetchWorkoutPlan, fetchWorkoutPlanHistory } = useWorkoutPlan(customer?.id);
@@ -94,6 +98,63 @@ const CustomerProfile = () => {
     }
   };
 
+  const handleWhatsApp = () => {
+    if (customer?.phone) {
+      const phoneNumber = customer.phone.replace(/-/g, '').replace(/\s/g, '');
+      window.open(`https://wa.me/${phoneNumber}`, '_blank');
+    }
+  };
+
+  // Helper to get customer initials for avatar
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  // Extract top 3 exercises from workout plan
+  const getTopExercises = (plan: WorkoutPlan | null): string[] => {
+    if (!plan?.custom_attributes?.data?.weeklyWorkout) return [];
+    
+    const weeklyWorkout = plan.custom_attributes.data.weeklyWorkout;
+    const allExercises: Array<{ name: string; count: number }> = [];
+    
+    // Collect all exercises from all active days
+    Object.values(weeklyWorkout.days || {}).forEach((day: any) => {
+      if (day.isActive && day.exercises) {
+        day.exercises.forEach((exercise: any) => {
+          if (exercise.name) {
+            const existing = allExercises.find(e => e.name === exercise.name);
+            if (existing) {
+              existing.count++;
+            } else {
+              allExercises.push({ name: exercise.name, count: 1 });
+            }
+          }
+        });
+      }
+    });
+    
+    // Sort by frequency and return top 3
+    return allExercises
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map(e => e.name);
+  };
+
+  // Prepare nutrition data for donut chart
+  const getNutritionChartData = () => {
+    if (!nutritionPlan?.targets) return [];
+    const { protein, carbs, fat } = nutritionPlan.targets;
+    return [
+      { name: 'חלבון', value: protein, color: '#ef4444' },
+      { name: 'פחמימות', value: carbs, color: '#3b82f6' },
+      { name: 'שומן', value: fat, color: '#f59e0b' },
+    ];
+  };
+
   const getStatusColor = (status: string | null) => {
     if (!status) return 'bg-gray-50 text-gray-700 border-gray-200';
     if (status === 'פעיל') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
@@ -126,6 +187,12 @@ const CustomerProfile = () => {
     );
   }
 
+  const dailyProtocol = customer.daily_protocol || {};
+  const stepsGoal = dailyProtocol.stepsGoal || 0;
+  const workoutGoal = dailyProtocol.workoutGoal || 0;
+  const supplements = dailyProtocol.supplements || [];
+  const calories = nutritionPlan?.targets?.calories || 0;
+
   return (
     <>
       <div className="min-h-screen grid grid-rows-[auto_1fr_auto] grid-cols-1" dir="rtl">
@@ -135,629 +202,684 @@ const CustomerProfile = () => {
         </div>
 
         {/* Main content area with sidebar */}
-        <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1' }}>
+        <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1', minHeight: 'calc(100vh - 88px)' }}>
           <DashboardSidebar />
           
-          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
-            <div className="p-4">
-              <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-200/50">
-                {/* Header */}
-                <div className="mb-4 pb-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <Button
-                        onClick={handleBack}
-                        variant="ghost"
-                        className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                      >
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                        חזור לרשימת לקוחות
-                      </Button>
-                      <div>
-                        <h1 className="text-2xl font-bold text-gray-900 mb-1">{customer.full_name}</h1>
-                        <div className="flex items-center gap-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCall}
-                            className="text-gray-700 hover:bg-gray-50"
-                          >
-                            <Phone className="h-4 w-4 ml-2" />
-                            {customer.phone}
-                          </Button>
+          <main className="flex-1 bg-gray-50 overflow-y-auto flex flex-col" style={{ marginRight: '256px' }}>
+            <div className="p-4 flex-1 flex flex-col min-h-0">
+              {/* Header */}
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={handleBack}
+                    variant="ghost"
+                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  >
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                    חזור
+                  </Button>
+                  <h1 className="text-2xl font-bold text-gray-900">{customer.full_name}</h1>
+                </div>
+                <Button
+                  onClick={() => setIsAddLeadDialogOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="h-4 w-4 ml-2" />
+                  צור התעניינות חדשה
+                </Button>
+              </div>
+
+              {/* ASYMMETRICAL GRID LAYOUT */}
+              <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
+                {/* LEFT COLUMN: Enriched Identity Card (25% width) */}
+                <div className="col-span-12 lg:col-span-3 flex flex-col">
+                  <div className="sticky top-4 space-y-4">
+                    {/* Identity Card with Avatar */}
+                    <Card className="p-5 border border-gray-200 bg-white">
+                      {/* Avatar & Name */}
+                      <div className="mb-4 pb-4 border-b border-gray-200">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-lg">
+                            {getInitials(customer.full_name)}
+                          </div>
+                          <div className="flex-1">
+                            <h2 className="text-lg font-bold text-gray-900 mb-1">{customer.full_name}</h2>
+                            <p className="text-sm text-gray-500">לקוח</p>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between py-1.5">
+                            <span className="text-xs text-gray-500">טלפון</span>
+                            <span className="text-sm font-semibold text-gray-900 font-mono">{customer.phone}</span>
+                          </div>
                           {customer.email && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleEmail}
-                              className="text-gray-700 hover:bg-gray-50"
-                            >
-                              <Mail className="h-4 w-4 ml-2" />
-                              {customer.email}
-                            </Button>
+                            <div className="flex items-center justify-between py-1.5">
+                              <span className="text-xs text-gray-500">אימייל</span>
+                              <span className="text-sm font-semibold text-gray-900 truncate max-w-[160px]">{customer.email}</span>
+                            </div>
                           )}
+                          <div className="flex items-center justify-between py-1.5">
+                            <span className="text-xs text-gray-500">תאריך יצירה</span>
+                            <span className="text-sm font-semibold text-gray-900">{formatDate(customer.created_at)}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <Button
-                      onClick={() => setIsAddLeadDialogOpen(true)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <Plus className="h-4 w-4 ml-2" />
-                      צור הזדמנות חדשה
-                    </Button>
+
+                      {/* Quick Actions */}
+                      <div className="mb-4 pb-4 border-b border-gray-200">
+                        <h3 className="text-sm font-bold text-gray-900 mb-3">פעולות מהירות</h3>
+                        <div className="space-y-2">
+                          <Button
+                            onClick={handleWhatsApp}
+                            variant="outline"
+                            className="w-full justify-start bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+                          >
+                            <MessageCircle className="h-4 w-4 ml-2" />
+                            שלח WhatsApp
+                          </Button>
+                          <Button
+                            onClick={handleCall}
+                            variant="outline"
+                            className="w-full justify-start bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                          >
+                            <Phone className="h-4 w-4 ml-2" />
+                            התקשר
+                          </Button>
+                          <Button
+                            onClick={handleEmail}
+                            variant="outline"
+                            className="w-full justify-start bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+                          >
+                            <Mail className="h-4 w-4 ml-2" />
+                            שלח אימייל
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+                          >
+                            <FileText className="h-4 w-4 ml-2" />
+                            הוסף הערה
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Stats Section - Vertical List */}
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-blue-600" />
+                          סטטיסטיקות
+                        </h3>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between py-2 bg-blue-50 rounded-lg px-3 border border-blue-100">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center">
+                                <User className="h-4 w-4 text-blue-700" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-blue-600">סה"כ לידים</p>
+                                <p className="text-xl font-bold text-blue-900">{customer.leads.length}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between py-2 bg-green-50 rounded-lg px-3 border border-green-100">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center">
+                                <CheckCircle2 className="h-4 w-4 text-green-700" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-green-600">לידים פעילים</p>
+                                <p className="text-xl font-bold text-green-900">
+                                  {customer.leads.filter((l) => l.status_main === 'פעיל').length}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
                   </div>
                 </div>
 
-                {/* Customer Info Card */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <Card className="p-4 bg-white border-gray-200">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                      <User className="h-5 w-5 text-blue-600" />
-                      מידע אישי
-                    </h2>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">טלפון</span>
-                        <span className="text-base font-semibold text-gray-900 font-mono">
-                          {customer.phone}
-                        </span>
-                      </div>
-                      {customer.email && (
-                        <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                          <span className="text-sm font-medium text-gray-500">אימייל</span>
-                          <span className="text-base font-semibold text-gray-900">{customer.email}</span>
+                {/* RIGHT COLUMN: Main Canvas (75% width) */}
+                <div className="col-span-12 lg:col-span-9 flex flex-col space-y-4 min-h-0">
+                  {/* ROW 1: Active Plans (50/50 split) - Rich Preview Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Workout Plan - Rich Preview Card */}
+                    <Card 
+                      className="p-5 border border-gray-200 bg-white cursor-pointer hover:border-blue-300 transition-colors shadow-sm"
+                      onClick={() => {
+                        if (workoutPlan) {
+                          setIsWorkoutDetailsOpen(true);
+                        } else {
+                          setIsImportDialogOpen(true);
+                        }
+                      }}
+                    >
+                      {workoutLoading ? (
+                        <div className="text-center py-8">
+                          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                         </div>
-                      )}
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-sm font-medium text-gray-500">תאריך יצירה</span>
-                        <span className="text-base font-semibold text-gray-900">
-                          {formatDate(customer.created_at)}
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
+                      ) : workoutPlan ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Dumbbell className="h-5 w-5 text-blue-600" />
+                              <h3 className="text-base font-bold text-gray-900">תוכנית אימונים</h3>
+                            </div>
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Select
+                                value={workoutPlan.is_active !== false ? 'active' : 'inactive'}
+                                onValueChange={async (value) => {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('workout_plans')
+                                      .update({
+                                        is_active: value === 'active',
+                                        updated_at: new Date().toISOString(),
+                                      })
+                                      .eq('id', workoutPlan.id);
 
-                  <Card className="p-4 bg-white border-gray-200 md:col-span-2">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-blue-600" />
-                      סטטיסטיקות
-                    </h2>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-blue-50 rounded-lg p-3 text-center">
-                        <p className="text-xs text-blue-600 mb-1">סה"כ לידים</p>
-                        <p className="text-2xl font-bold text-blue-900">{customer.leads.length}</p>
-                      </div>
-                      <div className="bg-green-50 rounded-lg p-3 text-center">
-                        <p className="text-xs text-green-600 mb-1">לידים פעילים</p>
-                        <p className="text-2xl font-bold text-green-900">
-                          {customer.leads.filter((l) => l.status_main === 'פעיל').length}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-
-                {/* COACHING DASHBOARD - Workout & Nutrition Plans */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                  {/* Workout Plan Compact */}
-                  <Card 
-                    className="p-4 bg-white border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => {
-                      if (workoutPlan) {
-                        setIsWorkoutDetailsOpen(true);
-                      } else {
-                        setIsImportDialogOpen(true);
-                      }
-                    }}
-                  >
-                    {workoutLoading ? (
-                      <div className="text-center py-6">
-                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                        <p className="mt-2 text-sm text-gray-600">טוען...</p>
-                      </div>
-                    ) : workoutPlan ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Dumbbell className="h-5 w-5 text-blue-600" />
-                            <h3 className="text-lg font-semibold text-gray-900">תוכנית אימונים</h3>
-                          </div>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Select
-                              value={workoutPlan.is_active !== false ? 'active' : 'inactive'}
-                              onValueChange={async (value) => {
-                                try {
-                                  const { error } = await supabase
-                                    .from('workout_plans')
-                                    .update({
-                                      is_active: value === 'active',
-                                      updated_at: new Date().toISOString(),
-                                    })
-                                    .eq('id', workoutPlan.id);
-
-                                  if (error) throw error;
-
-                                  await fetchWorkoutPlan();
-
-                                  toast({
-                                    title: 'הצלחה',
-                                    description: 'הסטטוס עודכן בהצלחה',
-                                  });
-                                } catch (error: any) {
-                                  console.error('Failed to update workout plan status:', error);
-                                  toast({
-                                    title: 'שגיאה',
-                                    description: error?.message || 'נכשל בעדכון הסטטוס',
-                                    variant: 'destructive',
-                                  });
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="h-7 w-24 border-0 p-0 bg-transparent hover:bg-transparent">
-                                <SelectValue>
-                                  {workoutPlan.is_active !== false ? (
-                                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 cursor-pointer hover:opacity-80">
+                                    if (error) throw error;
+                                    await fetchWorkoutPlan();
+                                    toast({
+                                      title: 'הצלחה',
+                                      description: 'הסטטוס עודכן בהצלחה',
+                                    });
+                                  } catch (error: any) {
+                                    console.error('Failed to update workout plan status:', error);
+                                    toast({
+                                      title: 'שגיאה',
+                                      description: error?.message || 'נכשל בעדכון הסטטוס',
+                                      variant: 'destructive',
+                                    });
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-7 w-24 border-0 p-0 bg-transparent hover:bg-transparent">
+                                  <SelectValue>
+                                    {workoutPlan.is_active !== false ? (
+                                      <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                                        פעילה
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="bg-gray-100 text-gray-700 border-gray-200">
+                                        לא פעילה
+                                      </Badge>
+                                    )}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent dir="rtl">
+                                  <SelectItem value="active">
+                                    <Badge className="bg-blue-100 text-blue-700 border-blue-200">
                                       פעילה
                                     </Badge>
-                                  ) : (
-                                    <Badge className="bg-gray-100 text-gray-700 border-gray-200 cursor-pointer hover:opacity-80">
+                                  </SelectItem>
+                                  <SelectItem value="inactive">
+                                    <Badge className="bg-gray-100 text-gray-700 border-gray-200">
                                       לא פעילה
                                     </Badge>
-                                  )}
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent dir="rtl">
-                                <SelectItem value="active">
-                                  <Badge className="bg-blue-100 text-blue-700 border-blue-200">
-                                    פעילה
-                                  </Badge>
-                                </SelectItem>
-                                <SelectItem value="inactive">
-                                  <Badge className="bg-gray-100 text-gray-700 border-gray-200">
-                                    לא פעילה
-                                  </Badge>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-blue-50 rounded-lg p-2 text-center">
-                            <p className="text-xs text-blue-600 mb-1">כוח</p>
-                            <p className="text-lg font-bold text-blue-900">{workoutPlan.strength}</p>
-                          </div>
-                          <div className="bg-red-50 rounded-lg p-2 text-center">
-                            <p className="text-xs text-red-600 mb-1">קרדיו</p>
-                            <p className="text-lg font-bold text-red-900">{workoutPlan.cardio}</p>
-                          </div>
-                          <div className="bg-purple-50 rounded-lg p-2 text-center">
-                            <p className="text-xs text-purple-600 mb-1">אינטרוולים</p>
-                            <p className="text-lg font-bold text-purple-900">{workoutPlan.intervals}</p>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 text-center">לחץ לפרטים מלאים</p>
-                      </div>
-                    ) : (
-                      <div className="text-center py-4">
-                        <Dumbbell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <h3 className="text-base font-semibold text-gray-900 mb-1">
-                          אין תוכנית אימונים
-                        </h3>
-                        <p className="text-xs text-gray-600 mb-3">
-                          לחץ להוספת תוכנית
-                        </p>
-                        <Button 
-                          size="sm" 
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsImportDialogOpen(true);
-                          }}
-                        >
-                          <Download className="h-3 w-3 ml-1" />
-                          הוסף תוכנית
-                        </Button>
-                      </div>
-                    )}
-                  </Card>
-
-                  {/* Nutrition Plan Compact */}
-                  <Card 
-                    className="p-4 bg-white border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => {
-                      if (nutritionPlan) {
-                        setIsNutritionDetailsOpen(true);
-                      } else {
-                        setIsNutritionImportDialogOpen(true);
-                      }
-                    }}
-                  >
-                    {nutritionLoading ? (
-                      <div className="text-center py-6">
-                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
-                        <p className="mt-2 text-sm text-gray-600">טוען...</p>
-                      </div>
-                    ) : nutritionPlan ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Flame className="h-5 w-5 text-orange-600" />
-                            <h3 className="text-lg font-semibold text-gray-900">תוכנית תזונה</h3>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-orange-50 rounded-lg p-2 text-center">
-                            <p className="text-xs text-orange-600 mb-1">קלוריות</p>
-                            <p className="text-lg font-bold text-orange-900">{nutritionPlan.targets.calories}</p>
-                          </div>
-                          <div className="bg-red-50 rounded-lg p-2 text-center">
-                            <p className="text-xs text-red-600 mb-1">חלבון</p>
-                            <p className="text-lg font-bold text-red-900">{nutritionPlan.targets.protein}ג</p>
-                          </div>
-                          <div className="bg-blue-50 rounded-lg p-2 text-center">
-                            <p className="text-xs text-blue-600 mb-1">פחמימות</p>
-                            <p className="text-lg font-bold text-blue-900">{nutritionPlan.targets.carbs}ג</p>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 text-center">לחץ לפרטים מלאים</p>
-                      </div>
-                    ) : (
-                      <div className="text-center py-4">
-                        <Flame className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <h3 className="text-base font-semibold text-gray-900 mb-1">
-                          אין תוכנית תזונה
-                        </h3>
-                        <p className="text-xs text-gray-600 mb-3">
-                          לחץ להוספת תוכנית
-                        </p>
-                        <Button 
-                          size="sm" 
-                          className="bg-orange-600 hover:bg-orange-700 text-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsNutritionImportDialogOpen(true);
-                          }}
-                        >
-                          <Download className="h-3 w-3 ml-1" />
-                          הוסף תוכנית
-                        </Button>
-                      </div>
-                    )}
-                  </Card>
-                </div>
-
-                {/* Daily Protocol Section */}
-                {customer.daily_protocol && (
-                  <Card className="p-4 bg-white border-gray-200 mb-4">
-                    <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <Activity className="h-5 w-5 text-blue-600" />
-                      פרוטוקול יומי
-                    </h2>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Part A: Activity Targets */}
-                      <div className="space-y-3">
-                        <h3 className="text-base font-semibold text-gray-800 mb-3">יעדי פעילות</h3>
-                        
-                        {/* Weekly Workouts */}
-                        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3 border border-orange-200">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-xs font-medium text-orange-600 mb-1">כמות אימונים שבועית</p>
-                              <p className="text-2xl font-bold text-orange-900">{customer.daily_protocol.workoutGoal || 0}</p>
-                              <p className="text-xs text-orange-700 mt-0.5">אימונים בשבוע</p>
-                            </div>
-                            <div className="w-12 h-12 rounded-full bg-orange-200 flex items-center justify-center">
-                              <Dumbbell className="h-6 w-6 text-orange-700" />
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
-                        </div>
-
-                        {/* Daily Steps */}
-                        <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg p-3 border border-cyan-200">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-xs font-medium text-cyan-600 mb-1">יעד צעדים יומי</p>
-                              <p className="text-2xl font-bold text-cyan-900">
-                                {(customer.daily_protocol.stepsGoal || 0).toLocaleString('he-IL')}
-                              </p>
-                              <p className="text-xs text-cyan-700 mt-0.5">צעדים</p>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-blue-50 rounded-lg border border-blue-100 p-3 text-center">
+                              <p className="text-xs text-blue-600 mb-1">כוח</p>
+                              <p className="text-xl font-bold text-blue-900">{workoutPlan.strength}</p>
                             </div>
-                            <div className="w-12 h-12 rounded-full bg-cyan-200 flex items-center justify-center">
-                              <Footprints className="h-6 w-6 text-cyan-700" />
+                            <div className="bg-red-50 rounded-lg border border-red-100 p-3 text-center">
+                              <p className="text-xs text-red-600 mb-1">קרדיו</p>
+                              <p className="text-xl font-bold text-red-900">{workoutPlan.cardio}</p>
+                            </div>
+                            <div className="bg-purple-50 rounded-lg border border-purple-100 p-3 text-center">
+                              <p className="text-xs text-purple-600 mb-1">אינטרוולים</p>
+                              <p className="text-xl font-bold text-purple-900">{workoutPlan.intervals}</p>
                             </div>
                           </div>
-                        </div>
-                      </div>
-
-                      {/* Part B: Supplements Stack */}
-                      <div>
-                        <h3 className="text-base font-semibold text-gray-800 mb-3">תוספים יומיים</h3>
-                        <div className="space-y-2">
-                          {(customer.daily_protocol.supplements || []).map((supplement: string, index: number) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-2.5 border border-green-200"
-                            >
-                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                              <span className="text-sm font-medium text-gray-800">{supplement}</span>
+                          {/* Top 3 Exercises Preview */}
+                          {getTopExercises(workoutPlan).length > 0 && (
+                            <div className="pt-3 border-t border-gray-100">
+                              <p className="text-xs text-gray-500 mb-2">תרגילים מובילים:</p>
+                              <ul className="space-y-1">
+                                {getTopExercises(workoutPlan).map((exercise, idx) => (
+                                  <li key={idx} className="text-sm text-gray-700 flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                                    {exercise}
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
-                          ))}
-                          {(!customer.daily_protocol.supplements || customer.daily_protocol.supplements.length === 0) && (
-                            <p className="text-sm text-gray-500 text-center py-4">אין תוספים מוגדרים</p>
                           )}
                         </div>
-                      </div>
-                    </div>
-                  </Card>
-                )}
-
-                {/* Workout History & Steps History */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
-                  {/* Right Column (Wider): Workout History */}
-                  <div className="lg:col-span-8">
-                    <Card className="p-4 bg-white border-gray-200">
-                      <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <Dumbbell className="h-5 w-5 text-blue-600" />
-                        היסטוריית תוכניות אימון
-                      </h2>
-                      {workoutPlanHistory.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
-                          אין היסטוריה של תוכניות אימון
-                        </div>
                       ) : (
-                        <div className="overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="text-right">תאריך התחלה</TableHead>
-                                <TableHead className="text-right">תיאור</TableHead>
-                                <TableHead className="text-right">כוח</TableHead>
-                                <TableHead className="text-right">קרדיו</TableHead>
-                                <TableHead className="text-right">אינטרוולים</TableHead>
-                                <TableHead className="text-right">סטטוס</TableHead>
-                                <TableHead className="text-right">תאריך מחיקה</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {workoutPlanHistory.map((plan) => (
-                                <TableRow
-                                  key={plan.id}
-                                  className="cursor-pointer hover:bg-gray-50"
-                                  onClick={() => {
-                                    setSelectedHistoryPlan(plan);
-                                    setIsHistoryDetailsOpen(true);
-                                  }}
-                                >
-                                  <TableCell className="font-medium">
-                                    {formatDate(plan.start_date)}
-                                  </TableCell>
-                                  <TableCell className="max-w-xs truncate">
-                                    {plan.description || '-'}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                      {plan.strength}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                                      {plan.cardio}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                      {plan.intervals}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell onClick={(e) => e.stopPropagation()}>
-                                    <Select
-                                      value={plan.is_active ? 'active' : 'inactive'}
-                                      onValueChange={async (value) => {
-                                        try {
-                                          const { error } = await supabase
-                                            .from('workout_plans')
-                                            .update({
-                                              is_active: value === 'active',
-                                              updated_at: new Date().toISOString(),
-                                            })
-                                            .eq('id', plan.id);
-
-                                          if (error) throw error;
-
-                                          // Refresh history
-                                          if (fetchWorkoutPlanHistory) {
-                                            const history = await fetchWorkoutPlanHistory();
-                                            setWorkoutPlanHistory(history);
-                                          }
-
-                                          toast({
-                                            title: 'הצלחה',
-                                            description: 'הסטטוס עודכן בהצלחה',
-                                          });
-                                        } catch (error: any) {
-                                          console.error('Failed to update workout plan status:', error);
-                                          toast({
-                                            title: 'שגיאה',
-                                            description: error?.message || 'נכשל בעדכון הסטטוס',
-                                            variant: 'destructive',
-                                          });
-                                        }
-                                      }}
-                                    >
-                                      <SelectTrigger className="h-7 w-24 border-0 p-0">
-                                        <SelectValue>
-                                          {plan.is_active ? (
-                                            <Badge className="bg-green-100 text-green-700 border-green-200 cursor-pointer">
-                                              פעיל
-                                            </Badge>
-                                          ) : (
-                                            <Badge className="bg-gray-100 text-gray-700 border-gray-200 cursor-pointer">
-                                              לא פעיל
-                                            </Badge>
-                                          )}
-                                        </SelectValue>
-                                      </SelectTrigger>
-                                      <SelectContent dir="rtl">
-                                        <SelectItem value="active">
-                                          <Badge className="bg-green-100 text-green-700 border-green-200">
-                                            פעיל
-                                          </Badge>
-                                        </SelectItem>
-                                        <SelectItem value="inactive">
-                                          <Badge className="bg-gray-100 text-gray-700 border-gray-200">
-                                            לא פעיל
-                                          </Badge>
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </TableCell>
-                                  <TableCell className="text-sm text-gray-500">
-                                    {plan.deleted_at ? formatDate(plan.deleted_at) : '-'}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
+                        <div className="text-center py-6">
+                          <Dumbbell className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                          <h3 className="text-sm font-semibold text-gray-900 mb-2">אין תוכנית אימונים</h3>
+                          <Button 
+                            className="bg-blue-600 hover:bg-blue-700 text-white mt-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsImportDialogOpen(true);
+                            }}
+                          >
+                            <Download className="h-4 w-4 ml-2" />
+                            הוסף תוכנית
+                          </Button>
                         </div>
                       )}
                     </Card>
-                  </div>
 
-                  {/* Left Column (Narrower): Steps History */}
-                  <div className="lg:col-span-4">
-                    <Card className="p-4 bg-white border-gray-200">
-                      <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                        <Footprints className="h-5 w-5 text-cyan-600" />
-                        היסטוריית צעדים
-                      </h2>
-                      <div className="space-y-4">
-                        {(customer.steps_history || []).map((step: any, index: number) => {
-                          const isCurrent = index === (customer.steps_history || []).length - 1;
-                          return (
-                            <div
-                              key={index}
-                              className={`relative pr-4 ${
-                                index < (customer.steps_history || []).length - 1 ? 'pb-6' : ''
-                              }`}
-                            >
-                              {/* Timeline line */}
-                              {index < (customer.steps_history || []).length - 1 && (
-                                <div className="absolute right-2 top-8 bottom-0 w-0.5 bg-gray-200" />
-                              )}
-                              
-                              {/* Timeline dot */}
-                              <div
-                                className={`absolute right-0 top-1 w-4 h-4 rounded-full border-2 ${
-                                  isCurrent
-                                    ? 'bg-cyan-500 border-cyan-600'
-                                    : 'bg-white border-gray-300'
-                                }`}
-                              />
-
-                              {/* Content */}
-                              <div
-                                className={`rounded-lg p-4 ${
-                                  isCurrent
-                                    ? 'bg-gradient-to-br from-cyan-50 to-cyan-100 border-2 border-cyan-200'
-                                    : 'bg-gray-50 border border-gray-200'
-                                }`}
+                    {/* Nutrition Plan - Rich Preview Card with Donut Chart */}
+                    <Card 
+                      className="p-5 border border-gray-200 bg-white cursor-pointer hover:border-orange-300 transition-colors shadow-sm"
+                      onClick={() => {
+                        if (nutritionPlan) {
+                          setIsNutritionDetailsOpen(true);
+                        } else {
+                          setIsNutritionImportDialogOpen(true);
+                        }
+                      }}
+                    >
+                      {nutritionLoading ? (
+                        <div className="text-center py-8">
+                          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
+                        </div>
+                      ) : nutritionPlan ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <Flame className="h-5 w-5 text-orange-600" />
+                            <h3 className="text-base font-bold text-gray-900">תוכנית תזונה</h3>
+                          </div>
+                          {/* Donut Chart */}
+                          <div className="flex items-center gap-4">
+                            <div className="flex-shrink-0">
+                              <ChartContainer
+                                config={{
+                                  protein: { label: 'חלבון', color: '#ef4444' },
+                                  carbs: { label: 'פחמימות', color: '#3b82f6' },
+                                  fat: { label: 'שומן', color: '#f59e0b' },
+                                }}
+                                className="h-32 w-32"
                               >
-                                <div className="flex items-center justify-between mb-2">
-                                  <span
-                                    className={`text-sm font-semibold ${
-                                      isCurrent ? 'text-cyan-900' : 'text-gray-700'
-                                    }`}
+                                <PieChart>
+                                  <Pie
+                                    data={getNutritionChartData()}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={35}
+                                    outerRadius={50}
+                                    paddingAngle={2}
+                                    dataKey="value"
                                   >
-                                    {step.weekNumber || step.week || `שבוע ${index + 1}`}
-                                  </span>
-                                  {isCurrent && (
-                                    <span className="text-xs font-medium text-cyan-700 bg-cyan-200 px-2 py-1 rounded-full">
-                                      פעיל
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-xs text-gray-600 mb-2">
-                                  {step.startDate ? formatDate(step.startDate) : step.dates || ''} - {step.endDate ? formatDate(step.endDate) : ''}
-                                </div>
+                                    {getNutritionChartData().map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                  </Pie>
+                                  <ChartTooltip content={<ChartTooltipContent />} />
+                                </PieChart>
+                              </ChartContainer>
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <Footprints className="h-4 w-4 text-gray-500" />
-                                  <span className="text-base font-bold text-gray-900">
-                                    {(step.target || 0).toLocaleString('he-IL')} צעדים
-                                  </span>
+                                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                  <span className="text-xs text-gray-600">חלבון</span>
+                                </div>
+                                <span className="text-sm font-bold text-gray-900">{nutritionPlan.targets.protein}ג</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                  <span className="text-xs text-gray-600">פחמימות</span>
+                                </div>
+                                <span className="text-sm font-bold text-gray-900">{nutritionPlan.targets.carbs}ג</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                                  <span className="text-xs text-gray-600">שומן</span>
+                                </div>
+                                <span className="text-sm font-bold text-gray-900">{nutritionPlan.targets.fat || 0}ג</span>
+                              </div>
+                              <div className="pt-2 border-t border-gray-100">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-600">סה"כ קלוריות</span>
+                                  <span className="text-lg font-bold text-orange-900">{nutritionPlan.targets.calories}</span>
                                 </div>
                               </div>
                             </div>
-                          );
-                        })}
-                        {(!customer.steps_history || customer.steps_history.length === 0) && (
-                          <div className="text-center py-8 text-gray-500">
-                            אין היסטוריית צעדים
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-6">
+                          <Flame className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                          <h3 className="text-sm font-semibold text-gray-900 mb-2">אין תוכנית תזונה</h3>
+                          <Button 
+                            className="bg-orange-600 hover:bg-orange-700 text-white mt-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsNutritionImportDialogOpen(true);
+                            }}
+                          >
+                            <Download className="h-4 w-4 ml-2" />
+                            הוסף תוכנית
+                          </Button>
+                        </div>
+                      )}
                     </Card>
                   </div>
-                </div>
 
-                {/* Leads History Timeline */}
-                <Card className="p-4 bg-white border-gray-200">
-                  <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-blue-600" />
-                    היסטוריית לידים
-                  </h2>
-                  {customer.leads.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      אין לידים עבור לקוח זה
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-right">תאריך יצירה</TableHead>
-                            <TableHead className="text-right">סטטוס</TableHead>
-                            <TableHead className="text-right">מקור</TableHead>
-                            <TableHead className="text-right">מטרת כושר</TableHead>
-                            <TableHead className="text-right">פעולות</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {customer.leads
-                            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                            .map((lead) => (
-                              <TableRow
-                                key={lead.id}
-                                className="cursor-pointer hover:bg-gray-50"
-                                onClick={() => navigate(`/leads/${lead.id}`)}
-                              >
-                                <TableCell className="font-medium">
-                                  {formatDate(lead.created_at)}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge className={getStatusColor(lead.status_main || lead.status_sub)}>
-                                    {lead.status_sub || lead.status_main || 'ללא סטטוס'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{lead.source || '-'}</TableCell>
-                                <TableCell>{lead.fitness_goal || '-'}</TableCell>
-                                <TableCell onClick={(e) => e.stopPropagation()}>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => navigate(`/leads/${lead.id}`)}
-                                  >
-                                    צפה פרטים
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
+                  {/* ROW 2: Daily Protocol - Rich Status Tiles */}
+                  {customer.daily_protocol && (
+                    <Card className="p-5 border border-gray-200 bg-white shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Activity className="h-5 w-5 text-blue-600" />
+                        <h2 className="text-base font-bold text-gray-900">פרוטוקול יומי</h2>
+                      </div>
+                      <div className="grid grid-cols-4 gap-4">
+                        {/* Steps Status Tile */}
+                        <div className="relative bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg border-2 border-cyan-200 p-4 overflow-hidden">
+                          <Footprints className="absolute top-2 left-2 h-16 w-16 text-cyan-200 opacity-30" />
+                          <div className="relative">
+                            <Footprints className="h-5 w-5 text-cyan-600 mb-2" />
+                            <p className="text-xs text-cyan-700 mb-1 font-medium">יעד צעדים</p>
+                            <p className="text-3xl font-bold text-cyan-900">
+                              {stepsGoal > 0 ? (stepsGoal / 1000).toFixed(1) + 'K' : '-'}
+                            </p>
+                            {stepsGoal > 0 && (
+                              <p className="text-[10px] text-cyan-600 mt-1">{stepsGoal.toLocaleString('he-IL')} צעדים</p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Workouts Status Tile */}
+                        <div className="relative bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border-2 border-orange-200 p-4 overflow-hidden">
+                          <Dumbbell className="absolute top-2 left-2 h-16 w-16 text-orange-200 opacity-30" />
+                          <div className="relative">
+                            <Dumbbell className="h-5 w-5 text-orange-600 mb-2" />
+                            <p className="text-xs text-orange-700 mb-1 font-medium">אימונים/שבוע</p>
+                            <p className="text-3xl font-bold text-orange-900">{workoutGoal || '-'}</p>
+                            {workoutGoal > 0 && (
+                              <p className="text-[10px] text-orange-600 mt-1">אימונים שבועיים</p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Calories Status Tile */}
+                        <div className="relative bg-gradient-to-br from-red-50 to-red-100 rounded-lg border-2 border-red-200 p-4 overflow-hidden">
+                          <Flame className="absolute top-2 left-2 h-16 w-16 text-red-200 opacity-30" />
+                          <div className="relative">
+                            <Flame className="h-5 w-5 text-red-600 mb-2" />
+                            <p className="text-xs text-red-700 mb-1 font-medium">קלוריות יומיות</p>
+                            <p className="text-3xl font-bold text-red-900">{calories || '-'}</p>
+                            {calories > 0 && (
+                              <p className="text-[10px] text-red-600 mt-1">קלוריות</p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Supplements Status Tile */}
+                        <div className="relative bg-gradient-to-br from-green-50 to-green-100 rounded-lg border-2 border-green-200 p-4 overflow-hidden">
+                          <CheckCircle2 className="absolute top-2 left-2 h-16 w-16 text-green-200 opacity-30" />
+                          <div className="relative">
+                            <CheckCircle2 className="h-5 w-5 text-green-600 mb-2" />
+                            <p className="text-xs text-green-700 mb-1 font-medium">תוספים</p>
+                            <p className="text-3xl font-bold text-green-900">{supplements.length || 0}</p>
+                            {supplements.length > 0 && (
+                              <p className="text-[10px] text-green-600 mt-1">תוספים יומיים</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {/* Supplements List */}
+                      {supplements.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <p className="text-xs text-gray-600 mb-2">רשימת תוספים:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {supplements.map((supplement: string, index: number) => (
+                              <Badge key={index} variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs px-2 py-1">
+                                <CheckCircle2 className="h-3 w-3 ml-1" />
+                                {supplement}
+                              </Badge>
                             ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </div>
+                        </div>
+                      )}
+                    </Card>
                   )}
-                </Card>
+
+                  {/* ROW 3: History Container with Tabs - Elastic Section */}
+                  <Card className="p-4 border border-gray-200 bg-white shadow-sm flex-1 flex flex-col min-h-0">
+                    <Tabs value={activeHistoryTab} onValueChange={setActiveHistoryTab} dir="rtl" className="flex-1 flex flex-col min-h-0">
+                      <TabsList className="grid w-full grid-cols-3 mb-4 h-10">
+                        <TabsTrigger value="leads" className="text-sm">היסטוריית לידים</TabsTrigger>
+                        <TabsTrigger value="workouts" className="text-sm">יומן אימונים</TabsTrigger>
+                        <TabsTrigger value="steps" className="text-sm">יומן צעדים</TabsTrigger>
+                      </TabsList>
+
+                      {/* Leads History Tab */}
+                      <TabsContent value="leads" className="mt-0 flex-1 flex flex-col min-h-0">
+                        {customer.leads.length === 0 ? (
+                          <div className="text-center py-12 text-gray-500 text-sm flex-1 flex items-center justify-center">
+                            אין לידים עבור לקוח זה
+                          </div>
+                        ) : (
+                          <div className="overflow-auto flex-1">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-right text-sm">תאריך יצירה</TableHead>
+                                  <TableHead className="text-right text-sm">סטטוס</TableHead>
+                                  <TableHead className="text-right text-sm">מקור</TableHead>
+                                  <TableHead className="text-right text-sm">מטרת כושר</TableHead>
+                                  <TableHead className="text-right text-sm">פעולות</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {customer.leads
+                                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                  .map((lead) => (
+                                    <TableRow
+                                      key={lead.id}
+                                      className="cursor-pointer hover:bg-gray-50"
+                                      onClick={() => navigate(`/leads/${lead.id}`)}
+                                    >
+                                      <TableCell className="text-sm font-medium">
+                                        {formatDate(lead.created_at)}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge className={`${getStatusColor(lead.status_main || lead.status_sub)} text-xs px-2 py-1`}>
+                                          {lead.status_sub || lead.status_main || 'ללא סטטוס'}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="text-sm">{lead.source || '-'}</TableCell>
+                                      <TableCell className="text-sm">{lead.fitness_goal || '-'}</TableCell>
+                                      <TableCell onClick={(e) => e.stopPropagation()}>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-xs"
+                                          onClick={() => navigate(`/leads/${lead.id}`)}
+                                        >
+                                          צפה פרטים
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      {/* Workout Log Tab */}
+                      <TabsContent value="workouts" className="mt-0 flex-1 flex flex-col min-h-0">
+                        {workoutPlanHistory.length === 0 ? (
+                          <div className="text-center py-12 text-gray-500 text-sm flex-1 flex items-center justify-center">
+                            אין היסטוריה של תוכניות אימון
+                          </div>
+                        ) : (
+                          <div className="overflow-auto flex-1">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-right text-sm">תאריך התחלה</TableHead>
+                                  <TableHead className="text-right text-sm">תיאור</TableHead>
+                                  <TableHead className="text-right text-sm">כוח</TableHead>
+                                  <TableHead className="text-right text-sm">קרדיו</TableHead>
+                                  <TableHead className="text-right text-sm">אינטרוולים</TableHead>
+                                  <TableHead className="text-right text-sm">סטטוס</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {workoutPlanHistory.map((plan) => (
+                                  <TableRow
+                                    key={plan.id}
+                                    className="cursor-pointer hover:bg-gray-50"
+                                    onClick={() => {
+                                      setSelectedHistoryPlan(plan);
+                                      setIsHistoryDetailsOpen(true);
+                                    }}
+                                  >
+                                    <TableCell className="text-sm font-medium">
+                                      {formatDate(plan.start_date)}
+                                    </TableCell>
+                                    <TableCell className="text-sm max-w-xs truncate">
+                                      {plan.description || '-'}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs px-2 py-1">
+                                        {plan.strength}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-2 py-1">
+                                        {plan.cardio}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs px-2 py-1">
+                                        {plan.intervals}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                      <Select
+                                        value={plan.is_active ? 'active' : 'inactive'}
+                                        onValueChange={async (value) => {
+                                          try {
+                                            const { error } = await supabase
+                                              .from('workout_plans')
+                                              .update({
+                                                is_active: value === 'active',
+                                                updated_at: new Date().toISOString(),
+                                              })
+                                              .eq('id', plan.id);
+
+                                            if (error) throw error;
+                                            if (fetchWorkoutPlanHistory) {
+                                              const history = await fetchWorkoutPlanHistory();
+                                              setWorkoutPlanHistory(history);
+                                            }
+                                            toast({
+                                              title: 'הצלחה',
+                                              description: 'הסטטוס עודכן בהצלחה',
+                                            });
+                                          } catch (error: any) {
+                                            console.error('Failed to update workout plan status:', error);
+                                            toast({
+                                              title: 'שגיאה',
+                                              description: error?.message || 'נכשל בעדכון הסטטוס',
+                                              variant: 'destructive',
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-8 w-24">
+                                          <SelectValue>
+                                            {plan.is_active ? (
+                                              <Badge className="bg-green-100 text-green-700 border-green-200 text-xs px-2 py-1 cursor-pointer">
+                                                פעיל
+                                              </Badge>
+                                            ) : (
+                                              <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-xs px-2 py-1 cursor-pointer">
+                                                לא פעיל
+                                              </Badge>
+                                            )}
+                                          </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent dir="rtl">
+                                          <SelectItem value="active">
+                                            <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">
+                                              פעיל
+                                            </Badge>
+                                          </SelectItem>
+                                          <SelectItem value="inactive">
+                                            <Badge className="bg-gray-100 text-gray-700 border-gray-200 text-xs">
+                                              לא פעיל
+                                            </Badge>
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      {/* Steps Log Tab */}
+                      <TabsContent value="steps" className="mt-0 flex-1 flex flex-col min-h-0">
+                        {(!customer.steps_history || customer.steps_history.length === 0) ? (
+                          <div className="text-center py-12 text-gray-500 text-sm flex-1 flex items-center justify-center">
+                            אין היסטוריית צעדים
+                          </div>
+                        ) : (
+                          <div className="overflow-auto flex-1 space-y-3">
+                            {(customer.steps_history || []).map((step: any, index: number) => {
+                              const isCurrent = index === (customer.steps_history || []).length - 1;
+                              return (
+                                <div
+                                  key={index}
+                                  className={`flex items-center justify-between p-4 rounded-lg border-2 ${
+                                    isCurrent
+                                      ? 'bg-cyan-50 border-cyan-200 shadow-sm'
+                                      : 'bg-gray-50 border-gray-200'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                      isCurrent ? 'bg-cyan-200' : 'bg-gray-200'
+                                    }`}>
+                                      <Footprints className={`h-5 w-5 ${isCurrent ? 'text-cyan-700' : 'text-gray-500'}`} />
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className={`text-sm font-bold ${isCurrent ? 'text-cyan-900' : 'text-gray-700'}`}>
+                                          {step.weekNumber || step.week || `שבוע ${index + 1}`}
+                                        </span>
+                                        {isCurrent && (
+                                          <Badge className="bg-cyan-200 text-cyan-700 text-xs px-2 py-0.5">
+                                            פעיל
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="text-xs text-gray-600">
+                                        {step.startDate ? formatDate(step.startDate) : step.dates || ''} - {step.endDate ? formatDate(step.endDate) : ''}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <span className={`text-xl font-bold ${isCurrent ? 'text-cyan-900' : 'text-gray-900'}`}>
+                                    {(step.target || 0).toLocaleString('he-IL')} צעדים
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  </Card>
+                </div>
               </div>
             </div>
           </main>

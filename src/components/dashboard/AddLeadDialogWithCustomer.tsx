@@ -98,11 +98,11 @@ export const AddLeadDialogWithCustomer = ({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-gray-900">
-            {customer ? `הוסף הזדמנות חדשה ל-${customer.full_name}` : 'הוסף ליד חדש'}
+            {customer ? `הוסף התעניינות חדשה ל-${customer.full_name}` : 'הוסף ליד חדש'}
           </DialogTitle>
           <DialogDescription className="text-gray-600">
             {customer 
-              ? 'מלא את הפרטים הבאים כדי להוסיף הזדמנות חדשה ללקוח זה'
+              ? 'מלא את הפרטים הבאים כדי להוסיף התעניינות חדשה ללקוח זה'
               : 'מלא את הפרטים הבאים כדי להוסיף ליד חדש למערכת'}
           </DialogDescription>
         </DialogHeader>
