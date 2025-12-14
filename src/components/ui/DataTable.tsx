@@ -64,6 +64,8 @@ export interface DataTableProps<T> {
   dir?: 'ltr' | 'rtl';
   enableColumnVisibility?: boolean;
   enableColumnReordering?: boolean;
+  initialColumnVisibility?: Record<string, boolean>; // Optional initial visibility state
+  initialColumnOrder?: string[]; // Optional initial column order
 }
 
 // Helper function to get header text and smart truncate
@@ -317,34 +319,66 @@ export function DataTable<T extends Record<string, any>>({
   dir = 'rtl',
   enableColumnVisibility = true,
   enableColumnReordering = true,
+  initialColumnVisibility,
+  initialColumnOrder,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [columnOrder, setColumnOrder] = useState<string[]>(() => columns.map((col) => col.id));
+  // Use provided initial order or default to columns array order
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    if (initialColumnOrder) {
+      // Validate that all columns in initialColumnOrder exist in columns
+      const validOrder = initialColumnOrder.filter((id) => 
+        columns.some((col) => col.id === id)
+      );
+      // Add any missing columns from the columns array
+      const missingColumns = columns
+        .filter((col) => !validOrder.includes(col.id))
+        .map((col) => col.id);
+      return [...validOrder, ...missingColumns];
+    }
+    return columns.map((col) => col.id);
+  });
 
-  // Initialize column visibility - all visible by default
+  // Initialize column visibility - STRICT SCHEMA: Only initialize columns that exist in the passed columns prop
   React.useEffect(() => {
     const initialVisibility: VisibilityState = {};
     columns.forEach((col) => {
-      // Default to visible unless explicitly disabled
-      initialVisibility[col.id] = col.enableHiding !== false;
+      // Use provided initial visibility if available, otherwise default to visible
+      if (initialColumnVisibility && col.id in initialColumnVisibility) {
+        initialVisibility[col.id] = initialColumnVisibility[col.id];
+      } else {
+        // Default to visible unless explicitly disabled
+        initialVisibility[col.id] = col.enableHiding !== false;
+      }
     });
     setColumnVisibility((prev) => {
       // Only update if not already set
       if (Object.keys(prev).length === 0) {
         return initialVisibility;
       }
-      // Merge with new columns
+      // Merge with new columns - only add columns that exist in the schema
       const merged = { ...prev };
       columns.forEach((col) => {
         if (!(col.id in merged)) {
-          merged[col.id] = col.enableHiding !== false;
+          // Use provided initial visibility if available
+          if (initialColumnVisibility && col.id in initialColumnVisibility) {
+            merged[col.id] = initialColumnVisibility[col.id];
+          } else {
+            merged[col.id] = col.enableHiding !== false;
+          }
+        }
+      });
+      // Remove any columns that no longer exist in the schema (cleanup)
+      Object.keys(merged).forEach((colId) => {
+        if (!columns.find((col) => col.id === colId)) {
+          delete merged[colId];
         }
       });
       return merged;
     });
-  }, [columns]);
+  }, [columns, initialColumnVisibility]);
 
   // DnD Kit sensors
   const sensors = useSensors(
@@ -612,26 +646,33 @@ export function DataTable<T extends Record<string, any>>({
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm mb-3">הצגת עמודות</h4>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {columns.map((col) => {
-                    const headerText = typeof col.header === 'string' ? col.header : col.id;
-                    const isVisible = columnVisibility[col.id] !== false;
-                    return (
-                      <div key={col.id} className="flex items-center space-x-2 space-x-reverse">
-                        <Checkbox
-                          id={`col-${col.id}`}
-                          checked={isVisible}
-                          onCheckedChange={() => toggleColumnVisibility(col.id)}
-                          disabled={col.enableHiding === false}
-                        />
-                        <Label
-                          htmlFor={`col-${col.id}`}
-                          className="text-sm font-normal cursor-pointer flex-1"
-                        >
-                          {headerText}
-                        </Label>
-                      </div>
-                    );
-                  })}
+                  {/* STRICT SCHEMA: Only show columns that are explicitly defined in the passed columns prop */}
+                  {/* Show columns in the same order as columnOrder to maintain consistency */}
+                  {columnOrder
+                    .map((colId) => columns.find((col) => col.id === colId))
+                    .filter((col): col is DataTableColumn<T> => 
+                      col !== undefined && col.enableHiding !== false
+                    )
+                    .map((col) => {
+                      const headerText = typeof col.header === 'string' ? col.header : col.id;
+                      const isVisible = columnVisibility[col.id] !== false;
+                      return (
+                        <div key={col.id} className="flex items-center space-x-2 space-x-reverse">
+                          <Checkbox
+                            id={`col-${col.id}`}
+                            checked={isVisible}
+                            onCheckedChange={() => toggleColumnVisibility(col.id)}
+                            disabled={col.enableHiding === false}
+                          />
+                          <Label
+                            htmlFor={`col-${col.id}`}
+                            className="text-sm font-normal cursor-pointer flex-1"
+                          >
+                            {headerText}
+                          </Label>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             </PopoverContent>

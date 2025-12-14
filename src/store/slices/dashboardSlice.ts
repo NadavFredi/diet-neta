@@ -292,22 +292,27 @@ export const fetchLeads = createAsyncThunk(
 
 // Default column visibility - only essential columns shown by default
 // Users can add more columns via the column visibility menu
+// Default column visibility matching the user's preferred view from the image
+// Visible columns: Created At, Name, Status, Age, Birth Date, Fitness Goal, Activity Level, Preferred Time, Phone, Source, Notes
 const initialColumnVisibility: ColumnVisibility = {
-  id: true,           // Essential: Lead identifier
-  name: true,         // Essential: Lead name
-  status: true,       // Essential: Workflow status
-  phone: true,        // Essential: Contact information
-  email: false,       // Can be added if needed
-  createdDate: false, // Can be added if needed
-  source: false,      // Can be added if needed
-  age: false,         // Can be added if needed
-  birthDate: false,   // Can be added if needed
-  height: false,      // Can be added if needed
-  weight: false,      // Can be added if needed
-  fitnessGoal: false, // Can be added if needed
-  activityLevel: false, // Can be added if needed
-  preferredTime: false, // Can be added if needed
-  notes: false,       // Hidden by default
+  // Visible columns (matching the image)
+  createdDate: true,    // תאריך יצירה
+  name: true,           // שם
+  status: true,         // סטטוס
+  age: true,            // גיל
+  birthDate: true,      // תאריך לידה
+  fitnessGoal: true,    // מטרת כושר
+  activityLevel: true,   // רמת פעילות
+  preferredTime: true,   // זמן מועדף
+  phone: true,          // טלפון
+  source: true,         // מקור
+  notes: true,          // הערות
+  
+  // Hidden columns (not shown in the image)
+  id: false,           // מזהה - hidden
+  email: false,        // אימייל - hidden
+  height: false,       // גובה - hidden (only in filters, not in table)
+  weight: false,       // משקל - hidden (only in filters, not in table)
 };
 
 // Mock data removed - now fetching from Supabase
