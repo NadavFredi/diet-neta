@@ -171,7 +171,7 @@ function SortableHeader<T>({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'relative h-16 px-3 font-bold text-sm text-slate-800 group',
+        'relative h-16 px-1 font-bold text-sm text-slate-800 group',
         `text-${align}`,
         canSort && 'cursor-pointer select-none hover:bg-gray-100/60',
         'transition-colors duration-150',
@@ -181,64 +181,106 @@ function SortableHeader<T>({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center gap-1.5 h-full" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
-        {/* Header Text - Use full available space, let CSS handle truncation */}
-        <div className="flex items-center flex-1 min-w-0 overflow-hidden" style={{ flex: '1 1 0%', maxWidth: '100%' }}>
-          {isTruncated ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-block truncate max-w-full text-ellipsis" title={headerText}>
-                    {displayText}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs" dir={dir}>
-                  <p className="break-words">{headerText}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <span className="inline-block truncate max-w-full text-ellipsis whitespace-nowrap" title={headerText}>
-              {headerText}
-            </span>
-          )}
-        </div>
+      <div 
+        className="flex items-center h-full relative" 
+        style={{ 
+          flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+          justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
+          alignItems: 'center',
+          gap: '2px', // Minimal gap - icons close to text
+          overflow: 'hidden',
+          width: '100%',
+        }}
+      >
+        {/* Header Text - Smart shrinking: allow flex to shrink, CSS handles truncation */}
+        <span 
+          className="truncate"
+          style={{ 
+            flex: '1 1 0%', // Take available space, can shrink
+            minWidth: 0, // Critical: allow flex to shrink below content size
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            paddingRight: dir === 'rtl' ? '0' : '2px',
+            paddingLeft: dir === 'rtl' ? '2px' : '0',
+          }}
+          title={headerText}
+        >
+          {headerText}
+        </span>
 
-        {/* Action Icons Container - Compact layout */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Sort Icon */}
+        {/* Icons - Gliding layout, can overlay text edge if narrow */}
+        <div 
+          className="flex items-center flex-shrink-0"
+          style={{ 
+            gap: '2px',
+            position: 'relative',
+            zIndex: 1, // Allow icons to overlay text if needed
+          }}
+        >
+          {/* Sort Icon - appears immediately after text */}
           {canSort && (
-            <span className="flex-shrink-0 text-slate-600" style={{ width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span 
+              className="flex-shrink-0 text-slate-600"
+              style={{ 
+                width: '14px', 
+                height: '14px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onHeaderClick(header.id);
+              }}
+            >
               {getSortIcon(header.id)}
             </span>
           )}
           
-          {/* Hide Column Button - Shows on Hover */}
+          {/* Hide Column Button - Shows on Hover, can overlay if narrow */}
           {canHide && isHovered && (
             <button
               onClick={handleHideClick}
-              className="flex-shrink-0 p-0.5 rounded hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+              className="flex-shrink-0 rounded hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
               title="הסתר עמודה"
               aria-label="הסתר עמודה"
-              style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ 
+                width: '16px', 
+                height: '16px', 
+                padding: '0',
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
             >
-              <EyeOff className="h-3.5 w-3.5 text-slate-600 hover:text-slate-800" />
+              <EyeOff className="h-3 w-3 text-slate-600 hover:text-slate-800" />
             </button>
           )}
 
-          {/* Drag Handle */}
+          {/* Drag Handle - appears on hover */}
           <div
             {...attributes}
             {...listeners}
             className={cn(
-              'cursor-grab active:cursor-grabbing flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5',
+              'cursor-grab active:cursor-grabbing flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity',
               'touch-none'
             )}
             title="גרור לשינוי סדר"
             onClick={(e) => e.stopPropagation()}
-            style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ 
+              width: '16px', 
+              height: '16px', 
+              padding: '0',
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
           >
-            <GripHorizontal className="h-3.5 w-3.5 text-slate-500" />
+            <GripHorizontal className="h-3 w-3 text-slate-500" />
           </div>
         </div>
 
@@ -323,27 +365,42 @@ export function DataTable<T extends Record<string, any>>({
       .map((id) => columns.find((col) => col.id === id))
       .filter((col): col is DataTableColumn<T> => col !== undefined && columnVisibility[col.id] !== false);
 
-    // Calculate smart default sizes for fixed layout
+    // Calculate weighted widths based on header text length (Smart Density)
+    const getHeaderTextLength = (col: DataTableColumn<T>): number => {
+      if (typeof col.header === 'string') {
+        return col.header.length;
+      }
+      // Estimate for function headers - use column id as fallback
+      return col.id.length;
+    };
+
+    // Calculate base width and weights for Smart Density
     const visibleCount = orderedColumns.length;
-    const baseWidth = visibleCount > 0 ? Math.floor(100 / visibleCount) : 100;
+    const headerLengths = orderedColumns.map(col => getHeaderTextLength(col));
+    const totalLength = headerLengths.reduce((sum, len) => sum + len, 0);
+    const baseWidth = 100; // Minimum readable width
+    const charWidth = 10; // Pixels per character for Hebrew text (more generous)
+    const iconSpace = 40; // Space reserved for icons
 
     return orderedColumns.map((col, index) => {
-      // Use provided size or calculate based on column type
-      let defaultSize = col.size || 180;
+      // Use provided size or calculate based on weighted width
+      let defaultSize = col.size;
       
-      // For fixed layout, distribute space more intelligently based on content type
-      if (!col.size) {
-        // Give appropriate space based on column type
+      if (!defaultSize) {
+        // Special cases for compact columns
         if (col.id === 'id' || col.id === 'actions') {
-          defaultSize = 120;
+          defaultSize = 80; // Very compact for IDs
         } else if (col.meta?.isNumeric) {
-          defaultSize = 140;
-        } else if (col.id === 'name' || col.id === 'email') {
-          defaultSize = 220; // More space for names and emails
-        } else if (col.id === 'notes' || col.id === 'description') {
-          defaultSize = 250; // More space for longer text
+          defaultSize = 90; // Compact for numbers
         } else {
-          defaultSize = 180; // Default for other text columns
+          // Weighted width: ensure header text fits comfortably
+          const headerLength = getHeaderTextLength(col);
+          // Calculate natural width needed: text width + icon space + padding
+          const textWidth = headerLength * charWidth;
+          const naturalWidth = textWidth + iconSpace + 16; // 16px for padding
+          
+          // Use natural width, but ensure minimum readability
+          defaultSize = Math.max(baseWidth, Math.min(naturalWidth, 280));
         }
       }
 
@@ -704,61 +761,94 @@ function TableContent<T>({
               <th
                 key={header.id}
                 className={cn(
-                  'relative h-16 px-3 font-bold text-sm text-slate-800 group',
+                  'relative h-16 px-1 font-bold text-sm text-slate-800 group',
                   `text-${align}`,
                   canSort && 'cursor-pointer select-none hover:bg-gray-100/60',
                   'transition-colors duration-150'
                 )}
                 style={{
                   width: `${percentageWidth}%`,
-                  // Remove minWidth constraint to allow flexible resizing
                 }}
                 onClick={() => canSort && handleHeaderClick(header.id)}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
               >
-                <div className="flex items-center gap-1.5 h-full" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
-                  {/* Header Text - Use full available space, let CSS handle truncation */}
-                  <div className="flex items-center flex-1 min-w-0 overflow-hidden" style={{ flex: '1 1 0%', maxWidth: '100%' }}>
-                    {isTruncated ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-block truncate max-w-full text-ellipsis" title={headerText}>
-                              {displayText}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs" dir={dir}>
-                            <p className="break-words">{headerText}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : (
-                      <span className="inline-block truncate max-w-full text-ellipsis whitespace-nowrap" title={headerText}>
-                        {headerText}
-                      </span>
-                    )}
-                  </div>
+                <div 
+                  className="flex items-center h-full relative" 
+                  style={{ 
+                    flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+                    justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
+                    alignItems: 'center',
+                    gap: '2px', // Minimal gap - icons close to text
+                    overflow: 'hidden',
+                    width: '100%',
+                  }}
+                >
+                  {/* Header Text - Smart shrinking: allow flex to shrink, CSS handles truncation */}
+                  <span 
+                    className="truncate"
+                    style={{ 
+                      flex: '1 1 0%', // Take available space, can shrink
+                      minWidth: 0, // Critical: allow flex to shrink below content size
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      paddingRight: dir === 'rtl' ? '0' : '2px',
+                      paddingLeft: dir === 'rtl' ? '2px' : '0',
+                    }}
+                    title={headerText}
+                  >
+                    {headerText}
+                  </span>
 
-                  {/* Action Icons Container - Compact layout */}
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {/* Sort Icon */}
+                  {/* Icons - Gliding layout, can overlay text edge if narrow */}
+                  <div 
+                    className="flex items-center flex-shrink-0"
+                    style={{ 
+                      gap: '2px',
+                      position: 'relative',
+                      zIndex: 1, // Allow icons to overlay text if needed
+                    }}
+                  >
+                    {/* Sort Icon - appears immediately after text */}
                     {canSort && (
-                      <span className="flex-shrink-0 text-slate-600" style={{ width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span 
+                        className="flex-shrink-0 text-slate-600"
+                        style={{ 
+                          width: '14px', 
+                          height: '14px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleHeaderClick(header.id);
+                        }}
+                      >
                         {getSortIcon(header.id)}
                       </span>
                     )}
                     
-                    {/* Hide Column Button - Shows on Hover */}
+                    {/* Hide Column Button - Shows on Hover, can overlay if narrow */}
                     {canHide && isHovered && (
                       <button
                         onClick={handleHideClick}
-                        className="flex-shrink-0 p-0.5 rounded hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+                        className="flex-shrink-0 rounded hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
                         title="הסתר עמודה"
                         aria-label="הסתר עמודה"
-                        style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ 
+                          width: '16px', 
+                          height: '16px', 
+                          padding: '0',
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
                       >
-                        <EyeOff className="h-3.5 w-3.5 text-slate-600 hover:text-slate-800" />
+                        <EyeOff className="h-3 w-3 text-slate-600 hover:text-slate-800" />
                       </button>
                     )}
                   </div>
@@ -833,7 +923,7 @@ function TableContent<T>({
                 <td
                   key={cell.id}
                   className={cn(
-                    'px-6 py-4 text-sm transition-colors overflow-hidden',
+                    'px-2 py-4 text-sm transition-colors overflow-hidden',
                     `text-${align}`,
                     isNumeric 
                       ? 'font-mono tabular-nums text-gray-900' 
