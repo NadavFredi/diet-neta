@@ -14,3 +14,5 @@ CREATE INDEX IF NOT EXISTS idx_workout_plans_template_id ON workout_plans(templa
 -- Note: This is a reference only. The actual routine_data is stored in workout_plans.custom_attributes
 -- When a template is changed, existing workout_plans remain independent (snapshot pattern)
 
+
+

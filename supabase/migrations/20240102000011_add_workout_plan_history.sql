@@ -19,3 +19,5 @@ UPDATE workout_plans SET is_active = true WHERE is_active IS NULL;
 -- =====================================================
 -- Migration Complete
 -- =====================================================
+
+
