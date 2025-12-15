@@ -74,6 +74,7 @@ const LeadDetails = () => {
   } = useLeadDetailsPage();
   
   const { user } = useAppSelector((state) => state.auth);
+  const updateLead = useUpdateLead();
 
   if (isLoadingLead) {
     return (
@@ -150,12 +151,12 @@ const LeadDetails = () => {
         userEmail={user?.email}
         onLogout={() => {}}
       />
-      <div className="flex-1 flex flex-col overflow-hidden" style={{ marginTop: '88px', height: 'calc(100vh - 88px)' }}>
+      <div className="flex-1 flex flex-col" style={{ marginTop: '88px' }}>
         <div className="flex flex-1 overflow-hidden relative">
           <DashboardSidebar />
-          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden" style={{ marginRight: '256px', height: 'calc(100vh - 88px)' }}>
-            <div className="p-4 h-full flex flex-col overflow-hidden">
-              <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-200/50 flex-1 flex flex-col overflow-hidden">
+          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px', minHeight: 'calc(100vh - 88px)' }}>
+            <div className="p-4">
+              <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-200/50">
                 {/* Header */}
                 <div className="mb-4 pb-4 border-b border-gray-200">
                   <div className="flex items-center justify-between">
@@ -305,186 +306,386 @@ const LeadDetails = () => {
                       <FileText className="h-4 w-4 text-gray-600" />
                       הערות
                     </h2>
-                    <p className="text-sm text-gray-700 leading-relaxed">{lead.notes}</p>
+                    <InlineEditableField
+                      label=""
+                      value={lead.notes}
+                      onSave={async (newValue) => {
+                        await updateLead.mutateAsync({
+                          leadId: lead.id,
+                          updates: { notes: newValue },
+                        });
+                      }}
+                      type="text"
+                      className="border-0 p-0"
+                      valueClassName="text-sm text-gray-700 leading-relaxed"
+                    />
                   </Card>
                 )}
 
                 {/* Unified Super-View Dashboard */}
-                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                  {/* ROW 1: Sales Header - Lead Info, Status, Actions (Full width) */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 flex-shrink-0">
-                  {/* Card A: Personal Info */}
-                  <Card className="p-4 bg-white border-gray-200">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                      <User className="h-5 w-5 text-blue-600" />
-                      מידע אישי
-                    </h2>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">גיל</span>
-                        <span className="text-base font-semibold text-gray-900">{lead.age} שנים</span>
-                      </div>
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">תאריך לידה</span>
-                        <span className="text-base font-semibold text-gray-900">
-                          {formatDate(lead.birthDate)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">טלפון</span>
-                        <span className="text-base font-semibold text-gray-900 font-mono">
-                          {lead.phone}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">אימייל</span>
-                        <span className="text-base font-semibold text-gray-900">{lead.email}</span>
-                      </div>
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-sm font-medium text-gray-500">תאריך יצירה</span>
-                        <span className="text-base font-semibold text-gray-900">
-                          {formatDate(lead.createdDate)}
-                        </span>
-                      </div>
+                <div className="flex flex-col gap-6">
+                  {/* SECTION 1: LEAD DATA (Sales/CRM) */}
+                  <div>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="h-0.5 flex-1 bg-gradient-to-l from-blue-300 via-blue-400 to-blue-300"></div>
+                      <h2 className="text-lg font-bold text-blue-900 px-3 py-1.5 bg-blue-50 rounded-md border border-blue-200 whitespace-nowrap">
+                        נתוני ליד (מכירות/CRM)
+                      </h2>
+                      <div className="h-0.5 flex-1 bg-gradient-to-r from-blue-300 via-blue-400 to-blue-300"></div>
                     </div>
-                  </Card>
 
-                  {/* Card B: Subscription Details */}
-                  <Card className="p-4 bg-white border-gray-200">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                      <Wallet className="h-5 w-5 text-green-600" />
-                      פרטי מנוי
-                    </h2>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          תאריך הצטרפות
-                        </span>
-                        <span className="text-base font-semibold text-gray-900">
-                          {formatDate(lead.subscription.joinDate)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100 bg-blue-50 rounded-lg px-3">
-                        <span className="text-sm font-medium text-blue-700 flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4" />
-                          שבוע נוכחי
-                        </span>
-                        <span className="text-base font-bold text-blue-900">
-                          {lead.subscription.currentWeekInProgram}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">חבילה ראשונית</span>
-                        <span className="text-base font-semibold text-gray-900">
-                          {lead.subscription.initialPackageMonths} חודשים
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">מחיר ראשוני</span>
-                        <span className="text-base font-semibold text-gray-900">
-                          ₪{lead.subscription.initialPrice.toLocaleString('he-IL')}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">מחיר חידוש חודשי</span>
-                        <span className="text-base font-semibold text-gray-900">
-                          ₪{lead.subscription.monthlyRenewalPrice.toLocaleString('he-IL')}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-sm font-medium text-gray-500">זמן בתקציב נוכחי</span>
-                        <span className="text-base font-semibold text-gray-900">
-                          {lead.subscription.timeInCurrentBudget}
-                        </span>
-                      </div>
+                    {/* ROW 1: All Lead Data in 3 columns for maximum space efficiency */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {/* Card A: Personal Info */}
+                      <Card className="p-3 bg-white border-gray-200">
+                        <h2 className="text-base font-bold text-gray-900 mb-2 flex items-center gap-2">
+                          <User className="h-4 w-4 text-blue-600" />
+                          מידע אישי
+                        </h2>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-0">
+                          <div className="col-span-2">
+                            <InlineEditableField
+                              label="גיל"
+                              value={lead.age}
+                              onSave={async (newValue) => {
+                                // Calculate birth date from age
+                                const today = new Date();
+                                const birthYear = today.getFullYear() - Number(newValue);
+                                const birthDate = `${birthYear}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { birth_date: birthDate },
+                                });
+                              }}
+                              type="number"
+                              formatValue={(val) => `${val} שנים`}
+                              className="border-b border-gray-100"
+                            />
+                          </div>
+                          <div>
+                            <InlineEditableField
+                              label="תאריך לידה"
+                              value={lead.birthDate}
+                              onSave={async (newValue) => {
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { birth_date: newValue },
+                                });
+                              }}
+                              type="date"
+                              formatValue={(val) => formatDate(String(val))}
+                              className="border-b border-gray-100"
+                            />
+                          </div>
+                          <div>
+                            <InlineEditableField
+                              label="תאריך יצירה"
+                              value={lead.createdDate}
+                              onSave={async () => {}}
+                              type="text"
+                              formatValue={(val) => formatDate(String(val))}
+                              className="border-b border-gray-100"
+                              disabled={true}
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <InlineEditableField
+                              label="טלפון"
+                              value={lead.phone}
+                              onSave={async (newValue) => {
+                                // Update customer phone, not lead
+                                const { error } = await supabase
+                                  .from('customers')
+                                  .update({ phone: newValue })
+                                  .eq('id', lead.customerId || '');
+                                if (error) throw error;
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: {},
+                                });
+                              }}
+                              type="tel"
+                              valueClassName="font-mono"
+                              className="border-b border-gray-100"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <InlineEditableField
+                              label="אימייל"
+                              value={lead.email}
+                              onSave={async (newValue) => {
+                                // Update customer email, not lead
+                                const { error } = await supabase
+                                  .from('customers')
+                                  .update({ email: newValue })
+                                  .eq('id', lead.customerId || '');
+                                if (error) throw error;
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: {},
+                                });
+                              }}
+                              type="email"
+                              className=""
+                            />
+                          </div>
+                        </div>
+                      </Card>
+
+                      {/* Card B: Subscription Details */}
+                      <Card className="p-3 bg-white border-gray-200">
+                        <h2 className="text-base font-bold text-gray-900 mb-2 flex items-center gap-2">
+                          <Wallet className="h-4 w-4 text-green-600" />
+                          פרטי מנוי
+                        </h2>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-0">
+                          <div className="col-span-2">
+                            <InlineEditableField
+                              label="תאריך הצטרפות"
+                              value={lead.subscription.joinDate}
+                              onSave={async (newValue) => {
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { join_date: newValue },
+                                });
+                              }}
+                              type="date"
+                              formatValue={(val) => formatDate(String(val))}
+                              className="border-b border-gray-100"
+                              valueClassName="flex items-center gap-2"
+                            />
+                          </div>
+                          <div className="col-span-2 flex items-center justify-between py-1.5 border-b border-gray-100 bg-blue-50 rounded-md px-2 my-1.5">
+                            <span className="text-xs font-medium text-blue-700 flex items-center gap-1.5">
+                              <TrendingUp className="h-3.5 w-3.5" />
+                              שבוע נוכחי
+                            </span>
+                            <span className="text-sm font-bold text-blue-900">
+                              {lead.subscription.currentWeekInProgram}
+                            </span>
+                          </div>
+                          <div>
+                            <InlineEditableField
+                              label="חבילה ראשונית"
+                              value={lead.subscription.initialPackageMonths}
+                              onSave={async (newValue) => {
+                                const subscriptionData = {
+                                  ...lead.subscription,
+                                  months: Number(newValue),
+                                };
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { subscription_data: subscriptionData },
+                                });
+                              }}
+                              type="number"
+                              formatValue={(val) => `${val} חודשים`}
+                              className="border-b border-gray-100"
+                            />
+                          </div>
+                          <div>
+                            <InlineEditableField
+                              label="זמן בתקציב נוכחי"
+                              value={lead.subscription.timeInCurrentBudget}
+                              onSave={async (newValue) => {
+                                const subscriptionData = {
+                                  ...lead.subscription,
+                                  timeInCurrentBudget: String(newValue),
+                                };
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { subscription_data: subscriptionData },
+                                });
+                              }}
+                              type="text"
+                              className="border-b border-gray-100"
+                            />
+                          </div>
+                          <div>
+                            <InlineEditableField
+                              label="מחיר ראשוני"
+                              value={lead.subscription.initialPrice}
+                              onSave={async (newValue) => {
+                                const subscriptionData = {
+                                  ...lead.subscription,
+                                  initialPrice: Number(newValue),
+                                };
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { subscription_data: subscriptionData },
+                                });
+                              }}
+                              type="number"
+                              formatValue={(val) => `₪${Number(val).toLocaleString('he-IL')}`}
+                              className=""
+                            />
+                          </div>
+                          <div>
+                            <InlineEditableField
+                              label="מחיר חידוש חודשי"
+                              value={lead.subscription.monthlyRenewalPrice}
+                              onSave={async (newValue) => {
+                                const subscriptionData = {
+                                  ...lead.subscription,
+                                  renewalPrice: Number(newValue),
+                                };
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { subscription_data: subscriptionData },
+                                });
+                              }}
+                              type="number"
+                              formatValue={(val) => `₪${Number(val).toLocaleString('he-IL')}`}
+                              className=""
+                            />
+                          </div>
+                        </div>
+                      </Card>
+
+                      {/* Card C: Fitness Info - Now in same row as other cards */}
+                      <Card className="p-3 bg-white border-gray-200">
+                        <h2 className="text-base font-bold text-gray-900 mb-2 flex items-center gap-2">
+                          <Target className="h-4 w-4 text-green-600" />
+                          מידע כושר
+                        </h2>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-0">
+                          <div>
+                            <InlineEditableBadge
+                              label="מטרת כושר"
+                              value={lead.fitnessGoal}
+                              options={FITNESS_GOAL_OPTIONS.map(goal => ({
+                                value: goal,
+                                label: goal,
+                                className: 'bg-green-50 text-green-700 border-green-100',
+                              }))}
+                              onSave={async (newValue) => {
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { fitness_goal: newValue },
+                                });
+                              }}
+                              className="border-b border-gray-100"
+                            />
+                          </div>
+                          <div>
+                            <InlineEditableBadge
+                              label="רמת פעילות"
+                              value={lead.activityLevel}
+                              options={ACTIVITY_LEVEL_OPTIONS.map(level => ({
+                                value: level,
+                                label: level,
+                                className: 'bg-orange-50 text-orange-700 border-orange-100',
+                              }))}
+                              onSave={async (newValue) => {
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { activity_level: newValue },
+                                });
+                              }}
+                              className="border-b border-gray-100"
+                            />
+                          </div>
+                          <div>
+                            <InlineEditableBadge
+                              label="זמן מועדף"
+                              value={lead.preferredTime}
+                              options={PREFERRED_TIME_OPTIONS.map(time => ({
+                                value: time,
+                                label: time,
+                                className: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+                              }))}
+                              onSave={async (newValue) => {
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { preferred_time: newValue },
+                                });
+                              }}
+                              className="border-b border-gray-100"
+                            />
+                          </div>
+                          <div>
+                            <InlineEditableBadge
+                              label="מקור"
+                              value={lead.source}
+                              options={SOURCE_OPTIONS.map(source => ({
+                                value: source,
+                                label: source,
+                                className: 'bg-purple-50 text-purple-700 border-purple-100',
+                              }))}
+                              onSave={async (newValue) => {
+                                await updateLead.mutateAsync({
+                                  leadId: lead.id,
+                                  updates: { source: newValue },
+                                });
+                              }}
+                              className=""
+                            />
+                          </div>
+                        </div>
+                      </Card>
                     </div>
-                  </Card>
+                  </div>
 
-                  {/* Card C: Fitness Info */}
-                  <Card className="p-4 bg-white border-gray-200">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                      <Target className="h-5 w-5 text-green-600" />
-                      מידע כושר
-                    </h2>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">מטרת כושר</span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-lg bg-green-50 text-green-700 text-sm font-medium border border-green-100">
-                          {lead.fitnessGoal}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">רמת פעילות</span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-lg bg-orange-50 text-orange-700 text-sm font-medium border border-orange-100">
-                          {lead.activityLevel}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-500">זמן מועדף</span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-sm font-medium border border-indigo-100">
-                          {lead.preferredTime}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-sm font-medium text-gray-500">מקור</span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-lg bg-purple-50 text-purple-700 text-sm font-medium border border-purple-100">
-                          {lead.source}
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-
-                  {/* ROW 2: Service Dashboard - High-Density Grid (3 columns) */}
+                  {/* SECTION 2: CUSTOMER DATA (Coaching) */}
                   {lead.customerId ? (
-                    <>
-                      <div className="grid grid-cols-12 gap-4 mb-4 flex-shrink-0">
-                        {/* Left Col (span-4): Nutrition Summary */}
-                        <div className="col-span-12 md:col-span-4">
-                          <NutritionSummaryCard 
-                            customerId={lead.customerId}
-                            onViewDetails={() => navigate(`/dashboard/customers/${lead.customerId}`)}
-                            onAddPlan={() => navigate(`/dashboard/customers/${lead.customerId}`)}
-                          />
-                        </div>
-                        
-                        {/* Middle Col (span-4): Workout Summary */}
-                        <div className="col-span-12 md:col-span-4">
-                          <WorkoutSummaryCard 
-                            customerId={lead.customerId}
-                            onViewDetails={() => navigate(`/dashboard/customers/${lead.customerId}`)}
-                            onAddPlan={() => navigate(`/dashboard/customers/${lead.customerId}`)}
-                          />
-                        </div>
-                        
-                        {/* Right Col (span-4): Daily Protocol */}
-                        <div className="col-span-12 md:col-span-4">
-                          <DailyProtocolGrid customerId={lead.customerId} />
-                        </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-0.5 flex-1 bg-gradient-to-l from-orange-300 via-orange-400 to-orange-300"></div>
+                        <h2 className="text-lg font-bold text-orange-900 px-3 py-1.5 bg-orange-50 rounded-md border border-orange-200 whitespace-nowrap">
+                          נתוני לקוח (אימון ותזונה)
+                        </h2>
+                        <div className="h-0.5 flex-1 bg-gradient-to-r from-orange-300 via-orange-400 to-orange-300"></div>
                       </div>
 
-                      {/* ROW 3: History Tabs - Elastic Section */}
-                      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                      {/* ROW 2: Service Dashboard - Compact Grid (3 columns) */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                        {/* Left Col: Nutrition Summary */}
+                        <NutritionSummaryCard 
+                          customerId={lead.customerId}
+                          onViewDetails={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                          onAddPlan={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                        />
+                        
+                        {/* Middle Col: Workout Summary */}
+                        <WorkoutSummaryCard 
+                          customerId={lead.customerId}
+                          onViewDetails={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                          onAddPlan={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                        />
+                        
+                        {/* Right Col: Daily Protocol */}
+                        <DailyProtocolGrid customerId={lead.customerId} />
+                      </div>
+
+                      {/* ROW 3: History Tabs - Compact Section */}
+                      <div className="flex flex-col">
                         <CustomerHistoryTabs customerId={lead.customerId} />
                       </div>
-                    </>
+                    </div>
                   ) : (
-                    <Card className="p-4 bg-blue-50 border-blue-200 mb-4 flex-shrink-0">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-lg font-bold text-blue-900 mb-1 flex items-center gap-2">
-                            <User className="h-5 w-5 text-blue-600" />
-                            אין לקוח משויך
-                          </h2>
-                          <p className="text-sm text-blue-700">
-                            כדי להציג נתוני אימון ותזונה, יש ליצור לקוח או לקשר את הליד לקוח קיים
-                          </p>
-                        </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-0.5 flex-1 bg-gradient-to-l from-gray-300 via-gray-400 to-gray-300"></div>
+                        <h2 className="text-lg font-bold text-gray-700 px-3 py-1.5 bg-gray-50 rounded-md border border-gray-200 whitespace-nowrap">
+                          נתוני לקוח
+                        </h2>
+                        <div className="h-0.5 flex-1 bg-gradient-to-r from-gray-300 via-gray-400 to-gray-300"></div>
                       </div>
-                    </Card>
+                      <Card className="p-3 bg-blue-50 border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h2 className="text-lg font-bold text-blue-900 mb-1 flex items-center gap-2">
+                              <User className="h-5 w-5 text-blue-600" />
+                              אין לקוח משויך
+                            </h2>
+                            <p className="text-sm text-blue-700">
+                              כדי להציג נתוני אימון ותזונה, יש ליצור לקוח או לקשר את הליד לקוח קיים
+                            </p>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
                   )}
-                  </div>
                 </div>
               </div>
             </div>

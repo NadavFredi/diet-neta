@@ -83,19 +83,19 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
 
   return (
     <Card 
-      className="p-5 border border-gray-200 bg-white cursor-pointer hover:border-blue-300 transition-colors shadow-sm"
+      className="p-3 border border-gray-200 bg-white cursor-pointer hover:border-blue-300 transition-colors shadow-sm"
       onClick={workoutPlan ? onViewDetails : onAddPlan}
     >
       {isLoading ? (
-        <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        <div className="text-center py-6">
+          <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
         </div>
       ) : workoutPlan ? (
-        <div className="space-y-4">
+        <div className="space-y-2.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Dumbbell className="h-5 w-5 text-blue-600" />
-              <h3 className="text-base font-bold text-gray-900">תוכנית אימונים</h3>
+            <div className="flex items-center gap-1.5">
+              <Dumbbell className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-bold text-gray-900">תוכנית אימונים</h3>
             </div>
             <div onClick={(e) => e.stopPropagation()}>
               <Select
@@ -160,17 +160,18 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
           )}
         </div>
       ) : (
-        <div className="text-center py-6">
-          <Dumbbell className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">אין תוכנית אימונים</h3>
+        <div className="text-center py-4">
+          <Dumbbell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+          <h3 className="text-xs font-semibold text-gray-900 mb-1.5">אין תוכנית אימונים</h3>
           <Button 
-            className="bg-blue-600 hover:bg-blue-700 text-white mt-2"
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white mt-1.5 text-xs h-7"
             onClick={(e) => {
               e.stopPropagation();
               onAddPlan?.();
             }}
           >
-            <Download className="h-4 w-4 ml-2" />
+            <Download className="h-3 w-3 ml-1.5" />
             הוסף תוכנית
           </Button>
         </div>

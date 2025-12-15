@@ -58,8 +58,8 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
   }
 
   return (
-    <Card className="p-4 border border-gray-200 bg-white shadow-sm flex-1 flex flex-col min-h-0">
-      <Tabs value={activeHistoryTab} onValueChange={setActiveHistoryTab} dir="rtl" className="flex-1 flex flex-col min-h-0">
+    <Card className="p-4 border border-gray-200 bg-white shadow-sm">
+      <Tabs value={activeHistoryTab} onValueChange={setActiveHistoryTab} dir="rtl" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4 h-10">
           <TabsTrigger value="leads" className="text-sm">היסטוריית לידים</TabsTrigger>
           <TabsTrigger value="workouts" className="text-sm">יומן אימונים</TabsTrigger>
@@ -67,13 +67,13 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
         </TabsList>
 
         {/* Leads History Tab */}
-        <TabsContent value="leads" className="mt-0 flex-1 flex flex-col min-h-0">
+        <TabsContent value="leads" className="mt-0">
           {customer.leads.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 text-sm flex-1 flex items-center justify-center">
+            <div className="text-center py-12 text-gray-500 text-sm">
               אין לידים עבור לקוח זה
             </div>
           ) : (
-            <div className="overflow-auto flex-1">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -122,13 +122,13 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
         </TabsContent>
 
         {/* Workout Log Tab */}
-        <TabsContent value="workouts" className="mt-0 flex-1 flex flex-col min-h-0">
+        <TabsContent value="workouts" className="mt-0">
           {workoutPlanHistory.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 text-sm flex-1 flex items-center justify-center">
+            <div className="text-center py-12 text-gray-500 text-sm">
               אין היסטוריה של תוכניות אימון
             </div>
           ) : (
-            <div className="overflow-auto flex-1">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -235,13 +235,13 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
         </TabsContent>
 
         {/* Steps Log Tab */}
-        <TabsContent value="steps" className="mt-0 flex-1 flex flex-col min-h-0">
+        <TabsContent value="steps" className="mt-0">
           {(!customer.steps_history || customer.steps_history.length === 0) ? (
-            <div className="text-center py-12 text-gray-500 text-sm flex-1 flex items-center justify-center">
+            <div className="text-center py-12 text-gray-500 text-sm">
               אין היסטוריית צעדים
             </div>
           ) : (
-            <div className="overflow-auto flex-1 space-y-3">
+            <div className="space-y-3">
               {(customer.steps_history || []).map((step: any, index: number) => {
                 const isCurrent = index === (customer.steps_history || []).length - 1;
                 return (
