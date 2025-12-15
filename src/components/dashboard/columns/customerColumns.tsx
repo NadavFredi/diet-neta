@@ -108,3 +108,4 @@ export const defaultCustomerColumnVisibility: Record<string, boolean> = {
   created_at: true,
 };
 
+

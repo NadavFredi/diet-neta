@@ -261,3 +261,4 @@ export const defaultWorkoutTemplateColumnVisibility: Record<string, boolean> = {
   created_at: true,
 };
 
+

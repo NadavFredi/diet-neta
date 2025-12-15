@@ -72,8 +72,7 @@ interface ColumnVisibility {
 }
 
 interface DashboardState {
-  leads: Lead[];
-  filteredLeads: Lead[];
+  leads: Lead[]; // Source of truth - fetched from PostgreSQL (already filtered)
   searchQuery: string;
   selectedDate: string | null;
   selectedStatus: string | null;
@@ -87,6 +86,8 @@ interface DashboardState {
   columnVisibility: ColumnVisibility;
   isLoading: boolean;
   error: string | null;
+  // NOTE: filteredLeads removed - filtering now happens in PostgreSQL via RPC
+  // leads array already contains filtered results from get_filtered_leads()
 }
 
 // Database Customer type (matches Supabase schema)
@@ -128,26 +129,16 @@ interface DBLead {
   customer?: DBCustomer;
 }
 
-// Helper function to calculate age from birth date
-function calculateAge(birthDate: string | null): number {
-  if (!birthDate) return 0;
-  const today = new Date();
-  const birth = new Date(birthDate);
-  let age = today.getFullYear() - birth.getFullYear();
-  const monthDiff = today.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-    age--;
-  }
-  return age;
-}
+// =====================================================
+// NOTE: Helper functions moved to service layer
+// =====================================================
+// calculateAge() -> Now in PostgreSQL (EXTRACT(YEAR FROM AGE(...)))
+// formatDateString() -> Now in PostgreSQL (TO_CHAR(...))
+// mapDBLeadToUILead() -> Now in leadService.ts (mapLeadToUIFormat)
+// =====================================================
 
-// Helper function to format date to YYYY-MM-DD
-function formatDateString(date: string | null): string {
-  if (!date) return '';
-  return new Date(date).toISOString().split('T')[0];
-}
-
-// Helper function to map DB lead to UI Lead format
+// Legacy mapping function (kept for backward compatibility during migration)
+// Will be removed once all code uses leadService
 function mapDBLeadToUILead(dbLead: DBLead): Lead {
   // Extract daily protocol data
   const dailyProtocol = dbLead.daily_protocol || {};
@@ -158,7 +149,7 @@ function mapDBLeadToUILead(dbLead: DBLead): Lead {
   // Extract subscription data
   const subscriptionData = dbLead.subscription_data || {};
   const subscription: SubscriptionInfo = {
-    joinDate: dbLead.join_date ? formatDateString(dbLead.join_date) : '',
+    joinDate: dbLead.join_date ? new Date(dbLead.join_date).toISOString().split('T')[0] : '',
     initialPackageMonths: subscriptionData.months || 0,
     initialPrice: subscriptionData.initialPrice || 0,
     monthlyRenewalPrice: subscriptionData.renewalPrice || 0,
@@ -200,13 +191,13 @@ function mapDBLeadToUILead(dbLead: DBLead): Lead {
   return {
     id: dbLead.id,
     name: customer.full_name,
-    createdDate: formatDateString(dbLead.created_at),
+    createdDate: new Date(dbLead.created_at).toISOString().split('T')[0],
     status,
     phone: customer.phone,
     email: customer.email || '',
     source: dbLead.source || '',
-    age: calculateAge(dbLead.birth_date),
-    birthDate: dbLead.birth_date ? formatDateString(dbLead.birth_date) : '',
+    age: dbLead.birth_date ? Math.floor((new Date().getTime() - new Date(dbLead.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 0, // Temporary calculation - will use PostgreSQL age
+    birthDate: dbLead.birth_date ? new Date(dbLead.birth_date).toISOString().split('T')[0] : '',
     height: dbLead.height || 0,
     weight: dbLead.weight || 0,
     fitnessGoal: dbLead.fitness_goal || '',
@@ -223,65 +214,75 @@ function mapDBLeadToUILead(dbLead: DBLead): Lead {
   };
 }
 
-// Async thunk to fetch leads from Supabase (with customer JOIN)
+// =====================================================
+// NOTE: fetchLeads thunk is DEPRECATED
+// =====================================================
+// New architecture: Use leadService.fetchFilteredLeads() directly in hooks
+// This thunk is kept for backward compatibility during migration
+// =====================================================
 export const fetchLeads = createAsyncThunk(
   'dashboard/fetchLeads',
   async (_, { rejectWithValue }) => {
     try {
-      // Use the foreign key relationship - Supabase uses the table name
+      // Use the optimized view (pre-joined with customer data)
       const { data, error } = await supabase
-        .from('leads')
-        .select(`
-          *,
-          customers(*)
-        `)
+        .from('v_leads_with_customer')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching leads:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
         return rejectWithValue(error.message);
       }
 
-      // Handle empty data gracefully
       if (!data || data.length === 0) {
-        console.log('No leads found in database');
         return [];
       }
 
-      console.log(`Fetched ${data.length} leads from database`);
-
-      // Map database leads to UI format (with customer data)
-      // Note: Supabase returns the joined table as 'customers' not 'customer'
+      // Map using service layer function (minimal transformation)
+      // Most calculations already done in PostgreSQL view
       const mappedLeads = data
-        .map((lead: any) => {
-          // Supabase returns the joined table with the relationship name
-          // Try both 'customers' and 'customer' for compatibility
-          const customer = lead.customers || lead.customer;
-          
-          if (!customer) {
-            console.error(`Lead ${lead.id} has no customer data. Lead data:`, {
-              id: lead.id,
-              customer_id: lead.customer_id,
-              hasCustomers: !!lead.customers,
-              hasCustomer: !!lead.customer,
-            });
-            return null;
-          }
-
+        .map((dbLead: any) => {
           try {
-            return mapDBLeadToUILead({
-              ...lead,
-              customer: customer,
-            });
+            // Transform to match Lead interface
+            return {
+              id: dbLead.id,
+              name: dbLead.customer_name,
+              createdDate: dbLead.created_date_formatted,
+              status: dbLead.status_sub || dbLead.status_main || '',
+              phone: dbLead.customer_phone,
+              email: dbLead.customer_email || '',
+              source: dbLead.source || '',
+              age: dbLead.age || 0, // Already calculated in PostgreSQL
+              birthDate: dbLead.birth_date_formatted || '',
+              height: dbLead.height || 0,
+              weight: dbLead.weight || 0,
+              fitnessGoal: dbLead.fitness_goal || '',
+              activityLevel: dbLead.activity_level || '',
+              preferredTime: dbLead.preferred_time || '',
+              notes: dbLead.notes || undefined,
+              dailyStepsGoal: dbLead.daily_steps_goal || 0,
+              weeklyWorkouts: dbLead.weekly_workouts || 0,
+              dailySupplements: dbLead.daily_supplements || [],
+              subscription: {
+                joinDate: '',
+                initialPackageMonths: dbLead.subscription_months || 0,
+                initialPrice: dbLead.subscription_initial_price || 0,
+                monthlyRenewalPrice: dbLead.subscription_renewal_price || 0,
+                currentWeekInProgram: 0,
+                timeInCurrentBudget: '',
+              },
+              workoutProgramsHistory: [],
+              stepsHistory: [],
+              customerId: dbLead.customer_id,
+            } as Lead;
           } catch (err) {
-            console.error(`Error mapping lead ${lead.id}:`, err);
+            console.error(`Error mapping lead ${dbLead.id}:`, err);
             return null;
           }
         })
         .filter((lead): lead is Lead => lead !== null);
 
-      console.log(`Successfully mapped ${mappedLeads.length} leads`);
       return mappedLeads;
     } catch (err) {
       console.error('Unexpected error fetching leads:', err);
@@ -923,8 +924,7 @@ const mockLeads: Lead[] = [
 */
 
 const initialState: DashboardState = {
-  leads: [],
-  filteredLeads: [],
+  leads: [], // Source of truth - already filtered by PostgreSQL
   searchQuery: '',
   selectedDate: null,
   selectedStatus: null,
@@ -944,49 +944,42 @@ const dashboardSlice = createSlice({
   name: 'dashboard',
   initialState,
   reducers: {
+    // Set leads (already filtered by PostgreSQL)
     setLeads: (state, action: PayloadAction<Lead[]>) => {
       state.leads = action.payload;
-      state.filteredLeads = applyFilters({ ...state, leads: action.payload });
+      // No need to filter - PostgreSQL already did it
     },
+    // Filter state setters (no client-side filtering - triggers new fetch)
     setSearchQuery: (state, action: PayloadAction<string>) => {
       state.searchQuery = action.payload;
-      state.filteredLeads = applyFilters(state);
+      // Filtering happens in PostgreSQL via useDashboardLogic hook
     },
     setSelectedDate: (state, action: PayloadAction<string | null>) => {
       state.selectedDate = action.payload;
-      state.filteredLeads = applyFilters(state);
     },
     setSelectedStatus: (state, action: PayloadAction<string | null>) => {
       state.selectedStatus = action.payload;
-      state.filteredLeads = applyFilters(state);
     },
     setSelectedAge: (state, action: PayloadAction<string | null>) => {
       state.selectedAge = action.payload;
-      state.filteredLeads = applyFilters(state);
     },
     setSelectedHeight: (state, action: PayloadAction<string | null>) => {
       state.selectedHeight = action.payload;
-      state.filteredLeads = applyFilters(state);
     },
     setSelectedWeight: (state, action: PayloadAction<string | null>) => {
       state.selectedWeight = action.payload;
-      state.filteredLeads = applyFilters(state);
     },
     setSelectedFitnessGoal: (state, action: PayloadAction<string | null>) => {
       state.selectedFitnessGoal = action.payload;
-      state.filteredLeads = applyFilters(state);
     },
     setSelectedActivityLevel: (state, action: PayloadAction<string | null>) => {
       state.selectedActivityLevel = action.payload;
-      state.filteredLeads = applyFilters(state);
     },
     setSelectedPreferredTime: (state, action: PayloadAction<string | null>) => {
       state.selectedPreferredTime = action.payload;
-      state.filteredLeads = applyFilters(state);
     },
     setSelectedSource: (state, action: PayloadAction<string | null>) => {
       state.selectedSource = action.payload;
-      state.filteredLeads = applyFilters(state);
     },
     toggleColumnVisibility: (state, action: PayloadAction<keyof ColumnVisibility>) => {
       state.columnVisibility[action.payload] = !state.columnVisibility[action.payload];
@@ -1005,15 +998,22 @@ const dashboardSlice = createSlice({
       state.selectedActivityLevel = null;
       state.selectedPreferredTime = null;
       state.selectedSource = null;
-      state.filteredLeads = applyFilters(state);
+      // No filtering needed - will trigger new fetch
     },
     updateLeadStatus: (state, action: PayloadAction<{ leadId: string; status: string }>) => {
       const { leadId, status } = action.payload;
       const lead = state.leads.find((l) => l.id === leadId);
       if (lead) {
         lead.status = status;
-        state.filteredLeads = applyFilters(state);
+        // No filtering needed - leads already filtered
       }
+    },
+    // Loading and error state
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
+    },
+    setError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -1025,8 +1025,7 @@ const dashboardSlice = createSlice({
       .addCase(fetchLeads.fulfilled, (state, action) => {
         state.isLoading = false;
         state.error = null;
-        state.leads = action.payload;
-        state.filteredLeads = applyFilters({ ...state, leads: action.payload });
+        state.leads = action.payload; // Already filtered by PostgreSQL
       })
       .addCase(fetchLeads.rejected, (state, action) => {
         state.isLoading = false;
@@ -1036,155 +1035,12 @@ const dashboardSlice = createSlice({
   },
 });
 
-function applyFilters(state: DashboardState): Lead[] {
-  let filtered = [...state.leads];
-
-  // Apply search filter - search across all lead fields
-  if (state.searchQuery) {
-    const query = state.searchQuery.toLowerCase();
-    filtered = filtered.filter((lead) => {
-      // Search in name
-      const nameMatch = lead.name?.toLowerCase().includes(query) || false;
-      
-      // Search in email
-      const emailMatch = lead.email?.toLowerCase().includes(query) || false;
-      
-      // Search in phone (exact match, not case-sensitive)
-      const phoneMatch = lead.phone?.includes(query) || false;
-      
-      // Search in fitness goal
-      const fitnessGoalMatch = lead.fitnessGoal?.toLowerCase().includes(query) || false;
-      
-      // Search in activity level
-      const activityLevelMatch = lead.activityLevel?.toLowerCase().includes(query) || false;
-      
-      // Search in preferred time
-      const preferredTimeMatch = lead.preferredTime?.toLowerCase().includes(query) || false;
-      
-      // Search in source
-      const sourceMatch = lead.source?.toLowerCase().includes(query) || false;
-      
-      // Search in notes
-      const notesMatch = lead.notes?.toLowerCase().includes(query) || false;
-      
-      // Search in age (as string)
-      const ageMatch = lead.age?.toString().includes(query) || false;
-      
-      // Search in birth date
-      const birthDateMatch = lead.birthDate?.includes(query) || false;
-      
-      // Search in height (as string)
-      const heightMatch = lead.height?.toString().includes(query) || false;
-      
-      // Search in weight (as string)
-      const weightMatch = lead.weight?.toString().includes(query) || false;
-      
-      // Search in created date
-      const createdDateMatch = lead.createdDate?.includes(query) || false;
-      
-      // Search in status
-      const statusMatch = lead.status?.toLowerCase().includes(query) || false;
-      
-      // Search in subscription data
-      const subscriptionMatch = 
-        lead.subscription?.joinDate?.includes(query) ||
-        lead.subscription?.timeInCurrentBudget?.toLowerCase().includes(query) ||
-        lead.subscription?.initialPackageMonths?.toString().includes(query) ||
-        lead.subscription?.currentWeekInProgram?.toString().includes(query) ||
-        false;
-      
-      // Search in workout programs
-      const workoutProgramsMatch = lead.workoutProgramsHistory?.some((program) =>
-        program.programName?.toLowerCase().includes(query) ||
-        program.description?.toLowerCase().includes(query) ||
-        program.startDate?.includes(query) ||
-        program.validUntil?.includes(query) ||
-        program.duration?.toLowerCase().includes(query) ||
-        false
-      ) || false;
-      
-      // Search in daily supplements
-      const supplementsMatch = lead.dailySupplements?.some((supplement) =>
-        supplement.toLowerCase().includes(query)
-      ) || false;
-      
-      // Search in daily steps goal
-      const stepsGoalMatch = lead.dailyStepsGoal?.toString().includes(query) || false;
-      
-      // Search in weekly workouts
-      const weeklyWorkoutsMatch = lead.weeklyWorkouts?.toString().includes(query) || false;
-
-      return (
-        nameMatch ||
-        emailMatch ||
-        phoneMatch ||
-        fitnessGoalMatch ||
-        activityLevelMatch ||
-        preferredTimeMatch ||
-        sourceMatch ||
-        notesMatch ||
-        ageMatch ||
-        birthDateMatch ||
-        heightMatch ||
-        weightMatch ||
-        createdDateMatch ||
-        statusMatch ||
-        subscriptionMatch ||
-        workoutProgramsMatch ||
-        supplementsMatch ||
-        stepsGoalMatch ||
-        weeklyWorkoutsMatch
-      );
-    });
-  }
-
-  // Apply date filter
-  if (state.selectedDate) {
-    filtered = filtered.filter((lead) => lead.createdDate === state.selectedDate);
-  }
-
-  // Apply status filter
-  if (state.selectedStatus) {
-    filtered = filtered.filter((lead) => lead.status === state.selectedStatus);
-  }
-
-  // Apply age filter
-  if (state.selectedAge) {
-    filtered = filtered.filter((lead) => lead.age.toString() === state.selectedAge);
-  }
-
-  // Apply height filter
-  if (state.selectedHeight) {
-    filtered = filtered.filter((lead) => lead.height.toString() === state.selectedHeight);
-  }
-
-  // Apply weight filter
-  if (state.selectedWeight) {
-    filtered = filtered.filter((lead) => lead.weight.toString() === state.selectedWeight);
-  }
-
-  // Apply fitness goal filter
-  if (state.selectedFitnessGoal) {
-    filtered = filtered.filter((lead) => lead.fitnessGoal === state.selectedFitnessGoal);
-  }
-
-  // Apply activity level filter
-  if (state.selectedActivityLevel) {
-    filtered = filtered.filter((lead) => lead.activityLevel === state.selectedActivityLevel);
-  }
-
-  // Apply preferred time filter
-  if (state.selectedPreferredTime) {
-    filtered = filtered.filter((lead) => lead.preferredTime === state.selectedPreferredTime);
-  }
-
-  // Apply source filter
-  if (state.selectedSource) {
-    filtered = filtered.filter((lead) => lead.source === state.selectedSource);
-  }
-
-  return filtered;
-}
+// =====================================================
+// NOTE: applyFilters() function REMOVED
+// =====================================================
+// All filtering now happens in PostgreSQL via get_filtered_leads() RPC function
+// This eliminates client-side filtering overhead
+// =====================================================
 
 export const {
   setLeads,
@@ -1202,6 +1058,8 @@ export const {
   setColumnVisibility,
   resetFilters,
   updateLeadStatus,
+  setLoading,
+  setError,
 } = dashboardSlice.actions;
 export default dashboardSlice.reducer;
 

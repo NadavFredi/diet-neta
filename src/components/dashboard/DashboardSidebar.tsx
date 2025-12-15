@@ -179,125 +179,125 @@ const ResourceItem = ({
       {/* Main Interface Button */}
       <li className="w-full">
         <div className="relative group w-full">
-          <button
+            <button
             onClick={() => {
               // Always navigate to base path - the page component will handle redirecting to default view
               // This ensures the page loads even if defaultView isn't ready yet
-              onResourceClick();
-            }}
-            className={cn(
+                onResourceClick();
+              }}
+              className={cn(
               'w-full flex items-center gap-4 px-4 py-3.5 text-right transition-all duration-200 relative',
               'text-lg font-semibold',
               isMainInterfaceActive
                 ? 'text-white'
-                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-            )}
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+              )}
             style={isMainInterfaceActive ? {
               backgroundColor: '#4f60a8',
             } : {}}
-          >
+            >
               <Icon
                 className={cn(
                   'h-7 w-7 flex-shrink-0',
                   isMainInterfaceActive ? 'text-white' : 'text-gray-500'
                 )}
               />
-            <span className="flex-1">{item.label}</span>
+              <span className="flex-1">{item.label}</span>
             
             {supportsViews && onSaveViewClick && (
-              <button
-                className={cn(
+                  <button
+                    className={cn(
                   'p-1.5 rounded-md transition-colors opacity-0 group-hover:opacity-100',
                   'focus:opacity-100 focus:outline-none flex-shrink-0',
                   isMainInterfaceActive 
                     ? 'text-white hover:bg-white/20' 
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSaveViewClick(item.resourceKey);
+                    }}
+                    title="שמור תצוגה חדשה"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
                 )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSaveViewClick(item.resourceKey);
-                }}
-                title="שמור תצוגה חדשה"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            )}
           </button>
-        </div>
+          </div>
       </li>
-
+          
       {/* Saved Views - Each as Separate Row */}
-      {supportsViews && savedViews.length > 0 && (
+          {supportsViews && savedViews.length > 0 && (
         <>
-          {savedViews.map((view) => {
-            const isViewActive = activeViewId === view.id;
+                {savedViews.map((view) => {
+                  const isViewActive = activeViewId === view.id;
             const isDefaultView = view.is_default;
-            return (
+                  return (
               <li key={view.id} className="group/view-item w-full">
                 <div className="relative flex items-center w-full">
-                  <button
+                        <button
                     onClick={() => onViewClick(view, item.path)}
-                    className={cn(
+                          className={cn(
                       'w-full flex items-center gap-3 px-4 py-3 text-right transition-all duration-200',
                       'text-base font-medium relative',
-                      isViewActive
+                            isViewActive
                         ? 'text-white'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    )}
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          )}
                     style={isViewActive ? {
                       backgroundColor: '#4f60a8',
                     } : {}}
-                  >
+                        >
                     <div className={cn(
                       'h-1.5 w-1.5 rounded-full flex-shrink-0 transition-colors',
                       isViewActive ? 'bg-white' : 'bg-gray-400'
                     )} />
-                    <span className="flex-1 text-right">{view.view_name}</span>
-                  </button>
+                          <span className="flex-1 text-right">{view.view_name}</span>
+                        </button>
                   {!isDefaultView && (
-                    <button
-                      onClick={(e) => handleDeleteClick(e, view)}
-                      className={cn(
+                        <button
+                          onClick={(e) => handleDeleteClick(e, view)}
+                          className={cn(
                         'absolute left-2 p-1.5 rounded-md transition-all duration-200 opacity-0 group-hover/view-item:opacity-100',
-                        'text-gray-400 hover:text-red-600 hover:bg-red-50',
+                            'text-gray-400 hover:text-red-600 hover:bg-red-50',
                         'focus:opacity-100 focus:outline-none'
-                      )}
-                      title="מחק תצוגה"
-                      disabled={deleteView.isPending}
-                    >
+                          )}
+                          title="מחק תצוגה"
+                          disabled={deleteView.isPending}
+                        >
                       <X className="h-4 w-4" />
-                    </button>
+                        </button>
                   )}
-                </div>
-              </li>
-            );
-          })}
+                      </div>
+                    </li>
+                  );
+                })}
         </>
-      )}
+          )}
 
-      {/* Delete Confirmation Dialog */}
+          {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>מחיקת תצוגה</AlertDialogTitle>
-            <AlertDialogDescription>
-              האם אתה בטוח שברצונך למחוק את התצוגה "{viewToDelete?.name}"? פעולה זו לא ניתנת לביטול.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteView.isPending}>
-              ביטול
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={deleteView.isPending}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-            >
-              {deleteView.isPending ? 'מוחק...' : 'מחק'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <AlertDialogHeader>
+                <AlertDialogTitle>מחיקת תצוגה</AlertDialogTitle>
+                <AlertDialogDescription>
+                  האם אתה בטוח שברצונך למחוק את התצוגה "{viewToDelete?.name}"? פעולה זו לא ניתנת לביטול.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteView.isPending}>
+                  ביטול
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleConfirmDelete}
+                  disabled={deleteView.isPending}
+                  className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                >
+                  {deleteView.isPending ? 'מוחק...' : 'מחק'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
     </>
   );
 };
@@ -307,7 +307,7 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeViewId = searchParams.get('view_id');
-  
+
   const isActive = (path: string) => {
     if (path === '/dashboard') {
       return location.pathname === '/dashboard' || location.pathname.startsWith('/leads');

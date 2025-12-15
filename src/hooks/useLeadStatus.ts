@@ -149,17 +149,17 @@ export const useLeadStatus = (leadId: string | undefined, currentStatus: string)
           variant: 'destructive',
         });
         return;
-      }
+    }
 
       // Update Redux state
-      dispatch(updateLeadStatus({ leadId, status: newStatus }));
+    dispatch(updateLeadStatus({ leadId, status: newStatus }));
       
       toast({
         title: 'הצלחה',
         description: 'הסטטוס עודכן בהצלחה',
       });
       
-      handleClose();
+    handleClose();
     } catch (error: any) {
       console.error('Error updating lead status:', error);
       toast({

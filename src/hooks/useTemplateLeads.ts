@@ -25,9 +25,9 @@ export const useTemplateLeads = (templateId: string) => {
             id,
             customer_id,
             customer:customers!inner (
-              full_name,
+            full_name,
               phone,
-              email
+            email
             )
           )
         `)

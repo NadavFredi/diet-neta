@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadsDataTable } from '@/components/dashboard/LeadsDataTable';
@@ -27,7 +27,7 @@ import {
   PREFERRED_TIME_OPTIONS,
   SOURCE_OPTIONS,
 } from '@/utils/dashboard';
-import { useDashboardPage } from './Dashboard';
+import { useDashboardLogic } from '@/hooks/useDashboardLogic';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { useEffect } from 'react';
@@ -81,20 +81,22 @@ const Dashboard = () => {
     setDatePickerOpen,
     setIsAddLeadDialogOpen,
     getCurrentFilterConfig,
-  } = useDashboardPage();
+  } = useDashboardLogic();
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
 
-  const handleSaveViewClick = (resourceKey: string) => {
+  // Memoized handler to prevent unnecessary re-renders
+  const handleSaveViewClick = useCallback((resourceKey: string) => {
     setSaveViewResourceKey(resourceKey);
     setIsSaveViewModalOpen(true);
-  };
+  }, []);
 
-  // Unique values for filters
-  const ageOptions = ['24', '26', '28', '29', '31', '32', '35', '39', '45', '52'];
-  const heightOptions = ['160', '163', '165', '168', '170', '172', '175', '178', '182', '185'];
-  const weightOptions = ['58', '62', '65', '68', '70', '78', '80', '85', '88', '92'];
+  // Filter options - will be fetched from PostgreSQL in future
+  // For now, using static options (can be replaced with getLeadFilterOptions() from service)
+  const ageOptions = useMemo(() => ['24', '26', '28', '29', '31', '32', '35', '39', '45', '52'], []);
+  const heightOptions = useMemo(() => ['160', '163', '165', '168', '170', '172', '175', '178', '182', '185'], []);
+  const weightOptions = useMemo(() => ['58', '62', '65', '68', '70', '78', '80', '85', '88', '92'], []);
 
   return (
     <>
