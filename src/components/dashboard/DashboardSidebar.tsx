@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple } from 'lucide-react';
+import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple, ChevronLeft, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
 import {
@@ -186,42 +186,53 @@ const ResourceItem = ({
                 onResourceClick();
               }}
               className={cn(
-              'w-full flex items-center gap-4 px-4 py-3.5 text-right transition-all duration-200 relative',
-              'text-lg font-semibold',
+              'w-full flex items-center gap-3 px-4 py-3.5 text-right transition-all duration-200 relative',
+              'text-base font-semibold',
               isMainInterfaceActive
                 ? 'text-white'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  : 'text-white hover:bg-white/10'
               )}
             style={isMainInterfaceActive ? {
-              backgroundColor: '#4f60a8',
+              backgroundColor: '#3d4d8a', // Slightly darker blue for active main interface
             } : {}}
             >
               <Icon
                 className={cn(
-                  'h-7 w-7 flex-shrink-0',
-                  isMainInterfaceActive ? 'text-white' : 'text-gray-500'
+                  'h-6 w-6 flex-shrink-0',
+                  isMainInterfaceActive ? 'text-white' : 'text-white'
                 )}
               />
-              <span className="flex-1">{item.label}</span>
-            
-            {supportsViews && onSaveViewClick && (
-                  <button
-                    className={cn(
-                  'p-1.5 rounded-md transition-colors opacity-0 group-hover:opacity-100',
-                  'focus:opacity-100 focus:outline-none flex-shrink-0',
-                  isMainInterfaceActive 
-                    ? 'text-white hover:bg-white/20' 
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSaveViewClick(item.resourceKey);
-                    }}
-                    title="שמור תצוגה חדשה"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                )}
+              <span className="flex-1 text-right">{item.label}</span>
+              
+              {/* Add View Button - appears on hover */}
+              {supportsViews && onSaveViewClick && (
+                <button
+                  className={cn(
+                    'p-1.5 rounded-md transition-all duration-200 flex-shrink-0',
+                    'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
+                    isMainInterfaceActive 
+                      ? 'text-white hover:bg-white/20' 
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSaveViewClick(item.resourceKey);
+                  }}
+                  title="הוסף דף חדש"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              )}
+              
+              {/* Caret icon on the right (RTL) */}
+              {supportsViews && (
+                <ChevronLeft 
+                  className={cn(
+                    'h-5 w-5 flex-shrink-0 transition-transform',
+                    isMainInterfaceActive ? 'text-gray-300' : 'text-gray-400'
+                  )} 
+                />
+              )}
           </button>
           </div>
       </li>
@@ -238,28 +249,29 @@ const ResourceItem = ({
                         <button
                     onClick={() => onViewClick(view, item.path)}
                           className={cn(
-                      'w-full flex items-center gap-3 px-4 py-3 text-right transition-all duration-200',
-                      'text-base font-medium relative',
+                      'w-full flex items-center gap-3 px-4 py-2.5 text-right transition-all duration-200',
+                      'text-sm font-normal relative',
                             isViewActive
                         ? 'text-white'
-                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                              : 'text-white/80 hover:bg-white/10'
                           )}
                     style={isViewActive ? {
-                      backgroundColor: '#4f60a8',
+                      backgroundColor: '#4f60a8', // Lighter blue for active sub-item
                     } : {}}
                         >
+                    {/* Vertical bar/dot on far left for active sub-item */}
                     <div className={cn(
-                      'h-1.5 w-1.5 rounded-full flex-shrink-0 transition-colors',
-                      isViewActive ? 'bg-white' : 'bg-gray-400'
+                      'h-full w-1 flex-shrink-0 transition-colors absolute right-0',
+                      isViewActive ? 'bg-[#2d3d7a]' : 'bg-transparent'
                     )} />
-                          <span className="flex-1 text-right">{view.view_name}</span>
+                    <span className="flex-1 text-right mr-2">{view.view_name}</span>
                         </button>
                   {!isDefaultView && (
                         <button
                           onClick={(e) => handleDeleteClick(e, view)}
                           className={cn(
                         'absolute left-2 p-1.5 rounded-md transition-all duration-200 opacity-0 group-hover/view-item:opacity-100',
-                            'text-gray-400 hover:text-red-600 hover:bg-red-50',
+                            'text-white/60 hover:text-white hover:bg-white/20',
                         'focus:opacity-100 focus:outline-none'
                           )}
                           title="מחק תצוגה"
@@ -332,18 +344,57 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
 
   return (
     <aside
-      className="fixed right-0 w-64 bg-white border-l flex flex-col shadow-sm z-30"
+      className="fixed right-0 w-64 flex flex-col shadow-sm z-30"
       style={{ 
-        top: '88px',
-        height: 'calc(100vh - 88px)',
-        borderLeftColor: '#4f60a8',
-        borderLeftWidth: '3px'
+        top: '0',
+        height: '100vh',
+        backgroundColor: '#4f60a8', // Dark blue/purple background
       }}
       dir="rtl"
     >
+      {/* Header Section with Logo */}
+      <div className="px-6 py-6 border-b border-white/10 flex items-center justify-center" style={{ minHeight: '88px' }}>
+        <img 
+          src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
+          alt="Diet Neta Logo" 
+          className="h-12 w-auto object-contain"
+          style={{
+            filter: 'brightness(0) invert(1)', // Makes logo white to match sidebar color
+          }}
+        />
+      </div>
+
       {/* Navigation List */}
-      <nav className="flex-1 py-6 overflow-y-auto text-base">
-        <ul className="space-y-1 w-full">
+      <nav 
+        className="flex-1 py-4 overflow-y-auto text-base"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#5a6ba5 #3d4d8a',
+        }}
+      >
+        <style>{`
+          nav::-webkit-scrollbar {
+            width: 10px;
+          }
+          nav::-webkit-scrollbar-track {
+            background: #3d4d8a;
+            border-radius: 0;
+            margin: 4px 0;
+          }
+          nav::-webkit-scrollbar-thumb {
+            background: #5a6ba5;
+            border-radius: 5px;
+            border: 2px solid #3d4d8a;
+            min-height: 40px;
+          }
+          nav::-webkit-scrollbar-thumb:hover {
+            background: #6b7fb8;
+          }
+          nav::-webkit-scrollbar-thumb:active {
+            background: #7b8fc8;
+          }
+        `}</style>
+        <ul className="space-y-0.5 w-full">
           {navigationItems.map((item) => (
             <ResourceItem
               key={item.id}
@@ -360,6 +411,15 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
         </ul>
       </nav>
 
+      {/* Footer Help Button */}
+      <div className="px-6 py-4 border-t border-white/10">
+        <button
+          className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+          title="עזרה"
+        >
+          <HelpCircle className="h-5 w-5 text-white" />
+        </button>
+      </div>
     </aside>
   );
 };
