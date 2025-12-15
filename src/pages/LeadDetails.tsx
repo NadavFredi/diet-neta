@@ -4,7 +4,14 @@ import { useLeadDetailsPage } from './LeadDetails';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-// Coaching widgets removed - now in Customer Profile
+import { WorkoutSummaryCard } from '@/components/dashboard/WorkoutSummaryCard';
+import { NutritionSummaryCard } from '@/components/dashboard/NutritionSummaryCard';
+import { DailyProtocolGrid } from '@/components/dashboard/DailyProtocolGrid';
+import { CustomerHistoryTabs } from '@/components/dashboard/CustomerHistoryTabs';
+import { InlineEditableField } from '@/components/dashboard/InlineEditableField';
+import { InlineEditableBadge } from '@/components/dashboard/InlineEditableBadge';
+import { useUpdateLead } from '@/hooks/useUpdateLead';
+import { FITNESS_GOAL_OPTIONS, ACTIVITY_LEVEL_OPTIONS, PREFERRED_TIME_OPTIONS, SOURCE_OPTIONS } from '@/utils/dashboard';
 import {
   Select,
   SelectContent,
@@ -143,12 +150,12 @@ const LeadDetails = () => {
         userEmail={user?.email}
         onLogout={() => {}}
       />
-      <div className="flex-1 flex flex-col overflow-hidden" style={{ marginTop: '88px' }}>
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ marginTop: '88px', height: 'calc(100vh - 88px)' }}>
         <div className="flex flex-1 overflow-hidden relative">
           <DashboardSidebar />
-          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
-            <div className="p-4">
-              <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-200/50">
+          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden" style={{ marginRight: '256px', height: 'calc(100vh - 88px)' }}>
+            <div className="p-4 h-full flex flex-col overflow-hidden">
+              <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-200/50 flex-1 flex flex-col overflow-hidden">
                 {/* Header */}
                 <div className="mb-4 pb-4 border-b border-gray-200">
                   <div className="flex items-center justify-between">
@@ -302,33 +309,10 @@ const LeadDetails = () => {
                   </Card>
                 )}
 
-                {/* Link to Customer Profile for Coaching Data */}
-                {lead.customerId && (
-                  <Card className="p-4 bg-blue-50 border-blue-200 mb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-lg font-bold text-blue-900 mb-1 flex items-center gap-2">
-                          <User className="h-5 w-5 text-blue-600" />
-                          נתוני אימון ותזונה
-                        </h2>
-                        <p className="text-sm text-blue-700">
-                          לניהול תוכניות אימון, תזונה, צעדים ופרוטוקול יומי - עבור לפרופיל הלקוח
-                        </p>
-                      </div>
-                      <Button
-                        onClick={() => navigate(`/dashboard/customers/${lead.customerId}`)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        <User className="h-4 w-4 ml-2" />
-                        עבור לפרופיל הלקוח
-                      </Button>
-                    </div>
-                  </Card>
-                )}
-
-                {/* Sales & CRM Data Only - Coaching widgets removed and moved to Customer Profile */}
-                {/* ROW 1: Bio & Status Row - 3 Equal Columns */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                {/* Unified Super-View Dashboard */}
+                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+                  {/* ROW 1: Sales Header - Lead Info, Status, Actions (Full width) */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 flex-shrink-0">
                   {/* Card A: Personal Info */}
                   <Card className="p-4 bg-white border-gray-200">
                     <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -452,7 +436,56 @@ const LeadDetails = () => {
                   </Card>
                 </div>
 
-                {/* Daily Protocol, Workout History, and Steps History removed - now in Customer Profile */}
+                  {/* ROW 2: Service Dashboard - High-Density Grid (3 columns) */}
+                  {lead.customerId ? (
+                    <>
+                      <div className="grid grid-cols-12 gap-4 mb-4 flex-shrink-0">
+                        {/* Left Col (span-4): Nutrition Summary */}
+                        <div className="col-span-12 md:col-span-4">
+                          <NutritionSummaryCard 
+                            customerId={lead.customerId}
+                            onViewDetails={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                            onAddPlan={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                          />
+                        </div>
+                        
+                        {/* Middle Col (span-4): Workout Summary */}
+                        <div className="col-span-12 md:col-span-4">
+                          <WorkoutSummaryCard 
+                            customerId={lead.customerId}
+                            onViewDetails={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                            onAddPlan={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                          />
+                        </div>
+                        
+                        {/* Right Col (span-4): Daily Protocol */}
+                        <div className="col-span-12 md:col-span-4">
+                          <DailyProtocolGrid customerId={lead.customerId} />
+                        </div>
+                      </div>
+
+                      {/* ROW 3: History Tabs - Elastic Section */}
+                      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                        <CustomerHistoryTabs customerId={lead.customerId} />
+                      </div>
+                    </>
+                  ) : (
+                    <Card className="p-4 bg-blue-50 border-blue-200 mb-4 flex-shrink-0">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-lg font-bold text-blue-900 mb-1 flex items-center gap-2">
+                            <User className="h-5 w-5 text-blue-600" />
+                            אין לקוח משויך
+                          </h2>
+                          <p className="text-sm text-blue-700">
+                            כדי להציג נתוני אימון ותזונה, יש ליצור לקוח או לקשר את הליד לקוח קיים
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                  </div>
+                </div>
               </div>
             </div>
           </main>

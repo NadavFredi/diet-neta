@@ -358,16 +358,25 @@ export function DataTable<T extends Record<string, any>>({
       if (Object.keys(prev).length === 0) {
         return initialVisibility;
       }
+      // If initialColumnVisibility is provided, sync with it (for external state control)
+      if (initialColumnVisibility) {
+        const synced: VisibilityState = {};
+        columns.forEach((col) => {
+          if (col.id in initialColumnVisibility) {
+            synced[col.id] = initialColumnVisibility[col.id];
+          } else if (col.id in prev) {
+            synced[col.id] = prev[col.id];
+          } else {
+            synced[col.id] = col.enableHiding !== false;
+          }
+        });
+        return synced;
+      }
       // Merge with new columns - only add columns that exist in the schema
       const merged = { ...prev };
       columns.forEach((col) => {
         if (!(col.id in merged)) {
-          // Use provided initial visibility if available
-          if (initialColumnVisibility && col.id in initialColumnVisibility) {
-            merged[col.id] = initialColumnVisibility[col.id];
-          } else {
-            merged[col.id] = col.enableHiding !== false;
-          }
+          merged[col.id] = col.enableHiding !== false;
         }
       });
       // Remove any columns that no longer exist in the schema (cleanup)

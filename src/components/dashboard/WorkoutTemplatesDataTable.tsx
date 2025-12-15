@@ -14,6 +14,7 @@ interface WorkoutTemplatesDataTableProps {
 }
 
 export const WorkoutTemplatesDataTable = ({
+  enableColumnVisibility = true,
   templates,
   columnVisibility,
   onEdit,
@@ -78,7 +79,7 @@ export const WorkoutTemplatesDataTable = ({
           ? 'אין תוכניות. צור תוכנית חדשה כדי להתחיל'
           : 'לא נמצאו תוכניות התואמות לחיפוש'
       }
-      enableColumnVisibility={true}
+      enableColumnVisibility={enableColumnVisibility}
       enableColumnReordering={true}
     />
   );

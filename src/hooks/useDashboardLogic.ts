@@ -25,6 +25,7 @@ import {
   setSelectedPreferredTime,
   setSelectedSource,
   setColumnVisibility,
+  toggleColumnVisibility,
   resetFilters,
   setLeads,
   setLoading,
@@ -32,6 +33,7 @@ import {
 } from '@/store/slices/dashboardSlice';
 import { fetchFilteredLeads, mapLeadToUIFormat, type LeadFilterParams } from '@/services/leadService';
 import type { Lead } from '@/store/slices/dashboardSlice';
+import type { ColumnVisibility as ColumnVisibilityType } from '@/utils/dashboard';
 
 export const useDashboardLogic = () => {
   const dispatch = useAppDispatch();
@@ -176,9 +178,9 @@ export const useDashboardLogic = () => {
     dispatch(setSelectedSource(value === 'all' ? null : value));
   }, [dispatch]);
 
-  const handleToggleColumn = useCallback((column: string) => {
-    // This is handled in Redux slice
-  }, []);
+  const handleToggleColumn = useCallback((column: keyof ColumnVisibilityType) => {
+    dispatch(toggleColumnVisibility(column));
+  }, [dispatch]);
 
   // =====================================================
   // Saved Views Logic

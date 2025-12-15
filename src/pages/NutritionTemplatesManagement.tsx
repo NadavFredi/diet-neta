@@ -3,7 +3,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { Plus, Settings, Edit, Trash2 } from 'lucide-react';
+import { Plus, Settings, Edit, Trash2, Columns } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSavedView } from '@/hooks/useSavedViews';
@@ -265,26 +265,6 @@ const NutritionTemplatesManagement = () => {
                         className="w-64 h-11 text-base bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-white focus:bg-white focus:border-indigo-400 transition-colors"
                         dir="rtl"
                       />
-                      <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                        <PopoverTrigger asChild>
-                          <Button 
-                            type="button"
-                            variant="outline" 
-                            size="icon" 
-                            className="text-gray-700 hover:bg-gray-50 hover:text-gray-900 border-indigo-200/60 transition-all rounded-lg flex-shrink-0 w-11 h-11 bg-white shadow-sm"
-                            title="הגדרות עמודות"
-                            aria-label="הגדרות עמודות"
-                          >
-                            <Settings className="h-6 w-6 flex-shrink-0" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
-                          <TemplateColumnSettings
-                            columnVisibility={columnVisibility}
-                            onToggleColumn={handleToggleColumn}
-                          />
-                        </PopoverContent>
-                      </Popover>
                       <Button
                         onClick={handleAddTemplate}
                         className="bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm hover:shadow-md flex items-center gap-2 flex-shrink-0"
@@ -297,6 +277,26 @@ const NutritionTemplatesManagement = () => {
                   }
                   filters={
                     <div>
+                      <div className="mb-3 flex items-center justify-end">
+                        <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="gap-2"
+                            >
+                              <Columns className="h-4 w-4" />
+                              <span>עמודות</span>
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
+                            <TemplateColumnSettings
+                              columnVisibility={columnVisibility}
+                              onToggleColumn={handleToggleColumn}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                       <div className="grid grid-cols-4 gap-2">
                         <div className="flex flex-col">
                           <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
@@ -340,6 +340,7 @@ const NutritionTemplatesManagement = () => {
                       columnVisibility={columnVisibility}
                       onEdit={handleEditTemplate}
                       onDelete={handleDeleteClick}
+                      enableColumnVisibility={false}
                     />
                   )}
                 </div>

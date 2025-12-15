@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataTable } from '@/components/ui/DataTable';
 import type { Lead } from '@/store/slices/dashboardSlice';
@@ -8,9 +8,10 @@ import type { ColumnVisibility } from '@/utils/dashboard';
 interface LeadsDataTableProps {
   leads: Lead[];
   columnVisibility: ColumnVisibility;
+  enableColumnVisibility?: boolean;
 }
 
-export const LeadsDataTable = ({ leads, columnVisibility }: LeadsDataTableProps) => {
+export const LeadsDataTable = ({ leads, columnVisibility, enableColumnVisibility = true }: LeadsDataTableProps) => {
   const navigate = useNavigate();
 
   // CRITICAL: Pass ALL columns from schema to DataTable
@@ -65,7 +66,7 @@ export const LeadsDataTable = ({ leads, columnVisibility }: LeadsDataTableProps)
       onRowClick={handleRowClick}
       dir="rtl"
       emptyMessage="לא נמצאו תוצאות"
-      enableColumnVisibility={true}
+      enableColumnVisibility={enableColumnVisibility}
       enableColumnReordering={true}
       initialColumnVisibility={initialVisibility} // Sync with Redux state
       initialColumnOrder={initialColumnOrder} // Set default column order

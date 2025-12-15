@@ -18,6 +18,7 @@ export const NutritionTemplatesDataTable = ({
   columnVisibility,
   onEdit,
   onDelete,
+  enableColumnVisibility = true,
 }: NutritionTemplatesDataTableProps) => {
   // CRITICAL: Pass ALL columns from schema to DataTable
   // This ensures the column visibility popover shows ALL available Nutrition Template columns
@@ -78,7 +79,7 @@ export const NutritionTemplatesDataTable = ({
           ? 'אין תבניות. צור תבנית חדשה כדי להתחיל'
           : 'לא נמצאו תבניות התואמות לחיפוש'
       }
-      enableColumnVisibility={true}
+      enableColumnVisibility={enableColumnVisibility}
       enableColumnReordering={true}
     />
   );
