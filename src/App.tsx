@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
 import { AppFooter } from "./components/layout/AppFooter";
+import { DevModeProvider } from "./hooks/useDevMode";
 
 const queryClient = new QueryClient();
 
@@ -102,9 +103,11 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
+        <DevModeProvider>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </DevModeProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </Provider>

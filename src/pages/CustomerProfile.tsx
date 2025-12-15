@@ -28,6 +28,7 @@ import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
 import { useWorkoutTemplates, type WorkoutTemplate } from '@/hooks/useWorkoutTemplates';
 import { useNutritionTemplates, type NutritionTemplate } from '@/hooks/useNutritionTemplates';
+import { useDevMode } from '@/hooks/useDevMode';
 import { WorkoutBuilderForm } from '@/components/dashboard/WorkoutBuilderForm';
 import { NutritionTemplateForm } from '@/components/dashboard/NutritionTemplateForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -150,6 +151,7 @@ const CustomerProfile = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
+  const { devMode, setDevMode } = useDevMode();
   const { data: customer, isLoading, error: customerError } = useCustomer(id);
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
   const [activeHistoryTab, setActiveHistoryTab] = useState('leads');
@@ -341,7 +343,19 @@ const CustomerProfile = () => {
                     <ArrowRight className="ml-2 h-5 w-5" />
                     חזור
                   </Button>
-                  <h1 className="text-2xl font-bold text-gray-900">{customer.full_name}</h1>
+                  <div className="flex flex-col">
+                    <h1 className="text-2xl font-bold text-gray-900">{customer.full_name}</h1>
+                    {/* Supabase row ID - visible only in dev mode, clickable to hide */}
+                    {devMode && (
+                      <span 
+                        className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 transition-colors"
+                        onClick={() => setDevMode(false)}
+                        title="Click to hide"
+                      >
+                        ID: <span className="font-mono">{customer.id}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <Button
                   onClick={() => setIsAddLeadDialogOpen(true)}
