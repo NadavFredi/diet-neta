@@ -8,10 +8,12 @@ import { WorkoutSummaryCard } from '@/components/dashboard/WorkoutSummaryCard';
 import { NutritionSummaryCard } from '@/components/dashboard/NutritionSummaryCard';
 import { DailyProtocolGrid } from '@/components/dashboard/DailyProtocolGrid';
 import { CustomerHistoryTabs } from '@/components/dashboard/CustomerHistoryTabs';
+import { CustomerSidebar } from '@/components/dashboard/CustomerSidebar';
 import { InlineEditableField } from '@/components/dashboard/InlineEditableField';
 import { InlineEditableBadge } from '@/components/dashboard/InlineEditableBadge';
 import { useUpdateLead } from '@/hooks/useUpdateLead';
 import { FITNESS_GOAL_OPTIONS, ACTIVITY_LEVEL_OPTIONS, PREFERRED_TIME_OPTIONS, SOURCE_OPTIONS } from '@/utils/dashboard';
+import { useCustomer } from '@/hooks/useCustomers';
 import {
   Select,
   SelectContent,
@@ -75,6 +77,7 @@ const LeadDetails = () => {
   
   const { user } = useAppSelector((state) => state.auth);
   const updateLead = useUpdateLead();
+  const { data: customer } = useCustomer(lead?.customerId || '');
 
   if (isLoadingLead) {
     return (
@@ -343,7 +346,7 @@ const LeadDetails = () => {
                           מידע אישי
                         </h2>
                         <div className="grid grid-cols-2 gap-x-3 gap-y-0">
-                          <div className="col-span-2">
+                          <div>
                             <InlineEditableField
                               label="גיל"
                               value={lead.age}
@@ -388,7 +391,7 @@ const LeadDetails = () => {
                               disabled={true}
                             />
                           </div>
-                          <div className="col-span-2">
+                          <div>
                             <InlineEditableField
                               label="טלפון"
                               value={lead.phone}
@@ -405,7 +408,7 @@ const LeadDetails = () => {
                                 });
                               }}
                               type="tel"
-                              valueClassName="font-mono"
+                              valueClassName="font-mono text-xs"
                               className="border-b border-gray-100"
                             />
                           </div>
@@ -426,6 +429,7 @@ const LeadDetails = () => {
                                 });
                               }}
                               type="email"
+                              valueClassName="text-xs"
                               className=""
                             />
                           </div>
@@ -439,7 +443,7 @@ const LeadDetails = () => {
                           פרטי מנוי
                         </h2>
                         <div className="grid grid-cols-2 gap-x-3 gap-y-0">
-                          <div className="col-span-2">
+                          <div>
                             <InlineEditableField
                               label="תאריך הצטרפות"
                               value={lead.subscription.joinDate}
@@ -452,10 +456,9 @@ const LeadDetails = () => {
                               type="date"
                               formatValue={(val) => formatDate(String(val))}
                               className="border-b border-gray-100"
-                              valueClassName="flex items-center gap-2"
                             />
                           </div>
-                          <div className="col-span-2 flex items-center justify-between py-1.5 border-b border-gray-100 bg-blue-50 rounded-md px-2 my-1.5">
+                          <div className="flex items-center justify-between py-1.5 border-b border-gray-100 bg-blue-50 rounded-md px-2">
                             <span className="text-xs font-medium text-blue-700 flex items-center gap-1.5">
                               <TrendingUp className="h-3.5 w-3.5" />
                               שבוע נוכחי
@@ -637,27 +640,43 @@ const LeadDetails = () => {
                         <div className="h-0.5 flex-1 bg-gradient-to-r from-orange-300 via-orange-400 to-orange-300"></div>
                       </div>
 
-                      {/* ROW 2: Service Dashboard - Compact Grid (3 columns) */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                        {/* Left Col: Nutrition Summary */}
-                        <NutritionSummaryCard 
-                          customerId={lead.customerId}
-                          onViewDetails={() => navigate(`/dashboard/customers/${lead.customerId}`)}
-                          onAddPlan={() => navigate(`/dashboard/customers/${lead.customerId}`)}
-                        />
-                        
-                        {/* Middle Col: Workout Summary */}
-                        <WorkoutSummaryCard 
-                          customerId={lead.customerId}
-                          onViewDetails={() => navigate(`/dashboard/customers/${lead.customerId}`)}
-                          onAddPlan={() => navigate(`/dashboard/customers/${lead.customerId}`)}
-                        />
-                        
-                        {/* Right Col: Daily Protocol */}
-                        <DailyProtocolGrid customerId={lead.customerId} />
+                      {/* Customer Section - Sidebar + Main Content Grid */}
+                      <div className="grid grid-cols-12 gap-3 mb-3">
+                        {/* Left Sidebar: Customer Identity Card (3 columns) */}
+                        <div className="col-span-12 lg:col-span-3">
+                          <CustomerSidebar
+                            customerId={lead.customerId}
+                            onWhatsApp={handleWhatsApp}
+                            onCall={handleCall}
+                            onEmail={handleEmail}
+                            onAddNote={() => {}}
+                          />
+                        </div>
+
+                        {/* Right Main Content: Plans & Protocol (9 columns) */}
+                        <div className="col-span-12 lg:col-span-9">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                            {/* Nutrition Summary */}
+                            <NutritionSummaryCard 
+                              customerId={lead.customerId}
+                              onViewDetails={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                              onAddPlan={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                            />
+                            
+                            {/* Workout Summary */}
+                            <WorkoutSummaryCard 
+                              customerId={lead.customerId}
+                              onViewDetails={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                              onAddPlan={() => navigate(`/dashboard/customers/${lead.customerId}`)}
+                            />
+                            
+                            {/* Daily Protocol */}
+                            <DailyProtocolGrid customerId={lead.customerId} />
+                          </div>
+                        </div>
                       </div>
 
-                      {/* ROW 3: History Tabs - Compact Section */}
+                      {/* ROW 3: History Tabs - Full Width */}
                       <div className="flex flex-col">
                         <CustomerHistoryTabs customerId={lead.customerId} />
                       </div>

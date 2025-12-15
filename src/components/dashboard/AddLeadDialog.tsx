@@ -63,9 +63,9 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
   };
 
   const handleFormSubmit = async () => {
-    await handleSubmit();
+    const success = await handleSubmit();
     // Close dialog after successful submission
-    if (!isSubmitting) {
+    if (success) {
       onOpenChange(false);
     }
   };

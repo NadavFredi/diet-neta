@@ -128,9 +128,9 @@ export const useAddLead = () => {
     return true;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<boolean> => {
     if (!validateForm()) {
-      return;
+      return false;
     }
 
     setIsSubmitting(true);
@@ -261,7 +261,7 @@ export const useAddLead = () => {
           description: errorMessage,
           variant: 'destructive',
         });
-        return;
+        return false;
       }
 
       toast({
@@ -274,6 +274,7 @@ export const useAddLead = () => {
 
       // Reset form (dialog will be closed by parent component)
       resetForm();
+      return true;
     } catch (err: any) {
       console.error('Unexpected error adding lead:', err);
       toast({
@@ -281,6 +282,7 @@ export const useAddLead = () => {
         description: err?.message || 'אירעה שגיאה בלתי צפויה',
         variant: 'destructive',
       });
+      return false;
     } finally {
       setIsSubmitting(false);
     }

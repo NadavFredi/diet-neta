@@ -98,16 +98,16 @@ export const InlineEditableField = ({
 
   if (isEditing) {
     return (
-      <div className={cn('flex items-center justify-between py-2', className)}>
-        <span className="text-sm font-medium text-gray-500">{label}</span>
-        <div className="flex items-center gap-2 flex-1 max-w-[200px] justify-end">
+      <div className={cn('flex flex-col gap-1.5 py-1.5', className)}>
+        <span className="text-xs font-medium text-gray-500">{label}</span>
+        <div className="flex items-center gap-1.5">
           <Input
             ref={inputRef}
             type={type}
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="h-8 text-sm"
+            className="h-7 text-xs flex-1"
             disabled={isSaving}
           />
           <Button
@@ -115,18 +115,18 @@ export const InlineEditableField = ({
             variant="ghost"
             onClick={handleSave}
             disabled={isSaving}
-            className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
           >
-            <Check className="h-4 w-4" />
+            <Check className="h-3.5 w-3.5" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={handleCancel}
             disabled={isSaving}
-            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
@@ -135,25 +135,25 @@ export const InlineEditableField = ({
 
   return (
     <div
-      className={cn('flex items-center justify-between py-2 group', className)}
+      className={cn('flex flex-col gap-0.5 py-1.5 group', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <span className="text-sm font-medium text-gray-500">{label}</span>
-      <div className="flex items-center gap-2">
-        <span className={cn('text-base font-semibold text-gray-900', valueClassName)}>
+      <span className="text-xs font-medium text-gray-500">{label}</span>
+      <div className="flex items-center gap-1.5 justify-between">
+        <span className={cn('text-sm font-semibold text-gray-900 truncate', valueClassName)}>
           {displayValue}
         </span>
         {!disabled && (
           <button
             onClick={handleEdit}
             className={cn(
-              'opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600',
+              'opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 flex-shrink-0',
               isHovered && 'opacity-100'
             )}
             title="ערוך"
           >
-            <Edit className="h-3.5 w-3.5" />
+            <Edit className="h-3 w-3" />
           </button>
         )}
       </div>

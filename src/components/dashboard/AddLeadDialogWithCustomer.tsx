@@ -85,8 +85,9 @@ export const AddLeadDialogWithCustomer = ({
   };
 
   const handleFormSubmit = async () => {
-    await handleSubmit();
-    if (!isSubmitting) {
+    const success = await handleSubmit();
+    // Close dialog after successful submission
+    if (success) {
       onOpenChange(false);
     }
   };
