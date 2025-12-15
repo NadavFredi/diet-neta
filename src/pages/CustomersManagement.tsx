@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { PageHeader } from '@/components/dashboard/PageHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
@@ -12,7 +13,7 @@ import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { formatDate } from '@/utils/dashboard';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Settings, Search } from 'lucide-react';
+import { Plus, Settings, Search, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
@@ -133,18 +134,19 @@ const CustomersManagement = () => {
           
           <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
             <div className="p-6">
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
-                <div className="mb-4">
-                  <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
-                    <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">
-                      {savedView?.view_name || 'ניהול לקוחות'}
-                    </h2>
+              {/* Unified Workspace Panel - Master Container */}
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                {/* Header Section - Control Deck */}
+                <PageHeader
+                  title={savedView?.view_name || 'ניהול לקוחות'}
+                  icon={UserCircle}
+                  actions={
                     <div className="flex items-center gap-3">
                       <Input
                         placeholder="חיפוש לפי שם, טלפון או אימייל..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-64 h-11 text-base bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
+                        className="w-64 h-11 text-base bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-white focus:bg-white focus:border-indigo-400 transition-colors"
                       />
                       <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                         <PopoverTrigger asChild>
@@ -177,22 +179,25 @@ const CustomersManagement = () => {
                         הגדרות
                       </Button>
                     </div>
-                  </div>
-                </div>
+                  }
+                />
 
-                {isLoadingCustomers ? (
-                  <div className="text-center py-12">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <p className="mt-4 text-gray-600">טוען לקוחות...</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="mb-4 text-base font-medium text-gray-700">
-                      {filteredCustomers.length} לקוח נמצאו
+                {/* Table Section - Data Area */}
+                <div className="bg-white">
+                  {isLoadingCustomers ? (
+                    <div className="text-center py-12">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <p className="mt-4 text-gray-600">טוען לקוחות...</p>
                     </div>
-                    <CustomersDataTable customers={filteredCustomers} />
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <div className="px-6 py-4 text-base font-medium text-gray-700 border-b border-slate-200">
+                        {filteredCustomers.length} לקוח נמצאו
+                      </div>
+                      <CustomersDataTable customers={filteredCustomers} />
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </main>

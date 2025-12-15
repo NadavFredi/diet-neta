@@ -5,7 +5,8 @@ import { LeadsDataTable } from '@/components/dashboard/LeadsDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
-import { Plus, Settings } from 'lucide-react';
+import { PageHeader } from '@/components/dashboard/PageHeader';
+import { Plus, Settings, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -117,50 +118,52 @@ const Dashboard = () => {
         {/* Main content */}
         <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
           <div className="p-6">
-            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
-                <div className="mb-4">
-                  <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
-                    <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">
-                      {savedView?.view_name || 'ניהול לידים'}
-                    </h2>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        placeholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
-                        value={searchQuery}
-                        onChange={(e) => handleSearchChange(e.target.value)}
-                        className="w-64 h-11 text-base bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
-                      />
-                      <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                        <PopoverTrigger asChild>
+            {/* Unified Workspace Panel - Master Container */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              {/* Header Section - Control Deck */}
+              <PageHeader
+                title={savedView?.view_name || 'ניהול לידים'}
+                icon={Users}
+                actions={
+                  <div className="flex items-center gap-3">
+                    <Input
+                      placeholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
+                      value={searchQuery}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      className="w-64 h-11 text-base bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-white focus:bg-white focus:border-indigo-400 transition-colors"
+                    />
+                    <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                      <PopoverTrigger asChild>
                           <Button 
                             type="button"
                             variant="outline" 
                             size="icon" 
-                            className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-gray-300 transition-all rounded-lg flex-shrink-0 w-11 h-11 bg-white shadow-sm"
+                            className="text-gray-700 hover:bg-gray-50 hover:text-gray-900 border-indigo-200/60 transition-all rounded-lg flex-shrink-0 w-11 h-11 bg-white shadow-sm"
                             title="הגדרות עמודות"
                             aria-label="הגדרות עמודות"
                           >
-                            <Settings className="h-6 w-6 flex-shrink-0" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
-                          <ColumnSettings
-                            columnVisibility={columnVisibility}
-                            onToggleColumn={handleToggleColumn}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <Button
-                        onClick={handleAddLead}
-                        className="bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm hover:shadow-md flex items-center gap-2 flex-shrink-0"
-                        size="sm"
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span>הוסף ליד</span>
-                      </Button>
-                    </div>
+                          <Settings className="h-6 w-6 flex-shrink-0" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
+                        <ColumnSettings
+                          columnVisibility={columnVisibility}
+                          onToggleColumn={handleToggleColumn}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button
+                      onClick={handleAddLead}
+                      className="bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm hover:shadow-md flex items-center gap-2 flex-shrink-0"
+                      size="sm"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>הוסף ליד</span>
+                    </Button>
                   </div>
-                  <div className="mb-3">
+                }
+                filters={
+                  <div>
                     <div className="grid grid-cols-9 gap-2">
                       <div className="flex flex-col">
                         <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
@@ -170,7 +173,7 @@ const Dashboard = () => {
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
-                              className="bg-gray-50 text-gray-900 hover:bg-white border border-gray-200 shadow-sm transition-all hover:shadow-md h-10 text-sm px-3"
+                              className="bg-white text-gray-900 hover:bg-gray-50 border border-gray-200 shadow-sm transition-all hover:shadow-md h-10 text-sm px-3"
                             >
                               <CalendarIcon className="ml-1 h-3 w-3" />
                               {selectedDate ? formatDate(selectedDate) : 'בחר תאריך'}
@@ -194,7 +197,7 @@ const Dashboard = () => {
                           value={selectedStatus || 'all'}
                           onValueChange={handleStatusChange}
                         >
-                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-gray-50 transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -212,7 +215,7 @@ const Dashboard = () => {
                           גיל
                         </label>
                         <Select value={selectedAge || 'all'} onValueChange={handleAgeChange}>
-                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-gray-50 transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -230,7 +233,7 @@ const Dashboard = () => {
                           גובה
                         </label>
                         <Select value={selectedHeight || 'all'} onValueChange={handleHeightChange}>
-                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-gray-50 transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -248,7 +251,7 @@ const Dashboard = () => {
                           משקל
                         </label>
                         <Select value={selectedWeight || 'all'} onValueChange={handleWeightChange}>
-                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-gray-50 transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -269,7 +272,7 @@ const Dashboard = () => {
                           value={selectedFitnessGoal || 'all'}
                           onValueChange={handleFitnessGoalChange}
                         >
-                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-gray-50 transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -290,7 +293,7 @@ const Dashboard = () => {
                           value={selectedActivityLevel || 'all'}
                           onValueChange={handleActivityLevelChange}
                         >
-                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-gray-50 transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -311,7 +314,7 @@ const Dashboard = () => {
                           value={selectedPreferredTime || 'all'}
                           onValueChange={handlePreferredTimeChange}
                         >
-                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-gray-50 transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -329,7 +332,7 @@ const Dashboard = () => {
                           מקור
                         </label>
                         <Select value={selectedSource || 'all'} onValueChange={handleSourceChange}>
-                          <SelectTrigger className="h-10 text-sm bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white transition-all hover:shadow-md">
+                          <SelectTrigger className="h-10 text-sm bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-gray-50 transition-all hover:shadow-md">
                             <SelectValue placeholder="הכל" />
                           </SelectTrigger>
                           <SelectContent dir="rtl" className="shadow-xl">
@@ -343,15 +346,20 @@ const Dashboard = () => {
                         </Select>
                       </div>
                     </div>
+                    <p className="text-base text-gray-600 mt-3 font-medium">
+                      {filteredLeads.length} {filteredLeads.length === 1 ? 'ליד' : 'לידים'} נמצאו
+                    </p>
                   </div>
-                  <p className="text-base text-gray-600 mt-2 font-medium">
-                    {filteredLeads.length} {filteredLeads.length === 1 ? 'ליד' : 'לידים'} נמצאו
-                  </p>
-                </div>
+                }
+              />
+              
+              {/* Table Section - Data Area */}
+              <div className="bg-white">
                 <LeadsDataTable leads={filteredLeads} columnVisibility={columnVisibility} />
               </div>
             </div>
-          </main>
+          </div>
+        </main>
       </div>
 
     </div>

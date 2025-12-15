@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { PageHeader } from '@/components/dashboard/PageHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { Plus, Settings, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -249,18 +250,19 @@ const NutritionTemplatesManagement = () => {
           
           <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
             <div className="p-6">
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200/50">
-                <div className="mb-4">
-                  <div className="mb-3 flex items-center justify-between gap-4" dir="rtl">
-                    <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">
-                      {savedView?.view_name || 'תבניות תזונה'}
-                    </h2>
+              {/* Unified Workspace Panel - Master Container */}
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                {/* Header Section - Control Deck */}
+                <PageHeader
+                  title={savedView?.view_name || 'תבניות תזונה'}
+                  icon={Apple}
+                  actions={
                     <div className="flex items-center gap-3">
                       <Input
                         placeholder="חיפוש לפי שם או תיאור..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-64 h-11 text-base bg-gray-50 text-gray-900 border border-gray-200 shadow-sm hover:bg-white focus:bg-white focus:border-blue-500 transition-colors"
+                        className="w-64 h-11 text-base bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-white focus:bg-white focus:border-indigo-400 transition-colors"
                         dir="rtl"
                       />
                       <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -269,7 +271,7 @@ const NutritionTemplatesManagement = () => {
                             type="button"
                             variant="outline" 
                             size="icon" 
-                            className="text-gray-700 hover:bg-gray-100 hover:text-gray-900 border-gray-300 transition-all rounded-lg flex-shrink-0 w-11 h-11 bg-white shadow-sm"
+                            className="text-gray-700 hover:bg-gray-50 hover:text-gray-900 border-indigo-200/60 transition-all rounded-lg flex-shrink-0 w-11 h-11 bg-white shadow-sm"
                             title="הגדרות עמודות"
                             aria-label="הגדרות עמודות"
                           >
@@ -292,51 +294,55 @@ const NutritionTemplatesManagement = () => {
                         <span>הוסף תבנית</span>
                       </Button>
                     </div>
-                  </div>
-                  <div className="mb-3">
-                    <div className="grid grid-cols-4 gap-2">
-                      <div className="flex flex-col">
-                        <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
-                          תאריך יצירה
-                        </label>
-                        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="bg-gray-50 text-gray-900 hover:bg-white border border-gray-200 shadow-sm transition-all hover:shadow-md h-10 text-sm px-3"
-                            >
-                              <CalendarIcon className="ml-1 h-3 w-3" />
-                              {selectedDate ? formatDate(format(selectedDate, 'yyyy-MM-dd')) : 'בחר תאריך'}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 shadow-xl" align="start" dir="rtl">
-                            <Calendar
-                              mode="single"
-                              selected={selectedDate}
-                              onSelect={handleDateSelect}
-                              locale={he}
-                            />
-                          </PopoverContent>
-                        </Popover>
+                  }
+                  filters={
+                    <div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="flex flex-col">
+                          <label className="text-sm font-medium text-gray-600 mb-1.5 text-right">
+                            תאריך יצירה
+                          </label>
+                          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="bg-white text-gray-900 hover:bg-gray-50 border border-indigo-200/60 shadow-sm transition-all hover:shadow-md h-10 text-sm px-3"
+                              >
+                                <CalendarIcon className="ml-1 h-3 w-3" />
+                                {selectedDate ? formatDate(format(selectedDate, 'yyyy-MM-dd')) : 'בחר תאריך'}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 shadow-xl" align="start" dir="rtl">
+                              <Calendar
+                                mode="single"
+                                selected={selectedDate}
+                                onSelect={handleDateSelect}
+                                locale={he}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </div>
+                      <p className="text-base text-gray-600 mt-3 font-medium">
+                        {filteredTemplates.length} {filteredTemplates.length === 1 ? 'תבנית' : 'תבניות'} נמצאו
+                      </p>
                     </div>
-                  </div>
-                  <p className="text-base text-gray-600 mt-2 mb-3 font-medium">
-                    {filteredTemplates.length} {filteredTemplates.length === 1 ? 'תבנית' : 'תבניות'} נמצאו
-                  </p>
+                  }
+                />
+                
+                {/* Table Section - Data Area */}
+                <div className="bg-white">
+                  {isLoading ? (
+                    <div className="p-8 text-center text-gray-500">טוען...</div>
+                  ) : (
+                    <NutritionTemplatesDataTable
+                      templates={filteredTemplates}
+                      columnVisibility={columnVisibility}
+                      onEdit={handleEditTemplate}
+                      onDelete={handleDeleteClick}
+                    />
+                  )}
                 </div>
-
-                {/* Templates Table */}
-                {isLoading ? (
-                  <div className="p-8 text-center text-gray-500">טוען...</div>
-                ) : (
-                  <NutritionTemplatesDataTable
-                    templates={filteredTemplates}
-                    columnVisibility={columnVisibility}
-                    onEdit={handleEditTemplate}
-                    onDelete={handleDeleteClick}
-                  />
-                )}
               </div>
             </div>
           </main>
