@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Footprints } from 'lucide-react';
+import { Footprints, Dumbbell } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
@@ -58,12 +58,12 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
   }
 
   return (
-    <Card className="p-4 border border-gray-200 bg-white shadow-sm">
+    <Card className="p-6 border-2 border-gray-200/60 bg-white rounded-2xl shadow-lg">
       <Tabs value={activeHistoryTab} onValueChange={setActiveHistoryTab} dir="rtl" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4 h-10">
-          <TabsTrigger value="leads" className="text-sm">היסטוריית לידים</TabsTrigger>
-          <TabsTrigger value="workouts" className="text-sm">יומן אימונים</TabsTrigger>
-          <TabsTrigger value="steps" className="text-sm">יומן צעדים</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 mb-6 h-12 bg-gray-100 rounded-xl p-1">
+          <TabsTrigger value="leads" className="text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all">היסטוריית לידים</TabsTrigger>
+          <TabsTrigger value="workouts" className="text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all">יומן אימונים</TabsTrigger>
+          <TabsTrigger value="steps" className="text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all">יומן צעדים</TabsTrigger>
         </TabsList>
 
         {/* Leads History Tab */}
@@ -73,41 +73,43 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
               אין לידים עבור לקוח זה
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-xl border-2 border-gray-100">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-right text-sm">תאריך יצירה</TableHead>
-                    <TableHead className="text-right text-sm">סטטוס</TableHead>
-                    <TableHead className="text-right text-sm">מקור</TableHead>
-                    <TableHead className="text-right text-sm">מטרת כושר</TableHead>
-                    <TableHead className="text-right text-sm">פעולות</TableHead>
+                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b-2 border-gray-200">
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">תאריך יצירה</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">סטטוס</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">מקור</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">מטרת כושר</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">פעולות</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {customer.leads
                     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                    .map((lead) => (
+                    .map((lead, index) => (
                       <TableRow
                         key={lead.id}
-                        className="cursor-pointer hover:bg-gray-50"
+                        className={`cursor-pointer transition-all duration-200 ${
+                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                        } hover:bg-blue-50 hover:shadow-sm border-b border-gray-100`}
                         onClick={() => navigate(`/leads/${lead.id}`)}
                       >
-                        <TableCell className="text-sm font-medium">
+                        <TableCell className="text-sm font-semibold text-gray-900 py-4">
                           {formatDate(lead.created_at)}
                         </TableCell>
-                        <TableCell>
-                          <Badge className={`${getStatusColor(lead.status_main || lead.status_sub)} text-xs px-2 py-1`}>
+                        <TableCell className="py-4">
+                          <Badge className={`${getStatusColor(lead.status_main || lead.status_sub)} text-xs px-3 py-1.5 font-semibold shadow-sm`}>
                             {lead.status_sub || lead.status_main || 'ללא סטטוס'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm">{lead.source || '-'}</TableCell>
-                        <TableCell className="text-sm">{lead.fitness_goal || '-'}</TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="text-sm font-medium text-gray-700 py-4">{lead.source || '-'}</TableCell>
+                        <TableCell className="text-sm font-medium text-gray-700 py-4">{lead.fitness_goal || '-'}</TableCell>
+                        <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-xs"
+                            className="text-xs rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors"
                             onClick={() => navigate(`/leads/${lead.id}`)}
                           >
                             צפה פרטים
@@ -124,46 +126,51 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
         {/* Workout Log Tab */}
         <TabsContent value="workouts" className="mt-0">
           {workoutPlanHistory.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 text-sm">
-              אין היסטוריה של תוכניות אימון
+            <div className="text-center py-16">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <Dumbbell className="h-8 w-8 text-gray-400" />
+              </div>
+              <p className="text-gray-500 text-sm font-medium">אין היסטוריה של תוכניות אימון</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-xl border-2 border-gray-100">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-right text-sm">תאריך התחלה</TableHead>
-                    <TableHead className="text-right text-sm">תיאור</TableHead>
-                    <TableHead className="text-right text-sm">כוח</TableHead>
-                    <TableHead className="text-right text-sm">קרדיו</TableHead>
-                    <TableHead className="text-right text-sm">אינטרוולים</TableHead>
-                    <TableHead className="text-right text-sm">סטטוס</TableHead>
+                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b-2 border-gray-200">
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">תאריך התחלה</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">תיאור</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">כוח</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">קרדיו</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">אינטרוולים</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-gray-900 py-4">סטטוס</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {workoutPlanHistory.map((plan) => (
+                  {workoutPlanHistory.map((plan, index) => (
                     <TableRow
                       key={plan.id}
-                      className="cursor-pointer hover:bg-gray-50"
+                      className={`cursor-pointer transition-all duration-200 ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                      } hover:bg-blue-50 hover:shadow-sm border-b border-gray-100`}
                     >
-                      <TableCell className="text-sm font-medium">
+                      <TableCell className="text-sm font-semibold text-gray-900 py-4">
                         {formatDate(plan.start_date)}
                       </TableCell>
-                      <TableCell className="text-sm max-w-xs truncate">
+                      <TableCell className="text-sm max-w-xs truncate font-semibold text-gray-900 py-4">
                         {plan.description || '-'}
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs px-2 py-1">
+                      <TableCell className="py-4">
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-2 border-blue-200 text-xs px-3 py-1.5 font-semibold shadow-sm">
                           {plan.strength}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-2 py-1">
+                      <TableCell className="py-4">
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-2 border-red-200 text-xs px-3 py-1.5 font-semibold shadow-sm">
                           {plan.cardio}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs px-2 py-1">
+                      <TableCell className="py-4">
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-2 border-purple-200 text-xs px-3 py-1.5 font-semibold shadow-sm">
                           {plan.intervals}
                         </Badge>
                       </TableCell>
@@ -237,8 +244,11 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
         {/* Steps Log Tab */}
         <TabsContent value="steps" className="mt-0">
           {(!customer.steps_history || customer.steps_history.length === 0) ? (
-            <div className="text-center py-12 text-gray-500 text-sm">
-              אין היסטוריית צעדים
+            <div className="text-center py-16">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-200 flex items-center justify-center">
+                <Footprints className="h-8 w-8 text-cyan-400" />
+              </div>
+              <p className="text-gray-500 text-sm font-medium">אין היסטוריית צעדים</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -247,35 +257,35 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
                 return (
                   <div
                     key={index}
-                    className={`flex items-center justify-between p-4 rounded-lg border-2 ${
+                    className={`flex items-center justify-between p-5 rounded-xl border-2 transition-all duration-200 ${
                       isCurrent
-                        ? 'bg-cyan-50 border-cyan-200 shadow-sm'
-                        : 'bg-gray-50 border-gray-200'
+                        ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-300 shadow-md hover:shadow-lg'
+                        : 'bg-white border-gray-200 hover:bg-gray-50 hover:shadow-sm'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        isCurrent ? 'bg-cyan-200' : 'bg-gray-200'
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md ${
+                        isCurrent ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' : 'bg-gradient-to-br from-gray-300 to-gray-400'
                       }`}>
-                        <Footprints className={`h-5 w-5 ${isCurrent ? 'text-cyan-700' : 'text-gray-500'}`} />
+                        <Footprints className={`h-6 w-6 text-white`} />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-sm font-bold ${isCurrent ? 'text-cyan-900' : 'text-gray-700'}`}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className={`text-base font-bold ${isCurrent ? 'text-cyan-900' : 'text-gray-900'}`}>
                             {step.weekNumber || step.week || `שבוע ${index + 1}`}
                           </span>
                           {isCurrent && (
-                            <Badge className="bg-cyan-200 text-cyan-700 text-xs px-2 py-0.5">
+                            <Badge className="bg-gradient-to-r from-cyan-500 to-cyan-600 text-white border-0 text-xs px-3 py-1 font-semibold shadow-sm">
                               פעיל
                             </Badge>
                           )}
                         </div>
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-gray-600 font-medium">
                           {step.startDate ? formatDate(step.startDate) : step.dates || ''} - {step.endDate ? formatDate(step.endDate) : ''}
                         </div>
                       </div>
                     </div>
-                    <span className={`text-xl font-bold ${isCurrent ? 'text-cyan-900' : 'text-gray-900'}`}>
+                    <span className={`text-2xl font-bold ${isCurrent ? 'text-cyan-900' : 'text-gray-900'}`}>
                       {(step.target || 0).toLocaleString('he-IL')} צעדים
                     </span>
                   </div>

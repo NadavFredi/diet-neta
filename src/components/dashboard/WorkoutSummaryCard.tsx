@@ -83,7 +83,7 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
 
   return (
     <Card 
-      className="p-3 border border-gray-200 bg-white cursor-pointer hover:border-blue-300 transition-colors shadow-sm"
+      className="p-5 border-2 border-gray-200/60 bg-white rounded-2xl cursor-pointer hover:border-blue-400 hover:shadow-lg transition-all duration-300 shadow-md"
       onClick={workoutPlan ? onViewDetails : onAddPlan}
     >
       {isLoading ? (
@@ -91,11 +91,13 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
           <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
         </div>
       ) : workoutPlan ? (
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Dumbbell className="h-4 w-4 text-blue-600" />
-              <h3 className="text-sm font-bold text-gray-900">תוכנית אימונים</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b-2 border-gray-100">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                <Dumbbell className="h-5 w-5 text-white" />
+              </div>
+              <h3 className="text-base font-bold text-gray-900">תוכנית אימונים</h3>
             </div>
             <div onClick={(e) => e.stopPropagation()}>
               <Select
@@ -131,27 +133,27 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-blue-50 rounded-lg border border-blue-100 p-3 text-center">
-              <p className="text-xs text-blue-600 mb-1">כוח</p>
-              <p className="text-xl font-bold text-blue-900">{workoutPlan.strength}</p>
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200/60 p-4 text-center shadow-sm hover:shadow-md transition-all">
+              <p className="text-xs text-blue-700 font-semibold mb-1.5">כוח</p>
+              <p className="text-2xl font-bold text-blue-900">{workoutPlan.strength}</p>
             </div>
-            <div className="bg-red-50 rounded-lg border border-red-100 p-3 text-center">
-              <p className="text-xs text-red-600 mb-1">קרדיו</p>
-              <p className="text-xl font-bold text-red-900">{workoutPlan.cardio}</p>
+            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl border-2 border-red-200/60 p-4 text-center shadow-sm hover:shadow-md transition-all">
+              <p className="text-xs text-red-700 font-semibold mb-1.5">קרדיו</p>
+              <p className="text-2xl font-bold text-red-900">{workoutPlan.cardio}</p>
             </div>
-            <div className="bg-purple-50 rounded-lg border border-purple-100 p-3 text-center">
-              <p className="text-xs text-purple-600 mb-1">אינטרוולים</p>
-              <p className="text-xl font-bold text-purple-900">{workoutPlan.intervals}</p>
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200/60 p-4 text-center shadow-sm hover:shadow-md transition-all">
+              <p className="text-xs text-purple-700 font-semibold mb-1.5">אינטרוולים</p>
+              <p className="text-2xl font-bold text-purple-900">{workoutPlan.intervals}</p>
             </div>
           </div>
           {/* Top 3 Exercises Preview */}
           {getTopExercises(workoutPlan).length > 0 && (
-            <div className="pt-3 border-t border-gray-100">
-              <p className="text-xs text-gray-500 mb-2">תרגילים מובילים:</p>
-              <ul className="space-y-1">
+            <div className="pt-4 border-t-2 border-gray-100">
+              <p className="text-xs font-semibold text-gray-700 mb-2.5">תרגילים מובילים:</p>
+              <ul className="space-y-2">
                 {getTopExercises(workoutPlan).map((exercise, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                  <li key={idx} className="text-sm font-medium text-gray-800 flex items-center gap-2.5">
+                    <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-sm"></div>
                     {exercise}
                   </li>
                 ))}
@@ -160,18 +162,21 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
           )}
         </div>
       ) : (
-        <div className="text-center py-4">
-          <Dumbbell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-          <h3 className="text-xs font-semibold text-gray-900 mb-1.5">אין תוכנית אימונים</h3>
+        <div className="text-center py-8 px-4">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shadow-lg">
+            <Dumbbell className="h-10 w-10 text-blue-600" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 mb-2">אין תוכנית אימונים</h3>
+          <p className="text-xs text-gray-500 mb-4">צור תוכנית אימונים מותאמת אישית</p>
           <Button 
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white mt-1.5 text-xs h-7"
+            size="lg"
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 px-6 py-2.5"
             onClick={(e) => {
               e.stopPropagation();
               onAddPlan?.();
             }}
           >
-            <Download className="h-3 w-3 ml-1.5" />
+            <Download className="h-4 w-4 ml-2" />
             הוסף תוכנית
           </Button>
         </div>

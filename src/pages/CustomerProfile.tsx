@@ -343,18 +343,32 @@ const CustomerProfile = () => {
                     <ArrowRight className="ml-2 h-5 w-5" />
                     חזור
                   </Button>
-                  <div className="flex flex-col">
-                    <h1 className="text-2xl font-bold text-gray-900">{customer.full_name}</h1>
-                    {/* Supabase row ID - visible only in dev mode, clickable to hide */}
-                    {devMode && (
-                      <span 
-                        className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 transition-colors"
-                        onClick={() => setDevMode(false)}
-                        title="Click to hide"
+                  <div className="flex items-center gap-4">
+                    {/* Avatar */}
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 flex items-center justify-center text-white text-lg font-bold shadow-md flex-shrink-0">
+                      {getInitials(customer.full_name)}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <h1 
+                        className="text-xl font-bold text-black leading-none tracking-tight inline-block px-3 py-1.5 rounded-lg border-2"
+                        style={{
+                          borderColor: 'rgb(99, 102, 241)',
+                          backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                        }}
                       >
-                        ID: <span className="font-mono">{customer.id}</span>
-                      </span>
-                    )}
+                        {customer.full_name}
+                      </h1>
+                      {/* Supabase row ID - visible only in dev mode, clickable to hide */}
+                      {devMode && (
+                        <span 
+                          className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 transition-colors px-2 py-1 bg-white/50 rounded-lg"
+                          onClick={() => setDevMode(false)}
+                          title="Click to hide"
+                        >
+                          ID: <span className="font-mono">{customer.id}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <Button

@@ -169,62 +169,149 @@ const LeadDetails = () => {
         <div className="flex flex-1 overflow-hidden relative">
           <DashboardSidebar />
           <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px', minHeight: 'calc(100vh - 88px)' }}>
-            <div className="p-4">
-              <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-200/50">
-                {/* Header */}
-                <div className="mb-4 pb-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
+            <div className="p-6">
+              <div className="bg-white rounded-3xl p-8 shadow-2xl border-2 border-gray-200/60">
+                {/* Section A: Profile Header & Actions - Modern Hero Card */}
+                <Card className="mb-6 p-6 bg-gradient-to-br from-blue-50 via-purple-50/30 to-pink-50/20 border-2 border-blue-100/50 rounded-2xl shadow-lg">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <Button
                         onClick={handleBack}
                         variant="ghost"
-                        className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        size="sm"
+                        className="text-gray-600 hover:text-gray-900 hover:bg-white/60 rounded-xl"
                       >
-                        <ArrowRight className="ml-2 h-5 w-5" />
+                        <ArrowRight className="ml-2 h-4 w-4" />
                         חזור לדשבורד
                       </Button>
-                      <div className="flex items-center gap-3">
-                        {/* Avatar */}
+                      <div className="flex items-center gap-4">
+                        {/* Avatar - Larger and more prominent */}
                         {customer && (
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold shadow-lg flex-shrink-0">
+                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 flex items-center justify-center text-white text-xl font-bold shadow-xl flex-shrink-0 ring-4 ring-white/50">
                             {getInitials(customer.full_name)}
                           </div>
                         )}
-                        <div>
-                          <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                            {lead.customerId ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/dashboard/customers/${lead.customerId}`);
-                                }}
-                                className="hover:underline text-blue-600 hover:text-blue-700"
-                              >
-                                {lead.name}
-                              </button>
-                            ) : (
-                              lead.name
-                            )}
-                          </h1>
-                          {/* Supabase row ID - visible only in dev mode, clickable to hide */}
-                          {devMode && (
-                            <span 
-                              className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 transition-colors"
-                              onClick={() => setDevMode(false)}
-                              title="Click to hide"
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-3">
+                            <h1 
+                              className="text-xl font-bold text-black leading-none tracking-tight inline-block px-3 py-1.5 rounded-lg border-2"
+                              style={{
+                                borderColor: 'rgb(99, 102, 241)',
+                                backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                              }}
                             >
-                              ID: <span className="font-mono">{lead.id}</span>
-                            </span>
-                          )}
+                              {lead.customerId ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/dashboard/customers/${lead.customerId}`);
+                                  }}
+                                  className="hover:underline transition-colors"
+                                >
+                                  {lead.name}
+                                </button>
+                              ) : (
+                                lead.name
+                              )}
+                            </h1>
+                            {/* Supabase row ID - visible only in dev mode */}
+                            {devMode && (
+                              <span 
+                                className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 transition-colors px-2 py-1 bg-white/50 rounded-lg"
+                                onClick={() => setDevMode(false)}
+                                title="Click to hide"
+                              >
+                                ID: <span className="font-mono">{lead.id}</span>
+                              </span>
+                            )}
+                          </div>
+                          {/* Status Badge - Prominent in header */}
+                          <div className="flex items-center gap-2">
+                            <Popover open={isOpen} onOpenChange={(open) => open ? handleOpen() : handleClose()}>
+                              <PopoverTrigger asChild>
+                                <button
+                                  className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-xl text-sm font-semibold border-2 shadow-sm transition-all hover:shadow-md ${getStatusColor(lead.status)}`}
+                                >
+                                  {lead.status}
+                                  <Edit className="h-3.5 w-3.5" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-80 p-4" align="start" dir="rtl">
+                                <div className="space-y-4">
+                                  <h3 className="font-semibold text-gray-900 mb-3">עדכן סטטוס</h3>
+                                  
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700">
+                                      סטטוס ראשי
+                                    </label>
+                                    <Select
+                                      value={selectedCategory}
+                                      onValueChange={handleCategoryChange}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="בחר סטטוס ראשי" />
+                                      </SelectTrigger>
+                                      <SelectContent dir="rtl">
+                                        {STATUS_CATEGORIES.map((category) => (
+                                          <SelectItem key={category.id} value={category.id}>
+                                            {category.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  {hasSubStatuses && selectedCategoryData?.subStatuses && (
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium text-gray-700">
+                                        סטטוס משני
+                                      </label>
+                                      <Select
+                                        value={selectedSubStatus}
+                                        onValueChange={handleSubStatusChange}
+                                      >
+                                        <SelectTrigger className="w-full">
+                                          <SelectValue placeholder="בחר סטטוס משני" />
+                                        </SelectTrigger>
+                                        <SelectContent dir="rtl">
+                                          {selectedCategoryData.subStatuses.map((subStatus) => (
+                                            <SelectItem key={subStatus.id} value={subStatus.id}>
+                                              {subStatus.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center gap-2 pt-2">
+                                    <Button
+                                      onClick={handleSave}
+                                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                      שמור
+                                    </Button>
+                                    <Button
+                                      onClick={handleClose}
+                                      variant="outline"
+                                      className="flex-1"
+                                    >
+                                      ביטול
+                                    </Button>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Contact Actions */}
-                    <div className="flex items-center gap-3">
+                    {/* Contact Actions - Modern Icon Buttons */}
+                    <div className="flex items-center gap-2">
                       <Button
                         onClick={handleCall}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all h-11 px-4"
                         size="lg"
                       >
                         <Phone className="ml-2 h-5 w-5" />
@@ -232,7 +319,7 @@ const LeadDetails = () => {
                       </Button>
                       <Button
                         onClick={handleWhatsApp}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all h-11 px-4"
                         size="lg"
                       >
                         <MessageCircle className="ml-2 h-5 w-5" />
@@ -241,7 +328,7 @@ const LeadDetails = () => {
                       <Button
                         onClick={handleEmail}
                         variant="outline"
-                        className="border-gray-300 hover:bg-gray-50"
+                        className="border-2 border-gray-300 hover:bg-gray-50 rounded-xl shadow-sm hover:shadow-md transition-all h-11 px-4"
                         size="lg"
                       >
                         <Mail className="ml-2 h-5 w-5" />
@@ -249,13 +336,13 @@ const LeadDetails = () => {
                       </Button>
                     </div>
                   </div>
-                </div>
+                </Card>
 
-                {/* Notes Section - Top Priority */}
+                {/* Notes Section - Modernized */}
                 {lead.notes && (
-                  <Card className="p-4 bg-white border-gray-200 mb-4">
-                    <h2 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-gray-600" />
+                  <Card className="p-5 bg-gradient-to-br from-amber-50/50 to-orange-50/30 border-2 border-amber-200/50 rounded-2xl shadow-md mb-6">
+                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-amber-600" />
                       הערות
                     </h2>
                     <InlineEditableField
@@ -275,24 +362,26 @@ const LeadDetails = () => {
                 )}
 
                 {/* Unified Super-View Dashboard */}
-                <div className="flex flex-col gap-6">
-                  {/* SECTION 1: LEAD DATA (Sales/CRM) */}
+                <div className="flex flex-col gap-8">
+                  {/* SECTION B: CRM / LEAD DATA (Sales/CRM) */}
                   <div>
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="h-0.5 flex-1 bg-gradient-to-l from-blue-300 via-blue-400 to-blue-300"></div>
-                      <h2 className="text-lg font-bold text-blue-900 px-3 py-1.5 bg-blue-50 rounded-md border border-blue-200 whitespace-nowrap">
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="h-1 flex-1 bg-gradient-to-l from-blue-200 via-blue-400 to-blue-200 rounded-full"></div>
+                      <h2 className="text-xl font-bold text-blue-900 px-6 py-2.5 bg-gradient-to-r from-blue-50 to-blue-100 rounded-2xl border-2 border-blue-200 shadow-sm whitespace-nowrap">
                         נתוני ליד (מכירות/CRM)
                       </h2>
-                      <div className="h-0.5 flex-1 bg-gradient-to-r from-blue-300 via-blue-400 to-blue-300"></div>
+                      <div className="h-1 flex-1 bg-gradient-to-r from-blue-200 via-blue-400 to-blue-200 rounded-full"></div>
                     </div>
 
-                    {/* Lead Section - Main Content Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Lead Section - Modernized Grid with Better Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {/* Card A: Personal Info */}
-                          <Card className="p-3 bg-white border-gray-200">
-                            <h2 className="text-base font-bold text-gray-900 mb-2 flex items-center gap-2">
-                              <User className="h-4 w-4 text-blue-600" />
-                              מידע אישי
+                          <Card className="p-5 bg-white border-2 border-gray-200/60 rounded-2xl shadow-md hover:shadow-lg transition-all duration-300">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 pb-3 border-b-2 border-gray-100">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                                <User className="h-5 w-5 text-white" />
+                              </div>
+                              <span>מידע אישי</span>
                             </h2>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-0">
                               <div>
@@ -385,10 +474,12 @@ const LeadDetails = () => {
                           </Card>
 
                           {/* Card B: Subscription Details */}
-                          <Card className="p-3 bg-white border-gray-200">
-                            <h2 className="text-base font-bold text-gray-900 mb-2 flex items-center gap-2">
-                              <Wallet className="h-4 w-4 text-green-600" />
-                              פרטי מנוי
+                          <Card className="p-5 bg-white border-2 border-gray-200/60 rounded-2xl shadow-md hover:shadow-lg transition-all duration-300">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 pb-3 border-b-2 border-gray-100">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-md">
+                                <Wallet className="h-5 w-5 text-white" />
+                              </div>
+                              <span>פרטי מנוי</span>
                             </h2>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-0">
                               <div>
@@ -406,12 +497,12 @@ const LeadDetails = () => {
                                   className="border-b border-gray-100"
                                 />
                               </div>
-                              <div className="flex items-center justify-between py-1.5 border-b border-gray-100 bg-blue-50 rounded-md px-2">
-                                <span className="text-xs font-medium text-blue-700 flex items-center gap-1.5">
-                                  <TrendingUp className="h-3.5 w-3.5" />
+                              <div className="flex items-center justify-between py-2.5 border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl px-3 shadow-sm">
+                                <span className="text-sm font-semibold text-blue-700 flex items-center gap-2">
+                                  <TrendingUp className="h-4 w-4" />
                                   שבוע נוכחי
                                 </span>
-                                <span className="text-sm font-bold text-blue-900">
+                                <span className="text-lg font-bold text-blue-900">
                                   {lead.subscription.currentWeekInProgram}
                                 </span>
                               </div>
@@ -494,10 +585,12 @@ const LeadDetails = () => {
                           </Card>
 
                           {/* Card C: Fitness Info */}
-                          <Card className="p-3 bg-white border-gray-200">
-                            <h2 className="text-base font-bold text-gray-900 mb-2 flex items-center gap-2">
-                              <Target className="h-4 w-4 text-green-600" />
-                              מידע כושר
+                          <Card className="p-5 bg-white border-2 border-gray-200/60 rounded-2xl shadow-md hover:shadow-lg transition-all duration-300">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 pb-3 border-b-2 border-gray-100">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-md">
+                                <Target className="h-5 w-5 text-white" />
+                              </div>
+                              <span>מידע כושר</span>
                             </h2>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-0">
                               <div>
@@ -577,19 +670,19 @@ const LeadDetails = () => {
                     </div>
                   </div>
 
-                  {/* SECTION 2: CUSTOMER DATA (Coaching) */}
+                  {/* SECTION C: CLIENT / TRAINING DATA */}
                   {lead.customerId ? (
-                    <div>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="h-0.5 flex-1 bg-gradient-to-l from-orange-300 via-orange-400 to-orange-300"></div>
-                        <h2 className="text-lg font-bold text-orange-900 px-3 py-1.5 bg-orange-50 rounded-md border border-orange-200 whitespace-nowrap">
+                    <div className="bg-gradient-to-br from-orange-50/30 via-pink-50/20 to-amber-50/30 rounded-3xl p-6 border-2 border-orange-200/50 shadow-lg">
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="h-1 flex-1 bg-gradient-to-l from-orange-200 via-orange-400 to-orange-200 rounded-full"></div>
+                        <h2 className="text-xl font-bold text-orange-900 px-6 py-2.5 bg-gradient-to-r from-orange-50 to-orange-100 rounded-2xl border-2 border-orange-200 shadow-sm whitespace-nowrap">
                           נתוני לקוח (אימון ותזונה)
                         </h2>
-                        <div className="h-0.5 flex-1 bg-gradient-to-r from-orange-300 via-orange-400 to-orange-300"></div>
+                        <div className="h-1 flex-1 bg-gradient-to-r from-orange-200 via-orange-400 to-orange-200 rounded-full"></div>
                       </div>
 
-                      {/* Customer Section - Plans & Protocol (Full Width) */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                      {/* Customer Section - Modernized Plans & Protocol Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         {/* Nutrition Summary */}
                         <NutritionSummaryCard 
                           customerId={lead.customerId}
@@ -608,28 +701,30 @@ const LeadDetails = () => {
                         <DailyProtocolGrid customerId={lead.customerId} />
                       </div>
 
-                      {/* ROW 3: History Tabs - Full Width */}
-                      <div className="flex flex-col">
+                      {/* SECTION D: History / Logs Table - Modernized */}
+                      <div className="mt-6">
                         <CustomerHistoryTabs customerId={lead.customerId} />
                       </div>
                     </div>
                   ) : (
-                    <div>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="h-0.5 flex-1 bg-gradient-to-l from-gray-300 via-gray-400 to-gray-300"></div>
-                        <h2 className="text-lg font-bold text-gray-700 px-3 py-1.5 bg-gray-50 rounded-md border border-gray-200 whitespace-nowrap">
+                    <div className="bg-gradient-to-br from-gray-50/50 to-slate-50/30 rounded-3xl p-6 border-2 border-gray-200/50 shadow-lg">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="h-1 flex-1 bg-gradient-to-l from-gray-200 via-gray-400 to-gray-200 rounded-full"></div>
+                        <h2 className="text-xl font-bold text-gray-700 px-6 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border-2 border-gray-200 shadow-sm whitespace-nowrap">
                           נתוני לקוח
                         </h2>
-                        <div className="h-0.5 flex-1 bg-gradient-to-r from-gray-300 via-gray-400 to-gray-300"></div>
+                        <div className="h-1 flex-1 bg-gradient-to-r from-gray-200 via-gray-400 to-gray-200 rounded-full"></div>
                       </div>
-                      <Card className="p-3 bg-blue-50 border-blue-200">
+                      <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50/50 border-2 border-blue-200 rounded-2xl shadow-md">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h2 className="text-lg font-bold text-blue-900 mb-1 flex items-center gap-2">
-                              <User className="h-5 w-5 text-blue-600" />
-                              אין לקוח משויך
+                            <h2 className="text-xl font-bold text-blue-900 mb-2 flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                                <User className="h-5 w-5 text-white" />
+                              </div>
+                              <span>אין לקוח משויך</span>
                             </h2>
-                            <p className="text-sm text-blue-700">
+                            <p className="text-sm text-blue-700 font-medium">
                               כדי להציג נתוני אימון ותזונה, יש ליצור לקוח או לקשר את הליד לקוח קיים
                             </p>
                           </div>
