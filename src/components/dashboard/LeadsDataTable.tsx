@@ -72,3 +72,4 @@ export const LeadsDataTable = ({ leads, columnVisibility }: LeadsDataTableProps)
     />
   );
 };
+

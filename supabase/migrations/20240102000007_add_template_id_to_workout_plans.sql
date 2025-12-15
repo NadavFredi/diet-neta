@@ -16,3 +16,4 @@ CREATE INDEX IF NOT EXISTS idx_workout_plans_template_id ON workout_plans(templa
 
 
 
+

@@ -107,3 +107,4 @@ export const defaultCustomerColumnVisibility: Record<string, boolean> = {
   total_leads: true,
   created_at: true,
 };
+

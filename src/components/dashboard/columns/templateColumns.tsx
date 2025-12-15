@@ -260,3 +260,4 @@ export const defaultWorkoutTemplateColumnVisibility: Record<string, boolean> = {
   connected_leads: true,
   created_at: true,
 };
+
