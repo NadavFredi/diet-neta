@@ -32,14 +32,11 @@ export const PageHeader = ({
     <div 
       className={cn(
         'relative',
-        'border-b border-indigo-200/60',
+        'border-b border-slate-200',
         'p-6',
-        'overflow-hidden',
+        'bg-white',
         className
       )}
-      style={{
-        background: 'linear-gradient(135deg, rgb(224, 231, 255) 0%, rgb(199, 210, 254) 50%, rgb(165, 180, 252) 100%)',
-      }}
       dir="rtl"
     >
       {/* Content Container */}
@@ -51,13 +48,13 @@ export const PageHeader = ({
               {breadcrumbs.map((crumb, index) => (
                 <li key={index} className="flex items-center">
                   {index > 0 && (
-                    <span className="mx-2 text-indigo-300">/</span>
+                    <span className="mx-2 text-slate-300">/</span>
                   )}
                   <span className={cn(
                     'font-medium',
                     index === breadcrumbs.length - 1 
-                      ? 'text-indigo-800' 
-                      : 'text-indigo-600/80 hover:text-indigo-800 transition-colors'
+                      ? 'text-indigo-700' 
+                      : 'text-slate-500 hover:text-indigo-600 transition-colors'
                   )}>
                     {crumb}
                   </span>
@@ -72,23 +69,29 @@ export const PageHeader = ({
           {/* Title Section (Right side in RTL) */}
           <div className="flex-1 min-w-0 flex items-center gap-3">
             {Icon && (
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 flex items-center">
                 <Icon 
-                  className="w-7 h-7 text-indigo-600" 
-                  strokeWidth={2}
+                  className="w-8 h-8 text-indigo-600" 
+                  strokeWidth={2.5}
                 />
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-3xl font-bold text-indigo-950 leading-tight tracking-tight" style={{ textShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' }}>
+            <div className="flex-1 min-w-0 flex items-center">
+              <h1 
+                className="text-xl font-bold text-black leading-none tracking-tight inline-block px-3 py-1.5 rounded-lg border-2"
+                style={{
+                  borderColor: 'rgb(99, 102, 241)',
+                  backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                }}
+              >
                 {title}
               </h1>
-              {subtitle && (
-                <p className="text-sm text-indigo-700/90 font-medium mt-1.5">
-                  {subtitle}
-                </p>
-              )}
             </div>
+            {subtitle && (
+              <p className="text-sm text-slate-600 font-medium ml-3">
+                {subtitle}
+              </p>
+            )}
           </div>
           
           {/* Actions Section (Left side in RTL) */}
@@ -101,7 +104,7 @@ export const PageHeader = ({
 
         {/* Bottom Row: Filters / Search (Optional) */}
         {filters && (
-          <div className="mt-4 pt-4 border-t border-indigo-200/40">
+          <div className="mt-4 pt-4 border-t border-slate-200">
             {filters}
           </div>
         )}
