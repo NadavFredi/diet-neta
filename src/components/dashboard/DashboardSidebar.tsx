@@ -344,22 +344,39 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
 
   return (
     <aside
-      className="fixed right-0 w-64 flex flex-col shadow-sm z-30"
+      className="fixed right-0 w-64 flex flex-col shadow-sm z-30 overflow-hidden"
       style={{ 
         top: '0',
         height: '100vh',
         backgroundColor: '#4f60a8', // Dark blue/purple background
+        boxSizing: 'border-box',
       }}
       dir="rtl"
     >
       {/* Header Section with Logo */}
-      <div className="px-6 py-6 border-b border-white/10 flex items-center justify-center" style={{ minHeight: '88px' }}>
+      <div 
+        className="border-b border-white/10"
+        style={{ 
+          width: '256px', // Explicit width matching sidebar (w-64 = 256px)
+          minHeight: '88px',
+          padding: '20px 16px',
+          boxSizing: 'border-box',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}
+      >
         <img 
           src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
           alt="Diet Neta Logo" 
-          className="h-12 w-auto object-contain"
           style={{
-            filter: 'brightness(0) invert(1)', // Makes logo white to match sidebar color
+            height: '36px',
+            width: 'auto',
+            maxWidth: '224px', // 256px - 32px padding (16px each side)
+            objectFit: 'contain',
+            filter: 'brightness(0) invert(1)',
+            display: 'block',
           }}
         />
       </div>
