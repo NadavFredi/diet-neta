@@ -1,18 +1,14 @@
-import { useState, useMemo, useEffect } from 'react';
+/**
+ * CustomersManagement UI Component
+ * 
+ * Pure presentation component - all logic is in CustomersManagement.ts
+ */
+
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { useDefaultView } from '@/hooks/useDefaultView';
-import { useSavedView } from '@/hooks/useSavedViews';
-import { useCustomers, type Customer } from '@/hooks/useCustomers';
-import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { logout } from '@/store/slices/authSlice';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
-import { he } from 'date-fns/locale';
-import { formatDate } from '@/utils/dashboard';
-import { useToast } from '@/hooks/use-toast';
+import { useAppSelector } from '@/store/hooks';
 import { Plus, Settings, Search, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,123 +16,42 @@ import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { he } from 'date-fns/locale';
+import { useCustomersManagement } from './CustomersManagement';
 
 const CustomersManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
-  const [searchParams] = useSearchParams();
-  const viewId = searchParams.get('view_id');
-  const [hasAppliedView, setHasAppliedView] = useState(false);
-  
-  const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
-  const { defaultView } = useDefaultView('customers');
-  const { data: customers = [], isLoading: isLoadingCustomers } = useCustomers();
-  const { toast } = useToast();
-
-  // Auto-navigate to default view if no view_id is present
-  useEffect(() => {
-    if (!viewId && defaultView) {
-      navigate(`/dashboard/customers?view_id=${defaultView.id}`, { replace: true });
-    }
-  }, [viewId, defaultView, navigate]);
-
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
-  };
-
-  const handleSaveViewClick = () => {
-    setIsSaveViewModalOpen(true);
-  };
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
-
-  // Reset filters when navigating to base resource (no view_id)
-  useEffect(() => {
-    if (!viewId) {
-      setSearchQuery('');
-      setSelectedDate(undefined);
-      setHasAppliedView(false);
-    }
-  }, [viewId]);
-
-  // Apply saved view filter config when view is loaded
-  useEffect(() => {
-    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
-      const filterConfig = savedView.filter_config as any;
-      
-      if (filterConfig.searchQuery !== undefined) {
-        setSearchQuery(filterConfig.searchQuery);
-      }
-      if (filterConfig.selectedDate !== undefined && filterConfig.selectedDate) {
-        setSelectedDate(new Date(filterConfig.selectedDate));
-      }
-      
-      setHasAppliedView(true);
-    }
-  }, [viewId, savedView, hasAppliedView, isLoadingView]);
-
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date);
-    setDatePickerOpen(false);
-  };
-
-  const getCurrentFilterConfig = () => {
-    return {
-      searchQuery,
-      selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
-    };
-  };
-
-  // Filter customers
-  const filteredCustomers = useMemo(() => {
-    let filtered = [...customers];
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (customer) =>
-          customer.full_name.toLowerCase().includes(query) ||
-          customer.phone.includes(query) ||
-          (customer.email && customer.email.toLowerCase().includes(query))
-      );
-    }
-
-    // Date filter
-    if (selectedDate) {
-      const filterDate = format(selectedDate, 'yyyy-MM-dd');
-      filtered = filtered.filter((customer) => {
-        const customerDate = format(new Date(customer.created_at), 'yyyy-MM-dd');
-        return customerDate === filterDate;
-      });
-    }
-
-    return filtered;
-  }, [customers, searchQuery, selectedDate]);
-
+  const {
+    customers,
+    savedView,
+    isLoadingCustomers,
+    searchQuery,
+    selectedDate,
+    datePickerOpen,
+    isSaveViewModalOpen,
+    setSearchQuery,
+    handleDateSelect,
+    setDatePickerOpen,
+    handleSaveViewClick,
+    setIsSaveViewModalOpen,
+    handleLogout,
+    getCurrentFilterConfig,
+  } = useCustomersManagement();
 
   return (
     <>
       <div className="min-h-screen grid grid-rows-[auto_1fr_auto] grid-cols-1" dir="rtl">
-        {/* Header */}
         <div style={{ gridColumn: '1 / -1' }}>
           <DashboardHeader userEmail={user?.email} onLogout={handleLogout} />
         </div>
 
-        {/* Main content area with sidebar */}
         <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1' }}>
           <DashboardSidebar onSaveViewClick={handleSaveViewClick} />
           
           <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
             <div className="p-6">
-              {/* Unified Workspace Panel - Master Container */}
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                {/* Header Section - Control Deck */}
                 <PageHeader
                   title={savedView?.view_name || 'ניהול לקוחות'}
                   icon={UserCircle}
@@ -182,7 +97,6 @@ const CustomersManagement = () => {
                   }
                 />
 
-                {/* Table Section - Data Area */}
                 <div className="bg-white">
                   {isLoadingCustomers ? (
                     <div className="text-center py-12">
@@ -192,9 +106,9 @@ const CustomersManagement = () => {
                   ) : (
                     <>
                       <div className="px-6 py-4 text-base font-medium text-gray-700 border-b border-slate-200">
-                        {filteredCustomers.length} לקוח נמצאו
+                        {customers.length} לקוח נמצאו
                       </div>
-                      <CustomersDataTable customers={filteredCustomers} />
+                      <CustomersDataTable customers={customers} />
                     </>
                   )}
                 </div>
@@ -204,7 +118,6 @@ const CustomersManagement = () => {
         </div>
       </div>
 
-      {/* Save View Modal */}
       <SaveViewModal
         isOpen={isSaveViewModalOpen}
         onOpenChange={setIsSaveViewModalOpen}

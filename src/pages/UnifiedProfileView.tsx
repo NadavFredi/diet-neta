@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
+/**
+ * UnifiedProfileView UI Component
+ * 
+ * Pure presentation component - all logic is in UnifiedProfileView.ts
+ */
+
+import { useNavigate } from 'react-router-dom';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { useAppSelector } from '@/store/hooks';
-import { useCustomer } from '@/hooks/useCustomers';
-import { useUpdateLead } from '@/hooks/useUpdateLead';
 import { InlineEditableField } from '@/components/dashboard/InlineEditableField';
 import { InlineEditableBadge } from '@/components/dashboard/InlineEditableBadge';
 import { Card } from '@/components/ui/card';
@@ -40,8 +41,6 @@ import {
   SOURCE_OPTIONS 
 } from '@/utils/dashboard';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
-import { useLeadStatus } from '@/hooks/useLeadStatus';
-import { useDevMode } from '@/hooks/useDevMode';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
@@ -50,235 +49,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-// Helper to get customer initials for avatar
-const getInitials = (name: string) => {
-  if (!name) return '';
-  const parts = name.trim().split(' ');
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
-};
-
-// Status color mapping
-const getStatusColor = (status: string | null) => {
-  if (!status) return 'bg-gray-50 text-gray-700 border-gray-200';
-  if (status === 'פעיל') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  if (status === 'לא פעיל') return 'bg-gray-50 text-gray-700 border-gray-200';
-  if (status === 'מתקדמת לתהליך') return 'bg-green-50 text-green-700 border-green-200';
-  if (status === 'לא רלוונטי' || status === 'יקר לי' || status === 'חוסר התאמה' || 
-      status === 'לא מאמינה במוצר' || status === 'פחד' || status === 'לא הזמן המתאים') {
-    return 'bg-red-50 text-red-700 border-red-200';
-  }
-  if (status === 'פולואפ' || status === 'ראשוני' || status === 'איכותי') {
-    return 'bg-blue-50 text-blue-700 border-blue-200';
-  }
-  // Legacy statuses
-  switch (status) {
-    case 'חדש':
-      return 'bg-blue-50 text-blue-700 border-blue-200';
-    case 'בטיפול':
-      return 'bg-amber-50 text-amber-700 border-amber-200';
-    case 'הושלם':
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    default:
-      return 'bg-gray-50 text-gray-700 border-gray-200';
-  }
-};
-
-// Get status border color for list items
-const getStatusBorderColor = (status: string | null) => {
-  if (!status) return 'border-r-gray-300';
-  if (status === 'פעיל' || status === 'מתקדמת לתהליך') return 'border-r-emerald-500';
-  if (status === 'לא רלוונטי' || status === 'יקר לי' || status === 'חוסר התאמה' || 
-      status === 'לא מאמינה במוצר' || status === 'פחד' || status === 'לא הזמן המתאים') {
-    return 'border-r-red-500';
-  }
-  if (status === 'פולואפ' || status === 'ראשוני' || status === 'איכותי' || status === 'חדש') {
-    return 'border-r-blue-500';
-  }
-  if (status === 'בטיפול') return 'border-r-amber-500';
-  if (status === 'הושלם') return 'border-r-emerald-500';
-  return 'border-r-gray-300';
-};
-
-interface LeadData {
-  id: string;
-  created_at: string;
-  status_main: string | null;
-  status_sub: string | null;
-  source: string | null;
-  fitness_goal: string | null;
-  activity_level: string | null;
-  preferred_time: string | null;
-  notes: string | null;
-  birth_date: string | null;
-  height: number | null;
-  weight: number | null;
-  join_date: string | null;
-  subscription_data: any;
-  assigned_to: string | null;
-  customer_id: string;
-}
+import { useUnifiedProfileView, getStatusColor, getStatusBorderColor, getInitials } from './UnifiedProfileView';
 
 const UnifiedProfileView = () => {
-  const params = useParams<{ id?: string }>();
-  const location = useLocation();
-  const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
-  const { devMode } = useDevMode();
-  const updateLead = useUpdateLead();
+  const navigate = useNavigate();
+  
+  const {
+    customer,
+    activeLead,
+    sortedLeads,
+    products,
+    subscriptionData,
+    displayStatus,
+    customerAge,
+    selectedInterestId,
+    isLoadingCustomer,
+    isLoadingLead,
+    handleBack,
+    handleCall,
+    handleWhatsApp,
+    handleEmail,
+    handleInterestSelect,
+    statusManagement,
+    updateLead,
+  } = useUnifiedProfileView();
 
-  // Determine if we're coming from /leads/:id or /dashboard/customers/:id
-  const isLeadRoute = location.pathname.startsWith('/leads/');
-  const isCustomerRoute = location.pathname.startsWith('/dashboard/customers/');
-  const routeId = params.id;
-
-  // State for resolved IDs
-  const [resolvedCustomerId, setResolvedCustomerId] = useState<string | undefined>(undefined);
-  const [selectedInterestId, setSelectedInterestId] = useState<string | undefined>(undefined);
-
-  // If coming from /leads/:id, fetch lead to get customer_id
-  const { data: leadData } = useQuery({
-    queryKey: ['lead-for-customer', routeId],
-    queryFn: async () => {
-      if (!routeId || !isLeadRoute) return null;
-      const { data, error } = await supabase
-        .from('leads')
-        .select('customer_id, id')
-        .eq('id', routeId)
-        .single();
-      if (error) throw error;
-      return data as { customer_id: string; id: string };
-    },
-    enabled: !!routeId && isLeadRoute,
-  });
-
-  // Update resolved IDs based on route
-  useEffect(() => {
-    if (isLeadRoute && leadData) {
-      setResolvedCustomerId(leadData.customer_id);
-      setSelectedInterestId(leadData.id);
-    } else if (isCustomerRoute && routeId) {
-      setResolvedCustomerId(routeId);
-    }
-  }, [isLeadRoute, isCustomerRoute, leadData, routeId]);
-
-  // Fetch customer with all leads
-  const { data: customer, isLoading: isLoadingCustomer } = useCustomer(resolvedCustomerId);
-
-  // Get all leads for this customer, sorted by date (most recent first)
-  const sortedLeads = useMemo(() => {
-    if (!customer?.leads) return [];
-    return [...customer.leads].sort((a, b) => 
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-  }, [customer?.leads]);
-
-  // Auto-select most recent lead if none selected
-  useEffect(() => {
-    if (!selectedInterestId && sortedLeads.length > 0) {
-      setSelectedInterestId(sortedLeads[0].id);
-    }
-  }, [sortedLeads, selectedInterestId]);
-
-  // If route has leadId, use it
-  useEffect(() => {
-    if (isLeadRoute && leadData?.id && leadData.id !== selectedInterestId) {
-      setSelectedInterestId(leadData.id);
-    }
-  }, [isLeadRoute, leadData, selectedInterestId]);
-
-  // Fetch full lead data for the selected interest
-  const { data: activeLead, isLoading: isLoadingLead } = useQuery({
-    queryKey: ['lead', selectedInterestId],
-    queryFn: async () => {
-      if (!selectedInterestId) return null;
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('id', selectedInterestId)
-        .single();
-      if (error) throw error;
-      return data as LeadData;
-    },
-    enabled: !!selectedInterestId,
-  });
-
-  // Status management for active lead
-  const statusManagement = useLeadStatus(selectedInterestId || '', activeLead?.status_sub || activeLead?.status_main || '');
-
-  const handleBack = () => {
-    navigate('/dashboard');
-  };
-
-  const handleCall = () => {
-    if (customer?.phone) {
-      window.location.href = `tel:${customer.phone.replace(/-/g, '')}`;
-    }
-  };
-
-  const handleWhatsApp = () => {
-    if (customer?.phone) {
-      const phoneNumber = customer.phone.replace(/-/g, '').replace(/^0/, '972');
-      window.open(`https://wa.me/${phoneNumber}`, '_blank');
-    }
-  };
-
-  const handleEmail = () => {
-    if (customer?.email) {
-      window.location.href = `mailto:${customer.email}`;
-    }
-  };
-
-  const handleInterestSelect = (leadId: string) => {
-    setSelectedInterestId(leadId);
-    // Update URL to maintain route consistency
-    if (isLeadRoute) {
-      navigate(`/leads/${leadId}`, { replace: true });
-    }
-  };
-
-  // Extract subscription data
-  const subscriptionData = activeLead?.subscription_data || {};
-  const products = useMemo(() => {
-    const items = [];
-    if (subscriptionData.months > 0) {
-      items.push({
-        id: 'subscription',
-        name: `חבילת מנוי - ${subscriptionData.months} חודשים`,
-        price: subscriptionData.initialPrice || 0,
-        quantity: 1,
-        date: activeLead?.join_date || activeLead?.created_at,
-      });
-    }
-    if (subscriptionData.renewalPrice > 0) {
-      items.push({
-        id: 'renewal',
-        name: 'חידוש חודשי',
-        price: subscriptionData.renewalPrice,
-        quantity: 1,
-        date: activeLead?.join_date || activeLead?.created_at,
-      });
-    }
-    return items;
-  }, [subscriptionData, activeLead]);
-
-  // Calculate age from birth date
-  const calculateAge = (birthDate: string | null): number => {
-    if (!birthDate) return 0;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
-  if (isLoadingCustomer || (isLeadRoute && !leadData)) {
+  if (isLoadingCustomer) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100" dir="rtl">
         <div className="text-center">
@@ -302,15 +99,9 @@ const UnifiedProfileView = () => {
     );
   }
 
-  const displayStatus = activeLead?.status_sub || activeLead?.status_main || 'ללא סטטוס';
-  const customerAge = activeLead?.birth_date ? calculateAge(activeLead.birth_date) : 0;
-
   return (
     <div className="h-screen flex flex-col overflow-hidden" dir="rtl">
-      <DashboardHeader
-        userEmail={user?.email}
-        onLogout={() => {}}
-      />
+      <DashboardHeader userEmail={user?.email} onLogout={() => {}} />
       <div className="flex-1 flex flex-col overflow-hidden" style={{ marginTop: '88px' }}>
         <div className="flex flex-1 overflow-hidden relative">
           <DashboardSidebar />
