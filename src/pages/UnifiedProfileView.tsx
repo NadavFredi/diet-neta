@@ -2,6 +2,8 @@
  * UnifiedProfileView UI Component
  * 
  * Pure presentation component - all logic is in UnifiedProfileView.ts
+ * 
+ * Layout: Rich Profile Hero (Top) + Master-Detail Workspace (Bottom)
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -31,7 +33,11 @@ import {
   Package,
   Edit,
   TrendingUp,
-  Info
+  Info,
+  Crown,
+  Star,
+  DollarSign,
+  Clock
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { 
@@ -64,6 +70,11 @@ const UnifiedProfileView = () => {
     displayStatus,
     customerAge,
     selectedInterestId,
+    totalSpent,
+    lastVisit,
+    membershipTier,
+    totalLeads,
+    activeLeadsCount,
     isLoadingCustomer,
     isLoadingLead,
     handleBack,
@@ -99,150 +110,231 @@ const UnifiedProfileView = () => {
     );
   }
 
+  // Get membership tier color
+  const getMembershipTierColor = (tier: string) => {
+    switch (tier) {
+      case 'VIP':
+        return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white';
+      case 'Premium':
+        return 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white';
+      case 'Standard':
+        return 'bg-blue-100 text-blue-700 border-blue-200';
+      default:
+        return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col overflow-hidden" dir="rtl">
       <DashboardHeader userEmail={user?.email} onLogout={() => {}} />
       <div className="flex-1 flex flex-col overflow-hidden" style={{ marginTop: '88px' }}>
         <div className="flex flex-1 overflow-hidden relative">
           <DashboardSidebar />
-          <main className="flex-1 bg-gray-50 flex flex-col overflow-hidden" style={{ marginRight: '256px' }}>
-            {/* Row 1: Personal Info - Full Width */}
-            <div className="w-full bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
-              <div className="px-6 py-4">
-                <div className="flex items-center justify-between gap-6">
-                  {/* Right Side (RTL): Client Details */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 flex items-center justify-center text-white text-lg font-bold shadow-md flex-shrink-0">
-                      {getInitials(customer.full_name)}
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-3">
-                        <h1 className="text-lg font-bold text-gray-900">{customer.full_name}</h1>
-                        <Popover open={statusManagement.isOpen} onOpenChange={(open) => open ? statusManagement.handleOpen() : statusManagement.handleClose()}>
-                          <PopoverTrigger asChild>
-                            <button
-                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${getStatusColor(displayStatus)}`}
-                            >
-                              {displayStatus}
-                              <Edit className="h-3 w-3" />
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-80 p-4" align="start" dir="rtl">
-                            <div className="space-y-4">
-                              <h3 className="font-semibold text-gray-900 mb-3">עדכן סטטוס</h3>
+          <main className="flex-1 flex flex-col overflow-hidden" style={{ marginRight: '256px' }}>
+            
+            {/* ============================================
+                SECTION A: Rich Profile Hero (Top Row)
+                ============================================ */}
+            <div className="w-full bg-white border-b border-gray-200 shadow-md flex-shrink-0 p-6">
+              <div className="flex items-center justify-between gap-6">
+                
+                {/* Right Side (RTL): Avatar, Name, Status, Tags */}
+                <div className="flex items-center gap-4 flex-1">
+                  {/* Large Avatar */}
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg flex-shrink-0">
+                    {customer.avatar_url ? (
+                      <img 
+                        src={customer.avatar_url} 
+                        alt={customer.full_name}
+                        className="w-full h-full rounded-2xl object-cover"
+                      />
+                    ) : (
+                      getInitials(customer.full_name)
+                    )}
+                  </div>
+                  
+                  {/* Name, Status, Tags */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-2xl font-bold text-gray-900">{customer.full_name}</h1>
+                      <Popover open={statusManagement.isOpen} onOpenChange={(open) => open ? statusManagement.handleOpen() : statusManagement.handleClose()}>
+                        <PopoverTrigger asChild>
+                          <button
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all ${getStatusColor(displayStatus)}`}
+                          >
+                            {displayStatus}
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-4" align="start" dir="rtl">
+                          <div className="space-y-4">
+                            <h3 className="font-semibold text-gray-900 mb-3">עדכן סטטוס</h3>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-gray-700">סטטוס ראשי</label>
+                              <Select
+                                value={statusManagement.selectedCategory}
+                                onValueChange={statusManagement.handleCategoryChange}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="בחר סטטוס ראשי" />
+                                </SelectTrigger>
+                                <SelectContent dir="rtl">
+                                  {STATUS_CATEGORIES.map((category) => (
+                                    <SelectItem key={category.id} value={category.id}>
+                                      {category.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {statusManagement.hasSubStatuses && statusManagement.selectedCategoryData?.subStatuses && (
                               <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700">סטטוס ראשי</label>
+                                <label className="text-sm font-medium text-gray-700">סטטוס משני</label>
                                 <Select
-                                  value={statusManagement.selectedCategory}
-                                  onValueChange={statusManagement.handleCategoryChange}
+                                  value={statusManagement.selectedSubStatus}
+                                  onValueChange={statusManagement.handleSubStatusChange}
                                 >
                                   <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="בחר סטטוס ראשי" />
+                                    <SelectValue placeholder="בחר סטטוס משני" />
                                   </SelectTrigger>
                                   <SelectContent dir="rtl">
-                                    {STATUS_CATEGORIES.map((category) => (
-                                      <SelectItem key={category.id} value={category.id}>
-                                        {category.label}
+                                    {statusManagement.selectedCategoryData.subStatuses.map((subStatus) => (
+                                      <SelectItem key={subStatus.id} value={subStatus.id}>
+                                        {subStatus.label}
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
                               </div>
-                              {statusManagement.hasSubStatuses && statusManagement.selectedCategoryData?.subStatuses && (
-                                <div className="space-y-2">
-                                  <label className="text-sm font-medium text-gray-700">סטטוס משני</label>
-                                  <Select
-                                    value={statusManagement.selectedSubStatus}
-                                    onValueChange={statusManagement.handleSubStatusChange}
-                                  >
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="בחר סטטוס משני" />
-                                    </SelectTrigger>
-                                    <SelectContent dir="rtl">
-                                      {statusManagement.selectedCategoryData.subStatuses.map((subStatus) => (
-                                        <SelectItem key={subStatus.id} value={subStatus.id}>
-                                          {subStatus.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-2 pt-2">
-                                <Button
-                                  onClick={statusManagement.handleSave}
-                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                                >
-                                  שמור
-                                </Button>
-                                <Button
-                                  onClick={statusManagement.handleClose}
-                                  variant="outline"
-                                  className="flex-1"
-                                >
-                                  ביטול
-                                </Button>
-                              </div>
+                            )}
+                            <div className="flex items-center gap-2 pt-2">
+                              <Button
+                                onClick={statusManagement.handleSave}
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                              >
+                                שמור
+                              </Button>
+                              <Button
+                                onClick={statusManagement.handleClose}
+                                variant="outline"
+                                className="flex-1"
+                              >
+                                ביטול
+                              </Button>
                             </div>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <span className="font-mono">{customer.phone}</span>
-                        {customerAge > 0 && <span>{customerAge} שנים</span>}
-                        {customer.email && <span className="truncate">{customer.email}</span>}
-                      </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    {/* Key Tags */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge className={`${getMembershipTierColor(membershipTier)} border-0 px-3 py-1 text-xs font-semibold`}>
+                        {membershipTier === 'VIP' && <Crown className="h-3 w-3 ml-1" />}
+                        {membershipTier === 'Premium' && <Star className="h-3 w-3 ml-1" />}
+                        {membershipTier}
+                      </Badge>
+                      {activeLeadsCount > 0 && (
+                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 px-2 py-1 text-xs">
+                          {activeLeadsCount} פעיל
+                        </Badge>
+                      )}
+                      {customerAge > 0 && (
+                        <Badge variant="outline" className="px-2 py-1 text-xs">
+                          {customerAge} שנים
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {/* Contact Info */}
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span className="font-mono">{customer.phone}</span>
+                      {customer.email && <span className="truncate">{customer.email}</span>}
                     </div>
                   </div>
+                </div>
 
-                  {/* Left Side (RTL): Action Buttons */}
-                  <div className="flex items-center gap-3">
-                    <Button
-                      onClick={handleBack}
-                      variant="ghost"
-                      size="sm"
-                      className="text-gray-600 hover:text-gray-900"
-                    >
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                      חזור
-                    </Button>
-                    <Button
-                      onClick={handleCall}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2"
-                    >
-                      <Phone className="h-4 w-4" />
-                      התקשר
-                    </Button>
-                    <Button
-                      onClick={handleWhatsApp}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                      WhatsApp
-                    </Button>
-                    <Button
-                      onClick={handleEmail}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2"
-                    >
-                      <Mail className="h-4 w-4" />
-                      אימייל
-                    </Button>
+                {/* Middle: Quick Stats */}
+                <div className="flex items-center gap-6 px-6 border-r border-l border-gray-200">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-1.5 text-gray-500">
+                      <DollarSign className="h-4 w-4" />
+                      <span className="text-xs font-medium">סה"כ הוצאה</span>
+                    </div>
+                    <span className="text-xl font-bold text-gray-900">
+                      ₪{totalSpent.toLocaleString('he-IL')}
+                    </span>
                   </div>
+                  
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-1.5 text-gray-500">
+                      <Calendar className="h-4 w-4" />
+                      <span className="text-xs font-medium">ביקור אחרון</span>
+                    </div>
+                    <span className="text-lg font-semibold text-gray-900">
+                      {lastVisit ? formatDate(lastVisit) : 'אין'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-1.5 text-gray-500">
+                      <TrendingUp className="h-4 w-4" />
+                      <span className="text-xs font-medium">סה"כ לידים</span>
+                    </div>
+                    <span className="text-xl font-bold text-gray-900">{totalLeads}</span>
+                  </div>
+                </div>
+
+                {/* Left Side (RTL): Action Buttons */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button
+                    onClick={handleBack}
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-600 hover:text-gray-900"
+                  >
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                    חזור
+                  </Button>
+                  <Button
+                    onClick={handleCall}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Phone className="h-4 w-4" />
+                    התקשר
+                  </Button>
+                  <Button
+                    onClick={handleWhatsApp}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    WhatsApp
+                  </Button>
+                  <Button
+                    onClick={handleEmail}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Mail className="h-4 w-4" />
+                    אימייל
+                  </Button>
                 </div>
               </div>
             </div>
 
-            {/* Row 2: Two Columns - Lead History & Lead Details */}
-            <div className="flex-1 flex gap-4 p-6 min-h-0 overflow-hidden">
-              {/* Column 1 (Right Side - RTL): Lead History */}
+            {/* ============================================
+                SECTION B: Workspace (Master-Detail Split View)
+                ============================================ */}
+            <div className="flex-1 flex gap-4 p-4 min-h-0 overflow-hidden bg-gray-50">
+              
+              {/* Right Column: Interaction History (Master List) */}
               <div className="w-80 flex-shrink-0 flex flex-col min-h-0">
-                <Card className="flex-1 flex flex-col overflow-hidden border border-gray-200 rounded-xl shadow-sm">
+                <Card className="flex-1 flex flex-col overflow-hidden border border-gray-200 rounded-xl shadow-sm bg-white">
                   <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-xl flex-shrink-0">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-blue-600" />
@@ -315,8 +407,8 @@ const UnifiedProfileView = () => {
                 </Card>
               </div>
 
-              {/* Column 2 (Left Side - RTL): Lead Details */}
-              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+              {/* Left Column: Detail View (Canvas) */}
+              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-gray-50">
                 {isLoadingLead ? (
                   <Card className="p-8 border border-gray-200 rounded-xl shadow-sm">
                     <div className="text-center">

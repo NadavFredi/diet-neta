@@ -200,6 +200,32 @@ export const useUnifiedProfileView = () => {
   const customerAge = activeLead?.birth_date ? calculateAge(activeLead.birth_date) : 0;
   const displayStatus = activeLead?.status_sub || activeLead?.status_main || 'ללא סטטוס';
 
+  // Calculate profile stats for Rich Hero
+  const totalSpent = useMemo(() => {
+    if (!customer?.leads) return 0;
+    return customer.leads.reduce((total, lead) => {
+      const subData = lead.subscription_data || {};
+      return total + (subData.initialPrice || 0) + ((subData.renewalPrice || 0) * (subData.months || 0));
+    }, 0);
+  }, [customer?.leads]);
+
+  const lastVisit = useMemo(() => {
+    if (!sortedLeads || sortedLeads.length === 0) return null;
+    return sortedLeads[0].created_at;
+  }, [sortedLeads]);
+
+  const membershipTier = useMemo(() => {
+    if (totalSpent >= 5000) return 'VIP';
+    if (totalSpent >= 2000) return 'Premium';
+    if (totalSpent >= 500) return 'Standard';
+    return 'New';
+  }, [totalSpent]);
+
+  const totalLeads = sortedLeads.length;
+  const activeLeadsCount = sortedLeads.filter(lead => 
+    lead.status_sub === 'פעיל' || lead.status_main === 'פעיל'
+  ).length;
+
   return {
     // Data
     customer,
@@ -210,6 +236,13 @@ export const useUnifiedProfileView = () => {
     displayStatus,
     customerAge,
     selectedInterestId,
+    
+    // Profile Stats
+    totalSpent,
+    lastVisit,
+    membershipTier,
+    totalLeads,
+    activeLeadsCount,
     
     // Loading states
     isLoadingCustomer: isLoadingCustomer || (isLeadRoute && !leadData),
@@ -281,3 +314,4 @@ export const getStatusBorderColor = (status: string | null) => {
   if (status === 'הושלם') return 'border-r-emerald-500';
   return 'border-r-gray-300';
 };
+

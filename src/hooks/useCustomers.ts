@@ -10,6 +10,9 @@ export interface Customer {
   created_at: string;
   updated_at: string;
   total_leads?: number; // Aggregated count
+  avatar_url?: string | null;
+  total_spent?: number;
+  membership_tier?: 'New' | 'Standard' | 'Premium' | 'VIP';
 }
 
 export interface CustomerWithLeads extends Customer {
