@@ -12,12 +12,11 @@ import Contact from "./pages/Contact.tsx";
 import Login from "./pages/Login.tsx";
 import Register from "./pages/Register.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
-import LeadDetails from "./pages/LeadDetails.tsx";
 import Templates from "./pages/Templates.tsx";
 import TemplatesManagement from "./pages/TemplatesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
-import CustomerProfile from "./pages/CustomerProfile.tsx";
+import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
@@ -73,19 +72,44 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/dashboard/customers/:id"
-            element={
-              <ProtectedRoute>
-                <CustomerProfile />
-              </ProtectedRoute>
-            }
-          />
+          {/* Unified Profile View - handles both leads and customers */}
           <Route
             path="/leads/:id"
             element={
               <ProtectedRoute>
-                <LeadDetails />
+                <UnifiedProfileView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/customers/:id"
+            element={
+              <ProtectedRoute>
+                <UnifiedProfileView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/lead/:leadId"
+            element={
+              <ProtectedRoute>
+                <UnifiedProfileView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/:customerId/:leadId"
+            element={
+              <ProtectedRoute>
+                <UnifiedProfileView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/:customerId"
+            element={
+              <ProtectedRoute>
+                <UnifiedProfileView />
               </ProtectedRoute>
             }
           />
