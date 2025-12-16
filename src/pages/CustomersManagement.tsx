@@ -8,16 +8,14 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
+import { TableFilter } from '@/components/dashboard/TableFilter';
+import { FilterChips } from '@/components/dashboard/FilterChips';
 import { useAppSelector } from '@/store/hooks';
-import { Plus, Settings, Search, UserCircle } from 'lucide-react';
+import { Settings, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { he } from 'date-fns/locale';
+import { useTableFilters, CUSTOMER_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { useCustomersManagement } from './CustomersManagement';
 
 const CustomersManagement = () => {
@@ -27,17 +25,23 @@ const CustomersManagement = () => {
     savedView,
     isLoadingCustomers,
     searchQuery,
-    selectedDate,
-    datePickerOpen,
     isSaveViewModalOpen,
     setSearchQuery,
-    handleDateSelect,
-    setDatePickerOpen,
     handleSaveViewClick,
     setIsSaveViewModalOpen,
     handleLogout,
     getCurrentFilterConfig,
   } = useCustomersManagement();
+
+  // Modern filter system
+  const {
+    filters: activeFilters,
+    addFilter,
+    removeFilter,
+    clearFilters,
+  } = useTableFilters([]);
+
+  const filteredCustomers = customers; // For now, filtering happens in the hook
 
   return (
     <>
@@ -63,28 +67,13 @@ const CustomersManagement = () => {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-64 h-11 text-base bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-white focus:bg-white focus:border-indigo-400 transition-colors"
                       />
-                      <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="h-11 text-sm bg-white border-gray-200 shadow-sm hover:bg-gray-50"
-                          >
-                            <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
-                            {selectedDate
-                              ? format(selectedDate, 'dd/MM/yyyy', { locale: he })
-                              : 'תאריך יצירה'}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="end">
-                          <Calendar
-                            mode="single"
-                            selected={selectedDate}
-                            onSelect={handleDateSelect}
-                            locale={he}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <TableFilter
+                        fields={CUSTOMER_FILTER_FIELDS}
+                        activeFilters={activeFilters}
+                        onFilterAdd={addFilter}
+                        onFilterRemove={removeFilter}
+                        onFilterClear={clearFilters}
+                      />
                       <Button
                         onClick={handleSaveViewClick}
                         variant="outline"
@@ -93,6 +82,18 @@ const CustomersManagement = () => {
                         <Settings className="h-4 w-4 ml-2" />
                         הגדרות
                       </Button>
+                    </div>
+                  }
+                  filters={
+                    <div className="space-y-3">
+                      <FilterChips
+                        filters={activeFilters}
+                        onRemove={removeFilter}
+                        onClearAll={clearFilters}
+                      />
+                      <p className="text-base text-gray-600 font-medium">
+                        {filteredCustomers.length} {filteredCustomers.length === 1 ? 'לקוח' : 'לקוחות'} נמצאו
+                      </p>
                     </div>
                   }
                 />

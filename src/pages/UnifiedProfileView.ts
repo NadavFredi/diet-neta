@@ -122,10 +122,14 @@ export const useUnifiedProfileView = () => {
     enabled: !!selectedInterestId,
   });
 
-  // Status management
+  // Get most recent lead for top banner (MUST be before statusManagement)
+  const mostRecentLead = sortedLeads && sortedLeads.length > 0 ? sortedLeads[0] : null;
+  const mostRecentLeadStatus = mostRecentLead?.status_sub || mostRecentLead?.status_main || 'ללא סטטוס';
+
+  // Status management for selected lead
   const statusManagement = useLeadStatus(
-    selectedInterestId || '', 
-    activeLead?.status_sub || activeLead?.status_main || ''
+    selectedInterestId || mostRecentLead?.id || '', 
+    activeLead?.status_sub || activeLead?.status_main || mostRecentLeadStatus
   );
 
   // Handlers
@@ -221,10 +225,10 @@ export const useUnifiedProfileView = () => {
     return 'New';
   }, [totalSpent]);
 
-  const totalLeads = sortedLeads.length;
-  const activeLeadsCount = sortedLeads.filter(lead => 
+  const totalLeads = sortedLeads?.length || 0;
+  const activeLeadsCount = sortedLeads?.filter(lead => 
     lead.status_sub === 'פעיל' || lead.status_main === 'פעיל'
-  ).length;
+  ).length || 0;
 
   return {
     // Data
@@ -243,6 +247,10 @@ export const useUnifiedProfileView = () => {
     membershipTier,
     totalLeads,
     activeLeadsCount,
+    
+    // Most Recent Lead (for top banner) - already declared above
+    mostRecentLead,
+    mostRecentLeadStatus,
     
     // Loading states
     isLoadingCustomer: isLoadingCustomer || (isLeadRoute && !leadData),
@@ -314,4 +322,5 @@ export const getStatusBorderColor = (status: string | null) => {
   if (status === 'הושלם') return 'border-r-emerald-500';
   return 'border-r-gray-300';
 };
+
 

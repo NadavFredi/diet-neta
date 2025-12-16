@@ -51,6 +51,12 @@ export interface CustomerWithLeads extends Customer {
     status_sub: string | null;
     source: string | null;
     fitness_goal: string | null;
+    birth_date: string | null;
+    height: number | null;
+    weight: number | null;
+    activity_level: string | null;
+    preferred_time: string | null;
+    notes: string | null;
   }>;
 }
 
@@ -143,6 +149,12 @@ export const useCustomer = (customerId: string | undefined) => {
           status_sub: lead.status_sub,
           source: lead.source,
           fitness_goal: lead.fitness_goal,
+          birth_date: lead.birth_date,
+          height: lead.height,
+          weight: lead.weight,
+          activity_level: lead.activity_level,
+          preferred_time: lead.preferred_time,
+          notes: lead.notes,
         })),
       } as CustomerWithLeads;
     },

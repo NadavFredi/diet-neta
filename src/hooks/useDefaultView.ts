@@ -111,57 +111,68 @@ export const useDefaultView = (resourceKey: string) => {
     queryFn: async () => {
       if (!user?.email || !resourceKey) return null;
 
-      const userId = await getUserIdFromEmail(user.email);
+      try {
+        const userId = await getUserIdFromEmail(user.email);
 
-      // Check if default view exists
-      const { data: existingDefault } = await supabase
-        .from('saved_views')
-        .select('*')
-        .eq('resource_key', resourceKey)
-        .eq('created_by', userId)
-        .eq('is_default', true)
-        .maybeSingle();
+        // Check if default view exists
+        const { data: existingDefault, error: fetchError } = await supabase
+          .from('saved_views')
+          .select('*')
+          .eq('resource_key', resourceKey)
+          .eq('created_by', userId)
+          .eq('is_default', true)
+          .maybeSingle();
 
-      if (existingDefault) {
-        return existingDefault;
-      }
+        if (fetchError) {
+          console.warn('Error fetching default view:', fetchError);
+          return null;
+        }
 
-      // Create default view if it doesn't exist
-      const defaultFilterConfig = getDefaultFilterConfig(resourceKey);
-      const viewName = resourceKey === 'leads' 
-        ? 'כל הלידים' 
-        : resourceKey === 'customers'
-        ? 'כל הלקוחות'
-        : resourceKey === 'templates'
-        ? 'כל התכניות'
-        : 'כל התכניות';
+        if (existingDefault) {
+          return existingDefault;
+        }
 
-      const { data: newView, error } = await supabase
-        .from('saved_views')
-        .insert({
-          resource_key: resourceKey,
-          view_name: viewName,
-          filter_config: defaultFilterConfig,
-          is_default: true,
-          created_by: userId,
-        })
-        .select()
-        .single();
+        // Create default view if it doesn't exist
+        const defaultFilterConfig = getDefaultFilterConfig(resourceKey);
+        const viewName = resourceKey === 'leads' 
+          ? 'כל הלידים' 
+          : resourceKey === 'customers'
+          ? 'כל הלקוחות'
+          : resourceKey === 'templates'
+          ? 'כל התכניות'
+          : 'כל התכניות';
 
-      if (error) {
-        console.error('Error creating default view:', error);
+        const { data: newView, error } = await supabase
+          .from('saved_views')
+          .insert({
+            resource_key: resourceKey,
+            view_name: viewName,
+            filter_config: defaultFilterConfig,
+            is_default: true,
+            created_by: userId,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('Error creating default view:', error);
+          return null;
+        }
+
+        // Invalidate savedViews query so sidebar updates immediately
+        await queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey] });
+        // Also refetch to ensure the sidebar gets the new view
+        await queryClient.refetchQueries({ queryKey: ['savedViews', resourceKey] });
+
+        return newView;
+      } catch (error) {
+        console.warn('Error in useDefaultView:', error);
         return null;
       }
-
-      // Invalidate savedViews query so sidebar updates immediately
-      await queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey] });
-      // Also refetch to ensure the sidebar gets the new view
-      await queryClient.refetchQueries({ queryKey: ['savedViews', resourceKey] });
-
-      return newView;
     },
     enabled: !!user?.email && !!resourceKey,
     staleTime: Infinity, // Default views don't change
+    retry: false,
   });
 
   return {

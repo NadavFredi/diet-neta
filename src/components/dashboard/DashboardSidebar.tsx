@@ -111,10 +111,12 @@ const ResourceItem = ({
   // Always call the hook (React rules), but it will only run if resourceKey is valid (enabled check inside)
   const { defaultView } = useDefaultView(item.resourceKey);
   
-  const { data: savedViews = [] } = supportsViews ? useSavedViews(item.resourceKey) : { data: [] };
+  // Always call hook (React rules) - it will return empty array if not enabled
+  const savedViewsQuery = useSavedViews(item.resourceKey);
+  const savedViews = supportsViews ? (savedViewsQuery?.data || []) : [];
   
   // Check if any view for this resource is active
-  const hasActiveView = supportsViews && activeViewId && savedViews.some(view => view.id === activeViewId);
+  const hasActiveView = supportsViews && activeViewId && savedViews && Array.isArray(savedViews) && savedViews.some(view => view.id === activeViewId);
   
   // Main interface is active if:
   // 1. It's directly active (no view_id in URL), OR
@@ -238,7 +240,7 @@ const ResourceItem = ({
       </li>
           
       {/* Saved Views - Each as Separate Row */}
-          {supportsViews && savedViews.length > 0 && (
+          {supportsViews && savedViews && Array.isArray(savedViews) && savedViews.length > 0 && (
         <>
                 {savedViews.map((view) => {
                   const isViewActive = activeViewId === view.id;

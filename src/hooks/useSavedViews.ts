@@ -121,22 +121,31 @@ export const useSavedViews = (resourceKey: string) => {
   return useQuery({
     queryKey: ['savedViews', resourceKey, user?.email],
     queryFn: async () => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.email) return [];
 
-      const userId = await getUserIdFromEmail(user.email);
+      try {
+        const userId = await getUserIdFromEmail(user.email);
 
-      const { data, error } = await supabase
-        .from('saved_views')
-        .select('*')
-        .eq('resource_key', resourceKey)
-        .eq('created_by', userId)
-        .order('is_default', { ascending: false })
-        .order('created_at', { ascending: false });
+        const { data, error } = await supabase
+          .from('saved_views')
+          .select('*')
+          .eq('resource_key', resourceKey)
+          .eq('created_by', userId)
+          .order('is_default', { ascending: false })
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data as SavedView[];
+        if (error) {
+          console.warn('Error fetching saved views:', error);
+          return [];
+        }
+        return (data || []) as SavedView[];
+      } catch (error) {
+        console.warn('Error in useSavedViews:', error);
+        return [];
+      }
     },
     enabled: !!user?.email,
+    retry: false,
   });
 };
 
@@ -148,21 +157,30 @@ export const useSavedView = (viewId: string | null) => {
     queryKey: ['savedView', viewId, user?.email],
     queryFn: async () => {
       if (!viewId) return null;
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.email) return null;
 
-      const userId = await getUserIdFromEmail(user.email);
+      try {
+        const userId = await getUserIdFromEmail(user.email);
 
-      const { data, error } = await supabase
-        .from('saved_views')
-        .select('*')
-        .eq('id', viewId)
-        .eq('created_by', userId)
-        .single();
+        const { data, error } = await supabase
+          .from('saved_views')
+          .select('*')
+          .eq('id', viewId)
+          .eq('created_by', userId)
+          .single();
 
-      if (error) throw error;
-      return data as SavedView | null;
+        if (error) {
+          console.warn('Error fetching saved view:', error);
+          return null;
+        }
+        return data as SavedView | null;
+      } catch (error) {
+        console.warn('Error in useSavedView:', error);
+        return null;
+      }
     },
     enabled: !!viewId && !!user?.email,
+    retry: false,
   });
 };
 

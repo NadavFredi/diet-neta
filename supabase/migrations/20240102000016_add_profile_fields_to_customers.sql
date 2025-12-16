@@ -24,3 +24,4 @@ COMMENT ON COLUMN public.customers.membership_tier IS 'Customer membership tier 
 -- =====================================================
 -- Migration Complete
 -- =====================================================
+

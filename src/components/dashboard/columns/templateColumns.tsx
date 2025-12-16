@@ -264,3 +264,4 @@ export const defaultWorkoutTemplateColumnVisibility: Record<string, boolean> = {
 
 
 
+
