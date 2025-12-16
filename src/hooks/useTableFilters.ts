@@ -198,3 +198,4 @@ export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
     toLegacyFormat,
   };
 };
+

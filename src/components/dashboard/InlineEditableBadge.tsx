@@ -63,11 +63,19 @@ export const InlineEditableBadge = ({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
+  };
+
   if (isEditing) {
     return (
       <div className={cn('flex flex-col gap-1.5 py-1.5', className)}>
         <span className="text-xs font-medium text-gray-500">{label}</span>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5" onKeyDown={handleKeyDown}>
           <Select value={editValue} onValueChange={setEditValue} disabled={isSaving}>
             <SelectTrigger className="h-7 text-xs flex-1">
               <SelectValue />
@@ -86,6 +94,7 @@ export const InlineEditableBadge = ({
             onClick={handleSave}
             disabled={isSaving}
             className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+            title="Enter לשמירה"
           >
             <Check className="h-3.5 w-3.5" />
           </Button>
@@ -95,6 +104,7 @@ export const InlineEditableBadge = ({
             onClick={handleCancel}
             disabled={isSaving}
             className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+            title="Escape לביטול"
           >
             <X className="h-3.5 w-3.5" />
           </Button>
@@ -103,18 +113,28 @@ export const InlineEditableBadge = ({
     );
   }
 
+  const handleDoubleClick = () => {
+    if (disabled) return;
+    handleEdit();
+  };
+
   return (
     <div
       className={cn('flex flex-col gap-0.5 py-1.5 group', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onDoubleClick={handleDoubleClick}
     >
       <span className="text-xs font-medium text-gray-500">{label}</span>
       <div className="flex items-center gap-1.5 justify-between">
-        <span className={cn(
-          'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border',
-          currentOption.className || 'bg-gray-50 text-gray-700 border-gray-200'
-        )}>
+        <span 
+          className={cn(
+            'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border cursor-pointer hover:opacity-80 transition-opacity',
+            currentOption.className || 'bg-gray-50 text-gray-700 border-gray-200'
+          )}
+          onDoubleClick={handleDoubleClick}
+          title={!disabled ? 'לחץ פעמיים לעריכה' : undefined}
+        >
           {currentOption.label}
         </span>
         {!disabled && (

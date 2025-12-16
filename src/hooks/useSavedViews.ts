@@ -27,8 +27,19 @@ export interface FilterConfig {
   selectedTags?: string[];
   selectedHasLeads?: string;
   columnVisibility?: Record<string, boolean>;
+  columnOrder?: string[]; // Order of columns
+  columnWidths?: Record<string, number>; // Width of each column
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  // Advanced filters from TableFilter component
+  advancedFilters?: Array<{
+    id: string;
+    fieldId: string;
+    fieldLabel: string;
+    operator: string;
+    values: string[];
+    type: string;
+  }>;
 }
 
 // Helper function to get or create user ID from email

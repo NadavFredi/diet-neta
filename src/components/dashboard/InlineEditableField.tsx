@@ -133,15 +133,25 @@ export const InlineEditableField = ({
     );
   }
 
+  const handleDoubleClick = () => {
+    if (disabled) return;
+    handleEdit();
+  };
+
   return (
     <div
       className={cn('flex flex-col gap-0.5 py-1.5 group', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onDoubleClick={handleDoubleClick}
     >
       <span className="text-xs font-medium text-gray-500">{label}</span>
       <div className="flex items-center gap-1.5 justify-between">
-        <span className={cn('text-sm font-semibold text-gray-900 truncate', valueClassName)}>
+        <span 
+          className={cn('text-sm font-semibold text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors', valueClassName)}
+          onDoubleClick={handleDoubleClick}
+          title={!disabled ? 'לחץ פעמיים לעריכה' : undefined}
+        >
           {displayValue}
         </span>
         {!disabled && (

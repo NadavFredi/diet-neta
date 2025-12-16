@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple, ChevronLeft, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple, ChevronLeft, HelpCircle, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
 import {
@@ -77,9 +77,6 @@ const navigationItems: NavItem[] = [
   },
 ];
 
-interface DashboardSidebarProps {
-  onSaveViewClick?: (resourceKey: string) => void;
-}
 
 interface ResourceItemProps {
   item: NavItem;
@@ -90,6 +87,7 @@ interface ResourceItemProps {
   onResourceClick: () => void;
   onViewClick: (view: SavedView, resourcePath?: string) => void;
   onSaveViewClick?: (resourceKey: string) => void;
+  onEditViewClick?: (view: SavedView) => void;
 }
 
 // Note: isExpanded and onToggle are kept for compatibility but not used in the new flat structure
@@ -103,6 +101,7 @@ const ResourceItem = ({
   onResourceClick,
   onViewClick,
   onSaveViewClick,
+  onEditViewClick,
 }: ResourceItemProps) => {
   const Icon = item.icon;
   const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'customers' || item.resourceKey === 'workouts' || item.resourceKey === 'templates' || item.resourceKey === 'nutrition_templates';
@@ -188,7 +187,7 @@ const ResourceItem = ({
                 onResourceClick();
               }}
               className={cn(
-              'w-full flex items-center gap-3 px-4 py-3.5 text-right transition-all duration-200 relative',
+              'w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200 relative',
               'text-base font-semibold',
               isMainInterfaceActive
                 ? 'text-white'
@@ -198,6 +197,7 @@ const ResourceItem = ({
               backgroundColor: '#3d4d8a', // Slightly darker blue for active main interface
             } : {}}
             >
+              {/* Icon on the right side (RTL: right is start) */}
               <Icon
                 className={cn(
                   'h-6 w-6 flex-shrink-0',
@@ -206,7 +206,7 @@ const ResourceItem = ({
               />
               <span className="flex-1 text-right">{item.label}</span>
               
-              {/* Add View Button - appears on hover */}
+              {/* Add View Button - appears on hover, positioned on left (RTL: left is end) */}
               {supportsViews && onSaveViewClick && (
                 <button
                   className={cn(
@@ -221,12 +221,13 @@ const ResourceItem = ({
                     onSaveViewClick(item.resourceKey);
                   }}
                   title="הוסף דף חדש"
+                  type="button"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
               )}
               
-              {/* Caret icon on the right (RTL) */}
+              {/* Caret icon - points left (RTL: indicates expandable/collapsible) */}
               {supportsViews && (
                 <ChevronLeft 
                   className={cn(
@@ -248,42 +249,70 @@ const ResourceItem = ({
                   return (
               <li key={view.id} className="group/view-item w-full">
                 <div className="relative flex items-center w-full">
-                        <button
+                  {/* Main view button */}
+                  <button
                     onClick={() => onViewClick(view, item.path)}
-                          className={cn(
-                      'w-full flex items-center gap-3 px-4 py-2.5 text-right transition-all duration-200',
-                      'text-sm font-normal relative',
-                            isViewActive
+                    className={cn(
+                      'w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200',
+                      'text-sm font-normal relative pl-20', // Add padding-left to make room for buttons on left
+                      isViewActive
                         ? 'text-white'
-                              : 'text-white/80 hover:bg-white/10'
-                          )}
+                        : 'text-white/80 hover:bg-white/10'
+                    )}
                     style={isViewActive ? {
                       backgroundColor: '#4f60a8', // Lighter blue for active sub-item
                     } : {}}
-                        >
-                    {/* Vertical bar/dot on far left for active sub-item */}
+                  >
+                    {/* Vertical bar/dot on far right (RTL: right is start) for active sub-item */}
                     <div className={cn(
                       'h-full w-1 flex-shrink-0 transition-colors absolute right-0',
                       isViewActive ? 'bg-[#2d3d7a]' : 'bg-transparent'
                     )} />
-                    <span className="flex-1 text-right mr-2">{view.view_name}</span>
-                        </button>
-                  {!isDefaultView && (
-                        <button
-                          onClick={(e) => handleDeleteClick(e, view)}
-                          className={cn(
-                        'absolute left-2 p-1.5 rounded-md transition-all duration-200 opacity-0 group-hover/view-item:opacity-100',
-                            'text-white/60 hover:text-white hover:bg-white/20',
-                        'focus:opacity-100 focus:outline-none'
-                          )}
-                          title="מחק תצוגה"
-                          disabled={deleteView.isPending}
-                        >
-                      <X className="h-4 w-4" />
-                        </button>
-                  )}
-                      </div>
-                    </li>
+                    {/* Invisible spacer to match main interface icon width (h-6 w-6 = 24px) */}
+                    <div className="w-6 h-6 flex-shrink-0 opacity-0" aria-hidden="true" />
+                    <span className="flex-1 text-right truncate">{view.view_name}</span>
+                  </button>
+                  
+                  {/* Action buttons - positioned on left side (RTL: left is end), only visible on hover */}
+                  <div className="absolute left-2 flex items-center gap-1 z-10 pointer-events-auto opacity-0 group-hover/view-item:opacity-100 transition-opacity duration-200">
+                    {onEditViewClick && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditViewClick(view);
+                        }}
+                        className={cn(
+                          'p-1.5 rounded-md transition-all duration-200',
+                          'text-white/60 hover:text-white hover:bg-white/20',
+                          'focus:opacity-100 focus:outline-none'
+                        )}
+                        title="ערוך תצוגה"
+                        type="button"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                    )}
+                    {!isDefaultView && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(e, view);
+                        }}
+                        className={cn(
+                          'p-1.5 rounded-md transition-all duration-200',
+                          'text-white/60 hover:text-white hover:bg-white/20',
+                          'focus:opacity-100 focus:outline-none'
+                        )}
+                        title="מחק תצוגה"
+                        disabled={deleteView.isPending}
+                        type="button"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </li>
                   );
                 })}
         </>
@@ -316,7 +345,12 @@ const ResourceItem = ({
   );
 };
 
-export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => {
+interface DashboardSidebarProps {
+  onSaveViewClick?: (resourceKey: string) => void;
+  onEditViewClick?: (view: SavedView) => void;
+}
+
+export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: DashboardSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -386,6 +420,7 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
       {/* Navigation List */}
       <nav 
         className="flex-1 py-4 overflow-y-auto text-base"
+        dir="rtl"
         style={{
           scrollbarWidth: 'thin',
           scrollbarColor: '#5a6ba5 #3d4d8a',
@@ -413,7 +448,7 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
             background: #7b8fc8;
           }
         `}</style>
-        <ul className="space-y-0.5 w-full">
+        <ul className="space-y-0.5 w-full" dir="rtl">
           {navigationItems.map((item) => (
             <ResourceItem
               key={item.id}
@@ -425,6 +460,7 @@ export const DashboardSidebar = ({ onSaveViewClick }: DashboardSidebarProps) => 
               onResourceClick={() => handleResourceClick(item)}
               onViewClick={handleViewClick}
               onSaveViewClick={onSaveViewClick}
+              onEditViewClick={onEditViewClick}
             />
           ))}
         </ul>

@@ -26,8 +26,14 @@ export interface LeadData {
   birth_date: string | null;
   height: number | null;
   weight: number | null;
+  city: string | null;
+  gender: string | null;
   join_date: string | null;
-  subscription_data: any;
+  subscription_data?: any;
+  workout_history?: any;
+  steps_history?: any;
+  nutrition_history?: any;
+  supplements_history?: any;
   assigned_to: string | null;
   customer_id: string;
 }
@@ -113,7 +119,7 @@ export const useUnifiedProfileView = () => {
       if (!selectedInterestId) return null;
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
+        .select('*, workout_history, steps_history, nutrition_history, supplements_history')
         .eq('id', selectedInterestId)
         .single();
       if (error) throw error;

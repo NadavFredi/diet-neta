@@ -4,6 +4,7 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadsDataTable } from '@/components/dashboard/LeadsDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
+import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { TableFilter } from '@/components/dashboard/TableFilter';
@@ -15,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useDashboardLogic } from '@/hooks/useDashboardLogic';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
-import { useTableFilters, LEAD_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { useTableFilters, LEAD_FILTER_FIELDS, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 
@@ -65,11 +66,18 @@ const Dashboard = () => {
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
+  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
+  const [viewToEdit, setViewToEdit] = useState<any>(null);
 
   // Memoized handler to prevent unnecessary re-renders
   const handleSaveViewClick = useCallback((resourceKey: string) => {
     setSaveViewResourceKey(resourceKey);
     setIsSaveViewModalOpen(true);
+  }, []);
+
+  const handleEditViewClick = useCallback((view: any) => {
+    setViewToEdit(view);
+    setIsEditViewModalOpen(true);
   }, []);
 
   return (
@@ -86,7 +94,7 @@ const Dashboard = () => {
       {/* Main content area with sidebar */}
       <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1' }}>
         {/* Sidebar - fixed positioning */}
-        <DashboardSidebar onSaveViewClick={handleSaveViewClick} />
+        <DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />
         
         {/* Main content */}
         <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
@@ -178,7 +186,25 @@ const Dashboard = () => {
       isOpen={isSaveViewModalOpen}
       onOpenChange={setIsSaveViewModalOpen}
       resourceKey={saveViewResourceKey}
-      filterConfig={getCurrentFilterConfig()}
+      filterConfig={getCurrentFilterConfig(activeFilters)}
+    />
+
+    {/* Edit View Modal */}
+    <EditViewModal
+      isOpen={isEditViewModalOpen}
+      onOpenChange={setIsEditViewModalOpen}
+      view={viewToEdit}
+      currentFilterConfig={getCurrentFilterConfig(activeFilters)}
+      filterFields={
+        viewToEdit?.resource_key === 'customers' ? CUSTOMER_FILTER_FIELDS :
+        viewToEdit?.resource_key === 'templates' ? TEMPLATE_FILTER_FIELDS :
+        viewToEdit?.resource_key === 'nutrition_templates' ? NUTRITION_TEMPLATE_FILTER_FIELDS :
+        LEAD_FILTER_FIELDS
+      }
+      onSuccess={() => {
+        setIsEditViewModalOpen(false);
+        setViewToEdit(null);
+      }}
     />
     </>
   );

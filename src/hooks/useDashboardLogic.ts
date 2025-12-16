@@ -239,7 +239,7 @@ export const useDashboardLogic = () => {
   }, [savedView, hasAppliedView, isLoadingView, viewId, dispatch]);
 
   // Get current filter config for saving views
-  const getCurrentFilterConfig = useCallback((): FilterConfig => {
+  const getCurrentFilterConfig = useCallback((advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc'): FilterConfig => {
     return {
       searchQuery,
       selectedDate,
@@ -252,6 +252,11 @@ export const useDashboardLogic = () => {
       selectedPreferredTime,
       selectedSource,
       columnVisibility,
+      columnOrder,
+      columnWidths,
+      sortBy,
+      sortOrder,
+      advancedFilters,
     };
   }, [
     searchQuery,
