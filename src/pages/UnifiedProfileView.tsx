@@ -224,123 +224,167 @@ const UnifiedProfileView = () => {
                       )}
                     </div>
 
-                    {/* Personal Details from Most Recent Lead - Single Line Display */}
-                    {mostRecentLead && (
-                      <div className="flex flex-wrap items-center gap-4 mt-2 pt-4 border-t border-gray-200">
-                        {/* Phone */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-500">טלפון:</span>
-                          <span className="text-sm font-semibold text-gray-900 font-mono">
-                            {customer?.phone || 'ללא טלפון'}
-                          </span>
-                        </div>
-                        
-                        {/* Age */}
-                        {(() => {
-                          const calculateAge = (birthDate: string | null): number | null => {
-                            if (!birthDate) return null;
-                            try {
-                              const birth = new Date(birthDate);
-                              const today = new Date();
-                              let age = today.getFullYear() - birth.getFullYear();
-                              const monthDiff = today.getMonth() - birth.getMonth();
-                              if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-                                age--;
-                              }
-                              return age;
-                            } catch {
-                              return null;
-                            }
-                          };
-                          const age = calculateAge(mostRecentLead.birth_date);
-                          return age !== null ? (
+                    {/* Personal Details from Most Recent Lead - Single Line Display (matching AddLeadDialog structure) */}
+                    {mostRecentLead && (() => {
+                      const lead = mostRecentLead as any; // Type assertion for lead data
+                      
+                      // Helper to get gender label
+                      const getGenderLabel = (gender: string | null): string => {
+                        if (!gender) return 'לא זמין';
+                        switch (gender) {
+                          case 'male': return 'זכר';
+                          case 'female': return 'נקבה';
+                          case 'other': return 'אחר';
+                          default: return gender;
+                        }
+                      };
+                      
+                      // Calculate age
+                      const calculateAge = (birthDate: string | null): number | null => {
+                        if (!birthDate) return null;
+                        try {
+                          const birth = new Date(birthDate);
+                          const today = new Date();
+                          let age = today.getFullYear() - birth.getFullYear();
+                          const monthDiff = today.getMonth() - birth.getMonth();
+                          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+                            age--;
+                          }
+                          return age;
+                        } catch {
+                          return null;
+                        }
+                      };
+                      
+                      const age = calculateAge(lead.birth_date);
+                      
+                      return (
+                        <div className="flex flex-wrap items-center gap-4 mt-2 pt-4 border-t border-gray-200">
+                          {/* Phone - matches AddLeadDialog "מספר טלפון" */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500">טלפון:</span>
+                            <span className="text-sm font-semibold text-gray-900 font-mono">
+                              {customer?.phone || 'ללא טלפון'}
+                            </span>
+                          </div>
+                          
+                          {/* Email - matches AddLeadDialog "אימייל" */}
+                          {customer?.email && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-gray-500">אימייל:</span>
+                              <span className="text-sm font-semibold text-gray-900 truncate">
+                                {customer.email}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* City - matches AddLeadDialog "עיר" */}
+                          {lead.city && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-gray-500">עיר:</span>
+                              <InlineEditableField
+                                label=""
+                                value={lead.city}
+                                onSave={async (newValue) => {
+                                  await updateLead.mutateAsync({
+                                    leadId: lead.id,
+                                    updates: { city: String(newValue) },
+                                  });
+                                }}
+                                type="text"
+                                className="border-0 p-0"
+                                valueClassName="text-sm font-semibold text-gray-900"
+                              />
+                            </div>
+                          )}
+                          
+                          {/* Birth Date - matches AddLeadDialog "תאריך לידה" */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500">תאריך לידה:</span>
+                            {lead.birth_date ? (
+                              <InlineEditableField
+                                label=""
+                                value={lead.birth_date}
+                                onSave={async (newValue) => {
+                                  await updateLead.mutateAsync({
+                                    leadId: lead.id,
+                                    updates: { birth_date: String(newValue) },
+                                  });
+                                }}
+                                type="date"
+                                formatValue={(val) => formatDate(String(val))}
+                                className="border-0 p-0"
+                                valueClassName="text-sm font-semibold text-gray-900"
+                              />
+                            ) : (
+                              <span className="text-sm font-semibold text-gray-400">לא זמין</span>
+                            )}
+                          </div>
+                          
+                          {/* Age - calculated from birth date */}
+                          {age !== null && (
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-medium text-gray-500">גיל:</span>
                               <span className="text-sm font-semibold text-gray-900">{age} שנים</span>
                             </div>
-                          ) : null;
-                        })()}
-                        
-                        {/* Birth Date */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-500">תאריך לידה:</span>
-                          {mostRecentLead.birth_date ? (
-                            <InlineEditableField
-                              label=""
-                              value={mostRecentLead.birth_date}
-                              onSave={async (newValue) => {
-                                await updateLead.mutateAsync({
-                                  leadId: mostRecentLead.id,
-                                  updates: { birth_date: String(newValue) },
-                                });
-                              }}
-                              type="date"
-                              formatValue={(val) => formatDate(String(val))}
-                              className="border-0 p-0"
-                              valueClassName="text-sm font-semibold text-gray-900"
-                            />
-                          ) : (
-                            <span className="text-sm font-semibold text-gray-400">לא זמין</span>
                           )}
-                        </div>
-                        
-                        {/* Height */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-500">גובה:</span>
-                          {mostRecentLead.height ? (
-                            <InlineEditableField
-                              label=""
-                              value={mostRecentLead.height}
-                              onSave={async (newValue) => {
-                                await updateLead.mutateAsync({
-                                  leadId: mostRecentLead.id,
-                                  updates: { height: Number(newValue) },
-                                });
-                              }}
-                              type="number"
-                              formatValue={(val) => `${val} ס"מ`}
-                              className="border-0 p-0"
-                              valueClassName="text-sm font-semibold text-gray-900"
-                            />
-                          ) : (
-                            <span className="text-sm font-semibold text-gray-400">לא זמין</span>
-                          )}
-                        </div>
-                        
-                        {/* Weight */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-500">משקל:</span>
-                          {mostRecentLead.weight ? (
-                            <InlineEditableField
-                              label=""
-                              value={mostRecentLead.weight}
-                              onSave={async (newValue) => {
-                                await updateLead.mutateAsync({
-                                  leadId: mostRecentLead.id,
-                                  updates: { weight: Number(newValue) },
-                                });
-                              }}
-                              type="number"
-                              formatValue={(val) => `${val} ק"ג`}
-                              className="border-0 p-0"
-                              valueClassName="text-sm font-semibold text-gray-900"
-                            />
-                          ) : (
-                            <span className="text-sm font-semibold text-gray-400">לא זמין</span>
-                          )}
-                        </div>
-                        
-                        {/* Email */}
-                        {customer?.email && (
+                          
+                          {/* Gender - matches AddLeadDialog "מגדר" */}
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-gray-500">אימייל:</span>
-                            <span className="text-sm font-semibold text-gray-900 truncate">
-                              {customer.email}
+                            <span className="text-xs font-medium text-gray-500">מגדר:</span>
+                            <span className="text-sm font-semibold text-gray-900">
+                              {getGenderLabel(lead.gender)}
                             </span>
                           </div>
-                        )}
-                      </div>
-                    )}
+                          
+                          {/* Height - matches AddLeadDialog "גובה (ס"מ)" */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500">גובה:</span>
+                            {lead.height ? (
+                              <InlineEditableField
+                                label=""
+                                value={lead.height}
+                                onSave={async (newValue) => {
+                                  await updateLead.mutateAsync({
+                                    leadId: lead.id,
+                                    updates: { height: Number(newValue) },
+                                  });
+                                }}
+                                type="number"
+                                formatValue={(val) => `${val} ס"מ`}
+                                className="border-0 p-0"
+                                valueClassName="text-sm font-semibold text-gray-900"
+                              />
+                            ) : (
+                              <span className="text-sm font-semibold text-gray-400">לא זמין</span>
+                            )}
+                          </div>
+                          
+                          {/* Weight - matches AddLeadDialog "משקל (ק"ג)" */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500">משקל:</span>
+                            {lead.weight ? (
+                              <InlineEditableField
+                                label=""
+                                value={lead.weight}
+                                onSave={async (newValue) => {
+                                  await updateLead.mutateAsync({
+                                    leadId: lead.id,
+                                    updates: { weight: Number(newValue) },
+                                  });
+                                }}
+                                type="number"
+                                formatValue={(val) => `${val} ק"ג`}
+                                className="border-0 p-0"
+                                valueClassName="text-sm font-semibold text-gray-900"
+                              />
+                            ) : (
+                              <span className="text-sm font-semibold text-gray-400">לא זמין</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 

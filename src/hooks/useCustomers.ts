@@ -57,6 +57,8 @@ export interface CustomerWithLeads extends Customer {
     activity_level: string | null;
     preferred_time: string | null;
     notes: string | null;
+    city: string | null;
+    gender: string | null;
   }>;
 }
 
@@ -155,6 +157,8 @@ export const useCustomer = (customerId: string | undefined) => {
           activity_level: lead.activity_level,
           preferred_time: lead.preferred_time,
           notes: lead.notes,
+          city: lead.city,
+          gender: lead.gender,
         })),
       } as CustomerWithLeads;
     },
