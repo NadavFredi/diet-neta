@@ -115,3 +115,4 @@ export const LeadHistorySidebar: React.FC<LeadHistorySidebarProps> = ({
     </div>
   );
 };
+
