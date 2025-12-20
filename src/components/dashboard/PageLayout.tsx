@@ -11,7 +11,6 @@ import { DashboardSidebar } from './DashboardSidebar';
 import { ClientHero } from './ClientHero';
 import { LeadSidebarContainer } from './LeadSidebarContainer';
 import { ActionDashboard } from './ActionDashboard';
-import { SidebarToggleButton } from './SidebarToggleButton';
 
 interface PageLayoutProps {
   userEmail?: string;
@@ -93,10 +92,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           />
 
           {/* Bottom Zone: Split View - Flex Row */}
-          <div className="flex-1 flex overflow-hidden gap-4 px-4 pb-4 relative">
-            {/* Sidebar Toggle Buttons - Vertical Bar on Left Side */}
-            <SidebarToggleButton />
-
+          <div className="flex-1 flex overflow-hidden gap-4 px-4 pb-4">
             {/* Left Side: ActionDashboard (Flex-1, scrollable internally) */}
             <ActionDashboard
               activeLead={activeLead}
@@ -107,7 +103,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               getStatusColor={getStatusColor}
             />
 
-            {/* Right Side: Dynamic Sidebar Container (History or Notes) */}
+            {/* Right Side: Dynamic Sidebar Container (History or Notes) with Floating Handle */}
             <LeadSidebarContainer
               leads={sortedLeads}
               activeLeadId={activeLeadId}

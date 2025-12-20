@@ -2,17 +2,19 @@
  * LeadSidebarContainer Component
  * 
  * Dynamic sidebar container that switches between History and Notes sidebars.
- * Implements the "switcher" logic: Notes sidebar overrides History sidebar when toggled.
+ * Includes floating handle buttons anchored to the sidebar edge.
  * 
  * Layout:
  * - History Sidebar: 350px width (LeadHistorySidebar)
  * - Notes Sidebar: 450px width (CustomerNotesSidebar)
+ * - Toggle buttons: Anchored to sidebar's right edge (left edge in RTL)
  * - Smooth transitions between states
  */
 
 import React from 'react';
 import { LeadHistorySidebar } from './LeadHistorySidebar';
 import { CustomerNotesSidebar } from './CustomerNotesSidebar';
+import { SidebarToggleButtons } from './SidebarToggleButtons';
 import { useAppSelector } from '@/store/hooks';
 import { selectActiveSidebar } from '@/store/slices/leadViewSlice';
 import { cn } from '@/lib/utils';
@@ -41,16 +43,17 @@ export const LeadSidebarContainer: React.FC<LeadSidebarContainerProps> = ({
 
   const showHistory = activeSidebar === 'history';
   const showNotes = activeSidebar === 'notes';
+  const sidebarOpen = showHistory || showNotes;
 
   return (
-    <>
+    <div className="relative flex-shrink-0 overflow-visible" style={{ width: sidebarOpen ? (showNotes ? '450px' : '350px') : '60px' }}>
       {/* History Sidebar - 350px - Smooth slide animation */}
       <div
         className={cn(
-          'flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden',
+          'transition-all duration-300 ease-in-out',
           showHistory
-            ? 'opacity-100 translate-x-0 w-[350px]'
-            : 'opacity-0 translate-x-full w-0'
+            ? 'opacity-100 translate-x-0 w-[350px] relative'
+            : 'opacity-0 translate-x-full w-0 absolute inset-0 overflow-hidden'
         )}
       >
         {showHistory && (
@@ -67,16 +70,19 @@ export const LeadSidebarContainer: React.FC<LeadSidebarContainerProps> = ({
       {/* Notes Sidebar - 450px - Smooth slide animation */}
       <div
         className={cn(
-          'flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden',
+          'transition-all duration-300 ease-in-out',
           showNotes
-            ? 'opacity-100 translate-x-0 w-[450px]'
-            : 'opacity-0 translate-x-full w-0'
+            ? 'opacity-100 translate-x-0 w-[450px] relative'
+            : 'opacity-0 translate-x-full w-0 absolute inset-0 overflow-hidden'
         )}
       >
         {showNotes && (
           <CustomerNotesSidebar customerId={customerId} />
         )}
       </div>
-    </>
+
+      {/* Floating Handle Buttons - Inside sidebar when closed, attached to edge when open */}
+      <SidebarToggleButtons sidebarOpen={sidebarOpen} />
+    </div>
   );
 };
