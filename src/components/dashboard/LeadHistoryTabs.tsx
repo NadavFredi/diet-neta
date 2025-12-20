@@ -8,7 +8,8 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
@@ -75,13 +76,19 @@ interface LeadHistoryTabsProps {
   stepsHistory?: StepsHistoryItem[] | null;
   nutritionHistory?: NutritionHistoryItem[] | null;
   supplementsHistory?: SupplementsHistoryItem[] | null;
+  onAddWorkoutPlan: () => void;
+  onAddDietPlan: () => void;
+  onAddSupplementsPlan: () => void;
 }
 
 export const LeadHistoryTabs = ({ 
   workoutHistory, 
   stepsHistory, 
   nutritionHistory, 
-  supplementsHistory 
+  supplementsHistory,
+  onAddWorkoutPlan,
+  onAddDietPlan,
+  onAddSupplementsPlan,
 }: LeadHistoryTabsProps) => {
   const [activeTab, setActiveTab] = useState('workouts');
 
@@ -90,9 +97,65 @@ export const LeadHistoryTabs = ({
   const hasNutritionHistory = nutritionHistory && nutritionHistory.length > 0;
   const hasSupplementsHistory = supplementsHistory && supplementsHistory.length > 0;
 
+  // Get the appropriate button for the active tab
+  const getActionButton = () => {
+    switch (activeTab) {
+      case 'workouts':
+      case 'steps':
+        return (
+          <Button 
+            size="sm" 
+            onClick={onAddWorkoutPlan}
+            className="gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            הוסף תכנית אימונים
+          </Button>
+        );
+      case 'nutrition':
+        return (
+          <Button 
+            size="sm" 
+            onClick={onAddDietPlan}
+            className="gap-2 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            הוסף תכנית תזונה
+          </Button>
+        );
+      case 'supplements':
+        return (
+          <Button 
+            size="sm" 
+            onClick={onAddSupplementsPlan}
+            className="gap-2 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            הוסף תכנית תוספים
+          </Button>
+        );
+      default:
+        return (
+          <Button 
+            size="sm" 
+            onClick={onAddWorkoutPlan}
+            className="gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            הוסף תכנית אימונים
+          </Button>
+        );
+    }
+  };
+
   // Always show tabs, even if empty
   return (
-    <Card className="p-4 border border-gray-200 rounded-xl shadow-sm bg-white mt-4">
+    <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white mt-3">
+      {/* Header Toolbar with Context-Aware Add Button */}
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+        {getActionButton()}
+      </div>
+
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-4 h-10 bg-gray-100 rounded-lg p-1">
           <TabsTrigger 
@@ -128,7 +191,16 @@ export const LeadHistoryTabs = ({
               <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                 <Dumbbell className="h-6 w-6 text-gray-400" />
               </div>
-              <p className="text-gray-500 text-sm font-medium">אין היסטוריה של תוכניות אימון</p>
+              <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תוכניות אימון</p>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={onAddWorkoutPlan}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                הוסף תכנית אימונים
+              </Button>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-100">
@@ -247,7 +319,16 @@ export const LeadHistoryTabs = ({
               <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
                 <UtensilsCrossed className="h-6 w-6 text-orange-400" />
               </div>
-              <p className="text-gray-500 text-sm font-medium">אין היסטוריה של תכניות תזונה</p>
+              <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תכניות תזונה</p>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={onAddDietPlan}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                הוסף תכנית תזונה
+              </Button>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-100">
@@ -315,7 +396,16 @@ export const LeadHistoryTabs = ({
               <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
                 <Pill className="h-6 w-6 text-green-400" />
               </div>
-              <p className="text-gray-500 text-sm font-medium">אין היסטוריה של תכניות תוספים</p>
+              <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תכניות תוספים</p>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={onAddSupplementsPlan}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                הוסף תכנית תוספים
+              </Button>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-100">

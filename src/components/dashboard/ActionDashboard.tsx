@@ -137,8 +137,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto" dir="rtl">
       <div className="p-3 space-y-3">
-        {/* Bento Grid Layout - 3 Columns */}
-        <div className="grid grid-cols-3 gap-3 items-stretch">
+        {/* Bento Grid Layout - 2 Columns */}
+        <div className="grid grid-cols-2 gap-3 items-stretch">
           {/* Card 1: Status & CRM Info */}
           <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col h-full">
             <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
@@ -328,43 +328,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             </div>
           </Card>
 
-          {/* Card 3: Quick Actions - Both buttons in same column */}
-          <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-orange-100 flex items-center justify-center">
-                <Dumbbell className="h-4 w-4 text-blue-600" />
-              </div>
-              <h3 className="text-sm font-bold text-gray-900">פעולות מהירות</h3>
-            </div>
-            <div className="flex flex-col gap-2 flex-1 min-h-0 justify-between">
-              <Button
-                onClick={onAddWorkoutPlan}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-50 hover:from-blue-100 hover:via-blue-200 hover:to-blue-100 border border-blue-200 rounded-lg shadow-sm hover:shadow transition-all group py-3"
-                variant="outline"
-              >
-                <div className="w-8 h-8 rounded-full bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors">
-                  <Dumbbell className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
-                </div>
-                <div className="flex flex-col items-start gap-0.5 flex-1">
-                  <span className="text-sm font-semibold text-blue-900">הוסף תכנית אימונים</span>
-                  <span className="text-xs text-blue-700 opacity-75">תכנית אימונים מותאמת אישית</span>
-                </div>
-              </Button>
-              <Button
-                onClick={onAddDietPlan}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-br from-orange-50 via-orange-100 to-orange-50 hover:from-orange-100 hover:via-orange-200 hover:to-orange-100 border border-orange-200 rounded-lg shadow-sm hover:shadow transition-all group py-3"
-                variant="outline"
-              >
-                <div className="w-8 h-8 rounded-full bg-orange-100 group-hover:bg-orange-200 flex items-center justify-center transition-colors">
-                  <Apple className="h-4 w-4 text-orange-600 group-hover:scale-110 transition-transform" />
-                </div>
-                <div className="flex flex-col items-start gap-0.5 flex-1">
-                  <span className="text-sm font-semibold text-orange-900">הוסף תכנית תזונה</span>
-                  <span className="text-xs text-orange-700 opacity-75">תכנית תזונה מותאמת אישית</span>
-                </div>
-              </Button>
-            </div>
-          </Card>
         </div>
 
         {/* Stats/KPIs Row - 3 Columns */}
@@ -525,6 +488,12 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             stepsHistory={activeLead.steps_history}
             nutritionHistory={activeLead.nutrition_history}
             supplementsHistory={activeLead.supplements_history}
+            onAddWorkoutPlan={onAddWorkoutPlan}
+            onAddDietPlan={onAddDietPlan}
+            onAddSupplementsPlan={() => {
+              // Supplements plan creation - placeholder for future implementation
+              console.log('Add supplements plan');
+            }}
           />
         </div>
       </div>
