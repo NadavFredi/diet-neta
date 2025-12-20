@@ -130,11 +130,11 @@ export const InlineEditableSelect = ({
 
   if (isEditing) {
     return (
-      <div className={cn('flex flex-col gap-1.5 py-1.5', className)}>
-        <span className="text-xs font-medium text-gray-500">{label}</span>
-        <div className="flex flex-col gap-2">
+      <div className={cn('flex items-center gap-2 py-0.5', className)}>
+        <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
+        <div className="flex-1 min-w-0">
           {isAddingNew ? (
-            <div className="flex items-center gap-1.5">
+            <div className="relative flex-1">
               <Input
                 ref={newOptionInputRef}
                 type="text"
@@ -142,36 +142,39 @@ export const InlineEditableSelect = ({
                 onChange={(e) => setNewOptionValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="הזן ערך חדש..."
-                className="h-7 text-xs flex-1"
+                className="h-7 text-xs pr-9 pl-7"
                 disabled={isSaving}
                 dir="rtl"
               />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleSave}
-                disabled={isSaving || !newOptionValue.trim()}
-                className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                title="Enter לשמירה"
-              >
-                <Check className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setIsAddingNew(false);
-                  setNewOptionValue('');
-                }}
-                disabled={isSaving}
-                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
+              {/* Checkmark and X icons inside the input field */}
+              <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleSave}
+                  disabled={isSaving || !newOptionValue.trim()}
+                  className="h-5 w-5 p-0 text-green-600 hover:text-green-700 hover:bg-green-50/80 rounded"
+                  title="Enter לשמירה"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsAddingNew(false);
+                    setNewOptionValue('');
+                  }}
+                  disabled={isSaving}
+                  className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5" onKeyDown={handleKeyDown}>
+              <div className="relative flex-1" onKeyDown={handleKeyDown}>
                 <Select 
                   value={editValue} 
                   onValueChange={(value) => {
@@ -186,7 +189,7 @@ export const InlineEditableSelect = ({
                   disabled={isSaving || isAddingNew}
                   dir="rtl"
                 >
-                  <SelectTrigger className="h-7 text-xs flex-1">
+                  <SelectTrigger className="h-7 text-xs pr-9 pl-7">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent dir="rtl">
@@ -206,26 +209,29 @@ export const InlineEditableSelect = ({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                  title="Enter לשמירה"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleCancel}
-                  disabled={isSaving}
-                  className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  title="Escape לביטול"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
+                {/* Checkmark and X icons inside the field */}
+                <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="h-5 w-5 p-0 text-green-600 hover:text-green-700 hover:bg-green-50/80 rounded"
+                    title="Enter לשמירה"
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCancel}
+                    disabled={isSaving}
+                    className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded"
+                    title="Escape לביטול"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -236,13 +242,13 @@ export const InlineEditableSelect = ({
 
   return (
     <div
-      className={cn('flex flex-col gap-0.5 py-1.5 group', className)}
+      className={cn('flex items-center gap-2 py-0.5 group', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onDoubleClick={handleDoubleClick}
     >
-      <span className="text-xs font-medium text-gray-500">{label}</span>
-      <div className="flex items-center gap-1.5 justify-between">
+      <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
+      <div className="flex items-center gap-1.5 flex-1 min-w-0">
         <span 
           className={cn(
             'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border cursor-pointer hover:opacity-80 transition-opacity',

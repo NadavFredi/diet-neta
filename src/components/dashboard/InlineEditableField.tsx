@@ -98,36 +98,42 @@ export const InlineEditableField = ({
 
   if (isEditing) {
     return (
-      <div className={cn('flex flex-col gap-1.5 py-1.5', className)}>
-        <span className="text-xs font-medium text-gray-500">{label}</span>
-        <div className="flex items-center gap-1.5">
+      <div className={cn('flex items-center gap-2 py-0.5', className)}>
+        <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
+        <div className="relative flex-1 min-w-0">
           <Input
             ref={inputRef}
             type={type}
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="h-7 text-xs flex-1"
+            className="h-7 text-xs pr-9 pl-7"
             disabled={isSaving}
+            dir="rtl"
           />
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-          >
-            <Check className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleCancel}
-            disabled={isSaving}
-            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
+          {/* Checkmark and X icons inside the input field */}
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="h-5 w-5 p-0 text-green-600 hover:text-green-700 hover:bg-green-50/80 rounded"
+              title="Enter לשמירה"
+            >
+              <Check className="h-3 w-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleCancel}
+              disabled={isSaving}
+              className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded"
+              title="Escape לביטול"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -140,15 +146,15 @@ export const InlineEditableField = ({
 
   return (
     <div
-      className={cn('flex flex-col gap-0.5 py-1.5 group', className)}
+      className={cn('flex items-center gap-2 py-0.5 group', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onDoubleClick={handleDoubleClick}
     >
-      <span className="text-xs font-medium text-gray-500">{label}</span>
-      <div className="flex items-center gap-1.5 justify-between">
+      <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
+      <div className="flex items-center gap-1.5 flex-1 min-w-0">
         <span 
-          className={cn('text-sm font-semibold text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors', valueClassName)}
+          className={cn('text-sm font-semibold text-slate-900 truncate cursor-pointer hover:text-blue-600 transition-colors', valueClassName)}
           onDoubleClick={handleDoubleClick}
           title={!disabled ? 'לחץ פעמיים לעריכה' : undefined}
         >

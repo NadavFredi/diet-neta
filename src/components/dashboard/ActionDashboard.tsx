@@ -136,18 +136,18 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto" dir="rtl">
-      <div className="p-4 space-y-4">
+      <div className="p-3 space-y-3">
         {/* Bento Grid Layout - 3 Columns */}
-        <div className="grid grid-cols-3 gap-4 items-stretch">
+        <div className="grid grid-cols-3 gap-3 items-stretch">
           {/* Card 1: Status & CRM Info */}
-          <Card className="p-4 border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100 flex-shrink-0">
+          <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col h-full">
+            <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
                 <Target className="h-4 w-4 text-indigo-600" />
               </div>
               <h3 className="text-sm font-bold text-gray-900">סטטוס ומידע CRM</h3>
             </div>
-            <div className="grid grid-cols-3 gap-2.5 flex-1">
+            <div className="grid grid-cols-3 gap-2 flex-1">
               {/* Status - Editable with custom values */}
               <InlineEditableSelect
                 label="סטטוס"
@@ -239,9 +239,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               />
 
               {/* Created Date - Read Only */}
-              <div>
-                <span className="text-xs text-gray-500 mb-1 block">תאריך יצירה</span>
-                <span className="text-sm font-semibold text-gray-900">
+              <div className="flex items-center gap-2 py-0.5">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0">תאריך יצירה:</span>
+                <span className="text-sm font-semibold text-slate-900">
                   {formatDate(activeLead.created_at)}
                 </span>
               </div>
@@ -249,14 +249,14 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Card 2: Subscription Details */}
-          <Card className="p-4 border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100 flex-shrink-0">
+          <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col h-full">
+            <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
                 <Wallet className="h-4 w-4 text-green-600" />
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרטי מנוי</h3>
             </div>
-            <div className="grid grid-cols-3 gap-2.5 flex-1">
+            <div className="grid grid-cols-3 gap-2 flex-1">
               <InlineEditableField
                 label="תאריך הצטרפות"
                 value={activeLead.join_date || ''}
@@ -329,40 +329,38 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Card 3: Quick Actions - Both buttons in same column */}
-          <Card className="p-4 border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100 flex-shrink-0">
+          <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col h-full">
+            <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-orange-100 flex items-center justify-center">
                 <Dumbbell className="h-4 w-4 text-blue-600" />
               </div>
               <h3 className="text-sm font-bold text-gray-900">פעולות מהירות</h3>
             </div>
-            <div className="flex flex-col gap-3 flex-1 min-h-0 justify-between">
+            <div className="flex flex-col gap-2 flex-1 min-h-0 justify-between">
               <Button
                 onClick={onAddWorkoutPlan}
-                className="flex-1 flex flex-col items-center justify-center gap-2.5 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-50 hover:from-blue-100 hover:via-blue-200 hover:to-blue-100 border-2 border-blue-200 rounded-xl shadow-sm hover:shadow-lg transition-all group"
+                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-50 hover:from-blue-100 hover:via-blue-200 hover:to-blue-100 border border-blue-200 rounded-lg shadow-sm hover:shadow transition-all group py-3"
                 variant="outline"
-                style={{ minHeight: 'calc(50% - 6px)' }}
               >
-                <div className="w-12 h-12 rounded-full bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors shadow-inner">
-                  <Dumbbell className="h-6 w-6 text-blue-600 group-hover:scale-110 transition-transform" />
+                <div className="w-8 h-8 rounded-full bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors">
+                  <Dumbbell className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
                 </div>
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-sm font-bold text-blue-900">הוסף תכנית אימונים</span>
-                  <span className="text-xs text-blue-700 opacity-75 text-center">תכנית אימונים מותאמת אישית</span>
+                <div className="flex flex-col items-start gap-0.5 flex-1">
+                  <span className="text-sm font-semibold text-blue-900">הוסף תכנית אימונים</span>
+                  <span className="text-xs text-blue-700 opacity-75">תכנית אימונים מותאמת אישית</span>
                 </div>
               </Button>
               <Button
                 onClick={onAddDietPlan}
-                className="flex-1 flex flex-col items-center justify-center gap-2.5 bg-gradient-to-br from-orange-50 via-orange-100 to-orange-50 hover:from-orange-100 hover:via-orange-200 hover:to-orange-100 border-2 border-orange-200 rounded-xl shadow-sm hover:shadow-lg transition-all group"
+                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-br from-orange-50 via-orange-100 to-orange-50 hover:from-orange-100 hover:via-orange-200 hover:to-orange-100 border border-orange-200 rounded-lg shadow-sm hover:shadow transition-all group py-3"
                 variant="outline"
-                style={{ minHeight: 'calc(50% - 6px)' }}
               >
-                <div className="w-12 h-12 rounded-full bg-orange-100 group-hover:bg-orange-200 flex items-center justify-center transition-colors shadow-inner">
-                  <Apple className="h-6 w-6 text-orange-600 group-hover:scale-110 transition-transform" />
+                <div className="w-8 h-8 rounded-full bg-orange-100 group-hover:bg-orange-200 flex items-center justify-center transition-colors">
+                  <Apple className="h-4 w-4 text-orange-600 group-hover:scale-110 transition-transform" />
                 </div>
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-sm font-bold text-orange-900">הוסף תכנית תזונה</span>
-                  <span className="text-xs text-orange-700 opacity-75 text-center">תכנית תזונה מותאמת אישית</span>
+                <div className="flex flex-col items-start gap-0.5 flex-1">
+                  <span className="text-sm font-semibold text-orange-900">הוסף תכנית תזונה</span>
+                  <span className="text-xs text-orange-700 opacity-75">תכנית תזונה מותאמת אישית</span>
                 </div>
               </Button>
             </div>
@@ -370,16 +368,16 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         </div>
 
         {/* Stats/KPIs Row - 3 Columns */}
-        <div className="grid grid-cols-3 gap-4 items-stretch">
+        <div className="grid grid-cols-3 gap-3 items-stretch">
           {/* Daily Protocol Card */}
-          <Card className="p-4 border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100 flex-shrink-0">
+          <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col">
+            <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
                 <Activity className="h-4 w-4 text-purple-600" />
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרוטוקול יומי</h3>
             </div>
-            <div className="grid grid-cols-3 gap-2.5 flex-1">
+            <div className="grid grid-cols-3 gap-2 flex-1">
               <InlineEditableField
                 label="אימונים/שבוע"
                 value={activeLead.daily_protocol?.workoutGoal || 0}
@@ -413,18 +411,18 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Personal Info Card - New Card with Age, Height, Weight, BMI */}
-          <Card className="p-4 border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100 flex-shrink-0">
+          <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col">
+            <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
                 <Target className="h-4 w-4 text-cyan-600" />
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרטים אישיים</h3>
             </div>
-            <div className="grid grid-cols-3 gap-2.5 flex-1">
+            <div className="grid grid-cols-3 gap-2 flex-1">
               {/* Age */}
-              <div>
-                <span className="text-xs text-gray-500 mb-1 block">גיל</span>
-                <span className="text-sm font-semibold text-gray-900">
+              <div className="flex items-center gap-2 py-0.5">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
+                <span className="text-sm font-semibold text-slate-900">
                   {age !== null ? `${age} שנים` : '-'}
                 </span>
               </div>
@@ -474,9 +472,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               />
 
               {/* Target Weight (if available) */}
-              <div>
-                <span className="text-xs text-gray-500 mb-1 block">משקל יעד</span>
-                <span className="text-sm font-semibold text-gray-900">
+              <div className="flex items-center gap-2 py-0.5">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0">משקל יעד:</span>
+                <span className="text-sm font-semibold text-slate-900">
                   {activeLead.target_weight ? `${activeLead.target_weight} ק"ג` : '-'}
                 </span>
               </div>
@@ -484,14 +482,14 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Fitness Info Card */}
-          <Card className="p-4 border border-gray-200 rounded-xl shadow-sm bg-white flex flex-col">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100 flex-shrink-0">
+          <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col">
+            <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center">
                 <Target className="h-4 w-4 text-pink-600" />
               </div>
               <h3 className="text-sm font-bold text-gray-900">מידע כושר</h3>
             </div>
-            <div className="grid grid-cols-3 gap-2.5 flex-1">
+            <div className="grid grid-cols-3 gap-2 flex-1">
               <InlineEditableSelect
                 label="רמת פעילות"
                 value={activeLead.activity_level || ''}

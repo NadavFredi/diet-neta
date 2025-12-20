@@ -49,7 +49,6 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   onEmail,
   onUpdateLead,
   onUpdateCustomer,
-  getInitials,
   getStatusColor,
 }) => {
   if (!customer) return null;
@@ -93,7 +92,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
       <div className="flex items-center justify-between gap-6">
         {/* Left Side (RTL): Personal Info Line */}
         <div className="flex-1 flex items-center gap-6 flex-wrap">
-          {/* Return Button - Right of Avatar (first in RTL = right side) */}
+          {/* Return Button */}
           <Button
             onClick={onBack}
             variant="ghost"
@@ -104,26 +103,13 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
             חזור
           </Button>
 
-          {/* Avatar */}
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 flex items-center justify-center text-white text-lg font-bold shadow-md flex-shrink-0">
-            {customer.avatar_url ? (
-              <img 
-                src={customer.avatar_url} 
-                alt={customer.full_name}
-                className="w-full h-full rounded-xl object-cover"
-              />
-            ) : (
-              getInitials(customer.full_name)
-            )}
-          </div>
-
           {/* Name */}
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-gray-900">{customer.full_name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold text-gray-900">{customer.full_name}</h1>
           </div>
 
           {/* Personal Info Line - All Editable */}
-          <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
             {/* Phone - Customer Level */}
             {onUpdateCustomer && customer && (
               <InlineEditableField

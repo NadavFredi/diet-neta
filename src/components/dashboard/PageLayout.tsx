@@ -87,7 +87,6 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
             onEmail={onEmail}
             onUpdateLead={onUpdateLead}
             onUpdateCustomer={onUpdateCustomer}
-            getInitials={getInitials}
             getStatusColor={getStatusColor}
           />
 
