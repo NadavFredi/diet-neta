@@ -2,11 +2,13 @@ import { configureStore, Middleware } from '@reduxjs/toolkit';
 import { api } from './api/apiSlice';
 import authReducer from './slices/authSlice';
 import dashboardReducer from './slices/dashboardSlice';
+import tableStateReducer from './slices/tableStateSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     dashboard: dashboardReducer,
+    tableState: tableStateReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => {

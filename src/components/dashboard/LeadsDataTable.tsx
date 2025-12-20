@@ -68,8 +68,9 @@ export const LeadsDataTable = ({ leads, columnVisibility, enableColumnVisibility
       emptyMessage="לא נמצאו תוצאות"
       enableColumnVisibility={enableColumnVisibility}
       enableColumnReordering={true}
-      initialColumnVisibility={initialVisibility} // Sync with Redux state
-      initialColumnOrder={initialColumnOrder} // Set default column order
+      resourceKey="leads"
+      initialColumnVisibility={initialVisibility} // Used only for initial Redux initialization
+      initialColumnOrder={initialColumnOrder} // Used only for initial Redux initialization
     />
   );
 };

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,6 +11,19 @@ import {
   type VisibilityState,
   type ColumnOrderState,
 } from '@tanstack/react-table';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  initializeTableState,
+  setColumnVisibility as setColumnVisibilityAction,
+  setColumnSizing as setColumnSizingAction,
+  setAllColumnSizing as setAllColumnSizingAction,
+  setColumnOrder as setColumnOrderAction,
+  toggleColumnVisibility as toggleColumnVisibilityAction,
+  selectColumnVisibility,
+  selectColumnSizing,
+  selectColumnOrder,
+  type ResourceKey,
+} from '@/store/slices/tableStateSlice';
 import {
   DndContext,
   closestCenter,
@@ -64,8 +77,9 @@ export interface DataTableProps<T> {
   dir?: 'ltr' | 'rtl';
   enableColumnVisibility?: boolean;
   enableColumnReordering?: boolean;
-  initialColumnVisibility?: Record<string, boolean>; // Optional initial visibility state
-  initialColumnOrder?: string[]; // Optional initial column order
+  resourceKey?: ResourceKey; // Resource key for Redux state management
+  initialColumnVisibility?: Record<string, boolean>; // Optional initial visibility state (deprecated - use Redux)
+  initialColumnOrder?: string[]; // Optional initial column order (deprecated - use Redux)
 }
 
 // Helper function to get header text and smart truncate
@@ -144,9 +158,9 @@ function SortableHeader<T>({
   const canSort = column?.getCanSort();
   const canResize = column?.columnDef.enableResizing !== false;
   const canHide = column?.columnDef.enableHiding !== false;
-  const meta = column?.columnDef.meta;
-  const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
-  const width = header.getSize();
+    const meta = column?.columnDef.meta;
+    const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+    const columnWidth = header.getSize();
   const [isHovered, setIsHovered] = useState(false);
 
   const headerText = getHeaderText(header);
@@ -161,9 +175,9 @@ function SortableHeader<T>({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    width: `${width}px`,
-    minWidth: `${width}px`,
-    maxWidth: `${width}px`,
+    width: `${columnWidth}px`,
+    minWidth: `${columnWidth}px`,
+    maxWidth: `${columnWidth}px`,
   };
 
   const handleHideClick = (e: React.MouseEvent) => {
@@ -333,29 +347,60 @@ export function DataTable<T extends Record<string, any>>({
   dir = 'rtl',
   enableColumnVisibility = true,
   enableColumnReordering = true,
+  resourceKey,
   initialColumnVisibility,
   initialColumnOrder,
 }: DataTableProps<T>) {
+  const dispatch = useAppDispatch();
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const tableRef = React.useRef<HTMLDivElement>(null);
   const [hasMeasured, setHasMeasured] = useState(false);
 
+  // Get state from Redux if resourceKey is provided, otherwise use local state (backward compatibility)
+  const reduxColumnVisibility = resourceKey ? useAppSelector((state) => selectColumnVisibility(state, resourceKey)) : {};
+  const reduxColumnSizing = resourceKey ? useAppSelector((state) => selectColumnSizing(state, resourceKey)) : {};
+  const reduxColumnOrder = resourceKey ? useAppSelector((state) => selectColumnOrder(state, resourceKey)) : [];
+
+  // Initialize Redux state on mount if resourceKey is provided
+  useEffect(() => {
+    if (resourceKey && columns.length > 0) {
+      const columnIds = columns.map((col) => col.id);
+      dispatch(
+        initializeTableState({
+          resourceKey,
+          columnIds,
+          initialVisibility: initialColumnVisibility,
+          initialSizing: undefined,
+          initialOrder: initialColumnOrder,
+        })
+      );
+    }
+  }, [resourceKey, dispatch, columns, initialColumnVisibility, initialColumnOrder]);
+
+  // Use Redux state if resourceKey is provided, otherwise use empty object (will be managed locally)
+  const columnVisibility = resourceKey ? reduxColumnVisibility : {};
+  const columnSizing = resourceKey ? reduxColumnSizing : {};
+
+  // Local state for column sizing (backward compatibility only)
+  const [localColumnSizing, setLocalColumnSizing] = useState<Record<string, number>>({});
+
+  // Use Redux state if resourceKey is provided, otherwise use local state
+  const effectiveColumnSizing = resourceKey ? columnSizing : localColumnSizing;
+
   // Fit-to-content: Measure and adjust column widths on initial load
   React.useEffect(() => {
-    // Skip if already measured, no data, or if user has manually resized columns
+    // Skip if already measured, no data
     if (hasMeasured || data.length === 0) {
       return;
     }
 
-    // Check if user has manually resized any column (columnSizing has values that differ from defaults)
-    const hasManualResizing = Object.keys(columnSizing).some((colId) => {
+    // Check if user has manually resized any column (effectiveColumnSizing has values that differ from defaults)
+    const hasManualResizing = Object.keys(effectiveColumnSizing).length > 0 && Object.keys(effectiveColumnSizing).some((colId) => {
       const col = columns.find((c) => c.id === colId);
       if (!col) return false;
       const defaultSize = col.size || 150;
-      return columnSizing[colId] !== defaultSize;
+      return effectiveColumnSizing[colId] !== defaultSize;
     });
 
     if (hasManualResizing) {
@@ -426,7 +471,13 @@ export function DataTable<T extends Record<string, any>>({
 
       // Only apply if we have measurements
       if (Object.keys(newSizing).length > 0) {
-        setColumnSizing(newSizing);
+        if (resourceKey) {
+          // Update Redux state
+          dispatch(setAllColumnSizingAction({ resourceKey, sizing: newSizing }));
+        } else {
+          // Update local state (backward compatibility)
+          setLocalColumnSizing(newSizing);
+        }
         setHasMeasured(true);
       }
     };
@@ -436,16 +487,14 @@ export function DataTable<T extends Record<string, any>>({
       requestAnimationFrame(measureColumns);
     }, 100);
 
-    return () => clearTimeout(timeoutId);
-  }, [data, columns, hasMeasured, columnSizing]);
-  // Use provided initial order or default to columns array order
-  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+      return () => clearTimeout(timeoutId);
+    }, [data, columns, hasMeasured, effectiveColumnSizing, resourceKey, dispatch]);
+  // Use Redux state for column order if resourceKey is provided, otherwise use local state
+  const [localColumnOrder, setLocalColumnOrder] = useState<string[]>(() => {
     if (initialColumnOrder) {
-      // Validate that all columns in initialColumnOrder exist in columns
       const validOrder = initialColumnOrder.filter((id) => 
         columns.some((col) => col.id === id)
       );
-      // Add any missing columns from the columns array
       const missingColumns = columns
         .filter((col) => !validOrder.includes(col.id))
         .map((col) => col.id);
@@ -454,53 +503,48 @@ export function DataTable<T extends Record<string, any>>({
     return columns.map((col) => col.id);
   });
 
-  // Initialize column visibility - STRICT SCHEMA: Only initialize columns that exist in the passed columns prop
+  const columnOrder = resourceKey ? (reduxColumnOrder.length > 0 ? reduxColumnOrder : columns.map((col) => col.id)) : localColumnOrder;
+
+  // Initialize column visibility for backward compatibility (when resourceKey is not provided)
   React.useEffect(() => {
+    if (resourceKey) {
+      // Redux manages this, no local state needed
+      return;
+    }
+
+    // Legacy local state management (backward compatibility)
     const initialVisibility: VisibilityState = {};
     columns.forEach((col) => {
-      // Use provided initial visibility if available, otherwise default to visible
       if (initialColumnVisibility && col.id in initialColumnVisibility) {
         initialVisibility[col.id] = initialColumnVisibility[col.id];
       } else {
-        // Default to visible unless explicitly disabled
         initialVisibility[col.id] = col.enableHiding !== false;
       }
     });
-    setColumnVisibility((prev) => {
-      // Only update if not already set
-      if (Object.keys(prev).length === 0) {
-        return initialVisibility;
+    
+    // Only initialize if columnVisibility is empty (first render)
+    if (Object.keys(columnVisibility).length === 0) {
+      // This will be handled by the local state setter below if needed
+    }
+  }, [columns, initialColumnVisibility, resourceKey, columnVisibility]);
+
+  // Local state for column visibility (backward compatibility only)
+  const [localColumnVisibility, setLocalColumnVisibility] = useState<VisibilityState>(() => {
+    if (resourceKey) return {}; // Redux manages this
+    
+    const initialVisibility: VisibilityState = {};
+    columns.forEach((col) => {
+      if (initialColumnVisibility && col.id in initialColumnVisibility) {
+        initialVisibility[col.id] = initialColumnVisibility[col.id];
+      } else {
+        initialVisibility[col.id] = col.enableHiding !== false;
       }
-      // If initialColumnVisibility is provided, sync with it (for external state control)
-      if (initialColumnVisibility) {
-        const synced: VisibilityState = {};
-        columns.forEach((col) => {
-          if (col.id in initialColumnVisibility) {
-            synced[col.id] = initialColumnVisibility[col.id];
-          } else if (col.id in prev) {
-            synced[col.id] = prev[col.id];
-          } else {
-            synced[col.id] = col.enableHiding !== false;
-          }
-        });
-        return synced;
-      }
-      // Merge with new columns - only add columns that exist in the schema
-      const merged = { ...prev };
-      columns.forEach((col) => {
-        if (!(col.id in merged)) {
-          merged[col.id] = col.enableHiding !== false;
-        }
-      });
-      // Remove any columns that no longer exist in the schema (cleanup)
-      Object.keys(merged).forEach((colId) => {
-        if (!columns.find((col) => col.id === colId)) {
-          delete merged[colId];
-        }
-      });
-      return merged;
     });
-  }, [columns, initialColumnVisibility]);
+    return initialVisibility;
+  });
+
+  // Use Redux state if resourceKey is provided, otherwise use local state
+  const effectiveColumnVisibility = resourceKey ? columnVisibility : localColumnVisibility;
 
   // DnD Kit sensors
   const sensors = useSensors(
@@ -519,7 +563,7 @@ export function DataTable<T extends Record<string, any>>({
     // Filter and order columns based on visibility and order state
     const orderedColumns = columnOrder
       .map((id) => columns.find((col) => col.id === id))
-      .filter((col): col is DataTableColumn<T> => col !== undefined && columnVisibility[col.id] !== false);
+      .filter((col): col is DataTableColumn<T> => col !== undefined && effectiveColumnVisibility[col.id] !== false);
 
     // Calculate weighted widths based on header text length (Smart Density)
     const getHeaderTextLength = (col: DataTableColumn<T>): number => {
@@ -577,21 +621,45 @@ export function DataTable<T extends Record<string, any>>({
         meta: col.meta,
       };
     });
-  }, [columns, columnOrder, columnVisibility]);
+  }, [columns, columnOrder, effectiveColumnVisibility]);
 
   const table = useReactTable({
     data,
     columns: tableColumns,
     state: {
       sorting,
-      columnSizing,
-      columnVisibility,
+      columnSizing: effectiveColumnSizing,
+      columnVisibility: effectiveColumnVisibility,
       columnOrder,
     },
     onSortingChange: setSorting,
-    onColumnSizingChange: setColumnSizing,
-    onColumnVisibilityChange: setColumnVisibility,
-    onColumnOrderChange: setColumnOrder,
+    onColumnSizingChange: (updater: any) => {
+      const newSizing = typeof updater === 'function' ? updater(effectiveColumnSizing) : updater;
+      if (resourceKey) {
+        dispatch(setAllColumnSizingAction({ resourceKey, sizing: newSizing }));
+      } else {
+        setLocalColumnSizing(newSizing);
+      }
+    },
+    onColumnVisibilityChange: (updater: any) => {
+      const newVisibility = typeof updater === 'function' ? updater(effectiveColumnVisibility) : updater;
+      if (resourceKey) {
+        // Update Redux state column by column
+        Object.keys(newVisibility).forEach((colId) => {
+          dispatch(setColumnVisibilityAction({ resourceKey, columnId: colId, visible: newVisibility[colId] }));
+        });
+      } else {
+        setLocalColumnVisibility(newVisibility);
+      }
+    },
+    onColumnOrderChange: (updater: any) => {
+      const newOrder = typeof updater === 'function' ? updater(columnOrder) : updater;
+      if (resourceKey) {
+        dispatch(setColumnOrderAction({ resourceKey, order: newOrder }));
+      } else {
+        setLocalColumnOrder(newOrder);
+      }
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -636,10 +704,14 @@ export function DataTable<T extends Record<string, any>>({
         const delta = dir === 'rtl' ? startX - e.clientX : e.clientX - startX;
         // Allow much smaller columns - minimum 60px to ensure icons are visible
         const newWidth = Math.max(60, Math.min(Infinity, startWidth + delta));
-        setColumnSizing((prev) => ({
-          ...prev,
-          [columnId]: newWidth,
-        }));
+        if (resourceKey) {
+          dispatch(setColumnSizingAction({ resourceKey, columnId, size: newWidth }));
+        } else {
+          setLocalColumnSizing((prev) => ({
+            ...prev,
+            [columnId]: newWidth,
+          }));
+        }
       };
 
       const handleMouseUp = () => {
@@ -662,26 +734,38 @@ export function DataTable<T extends Record<string, any>>({
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      setColumnOrder((items) => {
-        const oldIndex = items.indexOf(active.id as string);
-        const newIndex = items.indexOf(over.id as string);
-        return arrayMove(items, oldIndex, newIndex);
-      });
+      const oldIndex = columnOrder.indexOf(active.id as string);
+      const newIndex = columnOrder.indexOf(over.id as string);
+      const newOrder = arrayMove(columnOrder, oldIndex, newIndex);
+      
+      if (resourceKey) {
+        dispatch(setColumnOrderAction({ resourceKey, order: newOrder }));
+      } else {
+        setLocalColumnOrder(newOrder);
+      }
     }
   };
 
   const toggleColumnVisibility = (columnId: string) => {
-    setColumnVisibility((prev) => ({
-      ...prev,
-      [columnId]: !prev[columnId],
-    }));
+    if (resourceKey) {
+      dispatch(toggleColumnVisibilityAction({ resourceKey, columnId }));
+    } else {
+      setLocalColumnVisibility((prev) => ({
+        ...prev,
+        [columnId]: !prev[columnId],
+      }));
+    }
   };
 
   const handleHideColumn = (columnId: string) => {
-    setColumnVisibility((prev) => ({
-      ...prev,
-      [columnId]: false,
-    }));
+    if (resourceKey) {
+      dispatch(setColumnVisibilityAction({ resourceKey, columnId, visible: false }));
+    } else {
+      setLocalColumnVisibility((prev) => ({
+        ...prev,
+        [columnId]: false,
+      }));
+    }
   };
 
   const getCellContent = (cell: any, column: any) => {
@@ -752,7 +836,7 @@ export function DataTable<T extends Record<string, any>>({
     );
   }
 
-  const visibleColumns = columns.filter((col) => columnVisibility[col.id] !== false);
+  const visibleColumns = columns.filter((col) => effectiveColumnVisibility[col.id] !== false);
 
   return (
     <div className={cn('w-full', className)} dir={dir}>
@@ -848,7 +932,7 @@ export function DataTable<T extends Record<string, any>>({
               getCellContent={getCellContent}
               onHideColumn={handleHideColumn}
               isResizing={isResizing}
-              columnSizing={columnSizing}
+              columnSizing={effectiveColumnSizing}
             />
           </DndContext>
         ) : (
@@ -863,9 +947,9 @@ export function DataTable<T extends Record<string, any>>({
             getSortIcon={getSortIcon}
             handleResizeStart={handleResizeStart}
             getCellContent={getCellContent}
-            onHideColumn={handleHideColumn}
-            isResizing={isResizing}
-            columnSizing={columnSizing}
+              onHideColumn={handleHideColumn}
+              isResizing={isResizing}
+              columnSizing={effectiveColumnSizing}
           />
         )}
       </div>

@@ -21,8 +21,9 @@ export const CustomersDataTable = ({ customers }: CustomersDataTableProps) => {
       onRowClick={handleRowClick}
       dir="rtl"
       emptyMessage="לא נמצאו לקוחות"
-      enableColumnVisibility={true}
+      enableColumnVisibility={false}
       enableColumnReordering={true}
+      resourceKey="customers"
     />
   );
 };

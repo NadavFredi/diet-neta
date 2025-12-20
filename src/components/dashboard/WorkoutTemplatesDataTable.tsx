@@ -79,8 +79,9 @@ export const WorkoutTemplatesDataTable = ({
           ? 'אין תוכניות. צור תוכנית חדשה כדי להתחיל'
           : 'לא נמצאו תוכניות התואמות לחיפוש'
       }
-      enableColumnVisibility={enableColumnVisibility}
+      enableColumnVisibility={false}
       enableColumnReordering={true}
+      resourceKey="templates"
     />
   );
 };

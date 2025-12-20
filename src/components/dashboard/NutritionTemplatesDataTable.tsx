@@ -79,8 +79,9 @@ export const NutritionTemplatesDataTable = ({
           ? 'אין תבניות. צור תבנית חדשה כדי להתחיל'
           : 'לא נמצאו תבניות התואמות לחיפוש'
       }
-      enableColumnVisibility={enableColumnVisibility}
+      enableColumnVisibility={false}
       enableColumnReordering={true}
+      resourceKey="nutrition_templates"
     />
   );
 };

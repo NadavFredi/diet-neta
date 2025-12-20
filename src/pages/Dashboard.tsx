@@ -5,14 +5,8 @@ import { LeadsDataTable } from '@/components/dashboard/LeadsDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
-import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
-import { PageHeader } from '@/components/dashboard/PageHeader';
-import { TableFilter } from '@/components/dashboard/TableFilter';
-import { FilterChips } from '@/components/dashboard/FilterChips';
-import { Plus, Users, Columns } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
+import { Users } from 'lucide-react';
 import { useDashboardLogic } from '@/hooks/useDashboardLogic';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
@@ -39,18 +33,15 @@ const Dashboard = () => {
     searchQuery,
     columnVisibility,
     user,
-    isSettingsOpen,
     isAddLeadDialogOpen,
     handleSearchChange,
-    handleToggleColumn,
     handleLogout,
     handleAddLead,
-    setIsSettingsOpen,
     setIsAddLeadDialogOpen,
     getCurrentFilterConfig,
   } = useDashboardLogic();
 
-  // Modern filter system
+  // Filter system for modals
   const {
     filters: activeFilters,
     addFilter,
@@ -58,11 +49,6 @@ const Dashboard = () => {
     clearFilters,
   } = useTableFilters([]);
 
-  // Convert new filters to legacy format and apply
-  useEffect(() => {
-    // This will be handled by updating the filter logic in useDashboardLogic
-    // For now, we'll keep the legacy system working while transitioning
-  }, [activeFilters]);
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
@@ -102,66 +88,26 @@ const Dashboard = () => {
             {/* Unified Workspace Panel - Master Container */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
               {/* Header Section - Control Deck */}
-              <PageHeader
+              <TableActionHeader
+                resourceKey="leads"
                 title={savedView?.view_name || 'ניהול לידים'}
                 icon={Users}
-                actions={
-                  <div className="flex items-center gap-3">
-                    <Input
-                      placeholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
-                      value={searchQuery}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      className="w-64 h-11 text-base bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-white focus:bg-white focus:border-indigo-400 transition-colors"
-                    />
-                    <TableFilter
-                      fields={LEAD_FILTER_FIELDS}
-                      activeFilters={activeFilters}
-                      onFilterAdd={addFilter}
-                      onFilterRemove={removeFilter}
-                      onFilterClear={clearFilters}
-                    />
-                    <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                      <PopoverTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="gap-2 h-11"
-                        >
-                          <Columns className="h-4 w-4" />
-                          <span>עמודות</span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
-                        <ColumnSettings
-                          columnVisibility={columnVisibility}
-                          onToggleColumn={handleToggleColumn}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <Button
-                      onClick={handleAddLead}
-                      className="bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm hover:shadow-md flex items-center gap-2 flex-shrink-0"
-                      size="sm"
-                    >
-                      <Plus className="h-4 w-4" />
-                      <span>הוסף ליד</span>
-                    </Button>
-                  </div>
-                }
-                filters={
-                  <div className="space-y-3">
-                    {/* Active Filter Chips */}
-                    <FilterChips
-                      filters={activeFilters}
-                      onRemove={removeFilter}
-                      onClearAll={clearFilters}
-                    />
-                    {/* Results Count */}
-                    <p className="text-base text-gray-600 font-medium">
-                      {filteredLeads.length} {filteredLeads.length === 1 ? 'ליד' : 'לידים'} נמצאו
-                    </p>
-                  </div>
-                }
+                dataCount={filteredLeads.length}
+                singularLabel="ליד"
+                pluralLabel="לידים"
+                filterFields={LEAD_FILTER_FIELDS}
+                searchPlaceholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
+                addButtonLabel="הוסף ליד"
+                onAddClick={handleAddLead}
+                enableColumnVisibility={true}
+                enableFilters={true}
+                enableSearch={true}
+                legacySearchQuery={searchQuery}
+                legacyOnSearchChange={handleSearchChange}
+                legacyActiveFilters={activeFilters}
+                legacyOnFilterAdd={addFilter}
+                legacyOnFilterRemove={removeFilter}
+                legacyOnFilterClear={clearFilters}
               />
               
               {/* Table Section - Data Area */}
