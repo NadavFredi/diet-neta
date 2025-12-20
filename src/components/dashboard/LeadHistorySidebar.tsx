@@ -6,10 +6,12 @@
  */
 
 import React from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatDate } from '@/utils/dashboard';
+import { useLeadSidebar } from '@/hooks/useLeadSidebar';
 
 interface Lead {
   id: string;
@@ -36,14 +38,26 @@ export const LeadHistorySidebar: React.FC<LeadHistorySidebarProps> = ({
   getStatusColor,
   getStatusBorderColor,
 }) => {
+  const { close } = useLeadSidebar();
+
   return (
-    <div className="w-80 flex-shrink-0 flex flex-col min-h-0" dir="rtl">
-      <Card className="flex-1 flex flex-col overflow-hidden border border-gray-200 rounded-xl shadow-sm bg-white">
+    <div className="flex-shrink-0 flex flex-col min-h-0 w-[350px]" dir="rtl">
+      <Card className="flex-1 flex flex-col overflow-hidden border border-gray-200 rounded-xl shadow-lg bg-white">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-xl flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-blue-600" />
-            <h2 className="text-base font-bold text-gray-900">היסטוריית לידים</h2>
+        <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-xl flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              <h2 className="text-base font-bold text-gray-900">היסטוריית לידים</h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={close}
+              className="h-7 w-7 text-gray-500 hover:text-gray-900 hover:bg-white/80"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 

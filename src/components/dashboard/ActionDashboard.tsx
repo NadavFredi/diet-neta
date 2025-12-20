@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { InlineEditableField } from './InlineEditableField';
 import { InlineEditableSelect } from './InlineEditableSelect';
-import { NotesEditor } from './NotesEditor';
 import { 
   Target, 
   Activity, 
@@ -138,15 +137,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto" dir="rtl">
       <div className="p-4 space-y-4">
-        {/* Notes Section - Top of Body - Always Visible */}
-        <NotesEditor
-          value={activeLead.notes || ''}
-          onSave={async (newValue) => {
-            await onUpdateLead({ notes: newValue });
-          }}
-          isLoading={isLoading}
-        />
-
         {/* Bento Grid Layout - 3 Columns */}
         <div className="grid grid-cols-3 gap-4 items-stretch">
           {/* Card 1: Status & CRM Info */}

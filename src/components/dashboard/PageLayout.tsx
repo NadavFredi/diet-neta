@@ -9,8 +9,9 @@ import React from 'react';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardSidebar } from './DashboardSidebar';
 import { ClientHero } from './ClientHero';
-import { LeadHistorySidebar } from './LeadHistorySidebar';
+import { LeadSidebarContainer } from './LeadSidebarContainer';
 import { ActionDashboard } from './ActionDashboard';
+import { SidebarToggleButton } from './SidebarToggleButton';
 
 interface PageLayoutProps {
   userEmail?: string;
@@ -92,7 +93,10 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           />
 
           {/* Bottom Zone: Split View - Flex Row */}
-          <div className="flex-1 flex overflow-hidden gap-4 px-4 pb-4">
+          <div className="flex-1 flex overflow-hidden gap-4 px-4 pb-4 relative">
+            {/* Sidebar Toggle Buttons - Vertical Bar on Left Side */}
+            <SidebarToggleButton />
+
             {/* Left Side: ActionDashboard (Flex-1, scrollable internally) */}
             <ActionDashboard
               activeLead={activeLead}
@@ -103,13 +107,14 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               getStatusColor={getStatusColor}
             />
 
-            {/* Right Side: LeadHistorySidebar (Fixed Width, scrollable internally) */}
-            <LeadHistorySidebar
+            {/* Right Side: Dynamic Sidebar Container (History or Notes) */}
+            <LeadSidebarContainer
               leads={sortedLeads}
               activeLeadId={activeLeadId}
               onLeadSelect={onLeadSelect}
               getStatusColor={getStatusColor}
               getStatusBorderColor={getStatusBorderColor}
+              customerId={customer?.id || null}
             />
           </div>
         </main>
