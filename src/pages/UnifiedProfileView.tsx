@@ -9,12 +9,18 @@
  * - PageLayout: Main wrapper
  */
 
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
 import { Button } from '@/components/ui/button';
 import { PageLayout } from '@/components/dashboard/PageLayout';
 import { useUnifiedProfileView, getStatusColor, getStatusBorderColor, getInitials } from './UnifiedProfileView';
 import { useUpdateCustomer } from '@/hooks/useUpdateCustomer';
+import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
+import { useNutritionPlan } from '@/hooks/useNutritionPlan';
+import { AddWorkoutPlanDialog } from '@/components/dashboard/dialogs/AddWorkoutPlanDialog';
+import { AddNutritionPlanDialog } from '@/components/dashboard/dialogs/AddNutritionPlanDialog';
+import { useToast } from '@/hooks/use-toast';
 
 const UnifiedProfileView = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -38,6 +44,15 @@ const UnifiedProfileView = () => {
   } = useUnifiedProfileView();
 
   const updateCustomer = useUpdateCustomer();
+  const { toast } = useToast();
+
+  // Dialog state management
+  const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
+  const [isNutritionPlanDialogOpen, setIsNutritionPlanDialogOpen] = useState(false);
+
+  // Hooks for creating plans
+  const { createWorkoutPlan } = useWorkoutPlan(customer?.id);
+  const { createNutritionPlan } = useNutritionPlan(customer?.id);
 
   if (isLoadingCustomer) {
     return (
@@ -85,39 +100,137 @@ const UnifiedProfileView = () => {
   // Handlers for quick actions
   const handleAddWorkoutPlan = () => {
     if (customer?.id) {
-      navigate(`/dashboard/customers/${customer.id}`);
+      setIsWorkoutPlanDialogOpen(true);
     }
   };
 
   const handleAddDietPlan = () => {
     if (customer?.id) {
-      navigate(`/dashboard/customers/${customer.id}`);
+      setIsNutritionPlanDialogOpen(true);
+    }
+  };
+
+  // Handle workout plan save
+  const handleWorkoutPlanSave = async (data: any) => {
+    if (!customer?.id) return;
+
+    try {
+      const leadId = activeLead?.id || mostRecentLead?.id || undefined;
+      
+      // WorkoutBoard passes planData with the structure when mode is 'user'
+      // Add lead_id if available
+      const planData = {
+        ...data,
+        lead_id: leadId,
+      };
+
+      await createWorkoutPlan(planData);
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תוכנית האימונים נוצרה בהצלחה',
+      });
+
+      setIsWorkoutPlanDialogOpen(false);
+      
+      // Refresh the page data if needed
+      // You might want to invalidate queries or refetch data here
+    } catch (error: any) {
+      console.error('Failed to create workout plan:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת תוכנית האימונים',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Handle nutrition plan save
+  const handleNutritionPlanSave = async (data: any) => {
+    if (!customer?.id) return;
+
+    try {
+      const leadId = activeLead?.id || mostRecentLead?.id || undefined;
+      
+      // When mode is 'user', NutritionTemplateForm passes just the targets object
+      // Transform the form data to match the nutrition plan structure
+      const planData = {
+        lead_id: leadId,
+        start_date: new Date().toISOString(),
+        description: '',
+        targets: data || {
+          calories: 2000,
+          protein: 150,
+          carbs: 200,
+          fat: 65,
+          fiber: 30,
+        },
+      };
+
+      await createNutritionPlan(planData);
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תוכנית התזונה נוצרה בהצלחה',
+      });
+
+      setIsNutritionPlanDialogOpen(false);
+      
+      // Refresh the page data if needed
+      // You might want to invalidate queries or refetch data here
+    } catch (error: any) {
+      console.error('Failed to create nutrition plan:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת תוכנית התזונה',
+        variant: 'destructive',
+      });
     }
   };
 
   return (
-    <PageLayout
-      userEmail={user?.email}
-      customer={customer}
-      mostRecentLead={mostRecentLead}
-      sortedLeads={sortedLeads || []}
-      activeLead={activeLead}
-      activeLeadId={selectedInterestId}
-      status={mostRecentLeadStatus || 'ללא סטטוס'}
-      isLoadingLead={isLoadingLead}
-      onBack={handleBack}
-      onCall={handleCall}
-      onWhatsApp={handleWhatsApp}
-      onEmail={handleEmail}
-      onLeadSelect={handleInterestSelect}
-      onUpdateLead={handleUpdateLead}
-      onUpdateCustomer={handleUpdateCustomer}
-      onAddWorkoutPlan={handleAddWorkoutPlan}
-      onAddDietPlan={handleAddDietPlan}
-      getInitials={getInitials}
-      getStatusColor={getStatusColor}
-      getStatusBorderColor={getStatusBorderColor}
-    />
+    <>
+      <PageLayout
+        userEmail={user?.email}
+        customer={customer}
+        mostRecentLead={mostRecentLead}
+        sortedLeads={sortedLeads || []}
+        activeLead={activeLead}
+        activeLeadId={selectedInterestId}
+        status={mostRecentLeadStatus || 'ללא סטטוס'}
+        isLoadingLead={isLoadingLead}
+        onBack={handleBack}
+        onCall={handleCall}
+        onWhatsApp={handleWhatsApp}
+        onEmail={handleEmail}
+        onLeadSelect={handleInterestSelect}
+        onUpdateLead={handleUpdateLead}
+        onUpdateCustomer={handleUpdateCustomer}
+        onAddWorkoutPlan={handleAddWorkoutPlan}
+        onAddDietPlan={handleAddDietPlan}
+        getInitials={getInitials}
+        getStatusColor={getStatusColor}
+        getStatusBorderColor={getStatusBorderColor}
+      />
+
+      {/* Workout Plan Dialog */}
+      <AddWorkoutPlanDialog
+        isOpen={isWorkoutPlanDialogOpen}
+        onOpenChange={setIsWorkoutPlanDialogOpen}
+        onSave={handleWorkoutPlanSave}
+        customerId={customer?.id}
+        leadId={activeLead?.id || mostRecentLead?.id}
+      />
+
+      {/* Nutrition Plan Dialog */}
+      <AddNutritionPlanDialog
+        isOpen={isNutritionPlanDialogOpen}
+        onOpenChange={setIsNutritionPlanDialogOpen}
+        onSave={handleNutritionPlanSave}
+        customerId={customer?.id}
+        leadId={activeLead?.id || mostRecentLead?.id}
+      />
+    </>
   );
 };
 

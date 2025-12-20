@@ -97,6 +97,20 @@ export const LeadHistoryTabs = ({
   const hasNutritionHistory = nutritionHistory && nutritionHistory.length > 0;
   const hasSupplementsHistory = supplementsHistory && supplementsHistory.length > 0;
 
+  // Handler functions
+  const handleWorkoutClick = () => {
+    onAddWorkoutPlan();
+  };
+
+  const handleDietClick = () => {
+    onAddDietPlan();
+  };
+
+  const handleSupplementsClick = () => {
+    // Supplements plan - placeholder for now (empty as requested)
+    onAddSupplementsPlan();
+  };
+
   // Get the appropriate button for the active tab
   const getActionButton = () => {
     switch (activeTab) {
@@ -105,7 +119,8 @@ export const LeadHistoryTabs = ({
         return (
           <Button 
             size="sm" 
-            onClick={onAddWorkoutPlan}
+            onClick={handleWorkoutClick}
+            type="button"
             className="gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm"
           >
             <Plus className="h-4 w-4" />
@@ -116,7 +131,8 @@ export const LeadHistoryTabs = ({
         return (
           <Button 
             size="sm" 
-            onClick={onAddDietPlan}
+            onClick={handleDietClick}
+            type="button"
             className="gap-2 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm"
           >
             <Plus className="h-4 w-4" />
@@ -127,7 +143,8 @@ export const LeadHistoryTabs = ({
         return (
           <Button 
             size="sm" 
-            onClick={onAddSupplementsPlan}
+            onClick={handleSupplementsClick}
+            type="button"
             className="gap-2 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm"
           >
             <Plus className="h-4 w-4" />
@@ -138,7 +155,8 @@ export const LeadHistoryTabs = ({
         return (
           <Button 
             size="sm" 
-            onClick={onAddWorkoutPlan}
+            onClick={handleWorkoutClick}
+            type="button"
             className="gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm"
           >
             <Plus className="h-4 w-4" />
@@ -152,7 +170,7 @@ export const LeadHistoryTabs = ({
   return (
     <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white mt-3">
       {/* Header Toolbar with Context-Aware Add Button */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100" onClick={(e) => e.stopPropagation()}>
         {getActionButton()}
       </div>
 
@@ -195,7 +213,8 @@ export const LeadHistoryTabs = ({
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={onAddWorkoutPlan}
+                onClick={() => onAddWorkoutPlan()}
+                type="button"
                 className="gap-2"
               >
                 <Plus className="h-4 w-4" />
@@ -323,7 +342,8 @@ export const LeadHistoryTabs = ({
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={onAddDietPlan}
+                onClick={() => onAddDietPlan()}
+                type="button"
                 className="gap-2"
               >
                 <Plus className="h-4 w-4" />
@@ -400,7 +420,11 @@ export const LeadHistoryTabs = ({
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={onAddSupplementsPlan}
+                onClick={() => {
+                  // Supplements plan - placeholder for now (empty as requested)
+                  onAddSupplementsPlan();
+                }}
+                type="button"
                 className="gap-2"
               >
                 <Plus className="h-4 w-4" />
