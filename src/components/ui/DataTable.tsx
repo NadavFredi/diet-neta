@@ -122,7 +122,8 @@ function SortableHeader<T>({
   onHeaderClick,
   getSortIcon,
   onResizeStart,
-  percentageWidth,
+  width,
+  isResizing,
   onHideColumn,
 }: {
   header: any;
@@ -131,7 +132,8 @@ function SortableHeader<T>({
   onHeaderClick: (columnId: string) => void;
   getSortIcon: (columnId: string) => React.ReactNode;
   onResizeStart: (e: React.MouseEvent, columnId: string) => void;
-  percentageWidth: number;
+  width: number;
+  isResizing: boolean;
   onHideColumn: (columnId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -159,8 +161,9 @@ function SortableHeader<T>({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    width: `${percentageWidth}%`,
-    // Remove minWidth constraint to allow flexible resizing
+    width: `${width}px`,
+    minWidth: `${width}px`,
+    maxWidth: `${width}px`,
   };
 
   const handleHideClick = (e: React.MouseEvent) => {
@@ -286,12 +289,15 @@ function SortableHeader<T>({
           </div>
         </div>
 
-        {/* Resize Handle */}
+                  {/* Resize Handle */}
         {canResize && (
           <div
             className={cn(
-              'absolute top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400/60 bg-transparent transition-colors z-10',
-              dir === 'rtl' ? 'left-0' : 'right-0'
+              'absolute top-0 bottom-0 w-1 cursor-col-resize transition-all z-10',
+              dir === 'rtl' ? 'left-0' : 'right-0',
+              isResizing
+                ? 'bg-blue-500 w-0.5' 
+                : 'bg-transparent hover:bg-blue-400/60'
             )}
             onMouseDown={(e) => {
               e.stopPropagation();
@@ -302,7 +308,15 @@ function SortableHeader<T>({
             }}
             title="גרור לשינוי רוחב"
           >
-            <GripVertical className="absolute top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" style={{ [dir === 'rtl' ? 'left' : 'right']: '-1.5px' }} />
+            <GripVertical 
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 h-4 w-4 transition-opacity",
+                isResizing 
+                  ? "text-blue-500 opacity-100" 
+                  : "text-gray-400 opacity-0 group-hover:opacity-100"
+              )} 
+              style={{ [dir === 'rtl' ? 'left' : 'right']: '-1.5px' }} 
+            />
           </div>
         )}
       </div>
@@ -325,6 +339,105 @@ export function DataTable<T extends Record<string, any>>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [isResizing, setIsResizing] = useState<string | null>(null);
+  const tableRef = React.useRef<HTMLDivElement>(null);
+  const [hasMeasured, setHasMeasured] = useState(false);
+
+  // Fit-to-content: Measure and adjust column widths on initial load
+  React.useEffect(() => {
+    // Skip if already measured, no data, or if user has manually resized columns
+    if (hasMeasured || data.length === 0) {
+      return;
+    }
+
+    // Check if user has manually resized any column (columnSizing has values that differ from defaults)
+    const hasManualResizing = Object.keys(columnSizing).some((colId) => {
+      const col = columns.find((c) => c.id === colId);
+      if (!col) return false;
+      const defaultSize = col.size || 150;
+      return columnSizing[colId] !== defaultSize;
+    });
+
+    if (hasManualResizing) {
+      setHasMeasured(true); // Mark as measured to prevent auto-sizing
+      return;
+    }
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    const measureColumns = () => {
+      if (!tableRef.current) return;
+
+      const table = tableRef.current.querySelector('table');
+      if (!table) return;
+
+      const newSizing: Record<string, number> = {};
+      
+      // Create a temporary measurement container
+      const measureDiv = document.createElement('div');
+      measureDiv.style.position = 'absolute';
+      measureDiv.style.visibility = 'hidden';
+      measureDiv.style.whiteSpace = 'nowrap';
+      measureDiv.style.fontSize = '0.875rem'; // text-sm
+      measureDiv.style.fontFamily = getComputedStyle(table).fontFamily;
+      measureDiv.style.fontWeight = '600'; // font-semibold for headers
+      document.body.appendChild(measureDiv);
+
+      columns.forEach((col) => {
+        // Measure header text
+        const headerText = typeof col.header === 'string' ? col.header : col.id;
+        measureDiv.textContent = headerText;
+        const headerWidth = measureDiv.offsetWidth;
+
+        // Measure sample cell content (use first few rows)
+        let maxCellWidth = 0;
+        const sampleRows = data.slice(0, Math.min(5, data.length));
+        sampleRows.forEach((row) => {
+          let cellText = '';
+          if (col.accessorKey) {
+            const value = (row as any)[col.accessorKey];
+            cellText = value !== null && value !== undefined ? String(value) : '';
+          } else if (col.accessorFn) {
+            const value = col.accessorFn(row);
+            cellText = value !== null && value !== undefined ? String(value) : '';
+          }
+          
+          measureDiv.textContent = cellText;
+          measureDiv.style.fontWeight = '400'; // Normal weight for cells
+          const cellWidth = measureDiv.offsetWidth;
+          maxCellWidth = Math.max(maxCellWidth, cellWidth);
+          measureDiv.style.fontWeight = '600'; // Reset for next header
+        });
+
+        // Calculate optimal width: max of header, cells, plus padding and icons
+        const padding = 32; // px-2 on both sides = 16px * 2
+        const iconSpace = 60; // Space for sort icon, hide button, drag handle
+        const optimalWidth = Math.max(
+          col.minSize || 80,
+          Math.max(headerWidth, maxCellWidth) + padding + iconSpace,
+          col.size || 150
+        );
+
+        // Cap at maxSize if defined
+        const finalWidth = col.maxSize ? Math.min(optimalWidth, col.maxSize) : optimalWidth;
+        newSizing[col.id] = finalWidth;
+      });
+
+      document.body.removeChild(measureDiv);
+
+      // Only apply if we have measurements
+      if (Object.keys(newSizing).length > 0) {
+        setColumnSizing(newSizing);
+        setHasMeasured(true);
+      }
+    };
+
+    // Small delay to ensure DOM is fully rendered
+    const timeoutId = setTimeout(() => {
+      requestAnimationFrame(measureColumns);
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [data, columns, hasMeasured, columnSizing]);
   // Use provided initial order or default to columns array order
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (initialColumnOrder) {
@@ -517,6 +630,7 @@ export function DataTable<T extends Record<string, any>>({
       e.stopPropagation();
       const startX = e.clientX;
       const startWidth = table.getColumn(columnId)?.getSize() || 150;
+      setIsResizing(columnId);
 
       const handleMouseMove = (e: MouseEvent) => {
         const delta = dir === 'rtl' ? startX - e.clientX : e.clientX - startX;
@@ -533,6 +647,7 @@ export function DataTable<T extends Record<string, any>>({
         document.removeEventListener('mouseup', handleMouseUp);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        setIsResizing(null);
       };
 
       document.addEventListener('mousemove', handleMouseMove);
@@ -689,8 +804,31 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       )}
 
-      {/* Table */}
-      <div className="w-full overflow-hidden">
+      {/* Table with Horizontal Scroll */}
+      <div 
+        ref={tableRef}
+        className="w-full overflow-x-auto overflow-y-visible"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#cbd5e1 #f1f5f9',
+        }}
+      >
+        <style>{`
+          div::-webkit-scrollbar {
+            height: 8px;
+          }
+          div::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+          }
+          div::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+          }
+          div::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+          }
+        `}</style>
         {enableColumnReordering ? (
           <DndContext
             sensors={sensors}
@@ -709,6 +847,8 @@ export function DataTable<T extends Record<string, any>>({
               handleResizeStart={handleResizeStart}
               getCellContent={getCellContent}
               onHideColumn={handleHideColumn}
+              isResizing={isResizing}
+              columnSizing={columnSizing}
             />
           </DndContext>
         ) : (
@@ -724,6 +864,8 @@ export function DataTable<T extends Record<string, any>>({
             handleResizeStart={handleResizeStart}
             getCellContent={getCellContent}
             onHideColumn={handleHideColumn}
+            isResizing={isResizing}
+            columnSizing={columnSizing}
           />
         )}
       </div>
@@ -744,6 +886,8 @@ function TableContent<T>({
   handleResizeStart,
   getCellContent,
   onHideColumn,
+  isResizing,
+  columnSizing,
 }: {
   table: any;
   tableColumns: any[];
@@ -756,18 +900,23 @@ function TableContent<T>({
   handleResizeStart: (e: React.MouseEvent, columnId: string) => void;
   getCellContent: (cell: any, column: any) => React.ReactNode;
   onHideColumn: (columnId: string) => void;
+  isResizing: string | null;
+  columnSizing: Record<string, number>;
 }) {
-  const totalWidth = tableColumns.reduce((sum, col) => sum + (col.size || 150), 0);
+  // Calculate total width using pixel-based sizing
+  const totalWidth = tableColumns.reduce((sum, col) => {
+    const size = columnSizing[col.id] || col.size || 150;
+    return sum + size;
+  }, 0);
 
   return (
-    <table className="w-full border-collapse" style={{ tableLayout: 'fixed', width: '100%' }}>
+    <table className="border-collapse" style={{ tableLayout: 'auto', width: '100%', minWidth: `${totalWidth}px` }}>
       <thead>
         {table.getHeaderGroups().map((headerGroup: any) => {
           const headers = headerGroup.headers;
           
           const headerContent = headers.map((header: any) => {
-            const width = header.getSize();
-            const percentageWidth = totalWidth > 0 ? (width / totalWidth) * 100 : 100 / headers.length;
+            const width = columnSizing[header.id] || header.getSize() || 150;
             
             if (enableColumnReordering) {
               return (
@@ -779,7 +928,8 @@ function TableContent<T>({
                   onHeaderClick={handleHeaderClick}
                   getSortIcon={getSortIcon}
                   onResizeStart={handleResizeStart}
-                  percentageWidth={percentageWidth}
+                  width={width}
+                  isResizing={isResizing === header.id}
                   onHideColumn={onHideColumn}
                 />
               );
@@ -817,7 +967,9 @@ function TableContent<T>({
                   'transition-colors duration-150'
                 )}
                 style={{
-                  width: `${percentageWidth}%`,
+                  width: `${width}px`,
+                  minWidth: `${width}px`,
+                  maxWidth: `${width}px`,
                 }}
                 onClick={() => canSort && handleHeaderClick(header.id)}
                 onMouseEnter={() => setIsHovered(true)}
@@ -907,8 +1059,11 @@ function TableContent<T>({
                   {canResize && (
                     <div
                       className={cn(
-                        'absolute top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400/60 bg-transparent transition-colors z-10',
-                        dir === 'rtl' ? 'left-0' : 'right-0'
+                        'absolute top-0 bottom-0 w-1 cursor-col-resize transition-all z-10',
+                        dir === 'rtl' ? 'left-0' : 'right-0',
+                        isResizing === header.id 
+                          ? 'bg-blue-500 w-0.5' 
+                          : 'bg-transparent hover:bg-blue-400/60'
                       )}
                       onMouseDown={(e) => {
                         e.stopPropagation();
@@ -919,7 +1074,15 @@ function TableContent<T>({
                       }}
                       title="גרור לשינוי רוחב"
                     >
-                      <GripVertical className="absolute top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" style={{ [dir === 'rtl' ? 'left' : 'right']: '-1.5px' }} />
+                      <GripVertical 
+                        className={cn(
+                          "absolute top-1/2 -translate-y-1/2 h-4 w-4 transition-opacity",
+                          isResizing === header.id 
+                            ? "text-blue-500 opacity-100" 
+                            : "text-gray-400 opacity-0 group-hover:opacity-100"
+                        )} 
+                        style={{ [dir === 'rtl' ? 'left' : 'right']: '-1.5px' }} 
+                      />
                     </div>
                   )}
                 </div>
@@ -951,10 +1114,11 @@ function TableContent<T>({
           <tr
             key={row.id}
             className={cn(
-              'border-b border-gray-100 transition-all duration-150',
+              'border-b border-gray-100 transition-all duration-200',
               'bg-white',
-              onRowClick && 'cursor-pointer hover:bg-gray-50/80',
-              'group'
+              onRowClick && 'cursor-pointer hover:bg-gray-50',
+              'group',
+              'hover:shadow-sm'
             )}
             onClick={() => onRowClick?.(row.original)}
           >
@@ -963,11 +1127,7 @@ function TableContent<T>({
               const meta = column?.columnDef.meta;
               const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
               const isNumeric = meta?.isNumeric;
-              const width = cell.column.getSize();
-              const canResize = column?.columnDef.enableResizing !== false;
-
-              // Calculate percentage width for fixed layout
-              const percentageWidth = totalWidth > 0 ? (width / totalWidth) * 100 : 100 / visibleColumns.length;
+              const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
 
               return (
                 <td
@@ -988,9 +1148,9 @@ function TableContent<T>({
                       : ''
                   )}
                   style={{
-                    width: `${percentageWidth}%`,
-                    // Remove minWidth constraint to allow flexible resizing
-                    maxWidth: `${percentageWidth}%`,
+                    width: `${width}px`,
+                    minWidth: `${width}px`,
+                    maxWidth: `${width}px`,
                   }}
                   title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
                 >

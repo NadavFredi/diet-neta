@@ -2,20 +2,10 @@ import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple, ChevronLeft, HelpCircle, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/supabaseClient';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useSavedViews, useDeleteSavedView, type SavedView } from '@/hooks/useSavedViews';
+import { useSavedViews, type SavedView } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useToast } from '@/hooks/use-toast';
+import { DeleteViewDialog } from '@/components/dashboard/DeleteViewDialog';
 
 interface NavItem {
   id: string;
@@ -121,13 +111,9 @@ const ResourceItem = ({
   // 1. It's directly active (no view_id in URL), OR
   // 2. Any of its views is active (view_id matches one of this resource's views)
   const isMainInterfaceActive = active && (hasActiveView || !activeViewId);
-  const deleteView = useDeleteSavedView();
   const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [viewToDelete, setViewToDelete] = useState<{ id: string; name: string } | null>(null);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
 
   const handleDeleteClick = (e: React.MouseEvent, view: SavedView) => {
     e.stopPropagation();
@@ -142,36 +128,6 @@ const ResourceItem = ({
     }
     setViewToDelete({ id: view.id, name: view.view_name });
     setDeleteDialogOpen(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!viewToDelete) return;
-
-    try {
-      await deleteView.mutateAsync({
-        viewId: viewToDelete.id,
-        resourceKey: item.resourceKey,
-      });
-
-      toast({
-        title: 'הצלחה',
-        description: `התצוגה "${viewToDelete.name}" נמחקה בהצלחה`,
-      });
-
-      // If the deleted view was active, navigate to base resource
-      if (searchParams.get('view_id') === viewToDelete.id) {
-        navigate(location.pathname);
-      }
-
-      setDeleteDialogOpen(false);
-      setViewToDelete(null);
-    } catch (error: any) {
-      toast({
-        title: 'שגיאה',
-        description: error?.message || 'נכשל במחיקת התצוגה. אנא נסה שוב.',
-        variant: 'destructive',
-      });
-    }
   };
 
 
@@ -304,7 +260,6 @@ const ResourceItem = ({
                           'focus:opacity-100 focus:outline-none'
                         )}
                         title="מחק תצוגה"
-                        disabled={deleteView.isPending}
                         type="button"
                       >
                         <X className="h-4 w-4" />
@@ -318,29 +273,18 @@ const ResourceItem = ({
         </>
           )}
 
-          {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent dir="rtl">
-              <AlertDialogHeader>
-                <AlertDialogTitle>מחיקת תצוגה</AlertDialogTitle>
-                <AlertDialogDescription>
-                  האם אתה בטוח שברצונך למחוק את התצוגה "{viewToDelete?.name}"? פעולה זו לא ניתנת לביטול.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={deleteView.isPending}>
-                  ביטול
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleConfirmDelete}
-                  disabled={deleteView.isPending}
-                  className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                >
-                  {deleteView.isPending ? 'מוחק...' : 'מחק'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+      {/* Delete Confirmation Dialog */}
+      <DeleteViewDialog
+        isOpen={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) {
+            setViewToDelete(null);
+          }
+        }}
+        viewToDelete={viewToDelete}
+        resourceKey={item.resourceKey}
+      />
     </>
   );
 };
