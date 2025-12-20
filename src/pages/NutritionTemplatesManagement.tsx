@@ -12,18 +12,9 @@ import { useAppSelector } from '@/store/hooks';
 import { Flame } from 'lucide-react';
 import { NutritionTemplatesDataTable } from '@/components/dashboard/NutritionTemplatesDataTable';
 import { NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { NutritionTemplateForm } from '@/components/dashboard/NutritionTemplateForm';
+import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
+import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/EditNutritionTemplateDialog';
+import { DeleteNutritionTemplateDialog } from '@/components/dashboard/dialogs/DeleteNutritionTemplateDialog';
 import { useNutritionTemplatesManagement } from './NutritionTemplatesManagement';
 
 const NutritionTemplatesManagement = () => {
@@ -106,63 +97,28 @@ const NutritionTemplatesManagement = () => {
       </div>
 
       {/* Add Template Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} dir="rtl">
-        <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden" dir="rtl">
-          <DialogHeader className="px-3 pt-3 pb-2 border-b flex-shrink-0">
-            <DialogTitle className="text-base">יצירת תבנית תזונה חדשה</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden min-h-0">
-            <NutritionTemplateForm
-              mode="template"
-              onSave={handleSaveTemplate}
-              onCancel={() => setIsAddDialogOpen(false)}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddNutritionTemplateDialog
+        isOpen={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onSave={handleSaveTemplate}
+      />
 
       {/* Edit Template Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} dir="rtl">
-        <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0 overflow-hidden" dir="rtl">
-          <DialogHeader className="px-3 pt-3 pb-2 border-b flex-shrink-0">
-            <DialogTitle className="text-base">עריכת תבנית תזונה</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden min-h-0">
-            {editingTemplate && (
-              <NutritionTemplateForm
-                mode="template"
-                initialData={editingTemplate}
-                onSave={handleSaveTemplate}
-                onCancel={() => {
-                  setIsEditDialogOpen(false);
-                }}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <EditNutritionTemplateDialog
+        isOpen={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        editingTemplate={editingTemplate}
+        onSave={handleSaveTemplate}
+      />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} dir="rtl">
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>מחיקת תבנית</AlertDialogTitle>
-            <AlertDialogDescription>
-              האם אתה בטוח שברצונך למחוק את התבנית "{templateToDelete?.name}"? פעולה זו לא ניתנת לביטול.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteTemplate.isPending}>ביטול</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={deleteTemplate.isPending}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {deleteTemplate.isPending ? 'מוחק...' : 'מחק'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteNutritionTemplateDialog
+        isOpen={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        templateToDelete={templateToDelete}
+        isDeleting={deleteTemplate.isPending}
+        onConfirm={handleConfirmDelete}
+      />
 
       {/* Save View Modal */}
       <SaveViewModal

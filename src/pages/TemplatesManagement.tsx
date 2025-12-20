@@ -12,18 +12,9 @@ import { useAppSelector } from '@/store/hooks';
 import { Dumbbell } from 'lucide-react';
 import { WorkoutTemplatesDataTable } from '@/components/dashboard/WorkoutTemplatesDataTable';
 import { TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { WorkoutBuilderForm } from '@/components/dashboard/WorkoutBuilderForm';
+import { AddWorkoutTemplateDialog } from '@/components/dashboard/dialogs/AddWorkoutTemplateDialog';
+import { EditWorkoutTemplateDialog } from '@/components/dashboard/dialogs/EditWorkoutTemplateDialog';
+import { DeleteWorkoutTemplateDialog } from '@/components/dashboard/dialogs/DeleteWorkoutTemplateDialog';
 import { useTemplatesManagement } from './TemplatesManagement';
 
 const TemplatesManagement = () => {
@@ -106,68 +97,28 @@ const TemplatesManagement = () => {
       </div>
 
       {/* Add Template Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" dir="rtl">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-            <DialogTitle>יצירת תוכנית אימונים חדשה</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
-            <WorkoutBuilderForm
-              mode="template"
-              onSave={handleSaveTemplate}
-              onCancel={() => setIsAddDialogOpen(false)}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddWorkoutTemplateDialog
+        isOpen={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onSave={handleSaveTemplate}
+      />
 
       {/* Edit Template Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" dir="rtl">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-            <DialogTitle>עריכת תוכנית אימונים</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
-            {editingTemplate && (
-              <WorkoutBuilderForm
-                mode="template"
-                initialData={{
-                  routine_data: editingTemplate.routine_data,
-                  description: editingTemplate.name,
-                  generalGoals: editingTemplate.description || '',
-                  goal_tags: editingTemplate.goal_tags || [],
-                } as any}
-                onSave={handleSaveTemplate}
-                onCancel={() => {
-                  setIsEditDialogOpen(false);
-                }}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <EditWorkoutTemplateDialog
+        isOpen={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        editingTemplate={editingTemplate}
+        onSave={handleSaveTemplate}
+      />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>מחיקת תבנית</AlertDialogTitle>
-            <AlertDialogDescription>
-              האם אתה בטוח שברצונך למחוק את התבנית "{templateToDelete?.name}"? פעולה זו לא ניתנת לביטול.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteTemplate.isPending}>ביטול</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={deleteTemplate.isPending}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {deleteTemplate.isPending ? 'מוחק...' : 'מחק'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteWorkoutTemplateDialog
+        isOpen={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        templateToDelete={templateToDelete}
+        isDeleting={deleteTemplate.isPending}
+        onConfirm={handleConfirmDelete}
+      />
 
       {/* Save View Modal */}
       <SaveViewModal
