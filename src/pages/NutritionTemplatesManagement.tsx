@@ -23,6 +23,7 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 
 const NutritionTemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
+  const sidebarWidth = useSidebarWidth();
   const {
     templates,
     savedView,
@@ -68,20 +69,20 @@ const NutritionTemplatesManagement = () => {
 
   return (
     <>
-      <div className="min-h-screen grid grid-rows-[auto_1fr_auto] grid-cols-1" dir="rtl">
-        <div style={{ gridColumn: '1 / -1' }}>
-          <DashboardHeader 
-            userEmail={user?.email} 
-            onLogout={handleLogout}
-            sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-          />
-        </div>
+      <DashboardHeader 
+        userEmail={user?.email} 
+        onLogout={handleLogout}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+      />
 
-        <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1' }}>
-          <main 
-            className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out" 
-            style={{ marginRight: `${sidebarWidth.width}px` }}
-          >
+      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
+        <main 
+          className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out" 
+          style={{ 
+            marginRight: `${sidebarWidth.width}px`,
+            minHeight: 'calc(100vh - 88px)',
+          }}
+        >
             <div className="p-6">
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <TableActionHeader
@@ -118,7 +119,6 @@ const NutritionTemplatesManagement = () => {
               </div>
             </div>
           </main>
-        </div>
       </div>
 
       {/* Add Template Dialog */}
