@@ -51,3 +51,5 @@ CREATE TRIGGER customer_notes_updated_at
   BEFORE UPDATE ON customer_notes
   FOR EACH ROW
   EXECUTE FUNCTION update_customer_notes_updated_at();
+
+

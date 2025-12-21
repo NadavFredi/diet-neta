@@ -2,11 +2,11 @@
  * ClientHero Component
  * 
  * Top header bar displaying client information from the latest lead interaction.
- * Shows: Name, Phone, Email, Age, Height, Weight in a single horizontal line.
+ * Shows: Name, Phone, Email in primary row with expandable section for additional details.
  */
 
-import React from 'react';
-import { Phone, MessageCircle, Mail, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { InlineEditableField } from './InlineEditableField';
@@ -14,6 +14,7 @@ import { InlineEditableSelect } from './InlineEditableSelect';
 import { formatDate } from '@/utils/dashboard';
 import { ACTIVITY_LEVEL_OPTIONS, PREFERRED_TIME_OPTIONS } from '@/utils/dashboard';
 import type { Customer } from '@/hooks/useCustomers';
+import { cn } from '@/lib/utils';
 
 interface LeadData {
   id: string;
@@ -51,6 +52,8 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   onUpdateCustomer,
   getStatusColor,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (!customer) return null;
 
   const lead = mostRecentLead as any;
@@ -88,56 +91,110 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   if (!customer) return null;
 
   return (
-    <div className="w-full bg-white border-b border-gray-200 flex-shrink-0 px-6 py-4" dir="rtl">
-      <div className="flex items-center justify-between gap-6">
-        {/* Left Side (RTL): Personal Info Line */}
-        <div className="flex-1 flex items-center gap-6 flex-wrap">
-          {/* Return Button */}
-          <Button
-            onClick={onBack}
-            variant="ghost"
-            size="sm"
-            className="text-gray-600 hover:text-gray-900 flex-shrink-0"
-          >
-            <ArrowRight className="h-4 w-4 ml-1" />
-            חזור
-          </Button>
+    <div className="w-full bg-white border-b border-slate-100 flex-shrink-0" dir="rtl">
+      {/* Primary Row - Always Visible */}
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          {/* Left Side (RTL): Name, Contact Info, and Toggle */}
+          <div className="flex-1 flex items-center gap-4 flex-wrap min-w-0">
+            {/* Return Button */}
+            <Button
+              onClick={onBack}
+              variant="ghost"
+              size="sm"
+              className="text-gray-600 hover:text-gray-900 flex-shrink-0 h-7 px-2"
+            >
+              <ArrowRight className="h-3.5 w-3.5 ml-1" />
+              חזור
+            </Button>
 
-          {/* Name */}
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold text-gray-900">{customer.full_name}</h1>
+            {/* Name */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <h1 className="text-base font-bold text-gray-900">{customer.full_name}</h1>
+            </div>
+
+            {/* Primary Contact Info - Phone & Email */}
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Phone - Customer Level */}
+              {onUpdateCustomer && customer && customer.phone && (
+                <div className="flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-gray-900 font-mono">
+                    {customer.phone}
+                  </span>
+                </div>
+              )}
+
+              {/* Email - Customer Level */}
+              {onUpdateCustomer && customer && customer.email && (
+                <div className="flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
+                    {customer.email}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Toggle Button */}
+            <Button
+              onClick={() => setIsExpanded(!isExpanded)}
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 flex items-center gap-1 flex-shrink-0"
+            >
+              <span className="text-xs">פרטים נוספים</span>
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 transition-transform duration-300",
+                  isExpanded && "transform rotate-180"
+                )}
+              />
+            </Button>
           </div>
 
-          {/* Personal Info Line - All Editable */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Phone - Customer Level */}
-            {onUpdateCustomer && customer && (
-              <InlineEditableField
-                label="טלפון"
-                value={customer.phone || ''}
-                onSave={async (newValue) => {
-                  await onUpdateCustomer({ phone: String(newValue) });
-                }}
-                type="tel"
-                className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-gray-900 font-mono"
-              />
-            )}
+          {/* Right Side (RTL): Action Buttons */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <Button
+              onClick={onCall}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1.5 h-7 text-xs"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              התקשר
+            </Button>
+            <Button
+              onClick={onWhatsApp}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1.5 bg-green-50 hover:bg-green-100 border-green-200 text-green-700 h-7 text-xs"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              WhatsApp
+            </Button>
+            <Button
+              onClick={onEmail}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1.5 h-7 text-xs"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              אימייל
+            </Button>
+          </div>
+        </div>
+      </div>
 
-            {/* Email - Customer Level */}
-            {onUpdateCustomer && customer && customer.email && (
-              <InlineEditableField
-                label="אימייל"
-                value={customer.email}
-                onSave={async (newValue) => {
-                  await onUpdateCustomer({ email: String(newValue) });
-                }}
-                type="email"
-                className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-gray-900 truncate max-w-[200px]"
-              />
-            )}
-
+      {/* Expandable Secondary Info Section */}
+      <div
+        className={cn(
+          "overflow-hidden transition-all duration-300 ease-in-out",
+          isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+        )}
+      >
+        <div className="px-4 pb-3 pt-0 border-t border-slate-100">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-3">
             {/* City - Lead Level */}
             {onUpdateLead && lead && (
               <InlineEditableField
@@ -173,9 +230,9 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
 
             {/* Age - Calculated, Read Only */}
             {age !== null && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-gray-500">גיל:</span>
-                <span className="text-sm font-semibold text-gray-900">{age} שנים</span>
+              <div className="flex items-center gap-2 py-0.5">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
+                <span className="text-sm font-semibold text-slate-900">{age} שנים</span>
               </div>
             )}
 
@@ -232,40 +289,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
             )}
           </div>
         </div>
-
-        {/* Right Side (RTL): Action Buttons */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Button
-            onClick={onCall}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5"
-          >
-            <Phone className="h-4 w-4" />
-            התקשר
-          </Button>
-          <Button
-            onClick={onWhatsApp}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
-          >
-            <MessageCircle className="h-4 w-4" />
-            WhatsApp
-          </Button>
-          <Button
-            onClick={onEmail}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5"
-          >
-            <Mail className="h-4 w-4" />
-            אימייל
-          </Button>
-        </div>
       </div>
     </div>
   );
 };
-
-

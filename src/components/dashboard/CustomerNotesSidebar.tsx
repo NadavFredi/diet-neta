@@ -315,3 +315,5 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
     </div>
   );
 };
+
+
