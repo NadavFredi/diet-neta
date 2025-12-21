@@ -237,7 +237,7 @@ export const TableActionHeader = ({
               placeholder={searchPlaceholder || `חיפוש...`}
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-64 h-11 text-base bg-white text-gray-900 border border-indigo-200/60 shadow-sm hover:bg-white focus:bg-white focus:border-indigo-400 transition-colors"
+              className="w-64 h-11 text-base bg-white text-gray-900 border border-indigo-200/60 hover:bg-white focus:bg-white focus:border-indigo-400"
               dir="rtl"
             />
           )}
@@ -255,7 +255,7 @@ export const TableActionHeader = ({
                   <span>עמודות</span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80 shadow-xl" align="end" dir="rtl">
+              <PopoverContent className="w-80" align="end" dir="rtl">
                 {getColumnSettingsComponent()}
               </PopoverContent>
             </Popover>
@@ -276,7 +276,7 @@ export const TableActionHeader = ({
           {addButtonLabel && onAddClick && (
             <Button
               onClick={onAddClick}
-              className="bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm hover:shadow-md flex items-center gap-2 flex-shrink-0"
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white rounded-lg flex items-center gap-2 flex-shrink-0"
               size="sm"
             >
               <Plus className="h-4 w-4" />

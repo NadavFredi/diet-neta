@@ -60,7 +60,7 @@ const UnifiedProfileView = () => {
 
   if (isLoadingCustomer) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
           <p className="text-gray-600">טוען פרטים...</p>
@@ -71,7 +71,7 @@ const UnifiedProfileView = () => {
 
   if (!customer) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">לקוח לא נמצא</h2>
           <Button onClick={handleBack} variant="outline">

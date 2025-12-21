@@ -68,7 +68,7 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
       ref={setNodeRef}
       style={style}
       className={cn(
-        'p-2 mb-1.5 bg-white border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-grab active:cursor-grabbing',
+        'p-2 mb-1.5 bg-white border border-gray-200 hover:border-blue-300 cursor-grab active:cursor-grabbing',
         isDragging && 'opacity-50'
       )}
       dir="rtl"
@@ -574,7 +574,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
           </div>
           <DragOverlay>
             {activeExercise && (
-              <Card className="p-3 bg-white border-2 border-blue-400 shadow-lg w-64">
+              <Card className="p-3 bg-white border-2 border-blue-400 w-64">
                 <div className="font-medium text-sm">{activeExercise.name}</div>
                 <div className="text-xs text-gray-600 mt-1">
                   {activeExercise.sets} סטים × {activeExercise.reps} חזרות
@@ -589,7 +589,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
       <div className="flex-shrink-0 border-t border-slate-200 bg-white p-3 flex gap-3" dir="rtl">
         <Button
           type="submit"
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+          className="flex-1 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
         >
           שמור {mode === 'user' ? 'תוכנית' : 'תבנית'}
         </Button>

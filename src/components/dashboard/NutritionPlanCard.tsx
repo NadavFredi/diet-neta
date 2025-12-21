@@ -93,7 +93,7 @@ export const NutritionPlanCard = ({
   const percentages = macroPercentages();
 
   return (
-    <Card className="bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300">
+    <Card className="bg-white border-2 border-slate-200">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -203,7 +203,7 @@ export const NutritionPlanCard = ({
         {/* Macro Targets Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Calories */}
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5 border-2 border-orange-200 shadow-sm">
+          <div className="bg-orange-50 rounded-xl p-5 border-2 border-orange-200">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-orange-200 rounded-lg">
                 <Flame className="h-5 w-5 text-orange-700" />
@@ -217,7 +217,7 @@ export const NutritionPlanCard = ({
           </div>
 
           {/* Protein */}
-          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-5 border-2 border-red-200 shadow-sm">
+          <div className="bg-red-50 rounded-xl p-5 border-2 border-red-200">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-red-200 rounded-lg">
                 <Beef className="h-5 w-5 text-red-700" />
@@ -231,7 +231,7 @@ export const NutritionPlanCard = ({
           </div>
 
           {/* Carbs */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border-2 border-blue-200 shadow-sm">
+          <div className="bg-blue-50 rounded-xl p-5 border-2 border-blue-200">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-blue-200 rounded-lg">
                 <Wheat className="h-5 w-5 text-blue-700" />
@@ -245,7 +245,7 @@ export const NutritionPlanCard = ({
           </div>
 
           {/* Fat */}
-          <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-5 border-2 border-amber-200 shadow-sm">
+          <div className="bg-amber-50 rounded-xl p-5 border-2 border-amber-200">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-amber-200 rounded-lg">
                 <Droplets className="h-5 w-5 text-amber-700" />
@@ -259,7 +259,7 @@ export const NutritionPlanCard = ({
           </div>
 
           {/* Fiber */}
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border-2 border-green-200 shadow-sm">
+          <div className="bg-green-50 rounded-xl p-5 border-2 border-green-200">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-green-200 rounded-lg">
                 <Leaf className="h-5 w-5 text-green-700" />

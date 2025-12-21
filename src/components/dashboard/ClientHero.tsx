@@ -205,10 +205,10 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     size="icon"
                     onClick={toggleHistory}
                     className={cn(
-                      "h-8 w-8 rounded-md transition-all duration-200",
+                      "h-8 w-8 rounded-md",
                       isHistoryOpen
-                        ? "bg-gradient-to-br from-purple-600 to-blue-600 text-white shadow-sm hover:from-purple-700 hover:to-blue-700"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        ? "bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]"
+                        : "text-gray-600 hover:bg-[#5B6FB9] hover:text-white"
                     )}
                   >
                     <History className="h-4 w-4" strokeWidth={2} />
@@ -227,10 +227,10 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     size="icon"
                     onClick={toggleNotes}
                     className={cn(
-                      "h-8 w-8 rounded-md transition-all duration-200 relative",
+                      "h-8 w-8 rounded-md relative",
                       isNotesOpen
-                        ? "bg-gradient-to-br from-purple-600 to-blue-600 text-white shadow-sm hover:from-purple-700 hover:to-blue-700"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        ? "bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]"
+                        : "text-gray-600 hover:bg-[#5B6FB9] hover:text-white"
                     )}
                   >
                     <MessageSquare className="h-4 w-4" strokeWidth={2} />
@@ -239,8 +239,8 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                         className={cn(
                           "absolute -top-1 -right-1 h-5 min-w-5 px-1.5 flex items-center justify-center text-[10px] font-semibold rounded-full border-2",
                           isNotesOpen
-                            ? "bg-white text-purple-600 border-purple-600"
-                            : "bg-purple-600 text-white border-white"
+                            ? "bg-white text-[#5B6FB9] border-[#5B6FB9]"
+                            : "bg-[#5B6FB9] text-white border-white"
                         )}
                       >
                         {notesCount > 99 ? '99+' : notesCount}

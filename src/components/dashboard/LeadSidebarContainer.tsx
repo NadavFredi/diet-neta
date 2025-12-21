@@ -45,17 +45,10 @@ export const LeadSidebarContainer: React.FC<LeadSidebarContainerProps> = ({
   const sidebarOpen = showHistory || showNotes;
 
   return (
-    <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300" style={{ width: sidebarOpen ? (showNotes ? '450px' : '350px') : '0px' }}>
-      {/* History Sidebar - 350px - Smooth slide animation */}
-      <div
-        className={cn(
-          'transition-all duration-300 ease-in-out',
-          showHistory
-            ? 'opacity-100 translate-x-0 w-[350px] relative'
-            : 'opacity-0 translate-x-full w-0 absolute inset-0 overflow-hidden'
-        )}
-      >
-        {showHistory && (
+    <>
+      {/* History Sidebar - 350px - Inline with content */}
+      {showHistory && (
+        <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300 w-[350px]">
           <LeadHistorySidebar
             leads={leads}
             activeLeadId={activeLeadId}
@@ -63,23 +56,29 @@ export const LeadSidebarContainer: React.FC<LeadSidebarContainerProps> = ({
             getStatusColor={getStatusColor}
             getStatusBorderColor={getStatusBorderColor}
           />
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Notes Sidebar - 450px - Smooth slide animation */}
+      {/* Notes Sidebar - 450px - Fixed on the right edge */}
       <div
         className={cn(
-          'transition-all duration-300 ease-in-out',
+          'fixed top-0 bottom-0 z-50 transition-all duration-300 ease-in-out',
+          'bg-white border-l border-gray-200',
           showNotes
-            ? 'opacity-100 translate-x-0 w-[450px] relative'
-            : 'opacity-0 translate-x-full w-0 absolute inset-0 overflow-hidden'
+            ? 'right-0 opacity-100 translate-x-0'
+            : 'right-0 opacity-0 translate-x-full pointer-events-none'
         )}
+        style={{ 
+          width: '450px',
+          top: '88px', // Below the header
+        }}
+        dir="rtl"
       >
         {showNotes && (
           <CustomerNotesSidebar customerId={customerId} />
         )}
       </div>
-    </div>
+    </>
   );
 };
 

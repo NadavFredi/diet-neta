@@ -12,6 +12,8 @@ import { ClientHero } from './ClientHero';
 import { LeadSidebarContainer } from './LeadSidebarContainer';
 import { ActionDashboard } from './ActionDashboard';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { useAppSelector } from '@/store/hooks';
+import { selectActiveSidebar } from '@/store/slices/leadViewSlice';
 
 interface PageLayoutProps {
   userEmail?: string;
@@ -59,6 +61,9 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   onEditViewClick,
 }) => {
   const sidebarWidth = useSidebarWidth();
+  const activeSidebar = useAppSelector(selectActiveSidebar);
+  const isNotesOpen = activeSidebar === 'notes';
+  const notesPanelWidth = 450;
   
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50/50" dir="rtl">
@@ -81,8 +86,11 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 
         {/* Main Content - Zero Scroll Layout */}
         <main 
-          className="flex-1 flex flex-col overflow-hidden bg-gray-50 transition-all duration-300 ease-in-out" 
-          style={{ marginRight: `${sidebarWidth.width}px` }}
+          className="flex-1 flex flex-col overflow-hidden bg-gray-50" 
+          style={{ 
+            marginRight: `${sidebarWidth.width}px`,
+            paddingRight: isNotesOpen ? `${notesPanelWidth}px` : '0px',
+          }}
         >
           {/* Top Zone: ClientHero - Full Width */}
           <ClientHero
@@ -97,7 +105,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           />
 
           {/* Bottom Zone: Split View - Flex Row */}
-          <div className="flex-1 flex overflow-hidden gap-4 px-4 pb-4">
+          <div className="flex-1 flex overflow-hidden gap-4 px-4 pb-4 relative">
             {/* Left Side: ActionDashboard (Flex-1, scrollable internally) */}
             <ActionDashboard
               activeLead={activeLead}

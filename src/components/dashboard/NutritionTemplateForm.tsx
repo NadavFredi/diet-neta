@@ -406,7 +406,7 @@ export const NutritionTemplateForm = ({
           {/* BMR/TDEE Calculator */}
           <Collapsible open={calculatorOpen} onOpenChange={setCalculatorOpen}>
             <CollapsibleContent>
-              <Card className="mb-2 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+              <Card className="mb-2 bg-blue-50 border-blue-200">
                 <CardHeader className="pb-1.5 pt-2 px-2.5">
                   <CardTitle className="flex items-center gap-1.5 text-xs">
                     <Calculator className="h-3.5 w-3.5 text-blue-600" />

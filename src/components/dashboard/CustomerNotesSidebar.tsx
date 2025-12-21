@@ -157,10 +157,10 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
 
   return (
     <div 
-      className="flex-shrink-0 flex flex-col min-h-0 bg-white w-[450px]" 
+      className="flex-shrink-0 flex flex-col min-h-0 bg-white w-full h-full" 
       dir="rtl"
     >
-      <div className="flex-1 flex flex-col overflow-hidden bg-white">
+      <div className="flex-1 flex flex-col overflow-hidden bg-white h-full">
         {/* Header - Matching the image design */}
         <div className="px-4 py-3 border-b border-gray-200 bg-white flex-shrink-0">
           <div className="flex items-center justify-between gap-3">
@@ -276,7 +276,7 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                           size="sm"
                           onClick={() => handleSaveEdit(note.id)}
                           disabled={!editingContent.trim()}
-                          className="h-7 px-3 bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                          className="h-7 px-3 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white text-xs"
                         >
                           שמור
                         </Button>

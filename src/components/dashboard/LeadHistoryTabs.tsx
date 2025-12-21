@@ -121,7 +121,7 @@ export const LeadHistoryTabs = ({
             size="sm" 
             onClick={handleWorkoutClick}
             type="button"
-            className="gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm"
+            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
           >
             <Plus className="h-4 w-4" />
             הוסף תכנית אימונים
@@ -133,7 +133,7 @@ export const LeadHistoryTabs = ({
             size="sm" 
             onClick={handleDietClick}
             type="button"
-            className="gap-2 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-sm"
+            className="gap-2 bg-orange-500 hover:bg-orange-500 text-white"
           >
             <Plus className="h-4 w-4" />
             הוסף תכנית תזונה
@@ -145,7 +145,7 @@ export const LeadHistoryTabs = ({
             size="sm" 
             onClick={handleSupplementsClick}
             type="button"
-            className="gap-2 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm"
+            className="gap-2 bg-green-500 hover:bg-green-500 text-white"
           >
             <Plus className="h-4 w-4" />
             הוסף תכנית תוספים
@@ -157,7 +157,7 @@ export const LeadHistoryTabs = ({
             size="sm" 
             onClick={handleWorkoutClick}
             type="button"
-            className="gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm"
+            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
           >
             <Plus className="h-4 w-4" />
             הוסף תכנית אימונים
@@ -206,7 +206,7 @@ export const LeadHistoryTabs = ({
         <TabsContent value="workouts" className="mt-0">
           {!hasWorkoutHistory ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
                 <Dumbbell className="h-6 w-6 text-gray-400" />
               </div>
               <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תוכניות אימון</p>
@@ -225,7 +225,7 @@ export const LeadHistoryTabs = ({
             <div className="overflow-x-auto rounded-lg border border-gray-100">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
+                  <TableRow className="bg-gray-50 border-b border-gray-200">
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך התחלה</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תיאור</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">כוח</TableHead>
@@ -280,7 +280,7 @@ export const LeadHistoryTabs = ({
         <TabsContent value="steps" className="mt-0">
           {!hasStepsHistory ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-cyan-100 to-blue-200 flex items-center justify-center">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-cyan-100 flex items-center justify-center">
                 <Footprints className="h-6 w-6 text-cyan-400" />
               </div>
               <p className="text-gray-500 text-sm font-medium">אין היסטוריית צעדים</p>
@@ -300,7 +300,7 @@ export const LeadHistoryTabs = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm ${
-                        isCurrent ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' : 'bg-gradient-to-br from-gray-300 to-gray-400'
+                        isCurrent ? 'bg-cyan-500' : 'bg-gray-300'
                       }`}>
                         <Footprints className="h-5 w-5 text-white" />
                       </div>
@@ -310,7 +310,7 @@ export const LeadHistoryTabs = ({
                             {step.weekNumber || step.week || `שבוע ${index + 1}`}
                           </span>
                           {isCurrent && (
-                            <Badge className="bg-gradient-to-r from-cyan-500 to-cyan-600 text-white border-0 text-xs px-2 py-0.5 font-semibold">
+                            <Badge className="bg-cyan-500 text-white border-0 text-xs px-2 py-0.5 font-semibold">
                               פעיל
                             </Badge>
                           )}
@@ -335,7 +335,7 @@ export const LeadHistoryTabs = ({
         <TabsContent value="nutrition" className="mt-0">
           {!hasNutritionHistory ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-orange-100 flex items-center justify-center">
                 <UtensilsCrossed className="h-6 w-6 text-orange-400" />
               </div>
               <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תכניות תזונה</p>
@@ -354,7 +354,7 @@ export const LeadHistoryTabs = ({
             <div className="overflow-x-auto rounded-lg border border-gray-100">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
+                  <TableRow className="bg-gray-50 border-b border-gray-200">
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך התחלה</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך סיום</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תיאור</TableHead>
@@ -413,7 +413,7 @@ export const LeadHistoryTabs = ({
         <TabsContent value="supplements" className="mt-0">
           {!hasSupplementsHistory ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-green-100 flex items-center justify-center">
                 <Pill className="h-6 w-6 text-green-400" />
               </div>
               <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תכניות תוספים</p>
@@ -435,7 +435,7 @@ export const LeadHistoryTabs = ({
             <div className="overflow-x-auto rounded-lg border border-gray-100">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
+                  <TableRow className="bg-gray-50 border-b border-gray-200">
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך התחלה</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך סיום</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תיאור</TableHead>

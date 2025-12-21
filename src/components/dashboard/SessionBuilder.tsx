@@ -82,7 +82,7 @@ export const SessionBuilder = ({ day, onUpdate }: SessionBuilderProps) => {
   return (
     <div className="flex flex-col h-full min-h-0" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }} dir="rtl">
       {/* Session Header - Fixed, Never Shrinks */}
-      <div className="flex-shrink-0 flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-slate-50 rounded-lg border border-blue-200" style={{ flexShrink: 0 }}>
+      <div className="flex-shrink-0 flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200" style={{ flexShrink: 0 }}>
         <div className="flex items-center gap-4">
           <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 text-sm px-3 py-1">
             {currentExercises.length} תרגילים

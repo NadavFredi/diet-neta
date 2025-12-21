@@ -60,7 +60,7 @@ export const SidebarToggleButtons: React.FC<SidebarToggleButtonsProps> = ({ side
                 'h-11 w-11 rounded-lg transition-all duration-200 ease-in-out relative',
                 'hover:bg-white/70 backdrop-blur-sm',
                 isHistoryOpen
-                  ? 'bg-gradient-to-br from-purple-500 to-blue-500 text-white shadow-md shadow-purple-500/20 hover:from-purple-600 hover:to-blue-600'
+                  ? 'bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
               )}
             >
@@ -90,7 +90,7 @@ export const SidebarToggleButtons: React.FC<SidebarToggleButtonsProps> = ({ side
                 'h-11 w-11 rounded-lg transition-all duration-200 ease-in-out relative',
                 'hover:bg-white/70 backdrop-blur-sm',
                 isNotesOpen
-                  ? 'bg-gradient-to-br from-purple-500 to-blue-500 text-white shadow-md shadow-purple-500/20 hover:from-purple-600 hover:to-blue-600'
+                  ? 'bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
               )}
             >

@@ -32,14 +32,14 @@ export const DailyProtocolGrid = ({ customerId }: DailyProtocolGridProps) => {
   return (
     <Card className="p-5 border-2 border-gray-200/60 bg-white rounded-2xl shadow-md">
       <div className="flex items-center gap-2 mb-4 pb-3 border-b-2 border-gray-100">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+        <div className="w-8 h-8 rounded-xl bg-[#5B6FB9] flex items-center justify-center">
           <Activity className="h-4 w-4 text-white" />
         </div>
         <h2 className="text-base font-bold text-gray-900">פרוטוקול יומי</h2>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {/* Steps Status Tile - High-end Fitness Widget */}
-        <div className="relative bg-gradient-to-br from-cyan-50 via-cyan-100 to-blue-50 rounded-xl border-2 border-cyan-200/60 p-4 overflow-hidden shadow-md hover:shadow-lg transition-all duration-300">
+        <div className="relative bg-cyan-50 rounded-xl border-2 border-cyan-200/60 p-4 overflow-hidden">
           <Footprints className="absolute -top-2 -right-2 h-16 w-16 text-cyan-200/40" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
@@ -57,7 +57,7 @@ export const DailyProtocolGrid = ({ customerId }: DailyProtocolGridProps) => {
           </div>
         </div>
         {/* Workouts Status Tile - High-end Fitness Widget */}
-        <div className="relative bg-gradient-to-br from-orange-50 via-orange-100 to-amber-50 rounded-xl border-2 border-orange-200/60 p-4 overflow-hidden shadow-md hover:shadow-lg transition-all duration-300">
+        <div className="relative bg-orange-50 rounded-xl border-2 border-orange-200/60 p-4 overflow-hidden">
           <Dumbbell className="absolute -top-2 -right-2 h-16 w-16 text-orange-200/40" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
@@ -73,7 +73,7 @@ export const DailyProtocolGrid = ({ customerId }: DailyProtocolGridProps) => {
           </div>
         </div>
         {/* Calories Status Tile - High-end Fitness Widget */}
-        <div className="relative bg-gradient-to-br from-red-50 via-pink-100 to-rose-50 rounded-xl border-2 border-red-200/60 p-4 overflow-hidden shadow-md hover:shadow-lg transition-all duration-300">
+        <div className="relative bg-red-50 rounded-xl border-2 border-red-200/60 p-4 overflow-hidden">
           <Flame className="absolute -top-2 -right-2 h-16 w-16 text-red-200/40" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
@@ -89,7 +89,7 @@ export const DailyProtocolGrid = ({ customerId }: DailyProtocolGridProps) => {
           </div>
         </div>
         {/* Supplements Status Tile - High-end Fitness Widget */}
-        <div className="relative bg-gradient-to-br from-green-50 via-emerald-100 to-teal-50 rounded-xl border-2 border-green-200/60 p-4 overflow-hidden shadow-md hover:shadow-lg transition-all duration-300">
+        <div className="relative bg-green-50 rounded-xl border-2 border-green-200/60 p-4 overflow-hidden">
           <CheckCircle2 className="absolute -top-2 -right-2 h-16 w-16 text-green-200/40" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
@@ -111,7 +111,7 @@ export const DailyProtocolGrid = ({ customerId }: DailyProtocolGridProps) => {
           <p className="text-xs font-semibold text-gray-700 mb-2">רשימת תוספים:</p>
           <div className="flex flex-wrap gap-2">
             {supplements.map((supplement: string, index: number) => (
-              <Badge key={index} variant="outline" className="bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border-2 border-green-200 text-xs px-3 py-1.5 font-medium shadow-sm">
+              <Badge key={index} variant="outline" className="bg-green-50 text-green-700 border-2 border-green-200 text-xs px-3 py-1.5 font-medium">
                 <CheckCircle2 className="h-3 w-3 ml-1.5" />
                 {supplement}
               </Badge>

@@ -146,7 +146,7 @@ export const NutritionSummaryCard = ({ customerId, onViewDetails, onAddPlan }: N
       ) : nutritionPlan ? (
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b-2 border-gray-100">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center">
               <Flame className="h-5 w-5 text-white" />
             </div>
             <h3 className="text-base font-bold text-gray-900">תוכנית תזונה</h3>
@@ -172,27 +172,27 @@ export const NutritionSummaryCard = ({ customerId, onViewDetails, onAddPlan }: N
             <div className="flex-1 space-y-2.5">
               <div className="flex items-center justify-between p-2 bg-red-50/50 rounded-lg border border-red-100">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></div>
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
                   <span className="text-xs font-semibold text-gray-700">חלבון</span>
                 </div>
                 <span className="text-sm font-bold text-gray-900">{nutritionPlan?.targets?.protein || 0}ג</span>
               </div>
               <div className="flex items-center justify-between p-2 bg-blue-50/50 rounded-lg border border-blue-100">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm"></div>
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                   <span className="text-xs font-semibold text-gray-700">פחמימות</span>
                 </div>
                 <span className="text-sm font-bold text-gray-900">{nutritionPlan?.targets?.carbs || 0}ג</span>
               </div>
               <div className="flex items-center justify-between p-2 bg-amber-50/50 rounded-lg border border-amber-100">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></div>
+                  <div className="w-3 h-3 rounded-full bg-amber-500"></div>
                   <span className="text-xs font-semibold text-gray-700">שומן</span>
                 </div>
                 <span className="text-sm font-bold text-gray-900">{nutritionPlan?.targets?.fat || 0}ג</span>
               </div>
               <div className="pt-2.5 border-t-2 border-gray-100">
-                <div className="flex items-center justify-between p-2 bg-gradient-to-r from-orange-50 to-pink-50 rounded-lg border-2 border-orange-200/50">
+                <div className="flex items-center justify-between p-2 bg-orange-50 rounded-lg border-2 border-orange-200/50">
                   <span className="text-xs font-bold text-gray-800">סה"כ קלוריות</span>
                   <span className="text-lg font-bold text-orange-900">{nutritionPlan?.targets?.calories || 0}</span>
                 </div>
@@ -202,14 +202,14 @@ export const NutritionSummaryCard = ({ customerId, onViewDetails, onAddPlan }: N
         </div>
       ) : (
         <div className="text-center py-8 px-4">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-orange-100 to-pink-200 flex items-center justify-center shadow-lg">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-orange-100 flex items-center justify-center">
             <Flame className="h-10 w-10 text-orange-600" />
           </div>
           <h3 className="text-base font-bold text-gray-900 mb-2">אין תוכנית תזונה</h3>
           <p className="text-xs text-gray-500 mb-4">צור תוכנית תזונה מותאמת אישית</p>
           <Button 
             size="lg"
-            className="bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 px-6 py-2.5"
+            className="bg-orange-600 hover:bg-orange-600 text-white rounded-xl px-6 py-2.5"
             onClick={(e) => {
               e.stopPropagation();
               onAddPlan?.();

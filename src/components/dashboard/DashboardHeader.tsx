@@ -45,27 +45,25 @@ export const DashboardHeader = ({
             sidebarWidth.isCollapsed ? 'px-2 py-4' : 'px-4 py-5'
           )}
           style={{ 
-            minHeight: '88px',
+            height: '88px',
           }}
         >
           {/* Logo */}
-          {sidebarWidth.isCollapsed ? (
-            <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">D</span>
+          {!sidebarWidth.isCollapsed && (
+            <div className="p-2 border border-white/30 rounded-md">
+              <img 
+                src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
+                alt="Diet Neta Logo" 
+                className="h-9 w-auto max-w-[224px] object-contain transition-opacity duration-300"
+                style={{ 
+                  filter: 'none',
+                }}
+              />
             </div>
-          ) : (
-            <img 
-              src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
-              alt="Diet Neta Logo" 
-              className="h-9 w-auto max-w-[224px] object-contain transition-opacity duration-300"
-              style={{ 
-                filter: 'none',
-              }}
-            />
           )}
         </div>
         
-        {/* Toggle Button - On the edge between sidebar and content, aligned with logo center */}
+        {/* Toggle Button - On the edge between sidebar and content, aligned with border */}
         <button
           onClick={handleToggleSidebar}
           className={cn(
@@ -78,7 +76,7 @@ export const DashboardHeader = ({
             'left-0 -translate-x-1/2'
           )}
           style={{
-            top: '40px', // A bit higher than center (44px), aligned with logo center
+            top: '84px', // Positioned slightly above the border line (88px header - 4px) to not hide the logo
           }}
           title={sidebarWidth.isCollapsed ? 'הרחב תפריט' : 'כווץ תפריט'}
           aria-label={sidebarWidth.isCollapsed ? 'הרחב תפריט' : 'כווץ תפריט'}

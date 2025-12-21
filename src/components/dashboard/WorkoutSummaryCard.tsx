@@ -83,7 +83,7 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
 
   return (
     <Card 
-      className="p-5 border-2 border-gray-200/60 bg-white rounded-2xl cursor-pointer hover:border-blue-400 hover:shadow-lg transition-all duration-300 shadow-md"
+      className="p-5 border-2 border-gray-200/60 bg-white rounded-2xl cursor-pointer hover:border-blue-400"
       onClick={workoutPlan ? onViewDetails : onAddPlan}
     >
       {isLoading ? (
@@ -94,7 +94,7 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
         <div className="space-y-4">
           <div className="flex items-center justify-between pb-3 border-b-2 border-gray-100">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+              <div className="w-10 h-10 rounded-xl bg-[#5B6FB9] flex items-center justify-center">
                 <Dumbbell className="h-5 w-5 text-white" />
               </div>
               <h3 className="text-base font-bold text-gray-900">תוכנית אימונים</h3>
@@ -133,15 +133,15 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200/60 p-4 text-center shadow-sm hover:shadow-md transition-all">
+            <div className="bg-blue-50 rounded-xl border-2 border-blue-200/60 p-4 text-center">
               <p className="text-xs text-blue-700 font-semibold mb-1.5">כוח</p>
               <p className="text-2xl font-bold text-blue-900">{workoutPlan.strength}</p>
             </div>
-            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl border-2 border-red-200/60 p-4 text-center shadow-sm hover:shadow-md transition-all">
+            <div className="bg-red-50 rounded-xl border-2 border-red-200/60 p-4 text-center">
               <p className="text-xs text-red-700 font-semibold mb-1.5">קרדיו</p>
               <p className="text-2xl font-bold text-red-900">{workoutPlan.cardio}</p>
             </div>
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200/60 p-4 text-center shadow-sm hover:shadow-md transition-all">
+            <div className="bg-purple-50 rounded-xl border-2 border-purple-200/60 p-4 text-center">
               <p className="text-xs text-purple-700 font-semibold mb-1.5">אינטרוולים</p>
               <p className="text-2xl font-bold text-purple-900">{workoutPlan.intervals}</p>
             </div>
@@ -153,7 +153,7 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
               <ul className="space-y-2">
                 {getTopExercises(workoutPlan).map((exercise, idx) => (
                   <li key={idx} className="text-sm font-medium text-gray-800 flex items-center gap-2.5">
-                    <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-sm"></div>
+                    <div className="w-2 h-2 rounded-full bg-[#5B6FB9]"></div>
                     {exercise}
                   </li>
                 ))}
@@ -163,14 +163,14 @@ export const WorkoutSummaryCard = ({ customerId, onViewDetails, onAddPlan }: Wor
         </div>
       ) : (
         <div className="text-center py-8 px-4">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shadow-lg">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-blue-100 flex items-center justify-center">
             <Dumbbell className="h-10 w-10 text-blue-600" />
           </div>
           <h3 className="text-base font-bold text-gray-900 mb-2">אין תוכנית אימונים</h3>
           <p className="text-xs text-gray-500 mb-4">צור תוכנית אימונים מותאמת אישית</p>
           <Button 
             size="lg"
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 px-6 py-2.5"
+            className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white rounded-xl px-6 py-2.5"
             onClick={(e) => {
               e.stopPropagation();
               onAddPlan?.();

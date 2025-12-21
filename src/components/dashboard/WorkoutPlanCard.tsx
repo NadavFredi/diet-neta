@@ -105,7 +105,7 @@ export const WorkoutPlanCard = ({
   };
 
   return (
-    <Card className="bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300">
+    <Card className="bg-white border-2 border-slate-200">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -211,7 +211,7 @@ export const WorkoutPlanCard = ({
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-5 border-2 border-red-200 shadow-sm">
+          <div className="bg-red-50 rounded-xl p-5 border-2 border-red-200">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-red-200 rounded-lg">
                 <Dumbbell className="h-5 w-5 text-red-700" />
@@ -224,7 +224,7 @@ export const WorkoutPlanCard = ({
             <p className="text-xs text-red-600 mt-2">אימונים בשבוע</p>
           </div>
 
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border-2 border-green-200 shadow-sm">
+          <div className="bg-green-50 rounded-xl p-5 border-2 border-green-200">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-green-200 rounded-lg">
                 <Heart className="h-5 w-5 text-green-700" />
@@ -237,7 +237,7 @@ export const WorkoutPlanCard = ({
             <p className="text-xs text-green-600 mt-2">אימונים בשבוע</p>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border-2 border-purple-200 shadow-sm">
+          <div className="bg-purple-50 rounded-xl p-5 border-2 border-purple-200">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-purple-200 rounded-lg">
                 <Zap className="h-5 w-5 text-purple-700" />
@@ -326,7 +326,7 @@ export const WorkoutPlanCard = ({
                 return (
                   <div 
                     key={field.fieldName}
-                    className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+                    className="bg-white rounded-lg p-4 border border-slate-200"
                   >
                     <div className="flex items-center justify-between">
                       <div>

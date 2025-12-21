@@ -51,7 +51,7 @@ export const CustomerSidebar = ({
       {/* Avatar & Name */}
       <div className="mb-3 pb-3 border-b border-gray-200">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold shadow-lg">
+          <div className="w-14 h-14 rounded-full bg-[#5B6FB9] flex items-center justify-center text-white text-lg font-bold">
             {getInitials(customer.full_name)}
           </div>
           <div className="flex-1">

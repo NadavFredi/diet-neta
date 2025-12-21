@@ -1,16 +1,11 @@
 import React from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Settings, HelpCircle, LayoutDashboard, Dumbbell, Apple, Link2, FileText } from 'lucide-react';
+import { Settings, LayoutDashboard, Dumbbell, Apple, Link2, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection } from '@/store/slices/sidebarSlice';
 import { SidebarItem } from './SidebarItem';
 import type { SavedView } from '@/hooks/useSavedViews';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 interface NavItem {
   id: string;
@@ -176,34 +171,6 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
           </ul>
         </nav>
 
-        {/* Footer Help Button - Fixed at bottom */}
-        <div className={cn(
-          'border-t border-white/10 flex items-center justify-center transition-all duration-300 flex-shrink-0',
-          isCollapsed ? 'px-2 py-3' : 'px-6 py-4'
-        )}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className={cn(
-                  'rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all duration-200',
-                  isCollapsed ? 'w-10 h-10' : 'w-12 h-12'
-                )}
-                title="עזרה"
-                aria-label="עזרה"
-              >
-                <HelpCircle className={cn(
-                  'text-white transition-all',
-                  isCollapsed ? 'h-5 w-5' : 'h-6 w-6'
-                )} />
-              </button>
-            </TooltipTrigger>
-            {isCollapsed && (
-              <TooltipContent side="left" align="center" dir="rtl">
-                <p>עזרה</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-        </div>
       </div>
     </>
   );

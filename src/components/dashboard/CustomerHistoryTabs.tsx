@@ -76,7 +76,7 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
             <div className="overflow-x-auto rounded-xl border-2 border-gray-100">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b-2 border-gray-200">
+                  <TableRow className="bg-gray-50 border-b-2 border-gray-200">
                     <TableHead className="text-right text-sm font-bold text-gray-900 py-4">תאריך יצירה</TableHead>
                     <TableHead className="text-right text-sm font-bold text-gray-900 py-4">סטטוס</TableHead>
                     <TableHead className="text-right text-sm font-bold text-gray-900 py-4">מקור</TableHead>
@@ -127,7 +127,7 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
         <TabsContent value="workouts" className="mt-0">
           {workoutPlanHistory.length === 0 ? (
             <div className="text-center py-16">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
                 <Dumbbell className="h-8 w-8 text-gray-400" />
               </div>
               <p className="text-gray-500 text-sm font-medium">אין היסטוריה של תוכניות אימון</p>
@@ -136,7 +136,7 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
             <div className="overflow-x-auto rounded-xl border-2 border-gray-100">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b-2 border-gray-200">
+                  <TableRow className="bg-gray-50 border-b-2 border-gray-200">
                     <TableHead className="text-right text-sm font-bold text-gray-900 py-4">תאריך התחלה</TableHead>
                     <TableHead className="text-right text-sm font-bold text-gray-900 py-4">תיאור</TableHead>
                     <TableHead className="text-right text-sm font-bold text-gray-900 py-4">כוח</TableHead>
@@ -245,7 +245,7 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
         <TabsContent value="steps" className="mt-0">
           {(!customer.steps_history || customer.steps_history.length === 0) ? (
             <div className="text-center py-16">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-100 to-blue-200 flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-cyan-100 flex items-center justify-center">
                 <Footprints className="h-8 w-8 text-cyan-400" />
               </div>
               <p className="text-gray-500 text-sm font-medium">אין היסטוריית צעדים</p>
@@ -265,7 +265,7 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
                   >
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md ${
-                        isCurrent ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' : 'bg-gradient-to-br from-gray-300 to-gray-400'
+                        isCurrent ? 'bg-cyan-500' : 'bg-gray-300'
                       }`}>
                         <Footprints className={`h-6 w-6 text-white`} />
                       </div>
@@ -275,7 +275,7 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
                             {step.weekNumber || step.week || `שבוע ${index + 1}`}
                           </span>
                           {isCurrent && (
-                            <Badge className="bg-gradient-to-r from-cyan-500 to-cyan-600 text-white border-0 text-xs px-3 py-1 font-semibold shadow-sm">
+                            <Badge className="bg-cyan-500 text-white border-0 text-xs px-3 py-1 font-semibold">
                               פעיל
                             </Badge>
                           )}

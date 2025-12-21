@@ -42,9 +42,9 @@ export const LeadHistorySidebar: React.FC<LeadHistorySidebarProps> = ({
 
   return (
     <div className="flex-shrink-0 flex flex-col min-h-0 w-[350px]" dir="rtl">
-      <Card className="flex-1 flex flex-col overflow-hidden border border-gray-200 rounded-xl shadow-lg bg-white">
+      <Card className="flex-1 flex flex-col overflow-hidden border border-gray-200 rounded-xl bg-white">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-xl flex-shrink-0">
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-blue-600" />
@@ -83,8 +83,8 @@ export const LeadHistorySidebar: React.FC<LeadHistorySidebarProps> = ({
                     className={`
                       p-4 rounded-lg border-2 cursor-pointer transition-all
                       ${isActive 
-                        ? 'bg-blue-50 border-blue-300 shadow-md' 
-                        : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                        ? 'bg-blue-50 border-blue-300' 
+                        : 'bg-white border-gray-200 hover:border-gray-300'
                       }
                       ${borderColor}
                       border-r-4

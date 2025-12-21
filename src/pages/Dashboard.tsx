@@ -90,7 +90,7 @@ const Dashboard = () => {
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
         {/* Main content */}
         <main 
-          className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out" 
+          className="bg-gray-50 overflow-y-auto" 
           style={{ 
             marginRight: `${sidebarWidth.width}px`,
             minHeight: 'calc(100vh - 88px)',
