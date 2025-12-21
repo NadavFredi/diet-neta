@@ -11,7 +11,6 @@ import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector } from '@/store/hooks';
-import { Flame } from 'lucide-react';
 import { NutritionTemplatesDataTable } from '@/components/dashboard/NutritionTemplatesDataTable';
 import { NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { useTableFilters } from '@/hooks/useTableFilters';
@@ -88,7 +87,6 @@ const NutritionTemplatesManagement = () => {
                 <TableActionHeader
                   resourceKey="nutrition_templates"
                   title={savedView?.view_name || 'תבניות תזונה'}
-                  icon={Flame}
                   dataCount={templates.length}
                   singularLabel="תבנית"
                   pluralLabel="תבניות"

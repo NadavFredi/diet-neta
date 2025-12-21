@@ -6,8 +6,14 @@
  * and integrated controls. Acts as the colored architectural crown of the content panel.
  */
 
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
+import { useAppSelector } from '@/store/hooks';
+import { selectInterfaceIconPreference } from '@/store/slices/interfaceIconPreferencesSlice';
+import { useInterfaceIconPreferences } from '@/hooks/useInterfaceIconPreferences';
+import { getIconByName, getDefaultIconForResourceKey } from '@/utils/iconUtils';
+import { EditInterfaceIconDialog } from './EditInterfaceIconDialog';
 
 interface PageHeaderProps {
   title: string;
@@ -15,8 +21,10 @@ interface PageHeaderProps {
   breadcrumbs?: string[];
   actions?: React.ReactNode;
   filters?: React.ReactNode;
-  icon?: LucideIcon;
+  icon?: LucideIcon; // Legacy prop - will be ignored if resourceKey is provided
+  resourceKey?: string; // Interface resource key (e.g., 'leads', 'customers')
   className?: string;
+  onIconEditSuccess?: () => void;
 }
 
 export const PageHeader = ({ 
@@ -25,15 +33,66 @@ export const PageHeader = ({
   breadcrumbs, 
   actions,
   filters,
-  icon: Icon,
-  className 
+  icon: LegacyIcon,
+  resourceKey,
+  className,
+  onIconEditSuccess,
 }: PageHeaderProps) => {
+  // Sync preferences on mount
+  useInterfaceIconPreferences();
+  
+  // Get icon preference from Redux (immediate reactivity across all components)
+  const currentIconName = resourceKey 
+    ? useAppSelector(selectInterfaceIconPreference(resourceKey))
+    : null;
+  
+  const [editIconDialogOpen, setEditIconDialogOpen] = useState(false);
+  const [lastClickTime, setLastClickTime] = useState(0);
+
+  // Determine which icon to use
+  let Icon: LucideIcon;
+
+  if (resourceKey) {
+    // Use icon from Redux preferences, fallback to default
+    Icon = currentIconName 
+      ? getIconByName(currentIconName, resourceKey)
+      : getDefaultIconForResourceKey(resourceKey);
+  } else {
+    // Fallback to legacy icon prop
+    Icon = LegacyIcon || getDefaultIconForResourceKey('leads');
+  }
+
+  const handleIconClick = (e: React.MouseEvent) => {
+    if (!resourceKey) return; // Only allow editing if resourceKey is provided
+    
+    e.stopPropagation();
+    e.preventDefault();
+    const currentTime = Date.now();
+    const timeSinceLastClick = currentTime - lastClickTime;
+
+    if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
+      // Double click detected (two clicks within 300ms)
+      setEditIconDialogOpen(true);
+      setLastClickTime(0);
+    } else {
+      setLastClickTime(currentTime);
+      // Clear after timeout to reset the double-click detection
+      setTimeout(() => setLastClickTime(0), 300);
+    }
+  };
+
+  const handleIconEditSuccess = () => {
+    setEditIconDialogOpen(false);
+    onIconEditSuccess?.();
+  };
+
   return (
+    <>
     <div 
       className={cn(
         'relative',
-        'border-b border-slate-200',
-        'p-6',
+        'border-b border-gray-200',
+        'px-6 py-5',
         'bg-white',
         className
       )}
@@ -53,8 +112,8 @@ export const PageHeader = ({
                   <span className={cn(
                     'font-medium',
                     index === breadcrumbs.length - 1 
-                      ? 'text-indigo-700' 
-                      : 'text-slate-500 hover:text-indigo-600 transition-colors'
+                      ? 'text-gray-900' 
+                      : 'text-gray-500 hover:text-gray-700'
                   )}>
                     {crumb}
                   </span>
@@ -69,26 +128,38 @@ export const PageHeader = ({
           {/* Title Section (Right side in RTL) */}
           <div className="flex-1 min-w-0 flex items-center gap-3">
             {Icon && (
-              <div className="flex-shrink-0 flex items-center">
-                <Icon 
-                  className="w-8 h-8 text-indigo-600" 
-                  strokeWidth={2.5}
-                />
-              </div>
-            )}
-            <div className="flex-1 min-w-0 flex items-center">
-              <h1 
-                className="text-xl font-bold text-black leading-none tracking-tight inline-block px-3 py-1.5 rounded-lg border-2"
-                style={{
-                  borderColor: 'rgb(99, 102, 241)',
-                  backgroundColor: 'rgba(99, 102, 241, 0.08)',
+              <button
+                type="button"
+                className={cn(
+                  "flex-shrink-0 flex items-center p-1 rounded-md transition-colors",
+                  resourceKey && "cursor-pointer hover:bg-gray-100 group/icon"
+                )}
+                onClick={handleIconClick}
+                title={resourceKey ? "לחץ פעמיים לערוך אייקון" : undefined}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (resourceKey) {
+                    setEditIconDialogOpen(true);
+                  }
                 }}
               >
+                <Icon 
+                  className={cn(
+                    "w-5 h-5 text-gray-600 transition-opacity",
+                    resourceKey && "group-hover/icon:opacity-70"
+                  )} 
+                  strokeWidth={1.5}
+                />
+              </button>
+            )}
+            <div className="flex-1 min-w-0 flex items-center">
+              <h1 className="text-2xl font-semibold text-gray-900 leading-tight">
                 {title}
               </h1>
             </div>
             {subtitle && (
-              <p className="text-sm text-slate-600 font-medium ml-3">
+              <p className="text-sm text-gray-500 font-normal ml-3">
                 {subtitle}
               </p>
             )}
@@ -104,11 +175,24 @@ export const PageHeader = ({
 
         {/* Bottom Row: Filters / Search (Optional) */}
         {filters && (
-          <div className="mt-4 pt-4 border-t border-slate-200">
+          <div className="mt-4 pt-4 border-t border-gray-200">
             {filters}
           </div>
         )}
       </div>
     </div>
+
+    {/* Edit Icon Dialog */}
+    {resourceKey && (
+      <EditInterfaceIconDialog
+        isOpen={editIconDialogOpen}
+        onOpenChange={setEditIconDialogOpen}
+        interfaceKey={resourceKey}
+        interfaceLabel={title}
+        currentIconName={currentIconName}
+        onSuccess={handleIconEditSuccess}
+      />
+    )}
+    </>
   );
 };

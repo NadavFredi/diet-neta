@@ -171,7 +171,6 @@ export const NutritionPlanCard = ({
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>ביטול</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => {
                         onDelete?.();
@@ -181,6 +180,7 @@ export const NutritionPlanCard = ({
                     >
                       מחק
                     </AlertDialogAction>
+                    <AlertDialogCancel>ביטול</AlertDialogCancel>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>

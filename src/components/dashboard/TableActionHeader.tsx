@@ -39,7 +39,7 @@ interface TableActionHeaderProps {
   // Required props
   resourceKey: ResourceKey;
   title: string;
-  icon: LucideIcon;
+  icon?: LucideIcon; // Optional - will use icon from preferences if resourceKey is provided
   dataCount: number;
   singularLabel: string; // e.g., "ליד"
   pluralLabel: string; // e.g., "לידים"
@@ -228,6 +228,7 @@ export const TableActionHeader = ({
     <PageHeader
       title={title}
       icon={icon}
+      resourceKey={resourceKey}
       className={className}
       actions={
         <div className="flex items-center gap-3" dir="rtl">
@@ -310,7 +311,7 @@ export const TableActionHeader = ({
           )}
 
           {/* Results Count */}
-          <p className="text-base text-gray-600 font-medium">
+          <p className="text-sm text-gray-500 font-normal">
             {dataCount} {dataCount === 1 ? singularLabel : pluralLabel} נמצאו
           </p>
         </div>

@@ -5,6 +5,7 @@ import dashboardReducer from './slices/dashboardSlice';
 import tableStateReducer from './slices/tableStateSlice';
 import leadViewReducer from './slices/leadViewSlice';
 import sidebarReducer from './slices/sidebarSlice';
+import interfaceIconPreferencesReducer from './slices/interfaceIconPreferencesSlice';
 
 export const store = configureStore({
   reducer: {
@@ -13,6 +14,7 @@ export const store = configureStore({
     tableState: tableStateReducer,
     leadView: leadViewReducer,
     sidebar: sidebarReducer,
+    interfaceIconPreferences: interfaceIconPreferencesReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => {

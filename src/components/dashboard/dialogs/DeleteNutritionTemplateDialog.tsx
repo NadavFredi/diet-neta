@@ -32,8 +32,8 @@ export const DeleteNutritionTemplateDialog = ({
   onConfirm,
 }: DeleteNutritionTemplateDialogProps) => {
   return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange} dir="rtl">
-      <AlertDialogContent>
+    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+      <AlertDialogContent dir="rtl">
         <AlertDialogHeader>
           <AlertDialogTitle>מחיקת תבנית</AlertDialogTitle>
           <AlertDialogDescription>
@@ -41,7 +41,6 @@ export const DeleteNutritionTemplateDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>ביטול</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isDeleting}
@@ -49,6 +48,7 @@ export const DeleteNutritionTemplateDialog = ({
           >
             {isDeleting ? 'מוחק...' : 'מחק'}
           </AlertDialogAction>
+          <AlertDialogCancel disabled={isDeleting}>ביטול</AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

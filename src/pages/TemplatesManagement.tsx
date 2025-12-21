@@ -11,7 +11,6 @@ import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector } from '@/store/hooks';
-import { Dumbbell } from 'lucide-react';
 import { WorkoutTemplatesDataTable } from '@/components/dashboard/WorkoutTemplatesDataTable';
 import { TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { useTableFilters } from '@/hooks/useTableFilters';
@@ -93,7 +92,6 @@ const TemplatesManagement = () => {
                 <TableActionHeader
                   resourceKey="templates"
                   title={savedView?.view_name || 'תכניות אימונים'}
-                  icon={Dumbbell}
                   dataCount={templates?.length || 0}
                   singularLabel="תוכנית"
                   pluralLabel="תוכניות"

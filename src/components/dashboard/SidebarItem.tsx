@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -41,6 +42,8 @@ interface SidebarItemProps {
   onViewClick: (view: SavedView, resourcePath?: string) => void;
   onSaveViewClick?: (resourceKey: string) => void;
   onEditViewClick?: (view: SavedView) => void;
+  onEditIconClick?: (interfaceKey: string, interfaceLabel: string, currentIconName?: string | null) => void;
+  customIcon?: React.ComponentType<{ className?: string }>;
   isCollapsed: boolean;
 }
 
@@ -54,9 +57,29 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   onViewClick,
   onSaveViewClick,
   onEditViewClick,
+  onEditIconClick,
+  customIcon,
   isCollapsed,
 }) => {
-  const Icon = item.icon;
+  const Icon = customIcon || item.icon;
+  const [lastClickTime, setLastClickTime] = useState(0);
+
+  const handleIconDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const currentTime = Date.now();
+    const timeSinceLastClick = currentTime - lastClickTime;
+
+    if (timeSinceLastClick < 300) {
+      // Double click detected
+      onEditIconClick?.(item.resourceKey, item.label, undefined);
+      setLastClickTime(0);
+    } else {
+      setLastClickTime(currentTime);
+    }
+  };
+
+  const location = useLocation();
   const supportsViews = item.resourceKey === 'leads' || 
     item.resourceKey === 'customers' || 
     item.resourceKey === 'templates' || 
@@ -70,8 +93,29 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const [viewToDelete, setViewToDelete] = useState<{ id: string; name: string } | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
+  // Check if we're on a profile route for THIS specific resource type
+  let isProfileRoute = false;
+  if (item.resourceKey === 'leads') {
+    // For leads: check if we're on a lead profile route
+    // Routes: /leads/:id, /profile/lead/:leadId, /profile/:customerId (when it's a lead)
+    isProfileRoute = location.pathname.startsWith('/leads/') || 
+                     location.pathname.startsWith('/profile/lead/') ||
+                     (location.pathname.startsWith('/profile/') && 
+                      !location.pathname.startsWith('/profile/lead/') && 
+                      location.pathname.split('/').length === 3); // /profile/:customerId
+  } else if (item.resourceKey === 'customers') {
+    // For customers: check if we're on a customer profile route ONLY
+    // Route: /dashboard/customers/:id (not /profile routes which are for leads)
+    isProfileRoute = location.pathname.startsWith('/dashboard/customers/') && 
+                     location.pathname.split('/').length === 4; // /dashboard/customers/:id
+  }
+  
+  // If on profile route for THIS resource and no view_id, consider default view as active
+  const shouldHighlightDefaultView = isProfileRoute && !activeViewId && defaultView;
+
   const hasActiveView = supportsViews && activeViewId && 
     savedViews.some(view => view.id === activeViewId);
+  // Main interface is active if: active route AND (has specific view OR no view_id specified)
   const isMainInterfaceActive = active && (hasActiveView || !activeViewId);
 
   const handleDeleteClick = (e: React.MouseEvent, view: SavedView) => {
@@ -116,12 +160,19 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         aria-label={item.label}
         aria-expanded={supportsViews ? isExpanded : undefined}
       >
-        <Icon
-          className={cn(
-            'h-6 w-6 flex-shrink-0 transition-colors',
-            isMainInterfaceActive ? 'text-gray-800' : 'text-white'
-          )}
-        />
+        <div
+          onDoubleClick={handleIconDoubleClick}
+          className="relative cursor-pointer group/icon"
+          title="לחץ פעמיים לערוך אייקון"
+        >
+          <Icon
+            className={cn(
+              'h-6 w-6 flex-shrink-0 transition-colors',
+              isMainInterfaceActive ? 'text-gray-800' : 'text-white',
+              'group-hover/icon:opacity-80'
+            )}
+          />
+        </div>
         {!isCollapsed && (
           <>
             <span className="flex-1 text-right">{item.label}</span>
@@ -163,7 +214,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const subViewsList = supportsViews && savedViews.length > 0 && (
     <div className="space-y-1 mt-2">
       {savedViews.map((view) => {
-        const isViewActive = activeViewId === view.id;
+        // View is active if: it matches activeViewId OR it's the default view and we're on a profile route
+        const isViewActive = activeViewId === view.id || 
+                            (shouldHighlightDefaultView && view.id === defaultView?.id);
         const isDefaultView = view.is_default;
         return (
           <div
@@ -290,7 +343,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         {supportsViews && isExpanded && savedViews.length > 0 && (
           <div className="mt-1 space-y-0.5">
             {savedViews.map((view) => {
-              const isViewActive = activeViewId === view.id;
+              // View is active if: it matches activeViewId OR it's the default view and we're on a profile route
+              const isViewActive = activeViewId === view.id || 
+                                  (shouldHighlightDefaultView && view.id === defaultView?.id);
               const isDefaultView = view.is_default;
               return (
                 <div

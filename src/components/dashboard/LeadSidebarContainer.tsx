@@ -59,25 +59,12 @@ export const LeadSidebarContainer: React.FC<LeadSidebarContainerProps> = ({
         </div>
       )}
 
-      {/* Notes Sidebar - 450px - Fixed on the right edge */}
-      <div
-        className={cn(
-          'fixed top-0 bottom-0 z-50 transition-all duration-300 ease-in-out',
-          'bg-white border-l border-gray-200',
-          showNotes
-            ? 'right-0 opacity-100 translate-x-0'
-            : 'right-0 opacity-0 translate-x-full pointer-events-none'
-        )}
-        style={{ 
-          width: '450px',
-          top: '88px', // Below the header
-        }}
-        dir="rtl"
-      >
-        {showNotes && (
+      {/* Notes Sidebar - 450px - Inline with content (not fixed) */}
+      {showNotes && (
+        <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300 w-[450px]">
           <CustomerNotesSidebar customerId={customerId} />
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 };

@@ -228,7 +228,7 @@ export const TablePageHeader = ({
           )}
 
           {/* Results Count */}
-          <p className="text-base text-gray-600 font-medium">
+          <p className="text-sm text-gray-500 font-normal">
             {dataCount} {dataCount === 1 ? singularLabel : pluralLabel} נמצאו
           </p>
         </div>

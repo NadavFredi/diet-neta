@@ -180,7 +180,6 @@ export const WorkoutPlanCard = ({
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>ביטול</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => {
                         onDelete?.();
@@ -190,6 +189,7 @@ export const WorkoutPlanCard = ({
                     >
                       מחק
                     </AlertDialogAction>
+                    <AlertDialogCancel>ביטול</AlertDialogCancel>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>

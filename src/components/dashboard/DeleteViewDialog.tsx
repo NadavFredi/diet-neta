@@ -71,9 +71,6 @@ export const DeleteViewDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleteView.isPending}>
-            ביטול
-          </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirmDelete}
             disabled={deleteView.isPending}
@@ -81,6 +78,9 @@ export const DeleteViewDialog = ({
           >
             {deleteView.isPending ? 'מוחק...' : 'מחק'}
           </AlertDialogAction>
+          <AlertDialogCancel disabled={deleteView.isPending}>
+            ביטול
+          </AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -73,8 +73,8 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
   const birthDate = formData.birth_date ? new Date(formData.birth_date) : undefined;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleDialogOpenChange} dir="rtl">
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-gray-900">הוסף ליד חדש</DialogTitle>
           <DialogDescription className="text-gray-600">
@@ -384,7 +384,14 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t">
+        <div className="flex items-center justify-start gap-3 mt-6 pt-6 border-t" dir="rtl">
+          <Button
+            onClick={handleFormSubmit}
+            disabled={isSubmitting}
+            className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white min-w-[100px]"
+          >
+            {isSubmitting ? 'שומר...' : 'שמור'}
+          </Button>
           <Button
             variant="outline"
             onClick={handleClose}
@@ -392,13 +399,6 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
             className="min-w-[100px]"
           >
             ביטול
-          </Button>
-          <Button
-            onClick={handleFormSubmit}
-            disabled={isSubmitting}
-            className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white min-w-[100px]"
-          >
-            {isSubmitting ? 'שומר...' : 'שמור'}
           </Button>
         </div>
       </DialogContent>

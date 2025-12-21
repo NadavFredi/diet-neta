@@ -7,6 +7,7 @@ export interface SavedView {
   resource_key: string;
   view_name: string;
   filter_config: Record<string, any>;
+  icon_name?: string | null;
   is_default: boolean;
   created_by: string;
   created_at: string;
@@ -43,7 +44,7 @@ export interface FilterConfig {
 }
 
 // Helper function to get or create user ID from email
-const getUserIdFromEmail = async (email: string): Promise<string> => {
+export const getUserIdFromEmail = async (email: string): Promise<string> => {
   // First try to get from auth.users (if there's an active session)
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();

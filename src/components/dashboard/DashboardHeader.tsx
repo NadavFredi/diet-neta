@@ -112,10 +112,9 @@ export const DashboardHeader = ({
               <span className="text-base font-semibold text-gray-700">{userEmail}</span>
             </div>
             <Button 
-              variant="ghost" 
               size="default" 
               onClick={onLogout} 
-              className="text-base font-semibold text-gray-700 hover:bg-gray-100 transition-all rounded-lg px-4 py-2"
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white text-base font-semibold rounded-lg px-4 py-2"
             >
               התנתק
             </Button>

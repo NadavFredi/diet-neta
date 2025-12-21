@@ -12,7 +12,6 @@ import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
 import { useAppSelector } from '@/store/hooks';
-import { UserCircle } from 'lucide-react';
 import { CUSTOMER_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { useTableFilters } from '@/hooks/useTableFilters';
 import { customerColumns } from '@/components/dashboard/columns/customerColumns';
@@ -72,7 +71,6 @@ const CustomersManagement = () => {
                 <TableActionHeader
                   resourceKey="customers"
                   title={savedView?.view_name || 'ניהול לקוחות'}
-                  icon={UserCircle}
                   dataCount={filteredCustomers?.length || 0}
                   singularLabel="לקוח"
                   pluralLabel="לקוחות"

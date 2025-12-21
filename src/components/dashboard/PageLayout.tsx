@@ -89,7 +89,6 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           className="flex-1 flex flex-col overflow-hidden bg-gray-50" 
           style={{ 
             marginRight: `${sidebarWidth.width}px`,
-            paddingRight: isNotesOpen ? `${notesPanelWidth}px` : '0px',
           }}
         >
           {/* Top Zone: ClientHero - Full Width */}
@@ -105,7 +104,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           />
 
           {/* Bottom Zone: Split View - Flex Row */}
-          <div className="flex-1 flex overflow-hidden gap-4 px-4 pb-4 relative">
+          <div className="flex-1 flex overflow-hidden gap-4 px-4 pb-4 relative" style={{ direction: 'ltr' }}>
             {/* Left Side: ActionDashboard (Flex-1, scrollable internally) */}
             <ActionDashboard
               activeLead={activeLead}
@@ -116,7 +115,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               getStatusColor={getStatusColor}
             />
 
-            {/* Right Side: Dynamic Sidebar Container (History or Notes) with Floating Handle */}
+            {/* Right Side: Dynamic Sidebar Container (History or Notes) - appears on right side of main content */}
             <LeadSidebarContainer
               leads={sortedLeads}
               activeLeadId={activeLeadId}

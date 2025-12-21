@@ -52,6 +52,7 @@ export const EditViewModal = ({
   useEffect(() => {
     if (isOpen && view) {
       setViewName(view.view_name);
+      setSelectedIconName(view.icon_name || null);
       const savedConfig = view.filter_config as FilterConfig || currentFilterConfig;
       setFilterConfig({
         ...savedConfig,
@@ -370,21 +371,21 @@ export const EditViewModal = ({
 
           <DialogFooter className="mt-6">
             <Button
+              type="submit"
+              disabled={!viewName.trim() || updateView.isPending}
+            >
+              {updateView.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              שמור שינויים
+            </Button>
+            <Button
               type="button"
               variant="outline"
               onClick={() => handleClose(false)}
               disabled={updateView.isPending}
             >
               ביטול
-            </Button>
-            <Button
-              type="submit"
-              disabled={!viewName.trim() || updateView.isPending}
-            >
-              {updateView.isPending && (
-                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-              )}
-              שמור שינויים
             </Button>
           </DialogFooter>
         </form>

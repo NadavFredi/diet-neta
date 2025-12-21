@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Settings, LayoutDashboard, Dumbbell, Apple, Link2, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -6,6 +6,10 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection } from '@/store/slices/sidebarSlice';
 import { SidebarItem } from './SidebarItem';
 import type { SavedView } from '@/hooks/useSavedViews';
+import { useInterfaceIconPreferences } from '@/hooks/useInterfaceIconPreferences';
+import { selectInterfaceIconPreferences } from '@/store/slices/interfaceIconPreferencesSlice';
+import { getIconByName } from '@/utils/iconUtils';
+import { EditInterfaceIconDialog } from './EditInterfaceIconDialog';
 
 interface NavItem {
   id: string;
@@ -72,11 +76,6 @@ interface DashboardSidebarProps {
   onEditViewClick?: (view: SavedView) => void;
 }
 
-interface DashboardSidebarProps {
-  onSaveViewClick?: (resourceKey: string) => void;
-  onEditViewClick?: (view: SavedView) => void;
-}
-
 export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: DashboardSidebarProps) => {
   const dispatch = useAppDispatch();
   const location = useLocation();
@@ -86,6 +85,42 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   
   // Get sidebar state from Redux
   const { isCollapsed, expandedSections } = useAppSelector((state) => state.sidebar);
+  
+  // Fetch preferences on mount to sync with database (populates Redux)
+  useInterfaceIconPreferences();
+  
+  // Get all preferences from Redux at component level
+  const iconPreferences = useAppSelector(selectInterfaceIconPreferences);
+  
+  const [editIconDialogOpen, setEditIconDialogOpen] = useState(false);
+  const [editingInterface, setEditingInterface] = useState<{
+    key: string;
+    label: string;
+    currentIconName?: string | null;
+  } | null>(null);
+
+  // Get custom icon for each navigation item from Redux
+  const getIconForItem = useMemo(() => {
+    return (item: NavItem) => {
+      const customIconName = iconPreferences[item.resourceKey];
+      if (customIconName) {
+        return getIconByName(customIconName, item.resourceKey);
+      }
+      return item.icon;
+    };
+  }, [iconPreferences]);
+
+  const handleEditIconClick = (interfaceKey: string, interfaceLabel: string, currentIconName?: string | null) => {
+    // Get current icon name from Redux if not provided
+    const iconName = currentIconName || iconPreferences[interfaceKey] || null;
+    setEditingInterface({ key: interfaceKey, label: interfaceLabel, currentIconName: iconName });
+    setEditIconDialogOpen(true);
+  };
+
+  const handleIconEditSuccess = () => {
+    setEditIconDialogOpen(false);
+    setEditingInterface(null);
+  };
 
   // When sidebar is collapsed, also collapse all sections
   const effectiveExpandedSections = isCollapsed 
@@ -94,7 +129,20 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
-      return location.pathname === '/dashboard' || location.pathname.startsWith('/leads');
+      // Active for dashboard and lead profile routes (not customer routes)
+      return location.pathname === '/dashboard' || 
+             location.pathname.startsWith('/leads/') ||
+             location.pathname.startsWith('/profile/lead/') ||
+             (location.pathname.startsWith('/profile/') && 
+              !location.pathname.startsWith('/profile/lead/') && 
+              location.pathname.split('/').length === 3); // /profile/:customerId (lead route)
+    }
+    if (path === '/dashboard/customers') {
+      // Active for customers list and customer profile routes (not lead routes)
+      return location.pathname === '/dashboard/customers' || 
+             (location.pathname.startsWith('/dashboard/customers/') && 
+              !location.pathname.startsWith('/profile/lead/') &&
+              !location.pathname.startsWith('/leads/'));
     }
     return location.pathname === path || location.pathname.startsWith(path);
   };
@@ -165,6 +213,8 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
                 onViewClick={handleViewClick}
                 onSaveViewClick={onSaveViewClick}
                 onEditViewClick={onEditViewClick}
+                onEditIconClick={handleEditIconClick}
+                customIcon={getIconForItem(item)}
                 isCollapsed={isCollapsed}
               />
             ))}
@@ -172,6 +222,18 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
         </nav>
 
       </div>
+
+      {/* Edit Icon Dialog */}
+      {editingInterface && (
+        <EditInterfaceIconDialog
+          isOpen={editIconDialogOpen}
+          onOpenChange={setEditIconDialogOpen}
+          interfaceKey={editingInterface.key}
+          interfaceLabel={editingInterface.label}
+          currentIconName={editingInterface.currentIconName}
+          onSuccess={handleIconEditSuccess}
+        />
+      )}
     </>
   );
 };

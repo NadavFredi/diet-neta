@@ -41,7 +41,6 @@ export const DeleteWorkoutTemplateDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>ביטול</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isDeleting}
@@ -49,6 +48,7 @@ export const DeleteWorkoutTemplateDialog = ({
           >
             {isDeleting ? 'מוחק...' : 'מחק'}
           </AlertDialogAction>
+          <AlertDialogCancel disabled={isDeleting}>ביטול</AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

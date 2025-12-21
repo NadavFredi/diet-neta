@@ -119,21 +119,21 @@ export const SaveViewModal = ({
           </div>
           <DialogFooter>
             <Button
+              type="submit"
+              disabled={!viewName.trim() || createView.isPending}
+            >
+              {createView.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              שמור
+            </Button>
+            <Button
               type="button"
               variant="outline"
               onClick={() => handleClose(false)}
               disabled={createView.isPending}
             >
               ביטול
-            </Button>
-            <Button
-              type="submit"
-              disabled={!viewName.trim() || createView.isPending}
-            >
-              {createView.isPending && (
-                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-              )}
-              שמור
             </Button>
           </DialogFooter>
         </form>
