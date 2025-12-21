@@ -721,7 +721,7 @@ export const NutritionTemplateForm = ({
       <div className="border-t bg-white p-2.5 flex gap-2 flex-shrink-0" dir="rtl">
         <Button
           type="submit"
-          className="flex-1 h-8 text-sm"
+          className="flex-1 h-8 text-sm bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
           disabled={isSubmitting || !name.trim()}
         >
           שמור {mode === 'template' ? 'תבנית' : 'תוכנית'}

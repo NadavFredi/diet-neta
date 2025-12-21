@@ -7,6 +7,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NetaLogo } from '@/components/ui/NetaLogo';
 import { MessageCircle } from 'lucide-react';
 import { useLogin, type LoginMethod } from './Login';
 

@@ -109,6 +109,7 @@ export const EditInterfaceIconDialog = ({
             type="button"
             onClick={handleSave}
             disabled={!selectedIconName || updatePreference.isPending}
+            className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
           >
             {updatePreference.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -128,3 +129,4 @@ export const EditInterfaceIconDialog = ({
     </Dialog>
   );
 };
+

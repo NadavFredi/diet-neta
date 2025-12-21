@@ -121,6 +121,7 @@ export const SaveViewModal = ({
             <Button
               type="submit"
               disabled={!viewName.trim() || createView.isPending}
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
             >
               {createView.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

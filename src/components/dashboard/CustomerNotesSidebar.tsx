@@ -152,6 +152,15 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
   const formatNoteDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
+      const today = new Date();
+      const isToday = 
+        date.getDate() === today.getDate() &&
+        date.getMonth() === today.getMonth() &&
+        date.getFullYear() === today.getFullYear();
+      
+      if (isToday) {
+        return 'היום';
+      }
       // Format as DD.MM.YYYY to match the image
       return format(date, 'dd.MM.yyyy', { locale: he });
     } catch {
@@ -204,15 +213,16 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
         </div>
 
         {/* Add Note Input Area - Matching the image design */}
-        <div className="px-4 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="px-4 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0" style={{ backgroundColor: '#F9FAFB' }}>
           <div className="space-y-3">
             <Textarea
               ref={textareaRef}
               value={newNoteContent}
               onChange={(e) => setNewNoteContent(e.target.value)}
               placeholder="כתוב הערה חדשה..."
-              className="min-h-[100px] text-sm resize-none bg-white border-gray-300 focus:border-gray-400 focus:ring-gray-400 rounded-md"
+              className="min-h-[100px] text-sm resize-none bg-white border border-gray-300 focus:border-gray-300 focus:ring-0 rounded-md placeholder:text-gray-400"
               dir="rtl"
+              style={{ borderColor: '#E5E7EB' }}
               onKeyDown={(e) => {
                 // Only submit on Ctrl+Enter or Cmd+Enter
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -222,13 +232,14 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                 // Allow Enter to create new line normally
               }}
             />
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-start" dir="rtl">
               <Button
                 type="button"
                 size="sm"
                 onClick={(e) => handleAddNote(e)}
                 disabled={!newNoteContent.trim() || isLoading || isSubmitting}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 h-8 px-4 text-xs"
+                className="border-0 rounded-md h-8 px-4 text-xs font-medium"
+                style={{ backgroundColor: '#E8E8E8', color: '#9B9B9B' }}
               >
                 <Plus className="h-3.5 w-3.5 ml-1.5" />
                 {isSubmitting ? 'שומר...' : 'הוסף הערה'}
@@ -238,7 +249,7 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
         </div>
 
         {/* Notes Feed - Scrollable - Matching the image design */}
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-4 bg-white">
           {isLoading && notes.length === 0 ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-3"></div>
@@ -259,7 +270,11 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
               {notes.map((note) => (
                 <div
                   key={note.id}
-                  className="bg-white rounded-md border border-gray-200 p-3 group"
+                  className="rounded-md border border-gray-200 p-3 group"
+                  style={{ 
+                    borderColor: '#E0E0E0',
+                    backgroundColor: '#F9F9F9'
+                  }}
                 >
                   {editingNoteId === note.id ? (
                     // Edit Mode
@@ -268,8 +283,9 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                         ref={editTextareaRef}
                         value={editingContent}
                         onChange={(e) => setEditingContent(e.target.value)}
-                        className="min-h-[80px] text-sm resize-none bg-white border-gray-300 focus:border-gray-400 focus:ring-gray-400 rounded-md"
+                        className="min-h-[80px] text-sm resize-none bg-white border border-gray-300 focus:border-gray-300 focus:ring-0 rounded-md"
                         dir="rtl"
+                        style={{ borderColor: '#E5E7EB' }}
                         onKeyDown={(e) => {
                           if (e.key === 'Escape') {
                             handleCancelEdit();
@@ -300,51 +316,49 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                       </div>
                     </div>
                   ) : (
-                    // View Mode - Matching the image layout (compact)
-                    <div className="flex items-start gap-2">
-                      {/* Left side: Edit/Delete icons (vertically stacked) */}
-                      <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleStartEdit(note)}
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteNote(note.id)}
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-
-                      {/* Right side: Note content and date */}
-                      <div className="flex-1 min-w-0">
-                        {/* Date and Time with Clock icon - Top right */}
-                        <div className="flex items-center justify-end gap-2 mb-2">
-                          <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                            <Clock className="h-2.5 w-2.5 text-gray-500" />
-                          </div>
-                          <span className="text-xs font-medium text-gray-900">
+                    // View Mode - Matching the image layout (compact) - RTL
+                    <div className="flex items-start justify-between gap-3" dir="rtl">
+                      {/* Content on the right (RTL): Date/hour on top right, text below */}
+                      <div className="flex-1 min-w-0 flex flex-col text-right">
+                        {/* Date and Time with Clock icon - Top right, same row */}
+                        <div className="flex items-center justify-end gap-2 mb-2 w-full flex-shrink-0" dir="ltr">
+                          <Clock className="h-3.5 w-3.5 text-gray-600 flex-shrink-0" />
+                          <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
                             {formatNoteDate(note.created_at)} {formatNoteTime(note.created_at)}
                           </span>
                         </div>
 
-                        {/* Note content */}
-                        <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {/* Note content - Below the date/hour, right-aligned */}
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap text-right w-full">
                           {note.content}
                         </p>
 
-                        {/* Edited indicator if applicable */}
+                        {/* Edited indicator if applicable - RTL aligned */}
                         {note.updated_at !== note.created_at && (
-                          <p className="text-xs text-gray-500 italic mt-1.5">
+                          <p className="text-xs text-gray-500 italic mt-1.5 text-right w-full">
                             נערך ב-{formatNoteDate(note.updated_at)} {formatNoteTime(note.updated_at)}
                           </p>
                         )}
+                      </div>
+
+                      {/* Buttons on the left (RTL): Edit/Delete icons - Always visible */}
+                      <div className="flex items-center gap-2 flex-shrink-0 pt-1">
+                        <button
+                          onClick={() => handleStartEdit(note)}
+                          className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                          type="button"
+                          title="ערוך"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteNote(note.id)}
+                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          type="button"
+                          title="מחק"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
                   )}

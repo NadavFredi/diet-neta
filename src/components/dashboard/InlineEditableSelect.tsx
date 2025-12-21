@@ -171,7 +171,7 @@ export const InlineEditableSelect = ({
                     handleSave();
                   }}
                   disabled={isSaving || !newOptionValue.trim()}
-                  className="h-5 w-5 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 rounded transition-all flex-shrink-0 pointer-events-auto bg-white/95 backdrop-blur-sm border border-green-200/50 shadow-sm"
+                  className="h-5 w-5 p-0 text-white hover:text-white hover:bg-[#5B6FB9]/90 rounded transition-all flex-shrink-0 pointer-events-auto bg-[#5B6FB9] backdrop-blur-sm border border-[#5B6FB9] shadow-sm"
                   title="שמור (Enter)"
                 >
                   <Check className="h-3 w-3" strokeWidth={2.5} />
@@ -243,7 +243,7 @@ export const InlineEditableSelect = ({
                       handleSave();
                     }}
                     disabled={isSaving}
-                    className="h-5 w-5 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 rounded transition-all flex-shrink-0 pointer-events-auto bg-white/95 backdrop-blur-sm border border-green-200/50 shadow-sm"
+                    className="h-5 w-5 p-0 text-white hover:text-white hover:bg-[#5B6FB9]/90 rounded transition-all flex-shrink-0 pointer-events-auto bg-[#5B6FB9] backdrop-blur-sm border border-[#5B6FB9] shadow-sm"
                     title="שמור (Enter)"
                   >
                     <Check className="h-3 w-3" strokeWidth={2.5} />

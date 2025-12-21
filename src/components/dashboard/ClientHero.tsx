@@ -178,12 +178,12 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
+                  size="default"
                   onClick={onWhatsApp}
                   variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1.5 bg-green-50 hover:bg-green-100 border-green-200 text-green-700 h-8 px-3 text-xs"
+                  className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
                 >
-                  <MessageCircle className="h-3.5 w-3.5" strokeWidth={2} />
+                  <MessageCircle className="h-5 w-5" strokeWidth={2.5} />
                   WhatsApp
                 </Button>
               </TooltipTrigger>

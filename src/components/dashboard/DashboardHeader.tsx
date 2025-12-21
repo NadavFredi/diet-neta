@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { NetaLogo } from '@/components/ui/NetaLogo';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { cn } from '@/lib/utils';
 import { useAppDispatch } from '@/store/hooks';
@@ -50,16 +51,10 @@ export const DashboardHeader = ({
         >
           {/* Logo */}
           {!sidebarWidth.isCollapsed && (
-            <div className="p-2 border border-white/30 rounded-md">
-              <img 
-                src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
-                alt="Diet Neta Logo" 
-                className="h-9 w-auto max-w-[224px] object-contain transition-opacity duration-300"
-                style={{ 
-                  filter: 'none',
-                }}
-              />
-            </div>
+            <NetaLogo 
+              size="default" 
+              variant="default"
+            />
           )}
         </div>
         
@@ -76,7 +71,7 @@ export const DashboardHeader = ({
             'left-0 -translate-x-1/2'
           )}
           style={{
-            top: '84px', // Positioned slightly above the border line (88px header - 4px) to not hide the logo
+            top: '70px', // Positioned higher to avoid overlapping with icons
           }}
           title={sidebarWidth.isCollapsed ? 'הרחב תפריט' : 'כווץ תפריט'}
           aria-label={sidebarWidth.isCollapsed ? 'הרחב תפריט' : 'כווץ תפריט'}

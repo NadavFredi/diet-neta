@@ -132,7 +132,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({
                 size="sm"
                 onClick={handleSave}
                 disabled={isSaving || isLoading}
-                className="h-7 px-3 bg-amber-600 hover:bg-amber-700 text-white"
+                className="h-7 px-3 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
               >
                 <Save className="h-3.5 w-3.5 ml-1" />
                 {isSaving ? 'שומר...' : 'שמור'}
@@ -162,6 +162,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({
     </Card>
   );
 };
+
 
 
 
