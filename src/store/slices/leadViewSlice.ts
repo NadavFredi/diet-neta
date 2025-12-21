@@ -85,20 +85,10 @@ export const fetchCustomerNotes = createAsyncThunk(
 export const addCustomerNote = createAsyncThunk(
   'leadView/addCustomerNote',
   async (
-    { customerId, content }: { customerId: string; content: string },
+    { customerId, content, tempId }: { customerId: string; content: string; tempId?: string },
     { rejectWithValue, getState }
   ) => {
     try {
-      // Optimistic update: create temporary note
-      const tempId = `temp-${Date.now()}`;
-      const optimisticNote: CustomerNote = {
-        id: tempId,
-        customer_id: customerId,
-        content,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
       // Insert into database
       const { data, error } = await supabase
         .from('customer_notes')
@@ -108,7 +98,7 @@ export const addCustomerNote = createAsyncThunk(
 
       if (error) throw error;
 
-      return { customerId, note: data as CustomerNote, tempId };
+      return { customerId, note: data as CustomerNote, tempId: tempId || `temp-${Date.now()}` };
     } catch (error) {
       return rejectWithValue({ 
         customerId, 
@@ -264,9 +254,14 @@ const leadViewSlice = createSlice({
     builder
       .addCase(addCustomerNote.pending, (state, action) => {
         const { customerId } = action.meta.arg;
+        // Generate tempId and store it in meta for use in fulfilled
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Store tempId in action.meta for later use
+        (action.meta as any).tempId = tempId;
+        
         // Optimistic update
         const tempNote: CustomerNote = {
-          id: `temp-${Date.now()}`,
+          id: tempId,
           customer_id: customerId,
           content: action.meta.arg.content,
           created_at: new Date().toISOString(),
@@ -278,16 +273,16 @@ const leadViewSlice = createSlice({
         state.notes[customerId] = [tempNote, ...state.notes[customerId]];
       })
       .addCase(addCustomerNote.fulfilled, (state, action) => {
-        const { customerId, note, tempId } = action.payload;
+        const { customerId, note } = action.payload;
+        const tempId = (action.meta as any).tempId || action.payload.tempId;
+        
         if (state.notes[customerId]) {
-          // Replace temp note with real note
-          const index = state.notes[customerId].findIndex(n => n.id === tempId);
-          if (index !== -1) {
-            state.notes[customerId][index] = note;
-          } else {
-            // If temp note not found, prepend the real note
-            state.notes[customerId] = [note, ...state.notes[customerId]];
-          }
+          // Remove all temp notes for this customer and replace with real note
+          state.notes[customerId] = state.notes[customerId].filter(
+            n => !n.id.startsWith('temp-')
+          );
+          // Prepend the real note
+          state.notes[customerId] = [note, ...state.notes[customerId]];
           // Sort by created_at descending
           state.notes[customerId].sort((a, b) => 
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

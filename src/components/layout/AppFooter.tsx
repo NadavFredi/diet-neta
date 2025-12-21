@@ -6,7 +6,7 @@ export function AppFooter() {
             <div
                 className="text-white"
                 style={{
-                    backgroundColor: "#4f60a8",
+                    backgroundColor: "#5B6FB9",
                 }}
             >
                 <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row">

@@ -63,14 +63,26 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
     }
   }, [editingNoteId]);
 
-  const handleAddNote = async () => {
-    if (!customerId || !newNoteContent.trim()) return;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleAddNote = async (e?: React.MouseEvent | React.KeyboardEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    if (!customerId || !newNoteContent.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
     try {
       await dispatch(
         addCustomerNote({ customerId, content: newNoteContent.trim() })
       ).unwrap();
       setNewNoteContent('');
+      // Clear textarea focus
+      if (textareaRef.current) {
+        textareaRef.current.blur();
+      }
       toast({
         title: 'ההערה נוספה בהצלחה',
         description: 'ההערה נשמרה והופיעה בהיסטוריה',
@@ -81,6 +93,8 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
         description: 'לא ניתן היה להוסיף את ההערה',
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -200,21 +214,24 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
               className="min-h-[100px] text-sm resize-none bg-white border-gray-300 focus:border-gray-400 focus:ring-gray-400 rounded-md"
               dir="rtl"
               onKeyDown={(e) => {
+                // Only submit on Ctrl+Enter or Cmd+Enter
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                   e.preventDefault();
                   handleAddNote();
                 }
+                // Allow Enter to create new line normally
               }}
             />
             <div className="flex items-center justify-center">
               <Button
+                type="button"
                 size="sm"
-                onClick={handleAddNote}
-                disabled={!newNoteContent.trim() || isLoading}
+                onClick={(e) => handleAddNote(e)}
+                disabled={!newNoteContent.trim() || isLoading || isSubmitting}
                 className="bg-gray-100 hover:bg-gray-200 text-gray-700 h-8 px-4 text-xs"
               >
                 <Plus className="h-3.5 w-3.5 ml-1.5" />
-                הוסף הערה
+                {isSubmitting ? 'שומר...' : 'הוסף הערה'}
               </Button>
             </div>
           </div>

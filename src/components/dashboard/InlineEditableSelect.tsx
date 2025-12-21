@@ -94,13 +94,24 @@ export const InlineEditableSelect = ({
         }
       }
       
-      await onSave(finalValue);
+      // Exit editing mode immediately for better UX (optimistic update)
       setIsEditing(false);
       setIsAddingNew(false);
       setNewOptionValue('');
+      
+      // Save in background - optimistic updates handle the UI
+      onSave(finalValue).catch((error) => {
+        console.error('InlineEditableSelect: Failed to save:', error);
+        // On error, revert to original value
+        setEditValue(value);
+        // Re-enter editing mode so user can retry
+        setIsEditing(true);
+      });
     } catch (error) {
-      console.error('Failed to save:', error);
+      console.error('InlineEditableSelect: Validation error:', error);
       setEditValue(value);
+      setIsSaving(false);
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -118,7 +129,9 @@ export const InlineEditableSelect = ({
     }
   };
 
-  const handleDoubleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (disabled) return;
     handleEdit();
   };
@@ -146,29 +159,38 @@ export const InlineEditableSelect = ({
                 disabled={isSaving}
                 dir="rtl"
               />
-              {/* Checkmark and X icons inside the input field */}
-              <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
+              {/* Single save/cancel button group - positioned inside input field */}
+              <div className="absolute left-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 pointer-events-none">
                 <Button
+                  type="button"
                   size="sm"
                   variant="ghost"
-                  onClick={handleSave}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSave();
+                  }}
                   disabled={isSaving || !newOptionValue.trim()}
-                  className="h-5 w-5 p-0 text-green-600 hover:text-green-700 hover:bg-green-50/80 rounded"
-                  title="Enter לשמירה"
+                  className="h-5 w-5 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 rounded transition-all flex-shrink-0 pointer-events-auto bg-white/95 backdrop-blur-sm border border-green-200/50 shadow-sm"
+                  title="שמור (Enter)"
                 >
-                  <Check className="h-3 w-3" />
+                  <Check className="h-3 w-3" strokeWidth={2.5} />
                 </Button>
                 <Button
+                  type="button"
                   size="sm"
                   variant="ghost"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     setIsAddingNew(false);
                     setNewOptionValue('');
                   }}
                   disabled={isSaving}
-                  className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded"
+                  className="h-5 w-5 p-0 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded transition-all flex-shrink-0 pointer-events-auto bg-white/95 backdrop-blur-sm border border-gray-200/50 shadow-sm"
+                  title="בטל (Escape)"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3 w-3" strokeWidth={2.5} />
                 </Button>
               </div>
             </div>
@@ -189,7 +211,7 @@ export const InlineEditableSelect = ({
                   disabled={isSaving || isAddingNew}
                   dir="rtl"
                 >
-                  <SelectTrigger className="h-7 text-xs pr-9 pl-7">
+                  <SelectTrigger className="h-7 text-xs pr-12 pl-2">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent dir="rtl">
@@ -209,27 +231,37 @@ export const InlineEditableSelect = ({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                {/* Checkmark and X icons inside the field */}
-                <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
+                {/* Single save/cancel button group - positioned inside select field */}
+                <div className="absolute left-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 pointer-events-none">
                   <Button
+                    type="button"
                     size="sm"
                     variant="ghost"
-                    onClick={handleSave}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSave();
+                    }}
                     disabled={isSaving}
-                    className="h-5 w-5 p-0 text-green-600 hover:text-green-700 hover:bg-green-50/80 rounded"
-                    title="Enter לשמירה"
+                    className="h-5 w-5 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 rounded transition-all flex-shrink-0 pointer-events-auto bg-white/95 backdrop-blur-sm border border-green-200/50 shadow-sm"
+                    title="שמור (Enter)"
                   >
-                    <Check className="h-3 w-3" />
+                    <Check className="h-3 w-3" strokeWidth={2.5} />
                   </Button>
                   <Button
+                    type="button"
                     size="sm"
                     variant="ghost"
-                    onClick={handleCancel}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleCancel();
+                    }}
                     disabled={isSaving}
-                    className="h-5 w-5 p-0 text-red-600 hover:text-red-700 hover:bg-red-50/80 rounded"
-                    title="Escape לביטול"
+                    className="h-5 w-5 p-0 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded transition-all flex-shrink-0 pointer-events-auto bg-white/95 backdrop-blur-sm border border-gray-200/50 shadow-sm"
+                    title="בטל (Escape)"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3 w-3" strokeWidth={2.5} />
                   </Button>
                 </div>
               </div>
@@ -245,7 +277,7 @@ export const InlineEditableSelect = ({
       className={cn('flex items-center gap-2 py-0.5 group', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onDoubleClick={handleDoubleClick}
+      onClick={handleClick}
     >
       <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -255,14 +287,15 @@ export const InlineEditableSelect = ({
             badgeClassName || 'bg-gray-50 text-gray-700 border-gray-200',
             valueClassName
           )}
-          onDoubleClick={handleDoubleClick}
-          title={!disabled ? 'לחץ פעמיים לעריכה' : undefined}
+          onClick={handleClick}
+          title={!disabled ? 'לחץ לעריכה' : undefined}
         >
           {formatValue ? formatValue(value || '') : (value || '-')}
         </span>
         {!disabled && (
           <button
-            onClick={handleEdit}
+            type="button"
+            onClick={handleClick}
             className={cn(
               'opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 flex-shrink-0',
               isHovered && 'opacity-100'

@@ -209,7 +209,7 @@ export const NutritionSummaryCard = ({ customerId, onViewDetails, onAddPlan }: N
           <p className="text-xs text-gray-500 mb-4">צור תוכנית תזונה מותאמת אישית</p>
           <Button 
             size="lg"
-            className="bg-orange-600 hover:bg-orange-600 text-white rounded-xl px-6 py-2.5"
+            className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white rounded-xl px-6 py-2.5"
             onClick={(e) => {
               e.stopPropagation();
               onAddPlan?.();

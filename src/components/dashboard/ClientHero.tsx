@@ -201,17 +201,15 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant={isHistoryOpen ? "default" : "ghost"}
+                    size="default"
                     onClick={toggleHistory}
                     className={cn(
-                      "h-10 px-3 rounded-md flex items-center gap-2",
-                      isHistoryOpen
-                        ? "bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]"
-                        : "text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
+                      "bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2",
+                      !isHistoryOpen && "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                     )}
                   >
                     <History className="h-5 w-5" strokeWidth={2.5} />
-                    <span className="text-sm font-medium">היסטוריה</span>
+                    <span>היסטוריה</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left" align="center" dir="rtl">
@@ -223,17 +221,15 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant={isNotesOpen ? "default" : "ghost"}
+                    size="default"
                     onClick={toggleNotes}
                     className={cn(
-                      "h-10 px-3 rounded-md flex items-center gap-2 relative",
-                      isNotesOpen
-                        ? "bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]"
-                        : "text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
+                      "bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 relative",
+                      !isNotesOpen && "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                     )}
                   >
                     <MessageSquare className="h-5 w-5" strokeWidth={2.5} />
-                    <span className="text-sm font-medium">הערות</span>
+                    <span>הערות</span>
                     {notesCount > 0 && (
                       <Badge
                         className={cn(

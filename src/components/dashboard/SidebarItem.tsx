@@ -64,21 +64,6 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const Icon = customIcon || item.icon;
   const [lastClickTime, setLastClickTime] = useState(0);
 
-  const handleIconDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const currentTime = Date.now();
-    const timeSinceLastClick = currentTime - lastClickTime;
-
-    if (timeSinceLastClick < 300) {
-      // Double click detected
-      onEditIconClick?.(item.resourceKey, item.label, undefined);
-      setLastClickTime(0);
-    } else {
-      setLastClickTime(currentTime);
-    }
-  };
-
   const location = useLocation();
   const supportsViews = item.resourceKey === 'leads' || 
     item.resourceKey === 'customers' || 
@@ -161,9 +146,29 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         aria-expanded={supportsViews ? isExpanded : undefined}
       >
         <div
-          onDoubleClick={handleIconDoubleClick}
+          onClick={(e) => {
+            e.stopPropagation();
+            const currentTime = Date.now();
+            const timeSinceLastClick = currentTime - lastClickTime;
+            if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
+              // Double click detected
+              onEditIconClick?.(item.resourceKey, item.label, undefined);
+              setLastClickTime(0);
+            } else {
+              setLastClickTime(currentTime);
+              setTimeout(() => setLastClickTime(0), 300);
+            }
+          }}
           className="relative cursor-pointer group/icon"
           title="לחץ פעמיים לערוך אייקון"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onEditIconClick?.(item.resourceKey, item.label, undefined);
+            }
+          }}
         >
           <Icon
             className={cn(

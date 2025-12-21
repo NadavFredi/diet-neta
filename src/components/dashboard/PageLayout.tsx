@@ -9,7 +9,8 @@ import React from 'react';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardSidebar } from './DashboardSidebar';
 import { ClientHero } from './ClientHero';
-import { LeadSidebarContainer } from './LeadSidebarContainer';
+import { LeadHistorySidebar } from './LeadHistorySidebar';
+import { CustomerNotesSidebar } from './CustomerNotesSidebar';
 import { ActionDashboard } from './ActionDashboard';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector } from '@/store/hooks';
@@ -105,7 +106,20 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 
           {/* Bottom Zone: Split View - Flex Row */}
           <div className="flex-1 flex overflow-hidden gap-4 px-4 pb-4 relative" style={{ direction: 'ltr' }}>
-            {/* Left Side: ActionDashboard (Flex-1, scrollable internally) */}
+            {/* Left Side: Lead History Sidebar */}
+            {activeSidebar === 'history' && (
+              <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300 w-[350px]">
+                <LeadHistorySidebar
+                  leads={sortedLeads}
+                  activeLeadId={activeLeadId}
+                  onLeadSelect={onLeadSelect}
+                  getStatusColor={getStatusColor}
+                  getStatusBorderColor={getStatusBorderColor}
+                />
+              </div>
+            )}
+
+            {/* Center: ActionDashboard (Flex-1, scrollable internally) */}
             <ActionDashboard
               activeLead={activeLead}
               isLoading={isLoadingLead}
@@ -115,15 +129,12 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               getStatusColor={getStatusColor}
             />
 
-            {/* Right Side: Dynamic Sidebar Container (History or Notes) - appears on right side of main content */}
-            <LeadSidebarContainer
-              leads={sortedLeads}
-              activeLeadId={activeLeadId}
-              onLeadSelect={onLeadSelect}
-              getStatusColor={getStatusColor}
-              getStatusBorderColor={getStatusBorderColor}
-              customerId={customer?.id || null}
-            />
+            {/* Right Side: Notes Panel */}
+            {activeSidebar === 'notes' && (
+              <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300 w-[450px]">
+                <CustomerNotesSidebar customerId={customer?.id || null} />
+              </div>
+            )}
           </div>
         </main>
       </div>

@@ -238,13 +238,22 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 className="border-0 p-0"
               />
 
-              {/* Created Date - Read Only */}
-              <div className="flex items-center gap-2 py-0.5">
-                <span className="text-xs text-gray-500 font-medium flex-shrink-0">תאריך יצירה:</span>
-                <span className="text-sm font-semibold text-slate-900">
-                  {formatDate(activeLead.created_at)}
-                </span>
-              </div>
+              {/* Created Date - Editable */}
+              {onUpdateLead && (
+                <InlineEditableField
+                  label="תאריך יצירה"
+                  value={activeLead.created_at || ''}
+                  onSave={async (newValue) => {
+                    if (activeLead.id) {
+                      await onUpdateLead({ created_at: String(newValue) });
+                    }
+                  }}
+                  type="date"
+                  formatValue={(val) => formatDate(String(val))}
+                  className="border-0 p-0"
+                  valueClassName="text-sm font-semibold text-slate-900"
+                />
+              )}
             </div>
           </Card>
 

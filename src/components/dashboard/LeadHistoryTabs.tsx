@@ -133,7 +133,7 @@ export const LeadHistoryTabs = ({
             size="sm" 
             onClick={handleDietClick}
             type="button"
-            className="gap-2 bg-orange-500 hover:bg-orange-500 text-white"
+            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
           >
             <Plus className="h-4 w-4" />
             הוסף תכנית תזונה
@@ -145,7 +145,7 @@ export const LeadHistoryTabs = ({
             size="sm" 
             onClick={handleSupplementsClick}
             type="button"
-            className="gap-2 bg-green-500 hover:bg-green-500 text-white"
+            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
           >
             <Plus className="h-4 w-4" />
             הוסף תכנית תוספים
@@ -215,7 +215,7 @@ export const LeadHistoryTabs = ({
                 variant="outline"
                 onClick={() => onAddWorkoutPlan()}
                 type="button"
-                className="gap-2"
+                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
               >
                 <Plus className="h-4 w-4" />
                 הוסף תכנית אימונים
@@ -344,7 +344,7 @@ export const LeadHistoryTabs = ({
                 variant="outline"
                 onClick={() => onAddDietPlan()}
                 type="button"
-                className="gap-2"
+                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
               >
                 <Plus className="h-4 w-4" />
                 הוסף תכנית תזונה
