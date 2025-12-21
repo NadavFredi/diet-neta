@@ -4,14 +4,17 @@
  * Pure presentation component - all logic is in TemplatesManagement.ts
  */
 
+import { useState, useCallback } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
+import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector } from '@/store/hooks';
 import { Dumbbell } from 'lucide-react';
 import { WorkoutTemplatesDataTable } from '@/components/dashboard/WorkoutTemplatesDataTable';
 import { TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { useTableFilters } from '@/hooks/useTableFilters';
 import { AddWorkoutTemplateDialog } from '@/components/dashboard/dialogs/AddWorkoutTemplateDialog';
 import { EditWorkoutTemplateDialog } from '@/components/dashboard/dialogs/EditWorkoutTemplateDialog';
 import { DeleteWorkoutTemplateDialog } from '@/components/dashboard/dialogs/DeleteWorkoutTemplateDialog';
@@ -20,7 +23,7 @@ import { useTemplatesManagement } from './TemplatesManagement';
 const TemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const {
-    templates,
+    templates = [],
     savedView,
     editingTemplate,
     templateToDelete,
@@ -46,6 +49,27 @@ const TemplatesManagement = () => {
     deleteTemplate,
   } = useTemplatesManagement();
 
+  // Filter system for modals
+  const {
+    filters: activeFilters = [],
+    addFilter,
+    removeFilter,
+    clearFilters,
+  } = useTableFilters([]);
+
+  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
+  const [viewToEdit, setViewToEdit] = useState<any>(null);
+
+  const handleEditViewClick = useCallback((view: any) => {
+    setViewToEdit(view);
+    setIsEditViewModalOpen(true);
+  }, []);
+
+  // Early return if critical data is missing
+  if (!user) {
+    return null;
+  }
+
   return (
     <>
       <div className="min-h-screen grid grid-rows-[auto_1fr_auto] grid-cols-1" dir="rtl">
@@ -54,7 +78,7 @@ const TemplatesManagement = () => {
         </div>
 
         <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1' }}>
-          <DashboardSidebar onSaveViewClick={handleSaveViewClick} />
+          <DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />
           
           <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
             <div className="p-6">
@@ -63,7 +87,7 @@ const TemplatesManagement = () => {
                   resourceKey="templates"
                   title={savedView?.view_name || 'תכניות אימונים'}
                   icon={Dumbbell}
-                  dataCount={templates.length}
+                  dataCount={templates?.length || 0}
                   singularLabel="תוכנית"
                   pluralLabel="תוכניות"
                   filterFields={TEMPLATE_FILTER_FIELDS}
@@ -83,7 +107,7 @@ const TemplatesManagement = () => {
                     <div className="p-8 text-center text-gray-500">טוען...</div>
                   ) : (
                     <WorkoutTemplatesDataTable
-                      templates={templates}
+                      templates={templates || []}
                       columnVisibility={columnVisibility}
                       onEdit={handleEditTemplate}
                       onDelete={handleDeleteClick}
@@ -121,13 +145,30 @@ const TemplatesManagement = () => {
       />
 
       {/* Save View Modal */}
-      <SaveViewModal
-        isOpen={isSaveViewModalOpen}
-        onOpenChange={setIsSaveViewModalOpen}
-        resourceKey="templates"
-        filterConfig={getCurrentFilterConfig()}
-        onSuccess={() => setIsSaveViewModalOpen(false)}
-      />
+      {getCurrentFilterConfig && (
+        <SaveViewModal
+          isOpen={isSaveViewModalOpen}
+          onOpenChange={setIsSaveViewModalOpen}
+          resourceKey="templates"
+          filterConfig={getCurrentFilterConfig(activeFilters)}
+          onSuccess={() => setIsSaveViewModalOpen(false)}
+        />
+      )}
+
+      {/* Edit View Modal */}
+      {getCurrentFilterConfig && (
+        <EditViewModal
+          isOpen={isEditViewModalOpen}
+          onOpenChange={setIsEditViewModalOpen}
+          view={viewToEdit}
+          currentFilterConfig={getCurrentFilterConfig(activeFilters)}
+          filterFields={TEMPLATE_FILTER_FIELDS}
+          onSuccess={() => {
+            setIsEditViewModalOpen(false);
+            setViewToEdit(null);
+          }}
+        />
+      )}
     </>
   );
 };

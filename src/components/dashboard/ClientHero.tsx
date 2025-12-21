@@ -5,7 +5,7 @@
  * Shows: Name, Phone, Email in primary row with expandable section for additional details.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { selectCustomerNotes, fetchCustomerNotes } from '@/store/slices/leadViewSlice';
 
 interface LeadData {
   id: string;
@@ -53,8 +55,20 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   onUpdateCustomer,
   getStatusColor,
 }) => {
+  const dispatch = useAppDispatch();
   const [isExpanded, setIsExpanded] = useState(false);
   const { isHistoryOpen, isNotesOpen, toggleHistory, toggleNotes } = useLeadSidebar();
+  
+  // Get notes count for the customer
+  const notes = useAppSelector(selectCustomerNotes(customer?.id));
+  const notesCount = notes?.length || 0;
+
+  // Fetch notes when customer changes
+  useEffect(() => {
+    if (customer?.id) {
+      dispatch(fetchCustomerNotes(customer.id));
+    }
+  }, [customer?.id, dispatch]);
 
   if (!customer) return null;
 
@@ -110,9 +124,12 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
               חזור
             </Button>
 
-            {/* Name */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Name - Page Title Section */}
+            <div className="flex items-center gap-3 flex-shrink-0">
               <h1 className="text-base font-bold text-gray-900">{customer.full_name}</h1>
+              
+              {/* Vertical Separator - Clear division like WhatsApp */}
+              <div className="h-6 w-px bg-gray-300" />
             </div>
 
             {/* Primary Contact Info - Phone & Email */}
@@ -210,17 +227,29 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     size="icon"
                     onClick={toggleNotes}
                     className={cn(
-                      "h-8 w-8 rounded-md transition-all duration-200",
+                      "h-8 w-8 rounded-md transition-all duration-200 relative",
                       isNotesOpen
                         ? "bg-gradient-to-br from-purple-600 to-blue-600 text-white shadow-sm hover:from-purple-700 hover:to-blue-700"
                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                     )}
                   >
                     <MessageSquare className="h-4 w-4" strokeWidth={2} />
+                    {notesCount > 0 && (
+                      <Badge
+                        className={cn(
+                          "absolute -top-1 -right-1 h-5 min-w-5 px-1.5 flex items-center justify-center text-[10px] font-semibold rounded-full border-2",
+                          isNotesOpen
+                            ? "bg-white text-purple-600 border-purple-600"
+                            : "bg-purple-600 text-white border-white"
+                        )}
+                      >
+                        {notesCount > 99 ? '99+' : notesCount}
+                      </Badge>
+                    )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left" align="center" dir="rtl">
-                  <p>הערות</p>
+                  <p>הערות {notesCount > 0 && `(${notesCount})`}</p>
                 </TooltipContent>
               </Tooltip>
             </div>

@@ -9,7 +9,7 @@
  * - PageLayout: Main wrapper
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,12 @@ const UnifiedProfileView = () => {
 
   const updateCustomer = useUpdateCustomer();
   const { toast } = useToast();
+
+  // Handle edit view click (for sidebar integration)
+  const handleEditViewClick = useCallback((view: any) => {
+    // This is not used in the UnifiedProfileView but required by PageLayout interface
+    // Could be implemented if needed in the future
+  }, []);
 
   // Dialog state management
   const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
@@ -207,6 +213,7 @@ const UnifiedProfileView = () => {
         getInitials={getInitials}
         getStatusColor={getStatusColor}
         getStatusBorderColor={getStatusBorderColor}
+        onEditViewClick={handleEditViewClick}
       />
 
       {/* Workout Plan Dialog */}

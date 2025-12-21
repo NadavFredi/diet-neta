@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple, ChevronLeft, HelpCircle, Edit2 } from 'lucide-react';
+import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple, ChevronLeft, ChevronRight, HelpCircle, Edit2, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSavedViews, type SavedView } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useToast } from '@/hooks/use-toast';
 import { DeleteViewDialog } from '@/components/dashboard/DeleteViewDialog';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { toggleSidebar, toggleSection } from '@/store/slices/sidebarSlice';
 
 interface NavItem {
   id: string;
@@ -67,6 +69,10 @@ const navigationItems: NavItem[] = [
   },
 ];
 
+interface DashboardSidebarProps {
+  onSaveViewClick?: (resourceKey: string) => void;
+  onEditViewClick?: (view: SavedView) => void;
+}
 
 interface ResourceItemProps {
   item: NavItem;
@@ -76,6 +82,12 @@ interface ResourceItemProps {
   onToggle: () => void;
   onResourceClick: () => void;
   onViewClick: (view: SavedView, resourcePath?: string) => void;
+  onSaveViewClick?: (resourceKey: string) => void;
+  onEditViewClick?: (view: SavedView) => void;
+  isSidebarCollapsed?: boolean;
+}
+
+interface DashboardSidebarProps {
   onSaveViewClick?: (resourceKey: string) => void;
   onEditViewClick?: (view: SavedView) => void;
 }
@@ -92,7 +104,23 @@ const ResourceItem = ({
   onViewClick,
   onSaveViewClick,
   onEditViewClick,
+  isSidebarCollapsed = false,
 }: ResourceItemProps) => {
+  // Use the isExpanded prop directly - it's controlled by parent
+  const expanded = isExpanded;
+  
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggle();
+  };
+  
+  const handleResourceClick = (e: React.MouseEvent) => {
+    if (!supportsViews) {
+      e.stopPropagation();
+      onResourceClick();
+    }
+  };
+  
   const Icon = item.icon;
   const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'customers' || item.resourceKey === 'workouts' || item.resourceKey === 'templates' || item.resourceKey === 'nutrition_templates';
   
@@ -137,67 +165,74 @@ const ResourceItem = ({
       <li className="w-full">
         <div className="relative group w-full">
             <button
-            onClick={() => {
-              // Always navigate to base path - the page component will handle redirecting to default view
-              // This ensures the page loads even if defaultView isn't ready yet
-                onResourceClick();
-              }}
-              className={cn(
+            onClick={(e) => {
+              if (supportsViews) {
+                handleToggle(e);
+              } else {
+                handleResourceClick(e);
+              }
+            }}
+            className={cn(
               'w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200 relative',
               'text-base font-semibold',
               isMainInterfaceActive
-                ? 'text-white'
-                  : 'text-white hover:bg-white/10'
-              )}
+                ? 'text-gray-800' // Dark text for visibility on light background
+                : 'text-white hover:bg-white/10'
+            )}
             style={isMainInterfaceActive ? {
-              backgroundColor: '#3d4d8a', // Slightly darker blue for active main interface
+              backgroundColor: '#E5E7EB', // Light gray/white background for active interface
             } : {}}
-            >
+          >
               {/* Icon on the right side (RTL: right is start) */}
               <Icon
                 className={cn(
                   'h-6 w-6 flex-shrink-0',
-                  isMainInterfaceActive ? 'text-white' : 'text-white'
+                  isMainInterfaceActive ? 'text-gray-800' : 'text-white'
                 )}
               />
-              <span className="flex-1 text-right">{item.label}</span>
-              
-              {/* Add View Button - appears on hover, positioned on left (RTL: left is end) */}
-              {supportsViews && onSaveViewClick && (
-                <button
-                  className={cn(
-                    'p-1.5 rounded-md transition-all duration-200 flex-shrink-0',
-                    'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
-                    isMainInterfaceActive 
-                      ? 'text-white hover:bg-white/20' 
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
+              {!isSidebarCollapsed && (
+                <>
+                  <span className="flex-1 text-right">{item.label}</span>
+                  
+                  {/* Add View Button - appears on hover, positioned on left (RTL: left is end) */}
+                  {supportsViews && onSaveViewClick && (
+                    <button
+                      className={cn(
+                        'p-1.5 rounded-md transition-all duration-200 flex-shrink-0',
+                        'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
+                        isMainInterfaceActive 
+                          ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200' 
+                          : 'text-[#E0E0E0] hover:text-white hover:bg-white/10' // Match image color for "Add Page"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSaveViewClick(item.resourceKey);
+                      }}
+                      title="הוסף דף חדש"
+                      type="button"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
                   )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSaveViewClick(item.resourceKey);
-                  }}
-                  title="הוסף דף חדש"
-                  type="button"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              )}
-              
-              {/* Caret icon - points left (RTL: indicates expandable/collapsible) */}
-              {supportsViews && (
-                <ChevronLeft 
-                  className={cn(
-                    'h-5 w-5 flex-shrink-0 transition-transform',
-                    isMainInterfaceActive ? 'text-gray-300' : 'text-gray-400'
-                  )} 
-                />
+                  
+                  {/* Collapse/Expand icon - points down when expanded, right when collapsed */}
+                  {supportsViews && (
+                    <ChevronDown 
+                      className={cn(
+                        'h-5 w-5 flex-shrink-0 transition-transform duration-200',
+                        expanded ? 'rotate-0' : '-rotate-90',
+                        isMainInterfaceActive ? 'text-gray-700' : 'text-white/60'
+                      )} 
+                    />
+                  )}
+                </>
               )}
           </button>
           </div>
       </li>
           
-      {/* Saved Views - Each as Separate Row */}
-          {supportsViews && savedViews && Array.isArray(savedViews) && savedViews.length > 0 && (
+      {/* Saved Views - Each as Separate Row - Only show if expanded and sidebar not collapsed */}
+          {supportsViews && !isSidebarCollapsed && expanded && savedViews && Array.isArray(savedViews) && savedViews.length > 0 && (
         <>
                 {savedViews.map((view) => {
                   const isViewActive = activeViewId === view.id;
@@ -212,11 +247,11 @@ const ResourceItem = ({
                       'w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200',
                       'text-sm font-normal relative pl-20', // Add padding-left to make room for buttons on left
                       isViewActive
-                        ? 'text-white'
+                        ? 'text-gray-800' // Dark text for visibility on light background
                         : 'text-white/80 hover:bg-white/10'
                     )}
                     style={isViewActive ? {
-                      backgroundColor: '#4f60a8', // Lighter blue for active sub-item
+                      backgroundColor: '#E5E7EB', // Light gray/white background for active view
                     } : {}}
                   >
                     {/* Vertical bar/dot on far right (RTL: right is start) for active sub-item */}
@@ -239,7 +274,9 @@ const ResourceItem = ({
                         }}
                         className={cn(
                           'p-1.5 rounded-md transition-all duration-200',
-                          'text-white/60 hover:text-white hover:bg-white/20',
+                          isViewActive
+                            ? 'text-white/80 hover:text-white hover:bg-white/20'
+                            : 'text-white/60 hover:text-white hover:bg-white/20',
                           'focus:opacity-100 focus:outline-none'
                         )}
                         title="ערוך תצוגה"
@@ -256,7 +293,9 @@ const ResourceItem = ({
                         }}
                         className={cn(
                           'p-1.5 rounded-md transition-all duration-200',
-                          'text-white/60 hover:text-white hover:bg-white/20',
+                          isViewActive
+                            ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                            : 'text-white/60 hover:text-white hover:bg-white/20',
                           'focus:opacity-100 focus:outline-none'
                         )}
                         title="מחק תצוגה"
@@ -289,16 +328,20 @@ const ResourceItem = ({
   );
 };
 
-interface DashboardSidebarProps {
-  onSaveViewClick?: (resourceKey: string) => void;
-  onEditViewClick?: (view: SavedView) => void;
-}
-
 export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: DashboardSidebarProps) => {
+  const dispatch = useAppDispatch();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeViewId = searchParams.get('view_id');
+  
+  // Get sidebar state from Redux
+  const { isCollapsed, expandedSections } = useAppSelector((state) => state.sidebar);
+
+  // When sidebar is collapsed, also collapse all sections
+  const effectiveExpandedSections = isCollapsed 
+    ? Object.keys(expandedSections).reduce((acc, key) => ({ ...acc, [key]: false }), {} as Record<string, boolean>)
+    : expandedSections;
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -322,43 +365,62 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     navigate(item.path);
   };
 
+  const handleToggleSidebar = () => {
+    dispatch(toggleSidebar());
+  };
+
+  const handleToggleSection = (resourceKey: string) => {
+    dispatch(toggleSection(resourceKey));
+  };
+
   return (
     <aside
-      className="fixed right-0 w-64 flex flex-col shadow-sm z-30 overflow-hidden"
+      className={cn(
+        'fixed right-0 flex flex-col shadow-sm z-30 overflow-hidden transition-all duration-300',
+        isCollapsed ? 'w-16' : 'w-64'
+      )}
       style={{ 
         top: '0',
         height: '100vh',
-        backgroundColor: '#4f60a8', // Dark blue/purple background
+        backgroundColor: '#5B6FB9', // Match image color - medium blue-purple
         boxSizing: 'border-box',
       }}
       dir="rtl"
     >
-      {/* Header Section with Logo */}
+      {/* Header Section with Logo and Collapse Button */}
       <div 
-        className="border-b border-white/10"
+        className="border-b border-white/10 flex items-center justify-between"
         style={{ 
-          width: '256px', // Explicit width matching sidebar (w-64 = 256px)
           minHeight: '88px',
           padding: '20px 16px',
           boxSizing: 'border-box',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
         }}
       >
-        <img 
-          src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
-          alt="Diet Neta Logo" 
-          style={{
-            height: '36px',
-            width: 'auto',
-            maxWidth: '224px', // 256px - 32px padding (16px each side)
-            objectFit: 'contain',
-            filter: 'brightness(0) invert(1)',
-            display: 'block',
-          }}
-        />
+        {!isCollapsed && (
+          <img 
+            src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
+            alt="Diet Neta Logo" 
+            style={{
+              height: '36px',
+              width: 'auto',
+              maxWidth: '224px',
+              objectFit: 'contain',
+              filter: 'brightness(0) invert(1)',
+              display: 'block',
+            }}
+          />
+        )}
+        <button
+          onClick={handleToggleSidebar}
+          className="p-2 rounded-md hover:bg-white/10 transition-colors text-white"
+          title={isCollapsed ? 'הרחב תפריט' : 'כווץ תפריט'}
+        >
+          {isCollapsed ? (
+            <ChevronLeft className="h-5 w-5" />
+          ) : (
+            <ChevronRight className="h-5 w-5" />
+          )}
+        </button>
       </div>
 
       {/* Navigation List */}
@@ -367,7 +429,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
         dir="rtl"
         style={{
           scrollbarWidth: 'thin',
-          scrollbarColor: '#5a6ba5 #3d4d8a',
+          scrollbarColor: '#6B7FB8 #5B6FB9',
         }}
       >
         <style>{`
@@ -375,21 +437,21 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
             width: 10px;
           }
           nav::-webkit-scrollbar-track {
-            background: #3d4d8a;
+            background: #5B6FB9;
             border-radius: 0;
             margin: 4px 0;
           }
           nav::-webkit-scrollbar-thumb {
-            background: #5a6ba5;
+            background: #6B7FB8;
             border-radius: 5px;
-            border: 2px solid #3d4d8a;
+            border: 2px solid #5B6FB9;
             min-height: 40px;
           }
           nav::-webkit-scrollbar-thumb:hover {
-            background: #6b7fb8;
+            background: #7B8FC8;
           }
           nav::-webkit-scrollbar-thumb:active {
-            background: #7b8fc8;
+            background: #8B9FD8;
           }
         `}</style>
         <ul className="space-y-0.5 w-full" dir="rtl">
@@ -399,12 +461,13 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
               item={item}
               active={isActive(item.path)}
               activeViewId={activeViewId}
-              isExpanded={true}
-              onToggle={() => {}}
+              isExpanded={effectiveExpandedSections[item.resourceKey] ?? true}
+              onToggle={() => handleToggleSection(item.resourceKey)}
               onResourceClick={() => handleResourceClick(item)}
               onViewClick={handleViewClick}
               onSaveViewClick={onSaveViewClick}
               onEditViewClick={onEditViewClick}
+              isSidebarCollapsed={isCollapsed}
             />
           ))}
         </ul>

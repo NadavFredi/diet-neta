@@ -4,6 +4,7 @@ import authReducer from './slices/authSlice';
 import dashboardReducer from './slices/dashboardSlice';
 import tableStateReducer from './slices/tableStateSlice';
 import leadViewReducer from './slices/leadViewSlice';
+import sidebarReducer from './slices/sidebarSlice';
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +12,7 @@ export const store = configureStore({
     dashboard: dashboardReducer,
     tableState: tableStateReducer,
     leadView: leadViewReducer,
+    sidebar: sidebarReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => {

@@ -32,6 +32,7 @@ interface PageLayoutProps {
   getStatusColor: (status: string) => string;
   getStatusBorderColor: (status: string) => string;
   onSaveViewClick?: (resourceKey: string) => void;
+  onEditViewClick?: (view: any) => void;
 }
 
 export const PageLayout: React.FC<PageLayoutProps> = ({
@@ -54,6 +55,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   getStatusColor,
   getStatusBorderColor,
   onSaveViewClick,
+  onEditViewClick,
 }) => {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50/50" dir="rtl">
@@ -68,7 +70,10 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative" style={{ marginTop: '88px' }}>
         {/* Left Sidebar Navigation */}
-        <DashboardSidebar onSaveViewClick={onSaveViewClick || (() => {})} />
+        <DashboardSidebar 
+          onSaveViewClick={onSaveViewClick || (() => {})} 
+          onEditViewClick={onEditViewClick}
+        />
 
         {/* Main Content - Zero Scroll Layout */}
         <main className="flex-1 flex flex-col overflow-hidden bg-gray-50" style={{ marginRight: '256px' }}>

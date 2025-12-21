@@ -205,10 +205,16 @@ export const useNutritionTemplatesManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
-  const getCurrentFilterConfig = () => {
+  const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
     return {
       searchQuery,
       selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
+      columnVisibility,
+      columnOrder,
+      columnWidths,
+      sortBy,
+      sortOrder,
+      advancedFilters,
     };
   };
 

@@ -310,12 +310,18 @@ export const useTemplatesManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
-  const getCurrentFilterConfig = () => {
+  const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
     return {
       searchQuery,
       selectedTags,
       selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
       selectedHasLeads,
+      columnVisibility: columnVisibility as unknown as Record<string, boolean>,
+      columnOrder,
+      columnWidths,
+      sortBy,
+      sortOrder,
+      advancedFilters,
     };
   };
 

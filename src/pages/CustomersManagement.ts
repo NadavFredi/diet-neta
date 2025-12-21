@@ -74,10 +74,15 @@ export const useCustomersManagement = () => {
     setDatePickerOpen(false);
   };
 
-  const getCurrentFilterConfig = () => {
+  const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
     return {
       searchQuery,
       selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
+      columnOrder,
+      columnWidths,
+      sortBy,
+      sortOrder,
+      advancedFilters,
     };
   };
 
