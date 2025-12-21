@@ -158,8 +158,8 @@ function SortableHeader<T>({
   const canSort = column?.getCanSort();
   const canResize = column?.columnDef.enableResizing !== false;
   const canHide = column?.columnDef.enableHiding !== false;
-    const meta = column?.columnDef.meta;
-    const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+  const meta = column?.columnDef.meta;
+  const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
     const columnWidth = header.getSize();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -303,7 +303,7 @@ function SortableHeader<T>({
           </div>
         </div>
 
-                  {/* Resize Handle */}
+        {/* Resize Handle */}
         {canResize && (
           <div
             className={cn(
@@ -533,13 +533,13 @@ export function DataTable<T extends Record<string, any>>({
     if (resourceKey) return {}; // Redux manages this
     
     const initialVisibility: VisibilityState = {};
-    columns.forEach((col) => {
+        columns.forEach((col) => {
       if (initialColumnVisibility && col.id in initialColumnVisibility) {
         initialVisibility[col.id] = initialColumnVisibility[col.id];
-      } else {
+          } else {
         initialVisibility[col.id] = col.enableHiding !== false;
-      }
-    });
+          }
+        });
     return initialVisibility;
   });
 
@@ -708,9 +708,9 @@ export function DataTable<T extends Record<string, any>>({
           dispatch(setColumnSizingAction({ resourceKey, columnId, size: newWidth }));
         } else {
           setLocalColumnSizing((prev) => ({
-            ...prev,
-            [columnId]: newWidth,
-          }));
+          ...prev,
+          [columnId]: newWidth,
+        }));
         }
       };
 
@@ -751,9 +751,9 @@ export function DataTable<T extends Record<string, any>>({
       dispatch(toggleColumnVisibilityAction({ resourceKey, columnId }));
     } else {
       setLocalColumnVisibility((prev) => ({
-        ...prev,
-        [columnId]: !prev[columnId],
-      }));
+      ...prev,
+      [columnId]: !prev[columnId],
+    }));
     }
   };
 
@@ -762,9 +762,9 @@ export function DataTable<T extends Record<string, any>>({
       dispatch(setColumnVisibilityAction({ resourceKey, columnId, visible: false }));
     } else {
       setLocalColumnVisibility((prev) => ({
-        ...prev,
-        [columnId]: false,
-      }));
+      ...prev,
+      [columnId]: false,
+    }));
     }
   };
 
@@ -947,7 +947,7 @@ export function DataTable<T extends Record<string, any>>({
             getSortIcon={getSortIcon}
             handleResizeStart={handleResizeStart}
             getCellContent={getCellContent}
-              onHideColumn={handleHideColumn}
+            onHideColumn={handleHideColumn}
               isResizing={isResizing}
               columnSizing={effectiveColumnSizing}
           />

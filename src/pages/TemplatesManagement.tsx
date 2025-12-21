@@ -100,16 +100,16 @@ const TemplatesManagement = () => {
       <AddWorkoutTemplateDialog
         isOpen={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
-        onSave={handleSaveTemplate}
-      />
+              onSave={handleSaveTemplate}
+            />
 
       {/* Edit Template Dialog */}
       <EditWorkoutTemplateDialog
         isOpen={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         editingTemplate={editingTemplate}
-        onSave={handleSaveTemplate}
-      />
+                onSave={handleSaveTemplate}
+              />
 
       {/* Delete Confirmation Dialog */}
       <DeleteWorkoutTemplateDialog

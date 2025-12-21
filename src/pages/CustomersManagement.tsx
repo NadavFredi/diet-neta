@@ -65,7 +65,7 @@ const CustomersManagement = () => {
                       <p className="mt-4 text-gray-600">טוען לקוחות...</p>
                     </div>
                   ) : (
-                    <CustomersDataTable customers={customers} />
+                      <CustomersDataTable customers={customers} />
                   )}
                 </div>
               </div>

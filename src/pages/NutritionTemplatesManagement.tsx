@@ -100,16 +100,16 @@ const NutritionTemplatesManagement = () => {
       <AddNutritionTemplateDialog
         isOpen={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
-        onSave={handleSaveTemplate}
-      />
+              onSave={handleSaveTemplate}
+            />
 
       {/* Edit Template Dialog */}
       <EditNutritionTemplateDialog
         isOpen={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         editingTemplate={editingTemplate}
-        onSave={handleSaveTemplate}
-      />
+                onSave={handleSaveTemplate}
+              />
 
       {/* Delete Confirmation Dialog */}
       <DeleteNutritionTemplateDialog

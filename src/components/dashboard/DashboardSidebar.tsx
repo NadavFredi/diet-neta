@@ -273,7 +273,7 @@ const ResourceItem = ({
         </>
           )}
 
-      {/* Delete Confirmation Dialog */}
+          {/* Delete Confirmation Dialog */}
       <DeleteViewDialog
         isOpen={deleteDialogOpen}
         onOpenChange={(open) => {

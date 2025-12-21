@@ -71,11 +71,13 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Heebo', system-ui, -apple-system, sans-serif;
   }
 
   html {
     scroll-behavior: smooth;
     direction: rtl;
+    font-family: 'Heebo', system-ui, -apple-system, sans-serif;
   }
 
   html[dir="rtl"] {
