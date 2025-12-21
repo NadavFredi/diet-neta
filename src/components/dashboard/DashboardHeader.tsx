@@ -1,62 +1,129 @@
 import { Button } from '@/components/ui/button';
+import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { cn } from '@/lib/utils';
+import { useAppDispatch } from '@/store/hooks';
+import { toggleSidebar } from '@/store/slices/sidebarSlice';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface DashboardHeaderProps {
   userEmail: string | undefined;
   onLogout: () => void;
+  sidebarContent?: React.ReactNode;
 }
 
 export const DashboardHeader = ({
   userEmail,
   onLogout,
+  sidebarContent,
 }: DashboardHeaderProps) => {
+  const sidebarWidth = useSidebarWidth();
+  const dispatch = useAppDispatch();
+
+  const handleToggleSidebar = () => {
+    dispatch(toggleSidebar());
+  };
+
   return (
-    <header 
-      className="fixed top-0 left-0 right-0 bg-white text-gray-900 flex items-center shadow-sm border-b border-gray-200 z-40"
-      style={{ height: '88px' }}
-      dir="rtl"
-    >
-      {/* Logo container - matches sidebar width exactly (w-64 = 256px) - appears on right */}
+    <>
+      {/* Sidebar Section - Fixed on right side (RTL) */}
       <div 
-        className="flex-shrink-0 flex items-center justify-center"
+        className={cn(
+          'fixed right-0 top-0 flex flex-col bg-[#5B6FB9] transition-all duration-300 ease-in-out',
+          'border-l border-white/10 shadow-lg'
+        )}
         style={{ 
-          width: '256px', // w-64 = 256px - matches sidebar exactly
-          height: '100%',
-          padding: '20px 16px',
-          boxSizing: 'border-box',
-          overflow: 'hidden',
+          width: `${sidebarWidth.width}px`,
+          height: '100vh',
+          zIndex: 50,
+        }}
+        dir="rtl"
+      >
+        {/* Logo Section - Top of sidebar */}
+        <div 
+          className={cn(
+            'border-b border-white/10 flex items-center justify-center transition-all duration-300 relative',
+            sidebarWidth.isCollapsed ? 'px-2 py-4' : 'px-4 py-5'
+          )}
+          style={{ 
+            minHeight: '88px',
+          }}
+        >
+          {/* Logo */}
+          {sidebarWidth.isCollapsed ? (
+            <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+              <span className="text-white font-bold text-lg">D</span>
+            </div>
+          ) : (
+            <img 
+              src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
+              alt="Diet Neta Logo" 
+              className="h-9 w-auto max-w-[224px] object-contain transition-opacity duration-300"
+              style={{ 
+                filter: 'none',
+              }}
+            />
+          )}
+        </div>
+        
+        {/* Toggle Button - On the edge between sidebar and content, aligned with logo center */}
+        <button
+          onClick={handleToggleSidebar}
+          className={cn(
+            'absolute z-50 h-8 w-8 flex items-center justify-center',
+            'rounded-full bg-white shadow-lg border border-gray-200',
+            'hover:bg-gray-50 hover:shadow-xl',
+            'transition-all duration-300 ease-in-out',
+            'text-gray-700 hover:text-gray-900',
+            // Position on the left edge of sidebar (RTL: left is the content side/border)
+            'left-0 -translate-x-1/2'
+          )}
+          style={{
+            top: '40px', // A bit higher than center (44px), aligned with logo center
+          }}
+          title={sidebarWidth.isCollapsed ? 'הרחב תפריט' : 'כווץ תפריט'}
+          aria-label={sidebarWidth.isCollapsed ? 'הרחב תפריט' : 'כווץ תפריט'}
+        >
+          {sidebarWidth.isCollapsed ? (
+            <ChevronLeft className="h-4 w-4 transition-transform duration-300" />
+          ) : (
+            <ChevronRight className="h-4 w-4 transition-transform duration-300" />
+          )}
+        </button>
+
+        {/* Sidebar Navigation Content */}
+        {sidebarContent && (
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+            {sidebarContent}
+          </div>
+        )}
+      </div>
+
+      {/* Main Header Bar - Fixed at top */}
+      <header 
+        className="fixed top-0 left-0 right-0 bg-white text-gray-900 flex items-center shadow-sm border-b border-gray-200 z-40"
+        dir="rtl"
+        style={{ 
+          height: '88px',
+          marginRight: `${sidebarWidth.width}px`,
         }}
       >
-        <img 
-          src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
-          alt="Diet Neta Logo" 
-          style={{
-            height: '40px',
-            width: 'auto',
-            maxWidth: '224px', // 256px - 32px padding (16px each side)
-            objectFit: 'contain',
-            display: 'block',
-          }}
-        />
-      </div>
-
-      {/* Main content area - takes remaining space, user info on left */}
-      <div className="flex-1 flex items-center justify-end px-6 py-5">
         {/* User info and logout - positioned on left side (appears on left in RTL) */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200">
-            <span className="text-base font-semibold text-gray-700">{userEmail}</span>
+        <div className="flex-1 flex items-center justify-end px-6 py-5">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200">
+              <span className="text-base font-semibold text-gray-700">{userEmail}</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="default" 
+              onClick={onLogout} 
+              className="text-base font-semibold text-gray-700 hover:bg-gray-100 transition-all rounded-lg px-4 py-2"
+            >
+              התנתק
+            </Button>
           </div>
-          <Button 
-            variant="ghost" 
-            size="default" 
-            onClick={onLogout} 
-            className="text-base font-semibold text-gray-700 hover:bg-gray-100 transition-all rounded-lg px-4 py-2"
-          >
-            התנתק
-          </Button>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 };
-

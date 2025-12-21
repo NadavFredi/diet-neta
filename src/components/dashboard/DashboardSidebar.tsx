@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import React from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Settings, FileText, Link2, Plus, X, Dumbbell, Apple, ChevronLeft, ChevronRight, HelpCircle, Edit2, ChevronDown } from 'lucide-react';
+import { Settings, HelpCircle, LayoutDashboard, Dumbbell, Apple, Link2, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSavedViews, type SavedView } from '@/hooks/useSavedViews';
-import { useDefaultView } from '@/hooks/useDefaultView';
-import { useToast } from '@/hooks/use-toast';
-import { DeleteViewDialog } from '@/components/dashboard/DeleteViewDialog';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { toggleSidebar, toggleSection } from '@/store/slices/sidebarSlice';
+import { toggleSection } from '@/store/slices/sidebarSlice';
+import { SidebarItem } from './SidebarItem';
+import type { SavedView } from '@/hooks/useSavedViews';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface NavItem {
   id: string;
@@ -74,259 +77,10 @@ interface DashboardSidebarProps {
   onEditViewClick?: (view: SavedView) => void;
 }
 
-interface ResourceItemProps {
-  item: NavItem;
-  active: boolean;
-  activeViewId: string | null;
-  isExpanded: boolean;
-  onToggle: () => void;
-  onResourceClick: () => void;
-  onViewClick: (view: SavedView, resourcePath?: string) => void;
-  onSaveViewClick?: (resourceKey: string) => void;
-  onEditViewClick?: (view: SavedView) => void;
-  isSidebarCollapsed?: boolean;
-}
-
 interface DashboardSidebarProps {
   onSaveViewClick?: (resourceKey: string) => void;
   onEditViewClick?: (view: SavedView) => void;
 }
-
-// Note: isExpanded and onToggle are kept for compatibility but not used in the new flat structure
-
-const ResourceItem = ({
-  item,
-  active,
-  activeViewId,
-  isExpanded,
-  onToggle,
-  onResourceClick,
-  onViewClick,
-  onSaveViewClick,
-  onEditViewClick,
-  isSidebarCollapsed = false,
-}: ResourceItemProps) => {
-  // Use the isExpanded prop directly - it's controlled by parent
-  const expanded = isExpanded;
-  
-  const handleToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onToggle();
-  };
-  
-  const handleResourceClick = (e: React.MouseEvent) => {
-    if (!supportsViews) {
-      e.stopPropagation();
-      onResourceClick();
-    }
-  };
-  
-  const Icon = item.icon;
-  const supportsViews = item.resourceKey === 'leads' || item.resourceKey === 'customers' || item.resourceKey === 'workouts' || item.resourceKey === 'templates' || item.resourceKey === 'nutrition_templates';
-  
-  // Ensure default view exists for resources that support views
-  // Always call the hook (React rules), but it will only run if resourceKey is valid (enabled check inside)
-  const { defaultView } = useDefaultView(item.resourceKey);
-  
-  // Always call hook (React rules) - it will return empty array if not enabled
-  const savedViewsQuery = useSavedViews(item.resourceKey);
-  const savedViews = supportsViews ? (savedViewsQuery?.data || []) : [];
-  
-  // Check if any view for this resource is active
-  const hasActiveView = supportsViews && activeViewId && savedViews && Array.isArray(savedViews) && savedViews.some(view => view.id === activeViewId);
-  
-  // Main interface is active if:
-  // 1. It's directly active (no view_id in URL), OR
-  // 2. Any of its views is active (view_id matches one of this resource's views)
-  const isMainInterfaceActive = active && (hasActiveView || !activeViewId);
-  const { toast } = useToast();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [viewToDelete, setViewToDelete] = useState<{ id: string; name: string } | null>(null);
-
-  const handleDeleteClick = (e: React.MouseEvent, view: SavedView) => {
-    e.stopPropagation();
-    // Prevent deletion of default views
-    if (view.is_default) {
-      toast({
-        title: 'לא ניתן למחוק',
-        description: 'לא ניתן למחוק את התצוגה הראשית. זו התצוגה הראשית שממנה ניתן ליצור תצוגות נוספות.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setViewToDelete({ id: view.id, name: view.view_name });
-    setDeleteDialogOpen(true);
-  };
-
-
-  return (
-    <>
-      {/* Main Interface Button */}
-      <li className="w-full">
-        <div className="relative group w-full">
-            <button
-            onClick={(e) => {
-              if (supportsViews) {
-                handleToggle(e);
-              } else {
-                handleResourceClick(e);
-              }
-            }}
-            className={cn(
-              'w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200 relative',
-              'text-base font-semibold',
-              isMainInterfaceActive
-                ? 'text-gray-800' // Dark text for visibility on light background
-                : 'text-white hover:bg-white/10'
-            )}
-            style={isMainInterfaceActive ? {
-              backgroundColor: '#E5E7EB', // Light gray/white background for active interface
-            } : {}}
-          >
-              {/* Icon on the right side (RTL: right is start) */}
-              <Icon
-                className={cn(
-                  'h-6 w-6 flex-shrink-0',
-                  isMainInterfaceActive ? 'text-gray-800' : 'text-white'
-                )}
-              />
-              {!isSidebarCollapsed && (
-                <>
-                  <span className="flex-1 text-right">{item.label}</span>
-                  
-                  {/* Add View Button - appears on hover, positioned on left (RTL: left is end) */}
-                  {supportsViews && onSaveViewClick && (
-                    <button
-                      className={cn(
-                        'p-1.5 rounded-md transition-all duration-200 flex-shrink-0',
-                        'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
-                        isMainInterfaceActive 
-                          ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200' 
-                          : 'text-[#E0E0E0] hover:text-white hover:bg-white/10' // Match image color for "Add Page"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSaveViewClick(item.resourceKey);
-                      }}
-                      title="הוסף דף חדש"
-                      type="button"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  )}
-                  
-                  {/* Collapse/Expand icon - points down when expanded, right when collapsed */}
-                  {supportsViews && (
-                    <ChevronDown 
-                      className={cn(
-                        'h-5 w-5 flex-shrink-0 transition-transform duration-200',
-                        expanded ? 'rotate-0' : '-rotate-90',
-                        isMainInterfaceActive ? 'text-gray-700' : 'text-white/60'
-                      )} 
-                    />
-                  )}
-                </>
-              )}
-          </button>
-          </div>
-      </li>
-          
-      {/* Saved Views - Each as Separate Row - Only show if expanded and sidebar not collapsed */}
-          {supportsViews && !isSidebarCollapsed && expanded && savedViews && Array.isArray(savedViews) && savedViews.length > 0 && (
-        <>
-                {savedViews.map((view) => {
-                  const isViewActive = activeViewId === view.id;
-            const isDefaultView = view.is_default;
-                  return (
-              <li key={view.id} className="group/view-item w-full">
-                <div className="relative flex items-center w-full">
-                  {/* Main view button */}
-                  <button
-                    onClick={() => onViewClick(view, item.path)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200',
-                      'text-sm font-normal relative pl-20', // Add padding-left to make room for buttons on left
-                      isViewActive
-                        ? 'text-gray-800' // Dark text for visibility on light background
-                        : 'text-white/80 hover:bg-white/10'
-                    )}
-                    style={isViewActive ? {
-                      backgroundColor: '#E5E7EB', // Light gray/white background for active view
-                    } : {}}
-                  >
-                    {/* Vertical bar/dot on far right (RTL: right is start) for active sub-item */}
-                    <div className={cn(
-                      'h-full w-1 flex-shrink-0 transition-colors absolute right-0',
-                      isViewActive ? 'bg-[#2d3d7a]' : 'bg-transparent'
-                    )} />
-                    {/* Invisible spacer to match main interface icon width (h-6 w-6 = 24px) */}
-                    <div className="w-6 h-6 flex-shrink-0 opacity-0" aria-hidden="true" />
-                    <span className="flex-1 text-right truncate">{view.view_name}</span>
-                  </button>
-                  
-                  {/* Action buttons - positioned on left side (RTL: left is end), only visible on hover */}
-                  <div className="absolute left-2 flex items-center gap-1 z-10 pointer-events-auto opacity-0 group-hover/view-item:opacity-100 transition-opacity duration-200">
-                    {onEditViewClick && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEditViewClick(view);
-                        }}
-                        className={cn(
-                          'p-1.5 rounded-md transition-all duration-200',
-                          isViewActive
-                            ? 'text-white/80 hover:text-white hover:bg-white/20'
-                            : 'text-white/60 hover:text-white hover:bg-white/20',
-                          'focus:opacity-100 focus:outline-none'
-                        )}
-                        title="ערוך תצוגה"
-                        type="button"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                    )}
-                    {!isDefaultView && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(e, view);
-                        }}
-                        className={cn(
-                          'p-1.5 rounded-md transition-all duration-200',
-                          isViewActive
-                            ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                            : 'text-white/60 hover:text-white hover:bg-white/20',
-                          'focus:opacity-100 focus:outline-none'
-                        )}
-                        title="מחק תצוגה"
-                        type="button"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </li>
-                  );
-                })}
-        </>
-          )}
-
-          {/* Delete Confirmation Dialog */}
-      <DeleteViewDialog
-        isOpen={deleteDialogOpen}
-        onOpenChange={(open) => {
-          setDeleteDialogOpen(open);
-          if (!open) {
-            setViewToDelete(null);
-          }
-        }}
-        viewToDelete={viewToDelete}
-        resourceKey={item.resourceKey}
-      />
-    </>
-  );
-};
 
 export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: DashboardSidebarProps) => {
   const dispatch = useAppDispatch();
@@ -365,123 +119,92 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     navigate(item.path);
   };
 
-  const handleToggleSidebar = () => {
-    dispatch(toggleSidebar());
-  };
-
   const handleToggleSection = (resourceKey: string) => {
     dispatch(toggleSection(resourceKey));
   };
 
   return (
-    <aside
-      className={cn(
-        'fixed right-0 flex flex-col shadow-sm z-30 overflow-hidden transition-all duration-300',
-        isCollapsed ? 'w-16' : 'w-64'
-      )}
-      style={{ 
-        top: '0',
-        height: '100vh',
-        backgroundColor: '#5B6FB9', // Match image color - medium blue-purple
-        boxSizing: 'border-box',
-      }}
-      dir="rtl"
-    >
-      {/* Header Section with Logo and Collapse Button */}
-      <div 
-        className="border-b border-white/10 flex items-center justify-between"
-        style={{ 
-          minHeight: '88px',
-          padding: '20px 16px',
-          boxSizing: 'border-box',
-        }}
-      >
-        {!isCollapsed && (
-          <img 
-            src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
-            alt="Diet Neta Logo" 
-            style={{
-              height: '36px',
-              width: 'auto',
-              maxWidth: '224px',
-              objectFit: 'contain',
-              filter: 'brightness(0) invert(1)',
-              display: 'block',
-            }}
-          />
-        )}
-        <button
-          onClick={handleToggleSidebar}
-          className="p-2 rounded-md hover:bg-white/10 transition-colors text-white"
-          title={isCollapsed ? 'הרחב תפריט' : 'כווץ תפריט'}
+    <>
+      {/* Navigation Content - This will be rendered inside the header */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <nav 
+          className="flex-1 py-4 overflow-y-auto text-base transition-all duration-300"
+          dir="rtl"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#6B7FB8 #5B6FB9',
+          }}
+          role="navigation"
+          aria-label="תפריט ניווט ראשי"
         >
-          {isCollapsed ? (
-            <ChevronLeft className="h-5 w-5" />
-          ) : (
-            <ChevronRight className="h-5 w-5" />
-          )}
-        </button>
-      </div>
+          <style>{`
+            nav::-webkit-scrollbar {
+              width: 8px;
+            }
+            nav::-webkit-scrollbar-track {
+              background: #5B6FB9;
+              border-radius: 0;
+            }
+            nav::-webkit-scrollbar-thumb {
+              background: #6B7FB8;
+              border-radius: 4px;
+              border: 1px solid #5B6FB9;
+            }
+            nav::-webkit-scrollbar-thumb:hover {
+              background: #7B8FC8;
+            }
+          `}</style>
+          <ul className={cn(
+            'space-y-1 w-full px-2',
+            isCollapsed && 'px-1'
+          )} dir="rtl">
+            {navigationItems.map((item) => (
+              <SidebarItem
+                key={item.id}
+                item={item}
+                active={isActive(item.path)}
+                activeViewId={activeViewId}
+                isExpanded={effectiveExpandedSections[item.resourceKey] ?? true}
+                onToggle={() => handleToggleSection(item.resourceKey)}
+                onResourceClick={() => handleResourceClick(item)}
+                onViewClick={handleViewClick}
+                onSaveViewClick={onSaveViewClick}
+                onEditViewClick={onEditViewClick}
+                isCollapsed={isCollapsed}
+              />
+            ))}
+          </ul>
+        </nav>
 
-      {/* Navigation List */}
-      <nav 
-        className="flex-1 py-4 overflow-y-auto text-base"
-        dir="rtl"
-        style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#6B7FB8 #5B6FB9',
-        }}
-      >
-        <style>{`
-          nav::-webkit-scrollbar {
-            width: 10px;
-          }
-          nav::-webkit-scrollbar-track {
-            background: #5B6FB9;
-            border-radius: 0;
-            margin: 4px 0;
-          }
-          nav::-webkit-scrollbar-thumb {
-            background: #6B7FB8;
-            border-radius: 5px;
-            border: 2px solid #5B6FB9;
-            min-height: 40px;
-          }
-          nav::-webkit-scrollbar-thumb:hover {
-            background: #7B8FC8;
-          }
-          nav::-webkit-scrollbar-thumb:active {
-            background: #8B9FD8;
-          }
-        `}</style>
-        <ul className="space-y-0.5 w-full" dir="rtl">
-          {navigationItems.map((item) => (
-            <ResourceItem
-              key={item.id}
-              item={item}
-              active={isActive(item.path)}
-              activeViewId={activeViewId}
-              isExpanded={effectiveExpandedSections[item.resourceKey] ?? true}
-              onToggle={() => handleToggleSection(item.resourceKey)}
-              onResourceClick={() => handleResourceClick(item)}
-              onViewClick={handleViewClick}
-              onSaveViewClick={onSaveViewClick}
-              onEditViewClick={onEditViewClick}
-              isSidebarCollapsed={isCollapsed}
-            />
-          ))}
-        </ul>
-      </nav>
-
-      {/* Footer Help Button */}
-      <div className="px-6 py-4 border-t border-white/10">
-        <button
-          className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-          title="עזרה"
-        >
-          <HelpCircle className="h-5 w-5 text-white" />
-        </button>
+        {/* Footer Help Button - Fixed at bottom */}
+        <div className={cn(
+          'border-t border-white/10 flex items-center justify-center transition-all duration-300 flex-shrink-0',
+          isCollapsed ? 'px-2 py-3' : 'px-6 py-4'
+        )}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className={cn(
+                  'rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all duration-200',
+                  isCollapsed ? 'w-10 h-10' : 'w-12 h-12'
+                )}
+                title="עזרה"
+                aria-label="עזרה"
+              >
+                <HelpCircle className={cn(
+                  'text-white transition-all',
+                  isCollapsed ? 'h-5 w-5' : 'h-6 w-6'
+                )} />
+              </button>
+            </TooltipTrigger>
+            {isCollapsed && (
+              <TooltipContent side="left" align="center" dir="rtl">
+                <p>עזרה</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </div>
       </div>
-    </aside>
+    </>
   );
 };

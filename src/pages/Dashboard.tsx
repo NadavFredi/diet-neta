@@ -13,6 +13,7 @@ import { useSavedView } from '@/hooks/useSavedViews';
 import { useTableFilters, LEAD_FILTER_FIELDS, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
+import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const Dashboard = () => {
   const viewId = searchParams.get('view_id');
   const { defaultView } = useDefaultView('leads');
   const { data: savedView } = useSavedView(viewId);
+  const sidebarWidth = useSidebarWidth();
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -39,7 +41,18 @@ const Dashboard = () => {
     handleAddLead,
     setIsAddLeadDialogOpen,
     getCurrentFilterConfig,
+    isLoading,
   } = useDashboardLogic();
+  
+  // Debug: Log filteredLeads when it changes
+  useEffect(() => {
+    console.log('Dashboard: filteredLeads changed:', {
+      length: filteredLeads?.length || 0,
+      isArray: Array.isArray(filteredLeads),
+      isLoading,
+      data: filteredLeads?.slice(0, 2), // First 2 items for debugging
+    });
+  }, [filteredLeads, isLoading]);
 
   // Filter system for modals
   const {
@@ -68,22 +81,21 @@ const Dashboard = () => {
 
   return (
     <>
-    <div className="min-h-screen grid grid-rows-[auto_1fr_auto] grid-cols-1" dir="rtl">
-      {/* Header - spans full width */}
-      <div style={{ gridColumn: '1 / -1' }}>
-        <DashboardHeader
-          userEmail={user?.email}
-          onLogout={handleLogout}
-        />
-      </div>
+      <DashboardHeader
+        userEmail={user?.email}
+        onLogout={handleLogout}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+      />
 
-      {/* Main content area with sidebar */}
-      <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1' }}>
-        {/* Sidebar - fixed positioning */}
-        <DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />
-        
+      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
         {/* Main content */}
-        <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
+        <main 
+          className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out" 
+          style={{ 
+            marginRight: `${sidebarWidth.width}px`,
+            minHeight: 'calc(100vh - 88px)',
+          }}
+        >
           <div className="p-6">
             {/* Unified Workspace Panel - Master Container */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -92,7 +104,7 @@ const Dashboard = () => {
                 resourceKey="leads"
                 title={savedView?.view_name || 'ניהול לידים'}
                 icon={Users}
-                dataCount={filteredLeads.length}
+                dataCount={filteredLeads?.length || 0}
                 singularLabel="ליד"
                 pluralLabel="לידים"
                 filterFields={LEAD_FILTER_FIELDS}
@@ -112,16 +124,33 @@ const Dashboard = () => {
               
               {/* Table Section - Data Area */}
               <div className="bg-white">
-                <LeadsDataTable leads={filteredLeads} columnVisibility={columnVisibility} enableColumnVisibility={false} />
+                {isLoading ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                    <p>טוען נתונים...</p>
+                  </div>
+                ) : filteredLeads && Array.isArray(filteredLeads) && filteredLeads.length > 0 ? (
+                  <LeadsDataTable leads={filteredLeads} columnVisibility={columnVisibility} enableColumnVisibility={false} />
+                ) : (
+                  <div className="p-8 text-center text-gray-500">
+                    <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
+                    <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+                    {!isLoading && (
+                      <p className="text-xs text-gray-400 mt-2">
+                        {filteredLeads && Array.isArray(filteredLeads) 
+                          ? `מספר לידים: ${filteredLeads.length}` 
+                          : 'אין נתונים זמינים'}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </main>
       </div>
 
-    </div>
-
-    {/* Add Lead Dialog */}
+      {/* Add Lead Dialog */}
     <AddLeadDialog
       isOpen={isAddLeadDialogOpen}
       onOpenChange={setIsAddLeadDialogOpen}

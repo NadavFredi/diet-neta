@@ -98,8 +98,11 @@ export async function fetchFilteredLeads(
 
     if (error) {
       console.error('Error fetching filtered leads:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
+    
+    console.log(`fetchFilteredLeads: Received ${data?.length || 0} leads from database`);
 
     return data || [];
   } catch (error) {

@@ -101,18 +101,24 @@ export const useDashboardLogic = () => {
       };
 
       // Fetch filtered leads from PostgreSQL (RPC function)
+      console.log('useDashboardLogic: Calling fetchFilteredLeads with params:', filterParams);
       const dbLeads = await fetchFilteredLeads(filterParams);
+      console.log(`useDashboardLogic: Received ${dbLeads.length} leads from service`);
 
       // Transform to UI format (minimal - most work done in PostgreSQL)
       const uiLeads: Lead[] = dbLeads.map(mapLeadToUIFormat);
+      console.log(`useDashboardLogic: Transformed to ${uiLeads.length} UI leads`);
 
       // Update Redux with fetched leads (source of truth)
+      console.log(`useDashboardLogic: Dispatching ${uiLeads.length} leads to Redux`);
       dispatch(setLeads(uiLeads));
       dispatch(setLoading(false));
     } catch (err: any) {
       console.error('Error fetching leads:', err);
       dispatch(setError(err.message || 'Failed to fetch leads'));
       dispatch(setLoading(false));
+      // Set empty array on error to prevent blank page
+      dispatch(setLeads([]));
     } finally {
       setIsRefreshing(false);
     }
@@ -132,8 +138,16 @@ export const useDashboardLogic = () => {
 
   // Fetch leads on mount and when filters change
   useEffect(() => {
+    console.log('useDashboardLogic: useEffect triggered, calling refreshLeads');
     refreshLeads();
   }, [refreshLeads]);
+  
+  // Also fetch on initial mount regardless of refreshLeads dependency
+  useEffect(() => {
+    console.log('useDashboardLogic: Initial mount, fetching leads');
+    refreshLeads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   // =====================================================
   // Filter Handlers (update Redux state, triggers refresh)

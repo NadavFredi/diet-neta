@@ -19,6 +19,7 @@ import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNu
 import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/EditNutritionTemplateDialog';
 import { DeleteNutritionTemplateDialog } from '@/components/dashboard/dialogs/DeleteNutritionTemplateDialog';
 import { useNutritionTemplatesManagement } from './NutritionTemplatesManagement';
+import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 
 const NutritionTemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -69,13 +70,18 @@ const NutritionTemplatesManagement = () => {
     <>
       <div className="min-h-screen grid grid-rows-[auto_1fr_auto] grid-cols-1" dir="rtl">
         <div style={{ gridColumn: '1 / -1' }}>
-          <DashboardHeader userEmail={user?.email} onLogout={handleLogout} />
+          <DashboardHeader 
+            userEmail={user?.email} 
+            onLogout={handleLogout}
+            sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+          />
         </div>
 
         <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1' }}>
-          <DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />
-          
-          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
+          <main 
+            className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out" 
+            style={{ marginRight: `${sidebarWidth.width}px` }}
+          >
             <div className="p-6">
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <TableActionHeader

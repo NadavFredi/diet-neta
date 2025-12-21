@@ -11,6 +11,7 @@ import { DashboardSidebar } from './DashboardSidebar';
 import { ClientHero } from './ClientHero';
 import { LeadSidebarContainer } from './LeadSidebarContainer';
 import { ActionDashboard } from './ActionDashboard';
+import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 
 interface PageLayoutProps {
   userEmail?: string;
@@ -57,6 +58,8 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   onSaveViewClick,
   onEditViewClick,
 }) => {
+  const sidebarWidth = useSidebarWidth();
+  
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50/50" dir="rtl">
       {/* Top Header Bar */}
@@ -64,19 +67,23 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
         <DashboardHeader
           userEmail={userEmail}
           onLogout={() => {}}
+          sidebarContent={
+            <DashboardSidebar 
+              onSaveViewClick={onSaveViewClick || (() => {})} 
+              onEditViewClick={onEditViewClick}
+            />
+          }
         />
       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative" style={{ marginTop: '88px' }}>
-        {/* Left Sidebar Navigation */}
-        <DashboardSidebar 
-          onSaveViewClick={onSaveViewClick || (() => {})} 
-          onEditViewClick={onEditViewClick}
-        />
 
         {/* Main Content - Zero Scroll Layout */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-gray-50" style={{ marginRight: '256px' }}>
+        <main 
+          className="flex-1 flex flex-col overflow-hidden bg-gray-50 transition-all duration-300 ease-in-out" 
+          style={{ marginRight: `${sidebarWidth.width}px` }}
+        >
           {/* Top Zone: ClientHero - Full Width */}
           <ClientHero
             customer={customer}

@@ -70,48 +70,68 @@ export const useCustomers = () => {
   return useQuery({
     queryKey: ['customers', user?.email],
     queryFn: async () => {
-      if (!user?.email) throw new Error('User not authenticated');
-
-      // Fetch all customers
-      const { data: customersData, error: customersError } = await supabase
-        .from('customers')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (customersError) throw customersError;
-
-      if (!customersData || customersData.length === 0) {
+      if (!user?.email) {
+        console.warn('useCustomers: User not authenticated');
         return [];
       }
 
-      // Fetch lead counts for all customers in one query
-      const customerIds = customersData.map((c: any) => c.id);
-      const { data: leadsData, error: leadsError } = await supabase
-        .from('leads')
-        .select('customer_id')
-        .in('customer_id', customerIds);
+      try {
+        // Fetch all customers
+        const { data: customersData, error: customersError } = await supabase
+          .from('customers')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (leadsError) throw leadsError;
+        if (customersError) {
+          console.error('Error fetching customers:', customersError);
+          throw customersError;
+        }
 
-      // Count leads per customer
-      const leadCounts = (leadsData || []).reduce((acc: Record<string, number>, lead: any) => {
-        const customerId = lead.customer_id;
-        acc[customerId] = (acc[customerId] || 0) + 1;
-        return acc;
-      }, {});
+        if (!customersData || customersData.length === 0) {
+          console.log('No customers found in database');
+          return [];
+        }
 
-      // Transform the data to include total_leads
-      return customersData.map((customer: any) => ({
-        id: customer.id,
-        full_name: customer.full_name,
-        phone: customer.phone,
-        email: customer.email,
-        created_at: customer.created_at,
-        updated_at: customer.updated_at,
-        total_leads: leadCounts[customer.id] || 0,
-      })) as Customer[];
+        // Fetch lead counts for all customers in one query
+        const customerIds = customersData.map((c: any) => c.id);
+        const { data: leadsData, error: leadsError } = await supabase
+          .from('leads')
+          .select('customer_id')
+          .in('customer_id', customerIds);
+
+        if (leadsError) {
+          console.error('Error fetching lead counts:', leadsError);
+          // Don't throw - continue without lead counts
+        }
+
+        // Count leads per customer
+        const leadCounts = (leadsData || []).reduce((acc: Record<string, number>, lead: any) => {
+          const customerId = lead.customer_id;
+          acc[customerId] = (acc[customerId] || 0) + 1;
+          return acc;
+        }, {});
+
+        // Transform the data to include total_leads
+        const result = customersData.map((customer: any) => ({
+          id: customer.id,
+          full_name: customer.full_name,
+          phone: customer.phone,
+          email: customer.email,
+          created_at: customer.created_at,
+          updated_at: customer.updated_at,
+          total_leads: leadCounts[customer.id] || 0,
+        })) as Customer[];
+
+        console.log(`useCustomers: Fetched ${result.length} customers`);
+        return result;
+      } catch (error: any) {
+        console.error('Error in useCustomers queryFn:', error);
+        return [];
+      }
     },
     enabled: !!user?.email,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 };
 

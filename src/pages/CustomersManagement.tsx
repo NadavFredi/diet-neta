@@ -17,9 +17,11 @@ import { CUSTOMER_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { useTableFilters } from '@/hooks/useTableFilters';
 import { customerColumns } from '@/components/dashboard/columns/customerColumns';
 import { useCustomersManagement } from './CustomersManagement';
+import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 
 const CustomersManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
+  const sidebarWidth = useSidebarWidth();
   const {
     customers,
     savedView,
@@ -51,22 +53,27 @@ const CustomersManagement = () => {
 
   return (
     <>
-      <div className="min-h-screen grid grid-rows-[auto_1fr_auto] grid-cols-1" dir="rtl">
-        <div style={{ gridColumn: '1 / -1' }}>
-          <DashboardHeader userEmail={user?.email} onLogout={handleLogout} />
-        </div>
+      <DashboardHeader 
+        userEmail={user?.email} 
+        onLogout={handleLogout}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+      />
 
-        <div className="flex relative" style={{ marginTop: '88px', gridColumn: '1 / -1' }}>
-          <DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />
-          
-          <main className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto" style={{ marginRight: '256px' }}>
+      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
+        <main 
+          className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out" 
+          style={{ 
+            marginRight: `${sidebarWidth.width}px`,
+            minHeight: 'calc(100vh - 88px)',
+          }}
+        >
             <div className="p-6">
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <TableActionHeader
                   resourceKey="customers"
                   title={savedView?.view_name || 'ניהול לקוחות'}
                   icon={UserCircle}
-                  dataCount={filteredCustomers.length}
+                  dataCount={filteredCustomers?.length || 0}
                   singularLabel="לקוח"
                   pluralLabel="לקוחות"
                   filterFields={CUSTOMER_FILTER_FIELDS}
@@ -80,17 +87,28 @@ const CustomersManagement = () => {
                 <div className="bg-white">
                   {isLoadingCustomers ? (
                     <div className="text-center py-12">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <p className="mt-4 text-gray-600">טוען לקוחות...</p>
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                      <p className="text-gray-600">טוען לקוחות...</p>
                     </div>
+                  ) : filteredCustomers && Array.isArray(filteredCustomers) && filteredCustomers.length > 0 ? (
+                    <CustomersDataTable customers={filteredCustomers} />
                   ) : (
-                      <CustomersDataTable customers={customers} />
+                    <div className="p-8 text-center text-gray-500">
+                      <p className="text-lg font-medium mb-2">לא נמצאו לקוחות</p>
+                      <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+                      {!isLoadingCustomers && (
+                        <p className="text-xs text-gray-400 mt-2">
+                          {filteredCustomers && Array.isArray(filteredCustomers) 
+                            ? `מספר לקוחות: ${filteredCustomers.length}` 
+                            : 'אין נתונים זמינים'}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
             </div>
           </main>
-        </div>
       </div>
 
       <SaveViewModal
