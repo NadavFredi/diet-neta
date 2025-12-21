@@ -14,7 +14,6 @@
 import React from 'react';
 import { LeadHistorySidebar } from './LeadHistorySidebar';
 import { CustomerNotesSidebar } from './CustomerNotesSidebar';
-import { SidebarToggleButtons } from './SidebarToggleButtons';
 import { useAppSelector } from '@/store/hooks';
 import { selectActiveSidebar } from '@/store/slices/leadViewSlice';
 import { cn } from '@/lib/utils';
@@ -46,7 +45,7 @@ export const LeadSidebarContainer: React.FC<LeadSidebarContainerProps> = ({
   const sidebarOpen = showHistory || showNotes;
 
   return (
-    <div className="relative flex-shrink-0 overflow-visible" style={{ width: sidebarOpen ? (showNotes ? '450px' : '350px') : '60px' }}>
+    <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300" style={{ width: sidebarOpen ? (showNotes ? '450px' : '350px') : '0px' }}>
       {/* History Sidebar - 350px - Smooth slide animation */}
       <div
         className={cn(
@@ -80,9 +79,6 @@ export const LeadSidebarContainer: React.FC<LeadSidebarContainerProps> = ({
           <CustomerNotesSidebar customerId={customerId} />
         )}
       </div>
-
-      {/* Floating Handle Buttons - Inside sidebar when closed, attached to edge when open */}
-      <SidebarToggleButtons sidebarOpen={sidebarOpen} />
     </div>
   );
 };

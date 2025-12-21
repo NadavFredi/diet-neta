@@ -6,7 +6,7 @@
  */
 
 import React, { useState } from 'react';
-import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown } from 'lucide-react';
+import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { InlineEditableField } from './InlineEditableField';
@@ -15,6 +15,12 @@ import { formatDate } from '@/utils/dashboard';
 import { ACTIVITY_LEVEL_OPTIONS, PREFERRED_TIME_OPTIONS } from '@/utils/dashboard';
 import type { Customer } from '@/hooks/useCustomers';
 import { cn } from '@/lib/utils';
+import { useLeadSidebar } from '@/hooks/useLeadSidebar';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface LeadData {
   id: string;
@@ -31,12 +37,9 @@ interface ClientHeroProps {
   mostRecentLead: LeadData | null;
   status: string;
   onBack: () => void;
-  onCall: () => void;
   onWhatsApp: () => void;
-  onEmail: () => void;
   onUpdateLead?: (updates: any) => Promise<void>;
   onUpdateCustomer?: (updates: any) => Promise<void>;
-  getInitials: (name: string) => string;
   getStatusColor: (status: string) => string;
 }
 
@@ -45,14 +48,13 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   mostRecentLead,
   status,
   onBack,
-  onCall,
   onWhatsApp,
-  onEmail,
   onUpdateLead,
   onUpdateCustomer,
   getStatusColor,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { isHistoryOpen, isNotesOpen, toggleHistory, toggleNotes } = useLeadSidebar();
 
   if (!customer) return null;
 
@@ -153,35 +155,75 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
             </Button>
           </div>
 
-          {/* Right Side (RTL): Action Buttons */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <Button
-              onClick={onCall}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1.5 h-7 text-xs"
-            >
-              <Phone className="h-3.5 w-3.5" />
-              התקשר
-            </Button>
-            <Button
-              onClick={onWhatsApp}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1.5 bg-green-50 hover:bg-green-100 border-green-200 text-green-700 h-7 text-xs"
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              WhatsApp
-            </Button>
-            <Button
-              onClick={onEmail}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1.5 h-7 text-xs"
-            >
-              <Mail className="h-3.5 w-3.5" />
-              אימייל
-            </Button>
+          {/* Right Side (RTL): Action Bar - WhatsApp + Divider + Utility Buttons */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* WhatsApp Button - External Communication */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={onWhatsApp}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1.5 bg-green-50 hover:bg-green-100 border-green-200 text-green-700 h-8 px-3 text-xs"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" strokeWidth={2} />
+                  WhatsApp
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left" align="center" dir="rtl">
+                <p>שלח וואטסאפ</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Vertical Divider */}
+            <div className="h-6 w-px bg-gray-200" />
+
+            {/* Utility Group: History & Notes Toggle Buttons */}
+            <div className="flex items-center gap-1">
+              {/* History Toggle Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isHistoryOpen ? "default" : "ghost"}
+                    size="icon"
+                    onClick={toggleHistory}
+                    className={cn(
+                      "h-8 w-8 rounded-md transition-all duration-200",
+                      isHistoryOpen
+                        ? "bg-gradient-to-br from-purple-600 to-blue-600 text-white shadow-sm hover:from-purple-700 hover:to-blue-700"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    )}
+                  >
+                    <History className="h-4 w-4" strokeWidth={2} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" align="center" dir="rtl">
+                  <p>היסטוריה</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Notes Toggle Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isNotesOpen ? "default" : "ghost"}
+                    size="icon"
+                    onClick={toggleNotes}
+                    className={cn(
+                      "h-8 w-8 rounded-md transition-all duration-200",
+                      isNotesOpen
+                        ? "bg-gradient-to-br from-purple-600 to-blue-600 text-white shadow-sm hover:from-purple-700 hover:to-blue-700"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    )}
+                  >
+                    <MessageSquare className="h-4 w-4" strokeWidth={2} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" align="center" dir="rtl">
+                  <p>הערות</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </div>
       </div>

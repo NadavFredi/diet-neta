@@ -22,9 +22,7 @@ interface PageLayoutProps {
   status: string;
   isLoadingLead: boolean;
   onBack: () => void;
-  onCall: () => void;
   onWhatsApp: () => void;
-  onEmail: () => void;
   onLeadSelect: (leadId: string) => void;
   onUpdateLead: (updates: any) => Promise<void>;
   onUpdateCustomer?: (updates: any) => Promise<void>;
@@ -46,9 +44,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   status,
   isLoadingLead,
   onBack,
-  onCall,
   onWhatsApp,
-  onEmail,
   onLeadSelect,
   onUpdateLead,
   onUpdateCustomer,
@@ -82,9 +78,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
             mostRecentLead={mostRecentLead}
             status={status}
             onBack={onBack}
-            onCall={onCall}
             onWhatsApp={onWhatsApp}
-            onEmail={onEmail}
             onUpdateLead={onUpdateLead}
             onUpdateCustomer={onUpdateCustomer}
             getStatusColor={getStatusColor}

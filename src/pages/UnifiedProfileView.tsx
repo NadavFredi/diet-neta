@@ -36,9 +36,7 @@ const UnifiedProfileView = () => {
     isLoadingCustomer,
     isLoadingLead,
     handleBack,
-    handleCall,
     handleWhatsApp,
-    handleEmail,
     handleInterestSelect,
     updateLead,
   } = useUnifiedProfileView();
@@ -200,9 +198,7 @@ const UnifiedProfileView = () => {
         status={mostRecentLeadStatus || 'ללא סטטוס'}
         isLoadingLead={isLoadingLead}
         onBack={handleBack}
-        onCall={handleCall}
         onWhatsApp={handleWhatsApp}
-        onEmail={handleEmail}
         onLeadSelect={handleInterestSelect}
         onUpdateLead={handleUpdateLead}
         onUpdateCustomer={handleUpdateCustomer}
