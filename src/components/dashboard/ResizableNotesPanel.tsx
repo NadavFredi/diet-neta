@@ -45,16 +45,20 @@ export const ResizableNotesPanel: React.FC<ResizableNotesPanelProps> = ({
     if (typeof window === 'undefined') return DEFAULT_WIDTH * 2;
     const viewportWidth = window.innerWidth;
     const availableWidth = viewportWidth - sidebarWidth.width;
+    // Ensure main content always has at least 400px (min-w-[400px])
+    const minMainContentWidth = 400;
     const maxWidth = Math.min(
       (viewportWidth * MAX_WIDTH_PERCENT) / 100,
-      availableWidth - 100 // Leave some space for main content
+      availableWidth - minMainContentWidth - 50 // Leave space for main content + padding
     );
     return Math.max(maxWidth, MIN_WIDTH);
   }, [sidebarWidth.width]);
 
-  // Save width to localStorage
+  // Save width to localStorage and dispatch custom event
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, width.toString());
+    // Dispatch custom event so PageLayout can update its margin
+    window.dispatchEvent(new CustomEvent('notesPanelResize'));
   }, [width]);
 
   // Handle mouse down on resize handle
@@ -75,7 +79,9 @@ export const ResizableNotesPanel: React.FC<ResizableNotesPanelProps> = ({
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = startXRef.current - e.clientX; // Inverted for RTL
+      // Handle is on left edge (touches body), dragging left decreases width, dragging right increases
+      // In RTL: clientX increases when moving right, so we need to invert
+      const deltaX = startXRef.current - e.clientX; // Inverted for left-edge handle in RTL
       const newWidth = Math.max(
         MIN_WIDTH,
         Math.min(getMaxWidth(), startWidthRef.current + deltaX)
@@ -103,50 +109,62 @@ export const ResizableNotesPanel: React.FC<ResizableNotesPanelProps> = ({
   return (
     <div
       ref={panelRef}
-      className="relative flex-shrink-0 overflow-hidden transition-none"
+      className="relative flex-shrink-0 overflow-hidden transition-none bg-white border-l border-gray-200 flex flex-col"
       style={{ 
         width: `${width}px`,
+        height: '100%', // Use 100% of parent container height
         // Disable transition during resize for smooth dragging
-        transition: isResizing ? 'none' : 'width 0.2s ease-out'
+        transition: isResizing ? 'none' : 'width 0.2s ease-out',
+        backgroundColor: '#FFFFFF',
+        zIndex: 10
       }}
       dir="rtl"
     >
-      {/* Resize Handle - On the left edge (RTL) */}
+      {/* Resize Handle - On the left edge (touches body) - Visible border */}
       <div
         className={cn(
-          'absolute left-0 top-0 bottom-0 w-2 cursor-col-resize z-10 group',
+          'absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 group',
           'transition-all duration-200',
-          isResizing && 'bg-[#5B6FB9]/20'
+          isResizing && 'bg-[#5B6FB9]/30'
         )}
         onMouseDown={handleMouseDown}
         style={{
-          marginLeft: '-4px', // Extend beyond border for easier grabbing
+          marginLeft: '-2px', // Extend beyond border for easier grabbing
         }}
         title="גרור לשינוי גודל"
       >
-        {/* Visual indicator line - appears on hover */}
+        {/* Visible border line - always visible, more prominent on hover */}
         <div
           className={cn(
-            'absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2',
-            'bg-transparent transition-colors duration-200',
-            'group-hover:bg-[#5B6FB9]',
-            isResizing && 'bg-[#5B6FB9]'
+            'absolute left-0 top-0 bottom-0 w-0.5',
+            'bg-gray-300 transition-colors duration-200',
+            'group-hover:bg-[#5B6FB9] group-hover:w-1',
+            isResizing && 'bg-[#5B6FB9] w-1'
           )}
         />
-        {/* Hover area indicator */}
+        {/* Hover area indicator - dots pattern */}
         <div
           className={cn(
             'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
-            'w-1 h-12 rounded-full',
-            'bg-transparent transition-colors duration-200',
-            'group-hover:bg-[#5B6FB9]/60',
-            isResizing && 'bg-[#5B6FB9]'
+            'flex flex-col gap-1',
+            'opacity-0 group-hover:opacity-100 transition-opacity duration-200',
+            isResizing && 'opacity-100'
           )}
-        />
+        >
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className={cn(
+                'w-1 h-1 rounded-full',
+                'bg-[#5B6FB9] transition-colors duration-200'
+              )}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Notes Panel Content */}
-      <div className="w-full h-full">
+      {/* Notes Panel Content - Scrollable, starts at top */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ minHeight: 0 }}>
         <CustomerNotesSidebar customerId={customerId} />
       </div>
     </div>

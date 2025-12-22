@@ -143,8 +143,8 @@ export const InlineEditableSelect = ({
 
   if (isEditing) {
     return (
-      <div className={cn('flex items-center gap-2 py-0.5', className)}>
-        <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
+      <div className={cn('flex flex-col gap-1 py-0.5 min-w-0 text-right', className)} style={{ flex: '1 1 auto', minWidth: '100px' }}>
+        <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>{label}:</span>
         <div className="flex-1 min-w-0">
           {isAddingNew ? (
             <div className="relative flex-1">
@@ -274,19 +274,21 @@ export const InlineEditableSelect = ({
 
   return (
     <div
-      className={cn('flex items-center gap-2 py-0.5 group', className)}
+      className={cn('flex flex-col gap-1 py-0.5 group min-w-0 text-right transition-all duration-200', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
+      style={{ flex: '1 1 auto', minWidth: '100px' }}
     >
-      <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
+      <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>{label}:</span>
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
         <span 
           className={cn(
-            'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border cursor-pointer hover:opacity-80 transition-opacity',
+            'inline-flex items-center px-2 py-0.5 rounded-md text-sm font-semibold border cursor-pointer hover:opacity-80 transition-opacity break-words',
             badgeClassName || 'bg-gray-50 text-gray-700 border-gray-200',
             valueClassName
           )}
+          style={{ fontSize: '14px', fontWeight: 600 }}
           onClick={handleClick}
           title={!disabled ? 'לחץ לעריכה' : undefined}
         >

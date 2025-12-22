@@ -64,12 +64,52 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   const sidebarWidth = useSidebarWidth();
   const activeSidebar = useAppSelector(selectActiveSidebar);
   const isNotesOpen = activeSidebar === 'notes';
-  const notesPanelWidth = 450;
   
+  // Get Notes panel width from localStorage (same key as ResizableNotesPanel)
+  const [notesPanelWidth, setNotesPanelWidth] = React.useState(450);
+  React.useEffect(() => {
+    const savedWidth = localStorage.getItem('notesPanelWidth');
+    if (savedWidth) {
+      const parsedWidth = parseInt(savedWidth, 10);
+      if (!isNaN(parsedWidth) && parsedWidth >= 250) {
+        setNotesPanelWidth(parsedWidth);
+      }
+    }
+    // Listen for custom event from ResizableNotesPanel when it resizes
+    const handleNotesPanelResize = () => {
+      const savedWidth = localStorage.getItem('notesPanelWidth');
+      if (savedWidth) {
+        const parsedWidth = parseInt(savedWidth, 10);
+        if (!isNaN(parsedWidth) && parsedWidth >= 250) {
+          setNotesPanelWidth(parsedWidth);
+        }
+      }
+    };
+    window.addEventListener('notesPanelResize', handleNotesPanelResize);
+    // Also poll localStorage periodically for changes (in case event doesn't fire)
+    const interval = setInterval(handleNotesPanelResize, 100);
+    return () => {
+      window.removeEventListener('notesPanelResize', handleNotesPanelResize);
+      clearInterval(interval);
+    };
+  }, []);
+  
+  const HEADER_HEIGHT = 88;
+
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-50/50" dir="rtl">
-      {/* Top Header Bar */}
-      <div className="flex-shrink-0" style={{ gridColumn: '1 / -1' }}>
+    <div 
+      className="flex flex-col overflow-hidden bg-gray-50/50" 
+      style={{ 
+        height: '100vh',
+        overflow: 'hidden'
+      }}
+      dir="rtl"
+    >
+      {/* Top Navigation Header - Fixed (spans full width) */}
+      <div 
+        className="fixed top-0 left-0 right-0 z-40 flex-shrink-0"
+        style={{ height: `${HEADER_HEIGHT}px` }}
+      >
         <DashboardHeader
           userEmail={userEmail}
           onLogout={() => {}}
@@ -82,17 +122,17 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
         />
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden relative" style={{ marginTop: '88px' }}>
-
-        {/* Main Content - Zero Scroll Layout */}
-        <main 
-          className="flex-1 flex flex-col overflow-hidden bg-gray-50" 
-          style={{ 
-            marginRight: `${sidebarWidth.width}px`,
-          }}
-        >
-          {/* Top Zone: ClientHero - Full Width */}
+      {/* Main Content Area - Below Navigation Header */}
+      <div 
+        className="flex flex-col flex-1 overflow-hidden"
+        style={{ 
+          marginTop: `${HEADER_HEIGHT}px`,
+          marginRight: `${sidebarWidth.width}px`, // Account for navigation sidebar
+          height: `calc(100vh - ${HEADER_HEIGHT}px)`
+        }}
+      >
+        {/* Page Header (ClientHero) - Full Width, Fixed at Top */}
+        <div className="flex-shrink-0 w-full bg-white border-b border-gray-200">
           <ClientHero
             customer={customer}
             mostRecentLead={mostRecentLead}
@@ -103,40 +143,69 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
             onUpdateCustomer={onUpdateCustomer}
             getStatusColor={getStatusColor}
           />
+        </div>
 
-          {/* Bottom Zone: Split View - Flex Row */}
-          <div className="flex-1 flex overflow-hidden gap-4 px-4 pb-4 relative" style={{ direction: 'ltr' }}>
-            {/* Left Side: Lead History Sidebar */}
-            {activeSidebar === 'history' && (
-              <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300 w-[350px]">
-                <LeadHistorySidebar
-                  leads={sortedLeads}
-                  activeLeadId={activeLeadId}
-                  onLeadSelect={onLeadSelect}
+        {/* Main Content Wrapper - Dual Column Layout (Body | Notes) */}
+        <div 
+          className="flex flex-1 overflow-hidden"
+          style={{ 
+            flexDirection: 'row' // RTL row: Notes first = right, Body second = left
+          }}
+          dir="rtl"
+        >
+          {/* Notes Panel - Right Side (First in row = Right in RTL, next to nav) */}
+          {activeSidebar === 'notes' && (
+            <ResizableNotesPanel customerId={customer?.id || null} />
+          )}
+
+          {/* Dashboard Body - Left Side (Second in row = Left in RTL) */}
+          <main 
+            className="flex-1 flex flex-col bg-gray-50 overflow-y-auto overflow-x-hidden scroll-smooth custom-scrollbar"
+            style={{ 
+              padding: '20px'
+            }}
+          >
+            {/* Content Area - Split View for History Sidebar */}
+            <div 
+              className="flex-1 flex gap-4" 
+              style={{ 
+                direction: 'ltr', 
+                overflowX: 'hidden',
+                minHeight: 'fit-content'
+              }}
+            >
+              {/* Left Side: Lead History Sidebar */}
+              {activeSidebar === 'history' && (
+                <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300 w-[350px]">
+                  <LeadHistorySidebar
+                    leads={sortedLeads}
+                    activeLeadId={activeLeadId}
+                    onLeadSelect={onLeadSelect}
+                    getStatusColor={getStatusColor}
+                    getStatusBorderColor={getStatusBorderColor}
+                  />
+                </div>
+              )}
+
+              {/* Center: ActionDashboard - Scrollable Content */}
+              <div 
+                className="flex-1 transition-all duration-200 ease-out"
+                style={{ 
+                  minWidth: '400px'
+                }}
+              >
+                <ActionDashboard
+                  activeLead={activeLead}
+                  isLoading={isLoadingLead}
+                  onUpdateLead={onUpdateLead}
+                  onAddWorkoutPlan={onAddWorkoutPlan}
+                  onAddDietPlan={onAddDietPlan}
                   getStatusColor={getStatusColor}
-                  getStatusBorderColor={getStatusBorderColor}
                 />
               </div>
-            )}
-
-            {/* Center: ActionDashboard (Flex-1, scrollable internally) - Responsive */}
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <ActionDashboard
-                activeLead={activeLead}
-                isLoading={isLoadingLead}
-                onUpdateLead={onUpdateLead}
-                onAddWorkoutPlan={onAddWorkoutPlan}
-                onAddDietPlan={onAddDietPlan}
-                getStatusColor={getStatusColor}
-              />
             </div>
-
-            {/* Right Side: Notes Panel - Resizable */}
-            {activeSidebar === 'notes' && (
-              <ResizableNotesPanel customerId={customer?.id || null} />
-            )}
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </div>
   );

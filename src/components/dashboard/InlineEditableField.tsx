@@ -109,7 +109,7 @@ export const InlineEditableField = ({
 
   if (isEditing) {
     return (
-      <div className={cn('flex items-center gap-2 py-0.5', className)}>
+      <div className={cn('flex flex-col gap-1 py-0.5 min-w-0 text-right', className)} style={{ flex: '1 1 auto', minWidth: '100px' }}>
         <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
         <div className="relative flex-1 min-w-0">
           <Input
@@ -118,7 +118,7 @@ export const InlineEditableField = ({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="h-7 text-xs pr-12 pl-2"
+            className="h-7 text-sm pr-12 pl-2"
             disabled={isSaving}
             dir="rtl"
           />
@@ -169,15 +169,17 @@ export const InlineEditableField = ({
 
   return (
     <div
-      className={cn('flex items-center gap-2 py-0.5 group', className)}
+      className={cn('flex flex-col gap-1 py-0.5 group min-w-0 text-right transition-all duration-200', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
+      style={{ flex: '1 1 auto', minWidth: '100px' }}
     >
-      <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
+      <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>{label}:</span>
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
         <span 
-          className={cn('text-sm font-semibold text-slate-900 truncate cursor-pointer hover:text-blue-600 transition-colors', valueClassName)}
+          className={cn('text-sm font-semibold text-slate-900 break-words cursor-pointer hover:text-blue-600 transition-colors', valueClassName)}
+          style={{ fontSize: '14px', fontWeight: 600 }}
           onClick={handleClick}
           title={!disabled ? 'לחץ לעריכה' : undefined}
         >

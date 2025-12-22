@@ -52,7 +52,6 @@ export const EditViewModal = ({
   useEffect(() => {
     if (isOpen && view) {
       setViewName(view.view_name);
-      setSelectedIconName(view.icon_name || null);
       const savedConfig = view.filter_config as FilterConfig || currentFilterConfig;
       setFilterConfig({
         ...savedConfig,

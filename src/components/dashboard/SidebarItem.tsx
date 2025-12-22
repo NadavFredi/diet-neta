@@ -246,7 +246,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
             >
               <span className="flex-1 truncate">{view.view_name}</span>
               <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity">
-                {onEditViewClick && (
+                {onEditViewClick && !isDefaultView && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -371,7 +371,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                     <span className="flex-1 text-right truncate">{view.view_name}</span>
                   </button>
                   <div className="absolute left-2 flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity">
-                    {onEditViewClick && (
+                    {onEditViewClick && !isDefaultView && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
