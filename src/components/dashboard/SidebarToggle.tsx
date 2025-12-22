@@ -46,3 +46,4 @@ export const SidebarToggle: React.FC<SidebarToggleProps> = ({
     </button>
   );
 };
+

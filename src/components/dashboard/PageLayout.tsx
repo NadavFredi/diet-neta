@@ -10,7 +10,7 @@ import { DashboardHeader } from './DashboardHeader';
 import { DashboardSidebar } from './DashboardSidebar';
 import { ClientHero } from './ClientHero';
 import { LeadHistorySidebar } from './LeadHistorySidebar';
-import { CustomerNotesSidebar } from './CustomerNotesSidebar';
+import { ResizableNotesPanel } from './ResizableNotesPanel';
 import { ActionDashboard } from './ActionDashboard';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector } from '@/store/hooks';
@@ -119,21 +119,21 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               </div>
             )}
 
-            {/* Center: ActionDashboard (Flex-1, scrollable internally) */}
-            <ActionDashboard
-              activeLead={activeLead}
-              isLoading={isLoadingLead}
-              onUpdateLead={onUpdateLead}
-              onAddWorkoutPlan={onAddWorkoutPlan}
-              onAddDietPlan={onAddDietPlan}
-              getStatusColor={getStatusColor}
-            />
+            {/* Center: ActionDashboard (Flex-1, scrollable internally) - Responsive */}
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <ActionDashboard
+                activeLead={activeLead}
+                isLoading={isLoadingLead}
+                onUpdateLead={onUpdateLead}
+                onAddWorkoutPlan={onAddWorkoutPlan}
+                onAddDietPlan={onAddDietPlan}
+                getStatusColor={getStatusColor}
+              />
+            </div>
 
-            {/* Right Side: Notes Panel */}
+            {/* Right Side: Notes Panel - Resizable */}
             {activeSidebar === 'notes' && (
-              <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300 w-[450px]">
-                <CustomerNotesSidebar customerId={customer?.id || null} />
-              </div>
+              <ResizableNotesPanel customerId={customer?.id || null} />
             )}
           </div>
         </main>

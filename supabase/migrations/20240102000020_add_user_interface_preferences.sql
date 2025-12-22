@@ -56,3 +56,4 @@ CREATE POLICY "Users can delete their own interface preferences"
 COMMENT ON TABLE user_interface_preferences IS 'User preferences for customizing interface icons';
 COMMENT ON COLUMN user_interface_preferences.interface_key IS 'The interface identifier (e.g., "leads", "customers", "templates")';
 COMMENT ON COLUMN user_interface_preferences.icon_name IS 'The Lucide icon name (e.g., "Users", "Dumbbell", "LayoutDashboard")';
+

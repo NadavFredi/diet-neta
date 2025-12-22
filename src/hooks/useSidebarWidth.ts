@@ -19,3 +19,4 @@ export const useSidebarWidth = () => {
     collapsedWidth: COLLAPSED_WIDTH,
   };
 };
+

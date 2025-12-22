@@ -135,10 +135,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto" dir="rtl">
-      <div className="p-3 space-y-3">
-        {/* Bento Grid Layout - 2 Columns */}
-        <div className="grid grid-cols-2 gap-3 items-stretch">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto" dir="rtl" style={{ minWidth: '600px' }}>
+      <div className="p-3 space-y-3 w-full min-w-0">
+        {/* Bento Grid Layout - Responsive: 2 columns when space allows, 1 column when constrained */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-stretch">
           {/* Card 1: Status & CRM Info */}
           <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col h-full">
             <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
@@ -147,7 +147,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">סטטוס ומידע CRM</h3>
             </div>
-            <div className="grid grid-cols-3 gap-2 flex-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 flex-1">
               {/* Status - Editable with custom values */}
               <InlineEditableSelect
                 label="סטטוס"
@@ -265,7 +265,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרטי מנוי</h3>
             </div>
-            <div className="grid grid-cols-3 gap-2 flex-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 flex-1">
               <InlineEditableField
                 label="תאריך הצטרפות"
                 value={activeLead.join_date || ''}
@@ -339,8 +339,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
         </div>
 
-        {/* Stats/KPIs Row - 3 Columns */}
-        <div className="grid grid-cols-3 gap-3 items-stretch">
+        {/* Stats/KPIs Row - Responsive: 3 columns when space allows, fewer when constrained */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch">
           {/* Daily Protocol Card */}
           <Card className="p-3 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col">
             <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-100 flex-shrink-0">
@@ -349,7 +349,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרוטוקול יומי</h3>
             </div>
-            <div className="grid grid-cols-3 gap-2 flex-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 flex-1">
               <InlineEditableField
                 label="אימונים/שבוע"
                 value={activeLead.daily_protocol?.workoutGoal || 0}
@@ -461,7 +461,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">מידע כושר</h3>
             </div>
-            <div className="grid grid-cols-3 gap-2 flex-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 flex-1">
               <InlineEditableSelect
                 label="רמת פעילות"
                 value={activeLead.activity_level || ''}

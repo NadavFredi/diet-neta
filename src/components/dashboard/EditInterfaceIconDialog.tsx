@@ -5,7 +5,6 @@
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -86,25 +85,26 @@ export const EditInterfaceIconDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]" dir="rtl" onInteractOutside={(e) => {
+      <DialogContent className="sm:max-w-[480px] !grid grid-rows-[auto_1fr_auto] max-h-[75vh] p-4" dir="rtl" onInteractOutside={(e) => {
         if (updatePreference.isPending) {
           e.preventDefault();
         }
       }}>
-        <DialogHeader>
-          <DialogTitle>ערוך אייקון ממשק - {interfaceLabel}</DialogTitle>
-          <DialogDescription>
-            בחר אייקון חדש לממשק הראשי. האייקון יוצג בכל הדפים והתצוגות של ממשק זה (בתפריט הצד ובכותרת הדף)
-          </DialogDescription>
+        <DialogHeader className="flex-shrink-0 pb-2">
+          <DialogTitle className="text-base">ערוך אייקון ממשק</DialogTitle>
         </DialogHeader>
-        <div className="py-4">
+        
+        {/* Scrollable icon picker area */}
+        <div className="overflow-hidden py-2 min-h-0">
           <IconPicker
             selectedIconName={selectedIconName}
             resourceKey={interfaceKey}
             onIconSelect={setSelectedIconName}
           />
         </div>
-        <DialogFooter>
+
+        {/* Sticky footer */}
+        <DialogFooter className="flex-shrink-0 border-t pt-3 mt-2">
           <Button
             type="button"
             onClick={handleSave}
@@ -129,4 +129,5 @@ export const EditInterfaceIconDialog = ({
     </Dialog>
   );
 };
+
 

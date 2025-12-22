@@ -42,3 +42,4 @@ export const SidebarLogo: React.FC<SidebarLogoProps> = ({
     </div>
   );
 };
+
