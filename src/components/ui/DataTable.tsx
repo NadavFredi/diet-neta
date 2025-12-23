@@ -22,8 +22,13 @@ import {
   selectColumnVisibility,
   selectColumnSizing,
   selectColumnOrder,
+  selectGroupByKey,
+  selectCollapsedGroups,
+  toggleGroupCollapse,
   type ResourceKey,
 } from '@/store/slices/tableStateSlice';
+import { groupDataByKey, type GroupedData } from '@/utils/groupDataByKey';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -361,6 +366,11 @@ export function DataTable<T extends Record<string, any>>({
   const reduxColumnVisibility = resourceKey ? useAppSelector((state) => selectColumnVisibility(state, resourceKey)) : {};
   const reduxColumnSizing = resourceKey ? useAppSelector((state) => selectColumnSizing(state, resourceKey)) : {};
   const reduxColumnOrder = resourceKey ? useAppSelector((state) => selectColumnOrder(state, resourceKey)) : [];
+  const groupByKey = resourceKey ? useAppSelector((state) => selectGroupByKey(state, resourceKey)) : null;
+  const collapsedGroups = resourceKey ? useAppSelector((state) => selectCollapsedGroups(state, resourceKey)) : [];
+  
+  // Convert collapsedGroups array to Set for efficient lookup
+  const collapsedGroupsSet = useMemo(() => new Set(collapsedGroups), [collapsedGroups]);
 
   // Initialize Redux state on mount if resourceKey is provided
   useEffect(() => {
@@ -768,6 +778,34 @@ export function DataTable<T extends Record<string, any>>({
     }
   };
 
+  // Handle group collapse toggle
+  const handleToggleGroup = (groupKey: string) => {
+    if (resourceKey) {
+      dispatch(toggleGroupCollapse({ resourceKey, groupKey }));
+    }
+  };
+
+  // Get grouped data if groupByKey is set - use table's processed data (sorted/filtered)
+  const groupedData = useMemo(() => {
+    if (!groupByKey || !table || !data || data.length === 0) {
+      return null;
+    }
+    // Use the table's row model to get processed (sorted/filtered) data
+    const processedData = table.getRowModel().rows.map((row: any) => row.original);
+    if (processedData.length === 0) {
+      return null;
+    }
+    return groupDataByKey(processedData, groupByKey);
+  }, [data, groupByKey, table]);
+
+  // Get column header text for group by column
+  const getGroupColumnHeader = () => {
+    if (!groupByKey) return '';
+    const column = columns.find((col) => col.id === groupByKey);
+    if (!column) return groupByKey;
+    return typeof column.header === 'string' ? column.header : groupByKey;
+  };
+
   const getCellContent = (cell: any, column: any) => {
     const content = flexRender(cell.column.columnDef.cell, cell.getContext());
     const meta = column?.columnDef.meta;
@@ -933,6 +971,11 @@ export function DataTable<T extends Record<string, any>>({
               onHideColumn={handleHideColumn}
               isResizing={isResizing}
               columnSizing={effectiveColumnSizing}
+              groupedData={groupedData}
+              groupByKey={groupByKey}
+              collapsedGroupsSet={collapsedGroupsSet}
+              onToggleGroup={handleToggleGroup}
+              getGroupColumnHeader={getGroupColumnHeader}
             />
           </DndContext>
         ) : (
@@ -950,6 +993,11 @@ export function DataTable<T extends Record<string, any>>({
             onHideColumn={handleHideColumn}
               isResizing={isResizing}
               columnSizing={effectiveColumnSizing}
+              groupedData={groupedData}
+              groupByKey={groupByKey}
+              collapsedGroupsSet={collapsedGroupsSet}
+              onToggleGroup={handleToggleGroup}
+              getGroupColumnHeader={getGroupColumnHeader}
           />
         )}
       </div>
@@ -972,6 +1020,11 @@ function TableContent<T>({
   onHideColumn,
   isResizing,
   columnSizing,
+  groupedData,
+  groupByKey,
+  collapsedGroupsSet,
+  onToggleGroup,
+  getGroupColumnHeader,
 }: {
   table: any;
   tableColumns: any[];
@@ -986,6 +1039,11 @@ function TableContent<T>({
   onHideColumn: (columnId: string) => void;
   isResizing: string | null;
   columnSizing: Record<string, number>;
+  groupedData: GroupedData<T>[] | null;
+  groupByKey: string | null;
+  collapsedGroupsSet: Set<string>;
+  onToggleGroup: (groupKey: string) => void;
+  getGroupColumnHeader: () => string;
 }) {
   // Calculate total width using pixel-based sizing
   const totalWidth = tableColumns.reduce((sum, col) => {
@@ -1194,56 +1252,183 @@ function TableContent<T>({
         })}
       </thead>
       <tbody>
-        {table.getRowModel().rows.map((row: any, rowIndex: number) => (
-          <tr
-            key={row.id}
-            className={cn(
-              'border-b border-gray-100 transition-all duration-200',
-              'bg-white',
-              onRowClick && 'cursor-pointer hover:bg-gray-50',
-              'group',
-              'hover:shadow-sm'
-            )}
-            onClick={() => onRowClick?.(row.original)}
-          >
-            {row.getVisibleCells().map((cell: any) => {
-              const column = table.getColumn(cell.column.id);
-              const meta = column?.columnDef.meta;
-              const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
-              const isNumeric = meta?.isNumeric;
-              const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+        {groupedData && groupByKey && groupedData.length > 0 ? (
+          // Render grouped data
+          groupedData.map((group) => {
+            const isCollapsed = collapsedGroupsSet.has(group.groupKey);
 
-              return (
-                <td
-                  key={cell.id}
+            // Match rows from the main table that belong to this group
+            // Simple approach: match by the groupByKey value
+            const groupRows = table.getRowModel().rows.filter((row: any) => {
+              const rowOriginal = row.original;
+              const rowGroupValue = rowOriginal[groupByKey];
+              
+              // Handle null/undefined values
+              const normalizedRowValue = rowGroupValue === null || rowGroupValue === undefined 
+                ? 'ללא ערך' 
+                : String(rowGroupValue);
+              
+              // Match by the group key
+              return normalizedRowValue === group.groupKey;
+            });
+
+            // Skip empty groups
+            if (group.items.length === 0) {
+              return null;
+            }
+
+            return (
+              <React.Fragment key={group.groupKey}>
+                {/* Group Header Row - Monday.com Style */}
+                <tr
                   className={cn(
-                    'px-2 py-4 text-sm transition-colors overflow-hidden',
-                    `text-${align}`,
-                    isNumeric 
-                      ? 'font-mono tabular-nums text-gray-900' 
-                      : 'text-gray-900',
-                    // Softer gray for metadata (dates, IDs)
-                    (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
-                      ? 'text-gray-600'
-                      : '',
-                    // Force single line for critical fields
-                    (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
-                      ? 'whitespace-nowrap'
-                      : ''
+                    "bg-slate-50 border-t border-b border-slate-200",
+                    "hover:bg-slate-100 transition-colors duration-200 cursor-pointer"
                   )}
-                  style={{
-                    width: `${width}px`,
-                    minWidth: `${width}px`,
-                    maxWidth: `${width}px`,
-                  }}
-                  title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                  onClick={() => onToggleGroup(group.groupKey)}
                 >
-                  {getCellContent(cell, column)}
-                </td>
-              );
-            })}
-          </tr>
-        ))}
+                  <td
+                    colSpan={visibleColumns.length}
+                    className="px-4 py-3"
+                  >
+                    <div 
+                      className="flex items-center gap-3" 
+                      style={{ 
+                        flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+                        justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
+                      }}
+                    >
+                      {/* Chevron Icon - Right side in RTL */}
+                      <div className="flex-shrink-0 transition-transform duration-200">
+                        {isCollapsed ? (
+                          <ChevronRight className="h-4 w-4 text-slate-600" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-slate-600" />
+                        )}
+                      </div>
+                      {/* Group Label - Bold, Professional */}
+                      <span className="text-sm font-bold text-slate-900">
+                        {getGroupColumnHeader()}: {group.groupKey}
+                      </span>
+                      {/* Count Badge - Minimalist Pill */}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
+                        {group.items.length} {group.items.length === 1 ? 'ליד' : 'לידים'}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+                {/* Group Rows - With Indentation */}
+                {!isCollapsed && groupRows.length > 0 && (
+                  <>
+                    {groupRows.map((row: any, rowIndex: number) => (
+                      <tr
+                        key={row.id || `group-row-${group.groupKey}-${rowIndex}`}
+                        className={cn(
+                          'border-b border-gray-100 transition-all duration-200',
+                          'bg-white',
+                          onRowClick && 'cursor-pointer hover:bg-gray-50',
+                          'group',
+                          'hover:shadow-sm'
+                        )}
+                        onClick={() => onRowClick?.(row.original)}
+                        style={{
+                          // Subtle indentation for grouped rows (right border in RTL)
+                          borderRight: dir === 'rtl' ? '2px solid #e2e8f0' : 'none',
+                          borderLeft: dir === 'ltr' ? '2px solid #e2e8f0' : 'none',
+                        }}
+                      >
+                        {row.getVisibleCells().map((cell: any) => {
+                          const column = table.getColumn(cell.column.id);
+                          const meta = column?.columnDef.meta;
+                          const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+                          const isNumeric = meta?.isNumeric;
+                          const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+
+                          return (
+                            <td
+                              key={cell.id}
+                              className={cn(
+                                'px-2 py-4 text-sm transition-colors overflow-hidden',
+                                `text-${align}`,
+                                isNumeric 
+                                  ? 'font-mono tabular-nums text-gray-900' 
+                                  : 'text-gray-900',
+                                (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
+                                  ? 'text-gray-600'
+                                  : '',
+                                (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
+                                  ? 'whitespace-nowrap'
+                                  : ''
+                              )}
+                              style={{
+                                width: `${width}px`,
+                                minWidth: `${width}px`,
+                                maxWidth: `${width}px`,
+                              }}
+                              title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                            >
+                              {getCellContent(cell, column)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </>
+                )}
+              </React.Fragment>
+            );
+          })
+        ) : (
+          // Render normal (ungrouped) data
+          table.getRowModel().rows.map((row: any, rowIndex: number) => (
+            <tr
+              key={row.id}
+              className={cn(
+                'border-b border-gray-100 transition-all duration-200',
+                'bg-white',
+                onRowClick && 'cursor-pointer hover:bg-gray-50',
+                'group',
+                'hover:shadow-sm'
+              )}
+              onClick={() => onRowClick?.(row.original)}
+            >
+              {row.getVisibleCells().map((cell: any) => {
+                const column = table.getColumn(cell.column.id);
+                const meta = column?.columnDef.meta;
+                const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+                const isNumeric = meta?.isNumeric;
+                const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+
+                return (
+                  <td
+                    key={cell.id}
+                    className={cn(
+                      'px-2 py-4 text-sm transition-colors overflow-hidden',
+                      `text-${align}`,
+                      isNumeric 
+                        ? 'font-mono tabular-nums text-gray-900' 
+                        : 'text-gray-900',
+                      (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
+                        ? 'text-gray-600'
+                        : '',
+                      (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
+                        ? 'whitespace-nowrap'
+                        : ''
+                    )}
+                    style={{
+                      width: `${width}px`,
+                      minWidth: `${width}px`,
+                      maxWidth: `${width}px`,
+                    }}
+                    title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                  >
+                    {getCellContent(cell, column)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))
+        )}
       </tbody>
     </table>
   );

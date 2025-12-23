@@ -8,6 +8,8 @@ export interface TableState {
   columnOrder: string[];
   searchQuery: string;
   activeFilters: any[]; // ActiveFilter[] type from TableFilter
+  groupByKey: string | null; // Column key to group by (null = no grouping)
+  collapsedGroups: string[]; // Array of collapsed group keys
 }
 
 interface TableStateMap {
@@ -52,6 +54,8 @@ const tableStateSlice = createSlice({
           columnOrder: initialOrder || columnIds,
           searchQuery: '',
           activeFilters: [],
+          groupByKey: null,
+          collapsedGroups: [],
         };
       }
     },
@@ -209,6 +213,45 @@ const tableStateSlice = createSlice({
       }
       state.tables[resourceKey].activeFilters = [];
     },
+
+    // Set group by key
+    setGroupByKey: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        groupByKey: string | null;
+      }>
+    ) => {
+      const { resourceKey, groupByKey } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      state.tables[resourceKey].groupByKey = groupByKey;
+      // Reset collapsed groups when changing group by
+      state.tables[resourceKey].collapsedGroups = [];
+    },
+
+    // Toggle group collapse
+    toggleGroupCollapse: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        groupKey: string;
+      }>
+    ) => {
+      const { resourceKey, groupKey } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      const collapsedGroups = [...state.tables[resourceKey].collapsedGroups];
+      const index = collapsedGroups.indexOf(groupKey);
+      if (index > -1) {
+        collapsedGroups.splice(index, 1);
+      } else {
+        collapsedGroups.push(groupKey);
+      }
+      state.tables[resourceKey].collapsedGroups = collapsedGroups;
+    },
   },
 });
 
@@ -224,6 +267,8 @@ export const {
   addFilter,
   removeFilter,
   clearFilters,
+  setGroupByKey,
+  toggleGroupCollapse,
 } = tableStateSlice.actions;
 
 export default tableStateSlice.reducer;
@@ -251,6 +296,14 @@ export const selectSearchQuery = (state: { tableState: TableStateState }, resour
 
 export const selectActiveFilters = (state: { tableState: TableStateState }, resourceKey: ResourceKey): any[] => {
   return state.tableState.tables[resourceKey]?.activeFilters || [];
+};
+
+export const selectGroupByKey = (state: { tableState: TableStateState }, resourceKey: ResourceKey): string | null => {
+  return state.tableState.tables[resourceKey]?.groupByKey || null;
+};
+
+export const selectCollapsedGroups = (state: { tableState: TableStateState }, resourceKey: ResourceKey): string[] => {
+  return state.tableState.tables[resourceKey]?.collapsedGroups || [];
 };
 
 

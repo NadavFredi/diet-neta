@@ -18,6 +18,7 @@ export type SidebarType = 'none' | 'history' | 'notes';
 export interface CustomerNote {
   id: string;
   customer_id: string;
+  lead_id: string | null; // Optional reference to a specific lead/inquiry
   content: string;
   created_at: string;
   updated_at: string;
@@ -49,6 +50,7 @@ const initialState: LeadViewState = {
   notes: {},
   isLoadingNotes: {},
   notesError: {},
+  currentNoteFilter: {},
 };
 
 // ============================================
@@ -85,18 +87,40 @@ export const fetchCustomerNotes = createAsyncThunk(
 export const addCustomerNote = createAsyncThunk(
   'leadView/addCustomerNote',
   async (
-    { customerId, content, tempId }: { customerId: string; content: string; tempId?: string },
+    { customerId, content, leadId, tempId }: { customerId: string; content: string; leadId?: string | null; tempId?: string },
     { rejectWithValue, getState }
   ) => {
     try {
-      // Insert into database
+      // Insert into database with optional lead_id
+      // Always include lead_id in the insert (can be null)
+      const insertData: any = {
+        customer_id: customerId,
+        content,
+      };
+      
+      // Include lead_id only if it's not null/undefined (Supabase will handle null)
+      if (leadId !== null && leadId !== undefined) {
+        insertData.lead_id = leadId;
+      } else {
+        // Explicitly set to null if not provided
+        insertData.lead_id = null;
+      }
+      
+      console.log('Inserting note with data:', insertData);
+      
       const { data, error } = await supabase
         .from('customer_notes')
-        .insert([{ customer_id: customerId, content }])
+        .insert([insertData])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error adding note:', error);
+        console.error('Insert data:', insertData);
+        throw error;
+      }
+      
+      console.log('Note added successfully:', data);
 
       return { customerId, note: data as CustomerNote, tempId: tempId || `temp-${Date.now()}` };
     } catch (error) {
@@ -220,12 +244,19 @@ const leadViewSlice = createSlice({
         delete state.notes[action.payload];
         delete state.isLoadingNotes[action.payload];
         delete state.notesError[action.payload];
+        delete state.currentNoteFilter[action.payload];
       } else {
         // Clear all
         state.notes = {};
         state.isLoadingNotes = {};
         state.notesError = {};
+        state.currentNoteFilter = {};
       }
+    },
+    
+    // Set note filter for a customer
+    setNoteFilter: (state, action: PayloadAction<{ customerId: string; leadId: string | null }>) => {
+      state.currentNoteFilter[action.payload.customerId] = action.payload.leadId;
     },
   },
   extraReducers: (builder) => {
@@ -260,9 +291,12 @@ const leadViewSlice = createSlice({
         (action.meta as any).tempId = tempId;
         
         // Optimistic update
+        // leadId should always be set (either from filter or most recent lead)
+        const leadId = action.meta.arg.leadId || null;
         const tempNote: CustomerNote = {
           id: tempId,
           customer_id: customerId,
+          lead_id: leadId,
           content: action.meta.arg.content,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -337,6 +371,7 @@ export const {
   toggleSidebar,
   closeSidebar,
   clearNotesCache,
+  setNoteFilter,
 } = leadViewSlice.actions;
 
 // Selectors
@@ -359,6 +394,12 @@ export const selectNotesError = (customerId: string | null | undefined) =>
   (state: { leadView: LeadViewState }): string | null => {
     if (!customerId) return null;
     return state.leadView.notesError[customerId] || null;
+  };
+
+export const selectNoteFilter = (customerId: string | null | undefined) => 
+  (state: { leadView: LeadViewState }): string | null => {
+    if (!customerId) return null;
+    return state.leadView.currentNoteFilter[customerId] || null;
   };
 
 export default leadViewSlice.reducer;

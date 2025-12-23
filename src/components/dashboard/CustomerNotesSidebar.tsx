@@ -8,7 +8,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { FileText, Edit2, Trash2, X, Plus, Clock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { FileText, Edit2, Trash2, X, Plus, Clock, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -16,30 +18,83 @@ import {
   selectCustomerNotes,
   selectIsLoadingNotes,
   selectNotesError,
+  selectNoteFilter,
   fetchCustomerNotes,
   addCustomerNote,
   updateCustomerNote,
   deleteCustomerNote,
+  setNoteFilter,
   type CustomerNote,
 } from '@/store/slices/leadViewSlice';
 import { useToast } from '@/hooks/use-toast';
 import { useLeadSidebar } from '@/hooks/useLeadSidebar';
 import { cn } from '@/lib/utils';
 
+interface LeadOption {
+  id: string;
+  created_at: string;
+  fitness_goal?: string | null;
+  status_main?: string | null;
+}
+
 interface CustomerNotesSidebarProps {
   customerId: string | null;
+  leads?: LeadOption[];
+  activeLeadId?: string | null;
 }
 
 export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
   customerId,
+  leads = [],
+  activeLeadId = null,
 }) => {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
   const { close } = useLeadSidebar();
   
-  const notes = useAppSelector(selectCustomerNotes(customerId));
+  const allNotes = useAppSelector(selectCustomerNotes(customerId));
   const isLoading = useAppSelector(selectIsLoadingNotes(customerId));
   const error = useAppSelector(selectNotesError(customerId));
+  
+  // Track the selected lead ID from the dropdown (null = "All Notes")
+  // Always default to null (show all notes) when panel opens
+  const [selectedLeadIdForFilter, setSelectedLeadIdForFilter] = React.useState<string | null>(
+    null
+  );
+  
+  // Determine the effective filter for display (always show all notes by default)
+  const selectedLeadId = selectedLeadIdForFilter;
+  
+  // Sort leads by created_at descending (most recent first) - MUST be defined before use
+  const sortedLeads = React.useMemo(() => {
+    return [...leads].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [leads]);
+
+  // Get most recent lead ID (for default association when "All Notes" is selected)
+  const mostRecentLeadId = React.useMemo(() => {
+    if (sortedLeads.length > 0) {
+      return sortedLeads[0].id; // First item is most recent (sorted descending)
+    }
+    return null;
+  }, [sortedLeads]);
+
+  // Filter notes based on selected lead
+  const notes = React.useMemo(() => {
+    if (!selectedLeadId) {
+      // Show all notes when "All Notes" is selected
+      return allNotes;
+    }
+    // Filter to show only notes for the selected lead
+    // Match notes that have the selected lead_id (strict equality check)
+    return allNotes.filter(note => {
+      // Convert both to strings for comparison to handle any type mismatches
+      const noteLeadId = note.lead_id ? String(note.lead_id) : null;
+      const selectedId = String(selectedLeadId);
+      return noteLeadId === selectedId;
+    });
+  }, [allNotes, selectedLeadId]);
 
   const [newNoteContent, setNewNoteContent] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -53,6 +108,7 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
       dispatch(fetchCustomerNotes(customerId));
     }
   }, [customerId, dispatch]);
+
 
   // Focus textarea when editing
   useEffect(() => {
@@ -75,8 +131,32 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
 
     setIsSubmitting(true);
     try {
+      // When adding a note:
+      // - If a specific lead is selected in the dropdown, use that lead_id
+      // - If "All Notes" is selected (selectedLeadIdForFilter === null), use activeLeadId from main dashboard
+      // - If no activeLeadId, use the most recent lead ID
+      // - This ensures every note is associated with a specific inquiry
+      let leadId: string | null = null;
+      
+      if (selectedLeadIdForFilter) {
+        // Specific lead selected in dropdown
+        leadId = selectedLeadIdForFilter;
+      } else {
+        // "All Notes" selected - use active lead from main dashboard, or most recent
+        leadId = activeLeadId || mostRecentLeadId || null;
+      }
+      
+      console.log('Adding note with:', { 
+        customerId, 
+        leadId, 
+        selectedLeadIdForFilter, 
+        activeLeadId, 
+        mostRecentLeadId,
+        content: newNoteContent.trim() 
+      });
+      
       await dispatch(
-        addCustomerNote({ customerId, content: newNoteContent.trim() })
+        addCustomerNote({ customerId, content: newNoteContent.trim(), leadId })
       ).unwrap();
       setNewNoteContent('');
       // Clear textarea focus
@@ -87,10 +167,12 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
         title: 'ההערה נוספה בהצלחה',
         description: 'ההערה נשמרה והופיעה בהיסטוריה',
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error adding note:', error);
+      const errorMessage = error?.message || error?.error || 'לא ניתן היה להוסיף את ההערה';
       toast({
         title: 'שגיאה',
-        description: 'לא ניתן היה להוסיף את ההערה',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -178,6 +260,19 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
     }
   };
 
+  const formatLeadDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, 'dd.MM.yyyy', { locale: he });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const handleFilterChange = (leadId: string | null) => {
+    setSelectedLeadIdForFilter(leadId);
+  };
+
   return (
     <div 
       className="flex-shrink-0 flex flex-col min-h-0 bg-white w-full h-full" 
@@ -190,7 +285,7 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
       <div className="flex flex-col overflow-hidden bg-white h-full">
         {/* Header - RTL */}
         <div className="px-4 py-3 border-b border-gray-200 bg-white flex-shrink-0" dir="rtl">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 mb-3">
             {/* Right side: Document icon + Title */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <FileText className="h-5 w-5 text-gray-700 flex-shrink-0" />
@@ -213,6 +308,71 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
               </Button>
             </div>
           </div>
+
+          {/* Inquiry Selector Dropdown */}
+          {customerId && sortedLeads.length > 0 && (
+            <div className="mb-3" dir="rtl">
+              <Select
+                value={selectedLeadIdForFilter || 'all'}
+                onValueChange={(value) => {
+                  handleFilterChange(value === 'all' ? null : value);
+                }}
+                dir="rtl"
+              >
+                <SelectTrigger className="w-full h-9 text-sm border-gray-300 bg-white hover:bg-gray-50">
+                  <div className="flex items-center gap-2 flex-1 text-right">
+                    <Filter className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                    <SelectValue placeholder="כל ההערות">
+                      {selectedLeadIdForFilter ? (
+                        (() => {
+                          const selectedLead = sortedLeads.find(l => l.id === selectedLeadIdForFilter);
+                          if (selectedLead) {
+                            const label = selectedLead.fitness_goal || selectedLead.status_main || 'התעניינות';
+                            return `${formatLeadDate(selectedLead.created_at)} - ${label}`;
+                          }
+                          return 'כל ההערות';
+                        })()
+                      ) : (
+                        'כל ההערות'
+                      )}
+                    </SelectValue>
+                  </div>
+                </SelectTrigger>
+                <SelectContent dir="rtl" className="max-h-[300px]">
+                  <SelectItem value="all" className="text-right cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">כל ההערות</span>
+                      {!selectedLeadIdForFilter && (
+                        <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                          פעיל
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                  {sortedLeads.map((lead) => {
+                    // Get lead label - prefer fitness_goal, fallback to status_main, then default
+                    const leadLabel = lead.fitness_goal || lead.status_main || 'התעניינות';
+                    const leadDate = formatLeadDate(lead.created_at);
+                    const isSelected = selectedLeadIdForFilter === lead.id;
+                    return (
+                      <SelectItem key={lead.id} value={lead.id} className="text-right cursor-pointer">
+                        <div className="flex items-center justify-between gap-2 w-full">
+                          <span className="flex-1 text-right truncate">
+                            {leadDate} - {leadLabel}
+                          </span>
+                          {isSelected && (
+                            <Badge variant="secondary" className="h-5 px-1.5 text-xs flex-shrink-0 ml-2">
+                              פעיל
+                            </Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Input Field - Below title, same border section */}
           <div className="mt-3">
@@ -264,8 +424,12 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
           ) : notes.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-              <p className="text-sm font-medium">אין הערות עדיין</p>
-              <p className="text-xs text-gray-400 mt-1">הוסף הערה ראשונה למעלה</p>
+              <p className="text-sm font-medium">
+                {selectedLeadId ? 'אין הערות משויכות להתעניינות זו' : 'אין הערות עדיין'}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {selectedLeadId ? 'הוסף הערה למעלה' : 'הוסף הערה ראשונה למעלה'}
+              </p>
             </div>
           ) : (
             <div className="space-y-2">

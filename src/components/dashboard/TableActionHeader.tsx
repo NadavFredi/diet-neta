@@ -16,7 +16,7 @@ import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
 import { TemplateColumnSettings } from '@/components/dashboard/TemplateColumnSettings';
 import { GenericColumnSettings } from '@/components/dashboard/GenericColumnSettings';
 import { PageHeader } from '@/components/dashboard/PageHeader';
-import { Columns, Plus, Settings, LucideIcon } from 'lucide-react';
+import { Columns, Plus, Settings, LucideIcon, Group } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import {
@@ -28,6 +28,8 @@ import {
   selectColumnOrder,
   selectSearchQuery,
   selectActiveFilters,
+  selectGroupByKey,
+  setGroupByKey,
   initializeTableState,
   type ResourceKey,
 } from '@/store/slices/tableStateSlice';
@@ -104,6 +106,7 @@ export const TableActionHeader = ({
 }: TableActionHeaderProps) => {
   const dispatch = useAppDispatch();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGroupByOpen, setIsGroupByOpen] = useState(false);
 
   // Check if state is initialized
   const isInitialized = useAppSelector((state) => !!state.tableState.tables[resourceKey]);
@@ -188,6 +191,28 @@ export const TableActionHeader = ({
 
   // Get column order from Redux
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
+  
+  // Get groupByKey from Redux
+  const groupByKey = useAppSelector((state) => selectGroupByKey(state, resourceKey));
+  
+  // Handle group by change
+  const handleGroupByChange = (key: string | null) => {
+    dispatch(setGroupByKey({ resourceKey, groupByKey: key }));
+    setIsGroupByOpen(false);
+  };
+  
+  // Get available columns for grouping (only visible columns that can be grouped)
+  const getGroupableColumns = () => {
+    if (!columns || columns.length === 0) {
+      return [];
+    }
+    // Filter out columns that shouldn't be grouped (like actions, IDs, etc.)
+    return columns.filter((col) => {
+      // Exclude certain column types from grouping
+      const excludeIds = ['id', 'actions'];
+      return !excludeIds.includes(col.id) && col.enableHiding !== false;
+    });
+  };
 
   const getColumnSettingsComponent = () => {
     // Template column settings (nutrition_templates, templates using TemplateColumnSettings)
@@ -258,6 +283,59 @@ export const TableActionHeader = ({
               </PopoverTrigger>
               <PopoverContent className="w-80" align="end" dir="rtl">
                 {getColumnSettingsComponent()}
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {/* Group By Button */}
+          {enableColumnVisibility && columns && columns.length > 0 && (
+            <Popover open={isGroupByOpen} onOpenChange={setIsGroupByOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className={cn(
+                    "gap-2 h-11",
+                    groupByKey && "bg-slate-50 border-slate-300"
+                  )}
+                >
+                  <Group className="h-4 w-4" />
+                  <span>קיבוץ לפי</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="end" dir="rtl">
+                <div className="space-y-1">
+                  <h4 className="font-semibold text-sm mb-3 px-2">קיבוץ לפי</h4>
+                  <button
+                    onClick={() => handleGroupByChange(null)}
+                    className={cn(
+                      "w-full text-right px-3 py-2 text-sm rounded-md transition-colors",
+                      !groupByKey
+                        ? "bg-slate-100 text-slate-900 font-medium"
+                        : "hover:bg-slate-50 text-slate-700"
+                    )}
+                  >
+                    ללא
+                  </button>
+                  {getGroupableColumns().map((col) => {
+                    const headerText = typeof col.header === 'string' ? col.header : col.id;
+                    const isSelected = groupByKey === col.id;
+                    return (
+                      <button
+                        key={col.id}
+                        onClick={() => handleGroupByChange(col.id)}
+                        className={cn(
+                          "w-full text-right px-3 py-2 text-sm rounded-md transition-colors",
+                          isSelected
+                            ? "bg-slate-100 text-slate-900 font-medium"
+                            : "hover:bg-slate-50 text-slate-700"
+                        )}
+                      >
+                        {headerText}
+                      </button>
+                    );
+                  })}
+                </div>
               </PopoverContent>
             </Popover>
           )}

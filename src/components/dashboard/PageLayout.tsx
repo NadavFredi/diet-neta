@@ -155,7 +155,16 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
         >
           {/* Notes Panel - Right Side (First in row = Right in RTL, next to nav) */}
           {activeSidebar === 'notes' && (
-            <ResizableNotesPanel customerId={customer?.id || null} />
+            <ResizableNotesPanel 
+              customerId={customer?.id || null} 
+              leads={sortedLeads.map(lead => ({
+                id: lead.id,
+                created_at: lead.created_at,
+                fitness_goal: lead.fitness_goal,
+                status_main: lead.status_main,
+              }))}
+              activeLeadId={activeLeadId}
+            />
           )}
 
           {/* Dashboard Body - Left Side (Second in row = Left in RTL) */}

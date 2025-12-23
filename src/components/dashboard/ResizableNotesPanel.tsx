@@ -10,8 +10,17 @@ import { CustomerNotesSidebar } from './CustomerNotesSidebar';
 import { cn } from '@/lib/utils';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 
+interface LeadOption {
+  id: string;
+  created_at: string;
+  fitness_goal?: string | null;
+  status_main?: string | null;
+}
+
 interface ResizableNotesPanelProps {
   customerId: string | null;
+  leads?: LeadOption[]; // All leads for this customer
+  activeLeadId?: string | null; // Currently selected lead from LeadHistorySidebar
 }
 
 const STORAGE_KEY = 'notesPanelWidth';
@@ -21,6 +30,8 @@ const MAX_WIDTH_PERCENT = 50; // Maximum 50% of viewport width
 
 export const ResizableNotesPanel: React.FC<ResizableNotesPanelProps> = ({
   customerId,
+  leads = [],
+  activeLeadId = null,
 }) => {
   const sidebarWidth = useSidebarWidth();
   const [width, setWidth] = useState(DEFAULT_WIDTH);
@@ -165,7 +176,11 @@ export const ResizableNotesPanel: React.FC<ResizableNotesPanelProps> = ({
 
       {/* Notes Panel Content - Scrollable, starts at top */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ minHeight: 0 }}>
-        <CustomerNotesSidebar customerId={customerId} />
+        <CustomerNotesSidebar 
+          customerId={customerId} 
+          leads={leads} 
+          activeLeadId={activeLeadId}
+        />
       </div>
     </div>
   );

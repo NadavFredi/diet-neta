@@ -6,6 +6,7 @@ import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
+import { leadColumns } from '@/components/dashboard/columns/leadColumns';
 import { useDashboardLogic } from '@/hooks/useDashboardLogic';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
@@ -112,6 +113,7 @@ const Dashboard = () => {
                 enableColumnVisibility={true}
                 enableFilters={true}
                 enableSearch={true}
+                columns={leadColumns}
                 legacySearchQuery={searchQuery}
                 legacyOnSearchChange={handleSearchChange}
                 legacyActiveFilters={activeFilters}
