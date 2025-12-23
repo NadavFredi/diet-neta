@@ -46,7 +46,7 @@ export const useNutritionPlan = (customerId?: string) => {
         .eq('customer_id', customerId)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (fetchError && fetchError.code !== 'PGRST116') {
         throw fetchError;

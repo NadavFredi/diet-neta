@@ -13,7 +13,7 @@ import {
   setSelectedSource,
   toggleColumnVisibility,
 } from '@/store/slices/dashboardSlice';
-import { logout } from '@/store/slices/authSlice';
+import { logoutUser } from '@/store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import type { ColumnKey } from '@/utils/dashboard';
@@ -87,8 +87,8 @@ export const useDashboard = () => {
     dispatch(toggleColumnVisibility(key));
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
+  const handleLogout = async () => {
+    await dispatch(logoutUser());
     navigate('/login');
   };
 

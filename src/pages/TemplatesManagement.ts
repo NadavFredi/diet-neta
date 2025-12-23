@@ -20,7 +20,7 @@ import {
 } from '@/hooks/useWorkoutTemplates';
 import { useTemplatesWithLeads } from '@/hooks/useTemplatesWithLeads';
 import { useAppDispatch } from '@/store/hooks';
-import { logout } from '@/store/slices/authSlice';
+import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
 import { TemplateColumnVisibility } from '@/components/dashboard/TemplateColumnSettings';
 
@@ -216,8 +216,8 @@ export const useTemplatesManagement = () => {
   }, [templates, searchQuery, selectedDate, selectedHasLeads, templatesWithLeadsSet, templatesWithLeadsData]);
 
   // Handlers
-  const handleLogout = () => {
-    dispatch(logout());
+  const handleLogout = async () => {
+    await dispatch(logoutUser());
     navigate('/login');
   };
 

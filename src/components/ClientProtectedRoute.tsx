@@ -1,7 +1,15 @@
 import { Navigate } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
 
-const AuthRedirect = () => {
+interface ClientProtectedRouteProps {
+  children: React.ReactNode;
+}
+
+/**
+ * Protected route for client/trainee users only
+ * Redirects to login if not authenticated, or to coach dashboard if not a trainee
+ */
+const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
   const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth);
 
   if (isLoading) {
@@ -15,35 +23,17 @@ const AuthRedirect = () => {
     );
   }
 
-  if (isAuthenticated) {
-    // Redirect based on role
-    if (user?.role === 'trainee') {
-      return <Navigate to="/client/dashboard" replace />;
-    }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role !== 'trainee') {
+    // If user is a coach/admin, redirect to coach dashboard
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <Navigate to="/login" replace />;
+  return <>{children}</>;
 };
 
-export default AuthRedirect;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+export default ClientProtectedRoute;
 

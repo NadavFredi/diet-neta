@@ -17,7 +17,7 @@ import {
   type NutritionTemplate,
 } from '@/hooks/useNutritionTemplates';
 import { useAppDispatch } from '@/store/hooks';
-import { logout } from '@/store/slices/authSlice';
+import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
 import { TemplateColumnVisibility } from '@/components/dashboard/TemplateColumnSettings';
 
@@ -112,8 +112,8 @@ export const useNutritionTemplatesManagement = () => {
   }, [templates, searchQuery, selectedDate]);
 
   // Handlers
-  const handleLogout = () => {
-    dispatch(logout());
+  const handleLogout = async () => {
+    await dispatch(logoutUser());
     navigate('/login');
   };
 

@@ -17,10 +17,12 @@ import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.t
 import CustomersManagement from "./pages/CustomersManagement.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import ClientDashboard from "./pages/client/ClientDashboard.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
 import { AppFooter } from "./components/layout/AppFooter";
 import { DevModeProvider } from "./hooks/useDevMode";
+import { AuthInitializer } from "./components/AuthInitializer";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +114,11 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
+          {/* Client/Trainee Routes */}
+          <Route
+            path="/client/dashboard"
+            element={<ClientDashboard />}
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
@@ -128,7 +135,9 @@ const App = () => (
         <Sonner />
         <DevModeProvider>
           <BrowserRouter>
-            <AppContent />
+            <AuthInitializer>
+              <AppContent />
+            </AuthInitializer>
           </BrowserRouter>
         </DevModeProvider>
       </TooltipProvider>

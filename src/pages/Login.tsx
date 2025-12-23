@@ -122,6 +122,12 @@ const Login = () => {
                       value={email}
                       onChange={(e) => handleEmailChange(e.target.value)}
                       className="h-11"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && email && password) {
+                          e.preventDefault();
+                          handleLogin();
+                        }
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -135,6 +141,12 @@ const Login = () => {
                       value={password}
                       onChange={(e) => handlePasswordChange(e.target.value)}
                       className="h-11"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && email && password) {
+                          e.preventDefault();
+                          handleLogin();
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -143,7 +155,12 @@ const Login = () => {
 
             {/* Login Button */}
             <Button
-              onClick={handleLogin}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleLogin();
+              }}
               disabled={isLoading || (loginMethod === 'email' && (!email || !password)) || (loginMethod === 'phone' && !phoneNumber)}
               className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >

@@ -11,7 +11,7 @@ import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { useCustomers, type Customer } from '@/hooks/useCustomers';
 import { useAppDispatch } from '@/store/hooks';
-import { logout } from '@/store/slices/authSlice';
+import { logoutUser } from '@/store/slices/authSlice';
 
 export const useCustomersManagement = () => {
   const navigate = useNavigate();
@@ -60,8 +60,8 @@ export const useCustomersManagement = () => {
   }, [viewId, savedView, hasAppliedView, isLoadingView]);
 
   // Handlers
-  const handleLogout = () => {
-    dispatch(logout());
+  const handleLogout = async () => {
+    await dispatch(logoutUser());
     navigate('/login');
   };
 

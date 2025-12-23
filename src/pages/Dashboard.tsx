@@ -14,6 +14,7 @@ import { useTableFilters, LEAD_FILTER_FIELDS, CUSTOMER_FILTER_FIELDS, TEMPLATE_F
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { useAppSelector } from '@/store/hooks';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -22,6 +23,24 @@ const Dashboard = () => {
   const { defaultView } = useDefaultView('leads');
   const { data: savedView } = useSavedView(viewId);
   const sidebarWidth = useSidebarWidth();
+  const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
+
+  // Safety check: Redirect trainees immediately
+  useEffect(() => {
+    console.log('[Dashboard] Auth state:', { 
+      isAuthenticated, 
+      authIsLoading, 
+      user: authUser, 
+      role: authUser?.role,
+      email: authUser?.email 
+    });
+    
+    if (authUser?.role === 'trainee') {
+      console.log('[Dashboard] Trainee detected, redirecting to /client/dashboard');
+      window.location.href = '/client/dashboard';
+      return;
+    }
+  }, [authUser, isAuthenticated, authIsLoading]);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {

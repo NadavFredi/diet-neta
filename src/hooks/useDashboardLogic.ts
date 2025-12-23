@@ -11,7 +11,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { useSavedView, type FilterConfig } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
-import { logout } from '@/store/slices/authSlice';
+import { logoutUser } from '@/store/slices/authSlice';
 import { format } from 'date-fns';
 import {
   setSearchQuery,
@@ -293,8 +293,8 @@ export const useDashboardLogic = () => {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
 
-  const handleLogout = useCallback(() => {
-    dispatch(logout());
+  const handleLogout = useCallback(async () => {
+    await dispatch(logoutUser());
     navigate('/login');
   }, [dispatch, navigate]);
 
