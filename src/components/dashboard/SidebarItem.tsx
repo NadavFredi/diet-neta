@@ -45,6 +45,7 @@ interface SidebarItemProps {
   onEditIconClick?: (interfaceKey: string, interfaceLabel: string, currentIconName?: string | null) => void;
   customIcon?: React.ComponentType<{ className?: string }>;
   isCollapsed: boolean;
+  level?: number; // Nesting level: 0 = parent, 1+ = child
 }
 
 export const SidebarItem: React.FC<SidebarItemProps> = ({
@@ -60,6 +61,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   onEditIconClick,
   customIcon,
   isCollapsed,
+  level = 0, // Default to parent level
 }) => {
   const Icon = customIcon || item.icon;
   const [lastClickTime, setLastClickTime] = useState(0);
@@ -129,18 +131,33 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     }
   };
 
+  // Determine if this is a parent (level 0) or child (level 1+)
+  const isParent = level === 0;
+  const isChild = level > 0;
+
   // Main button content
   const buttonContent = (
     <div className="group relative">
       <button
         onClick={handleResourceClick}
         className={cn(
-          'w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-300 relative',
-          'text-base font-semibold rounded-lg',
-          isMainInterfaceActive
-            ? 'text-gray-800 bg-white shadow-sm'
-            : 'text-white hover:bg-white/10',
-          isCollapsed && 'justify-center px-2'
+          'flex items-center gap-3 py-3.5 transition-all duration-300 relative',
+          'text-base font-semibold',
+          // Parent (Level 0) - Full-width rectangular
+          isParent && [
+            'w-full px-4 rounded-lg',
+            isMainInterfaceActive
+              ? 'text-gray-800 bg-white shadow-sm font-bold'
+              : 'text-white hover:bg-white/10',
+          ],
+          // Child (Level 1+) - Same rectangular style as parent but with margins (shorter width to show nesting)
+          isChild && [
+            'mx-5 px-4 rounded-lg',
+            isMainInterfaceActive
+              ? 'text-gray-800 bg-white shadow-sm font-bold'
+              : 'text-white hover:bg-white/10',
+          ],
+          isCollapsed && 'justify-center px-2 w-full mx-0'
         )}
         aria-label={item.label}
         aria-expanded={supportsViews ? isExpanded : undefined}
@@ -227,8 +244,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           <div
             key={view.id}
             className={cn(
-              'group/view-item relative flex items-center rounded-md',
-              isViewActive && 'bg-gray-100'
+              'group/view-item relative flex items-center',
+              // Child items use rounded pill with margins (nested look)
+              'mx-5'
             )}
           >
             <button
@@ -237,11 +255,13 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                 setPopoverOpen(false);
               }}
               className={cn(
-                'w-full flex items-center gap-2 px-3 py-2 text-sm transition-all duration-200',
-                'text-right rounded-md',
+                'flex items-center gap-2 px-4 py-2.5 text-sm transition-all duration-300 ease-in-out',
+                'text-right w-full',
+                // Child (Level 1+) - Same rectangular style as parent but with margins
+                'rounded-lg',
                 isViewActive
-                  ? 'text-gray-800 font-medium'
-                  : 'text-gray-700 hover:bg-gray-50'
+                  ? 'text-gray-800 bg-white shadow-sm font-bold'
+                  : 'text-gray-700 hover:bg-white/10'
               )}
             >
               <span className="flex-1 truncate">{view.view_name}</span>
@@ -346,7 +366,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       <li className="w-full group">
         {buttonContent}
         {supportsViews && isExpanded && savedViews.length > 0 && (
-          <div className="mt-1 space-y-0.5">
+          <div className="mt-1 space-y-1">
             {savedViews.map((view) => {
               // View is active if: it matches activeViewId OR it's the default view and we're on a profile route
               const isViewActive = activeViewId === view.id || 
@@ -355,49 +375,64 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
               return (
                 <div
                   key={view.id}
-                  className="group/view-item relative flex items-center"
+                  className={cn(
+                    'group/view-item relative flex items-center',
+                    // Child items use same rectangular style as parent but with margins (shorter width to show nesting)
+                    'mx-5'
+                  )}
                 >
                   <button
                     onClick={() => onViewClick(view, item.path)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200',
-                      'relative pl-20 rounded-md',
+                      'flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-300 ease-in-out',
+                      'relative w-full',
+                      // Child (Level 1+) - Same rectangular style as parent but with margins
+                      'rounded-lg',
                       isViewActive
-                        ? 'text-gray-800 bg-gray-100'
+                        ? 'text-gray-800 bg-white shadow-sm font-bold'
                         : 'text-white/80 hover:bg-white/10'
                     )}
                   >
-                    <div className="w-6 h-6 flex-shrink-0 opacity-0" aria-hidden="true" />
                     <span className="flex-1 text-right truncate">{view.view_name}</span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity flex-shrink-0">
+                      {onEditViewClick && !isDefaultView && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditViewClick(view);
+                          }}
+                          className={cn(
+                            'p-1.5 rounded-md transition-colors',
+                            isViewActive
+                              ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                              : 'text-white/60 hover:text-white hover:bg-white/20'
+                          )}
+                          title="ערוך"
+                          type="button"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      {!isDefaultView && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(e, view);
+                          }}
+                          className={cn(
+                            'p-1.5 rounded-md transition-colors',
+                            isViewActive
+                              ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
+                              : 'text-white/60 hover:text-white hover:bg-white/20'
+                          )}
+                          title="מחק"
+                          type="button"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </button>
-                  <div className="absolute left-2 flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity">
-                    {onEditViewClick && !isDefaultView && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEditViewClick(view);
-                        }}
-                        className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/20"
-                        title="ערוך"
-                        type="button"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                    )}
-                    {!isDefaultView && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(e, view);
-                        }}
-                        className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/20"
-                        title="מחק"
-                        type="button"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
                 </div>
               );
             })}
