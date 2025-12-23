@@ -4,7 +4,7 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { cn } from '@/lib/utils';
 import { useAppDispatch } from '@/store/hooks';
 import { toggleSidebar } from '@/store/slices/sidebarSlice';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft, LogOut } from 'lucide-react';
 
 interface DashboardHeaderProps {
   userEmail: string | undefined;
@@ -107,10 +107,12 @@ export const DashboardHeader = ({
               <span className="text-base font-semibold text-gray-700">{userEmail}</span>
             </div>
             <Button 
+              variant="outline"
               size="default" 
               onClick={onLogout} 
-              className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white text-base font-semibold rounded-lg px-4 py-2"
+              className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
             >
+              <LogOut className="h-4 w-4 ml-2" />
               התנתק
             </Button>
           </div>
