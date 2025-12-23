@@ -118,12 +118,12 @@ export const InlineEditableField = ({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="h-7 text-sm pr-12 pl-2"
+            className="h-7 text-sm pl-12 pr-2"
             disabled={isSaving}
             dir="rtl"
           />
           {/* Single save/cancel button group - positioned inside input field */}
-          <div className="absolute left-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 pointer-events-none">
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 pointer-events-none">
             <Button
               type="button"
               size="sm"
