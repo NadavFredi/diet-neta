@@ -6,9 +6,8 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Edit, Check, X } from 'lucide-react';
+import { Edit } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface InlineEditableFieldProps {
@@ -109,52 +108,24 @@ export const InlineEditableField = ({
 
   if (isEditing) {
     return (
-      <div className={cn('flex flex-col gap-1 py-0.5 min-w-0 text-right', className)} style={{ flex: '1 1 auto', minWidth: '100px' }}>
+      <div className={cn('flex flex-col gap-1 py-0.5 min-w-0 w-full text-right', className)}>
         <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
-        <div className="relative flex-1 min-w-0">
+        <div className="relative flex-1 min-w-0 w-full">
           <Input
             ref={inputRef}
             type={type}
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="h-7 text-sm pl-12 pr-2"
+            className={cn(
+              "w-full h-8 text-sm px-3 pr-3",
+              "border-2 border-[#5B6FB9] focus:border-[#5B6FB9] focus-visible:ring-2 focus-visible:ring-[#5B6FB9]/20",
+              "transition-all duration-200",
+              "bg-white"
+            )}
             disabled={isSaving}
             dir="rtl"
           />
-          {/* Single save/cancel button group - positioned inside input field */}
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 pointer-events-none">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleSave();
-              }}
-              disabled={isSaving}
-              className="h-5 w-5 p-0 text-white hover:text-white hover:bg-[#5B6FB9]/90 rounded transition-all flex-shrink-0 pointer-events-auto bg-[#5B6FB9] backdrop-blur-sm border border-[#5B6FB9] shadow-sm"
-              title="שמור (Enter)"
-            >
-              <Check className="h-3 w-3" strokeWidth={2.5} />
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleCancel();
-              }}
-              disabled={isSaving}
-              className="h-5 w-5 p-0 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded transition-all flex-shrink-0 pointer-events-auto bg-white/95 backdrop-blur-sm border border-gray-200/50 shadow-sm"
-              title="בטל (Escape)"
-            >
-              <X className="h-3 w-3" strokeWidth={2.5} />
-            </Button>
-          </div>
         </div>
       </div>
     );
@@ -169,19 +140,29 @@ export const InlineEditableField = ({
 
   return (
     <div
-      className={cn('flex flex-col gap-1 py-0.5 group min-w-0 text-right transition-all duration-200', className)}
+      className={cn('flex flex-col gap-1 py-0.5 group min-w-0 w-full text-right transition-all duration-200', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
-      style={{ flex: '1 1 auto', minWidth: '100px' }}
     >
       <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>{label}:</span>
-      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+      <div className="flex items-start gap-1.5 flex-1 min-w-0 w-full">
         <span 
-          className={cn('text-sm font-semibold text-slate-900 break-words cursor-pointer hover:text-blue-600 transition-colors', valueClassName)}
-          style={{ fontSize: '14px', fontWeight: 600 }}
+          className={cn(
+            'text-sm font-semibold text-slate-900 cursor-pointer hover:text-blue-600 transition-colors',
+            'w-full',
+            valueClassName
+          )}
+          style={{ 
+            fontSize: '14px', 
+            fontWeight: 600, 
+            wordBreak: 'break-word', 
+            overflowWrap: 'break-word',
+            whiteSpace: 'normal',
+            lineHeight: '1.5'
+          }}
           onClick={handleClick}
-          title={!disabled ? 'לחץ לעריכה' : undefined}
+          title={displayValue || (!disabled ? 'לחץ לעריכה' : undefined)}
         >
           {displayValue || '-'}
         </span>

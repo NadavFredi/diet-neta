@@ -5,9 +5,10 @@
  * Supports up to 2 levels with sorting controls
  */
 
-import { useState } from 'react';
-import { GripVertical, ArrowUpDown, X, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { GripVertical, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DndContext,
   closestCenter,
@@ -53,9 +54,7 @@ function SortableGroupLevel({
   level,
   columnId,
   columns,
-  sorting,
   onColumnChange,
-  onSortingChange,
   onRemove,
 }: SortableGroupLevelProps) {
   const {
@@ -115,63 +114,48 @@ function SortableGroupLevel({
       </span>
 
       {/* Column Selector */}
-      <select
-        value={columnId || ''}
-        onChange={(e) => onColumnChange(level, e.target.value || null)}
-        className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] focus:border-transparent"
-        dir="rtl"
+      <Select
+        value={columnId || undefined}
+        onValueChange={(value) => onColumnChange(level, value || null)}
       >
-        <option value="">בחר עמודה...</option>
-        {availableColumns.map((col) => {
-          const headerText = typeof col.header === 'string' ? col.header : col.id;
-          return (
-            <option key={col.id} value={col.id}>
-              {headerText}
-            </option>
-          );
-        })}
-      </select>
-
-      {/* Sorting Controls */}
-      {columnId && (
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button
-            onClick={() => {
-              const nextSort =
-                sorting === null
-                  ? 'asc'
-                  : sorting === 'asc'
-                  ? 'desc'
-                  : null;
-              onSortingChange(level, nextSort);
-            }}
-            className={cn(
-              'p-1.5 rounded hover:bg-slate-100 transition-colors',
-              sorting && 'bg-slate-100'
-            )}
-            title={
-              sorting === 'asc'
-                ? 'מיין עולה'
-                : sorting === 'desc'
-                ? 'מיין יורד'
-                : 'מיין'
-            }
-          >
-            <ArrowUpDown
-              className={cn(
-                'h-4 w-4',
-                sorting === 'asc' && 'text-[#5B6FB9]',
-                sorting === 'desc' && 'text-[#5B6FB9] rotate-180',
-                !sorting && 'text-slate-400'
-              )}
-            />
-          </button>
-        </div>
-      )}
+        <SelectTrigger 
+          className={cn(
+            "flex-1 h-8 text-sm",
+            "border-2 border-slate-300 bg-white",
+            "focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+            "transition-all duration-200",
+            "hover:border-slate-400"
+          )}
+          dir="rtl"
+        >
+          <SelectValue placeholder="בחר עמודה..." />
+        </SelectTrigger>
+        <SelectContent dir="rtl" className="max-h-[300px]">
+          {availableColumns.length > 0 ? (
+            availableColumns.map((col) => {
+              const headerText = typeof col.header === 'string' ? col.header : col.id;
+              return (
+                <SelectItem key={col.id} value={col.id} className="text-right cursor-pointer">
+                  {headerText}
+                </SelectItem>
+              );
+            })
+          ) : (
+            <SelectItem value="__no_columns__" disabled>
+              אין עמודות זמינות
+            </SelectItem>
+          )}
+        </SelectContent>
+      </Select>
 
       {/* Remove Button */}
       <button
-        onClick={() => onRemove(level)}
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onRemove(level);
+        }}
         className="flex-shrink-0 p-1.5 rounded hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
         title="הסר"
       >
@@ -191,17 +175,31 @@ export const GroupBySelector: React.FC<GroupBySelectorProps> = ({
 }) => {
   const [localKeys, setLocalKeys] = useState<[string | null, string | null]>(groupByKeys);
 
+  // Sync localKeys when groupByKeys prop changes
+  useEffect(() => {
+    setLocalKeys(groupByKeys);
+  }, [groupByKeys]);
+
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before activating drag
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
+  // Show levels: always show level 1 (even if empty), show level 2 only if level 1 has a value
   const activeLevels = [
     { id: 'level1', level: 1 as const, columnId: localKeys[0] },
-    { id: 'level2', level: 2 as const, columnId: localKeys[1] },
-  ].filter((item) => item.columnId !== null);
+  ];
+  
+  // Show level 2 if level 1 has a value (even if level 2 is empty)
+  if (localKeys[0] !== null) {
+    activeLevels.push({ id: 'level2', level: 2 as const, columnId: localKeys[1] });
+  }
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -210,9 +208,9 @@ export const GroupBySelector: React.FC<GroupBySelectorProps> = ({
       const oldIndex = activeLevels.findIndex((item) => item.id === active.id);
       const newIndex = activeLevels.findIndex((item) => item.id === over.id);
 
-      if (oldIndex !== -1 && newIndex !== -1) {
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
         const reordered = arrayMove(activeLevels, oldIndex, newIndex);
-        // Update localKeys based on new order
+        // Update localKeys based on new order - swap the column IDs
         const newKeys: [string | null, string | null] = [null, null];
         reordered.forEach((item, index) => {
           if (index < 2) {
@@ -220,6 +218,8 @@ export const GroupBySelector: React.FC<GroupBySelectorProps> = ({
           }
         });
         setLocalKeys(newKeys);
+        // Immediately update parent state so table reflects the change
+        onGroupByKeysChange(newKeys);
       }
     }
   };
@@ -242,27 +242,14 @@ export const GroupBySelector: React.FC<GroupBySelectorProps> = ({
     onGroupByKeysChange(newKeys);
   };
 
-  const handleAddLevel = () => {
-    if (!localKeys[0]) {
-      // Add level 1
-      const newKeys: [string | null, string | null] = [null, localKeys[1]];
-      setLocalKeys(newKeys);
-    } else if (!localKeys[1]) {
-      // Add level 2
-      const newKeys: [string | null, string | null] = [localKeys[0], null];
-      setLocalKeys(newKeys);
-    }
-  };
-
-  const canAddLevel = !localKeys[0] || (!localKeys[1] && localKeys[0]);
-
   return (
-    <div className="w-96" dir="rtl">
-      <div className="flex items-center justify-between mb-4">
-        <h4 className="font-semibold text-sm text-slate-900">קיבוץ לפי</h4>
+    <div className="w-96 p-4" dir="rtl">
+      <div className="flex items-center justify-between mb-4 relative">
+        <h4 className="font-semibold text-sm text-slate-900 flex-1">קיבוץ לפי</h4>
         <button
           onClick={onClose}
-          className="p-1 rounded hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+          className="p-1.5 rounded hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600 flex-shrink-0 ml-2"
+          title="סגור"
         >
           <X className="h-4 w-4" />
         </button>
@@ -286,32 +273,13 @@ export const GroupBySelector: React.FC<GroupBySelectorProps> = ({
                   level={item.level}
                   columnId={item.columnId}
                   columns={columns}
-                  sorting={
-                    item.level === 1 ? groupSorting.level1 : groupSorting.level2
-                  }
                   onColumnChange={handleColumnChange}
-                  onSortingChange={onGroupSortingChange}
                   onRemove={handleRemove}
                 />
               ))}
             </SortableContext>
           </DndContext>
-        ) : (
-          <div className="text-center py-8 text-sm text-slate-500">
-            אין קיבוץ פעיל
-          </div>
-        )}
-
-        {/* Add Level Button */}
-        {canAddLevel && (
-          <button
-            onClick={handleAddLevel}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm border border-dashed border-slate-300 rounded-lg hover:bg-slate-50 transition-colors text-slate-600"
-          >
-            <Plus className="h-4 w-4" />
-            <span>הוסף רמת קיבוץ</span>
-          </button>
-        )}
+        ) : null}
 
         {/* Remove All Button */}
         {(localKeys[0] || localKeys[1]) && (

@@ -6,9 +6,8 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Edit, Check, X, Plus } from 'lucide-react';
+import { Edit, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
@@ -143,7 +142,7 @@ export const InlineEditableSelect = ({
 
   if (isEditing) {
     return (
-      <div className={cn('flex flex-col gap-1 py-0.5 min-w-0 text-right', className)} style={{ flex: '1 1 auto', minWidth: '100px' }}>
+      <div className={cn('flex flex-col gap-1 py-0.5 min-w-0 w-full text-right', className)}>
         <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>{label}:</span>
         <div className="flex-1 min-w-0">
           {isAddingNew ? (
@@ -155,44 +154,15 @@ export const InlineEditableSelect = ({
                 onChange={(e) => setNewOptionValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="הזן ערך חדש..."
-                className="h-7 text-xs pr-9 pl-7"
+                className={cn(
+                  "h-8 text-sm px-3",
+                  "border-2 border-[#5B6FB9] focus:border-[#5B6FB9] focus-visible:ring-2 focus-visible:ring-[#5B6FB9]/20",
+                  "transition-all duration-200",
+                  "bg-white"
+                )}
                 disabled={isSaving}
                 dir="rtl"
               />
-              {/* Single save/cancel button group - positioned inside input field */}
-              <div className="absolute left-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 pointer-events-none">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSave();
-                  }}
-                  disabled={isSaving || !newOptionValue.trim()}
-                  className="h-5 w-5 p-0 text-white hover:text-white hover:bg-[#5B6FB9]/90 rounded transition-all flex-shrink-0 pointer-events-auto bg-[#5B6FB9] backdrop-blur-sm border border-[#5B6FB9] shadow-sm"
-                  title="שמור (Enter)"
-                >
-                  <Check className="h-3 w-3" strokeWidth={2.5} />
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsAddingNew(false);
-                    setNewOptionValue('');
-                  }}
-                  disabled={isSaving}
-                  className="h-5 w-5 p-0 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded transition-all flex-shrink-0 pointer-events-auto bg-white/95 backdrop-blur-sm border border-gray-200/50 shadow-sm"
-                  title="בטל (Escape)"
-                >
-                  <X className="h-3 w-3" strokeWidth={2.5} />
-                </Button>
-              </div>
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
@@ -206,12 +176,21 @@ export const InlineEditableSelect = ({
                       setTimeout(() => setEditValue(editValue), 0);
                     } else {
                       setEditValue(value);
+                      // Auto-save on selection change
+                      setTimeout(() => handleSave(), 100);
                     }
                   }}
                   disabled={isSaving || isAddingNew}
                   dir="rtl"
                 >
-                  <SelectTrigger className="h-7 text-xs pr-12 pl-2">
+                  <SelectTrigger 
+                    className={cn(
+                      "h-8 text-sm px-3",
+                      "border-2 border-[#5B6FB9] focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "transition-all duration-200",
+                      "bg-white"
+                    )}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent dir="rtl">
@@ -231,39 +210,6 @@ export const InlineEditableSelect = ({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                {/* Single save/cancel button group - positioned inside select field */}
-                <div className="absolute left-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1 pointer-events-none">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleSave();
-                    }}
-                    disabled={isSaving}
-                    className="h-5 w-5 p-0 text-white hover:text-white hover:bg-[#5B6FB9]/90 rounded transition-all flex-shrink-0 pointer-events-auto bg-[#5B6FB9] backdrop-blur-sm border border-[#5B6FB9] shadow-sm"
-                    title="שמור (Enter)"
-                  >
-                    <Check className="h-3 w-3" strokeWidth={2.5} />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleCancel();
-                    }}
-                    disabled={isSaving}
-                    className="h-5 w-5 p-0 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded transition-all flex-shrink-0 pointer-events-auto bg-white/95 backdrop-blur-sm border border-gray-200/50 shadow-sm"
-                    title="בטל (Escape)"
-                  >
-                    <X className="h-3 w-3" strokeWidth={2.5} />
-                  </Button>
-                </div>
               </div>
             </div>
           )}
@@ -274,23 +220,30 @@ export const InlineEditableSelect = ({
 
   return (
     <div
-      className={cn('flex flex-col gap-1 py-0.5 group min-w-0 text-right transition-all duration-200', className)}
+      className={cn('flex flex-col gap-1 py-0.5 group min-w-0 w-full text-right transition-all duration-200', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
-      style={{ flex: '1 1 auto', minWidth: '100px' }}
     >
       <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>{label}:</span>
-      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+      <div className="flex items-start gap-1.5 flex-1 min-w-0 w-full">
         <span 
           className={cn(
-            'inline-flex items-center px-2 py-0.5 rounded-md text-sm font-semibold border cursor-pointer hover:opacity-80 transition-opacity break-words',
+            'inline-flex items-center px-2 py-0.5 rounded-md text-sm font-semibold border cursor-pointer hover:opacity-80 transition-opacity',
+            'max-w-full',
             badgeClassName || 'bg-gray-50 text-gray-700 border-gray-200',
             valueClassName
           )}
-          style={{ fontSize: '14px', fontWeight: 600 }}
+          style={{ 
+            fontSize: '14px', 
+            fontWeight: 600,
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word',
+            whiteSpace: 'normal',
+            lineHeight: '1.5'
+          }}
           onClick={handleClick}
-          title={!disabled ? 'לחץ לעריכה' : undefined}
+          title={formatValue ? formatValue(value || '') : (value || (!disabled ? 'לחץ לעריכה' : undefined))}
         >
           {formatValue ? formatValue(value || '') : (value || '-')}
         </span>

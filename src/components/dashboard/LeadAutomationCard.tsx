@@ -221,7 +221,7 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
 
   return (
     <>
-      <Card className="p-4 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col" style={{ flex: '1 1 100%', minWidth: '100%', maxWidth: '100%' }}>
+      <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
           <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
             <Send className="h-4 w-4 text-green-600" />
@@ -229,7 +229,7 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
           <h3 className="text-sm font-bold text-gray-900">אוטומציית WhatsApp</h3>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5 flex-1">
           {FLOW_CONFIGS.map((flow) => {
             const isSending = sendingFlow[flow.key] || false;
             const hasTemplate = templates[flow.key]?.template_content?.trim() || false;
@@ -237,26 +237,34 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
             return (
               <div
                 key={flow.key}
-                className="flex items-center gap-2 p-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-2"
               >
                 <Button
                   onClick={() => handleSendFlow(flow.key)}
                   disabled={isSending || !hasTemplate}
                   className={cn(
-                    "flex-1 justify-start",
+                    "flex-1 justify-start min-h-9 h-auto",
                     "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white",
-                    "text-sm font-semibold rounded-lg px-4 py-2 h-auto"
+                    "text-xs font-semibold rounded-lg px-3 py-1.5",
+                    !hasTemplate && "opacity-50 cursor-not-allowed"
                   )}
+                  style={{
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                    whiteSpace: 'normal',
+                    lineHeight: '1.5'
+                  }}
+                  title={!hasTemplate ? 'נדרש להגדיר תבנית תחילה' : flow.label}
                 >
                   {isSending ? (
                     <>
-                      <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                      שולח...
+                      <Loader2 className="h-3.5 w-3.5 ml-1.5 animate-spin flex-shrink-0" />
+                      <span>שולח...</span>
                     </>
                   ) : (
                     <>
-                      <Send className="h-4 w-4 ml-2" />
-                      {flow.label}
+                      <Send className="h-3.5 w-3.5 ml-1.5 flex-shrink-0" />
+                      <span className="text-right leading-tight">{flow.label}</span>
                     </>
                   )}
                 </Button>
@@ -265,10 +273,10 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
                   variant="outline"
                   size="icon"
                   onClick={() => setEditingFlowKey(flow.key)}
-                  className="h-10 w-10 flex-shrink-0 border-gray-300 hover:bg-gray-200"
+                  className="h-9 w-9 flex-shrink-0 border-gray-300 hover:bg-gray-200 hover:border-gray-400"
                   title="ערוך תבנית"
                 >
-                  <Settings className="h-4 w-4 text-gray-600" />
+                  <Settings className="h-3.5 w-3.5 text-gray-600" />
                 </Button>
               </div>
             );

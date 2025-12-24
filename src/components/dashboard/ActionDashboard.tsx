@@ -139,21 +139,99 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden w-full" dir="rtl">
-      <div className="p-3 space-y-3 w-full min-w-0 text-right" style={{ padding: 'clamp(12px, 1.5vw, 16px)' }}>
-        {/* Bento Layout - Flex-wrap for automatic wrapping */}
-        <div className="flex flex-wrap gap-3 items-stretch">
-          {/* Card 1: Status & CRM Info */}
-          <Card className="p-4 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col h-full" style={{ flex: '1 1 350px', minWidth: '280px', maxWidth: '100%' }}>
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100 flex-shrink-0">
+      <div className="p-6 w-full min-w-0 text-right">
+        {/* Row 1: 3-Column Grid - Subscription, CRM Status, Personal Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6" style={{ gridAutoRows: 'min-content' }}>
+          {/* Card 1: Subscription Details */}
+          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                <Wallet className="h-4 w-4 text-green-600" />
+              </div>
+              <h3 className="text-sm font-bold text-gray-900">פרטי מנוי</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+              <InlineEditableField
+                label="תאריך הצטרפות"
+                value={activeLead.join_date || ''}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ join_date: String(newValue) });
+                }}
+                type="date"
+                formatValue={(val) => formatDate(String(val))}
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-slate-900"
+              />
+              <InlineEditableField
+                label="שבוע נוכחי"
+                value={subscriptionData.currentWeekInProgram || 0}
+                onSave={async (newValue) => {
+                  const updatedSubscription = {
+                    ...subscriptionData,
+                    currentWeekInProgram: Number(newValue),
+                  };
+                  await onUpdateLead({ subscription_data: updatedSubscription });
+                }}
+                type="number"
+                formatValue={(val) => String(val)}
+                className="border-0 p-0"
+                valueClassName="text-base font-bold text-blue-900"
+              />
+              <InlineEditableField
+                label="חבילה ראשונית"
+                value={subscriptionData.months || 0}
+                onSave={async (newValue) => {
+                  const updatedSubscription = {
+                    ...subscriptionData,
+                    months: Number(newValue),
+                  };
+                  await onUpdateLead({ subscription_data: updatedSubscription });
+                }}
+                type="number"
+                formatValue={(val) => `${val} חודשים`}
+                className="border-0 p-0"
+              />
+              <InlineEditableField
+                label="מחיר ראשוני"
+                value={subscriptionData.initialPrice || 0}
+                onSave={async (newValue) => {
+                  const updatedSubscription = {
+                    ...subscriptionData,
+                    initialPrice: Number(newValue),
+                  };
+                  await onUpdateLead({ subscription_data: updatedSubscription });
+                }}
+                type="number"
+                formatValue={(val) => `₪${val}`}
+                className="border-0 p-0"
+              />
+              <InlineEditableField
+                label="מחיר חידוש חודשי"
+                value={subscriptionData.renewalPrice || 0}
+                onSave={async (newValue) => {
+                  const updatedSubscription = {
+                    ...subscriptionData,
+                    renewalPrice: Number(newValue),
+                  };
+                  await onUpdateLead({ subscription_data: updatedSubscription });
+                }}
+                type="number"
+                formatValue={(val) => `₪${val}`}
+                className="border-0 p-0"
+              />
+            </div>
+          </Card>
+
+          {/* Card 2: CRM Status & Info */}
+          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
                 <Target className="h-4 w-4 text-indigo-600" />
               </div>
               <h3 className="text-sm font-bold text-gray-900">סטטוס ומידע CRM</h3>
             </div>
-            <div className="flex flex-wrap gap-4 flex-1" style={{ gap: '12px 16px' }}>
-              {/* Status - Editable with custom values */}
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableSelect
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+              <InlineEditableSelect
                 label="סטטוס"
                 value={displayStatus}
                 options={[
@@ -161,7 +239,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                   ...(STATUS_CATEGORIES.flatMap(cat => cat.subStatuses?.map(sub => sub.label) || [])),
                 ]}
                 onSave={async (newValue) => {
-                  // Find if it's a main status or sub-status
                   const mainCategory = STATUS_CATEGORIES.find(cat => cat.label === newValue);
                   const subCategory = STATUS_CATEGORIES.find(cat => 
                     cat.subStatuses?.some(sub => sub.label === newValue)
@@ -179,7 +256,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                       status_sub: subStatus?.label || newValue 
                     });
                   } else {
-                    // Custom status - store as main status
                     await onUpdateLead({ 
                       status_main: newValue,
                       status_sub: null 
@@ -189,348 +265,213 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 badgeClassName={getStatusColor(displayStatus)}
                 className="border-0 p-0"
               />
-              </div>
-
-              {/* Source - Editable with custom values */}
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableSelect
-                  label="מקור"
-                  value={activeLead.source || ''}
-                  options={[...SOURCE_OPTIONS]}
-                  onSave={async (newValue) => {
-                    await onUpdateLead({ source: newValue });
-                  }}
-                  badgeClassName={getFitnessBadgeColor('source')}
-                  className="border-0 p-0"
-                />
-              </div>
-
-              {/* Fitness Goal - Editable with custom values */}
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableSelect
-                  label="מטרת כושר"
-                  value={activeLead.fitness_goal || ''}
-                  options={[...FITNESS_GOAL_OPTIONS]}
-                  onSave={async (newValue) => {
-                    await onUpdateLead({ fitness_goal: newValue });
-                  }}
-                  badgeClassName={getFitnessBadgeColor('fitness_goal')}
-                  className="border-0 p-0"
-                />
-              </div>
-              {/* City */}
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableField
-                  label="עיר"
-                  value={activeLead.city || ''}
-                  onSave={async (newValue) => {
-                    await onUpdateLead({ city: String(newValue) });
-                  }}
-                  type="text"
-                  className="border-0 p-0"
-                />
-              </div>
-
-              {/* Gender */}
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableSelect
-                  label="מגדר"
-                  value={activeLead.gender || ''}
-                  options={['male', 'female', 'other']}
-                  onSave={async (newValue) => {
-                    await onUpdateLead({ gender: newValue });
-                  }}
-                  formatValue={(val) => {
-                    if (val === 'male') return 'זכר';
-                    if (val === 'female') return 'נקבה';
-                    if (val === 'other') return 'אחר';
-                    return val;
-                  }}
-                  badgeClassName="bg-gray-50 text-gray-700 border-gray-200"
-                  className="border-0 p-0"
-                />
-              </div>
-
-              {/* Created Date - Editable */}
+              <InlineEditableSelect
+                label="מקור"
+                value={activeLead.source || ''}
+                options={[...SOURCE_OPTIONS]}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ source: newValue });
+                }}
+                badgeClassName={getFitnessBadgeColor('source')}
+                className="border-0 p-0"
+              />
+              <InlineEditableSelect
+                label="מטרת כושר"
+                value={activeLead.fitness_goal || ''}
+                options={[...FITNESS_GOAL_OPTIONS]}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ fitness_goal: newValue });
+                }}
+                badgeClassName={getFitnessBadgeColor('fitness_goal')}
+                className="border-0 p-0"
+              />
+              <InlineEditableField
+                label="עיר"
+                value={activeLead.city || ''}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ city: String(newValue) });
+                }}
+                type="text"
+                className="border-0 p-0"
+              />
+              <InlineEditableSelect
+                label="מגדר"
+                value={activeLead.gender || ''}
+                options={['male', 'female', 'other']}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ gender: newValue });
+                }}
+                formatValue={(val) => {
+                  if (val === 'male') return 'זכר';
+                  if (val === 'female') return 'נקבה';
+                  if (val === 'other') return 'אחר';
+                  return val;
+                }}
+                badgeClassName="bg-gray-50 text-gray-700 border-gray-200"
+                className="border-0 p-0"
+              />
               {onUpdateLead && (
-                <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
-                  <InlineEditableField
-                    label="תאריך יצירה"
-                    value={activeLead.created_at || ''}
-                    onSave={async (newValue) => {
-                      if (activeLead.id) {
-                        await onUpdateLead({ created_at: String(newValue) });
-                      }
-                    }}
-                    type="date"
-                    formatValue={(val) => formatDate(String(val))}
-                    className="border-0 p-0"
-                    valueClassName="text-sm font-semibold text-slate-900 whitespace-nowrap"
-                  />
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Card 2: Subscription Details */}
-          <Card className="p-4 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col h-full" style={{ flex: '1 1 350px', minWidth: '280px', maxWidth: '100%' }}>
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100 flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                <Wallet className="h-4 w-4 text-green-600" />
-              </div>
-              <h3 className="text-sm font-bold text-gray-900">פרטי מנוי</h3>
-            </div>
-            <div className="flex flex-wrap flex-1" style={{ gap: '12px 16px' }}>
-              <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
                 <InlineEditableField
-                  label="תאריך הצטרפות"
-                  value={activeLead.join_date || ''}
+                  label="תאריך יצירה"
+                  value={activeLead.created_at || ''}
                   onSave={async (newValue) => {
-                    await onUpdateLead({ join_date: String(newValue) });
+                    if (activeLead.id) {
+                      await onUpdateLead({ created_at: String(newValue) });
+                    }
                   }}
                   type="date"
                   formatValue={(val) => formatDate(String(val))}
                   className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-slate-900 whitespace-nowrap"
+                  valueClassName="text-sm font-semibold text-slate-900"
                 />
-              </div>
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableField
-                  label="שבוע נוכחי"
-                  value={subscriptionData.currentWeekInProgram || 0}
-                  onSave={async (newValue) => {
-                    const updatedSubscription = {
-                      ...subscriptionData,
-                      currentWeekInProgram: Number(newValue),
-                    };
-                    await onUpdateLead({ subscription_data: updatedSubscription });
-                  }}
-                  type="number"
-                  formatValue={(val) => String(val)}
-                  className="border-0 p-0"
-                  valueClassName="text-base font-bold text-blue-900"
-                />
-              </div>
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableField
-                  label="חבילה ראשונית"
-                  value={subscriptionData.months || 0}
-                  onSave={async (newValue) => {
-                    const updatedSubscription = {
-                      ...subscriptionData,
-                      months: Number(newValue),
-                    };
-                    await onUpdateLead({ subscription_data: updatedSubscription });
-                  }}
-                  type="number"
-                  formatValue={(val) => `${val} חודשים`}
-                  className="border-0 p-0"
-                />
-              </div>
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableField
-                  label="מחיר ראשוני"
-                  value={subscriptionData.initialPrice || 0}
-                  onSave={async (newValue) => {
-                    const updatedSubscription = {
-                      ...subscriptionData,
-                      initialPrice: Number(newValue),
-                    };
-                    await onUpdateLead({ subscription_data: updatedSubscription });
-                  }}
-                  type="number"
-                  formatValue={(val) => `₪${val}`}
-                  className="border-0 p-0"
-                />
-              </div>
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableField
-                  label="מחיר חידוש חודשי"
-                  value={subscriptionData.renewalPrice || 0}
-                  onSave={async (newValue) => {
-                    const updatedSubscription = {
-                      ...subscriptionData,
-                      renewalPrice: Number(newValue),
-                    };
-                    await onUpdateLead({ subscription_data: updatedSubscription });
-                  }}
-                  type="number"
-                  formatValue={(val) => `₪${val}`}
-                  className="border-0 p-0"
-                />
-              </div>
-              {/* Additional subscription fields can go here if needed */}
+              )}
             </div>
           </Card>
 
-        </div>
-
-        {/* Stats/KPIs Row - Flex-wrap for automatic wrapping */}
-        <div className="flex flex-wrap gap-3 items-stretch">
-          {/* Daily Protocol Card */}
-          <Card className="p-4 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100 flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                <Activity className="h-4 w-4 text-purple-600" />
-              </div>
-              <h3 className="text-sm font-bold text-gray-900">פרוטוקול יומי</h3>
-            </div>
-            <div className="flex flex-wrap flex-1" style={{ gap: '12px 16px' }}>
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableField
-                  label="אימונים/שבוע"
-                  value={activeLead.daily_protocol?.workoutGoal || 0}
-                  onSave={async (newValue) => {
-                    const updatedProtocol = {
-                      ...(activeLead.daily_protocol || {}),
-                      workoutGoal: Number(newValue),
-                    };
-                    await onUpdateLead({ daily_protocol: updatedProtocol });
-                  }}
-                  type="number"
-                  formatValue={(val) => val === 0 ? '-' : String(val)}
-                  className="border-0 p-0"
-                />
-              </div>
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableField
-                  label="יעד צעדים"
-                  value={activeLead.daily_protocol?.stepsGoal || 0}
-                  onSave={async (newValue) => {
-                    const updatedProtocol = {
-                      ...(activeLead.daily_protocol || {}),
-                      stepsGoal: Number(newValue),
-                    };
-                    await onUpdateLead({ daily_protocol: updatedProtocol });
-                  }}
-                  type="number"
-                  formatValue={(val) => val === 0 ? '-' : `${val}`}
-                  className="border-0 p-0"
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Personal Info Card - New Card with Age, Height, Weight, BMI */}
-          <Card className="p-4 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col" style={{ flex: '1 1 250px', minWidth: '240px', maxWidth: '100%' }}>
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100 flex-shrink-0">
+          {/* Card 3: Personal Details */}
+          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
                 <Target className="h-4 w-4 text-cyan-600" />
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרטים אישיים</h3>
             </div>
-            <div className="flex flex-wrap flex-1" style={{ gap: '12px 16px' }}>
-              {/* Age */}
-              <div className="flex flex-col gap-1 py-0.5 min-w-0 text-right transition-all duration-200" style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <span className="text-xs text-gray-500 font-medium" style={{ fontSize: '12px', fontWeight: 500 }}>גיל:</span>
-                <span className="text-sm font-semibold text-slate-900 whitespace-nowrap" style={{ fontSize: '14px', fontWeight: 600 }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-500 font-medium">גיל:</span>
+                <span className="text-sm font-semibold text-slate-900">
                   {age !== null ? `${age} שנים` : '-'}
                 </span>
               </div>
-
-              {/* Height */}
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableField
-                  label="גובה"
-                  value={activeLead.height || 0}
-                  onSave={async (newValue) => {
-                    await onUpdateLead({ height: Number(newValue) });
-                  }}
-                  type="number"
-                  formatValue={(val) => val === 0 ? '-' : `${val} ס"מ`}
-                  className="border-0 p-0"
-                />
-              </div>
-
-              {/* Weight */}
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableField
-                  label="משקל"
-                  value={activeLead.weight || 0}
-                  onSave={async (newValue) => {
-                    await onUpdateLead({ weight: Number(newValue) });
-                  }}
-                  type="number"
-                  formatValue={(val) => val === 0 ? '-' : `${val} ק"ג`}
-                  className="border-0 p-0"
-                />
-              </div>
-
-              {/* BMI */}
-              <div className="flex flex-col gap-1 py-0.5 min-w-0 text-right transition-all duration-200" style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <span className="text-xs text-gray-500 font-medium" style={{ fontSize: '12px', fontWeight: 500 }}>BMI:</span>
-                <span className="text-sm font-semibold text-gray-900 whitespace-nowrap" style={{ fontSize: '14px', fontWeight: 600 }}>
+              <InlineEditableField
+                label="גובה"
+                value={activeLead.height || 0}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ height: Number(newValue) });
+                }}
+                type="number"
+                formatValue={(val) => val === 0 ? '-' : `${val} ס"מ`}
+                className="border-0 p-0"
+              />
+              <InlineEditableField
+                label="משקל"
+                value={activeLead.weight || 0}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ weight: Number(newValue) });
+                }}
+                type="number"
+                formatValue={(val) => val === 0 ? '-' : `${val} ק"ג`}
+                className="border-0 p-0"
+              />
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-500 font-medium">BMI:</span>
+                <span className="text-sm font-semibold text-gray-900">
                   {bmi !== null ? bmi : '-'}
                 </span>
               </div>
-
-              {/* Birth Date - Special handling for date field */}
-              <div style={{ flex: '1 1 140px', minWidth: '120px' }}>
-                <InlineEditableField
-                  label="תאריך לידה"
-                  value={activeLead.birth_date || ''}
-                  onSave={async (newValue) => {
-                    await onUpdateLead({ birth_date: String(newValue) });
-                  }}
-                  type="date"
-                  formatValue={(val) => val ? formatDate(String(val)) : '-'}
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-slate-900 whitespace-nowrap"
-                />
-              </div>
-
-              {/* Target Weight (if available) */}
-              <div className="flex flex-col gap-1 py-0.5 min-w-0 text-right transition-all duration-200" style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <span className="text-xs text-gray-500 font-medium" style={{ fontSize: '12px', fontWeight: 500 }}>משקל יעד:</span>
-                <span className="text-sm font-semibold text-slate-900 whitespace-nowrap" style={{ fontSize: '14px', fontWeight: 600 }}>
-                  {activeLead.target_weight ? `${activeLead.target_weight} ק"ג` : '-'}
-                </span>
-              </div>
+              <InlineEditableField
+                label="תאריך לידה"
+                value={activeLead.birth_date || ''}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ birth_date: String(newValue) });
+                }}
+                type="date"
+                formatValue={(val) => val ? formatDate(String(val)) : '-'}
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-slate-900"
+              />
+              {activeLead.target_weight && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-gray-500 font-medium">משקל יעד:</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {activeLead.target_weight} ק"ג
+                  </span>
+                </div>
+              )}
             </div>
           </Card>
+        </div>
 
-          {/* Fitness Info Card */}
-          <Card className="p-4 border border-slate-100 rounded-lg shadow-sm bg-white flex flex-col" style={{ flex: '1 1 250px', minWidth: '240px', maxWidth: '100%' }}>
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100 flex-shrink-0">
+        {/* Row 2: 3-Column Grid - Fitness Info, Daily Protocol, WhatsApp Automation */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6" style={{ gridAutoRows: 'min-content' }}>
+          {/* Card 4: Fitness Info */}
+          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
               <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center">
-                <Target className="h-4 w-4 text-pink-600" />
+                <Activity className="h-4 w-4 text-pink-600" />
               </div>
               <h3 className="text-sm font-bold text-gray-900">מידע כושר</h3>
             </div>
-            <div className="flex flex-wrap flex-1" style={{ gap: '12px 16px' }}>
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableSelect
-                  label="רמת פעילות"
-                  value={activeLead.activity_level || ''}
-                  options={[...ACTIVITY_LEVEL_OPTIONS]}
-                  onSave={async (newValue) => {
-                    await onUpdateLead({ activity_level: newValue });
-                  }}
-                  badgeClassName={getFitnessBadgeColor('activity_level')}
-                  className="border-0 p-0"
-                />
-              </div>
-              <div style={{ flex: '1 1 120px', minWidth: '100px' }}>
-                <InlineEditableSelect
-                  label="זמן מועדף"
-                  value={activeLead.preferred_time || ''}
-                  options={[...PREFERRED_TIME_OPTIONS]}
-                  onSave={async (newValue) => {
-                    await onUpdateLead({ preferred_time: newValue });
-                  }}
-                  badgeClassName={getFitnessBadgeColor('preferred_time')}
-                  className="border-0 p-0"
-                />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+              <InlineEditableSelect
+                label="רמת פעילות"
+                value={activeLead.activity_level || ''}
+                options={[...ACTIVITY_LEVEL_OPTIONS]}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ activity_level: newValue });
+                }}
+                badgeClassName={getFitnessBadgeColor('activity_level')}
+                className="border-0 p-0"
+              />
+              <InlineEditableSelect
+                label="זמן מועדף"
+                value={activeLead.preferred_time || ''}
+                options={[...PREFERRED_TIME_OPTIONS]}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ preferred_time: newValue });
+                }}
+                badgeClassName={getFitnessBadgeColor('preferred_time')}
+                className="border-0 p-0"
+              />
             </div>
           </Card>
 
-          {/* WhatsApp Automation Card - Full Width */}
+          {/* Card 5: Daily Protocol */}
+          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-purple-600" />
+              </div>
+              <h3 className="text-sm font-bold text-gray-900">פרוטוקול יומי</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+              <InlineEditableField
+                label="אימונים/שבוע"
+                value={activeLead.daily_protocol?.workoutGoal || 0}
+                onSave={async (newValue) => {
+                  const updatedProtocol = {
+                    ...(activeLead.daily_protocol || {}),
+                    workoutGoal: Number(newValue),
+                  };
+                  await onUpdateLead({ daily_protocol: updatedProtocol });
+                }}
+                type="number"
+                formatValue={(val) => val === 0 ? '-' : String(val)}
+                className="border-0 p-0"
+              />
+              <InlineEditableField
+                label="יעד צעדים"
+                value={activeLead.daily_protocol?.stepsGoal || 0}
+                onSave={async (newValue) => {
+                  const updatedProtocol = {
+                    ...(activeLead.daily_protocol || {}),
+                    stepsGoal: Number(newValue),
+                  };
+                  await onUpdateLead({ daily_protocol: updatedProtocol });
+                }}
+                type="number"
+                formatValue={(val) => val === 0 ? '-' : `${val}`}
+                className="border-0 p-0"
+              />
+            </div>
+          </Card>
+
+          {/* Card 6: WhatsApp Automation - Compact Version */}
           <LeadAutomationCard
             customer={customer}
             lead={activeLead}
-            workoutPlanName={null} // Can be enhanced later to fetch from hooks
-            nutritionPlanName={null} // Can be enhanced later to fetch from hooks
+            workoutPlanName={null}
+            nutritionPlanName={null}
           />
         </div>
 

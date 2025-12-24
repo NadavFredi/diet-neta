@@ -332,7 +332,7 @@ export const TableActionHeader = ({
                   <span>קיבוץ לפי</span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="p-0" align="end" dir="rtl">
+              <PopoverContent className="p-0 w-auto" align="end" dir="rtl">
                 <GroupBySelector
                   columns={columns}
                   groupByKeys={groupByKeys}

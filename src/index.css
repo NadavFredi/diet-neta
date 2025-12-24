@@ -174,3 +174,42 @@
     scrollbar-color: #CBD5E1 transparent;
   }
 }
+
+/* Quill Editor RTL Support & Styling */
+.quill-editor-rtl .ql-container {
+  direction: rtl;
+  font-family: 'Heebo', system-ui, -apple-system, sans-serif;
+}
+
+.quill-editor-rtl .ql-editor {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Heebo', system-ui, -apple-system, sans-serif;
+}
+
+.quill-editor-rtl .ql-editor.ql-blank::before {
+  right: 15px;
+  left: auto;
+  font-style: normal;
+  color: #9ca3af;
+}
+
+/* Ensure Quill editor border is perfect */
+.quill-editor-rtl .ql-container {
+  border: none !important;
+}
+
+.quill-editor-rtl .ql-toolbar {
+  border: none !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* Focus state for Quill editor container */
+.quill-editor-rtl:focus-within .ql-container {
+  outline: none;
+}
+
+/* RTL support for Quill toolbar buttons */
+.quill-editor-rtl #toolbar {
+  direction: rtl;
+}
