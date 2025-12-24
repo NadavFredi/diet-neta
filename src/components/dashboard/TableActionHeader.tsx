@@ -29,12 +29,18 @@ import {
   selectSearchQuery,
   selectActiveFilters,
   selectGroupByKey,
+  selectGroupByKeys,
+  selectGroupSorting,
   setGroupByKey,
+  setGroupByKeys,
+  setGroupSorting,
   initializeTableState,
   type ResourceKey,
 } from '@/store/slices/tableStateSlice';
+import { GroupBadge } from './GroupBadge';
+import { GroupBySelector } from './GroupBySelector';
 import type { DataTableColumn } from '@/components/ui/DataTable';
-import type { FilterField } from '@/hooks/useTableFilters';
+import type { FilterField } from '@/components/dashboard/TableFilter';
 import { cn } from '@/lib/utils';
 
 interface TableActionHeaderProps {
@@ -192,14 +198,37 @@ export const TableActionHeader = ({
   // Get column order from Redux
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
   
-  // Get groupByKey from Redux
+  // Get groupByKey from Redux (legacy)
   const groupByKey = useAppSelector((state) => selectGroupByKey(state, resourceKey));
   
-  // Handle group by change
+  // Get multi-level grouping from Redux
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, resourceKey));
+  const groupSorting = useAppSelector((state) => selectGroupSorting(state, resourceKey));
+  
+  // Handle group by change (legacy - for backward compatibility)
   const handleGroupByChange = (key: string | null) => {
     dispatch(setGroupByKey({ resourceKey, groupByKey: key }));
     setIsGroupByOpen(false);
   };
+
+  // Handle multi-level group by change
+  const handleGroupByKeysChange = (keys: [string | null, string | null]) => {
+    dispatch(setGroupByKeys({ resourceKey, groupByKeys: keys }));
+  };
+
+  // Handle group sorting change
+  const handleGroupSortingChange = (level: 1 | 2, direction: 'asc' | 'desc' | null) => {
+    dispatch(setGroupSorting({ resourceKey, level, direction }));
+  };
+
+  // Build column headers map for GroupBadge
+  const columnHeadersMap: Record<string, string> = {};
+  if (columns) {
+    columns.forEach((col) => {
+      const headerText = typeof col.header === 'string' ? col.header : col.id;
+      columnHeadersMap[col.id] = headerText;
+    });
+  }
   
   // Get available columns for grouping (only visible columns that can be grouped)
   const getGroupableColumns = () => {
@@ -296,46 +325,22 @@ export const TableActionHeader = ({
                   size="sm" 
                   className={cn(
                     "gap-2 h-11",
-                    groupByKey && "bg-slate-50 border-slate-300"
+                    (groupByKeys[0] || groupByKeys[1]) && "bg-slate-50 border-slate-300"
                   )}
                 >
                   <Group className="h-4 w-4" />
                   <span>קיבוץ לפי</span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64" align="end" dir="rtl">
-                <div className="space-y-1">
-                  <h4 className="font-semibold text-sm mb-3 px-2">קיבוץ לפי</h4>
-                  <button
-                    onClick={() => handleGroupByChange(null)}
-                    className={cn(
-                      "w-full text-right px-3 py-2 text-sm rounded-md transition-colors",
-                      !groupByKey
-                        ? "bg-slate-100 text-slate-900 font-medium"
-                        : "hover:bg-slate-50 text-slate-700"
-                    )}
-                  >
-                    ללא
-                  </button>
-                  {getGroupableColumns().map((col) => {
-                    const headerText = typeof col.header === 'string' ? col.header : col.id;
-                    const isSelected = groupByKey === col.id;
-                    return (
-                      <button
-                        key={col.id}
-                        onClick={() => handleGroupByChange(col.id)}
-                        className={cn(
-                          "w-full text-right px-3 py-2 text-sm rounded-md transition-colors",
-                          isSelected
-                            ? "bg-slate-100 text-slate-900 font-medium"
-                            : "hover:bg-slate-50 text-slate-700"
-                        )}
-                      >
-                        {headerText}
-                      </button>
-                    );
-                  })}
-                </div>
+              <PopoverContent className="p-0" align="end" dir="rtl">
+                <GroupBySelector
+                  columns={columns}
+                  groupByKeys={groupByKeys}
+                  groupSorting={groupSorting}
+                  onGroupByKeysChange={handleGroupByKeysChange}
+                  onGroupSortingChange={handleGroupSortingChange}
+                  onClose={() => setIsGroupByOpen(false)}
+                />
               </PopoverContent>
             </Popover>
           )}
@@ -379,6 +384,18 @@ export const TableActionHeader = ({
       }
       filters={
         <div className="space-y-3">
+          {/* Group Badge */}
+          {(groupByKeys[0] || groupByKeys[1]) && (
+            <GroupBadge
+              groupByKeys={groupByKeys}
+              columnHeaders={columnHeadersMap}
+              onEdit={() => setIsGroupByOpen(true)}
+              onRemove={() => {
+                dispatch(setGroupByKeys({ resourceKey, groupByKeys: [null, null] }));
+              }}
+            />
+          )}
+
           {/* Active Filter Chips */}
           {enableFilters && activeFilters && activeFilters.length > 0 && (
             <FilterChips

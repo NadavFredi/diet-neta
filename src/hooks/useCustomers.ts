@@ -7,6 +7,7 @@ export interface Customer {
   full_name: string;
   phone: string;
   email: string | null;
+  user_id?: string | null; // Link to auth.users for trainee access
   created_at: string;
   updated_at: string;
   total_leads?: number; // Aggregated count

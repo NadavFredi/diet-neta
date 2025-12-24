@@ -128,9 +128,9 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
     <div className="w-full bg-white border-b border-slate-100 flex-shrink-0" dir="rtl">
       {/* Primary Row - Always Visible */}
       <div className="px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
-          {/* Left Side (RTL): Name, Contact Info, and Toggle */}
-          <div className="flex-1 flex items-center gap-4 flex-wrap min-w-0">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          {/* Left Side (RTL): Back Button, Name, Phone, Email */}
+          <div className="flex items-center gap-4 flex-wrap min-w-0">
             {/* Return Button */}
             <Button
               onClick={onBack}
@@ -142,38 +142,30 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
               חזור
             </Button>
 
-            {/* Name - Page Title Section */}
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <h1 className="text-base font-bold text-gray-900">{customer.full_name}</h1>
-              
-              {/* Vertical Separator - Clear division like WhatsApp */}
-              <div className="h-6 w-px bg-gray-300" />
-            </div>
+            {/* Name - Page Title */}
+            <h1 className="text-base font-bold text-gray-900 flex-shrink-0">{customer.full_name}</h1>
 
-            {/* Primary Contact Info - Phone & Email */}
-            <div className="flex items-center gap-4 flex-wrap">
-              {/* Phone - Customer Level */}
-              {onUpdateCustomer && customer && customer.phone && (
-                <div className="flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                  <span className="text-sm font-semibold text-gray-900 font-mono">
-                    {customer.phone}
-                  </span>
-                </div>
-              )}
+            {/* Phone - On same line */}
+            {onUpdateCustomer && customer && customer.phone && (
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <Phone className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                <span className="text-sm font-semibold text-gray-900 font-mono">
+                  {customer.phone}
+                </span>
+              </div>
+            )}
 
-              {/* Email - Customer Level */}
-              {onUpdateCustomer && customer && customer.email && (
-                <div className="flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                  <span className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
-                    {customer.email}
-                  </span>
-                </div>
-              )}
-            </div>
+            {/* Email - On same line (optional, can be hidden on smaller screens) */}
+            {onUpdateCustomer && customer && customer.email && (
+              <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
+                <Mail className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                <span className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
+                  {customer.email}
+                </span>
+              </div>
+            )}
 
-            {/* Toggle Button */}
+            {/* Toggle Button for Additional Details */}
             <Button
               onClick={() => setIsExpanded(!isExpanded)}
               variant="ghost"
@@ -224,11 +216,11 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     customerEmail={customer.email || null}
                     customerName={customer.full_name || null}
                   />
-                  {/* View as Client Button - Only if user exists */}
-                  {customerInvitation?.user_id && (
+                  {/* View as Client Button - Check customer for user_id or invitation */}
+                  {(customer?.user_id || customerInvitation?.user_id) && (
                     <ViewAsClientButton
                       customerId={customer.id}
-                      userId={customerInvitation.user_id}
+                      userId={customer.user_id || customerInvitation?.user_id || null}
                     />
                   )}
                   {/* Vertical Divider */}

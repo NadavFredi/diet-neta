@@ -8,8 +8,13 @@ export interface TableState {
   columnOrder: string[];
   searchQuery: string;
   activeFilters: any[]; // ActiveFilter[] type from TableFilter
-  groupByKey: string | null; // Column key to group by (null = no grouping)
-  collapsedGroups: string[]; // Array of collapsed group keys
+  groupByKey: string | null; // Legacy: Column key to group by (null = no grouping) - DEPRECATED
+  groupByKeys: [string | null, string | null]; // Multi-level grouping: [Level 1, Level 2] (max 2 levels)
+  groupSorting: {
+    level1: 'asc' | 'desc' | null;
+    level2: 'asc' | 'desc' | null;
+  };
+  collapsedGroups: string[]; // Array of collapsed group keys (supports composite keys for multi-level)
 }
 
 interface TableStateMap {
@@ -54,7 +59,12 @@ const tableStateSlice = createSlice({
           columnOrder: initialOrder || columnIds,
           searchQuery: '',
           activeFilters: [],
-          groupByKey: null,
+          groupByKey: null, // Legacy
+          groupByKeys: [null, null], // Multi-level grouping
+          groupSorting: {
+            level1: null,
+            level2: null,
+          },
           collapsedGroups: [],
         };
       }
@@ -214,7 +224,7 @@ const tableStateSlice = createSlice({
       state.tables[resourceKey].activeFilters = [];
     },
 
-    // Set group by key
+    // Set group by key (legacy - for backward compatibility)
     setGroupByKey: (
       state,
       action: PayloadAction<{
@@ -227,8 +237,46 @@ const tableStateSlice = createSlice({
         return;
       }
       state.tables[resourceKey].groupByKey = groupByKey;
+      // Also update multi-level grouping (set as Level 1, clear Level 2)
+      state.tables[resourceKey].groupByKeys = [groupByKey, null];
       // Reset collapsed groups when changing group by
       state.tables[resourceKey].collapsedGroups = [];
+    },
+
+    // Set multi-level group by keys
+    setGroupByKeys: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        groupByKeys: [string | null, string | null];
+      }>
+    ) => {
+      const { resourceKey, groupByKeys } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      state.tables[resourceKey].groupByKeys = groupByKeys;
+      // Update legacy groupByKey for backward compatibility (use Level 1)
+      state.tables[resourceKey].groupByKey = groupByKeys[0];
+      // Reset collapsed groups when changing group by
+      state.tables[resourceKey].collapsedGroups = [];
+    },
+
+    // Set group sorting for a specific level
+    setGroupSorting: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        level: 1 | 2;
+        direction: 'asc' | 'desc' | null;
+      }>
+    ) => {
+      const { resourceKey, level, direction } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      const key = level === 1 ? 'level1' : 'level2';
+      state.tables[resourceKey].groupSorting[key] = direction;
     },
 
     // Toggle group collapse
@@ -268,6 +316,8 @@ export const {
   removeFilter,
   clearFilters,
   setGroupByKey,
+  setGroupByKeys,
+  setGroupSorting,
   toggleGroupCollapse,
 } = tableStateSlice.actions;
 
@@ -300,6 +350,14 @@ export const selectActiveFilters = (state: { tableState: TableStateState }, reso
 
 export const selectGroupByKey = (state: { tableState: TableStateState }, resourceKey: ResourceKey): string | null => {
   return state.tableState.tables[resourceKey]?.groupByKey || null;
+};
+
+export const selectGroupByKeys = (state: { tableState: TableStateState }, resourceKey: ResourceKey): [string | null, string | null] => {
+  return state.tableState.tables[resourceKey]?.groupByKeys || [null, null];
+};
+
+export const selectGroupSorting = (state: { tableState: TableStateState }, resourceKey: ResourceKey): { level1: 'asc' | 'desc' | null; level2: 'asc' | 'desc' | null } => {
+  return state.tableState.tables[resourceKey]?.groupSorting || { level1: null, level2: null };
 };
 
 // Memoized selector for collapsed groups to prevent unnecessary re-renders

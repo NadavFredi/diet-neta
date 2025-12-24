@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Eye, X } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { startImpersonation, stopImpersonation } from '@/store/slices/impersonationSlice';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -40,7 +40,9 @@ export const ViewAsClientButton: React.FC<ViewAsClientButtonProps> = ({
         size="sm"
         onClick={() => {
           dispatch(stopImpersonation());
-          navigate('/dashboard');
+          // Navigate back to previous location or default to dashboard
+          const returnPath = previousLocation || '/dashboard';
+          navigate(returnPath);
           toast({
             title: 'יציאה ממצב תצוגה',
             description: 'חזרת למצב מנהל',
@@ -65,7 +67,10 @@ export const ViewAsClientButton: React.FC<ViewAsClientButtonProps> = ({
     }
 
     try {
-      // Store original user info
+      // Store current location (pathname + search params) before navigating
+      const currentLocation = location.pathname + location.search;
+      
+      // Store original user info and previous location
       dispatch(
         startImpersonation({
           userId,
@@ -75,6 +80,7 @@ export const ViewAsClientButton: React.FC<ViewAsClientButtonProps> = ({
             email: user.email || '',
             role: user.role || 'user',
           },
+          previousLocation: currentLocation,
         })
       );
 

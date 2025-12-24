@@ -5,34 +5,56 @@ import { fetchClientData, setActiveLead, fetchClientDataByUserId } from '@/store
 export const useClientDashboard = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
+  const { isImpersonating, impersonatedUserId, impersonatedCustomerId } = useAppSelector(
+    (state) => state.impersonation
+  );
   const { customer, activeLead, leads, isLoading, error } = useAppSelector(
     (state) => state.client
   );
 
   // Fetch client data when user is available
   useEffect(() => {
+    // Determine which user/customer to fetch data for
+    const targetUserId = isImpersonating ? impersonatedUserId : user?.id;
+    const targetCustomerId = isImpersonating ? impersonatedCustomerId : user?.customer_id;
+    const isTrainee = user?.role === 'trainee' || isImpersonating;
+
     console.log('[useClientDashboard] Effect triggered:', {
       userRole: user?.role,
       userId: user?.id,
-      customerId: user?.customer_id
+      customerId: user?.customer_id,
+      isImpersonating,
+      impersonatedUserId,
+      impersonatedCustomerId,
+      targetUserId,
+      targetCustomerId,
+      isTrainee,
     });
     
-    if (user?.role === 'trainee' && user?.id) {
+    if (isTrainee && targetUserId) {
       // Try to fetch by customer_id first, if available
-      if (user.customer_id) {
-        console.log('[useClientDashboard] Fetching by customer_id:', user.customer_id);
-        dispatch(fetchClientData(user.customer_id));
+      if (targetCustomerId) {
+        console.log('[useClientDashboard] Fetching by customer_id:', targetCustomerId);
+        dispatch(fetchClientData(targetCustomerId));
       } else {
         // Otherwise, fetch by user_id
-        console.log('[useClientDashboard] Fetching by user_id (customer_id is null):', user.id);
-        dispatch(fetchClientDataByUserId(user.id));
+        console.log('[useClientDashboard] Fetching by user_id (customer_id is null):', targetUserId);
+        dispatch(fetchClientDataByUserId(targetUserId));
       }
-    } else if (user?.role !== 'trainee') {
-      console.log('[useClientDashboard] User is not a trainee, skipping fetch');
-    } else if (!user?.id) {
+    } else if (!isTrainee) {
+      console.log('[useClientDashboard] User is not a trainee and not impersonating, skipping fetch');
+    } else if (!targetUserId) {
       console.log('[useClientDashboard] User ID not available yet, waiting...');
     }
-  }, [user?.id, user?.customer_id, user?.role, dispatch]);
+  }, [
+    user?.id,
+    user?.customer_id,
+    user?.role,
+    isImpersonating,
+    impersonatedUserId,
+    impersonatedCustomerId,
+    dispatch,
+  ]);
 
   const handleSelectLead = (leadId: string) => {
     const lead = leads.find((l) => l.id === leadId);

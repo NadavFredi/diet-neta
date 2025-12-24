@@ -16,6 +16,7 @@ export interface ImpersonationState {
     email: string;
     role: string;
   } | null;
+  previousLocation: string | null; // Store the URL before entering impersonation mode
 }
 
 const initialState: ImpersonationState = {
@@ -23,6 +24,7 @@ const initialState: ImpersonationState = {
   impersonatedUserId: null,
   impersonatedCustomerId: null,
   originalUser: null,
+  previousLocation: null,
 };
 
 const impersonationSlice = createSlice({
@@ -51,5 +53,5 @@ const impersonationSlice = createSlice({
   },
 });
 
-export const { startImpersonation, stopImpersonation } = impersonationSlice.actions;
+export const { startImpersonation, stopImpersonation, clearPreviousLocation } = impersonationSlice.actions;
 export default impersonationSlice.reducer;

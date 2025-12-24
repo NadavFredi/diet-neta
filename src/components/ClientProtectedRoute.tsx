@@ -7,10 +7,12 @@ interface ClientProtectedRouteProps {
 
 /**
  * Protected route for client/trainee users only
- * Redirects to login if not authenticated, or to coach dashboard if not a trainee
+ * Also allows access when admin is in impersonation mode
+ * Redirects to login if not authenticated, or to coach dashboard if not a trainee and not impersonating
  */
 const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
   const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth);
+  const { isImpersonating } = useAppSelector((state) => state.impersonation);
 
   if (isLoading) {
     return (
@@ -27,8 +29,9 @@ const ClientProtectedRoute = ({ children }: ClientProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user?.role !== 'trainee') {
-    // If user is a coach/admin, redirect to coach dashboard
+  // Allow access if user is a trainee OR if admin is impersonating
+  if (user?.role !== 'trainee' && !isImpersonating) {
+    // If user is a coach/admin and not impersonating, redirect to coach dashboard
     return <Navigate to="/dashboard" replace />;
   }
 

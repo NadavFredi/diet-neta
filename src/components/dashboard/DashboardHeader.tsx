@@ -23,7 +23,7 @@ export const DashboardHeader = ({
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
-  const { isImpersonating } = useAppSelector((state) => state.impersonation);
+  const { isImpersonating, previousLocation } = useAppSelector((state) => state.impersonation);
 
   const handleToggleSidebar = () => {
     dispatch(toggleSidebar());
@@ -118,7 +118,9 @@ export const DashboardHeader = ({
                   size="sm"
                   onClick={() => {
                     dispatch(stopImpersonation());
-                    navigate('/dashboard');
+                    // Navigate back to previous location or default to dashboard
+                    const returnPath = previousLocation || '/dashboard';
+                    navigate(returnPath);
                   }}
                   className="h-6 px-2 text-orange-600 hover:bg-orange-100"
                 >

@@ -23,11 +23,13 @@ import {
   selectColumnSizing,
   selectColumnOrder,
   selectGroupByKey,
+  selectGroupByKeys,
+  selectGroupSorting,
   selectCollapsedGroups,
   toggleGroupCollapse,
   type ResourceKey,
 } from '@/store/slices/tableStateSlice';
-import { groupDataByKey, type GroupedData } from '@/utils/groupDataByKey';
+import { groupDataByKey, groupDataByKeys, type GroupedData, type MultiLevelGroupedData } from '@/utils/groupDataByKey';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   DndContext,
@@ -367,6 +369,8 @@ export function DataTable<T extends Record<string, any>>({
   const reduxColumnSizing = resourceKey ? useAppSelector((state) => selectColumnSizing(state, resourceKey)) : {};
   const reduxColumnOrder = resourceKey ? useAppSelector((state) => selectColumnOrder(state, resourceKey)) : [];
   const groupByKey = resourceKey ? useAppSelector((state) => selectGroupByKey(state, resourceKey)) : null;
+  const groupByKeys = resourceKey ? useAppSelector((state) => selectGroupByKeys(state, resourceKey)) : [null, null];
+  const groupSorting = resourceKey ? useAppSelector((state) => selectGroupSorting(state, resourceKey)) : { level1: null, level2: null };
   const collapsedGroups = resourceKey ? useAppSelector((state) => selectCollapsedGroups(state, resourceKey)) : [];
   
   // Convert collapsedGroups array to Set for efficient lookup
@@ -785,25 +789,49 @@ export function DataTable<T extends Record<string, any>>({
     }
   };
 
-  // Get grouped data if groupByKey is set - use table's processed data (sorted/filtered)
+  // Get grouped data - support both legacy single-level and new multi-level grouping
   const groupedData = useMemo(() => {
-    if (!groupByKey || !table || !data || data.length === 0) {
+    // Check if multi-level grouping is active
+    const hasMultiLevelGrouping = groupByKeys[0] || groupByKeys[1];
+    
+    if (!hasMultiLevelGrouping && !groupByKey) {
       return null;
     }
+    
+    if (!table || !data || data.length === 0) {
+      return null;
+    }
+    
     // Use the table's row model to get processed (sorted/filtered) data
     const processedData = table.getRowModel().rows.map((row: any) => row.original);
     if (processedData.length === 0) {
       return null;
     }
-    return groupDataByKey(processedData, groupByKey);
-  }, [data, groupByKey, table]);
+    
+    // Use multi-level grouping if active
+    if (hasMultiLevelGrouping) {
+      return groupDataByKeys(processedData, groupByKeys, groupSorting);
+    }
+    
+    // Fallback to legacy single-level grouping
+    if (groupByKey) {
+      return groupDataByKey(processedData, groupByKey);
+    }
+    
+    return null;
+  }, [data, groupByKey, groupByKeys, groupSorting, table]);
 
   // Get column header text for group by column
-  const getGroupColumnHeader = () => {
-    if (!groupByKey) return '';
-    const column = columns.find((col) => col.id === groupByKey);
-    if (!column) return groupByKey;
-    return typeof column.header === 'string' ? column.header : groupByKey;
+  const getGroupColumnHeader = (columnId: string | null) => {
+    if (!columnId) return '';
+    const column = columns.find((col) => col.id === columnId);
+    if (!column) return columnId;
+    return typeof column.header === 'string' ? column.header : columnId;
+  };
+
+  // Helper to check if groupedData is multi-level
+  const isMultiLevelGrouping = (data: any): data is MultiLevelGroupedData<T>[] => {
+    return Array.isArray(data) && data.length > 0 && 'level1Key' in data[0];
   };
 
   const getCellContent = (cell: any, column: any) => {
@@ -817,11 +845,12 @@ export function DataTable<T extends Record<string, any>>({
         return String(node);
       }
       if (React.isValidElement(node)) {
-        if (node.props?.children) {
-          return getTextContent(node.props.children);
+        const props = node.props as any;
+        if (props?.children) {
+          return getTextContent(props.children);
         }
-        if (node.props?.title) {
-          return node.props.title;
+        if (props?.title) {
+          return props.title;
         }
       }
       return '';
@@ -973,6 +1002,8 @@ export function DataTable<T extends Record<string, any>>({
               columnSizing={effectiveColumnSizing}
               groupedData={groupedData}
               groupByKey={groupByKey}
+              groupByKeys={groupByKeys}
+              columns={columns}
               collapsedGroupsSet={collapsedGroupsSet}
               onToggleGroup={handleToggleGroup}
               getGroupColumnHeader={getGroupColumnHeader}
@@ -995,6 +1026,8 @@ export function DataTable<T extends Record<string, any>>({
               columnSizing={effectiveColumnSizing}
               groupedData={groupedData}
               groupByKey={groupByKey}
+              groupByKeys={groupByKeys}
+              columns={columns}
               collapsedGroupsSet={collapsedGroupsSet}
               onToggleGroup={handleToggleGroup}
               getGroupColumnHeader={getGroupColumnHeader}
@@ -1022,6 +1055,8 @@ function TableContent<T>({
   columnSizing,
   groupedData,
   groupByKey,
+  groupByKeys,
+  columns,
   collapsedGroupsSet,
   onToggleGroup,
   getGroupColumnHeader,
@@ -1039,12 +1074,26 @@ function TableContent<T>({
   onHideColumn: (columnId: string) => void;
   isResizing: string | null;
   columnSizing: Record<string, number>;
-  groupedData: GroupedData<T>[] | null;
+  groupedData: GroupedData<T>[] | MultiLevelGroupedData<T>[] | null;
   groupByKey: string | null;
+  groupByKeys: [string | null, string | null];
+  columns: DataTableColumn<T>[];
   collapsedGroupsSet: Set<string>;
   onToggleGroup: (groupKey: string) => void;
-  getGroupColumnHeader: () => string;
+  getGroupColumnHeader: (columnId?: string | null) => string;
 }) {
+  // Helper to check if groupedData is multi-level
+  const isMultiLevelGrouping = (data: any): data is MultiLevelGroupedData<T>[] => {
+    return Array.isArray(data) && data.length > 0 && 'level1Key' in data[0];
+  };
+
+  // Get column header text for group by column
+  const getGroupColumnHeaderText = (columnId: string | null) => {
+    if (!columnId) return '';
+    const column = columns.find((col) => col.id === columnId);
+    if (!column) return columnId;
+    return typeof column.header === 'string' ? column.header : columnId;
+  };
   // Calculate total width using pixel-based sizing
   const totalWidth = tableColumns.reduce((sum, col) => {
     const size = columnSizing[col.id] || col.size || 150;
@@ -1252,132 +1301,320 @@ function TableContent<T>({
         })}
       </thead>
       <tbody>
-        {groupedData && groupByKey && groupedData.length > 0 ? (
-          // Render grouped data
-          groupedData.map((group) => {
-            const isCollapsed = collapsedGroupsSet.has(group.groupKey);
+        {groupedData && groupedData.length > 0 ? (
+          // Render grouped data (supports both single-level and multi-level)
+          isMultiLevelGrouping(groupedData) ? (
+            // Multi-level grouping rendering
+            groupedData.map((level1Group) => {
+              const level1Key = `level1:${level1Group.level1Key}`;
+              const isLevel1Collapsed = collapsedGroupsSet.has(level1Key);
+              const level1Header = getGroupColumnHeaderText(groupByKeys[0]);
 
-            // Match rows from the main table that belong to this group
-            // Simple approach: match by the groupByKey value
-            const groupRows = table.getRowModel().rows.filter((row: any) => {
-              const rowOriginal = row.original;
-              const rowGroupValue = rowOriginal[groupByKey];
-              
-              // Handle null/undefined values
-              const normalizedRowValue = rowGroupValue === null || rowGroupValue === undefined 
-                ? 'ללא ערך' 
-                : String(rowGroupValue);
-              
-              // Match by the group key
-              return normalizedRowValue === group.groupKey;
-            });
+              // Get all rows for this level 1 group
+              const allLevel1Rows: any[] = [];
+              if (level1Group.level2Groups && level1Group.level2Groups.length > 0) {
+                // Has level 2 groups
+                level1Group.level2Groups.forEach((level2Group) => {
+                  const level2Key = `${level1Key}|level2:${level2Group.groupKey}`;
+                  const isLevel2Collapsed = collapsedGroupsSet.has(level2Key);
+                  const level2Header = getGroupColumnHeaderText(groupByKeys[1]);
 
-            // Skip empty groups
-            if (group.items.length === 0) {
-              return null;
-            }
+                  // Match rows for this level 2 group
+                  const level2Rows = table.getRowModel().rows.filter((row: any) => {
+                    const rowOriginal = row.original;
+                    const rowLevel1Value = rowOriginal[groupByKeys[0]!];
+                    const rowLevel2Value = rowOriginal[groupByKeys[1]!];
+                    const normalizedLevel1 = rowLevel1Value === null || rowLevel1Value === undefined ? 'ללא ערך' : String(rowLevel1Value);
+                    const normalizedLevel2 = rowLevel2Value === null || rowLevel2Value === undefined ? 'ללא ערך' : String(rowLevel2Value);
+                    return normalizedLevel1 === level1Group.level1Key && normalizedLevel2 === level2Group.groupKey;
+                  });
 
-            return (
-              <React.Fragment key={group.groupKey}>
-                {/* Group Header Row - Monday.com Style */}
-                <tr
-                  className={cn(
-                    "bg-slate-50 border-t border-b border-slate-200",
-                    "hover:bg-slate-100 transition-colors duration-200 cursor-pointer"
-                  )}
-                  onClick={() => onToggleGroup(group.groupKey)}
-                >
-                  <td
-                    colSpan={visibleColumns.length}
-                    className="px-4 py-3"
+                  allLevel1Rows.push({
+                    type: 'level2-header',
+                    key: level2Key,
+                    group: level2Group,
+                    rows: level2Rows,
+                    isCollapsed: isLevel2Collapsed,
+                    header: level2Header,
+                  });
+
+                  if (!isLevel2Collapsed) {
+                    allLevel1Rows.push({
+                      type: 'level2-rows',
+                      key: `${level2Key}-rows`,
+                      rows: level2Rows,
+                    });
+                  }
+                });
+              } else {
+                // No level 2 groups, just level 1 items
+                const level1Rows = table.getRowModel().rows.filter((row: any) => {
+                  const rowOriginal = row.original;
+                  const rowLevel1Value = rowOriginal[groupByKeys[0]!];
+                  const normalizedLevel1 = rowLevel1Value === null || rowLevel1Value === undefined ? 'ללא ערך' : String(rowLevel1Value);
+                  return normalizedLevel1 === level1Group.level1Key;
+                });
+                allLevel1Rows.push({
+                  type: 'level1-rows',
+                  key: `${level1Key}-rows`,
+                  rows: level1Rows,
+                });
+              }
+
+              const totalItems = level1Group.level2Groups
+                ? level1Group.level2Groups.reduce((sum, g) => sum + g.items.length, 0)
+                : level1Group.items.length;
+
+              return (
+                <React.Fragment key={level1Key}>
+                  {/* Level 1 Group Header */}
+                  <tr
+                    className={cn(
+                      "bg-slate-50 border-t border-b border-slate-200",
+                      "hover:bg-slate-100 transition-colors duration-200 cursor-pointer"
+                    )}
+                    onClick={() => onToggleGroup(level1Key)}
                   >
-                    <div 
-                      className="flex items-center gap-3" 
-                      style={{ 
-                        flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
-                        justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
-                      }}
-                    >
-                      {/* Chevron Icon - Right side in RTL */}
-                      <div className="flex-shrink-0 transition-transform duration-200">
-                        {isCollapsed ? (
-                          <ChevronRight className="h-4 w-4 text-slate-600" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-slate-600" />
-                        )}
-                      </div>
-                      {/* Group Label - Bold, Professional */}
-                      <span className="text-sm font-bold text-slate-900">
-                        {getGroupColumnHeader()}: {group.groupKey}
-                      </span>
-                      {/* Count Badge - Minimalist Pill */}
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
-                        {group.items.length} {group.items.length === 1 ? 'ליד' : 'לידים'}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-                {/* Group Rows - With Indentation */}
-                {!isCollapsed && groupRows.length > 0 && (
-                  <>
-                    {groupRows.map((row: any, rowIndex: number) => (
-                      <tr
-                        key={row.id || `group-row-${group.groupKey}-${rowIndex}`}
-                        className={cn(
-                          'border-b border-gray-100 transition-all duration-200',
-                          'bg-white',
-                          onRowClick && 'cursor-pointer hover:bg-gray-50',
-                          'group',
-                          'hover:shadow-sm'
-                        )}
-                        onClick={() => onRowClick?.(row.original)}
+                    <td colSpan={visibleColumns.length} className="px-4 py-3">
+                      <div
+                        className="flex items-center gap-3"
                         style={{
-                          // Subtle indentation for grouped rows (right border in RTL)
-                          borderRight: dir === 'rtl' ? '2px solid #e2e8f0' : 'none',
-                          borderLeft: dir === 'ltr' ? '2px solid #e2e8f0' : 'none',
+                          flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+                          justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
                         }}
                       >
-                        {row.getVisibleCells().map((cell: any) => {
-                          const column = table.getColumn(cell.column.id);
-                          const meta = column?.columnDef.meta;
-                          const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
-                          const isNumeric = meta?.isNumeric;
-                          const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
-
-                          return (
-                            <td
-                              key={cell.id}
-                              className={cn(
-                                'px-2 py-4 text-sm transition-colors overflow-hidden',
-                                `text-${align}`,
-                                isNumeric 
-                                  ? 'font-mono tabular-nums text-gray-900' 
-                                  : 'text-gray-900',
-                                (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
-                                  ? 'text-gray-600'
-                                  : '',
-                                (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
-                                  ? 'whitespace-nowrap'
-                                  : ''
-                              )}
+                        <div className="flex-shrink-0 transition-transform duration-200">
+                          {isLevel1Collapsed ? (
+                            <ChevronRight className="h-4 w-4 text-slate-600" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-slate-600" />
+                          )}
+                        </div>
+                        <span className="text-sm font-bold text-slate-900">
+                          {level1Header}: {level1Group.level1Key}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
+                          {totalItems} {totalItems === 1 ? 'ליד' : 'לידים'}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                  {/* Level 1 Content */}
+                  {!isLevel1Collapsed && allLevel1Rows.map((item) => {
+                    if (item.type === 'level2-header') {
+                      return (
+                        <tr
+                          key={item.key}
+                          className={cn(
+                            "bg-slate-100/50 border-b border-slate-200",
+                            "hover:bg-slate-150 transition-colors duration-200 cursor-pointer"
+                          )}
+                          onClick={() => onToggleGroup(item.key)}
+                          style={{
+                            paddingRight: dir === 'rtl' ? '24px' : '0',
+                            paddingLeft: dir === 'ltr' ? '24px' : '0',
+                          }}
+                        >
+                          <td colSpan={visibleColumns.length} className="px-4 py-2.5">
+                            <div
+                              className="flex items-center gap-3"
                               style={{
-                                width: `${width}px`,
-                                minWidth: `${width}px`,
-                                maxWidth: `${width}px`,
+                                flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+                                justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
+                                marginRight: dir === 'rtl' ? '24px' : '0',
+                                marginLeft: dir === 'ltr' ? '24px' : '0',
                               }}
-                              title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
                             >
-                              {getCellContent(cell, column)}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </>
-                )}
-              </React.Fragment>
-            );
-          })
+                              <div className="flex-shrink-0 transition-transform duration-200">
+                                {item.isCollapsed ? (
+                                  <ChevronRight className="h-4 w-4 text-slate-500" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                                )}
+                              </div>
+                              <span className="text-sm font-semibold text-slate-700">
+                                {item.header}: {item.group.groupKey}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
+                                {item.group.items.length} {item.group.items.length === 1 ? 'ליד' : 'לידים'}
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    } else if (item.type === 'level2-rows' || item.type === 'level1-rows') {
+                      return (
+                        <React.Fragment key={item.key}>
+                          {item.rows.map((row: any, rowIndex: number) => (
+                            <tr
+                              key={row.id || `${item.key}-${rowIndex}`}
+                              className={cn(
+                                'border-b border-gray-100 transition-all duration-200',
+                                'bg-white',
+                                onRowClick && 'cursor-pointer hover:bg-gray-50',
+                                'group',
+                                'hover:shadow-sm'
+                              )}
+                              onClick={() => onRowClick?.(row.original)}
+                              style={{
+                                borderRight: dir === 'rtl' ? '2px solid #e2e8f0' : 'none',
+                                borderLeft: dir === 'ltr' ? '2px solid #e2e8f0' : 'none',
+                                paddingRight: dir === 'rtl' ? (item.type === 'level2-rows' ? '48px' : '24px') : '0',
+                                paddingLeft: dir === 'ltr' ? (item.type === 'level2-rows' ? '48px' : '24px') : '0',
+                              }}
+                            >
+                              {row.getVisibleCells().map((cell: any) => {
+                                const column = table.getColumn(cell.column.id);
+                                const meta = column?.columnDef.meta;
+                                const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+                                const isNumeric = meta?.isNumeric;
+                                const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+
+                                return (
+                                  <td
+                                    key={cell.id}
+                                    className={cn(
+                                      'px-2 py-4 text-sm transition-colors overflow-hidden',
+                                      `text-${align}`,
+                                      isNumeric
+                                        ? 'font-mono tabular-nums text-gray-900'
+                                        : 'text-gray-900',
+                                      (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
+                                        ? 'text-gray-600'
+                                        : '',
+                                      (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
+                                        ? 'whitespace-nowrap'
+                                        : ''
+                                    )}
+                                    style={{
+                                      width: `${width}px`,
+                                      minWidth: `${width}px`,
+                                      maxWidth: `${width}px`,
+                                    }}
+                                    title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                                  >
+                                    {getCellContent(cell, column)}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    }
+                    return null;
+                  })}
+                </React.Fragment>
+              );
+            })
+          ) : (
+            // Legacy single-level grouping rendering
+            (groupedData as GroupedData<T>[]).map((group) => {
+              const isCollapsed = collapsedGroupsSet.has(group.groupKey);
+              const groupRows = table.getRowModel().rows.filter((row: any) => {
+                const rowOriginal = row.original;
+                const rowGroupValue = rowOriginal[groupByKey!];
+                const normalizedRowValue = rowGroupValue === null || rowGroupValue === undefined ? 'ללא ערך' : String(rowGroupValue);
+                return normalizedRowValue === group.groupKey;
+              });
+
+              if (group.items.length === 0) {
+                return null;
+              }
+
+              return (
+                <React.Fragment key={group.groupKey}>
+                  <tr
+                    className={cn(
+                      "bg-slate-50 border-t border-b border-slate-200",
+                      "hover:bg-slate-100 transition-colors duration-200 cursor-pointer"
+                    )}
+                    onClick={() => onToggleGroup(group.groupKey)}
+                  >
+                    <td colSpan={visibleColumns.length} className="px-4 py-3">
+                      <div
+                        className="flex items-center gap-3"
+                        style={{
+                          flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+                          justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
+                        }}
+                      >
+                        <div className="flex-shrink-0 transition-transform duration-200">
+                          {isCollapsed ? (
+                            <ChevronRight className="h-4 w-4 text-slate-600" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-slate-600" />
+                          )}
+                        </div>
+                        <span className="text-sm font-bold text-slate-900">
+                          {getGroupColumnHeader(groupByKey)}: {group.groupKey}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
+                          {group.items.length} {group.items.length === 1 ? 'ליד' : 'לידים'}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                  {!isCollapsed && groupRows.length > 0 && (
+                    <>
+                      {groupRows.map((row: any, rowIndex: number) => (
+                        <tr
+                          key={row.id || `group-row-${group.groupKey}-${rowIndex}`}
+                          className={cn(
+                            'border-b border-gray-100 transition-all duration-200',
+                            'bg-white',
+                            onRowClick && 'cursor-pointer hover:bg-gray-50',
+                            'group',
+                            'hover:shadow-sm'
+                          )}
+                          onClick={() => onRowClick?.(row.original)}
+                          style={{
+                            borderRight: dir === 'rtl' ? '2px solid #e2e8f0' : 'none',
+                            borderLeft: dir === 'ltr' ? '2px solid #e2e8f0' : 'none',
+                          }}
+                        >
+                          {row.getVisibleCells().map((cell: any) => {
+                            const column = table.getColumn(cell.column.id);
+                            const meta = column?.columnDef.meta;
+                            const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+                            const isNumeric = meta?.isNumeric;
+                            const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+
+                            return (
+                              <td
+                                key={cell.id}
+                                className={cn(
+                                  'px-2 py-4 text-sm transition-colors overflow-hidden',
+                                  `text-${align}`,
+                                  isNumeric
+                                    ? 'font-mono tabular-nums text-gray-900'
+                                    : 'text-gray-900',
+                                  (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
+                                    ? 'text-gray-600'
+                                    : '',
+                                  (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
+                                    ? 'whitespace-nowrap'
+                                    : ''
+                                )}
+                                style={{
+                                  width: `${width}px`,
+                                  minWidth: `${width}px`,
+                                  maxWidth: `${width}px`,
+                                }}
+                                title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                              >
+                                {getCellContent(cell, column)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </>
+                  )}
+                </React.Fragment>
+              );
+            })
+          )
         ) : (
           // Render normal (ungrouped) data
           table.getRowModel().rows.map((row: any, rowIndex: number) => (
