@@ -206,6 +206,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
                 <ActionDashboard
                   activeLead={activeLead}
                   isLoading={isLoadingLead}
+                  customer={customer}
                   onUpdateLead={onUpdateLead}
                   onAddWorkoutPlan={onAddWorkoutPlan}
                   onAddDietPlan={onAddDietPlan}

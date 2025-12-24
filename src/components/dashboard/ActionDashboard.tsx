@@ -35,6 +35,7 @@ import {
 } from '@/utils/dashboard';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 import { LeadHistoryTabs } from './LeadHistoryTabs';
+import { LeadAutomationCard } from './LeadAutomationCard';
 
 interface LeadData {
   id: string;
@@ -59,6 +60,7 @@ interface LeadData {
 interface ActionDashboardProps {
   activeLead: LeadData | null;
   isLoading: boolean;
+  customer: any; // Customer data for automation card
   onUpdateLead: (updates: any) => Promise<void>;
   onAddWorkoutPlan: () => void;
   onAddDietPlan: () => void;
@@ -68,6 +70,7 @@ interface ActionDashboardProps {
 export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   activeLead,
   isLoading,
+  customer,
   onUpdateLead,
   onAddWorkoutPlan,
   onAddDietPlan,
@@ -522,8 +525,13 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             </div>
           </Card>
 
-          {/* Empty space for alignment */}
-          <div></div>
+          {/* WhatsApp Automation Card - Full Width */}
+          <LeadAutomationCard
+            customer={customer}
+            lead={activeLead}
+            workoutPlanName={null} // Can be enhanced later to fetch from hooks
+            nutritionPlanName={null} // Can be enhanced later to fetch from hooks
+          />
         </div>
 
         {/* Workout, Steps, Nutrition & Supplements History Tabs - Full Width - Always Visible */}

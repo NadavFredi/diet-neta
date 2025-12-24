@@ -9,6 +9,7 @@ import interfaceIconPreferencesReducer from './slices/interfaceIconPreferencesSl
 import clientReducer from './slices/clientSlice';
 import invitationReducer from './slices/invitationSlice';
 import impersonationReducer from './slices/impersonationSlice';
+import automationReducer from './slices/automationSlice';
 
 export const store = configureStore({
   reducer: {
@@ -21,6 +22,7 @@ export const store = configureStore({
     client: clientReducer,
     invitation: invitationReducer,
     impersonation: impersonationReducer,
+    automation: automationReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => {

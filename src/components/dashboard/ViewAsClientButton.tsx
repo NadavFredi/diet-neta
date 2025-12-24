@@ -23,9 +23,10 @@ export const ViewAsClientButton: React.FC<ViewAsClientButtonProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { user } = useAppSelector((state) => state.auth);
-  const { isImpersonating } = useAppSelector((state) => state.impersonation);
+  const { isImpersonating, previousLocation } = useAppSelector((state) => state.impersonation);
 
   // Only show for admins/managers
   if (!user || (user.role !== 'admin' && user.role !== 'user')) {

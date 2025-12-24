@@ -23,8 +23,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectCustomerNotes, fetchCustomerNotes } from '@/store/slices/leadViewSlice';
-import { CreateTraineeButton } from './CreateTraineeButton';
-import { ViewAsClientButton } from './ViewAsClientButton';
+import { SmartTraineeActionButton } from './SmartTraineeActionButton';
 import { fetchInvitations } from '@/store/slices/invitationSlice';
 
 interface LeadData {
@@ -205,24 +204,19 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
             {/* Vertical Divider */}
             <div className="h-6 w-px bg-gray-200" />
 
-            {/* Utility Group: Create Trainee, View as Client, History & Notes */}
+            {/* Utility Group: Smart Trainee Action (Create/View), History & Notes */}
             <div className="flex items-center gap-2">
-              {/* Create Trainee Button - Only for admins/managers */}
+              {/* Smart Trainee Action Button - Only for admins/managers */}
               {(user?.role === 'admin' || user?.role === 'user') && customer && (
                 <>
-                  <CreateTraineeButton
+                  <SmartTraineeActionButton
                     customerId={customer.id}
                     leadId={lead?.id || null}
                     customerEmail={customer.email || null}
                     customerName={customer.full_name || null}
+                    customerUserId={customer.user_id || null}
+                    customerInvitationUserId={customerInvitation?.user_id || null}
                   />
-                  {/* View as Client Button - Check customer for user_id or invitation */}
-                  {(customer?.user_id || customerInvitation?.user_id) && (
-                    <ViewAsClientButton
-                      customerId={customer.id}
-                      userId={customer.user_id || customerInvitation?.user_id || null}
-                    />
-                  )}
                   {/* Vertical Divider */}
                   <div className="h-6 w-px bg-gray-200" />
                 </>

@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Activity,
   LogOut,
+  X,
 } from 'lucide-react';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
@@ -27,6 +28,8 @@ import { DailyCheckInView } from '@/components/client/DailyCheckInView';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
+import { stopImpersonation } from '@/store/slices/impersonationSlice';
+import { useNavigate } from 'react-router-dom';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
 import { useClientRealtime } from '@/hooks/useClientRealtime';
@@ -39,9 +42,11 @@ import { he } from 'date-fns/locale';
 
 export const ClientDashboardView: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { customer, activeLead, leads, isLoading, error, stats, handleSelectLead } = useClientDashboard();
   const { user } = useAppSelector((state) => state.auth);
+  const { isImpersonating, previousLocation } = useAppSelector((state) => state.impersonation);
   const { handleLogout } = useAuth();
   const [activeTab, setActiveTab] = useState('workout');
 
@@ -139,15 +144,37 @@ export const ClientDashboardView: React.FC = () => {
                 </p>
               </div>
             </div>
-            <Button 
-              variant="outline"
-              size="default" 
-              onClick={handleLogout} 
-              className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
-            >
-              <LogOut className="h-4 w-4 ml-2" />
-              התנתק
-            </Button>
+            {/* Show Exit Impersonation button if admin is impersonating, otherwise show Logout */}
+            {isImpersonating ? (
+              <Button 
+                variant="outline"
+                size="default" 
+                onClick={() => {
+                  dispatch(stopImpersonation());
+                  // Navigate back to previous location or default to dashboard
+                  const returnPath = previousLocation || '/dashboard';
+                  navigate(returnPath);
+                  toast({
+                    title: 'יציאה ממצב תצוגה',
+                    description: 'חזרת למצב מנהל',
+                  });
+                }}
+                className="border-orange-500 bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:border-orange-600 text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
+              >
+                <X className="h-4 w-4 ml-2" />
+                צא ממצב צפייה
+              </Button>
+            ) : (
+              <Button 
+                variant="outline"
+                size="default" 
+                onClick={handleLogout} 
+                className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
+              >
+                <LogOut className="h-4 w-4 ml-2" />
+                התנתק
+              </Button>
+            )}
           </div>
         </div>
       </div>

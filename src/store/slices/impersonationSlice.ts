@@ -37,12 +37,16 @@ const impersonationSlice = createSlice({
         userId: string;
         customerId: string;
         originalUser: { id: string; email: string; role: string };
+        previousLocation?: string | null;
       }>
     ) => {
       state.isImpersonating = true;
       state.impersonatedUserId = action.payload.userId;
       state.impersonatedCustomerId = action.payload.customerId;
       state.originalUser = action.payload.originalUser;
+      if (action.payload.previousLocation !== undefined) {
+        state.previousLocation = action.payload.previousLocation;
+      }
     },
     stopImpersonation: (state) => {
       state.isImpersonating = false;
