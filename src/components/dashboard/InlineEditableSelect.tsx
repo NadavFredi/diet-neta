@@ -142,11 +142,11 @@ export const InlineEditableSelect = ({
 
   if (isEditing) {
     return (
-      <div className={cn('flex flex-col gap-1 py-0.5 min-w-0 w-full text-right', className)}>
+      <div className={cn('flex items-center gap-2 py-0.5 min-w-0 w-full text-right', className)}>
         <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>{label}:</span>
         <div className="flex-1 min-w-0">
           {isAddingNew ? (
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <Input
                 ref={newOptionInputRef}
                 type="text"
@@ -155,7 +155,7 @@ export const InlineEditableSelect = ({
                 onKeyDown={handleKeyDown}
                 placeholder="הזן ערך חדש..."
                 className={cn(
-                  "h-8 text-sm px-3",
+                  "w-full h-8 text-sm px-3",
                   "border-2 border-[#5B6FB9] focus:border-[#5B6FB9] focus-visible:ring-2 focus-visible:ring-[#5B6FB9]/20",
                   "transition-all duration-200",
                   "bg-white"
@@ -165,8 +165,7 @@ export const InlineEditableSelect = ({
               />
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5">
-              <div className="relative flex-1" onKeyDown={handleKeyDown}>
+            <div className="flex-1 min-w-0" onKeyDown={handleKeyDown}>
                 <Select 
                   value={editValue} 
                   onValueChange={(value) => {
@@ -185,7 +184,7 @@ export const InlineEditableSelect = ({
                 >
                   <SelectTrigger 
                     className={cn(
-                      "h-8 text-sm px-3",
+                      "w-full h-8 text-sm px-3",
                       "border-2 border-[#5B6FB9] focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
                       "transition-all duration-200",
                       "bg-white"
@@ -210,7 +209,6 @@ export const InlineEditableSelect = ({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
             </div>
           )}
         </div>
@@ -220,27 +218,22 @@ export const InlineEditableSelect = ({
 
   return (
     <div
-      className={cn('flex flex-col gap-1 py-0.5 group min-w-0 w-full text-right transition-all duration-200', className)}
+      className={cn('flex items-center gap-2 py-0.5 group min-w-0 w-full text-right transition-all duration-200', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
     >
       <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>{label}:</span>
-      <div className="flex items-start gap-1.5 flex-1 min-w-0 w-full">
+      <div className="flex items-center gap-1.5 flex-1 min-w-0">
         <span 
           className={cn(
-            'inline-flex items-center px-2 py-0.5 rounded-md text-sm font-semibold border cursor-pointer hover:opacity-80 transition-opacity',
-            'max-w-full',
-            badgeClassName || 'bg-gray-50 text-gray-700 border-gray-200',
+            'text-sm font-semibold text-slate-900 cursor-pointer hover:text-blue-600 transition-colors',
+            'flex-1 min-w-0 truncate',
             valueClassName
           )}
           style={{ 
             fontSize: '14px', 
-            fontWeight: 600,
-            wordBreak: 'break-word',
-            overflowWrap: 'break-word',
-            whiteSpace: 'normal',
-            lineHeight: '1.5'
+            fontWeight: 600
           }}
           onClick={handleClick}
           title={formatValue ? formatValue(value || '') : (value || (!disabled ? 'לחץ לעריכה' : undefined))}

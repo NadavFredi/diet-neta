@@ -150,7 +150,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרטי מנוי</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+            <div className="flex flex-col gap-4 flex-1">
               <InlineEditableField
                 label="תאריך הצטרפות"
                 value={activeLead.join_date || ''}
@@ -230,7 +230,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">סטטוס ומידע CRM</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+            <div className="flex flex-col gap-4 flex-1">
               <InlineEditableSelect
                 label="סטטוס"
                 value={displayStatus}
@@ -336,10 +336,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרטים אישיים</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-gray-500 font-medium">גיל:</span>
-                <span className="text-sm font-semibold text-slate-900">
+            <div className="flex flex-col gap-4 flex-1">
+              <div className="flex items-center gap-2 min-w-0 w-full">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
+                <span className="text-sm font-semibold text-slate-900 flex-1 min-w-0 truncate">
                   {age !== null ? `${age} שנים` : '-'}
                 </span>
               </div>
@@ -363,9 +363,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 formatValue={(val) => val === 0 ? '-' : `${val} ק"ג`}
                 className="border-0 p-0"
               />
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-gray-500 font-medium">BMI:</span>
-                <span className="text-sm font-semibold text-gray-900">
+              <div className="flex items-center gap-2 min-w-0 w-full">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0">BMI:</span>
+                <span className="text-sm font-semibold text-gray-900 flex-1 min-w-0 truncate">
                   {bmi !== null ? bmi : '-'}
                 </span>
               </div>
@@ -381,9 +381,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 valueClassName="text-sm font-semibold text-slate-900"
               />
               {activeLead.target_weight && (
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-gray-500 font-medium">משקל יעד:</span>
-                  <span className="text-sm font-semibold text-slate-900">
+                <div className="flex items-center gap-2 min-w-0 w-full">
+                  <span className="text-xs text-gray-500 font-medium flex-shrink-0">משקל יעד:</span>
+                  <span className="text-sm font-semibold text-slate-900 flex-1 min-w-0 truncate">
                     {activeLead.target_weight} ק"ג
                   </span>
                 </div>
@@ -402,7 +402,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">מידע כושר</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+            <div className="flex flex-col gap-4 flex-1">
               <InlineEditableSelect
                 label="רמת פעילות"
                 value={activeLead.activity_level || ''}
@@ -434,7 +434,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרוטוקול יומי</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+            <div className="flex flex-col gap-4 flex-1">
               <InlineEditableField
                 label="אימונים/שבוע"
                 value={activeLead.daily_protocol?.workoutGoal || 0}
