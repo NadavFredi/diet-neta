@@ -12,6 +12,7 @@
     "linkProject": "supabase link --project-ref <PROEJCT_ID>",
     "db:reset": "supabase db reset --local",
     "create-users": "node scripts/create_test_users.js",
+    "reset-manager-password": "node scripts/reset_manager_password.js",
     "deploy:functions": "node scripts/deploy-functions.js",
     "functions:local": "supabase functions serve --env-file .env.local"
   },

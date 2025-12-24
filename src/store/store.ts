@@ -7,6 +7,8 @@ import leadViewReducer from './slices/leadViewSlice';
 import sidebarReducer from './slices/sidebarSlice';
 import interfaceIconPreferencesReducer from './slices/interfaceIconPreferencesSlice';
 import clientReducer from './slices/clientSlice';
+import invitationReducer from './slices/invitationSlice';
+import impersonationReducer from './slices/impersonationSlice';
 
 export const store = configureStore({
   reducer: {
@@ -17,6 +19,8 @@ export const store = configureStore({
     sidebar: sidebarReducer,
     interfaceIconPreferences: interfaceIconPreferencesReducer,
     client: clientReducer,
+    invitation: invitationReducer,
+    impersonation: impersonationReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => {

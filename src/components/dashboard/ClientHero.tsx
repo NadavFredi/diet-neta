@@ -23,6 +23,9 @@ import {
 } from '@/components/ui/tooltip';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectCustomerNotes, fetchCustomerNotes } from '@/store/slices/leadViewSlice';
+import { CreateTraineeButton } from './CreateTraineeButton';
+import { ViewAsClientButton } from './ViewAsClientButton';
+import { fetchInvitations } from '@/store/slices/invitationSlice';
 
 interface LeadData {
   id: string;
@@ -63,6 +66,9 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   const notes = useAppSelector(selectCustomerNotes(customer?.id));
   const notesCount = notes?.length || 0;
 
+  const { user } = useAppSelector((state) => state.auth);
+  const { invitations } = useAppSelector((state) => state.invitation);
+
   // Fetch notes when customer changes
   useEffect(() => {
     if (customer?.id) {
@@ -70,9 +76,21 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
     }
   }, [customer?.id, dispatch]);
 
+  // Fetch invitations for this customer
+  useEffect(() => {
+    if (customer?.id && (user?.role === 'admin' || user?.role === 'user')) {
+      dispatch(fetchInvitations({ customerId: customer.id }));
+    }
+  }, [customer?.id, user?.role, dispatch]);
+
   if (!customer) return null;
 
   const lead = mostRecentLead as any;
+
+  // Get invitation for this customer
+  const customerInvitation = invitations.find(
+    (inv) => inv.customer_id === customer?.id && inv.lead_id === lead?.id
+  ) || invitations.find((inv) => inv.customer_id === customer?.id);
 
   // Helper to get gender label
   const getGenderLabel = (gender: string | null): string => {
@@ -195,8 +213,29 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
             {/* Vertical Divider */}
             <div className="h-6 w-px bg-gray-200" />
 
-            {/* Utility Group: History & Notes Toggle Buttons */}
+            {/* Utility Group: Create Trainee, View as Client, History & Notes */}
             <div className="flex items-center gap-2">
+              {/* Create Trainee Button - Only for admins/managers */}
+              {(user?.role === 'admin' || user?.role === 'user') && customer && (
+                <>
+                  <CreateTraineeButton
+                    customerId={customer.id}
+                    leadId={lead?.id || null}
+                    customerEmail={customer.email || null}
+                    customerName={customer.full_name || null}
+                  />
+                  {/* View as Client Button - Only if user exists */}
+                  {customerInvitation?.user_id && (
+                    <ViewAsClientButton
+                      customerId={customer.id}
+                      userId={customerInvitation.user_id}
+                    />
+                  )}
+                  {/* Vertical Divider */}
+                  <div className="h-6 w-px bg-gray-200" />
+                </>
+              )}
+
               {/* History Toggle Button */}
               <Tooltip>
                 <TooltipTrigger asChild>

@@ -18,6 +18,7 @@ import CustomersManagement from "./pages/CustomersManagement.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ClientDashboard from "./pages/client/ClientDashboard.tsx";
+import { InviteAccept } from "./pages/InviteAccept.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
 import { AppFooter } from "./components/layout/AppFooter";
@@ -41,6 +42,7 @@ const AppContent = () => {
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/invite/accept" element={<InviteAccept />} />
           <Route
             path="/dashboard"
             element={

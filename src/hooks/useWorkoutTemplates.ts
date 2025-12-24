@@ -33,54 +33,12 @@ const getUserIdFromEmail = async (email: string): Promise<string> => {
     return profile.id;
   }
 
-  try {
-    const tempPassword = `temp_${Math.random().toString(36).slice(2)}${Date.now()}`;
-    const { data: authData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password: tempPassword,
-      options: { emailRedirectTo: window.location.origin },
-    });
-
-    if (signUpError) {
-      const { data: retryProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
-      
-      if (retryProfile?.id) {
-        return retryProfile.id;
-      }
-      throw new Error(`Unable to create user account: ${signUpError.message}`);
-    }
-
-    if (authData?.user?.id) {
-      return authData.user.id;
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const { data: newProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (newProfile?.id) {
-      return newProfile.id;
-    }
-  } catch (signUpErr: any) {
-    const { data: finalProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (finalProfile?.id) {
-      return finalProfile.id;
-    }
-  }
-
-  throw new Error(`Unable to find or create user account for email: ${email}`);
+  // SECURITY: Do not create users with temporary passwords
+  // Users must be created through the secure invitation system
+  throw new Error(
+    `User profile not found for email: ${email}. ` +
+    `Please contact an administrator to create your account via the secure invitation system.`
+  );
 };
 
 // Fetch all templates (public + user's own)

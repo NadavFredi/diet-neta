@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createSelector } from '@reduxjs/toolkit';
 
 export type ResourceKey = 'leads' | 'customers' | 'templates' | 'nutrition_templates';
 
@@ -302,8 +302,15 @@ export const selectGroupByKey = (state: { tableState: TableStateState }, resourc
   return state.tableState.tables[resourceKey]?.groupByKey || null;
 };
 
-export const selectCollapsedGroups = (state: { tableState: TableStateState }, resourceKey: ResourceKey): string[] => {
-  return state.tableState.tables[resourceKey]?.collapsedGroups || [];
-};
+// Memoized selector for collapsed groups to prevent unnecessary re-renders
+export const selectCollapsedGroups = createSelector(
+  [
+    (state: { tableState: TableStateState }) => state.tableState.tables,
+    (_state: { tableState: TableStateState }, resourceKey: ResourceKey) => resourceKey,
+  ],
+  (tables, resourceKey) => {
+    return tables[resourceKey]?.collapsedGroups || [];
+  }
+);
 
 

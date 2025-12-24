@@ -2,9 +2,11 @@ import { Button } from '@/components/ui/button';
 import { NetaLogo } from '@/components/ui/NetaLogo';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { cn } from '@/lib/utils';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSidebar } from '@/store/slices/sidebarSlice';
-import { ChevronRight, ChevronLeft, LogOut } from 'lucide-react';
+import { ChevronRight, ChevronLeft, LogOut, Eye } from 'lucide-react';
+import { stopImpersonation } from '@/store/slices/impersonationSlice';
+import { useNavigate } from 'react-router-dom';
 
 interface DashboardHeaderProps {
   userEmail: string | undefined;
@@ -19,6 +21,9 @@ export const DashboardHeader = ({
 }: DashboardHeaderProps) => {
   const sidebarWidth = useSidebarWidth();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const { user } = useAppSelector((state) => state.auth);
+  const { isImpersonating } = useAppSelector((state) => state.impersonation);
 
   const handleToggleSidebar = () => {
     dispatch(toggleSidebar());
@@ -103,6 +108,25 @@ export const DashboardHeader = ({
         {/* User info and logout - positioned on left side (appears on left in RTL) */}
         <div className="flex-1 flex items-center justify-end px-6 py-5">
           <div className="flex items-center gap-4">
+            {/* Impersonation Mode Indicator */}
+            {isImpersonating && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200">
+                <Eye className="h-4 w-4 text-orange-600" />
+                <span className="text-sm font-semibold text-orange-700">מצב תצוגה פעיל</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    dispatch(stopImpersonation());
+                    navigate('/dashboard');
+                  }}
+                  className="h-6 px-2 text-orange-600 hover:bg-orange-100"
+                >
+                  יציאה
+                </Button>
+              </div>
+            )}
+            
             <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200">
               <span className="text-base font-semibold text-gray-700">{userEmail}</span>
             </div>

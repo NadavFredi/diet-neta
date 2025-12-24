@@ -199,9 +199,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           <>
             <span className="flex-1 text-right">{item.label}</span>
             {supportsViews && onSaveViewClick && (
-              <button
+              <div
                 className={cn(
-                  'p-1.5 rounded-md transition-all duration-200 flex-shrink-0',
+                  'p-1.5 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
                   'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
                   isMainInterfaceActive
                     ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
@@ -211,11 +211,19 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                   e.stopPropagation();
                   onSaveViewClick(item.resourceKey);
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSaveViewClick(item.resourceKey);
+                  }
+                }}
                 title="הוסף דף חדש"
-                type="button"
+                role="button"
+                tabIndex={0}
               >
                 <Plus className="h-4 w-4" />
-              </button>
+              </div>
             )}
             {supportsViews && (
               <ChevronDown
@@ -267,30 +275,46 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
               <span className="flex-1 truncate">{view.view_name}</span>
               <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity">
                 {onEditViewClick && !isDefaultView && (
-                  <button
+                  <div
                     onClick={(e) => {
                       e.stopPropagation();
                       onEditViewClick(view);
                     }}
-                    className="p-1 rounded hover:bg-gray-200 text-gray-600"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onEditViewClick(view);
+                      }
+                    }}
+                    className="p-1 rounded hover:bg-gray-200 text-gray-600 cursor-pointer"
                     title="ערוך"
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                   >
                     <Edit2 className="h-3.5 w-3.5" />
-                  </button>
+                  </div>
                 )}
                 {!isDefaultView && (
-                  <button
+                  <div
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteClick(e, view);
                     }}
-                    className="p-1 rounded hover:bg-red-100 text-red-600"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteClick(e as any, view);
+                      }
+                    }}
+                    className="p-1 rounded hover:bg-red-100 text-red-600 cursor-pointer"
                     title="מחק"
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                   >
                     <X className="h-3.5 w-3.5" />
-                  </button>
+                  </div>
                 )}
               </div>
             </button>
@@ -396,40 +420,56 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                     <span className="flex-1 text-right truncate">{view.view_name}</span>
                     <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity flex-shrink-0">
                       {onEditViewClick && !isDefaultView && (
-                        <button
+                        <div
                           onClick={(e) => {
                             e.stopPropagation();
                             onEditViewClick(view);
                           }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onEditViewClick(view);
+                            }
+                          }}
                           className={cn(
-                            'p-1.5 rounded-md transition-colors',
+                            'p-1.5 rounded-md transition-colors cursor-pointer',
                             isViewActive
                               ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
                               : 'text-white/60 hover:text-white hover:bg-white/20'
                           )}
                           title="ערוך"
-                          type="button"
+                          role="button"
+                          tabIndex={0}
                         >
                           <Edit2 className="h-4 w-4" />
-                        </button>
+                        </div>
                       )}
                       {!isDefaultView && (
-                        <button
+                        <div
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteClick(e, view);
                           }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteClick(e as any, view);
+                            }
+                          }}
                           className={cn(
-                            'p-1.5 rounded-md transition-colors',
+                            'p-1.5 rounded-md transition-colors cursor-pointer',
                             isViewActive
                               ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
                               : 'text-white/60 hover:text-white hover:bg-white/20'
                           )}
                           title="מחק"
-                          type="button"
+                          role="button"
+                          tabIndex={0}
                         >
                           <X className="h-4 w-4" />
-                        </button>
+                        </div>
                       )}
                     </div>
                   </button>

@@ -64,66 +64,13 @@ export const getUserIdFromEmail = async (email: string): Promise<string> => {
     return profile.id;
   }
 
-  // If user doesn't exist, try to sign them up with Supabase Auth
-  // This will create both auth.users entry and profile entry via trigger
-  try {
-    // Generate a random password for the user (they won't need it for mock auth)
-    const tempPassword = `temp_${Math.random().toString(36).slice(2)}${Date.now()}`;
-    
-    const { data: authData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password: tempPassword,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
-    });
-
-    if (signUpError) {
-      // If signup fails, try to find the user again (might have been created)
-      const { data: retryProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
-      
-      if (retryProfile?.id) {
-        return retryProfile.id;
-      }
-      
-      console.error('Error creating user:', signUpError);
-      throw new Error(`Unable to create user account: ${signUpError.message}`);
-    }
-
-    if (authData?.user?.id) {
-      return authData.user.id;
-    }
-
-    // Wait a bit for the trigger to create the profile, then retry
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const { data: newProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (newProfile?.id) {
-      return newProfile.id;
-    }
-  } catch (signUpErr: any) {
-    console.error('Error in user creation process:', signUpErr);
-    // If signup fails but user might exist, try one more lookup
-    const { data: finalProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (finalProfile?.id) {
-      return finalProfile.id;
-    }
-  }
-
-  throw new Error(`Unable to find or create user account for email: ${email}. Please try logging in again.`);
+  // SECURITY: Do not create users with temporary passwords
+  // Users must be created through the secure invitation system
+  // If profile doesn't exist, the user needs to be properly invited
+  throw new Error(
+    `User profile not found for email: ${email}. ` +
+    `Please contact an administrator to create your account via the secure invitation system.`
+  );
 };
 
 // Fetch saved views for a specific resource
