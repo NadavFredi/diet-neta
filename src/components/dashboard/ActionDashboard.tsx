@@ -150,7 +150,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרטי מנוי</h3>
             </div>
-            <div className="flex flex-col gap-4 flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <InlineEditableField
                 label="תאריך הצטרפות"
                 value={activeLead.join_date || ''}
@@ -230,7 +230,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">סטטוס ומידע CRM</h3>
             </div>
-            <div className="flex flex-col gap-4 flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <InlineEditableSelect
                 label="סטטוס"
                 value={displayStatus}
@@ -336,7 +336,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרטים אישיים</h3>
             </div>
-            <div className="flex flex-col gap-4 flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <div className="flex items-center gap-2 min-w-0 w-full">
                 <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
                 <span className="text-sm font-semibold text-slate-900 flex-1 min-w-0 truncate">
@@ -402,7 +402,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">מידע כושר</h3>
             </div>
-            <div className="flex flex-col gap-4 flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <InlineEditableSelect
                 label="רמת פעילות"
                 value={activeLead.activity_level || ''}
@@ -434,7 +434,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">פרוטוקול יומי</h3>
             </div>
-            <div className="flex flex-col gap-4 flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <InlineEditableField
                 label="אימונים/שבוע"
                 value={activeLead.daily_protocol?.workoutGoal || 0}
