@@ -43,7 +43,7 @@ export const ClientDashboardView: React.FC = () => {
   const { customer, activeLead, leads, isLoading, error, stats, handleSelectLead } = useClientDashboard();
   const { user } = useAppSelector((state) => state.auth);
   const { handleLogout } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('workout');
 
   // Fetch workout and nutrition plans for customer
   const { workoutPlan } = useWorkoutPlan(customer?.id || null);
@@ -223,10 +223,7 @@ export const ClientDashboardView: React.FC = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-white border border-gray-200">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-[#5B6FB9] data-[state=active]:text-white">
-              סקירה
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-white border border-gray-200">
             <TabsTrigger value="workout" className="data-[state=active]:bg-[#5B6FB9] data-[state=active]:text-white">
               אימונים
             </TabsTrigger>
@@ -237,87 +234,6 @@ export const ClientDashboardView: React.FC = () => {
               דיווח יומי
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            {/* Profile Editing Section */}
-            <Card className="border-2 border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-xl font-semibold text-slate-900 flex items-center gap-2">
-                  <User className="h-5 w-5 text-[#5B6FB9]" />
-                  פרטים אישיים
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <InlineEditableField
-                      label="משקל (ק״ג)"
-                      value={stats.weight || 0}
-                      onSave={handleUpdateWeight}
-                      type="number"
-                      formatValue={(val) => `${val} ק״ג`}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <InlineEditableField
-                      label="גובה (ס״מ)"
-                      value={stats.height || 0}
-                      onSave={handleUpdateHeight}
-                      type="number"
-                      formatValue={(val) => `${val} ס״מ`}
-                    />
-                  </div>
-                </div>
-                {stats.bmi && (
-                  <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <p className="text-sm text-gray-600">BMI: <span className="font-semibold text-slate-900">{stats.bmi.toFixed(1)}</span></p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Workout Plan Preview */}
-            {workoutPlan && (
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <Dumbbell className="h-5 w-5 text-blue-600" />
-                  תוכנית האימונים שלך
-                </h2>
-                <WorkoutPlanCard
-                  workoutPlan={workoutPlan}
-                  isEditable={false}
-                />
-              </div>
-            )}
-
-            {/* Nutrition Plan Preview */}
-            {nutritionPlan && (
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-orange-600" />
-                  תוכנית התזונה שלך
-                </h2>
-                <NutritionPlanCard
-                  nutritionPlan={nutritionPlan}
-                  isEditable={false}
-                />
-              </div>
-            )}
-
-            {!workoutPlan && !nutritionPlan && (
-              <Card className="border-2 border-slate-200">
-                <CardContent className="p-12 text-center">
-                  <Target className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                  <p className="text-base font-medium text-gray-500">
-                    אין תוכניות פעילות כרגע
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    צור קשר עם המאמן שלך כדי להתחיל
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
 
           <TabsContent value="workout" className="space-y-6">
             {workoutPlan ? (

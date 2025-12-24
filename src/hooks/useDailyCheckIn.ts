@@ -6,8 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 export const useDailyCheckIn = (customerId: string | null) => {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
-  const { checkIns, isLoading } = useAppSelector((state) => state.client);
-  const { activeLead } = useAppSelector((state) => state.client);
+  const { checkIns, isLoadingCheckIns, activeLead } = useAppSelector((state) => state.client);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,7 +90,7 @@ export const useDailyCheckIn = (customerId: string | null) => {
   return {
     todayCheckIn,
     checkIns,
-    isLoading: isLoadingCheckIns,
+    isLoading: isLoadingCheckIns || false,
     isSubmitting,
     submitCheckIn,
     complianceStats,
