@@ -14,8 +14,7 @@ export const useClientDashboard = () => {
     console.log('[useClientDashboard] Effect triggered:', {
       userRole: user?.role,
       userId: user?.id,
-      customerId: user?.customer_id,
-      isLoading
+      customerId: user?.customer_id
     });
     
     if (user?.role === 'trainee' && user?.id) {
@@ -33,7 +32,7 @@ export const useClientDashboard = () => {
     } else if (!user?.id) {
       console.log('[useClientDashboard] User ID not available yet, waiting...');
     }
-  }, [user?.id, user?.customer_id, user?.role, dispatch, isLoading]);
+  }, [user?.id, user?.customer_id, user?.role, dispatch]);
 
   const handleSelectLead = (leadId: string) => {
     const lead = leads.find((l) => l.id === leadId);

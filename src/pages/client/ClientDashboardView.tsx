@@ -19,18 +19,21 @@ import {
   Calendar,
   TrendingUp,
   Activity,
+  LogOut,
 } from 'lucide-react';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
 import { DailyCheckInView } from '@/components/client/DailyCheckInView';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { useAuth } from '@/hooks/useAuth';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
 import { useClientRealtime } from '@/hooks/useClientRealtime';
 import { useToast } from '@/hooks/use-toast';
 import { updateClientLead } from '@/store/slices/clientSlice';
 import { InlineEditableField } from '@/components/dashboard/InlineEditableField';
+import { NetaLogo } from '@/components/ui/NetaLogo';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 
@@ -39,13 +42,14 @@ export const ClientDashboardView: React.FC = () => {
   const { toast } = useToast();
   const { customer, activeLead, leads, isLoading, error, stats, handleSelectLead } = useClientDashboard();
   const { user } = useAppSelector((state) => state.auth);
+  const { handleLogout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
 
   // Fetch workout and nutrition plans for customer
   const { workoutPlan } = useWorkoutPlan(customer?.id || null);
   const { nutritionPlan } = useNutritionPlan(customer?.id || null);
 
-  // Set up Realtime subscriptions for live sync
+  // Set up polling for data sync (every 5 minutes)
   useClientRealtime(customer?.id || null);
 
   // Handle profile updates
@@ -122,16 +126,28 @@ export const ClientDashboardView: React.FC = () => {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">{greeting}</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                {activeLead?.fitness_goal || 'אין יעד כושר מוגדר'}
-              </p>
+            <div className="flex items-center gap-4">
+              <NetaLogo 
+                size="default" 
+                variant="default"
+                className="rounded-none border-0 p-0"
+              />
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">{greeting}</h1>
+                <p className="text-sm text-gray-600 mt-1">
+                  {activeLead?.fitness_goal || 'אין יעד כושר מוגדר'}
+                </p>
+              </div>
             </div>
-            <Badge variant="outline" className="bg-[#5B6FB9]/10 text-[#5B6FB9] border-[#5B6FB9]">
-              <User className="h-4 w-4 ml-1" />
-              לקוח
-            </Badge>
+            <Button 
+              variant="outline"
+              size="default" 
+              onClick={handleLogout} 
+              className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
+            >
+              <LogOut className="h-4 w-4 ml-2" />
+              התנתק
+            </Button>
           </div>
         </div>
       </div>
