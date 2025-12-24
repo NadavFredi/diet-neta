@@ -126,10 +126,10 @@ export const ClientDashboardView: React.FC = () => {
   const greeting = `שלום, ${customer.full_name || user?.email || 'לקוח'}!`;
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
+    <div className="bg-gray-50" dir="rtl">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <NetaLogo 
@@ -137,12 +137,7 @@ export const ClientDashboardView: React.FC = () => {
                 variant="default"
                 className="rounded-none border-0 p-0"
               />
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">{greeting}</h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  {activeLead?.fitness_goal || 'אין יעד כושר מוגדר'}
-                </p>
-              </div>
+              <h1 className="text-2xl font-bold text-slate-900">{greeting}</h1>
             </div>
             {/* Show Exit Impersonation button if admin is impersonating, otherwise show Logout */}
             {isImpersonating ? (
@@ -180,68 +175,94 @@ export const ClientDashboardView: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="border-2 border-slate-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">משקל</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {stats.weight ? `${stats.weight} ק"ג` : '—'}
-                  </p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 pb-4">
+        {/* Stats Summary - Compact Single Row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+          <Card className="border border-slate-200">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Activity className="h-5 w-5 text-blue-600" />
                 </div>
-                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Activity className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-slate-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">גובה</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {stats.height ? `${stats.height} ס"מ` : '—'}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-green-600" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 flex-shrink-0">משקל</span>
+                    <InlineEditableField
+                      label=""
+                      value={stats.weight || 0}
+                      onSave={handleUpdateWeight}
+                      type="number"
+                      formatValue={(val) => {
+                        const numVal = typeof val === 'number' ? val : Number(val);
+                        return numVal && numVal > 0 ? `${numVal} ק"ג` : '—';
+                      }}
+                      className="flex-1 min-w-0 py-0 [&>div]:py-0 [&>div>span:first-child]:hidden"
+                      valueClassName="text-lg font-bold text-slate-900 truncate"
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">BMI</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {stats.bmi ? stats.bmi.toFixed(1) : '—'}
-                  </p>
+          <Card className="border border-slate-200">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
                 </div>
-                <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <Target className="h-6 w-6 text-purple-600" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 flex-shrink-0">גובה</span>
+                    <InlineEditableField
+                      label=""
+                      value={stats.height || 0}
+                      onSave={handleUpdateHeight}
+                      type="number"
+                      formatValue={(val) => {
+                        const numVal = typeof val === 'number' ? val : Number(val);
+                        return !isNaN(numVal) && numVal > 0 ? `${numVal} ס"מ` : '—';
+                      }}
+                      className="flex-1 min-w-0 py-0 [&>div]:py-0 [&>div>span:first-child]:hidden"
+                      valueClassName="text-lg font-bold text-slate-900 truncate"
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">יעד כושר</p>
-                  <p className="text-lg font-semibold text-slate-900">
-                    {stats.fitnessGoal || '—'}
-                  </p>
+          <Card className="border border-slate-200">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                  <Target className="h-5 w-5 text-purple-600" />
                 </div>
-                <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
-                  <Target className="h-6 w-6 text-orange-600" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">BMI</span>
+                    <span className="text-lg font-bold text-slate-900 truncate">
+                      {stats.bmi ? stats.bmi.toFixed(1) : '—'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-slate-200">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                  <Target className="h-5 w-5 text-orange-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">יעד כושר</span>
+                    <span className="text-base font-semibold text-slate-900 truncate">
+                      {stats.fitnessGoal || '—'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -249,7 +270,7 @@ export const ClientDashboardView: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
           <TabsList className="grid w-full grid-cols-3 bg-white border border-gray-200">
             <TabsTrigger value="workout" className="data-[state=active]:bg-[#5B6FB9] data-[state=active]:text-white">
               אימונים

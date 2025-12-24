@@ -385,8 +385,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                   <span className="text-xs text-gray-500 font-medium flex-shrink-0">משקל יעד:</span>
                   <span className="text-sm font-semibold text-slate-900 flex-1 min-w-0 truncate">
                     {activeLead.target_weight} ק"ג
-                  </span>
-                </div>
+                </span>
+              </div>
               )}
             </div>
           </Card>

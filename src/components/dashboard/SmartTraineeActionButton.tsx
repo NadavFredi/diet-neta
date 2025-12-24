@@ -51,3 +51,4 @@ export const SmartTraineeActionButton: React.FC<SmartTraineeActionButtonProps> =
     );
   }
 };
+

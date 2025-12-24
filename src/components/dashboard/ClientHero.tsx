@@ -131,15 +131,15 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
           {/* Left Side (RTL): Back Button, Name, Phone, Email */}
           <div className="flex items-center gap-4 flex-wrap min-w-0">
             {/* Return Button */}
-            <Button
-              onClick={onBack}
-              variant="ghost"
-              size="sm"
+          <Button
+            onClick={onBack}
+            variant="ghost"
+            size="sm"
               className="text-gray-600 hover:text-gray-900 flex-shrink-0 h-7 px-2"
-            >
+          >
               <ArrowRight className="h-3.5 w-3.5 ml-1" />
-              חזור
-            </Button>
+            חזור
+          </Button>
 
             {/* Name - Page Title */}
             <h1 className="text-base font-bold text-gray-900 flex-shrink-0">{customer.full_name}</h1>
@@ -151,7 +151,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                 <span className="text-sm font-semibold text-gray-900 font-mono">
                   {customer.phone}
                 </span>
-              </div>
+          </div>
             )}
 
             {/* Email - On same line (optional, can be hidden on smaller screens) */}

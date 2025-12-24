@@ -78,7 +78,7 @@ const TemplatesManagement = () => {
         onLogout={handleLogout}
         sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
       />
-
+          
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
         <main 
           className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out" 
@@ -150,13 +150,13 @@ const TemplatesManagement = () => {
 
       {/* Save View Modal */}
       {getCurrentFilterConfig && (
-        <SaveViewModal
-          isOpen={isSaveViewModalOpen}
-          onOpenChange={setIsSaveViewModalOpen}
-          resourceKey="templates"
+      <SaveViewModal
+        isOpen={isSaveViewModalOpen}
+        onOpenChange={setIsSaveViewModalOpen}
+        resourceKey="templates"
           filterConfig={getCurrentFilterConfig(activeFilters)}
-          onSuccess={() => setIsSaveViewModalOpen(false)}
-        />
+        onSuccess={() => setIsSaveViewModalOpen(false)}
+      />
       )}
 
       {/* Edit View Modal */}

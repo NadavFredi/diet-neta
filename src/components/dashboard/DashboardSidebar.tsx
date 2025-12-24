@@ -172,54 +172,54 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
       <div className="flex-1 flex flex-col min-h-0">
         <nav 
           className="flex-1 py-4 overflow-y-auto text-base transition-all duration-300"
-          dir="rtl"
+      dir="rtl"
           style={{
-            scrollbarWidth: 'thin',
+          scrollbarWidth: 'thin',
             scrollbarColor: '#6B7FB8 #5B6FB9',
-          }}
+        }}
           role="navigation"
           aria-label="תפריט ניווט ראשי"
-        >
-          <style>{`
-            nav::-webkit-scrollbar {
+      >
+        <style>{`
+          nav::-webkit-scrollbar {
               width: 8px;
-            }
-            nav::-webkit-scrollbar-track {
+          }
+          nav::-webkit-scrollbar-track {
               background: #5B6FB9;
-              border-radius: 0;
-            }
-            nav::-webkit-scrollbar-thumb {
+            border-radius: 0;
+          }
+          nav::-webkit-scrollbar-thumb {
               background: #6B7FB8;
               border-radius: 4px;
               border: 1px solid #5B6FB9;
-            }
-            nav::-webkit-scrollbar-thumb:hover {
+          }
+          nav::-webkit-scrollbar-thumb:hover {
               background: #7B8FC8;
-            }
-          `}</style>
+          }
+        `}</style>
           <ul className={cn(
             'space-y-1 w-full px-2',
             isCollapsed && 'px-1'
           )} dir="rtl">
-            {navigationItems.map((item) => (
+          {navigationItems.map((item) => (
               <SidebarItem
-                key={item.id}
-                item={item}
-                active={isActive(item.path)}
-                activeViewId={activeViewId}
+              key={item.id}
+              item={item}
+              active={isActive(item.path)}
+              activeViewId={activeViewId}
                 isExpanded={effectiveExpandedSections[item.resourceKey] ?? true}
                 onToggle={() => handleToggleSection(item.resourceKey)}
-                onResourceClick={() => handleResourceClick(item)}
-                onViewClick={handleViewClick}
-                onSaveViewClick={onSaveViewClick}
-                onEditViewClick={onEditViewClick}
+              onResourceClick={() => handleResourceClick(item)}
+              onViewClick={handleViewClick}
+              onSaveViewClick={onSaveViewClick}
+              onEditViewClick={onEditViewClick}
                 onEditIconClick={handleEditIconClick}
                 customIcon={getIconForItem(item)}
                 isCollapsed={isCollapsed}
-              />
-            ))}
-          </ul>
-        </nav>
+            />
+          ))}
+        </ul>
+      </nav>
 
       </div>
 

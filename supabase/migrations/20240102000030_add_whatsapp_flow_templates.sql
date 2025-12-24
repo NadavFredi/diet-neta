@@ -66,3 +66,4 @@ CREATE TRIGGER update_whatsapp_flow_templates_updated_at
 COMMENT ON TABLE public.whatsapp_flow_templates IS 'Stores WhatsApp message templates for automation flows';
 COMMENT ON COLUMN public.whatsapp_flow_templates.flow_key IS 'Unique identifier for the flow (e.g., customer_journey_start, intro_questionnaire)';
 COMMENT ON COLUMN public.whatsapp_flow_templates.template_content IS 'Message template with placeholders like {{name}}, {{phone}}, etc.';
+

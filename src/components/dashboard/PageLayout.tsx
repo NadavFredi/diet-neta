@@ -186,13 +186,13 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               {/* Left Side: Lead History Sidebar */}
               {activeSidebar === 'history' && (
                 <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300 w-[350px]">
-                  <LeadHistorySidebar
-                    leads={sortedLeads}
-                    activeLeadId={activeLeadId}
-                    onLeadSelect={onLeadSelect}
-                    getStatusColor={getStatusColor}
-                    getStatusBorderColor={getStatusBorderColor}
-                  />
+            <LeadHistorySidebar
+              leads={sortedLeads}
+              activeLeadId={activeLeadId}
+              onLeadSelect={onLeadSelect}
+              getStatusColor={getStatusColor}
+              getStatusBorderColor={getStatusBorderColor}
+            />
                 </div>
               )}
 
@@ -213,8 +213,8 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
                   getStatusColor={getStatusColor}
                 />
               </div>
-            </div>
-          </main>
+          </div>
+        </main>
         </div>
       </div>
     </div>

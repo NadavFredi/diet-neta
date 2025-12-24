@@ -50,3 +50,4 @@ export const getCategoryLabel = (category: Placeholder['category']): string => {
   };
   return labels[category];
 };
+
