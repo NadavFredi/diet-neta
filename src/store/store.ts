@@ -11,6 +11,7 @@ import invitationReducer from './slices/invitationSlice';
 import impersonationReducer from './slices/impersonationSlice';
 import automationReducer from './slices/automationSlice';
 import formsReducer from './slices/formsSlice';
+import paymentReducer from './slices/paymentSlice';
 
 export const store = configureStore({
   reducer: {
@@ -25,6 +26,7 @@ export const store = configureStore({
     impersonation: impersonationReducer,
     automation: automationReducer,
     forms: formsReducer,
+    payment: paymentReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => {

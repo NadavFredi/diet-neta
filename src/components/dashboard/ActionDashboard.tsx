@@ -38,6 +38,7 @@ import { LeadHistoryTabs } from './LeadHistoryTabs';
 import { LeadAutomationCard } from './LeadAutomationCard';
 import { LeadFormsCard } from './LeadFormsCard';
 import { ReadOnlyField } from './ReadOnlyField';
+import { LeadPaymentCard } from './LeadPaymentCard';
 
 interface LeadData {
   id: string;
@@ -476,6 +477,13 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
           {/* Card 7: Fillout Forms */}
           <LeadFormsCard leadEmail={customer?.email || null} />
+
+          {/* Card 8: Stripe Payment Center */}
+          <LeadPaymentCard
+            customerPhone={activeLead.phone || customer?.phone || null}
+            customerName={customer?.full_name || activeLead.name || null}
+            customerEmail={customer?.email || activeLead.email || null}
+          />
         </div>
 
         {/* Workout, Steps, Nutrition & Supplements History Tabs - Full Width - Always Visible */}
