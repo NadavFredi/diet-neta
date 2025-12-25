@@ -61,3 +61,4 @@ export const selectIsIconPreferencesInitialized = (state: RootState) =>
 export default interfaceIconPreferencesSlice.reducer;
 
 
+

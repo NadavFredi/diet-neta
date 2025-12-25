@@ -112,3 +112,4 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail }) => {
     </>
   );
 };
+

@@ -68,3 +68,4 @@ COMMENT ON COLUMN public.whatsapp_flow_templates.flow_key IS 'Unique identifier 
 COMMENT ON COLUMN public.whatsapp_flow_templates.template_content IS 'Message template with placeholders like {{name}}, {{phone}}, etc.';
 
 
+

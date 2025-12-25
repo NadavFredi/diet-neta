@@ -58,3 +58,4 @@ COMMENT ON COLUMN user_interface_preferences.interface_key IS 'The interface ide
 COMMENT ON COLUMN user_interface_preferences.icon_name IS 'The Lucide icon name (e.g., "Users", "Dumbbell", "LayoutDashboard")';
 
 
+

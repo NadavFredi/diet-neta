@@ -31,13 +31,19 @@ import 'react-quill/dist/quill.snow.css';
 import { AVAILABLE_PLACEHOLDERS, getPlaceholdersByCategory, getCategoryLabel, type Placeholder } from '@/utils/whatsappPlaceholders';
 import { cn } from '@/lib/utils';
 
+export interface WhatsAppButton {
+  id: string;
+  text: string;
+}
+
 interface TemplateEditorModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   flowKey: string;
   flowLabel: string;
   initialTemplate: string;
-  onSave: (template: string) => Promise<void>;
+  initialButtons?: WhatsAppButton[];
+  onSave: (template: string, buttons?: WhatsAppButton[]) => Promise<void>;
 }
 
 export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
@@ -105,18 +111,26 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const quillRef = useRef<ReactQuill>(null);
 
-  // Reset template and buttons when modal opens/closes or initial values change
+  // Track if this is the first time the modal is opening
+  const isFirstOpen = React.useRef(true);
+  
+  // Reset template and buttons only when modal first opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && isFirstOpen.current) {
+      isFirstOpen.current = false;
       try {
         setTemplate(String(initialTemplate || ''));
-        // Ensure buttons is always an array and validate structure
         setButtons(getValidButtons(initialButtons));
       } catch (error) {
         console.error('[TemplateEditorModal] Error resetting state:', error);
         setTemplate('');
         setButtons([]);
       }
+    } else if (!isOpen) {
+      // Reset flag when modal closes so it resets on next open
+      isFirstOpen.current = true;
+      setTemplate('');
+      setButtons([]);
     }
   }, [isOpen, initialTemplate, initialButtons]);
 
@@ -278,49 +292,74 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
 
   // Button management handlers
   const handleAddButton = () => {
-    if (buttons.length >= 3) {
-      return; // Max 3 buttons
-    }
-    const newButton: WhatsAppButton = {
-      id: `btn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      text: '',
-    };
-    // Ensure we only add valid buttons
-    setButtons([...buttons.filter(btn => btn && typeof btn.id === 'string' && typeof btn.text === 'string'), newButton]);
+    setButtons(prevButtons => {
+      // Filter to ensure we only count valid buttons
+      const validButtons = prevButtons.filter(btn => 
+        btn && typeof btn === 'object' && typeof btn.id === 'string'
+      );
+      
+      // Check if we can add more buttons
+      if (validButtons.length >= 3) {
+        return prevButtons; // Don't add if already at max
+      }
+      
+      // Create new button with empty text (user will fill it in)
+      const newButton: WhatsAppButton = {
+        id: `btn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        text: '', // Empty string - this is valid and will be accepted by safeButtons filter
+      };
+      
+      // Add the new button
+      return [...validButtons, newButton];
+    });
   };
 
   const handleRemoveButton = (buttonId: string) => {
-    setButtons(buttons
-      .filter(btn => btn && typeof btn === 'object' && typeof btn.id === 'string')
-      .filter(btn => btn.id !== buttonId));
+    setButtons(prevButtons => 
+      prevButtons
+        .filter(btn => btn && typeof btn === 'object' && typeof btn.id === 'string')
+        .filter(btn => btn.id !== buttonId)
+    );
   };
 
   const handleButtonTextChange = (buttonId: string, text: string) => {
     // Limit button text to 25 characters (Green API limit)
     const limitedText = String(text || '').slice(0, 25);
-    setButtons(buttons
-      .filter(btn => btn && typeof btn === 'object' && typeof btn.id === 'string')
-      .map(btn => 
-        btn.id === buttonId ? { ...btn, text: limitedText } : btn
-      ));
+    setButtons(prevButtons => 
+      prevButtons
+        .filter(btn => btn && typeof btn === 'object' && typeof btn.id === 'string')
+        .map(btn => 
+          btn.id === buttonId ? { ...btn, text: limitedText } : btn
+        )
+    );
   };
 
   const categories: Placeholder['category'][] = ['customer', 'lead', 'fitness', 'plans'];
 
   // Safety check: ensure buttons is always a valid array
+  // Note: Empty string for text is valid (user will fill it in)
   const safeButtons = React.useMemo(() => {
     try {
       if (!Array.isArray(buttons)) return [];
-      return buttons.filter((btn: any): btn is WhatsAppButton => {
-        if (!btn || typeof btn !== 'object') return false;
-        const hasId = typeof btn.id === 'string' && btn.id.length > 0;
-        const hasText = typeof btn.text === 'string';
-        const hasName = typeof (btn as any).name === 'string';
-        return hasId && (hasText || hasName);
-      }).map((btn: any) => ({
-        id: String(btn.id),
-        text: String(btn.text || (btn as any).name || '')
-      }));
+      return buttons
+        .filter((btn: any): btn is WhatsAppButton => {
+          if (!btn || typeof btn !== 'object') return false;
+          // Must have a valid id
+          const hasId = typeof btn.id === 'string' && btn.id.length > 0;
+          if (!hasId) return false;
+          
+          // Accept buttons with text property (even empty string) OR name property
+          // Empty string is explicitly allowed - user will type the text
+          const hasText = typeof btn.text === 'string';
+          const hasName = typeof (btn as any).name === 'string';
+          
+          // Return true if it has id AND (text OR name property exists)
+          return hasText || hasName;
+        })
+        .map((btn: any) => ({
+          id: String(btn.id),
+          text: String(btn.text !== undefined ? btn.text : ((btn as any).name !== undefined ? (btn as any).name : ''))
+        }));
     } catch (error) {
       console.error('[TemplateEditorModal] Error processing buttons:', error);
       return [];
@@ -445,7 +484,11 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={handleAddButton}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleAddButton();
+                  }}
                   disabled={safeButtons.length >= 3}
                   className="h-7 px-2 text-xs"
                 >

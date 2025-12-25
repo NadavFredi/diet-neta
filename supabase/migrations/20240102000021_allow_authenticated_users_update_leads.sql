@@ -18,3 +18,4 @@ COMMENT ON POLICY "Authenticated users can update leads" ON public.leads IS
     'Allows all authenticated users to update leads for CRM functionality';
 
 
+
