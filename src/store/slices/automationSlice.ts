@@ -61,32 +61,53 @@ export const fetchTemplates = createAsyncThunk(
           // Parse buttons from JSONB if they exist
           // Supabase returns JSONB as already parsed, but we need to ensure it's an array
           let parsedButtons: WhatsAppButton[] | undefined = undefined;
-          if (template.buttons) {
+          if (template.buttons !== null && template.buttons !== undefined) {
             try {
-              // If it's already an array, use it directly
-              if (Array.isArray(template.buttons)) {
-                // Validate each button has the correct structure
-                parsedButtons = template.buttons.filter((btn: any) => 
-                  btn && typeof btn === 'object' && typeof btn.id === 'string' && typeof btn.text === 'string'
-                ).map((btn: any) => ({ id: btn.id, text: btn.text }));
-              } else if (typeof template.buttons === 'string') {
-                // If it's a string, parse it
-                const parsed = JSON.parse(template.buttons);
-                if (Array.isArray(parsed)) {
-                  parsedButtons = parsed.filter((btn: any) => 
-                    btn && typeof btn === 'object' && typeof btn.id === 'string' && typeof btn.text === 'string'
-                  ).map((btn: any) => ({ id: btn.id, text: btn.text }));
+              let buttonsData = template.buttons;
+              
+              // If it's a string, parse it first
+              if (typeof buttonsData === 'string') {
+                buttonsData = JSON.parse(buttonsData);
+              }
+              
+              // If it's an array, validate and normalize
+              if (Array.isArray(buttonsData)) {
+                parsedButtons = buttonsData
+                  .filter((btn: any) => {
+                    if (!btn || typeof btn !== 'object') return false;
+                    // Accept both {id, text} and {id, name} formats for compatibility
+                    const hasId = typeof btn.id === 'string' && btn.id.length > 0;
+                    const hasText = typeof btn.text === 'string';
+                    const hasName = typeof btn.name === 'string';
+                    return hasId && (hasText || hasName);
+                  })
+                  .map((btn: any) => ({
+                    id: String(btn.id),
+                    text: String(btn.text || btn.name || '')
+                  }));
+              } else if (typeof buttonsData === 'object' && buttonsData !== null) {
+                // Handle single object case (shouldn't happen, but be defensive)
+                if (typeof (buttonsData as any).id === 'string') {
+                  parsedButtons = [{
+                    id: String((buttonsData as any).id),
+                    text: String((buttonsData as any).text || (buttonsData as any).name || '')
+                  }];
                 }
               }
+              
+              // Only set if we have valid buttons
+              if (!parsedButtons || parsedButtons.length === 0) {
+                parsedButtons = undefined;
+              }
             } catch (error) {
-              console.warn('[fetchTemplates] Error parsing buttons:', error);
+              console.warn('[fetchTemplates] Error parsing buttons:', error, template.buttons);
               parsedButtons = undefined;
             }
           }
           
           const parsedTemplate: WhatsAppFlowTemplate = {
             ...template,
-            buttons: parsedButtons && parsedButtons.length > 0 ? parsedButtons : undefined,
+            buttons: parsedButtons,
           } as WhatsAppFlowTemplate;
           templatesMap[template.flow_key] = parsedTemplate;
         });

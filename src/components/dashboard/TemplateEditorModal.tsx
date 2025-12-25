@@ -49,24 +49,58 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   initialButtons = [],
   onSave,
 }) => {
-  // Helper function to validate and normalize buttons
-  const getValidButtons = useMemo(() => {
-    return (buttonsInput?: WhatsAppButton[]): WhatsAppButton[] => {
-      if (!buttonsInput || !Array.isArray(buttonsInput)) return [];
+  // Helper function to validate and normalize buttons - defined outside component to avoid recreation
+  const getValidButtons = (buttonsInput?: WhatsAppButton[] | any): WhatsAppButton[] => {
+    try {
+      if (!buttonsInput) return [];
+      if (!Array.isArray(buttonsInput)) {
+        // If it's a single object, try to convert it
+        if (typeof buttonsInput === 'object' && buttonsInput !== null) {
+          // Handle case where it might be an object with name instead of text
+          if (typeof (buttonsInput as any).name === 'string') {
+            return [{
+              id: (buttonsInput as any).id || `btn-${Date.now()}`,
+              text: String((buttonsInput as any).name)
+            }];
+          }
+          // Handle normal button structure
+          if (typeof (buttonsInput as any).id === 'string' && typeof (buttonsInput as any).text === 'string') {
+            return [{
+              id: (buttonsInput as any).id,
+              text: String((buttonsInput as any).text)
+            }];
+          }
+        }
+        return [];
+      }
       return buttonsInput
-        .filter((btn: any): btn is WhatsAppButton => 
-          btn && 
-          typeof btn === 'object' && 
-          typeof btn.id === 'string' && 
-          typeof btn.text === 'string' &&
-          btn.id.length > 0
-        )
-        .map(btn => ({ id: btn.id, text: String(btn.text || '') }));
-    };
-  }, []);
+        .filter((btn: any): btn is WhatsAppButton => {
+          if (!btn || typeof btn !== 'object') return false;
+          // Handle both {id, text} and {id, name} formats
+          const hasId = typeof btn.id === 'string' && btn.id.length > 0;
+          const hasText = typeof btn.text === 'string';
+          const hasName = typeof btn.name === 'string';
+          return hasId && (hasText || hasName);
+        })
+        .map((btn: any) => ({
+          id: btn.id,
+          text: String(btn.text || btn.name || '')
+        }));
+    } catch (error) {
+      console.error('[TemplateEditorModal] Error validating buttons:', error);
+      return [];
+    }
+  };
 
-  const [template, setTemplate] = useState(initialTemplate);
-  const [buttons, setButtons] = useState<WhatsAppButton[]>(() => getValidButtons(initialButtons));
+  const [template, setTemplate] = useState(initialTemplate || '');
+  const [buttons, setButtons] = useState<WhatsAppButton[]>(() => {
+    try {
+      return getValidButtons(initialButtons);
+    } catch (error) {
+      console.error('[TemplateEditorModal] Error initializing buttons:', error);
+      return [];
+    }
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const quillRef = useRef<ReactQuill>(null);
@@ -74,11 +108,17 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   // Reset template and buttons when modal opens/closes or initial values change
   useEffect(() => {
     if (isOpen) {
-      setTemplate(initialTemplate || '');
-      // Ensure buttons is always an array and validate structure
-      setButtons(getValidButtons(initialButtons));
+      try {
+        setTemplate(String(initialTemplate || ''));
+        // Ensure buttons is always an array and validate structure
+        setButtons(getValidButtons(initialButtons));
+      } catch (error) {
+        console.error('[TemplateEditorModal] Error resetting state:', error);
+        setTemplate('');
+        setButtons([]);
+      }
     }
-  }, [isOpen, initialTemplate, initialButtons, getValidButtons]);
+  }, [isOpen, initialTemplate, initialButtons]);
 
   // Custom toolbar configuration for RTL support
   const toolbarOptions = useMemo(() => [
@@ -225,12 +265,8 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Ensure only valid buttons are saved
-      const validButtons = buttons
-        .filter((btn): btn is WhatsAppButton => 
-          btn && typeof btn === 'object' && typeof btn.id === 'string' && typeof btn.text === 'string'
-        );
-      await onSave(template, validButtons.length > 0 ? validButtons : undefined);
+      // Ensure only valid buttons are saved - use safeButtons which is already validated
+      await onSave(template, safeButtons.length > 0 ? safeButtons : undefined);
       onOpenChange(false);
     } catch (error) {
       console.error('[TemplateEditorModal] Error saving template:', error);
@@ -270,6 +306,26 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   };
 
   const categories: Placeholder['category'][] = ['customer', 'lead', 'fitness', 'plans'];
+
+  // Safety check: ensure buttons is always a valid array
+  const safeButtons = React.useMemo(() => {
+    try {
+      if (!Array.isArray(buttons)) return [];
+      return buttons.filter((btn: any): btn is WhatsAppButton => {
+        if (!btn || typeof btn !== 'object') return false;
+        const hasId = typeof btn.id === 'string' && btn.id.length > 0;
+        const hasText = typeof btn.text === 'string';
+        const hasName = typeof (btn as any).name === 'string';
+        return hasId && (hasText || hasName);
+      }).map((btn: any) => ({
+        id: String(btn.id),
+        text: String(btn.text || (btn as any).name || '')
+      }));
+    } catch (error) {
+      console.error('[TemplateEditorModal] Error processing buttons:', error);
+      return [];
+    }
+  }, [buttons]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -390,53 +446,49 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={handleAddButton}
-                  disabled={buttons.length >= 3}
+                  disabled={safeButtons.length >= 3}
                   className="h-7 px-2 text-xs"
                 >
                   <Plus className="h-3.5 w-3.5 ml-1" />
-                  הוסף כפתור {buttons.length >= 3 && '(מקסימום 3)'}
+                  הוסף כפתור {safeButtons.length >= 3 && '(מקסימום 3)'}
                 </Button>
               </div>
 
-              {buttons.length === 0 ? (
+              {safeButtons.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-3">
                   אין כפתורים. לחץ על "הוסף כפתור" כדי להוסיף כפתור אינטראקטיבי.
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {buttons
-                    .filter((btn): btn is WhatsAppButton => 
-                      btn && typeof btn === 'object' && typeof btn.id === 'string' && typeof btn.text === 'string'
-                    )
-                    .map((button, index) => (
-                      <div
-                        key={button.id}
-                        className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-lg"
-                      >
-                        <span className="text-xs text-gray-500 font-medium w-6 flex-shrink-0">
-                          {index + 1}.
-                        </span>
-                        <Input
-                          value={button.text || ''}
-                          onChange={(e) => handleButtonTextChange(button.id, e.target.value)}
-                          placeholder="טקסט הכפתור (עד 25 תווים)"
-                          className="flex-1 h-8 text-sm border-gray-300 focus:border-[#5B6FB9]"
-                          dir="rtl"
-                          maxLength={25}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveButton(button.id)}
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                  {safeButtons.map((button, index) => (
+                        <div
+                          key={button.id}
+                          className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-lg"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ))}
+                          <span className="text-xs text-gray-500 font-medium w-6 flex-shrink-0">
+                            {String(index + 1)}.
+                          </span>
+                          <Input
+                            value={String(button.text || '')}
+                            onChange={(e) => handleButtonTextChange(button.id, e.target.value)}
+                            placeholder="טקסט הכפתור (עד 25 תווים)"
+                            className="flex-1 h-8 text-sm border-gray-300 focus:border-[#5B6FB9]"
+                            dir="rtl"
+                            maxLength={25}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveButton(button.id)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
                   <p className="text-xs text-gray-500 mt-2">
-                    💡 ניתן להשתמש בערכי מקום גם בטקסט הכפתורים (למשל: {{name}})
+                    💡 ניתן להשתמש בערכי מקום גם בטקסט הכפתורים (למשל: {'{{name}}'})
                   </p>
                 </div>
               )}
