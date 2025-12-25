@@ -169,9 +169,16 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
       const placeholders = buildPlaceholders();
       const message = replacePlaceholders(template.template_content, placeholders);
 
+      // Process buttons if they exist
+      const processedButtons = template.buttons?.map(btn => ({
+        id: btn.id,
+        text: replacePlaceholders(btn.text, placeholders), // Replace placeholders in button text
+      }));
+
       const result = await sendWhatsAppMessage({
         phoneNumber: customer.phone,
         message,
+        buttons: processedButtons,
       });
 
       if (result.success) {
@@ -194,9 +201,13 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
     }
   };
 
-  const handleSaveTemplate = async (flowKey: string, templateContent: string) => {
+  const handleSaveTemplate = async (
+    flowKey: string, 
+    templateContent: string, 
+    buttons?: Array<{ id: string; text: string }>
+  ) => {
     try {
-      await dispatch(saveTemplate({ flowKey, templateContent })).unwrap();
+      await dispatch(saveTemplate({ flowKey, templateContent, buttons })).unwrap();
       toast({
         title: 'הצלחה',
         description: 'התבנית נשמרה בהצלחה',
@@ -218,6 +229,12 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
 
   const flowConfig = FLOW_CONFIGS.find(f => f.key === editingFlowKey);
   const editingTemplate = editingFlowKey ? templates[editingFlowKey]?.template_content || '' : '';
+  // Ensure buttons is always a valid array
+  const editingButtons = editingFlowKey && templates[editingFlowKey]?.buttons 
+    ? templates[editingFlowKey].buttons.filter((btn: any): btn is { id: string; text: string } => 
+        btn && typeof btn === 'object' && typeof btn.id === 'string' && typeof btn.text === 'string'
+      )
+    : [];
 
   return (
     <>
@@ -292,7 +309,8 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
           flowKey={editingFlowKey}
           flowLabel={flowConfig.label}
           initialTemplate={editingTemplate}
-          onSave={(template) => handleSaveTemplate(editingFlowKey, template)}
+          initialButtons={editingButtons}
+          onSave={(template, buttons) => handleSaveTemplate(editingFlowKey, template, buttons)}
         />
       )}
     </>

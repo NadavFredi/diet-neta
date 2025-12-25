@@ -13,6 +13,8 @@ export interface GreenApiConfig {
 export interface SendMessageParams {
   phoneNumber: string; // Format: 972XXXXXXXXX (country code + number without + or 0)
   message: string;
+  buttons?: Array<{ id: string; text: string }>; // Optional interactive buttons (max 3)
+  footer?: string; // Optional footer text for button messages
 }
 
 export interface GreenApiResponse {
@@ -67,6 +69,7 @@ export const formatPhoneNumber = (phone: string): string => {
 
 /**
  * Send WhatsApp message via Green API
+ * Supports both plain text messages and interactive button messages
  */
 export const sendWhatsAppMessage = async (
   params: SendMessageParams
@@ -82,32 +85,91 @@ export const sendWhatsAppMessage = async (
     }
 
     const formattedPhone = formatPhoneNumber(params.phoneNumber);
-    
-    // Green API endpoint: https://api.green-api.com/waInstance{idInstance}/sendMessage/{apiTokenInstance}
-    const url = `https://api.green-api.com/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
+    const chatId = `${formattedPhone}@c.us`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chatId: `${formattedPhone}@c.us`,
+    // If buttons are provided, use SendButtons endpoint
+    if (params.buttons && params.buttons.length > 0) {
+      // Validate button count (max 3)
+      if (params.buttons.length > 3) {
+        return {
+          success: false,
+          error: 'Maximum 3 buttons allowed per message',
+        };
+      }
+
+      // Validate button text length (max 25 characters per Green API)
+      for (const button of params.buttons) {
+        if (button.text.length > 25) {
+          return {
+            success: false,
+            error: `Button text "${button.text}" exceeds 25 character limit`,
+          };
+        }
+      }
+
+      // Use SendButtons endpoint
+      const url = `https://api.green-api.com/waInstance${config.idInstance}/SendButtons/${config.apiTokenInstance}`;
+
+      const requestBody: any = {
+        chatId,
         message: params.message,
-      }),
-    });
+        buttons: params.buttons.map((btn, index) => ({
+          buttonId: String(index + 1), // Green API expects buttonId as string "1", "2", "3"
+          buttonText: btn.text,
+        })),
+      };
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      // Add footer if provided
+      if (params.footer) {
+        requestBody.footer = params.footer;
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      return {
+        success: true,
+        data,
+      };
+    } else {
+      // Use standard sendMessage endpoint for plain text
+      const url = `https://api.green-api.com/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chatId,
+          message: params.message,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      return {
+        success: true,
+        data,
+      };
     }
-
-    const data = await response.json();
-    
-    return {
-      success: true,
-      data,
-    };
   } catch (error: any) {
     console.error('[GreenAPI] Error sending message:', error);
     return {

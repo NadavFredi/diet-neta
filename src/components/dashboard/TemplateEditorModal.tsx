@@ -22,8 +22,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, Smile, Bold, Italic, Underline, Strikethrough, List, ListOrdered, AlignRight, AlignLeft, AlignCenter } from 'lucide-react';
+import { Loader2, Smile, Bold, Italic, Underline, Strikethrough, List, ListOrdered, AlignRight, AlignLeft, AlignCenter, Plus, Trash2 } from 'lucide-react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import ReactQuill, { Quill } from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -45,19 +46,39 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   flowKey,
   flowLabel,
   initialTemplate,
+  initialButtons = [],
   onSave,
 }) => {
+  // Helper function to validate and normalize buttons
+  const getValidButtons = useMemo(() => {
+    return (buttonsInput?: WhatsAppButton[]): WhatsAppButton[] => {
+      if (!buttonsInput || !Array.isArray(buttonsInput)) return [];
+      return buttonsInput
+        .filter((btn: any): btn is WhatsAppButton => 
+          btn && 
+          typeof btn === 'object' && 
+          typeof btn.id === 'string' && 
+          typeof btn.text === 'string' &&
+          btn.id.length > 0
+        )
+        .map(btn => ({ id: btn.id, text: String(btn.text || '') }));
+    };
+  }, []);
+
   const [template, setTemplate] = useState(initialTemplate);
+  const [buttons, setButtons] = useState<WhatsAppButton[]>(() => getValidButtons(initialButtons));
   const [isSaving, setIsSaving] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const quillRef = useRef<ReactQuill>(null);
 
-  // Reset template when modal opens/closes or initialTemplate changes
+  // Reset template and buttons when modal opens/closes or initial values change
   useEffect(() => {
     if (isOpen) {
-      setTemplate(initialTemplate);
+      setTemplate(initialTemplate || '');
+      // Ensure buttons is always an array and validate structure
+      setButtons(getValidButtons(initialButtons));
     }
-  }, [isOpen, initialTemplate]);
+  }, [isOpen, initialTemplate, initialButtons, getValidButtons]);
 
   // Custom toolbar configuration for RTL support
   const toolbarOptions = useMemo(() => [
@@ -204,7 +225,12 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave(template);
+      // Ensure only valid buttons are saved
+      const validButtons = buttons
+        .filter((btn): btn is WhatsAppButton => 
+          btn && typeof btn === 'object' && typeof btn.id === 'string' && typeof btn.text === 'string'
+        );
+      await onSave(template, validButtons.length > 0 ? validButtons : undefined);
       onOpenChange(false);
     } catch (error) {
       console.error('[TemplateEditorModal] Error saving template:', error);
@@ -212,6 +238,35 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Button management handlers
+  const handleAddButton = () => {
+    if (buttons.length >= 3) {
+      return; // Max 3 buttons
+    }
+    const newButton: WhatsAppButton = {
+      id: `btn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      text: '',
+    };
+    // Ensure we only add valid buttons
+    setButtons([...buttons.filter(btn => btn && typeof btn.id === 'string' && typeof btn.text === 'string'), newButton]);
+  };
+
+  const handleRemoveButton = (buttonId: string) => {
+    setButtons(buttons
+      .filter(btn => btn && typeof btn === 'object' && typeof btn.id === 'string')
+      .filter(btn => btn.id !== buttonId));
+  };
+
+  const handleButtonTextChange = (buttonId: string, text: string) => {
+    // Limit button text to 25 characters (Green API limit)
+    const limitedText = String(text || '').slice(0, 25);
+    setButtons(buttons
+      .filter(btn => btn && typeof btn === 'object' && typeof btn.id === 'string')
+      .map(btn => 
+        btn.id === buttonId ? { ...btn, text: limitedText } : btn
+      ));
   };
 
   const categories: Placeholder['category'][] = ['customer', 'lead', 'fitness', 'plans'];
@@ -322,6 +377,69 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                   💡 טיפ: לחץ על ערכי המקום בצד כדי להוסיף אותם במיקום הסמן
                 </p>
               </div>
+            </div>
+
+            {/* Interactive Buttons Section */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <Label className="text-sm font-semibold text-gray-700">
+                  כפתורים אינטראקטיביים
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddButton}
+                  disabled={buttons.length >= 3}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5 ml-1" />
+                  הוסף כפתור {buttons.length >= 3 && '(מקסימום 3)'}
+                </Button>
+              </div>
+
+              {buttons.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-3">
+                  אין כפתורים. לחץ על "הוסף כפתור" כדי להוסיף כפתור אינטראקטיבי.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {buttons
+                    .filter((btn): btn is WhatsAppButton => 
+                      btn && typeof btn === 'object' && typeof btn.id === 'string' && typeof btn.text === 'string'
+                    )
+                    .map((button, index) => (
+                      <div
+                        key={button.id}
+                        className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-lg"
+                      >
+                        <span className="text-xs text-gray-500 font-medium w-6 flex-shrink-0">
+                          {index + 1}.
+                        </span>
+                        <Input
+                          value={button.text || ''}
+                          onChange={(e) => handleButtonTextChange(button.id, e.target.value)}
+                          placeholder="טקסט הכפתור (עד 25 תווים)"
+                          className="flex-1 h-8 text-sm border-gray-300 focus:border-[#5B6FB9]"
+                          dir="rtl"
+                          maxLength={25}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveButton(button.id)}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 ניתן להשתמש בערכי מקום גם בטקסט הכפתורים (למשל: {{name}})
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

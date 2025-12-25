@@ -88,9 +88,10 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
     dispatch(setError(null));
   };
 
-  const handleSaveTemplate = async (template: string) => {
+  const handleSaveTemplate = async (template: string, buttons?: Array<{ id: string; text: string }>) => {
     dispatch(setPaymentMessageTemplate(template));
     localStorage.setItem('paymentMessageTemplate', template);
+    // Note: Payment card doesn't use buttons for now, but we keep the signature compatible
   };
 
   const handleCreateAndSend = async () => {
