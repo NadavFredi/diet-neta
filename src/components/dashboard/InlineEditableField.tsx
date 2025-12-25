@@ -108,7 +108,7 @@ export const InlineEditableField = ({
 
   if (isEditing) {
     return (
-      <div className={cn('flex items-center gap-2 py-0.5 min-w-0 w-full text-right', className)}>
+      <div className={cn('flex flex-col gap-1.5 py-0.5 min-w-0 w-full text-right', className)}>
         <span className="text-xs text-gray-500 font-medium flex-shrink-0">{label}:</span>
         <div className="relative flex-1 min-w-0">
           <Input
@@ -140,13 +140,13 @@ export const InlineEditableField = ({
 
   return (
     <div
-      className={cn('flex flex-col gap-1 py-0.5 group min-w-0 w-full text-right transition-all duration-200', className)}
+      className={cn('flex flex-col gap-1.5 py-0.5 group min-w-0 w-full text-right transition-all duration-200', className)}
       onMouseEnter={() => !disabled && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
     >
-      <div className="flex items-center gap-2 min-w-0 w-full">
-        <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>{label}:</span>
+      <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>{label}:</span>
+      <div className="flex items-center gap-2 min-w-0 w-full relative">
         <span 
           className={cn(
             'text-sm font-semibold text-slate-900 cursor-pointer hover:text-blue-600 transition-colors',

@@ -10,6 +10,7 @@ import clientReducer from './slices/clientSlice';
 import invitationReducer from './slices/invitationSlice';
 import impersonationReducer from './slices/impersonationSlice';
 import automationReducer from './slices/automationSlice';
+import formsReducer from './slices/formsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -23,6 +24,7 @@ export const store = configureStore({
     invitation: invitationReducer,
     impersonation: impersonationReducer,
     automation: automationReducer,
+    forms: formsReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => {

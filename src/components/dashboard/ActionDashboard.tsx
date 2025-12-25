@@ -36,6 +36,8 @@ import {
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 import { LeadHistoryTabs } from './LeadHistoryTabs';
 import { LeadAutomationCard } from './LeadAutomationCard';
+import { LeadFormsCard } from './LeadFormsCard';
+import { ReadOnlyField } from './ReadOnlyField';
 
 interface LeadData {
   id: string;
@@ -337,12 +339,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               <h3 className="text-sm font-bold text-gray-900">פרטים אישיים</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
-              <div className="flex items-center gap-2 min-w-0 w-full">
-                <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
-                <span className="text-sm font-semibold text-slate-900 flex-1 min-w-0 truncate">
-                  {age !== null ? `${age} שנים` : '-'}
-                </span>
-              </div>
+              <ReadOnlyField
+                label="גיל"
+                value={age !== null ? `${age} שנים` : null}
+                className="border-0 p-0"
+              />
               <InlineEditableField
                 label="גובה"
                 value={activeLead.height || 0}
@@ -363,7 +364,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 formatValue={(val) => val === 0 ? '-' : `${val} ק"ג`}
                 className="border-0 p-0"
               />
-              <div className="flex items-center gap-2 min-w-0 w-full">
+              <div className="flex flex-col gap-1.5 min-w-0 w-full">
                 <span className="text-xs text-gray-500 font-medium flex-shrink-0">BMI:</span>
                 <span className="text-sm font-semibold text-gray-900 flex-1 min-w-0 truncate">
                   {bmi !== null ? bmi : '-'}
@@ -381,12 +382,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 valueClassName="text-sm font-semibold text-slate-900"
               />
               {activeLead.target_weight && (
-                <div className="flex items-center gap-2 min-w-0 w-full">
-                  <span className="text-xs text-gray-500 font-medium flex-shrink-0">משקל יעד:</span>
-                  <span className="text-sm font-semibold text-slate-900 flex-1 min-w-0 truncate">
-                    {activeLead.target_weight} ק"ג
-                </span>
-              </div>
+                <ReadOnlyField
+                  label="משקל יעד"
+                  value={`${activeLead.target_weight} ק"ג`}
+                  className="border-0 p-0"
+                />
               )}
             </div>
           </Card>
@@ -473,6 +473,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             workoutPlanName={null}
             nutritionPlanName={null}
           />
+
+          {/* Card 7: Fillout Forms */}
+          <LeadFormsCard leadEmail={customer?.email || null} />
         </div>
 
         {/* Workout, Steps, Nutrition & Supplements History Tabs - Full Width - Always Visible */}
