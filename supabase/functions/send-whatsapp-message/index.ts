@@ -59,6 +59,22 @@ serve(async (req) => {
       );
     }
 
+    // Check for placeholder values
+    if (idInstance === 'your_instance_id' || apiTokenInstance === 'your_token') {
+      const errorMsg = 'Green API credentials are still set to placeholder values. Please replace "your_instance_id" and "your_token" in .env.local with your actual Green API credentials, then restart the Edge Function.';
+      console.error('[send-whatsapp-message]', errorMsg);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: errorMsg,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // When verify_jwt = true, Supabase automatically verifies the JWT before the function runs
     // If we get here, the JWT is valid. We can get the user from the auth header.
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
