@@ -10,32 +10,57 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileText, Loader2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchFormSubmission, FORM_TYPES, type FormType } from '@/store/slices/formsSlice';
+import { fetchFormSubmission, getFormTypes, type FormType } from '@/store/slices/formsSlice';
 import { FormResponseModal } from './FormResponseModal';
 
 interface LeadFormsCardProps {
-  leadEmail: string | null;
+  leadEmail?: string | null;
+  leadPhone?: string | null;
 }
 
-export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail }) => {
+export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPhone }) => {
   const dispatch = useAppDispatch();
   const { submissions, isLoading } = useAppSelector((state) => state.forms);
   const [selectedFormType, setSelectedFormType] = useState<FormType | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch all form submissions when component mounts or email changes
+  // Fetch all form submissions when component mounts or email/phone changes
   useEffect(() => {
-    if (leadEmail) {
-      FORM_TYPES.forEach((formType) => {
+    if (leadEmail || leadPhone) {
+      const formTypes = getFormTypes();
+      
+      // Debug: Log environment variables
+      console.log('[LeadFormsCard] Environment check:', {
+        VITE_FILLOUT_API_KEY: import.meta.env.VITE_FILLOUT_API_KEY ? '✅ Set' : '❌ Missing',
+        VITE_FILLOUT_FORM_ID_DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || '❌ Missing',
+        VITE_FILLOUT_FORM_ID_INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || '❌ Missing',
+        VITE_FILLOUT_FORM_ID_CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '❌ Missing',
+      });
+      
+      console.log('[LeadFormsCard] Fetching form submissions:', {
+        leadEmail,
+        leadPhone,
+        formTypes: formTypes.map(f => ({ key: f.key, formId: f.formId, label: f.label })),
+      });
+      
+      formTypes.forEach((formType) => {
+        if (!formType.formId) {
+          console.warn(`[LeadFormsCard] Skipping ${formType.label} - form ID not configured`);
+          return;
+        }
+        
         dispatch(
           fetchFormSubmission({
             formType: formType.key as 'details' | 'intro' | 'characterization',
-            email: leadEmail,
+            email: leadEmail || undefined,
+            phoneNumber: leadPhone || undefined,
           })
         );
       });
+    } else {
+      console.log('[LeadFormsCard] Skipping fetch - no email or phone provided');
     }
-  }, [leadEmail, dispatch]);
+  }, [leadEmail, leadPhone, dispatch]);
 
   const handleFormClick = (formType: FormType) => {
     setSelectedFormType(formType);
@@ -47,7 +72,7 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail }) => {
     setSelectedFormType(null);
   };
 
-  if (!leadEmail) {
+  if (!leadEmail && !leadPhone) {
     return null;
   }
 
@@ -62,7 +87,7 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail }) => {
         </div>
         <CardContent className="p-0 flex-1">
           <div className="space-y-3">
-            {FORM_TYPES.map((formType) => {
+            {getFormTypes().map((formType) => {
               const submission = submissions[formType.key];
               const loading = isLoading[formType.key] || false;
               const hasSubmission = !!submission;
@@ -106,10 +131,12 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail }) => {
           onClose={handleCloseModal}
           formType={selectedFormType}
           submission={submissions[selectedFormType.key] || null}
-          leadEmail={leadEmail}
+          leadEmail={leadEmail || undefined}
+          leadPhone={leadPhone || undefined}
         />
       )}
     </>
   );
 };
+
 

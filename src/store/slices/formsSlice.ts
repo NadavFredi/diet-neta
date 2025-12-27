@@ -11,11 +11,13 @@ import {
   type FilloutSubmission 
 } from '@/services/filloutService';
 
-// Form IDs from environment variables
-const FORM_IDS = {
-  DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || '',
-  INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || '',
-  CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '',
+// Helper function to get form IDs from environment variables at runtime
+const getFormIds = () => {
+  return {
+    DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || '',
+    INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || '',
+    CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '',
+  };
 };
 
 export interface FormType {
@@ -24,11 +26,18 @@ export interface FormType {
   formId: string;
 }
 
-export const FORM_TYPES: FormType[] = [
-  { key: 'details', label: 'טופס פרטים', formId: FORM_IDS.DETAILS },
-  { key: 'intro', label: 'שאלון היכרות', formId: FORM_IDS.INTRO },
-  { key: 'characterization', label: 'שאלון איפיון', formId: FORM_IDS.CHARACTERIZATION },
-];
+// Get form types - reads environment variables at runtime
+export const getFormTypes = (): FormType[] => {
+  const formIds = getFormIds();
+  return [
+    { key: 'details', label: 'טופס פרטים', formId: formIds.DETAILS },
+    { key: 'intro', label: 'שאלון היכרות', formId: formIds.INTRO },
+    { key: 'characterization', label: 'שאלון איפיון', formId: formIds.CHARACTERIZATION },
+  ];
+};
+
+// Export for backwards compatibility
+export const FORM_TYPES = getFormTypes();
 
 export interface FormsState {
   submissions: Record<string, FilloutSubmission | null>; // key: formType_key, value: submission
@@ -44,7 +53,8 @@ const initialState: FormsState = {
 
 interface FetchFormSubmissionParams {
   formType: 'details' | 'intro' | 'characterization';
-  email: string; // Lead email to match submissions
+  email?: string; // Lead email to match submissions
+  phoneNumber?: string; // Lead phone number to match submissions (priority matching)
 }
 
 /**
@@ -53,22 +63,57 @@ interface FetchFormSubmissionParams {
 export const fetchFormSubmission = createAsyncThunk(
   'forms/fetchFormSubmission',
   async (
-    { formType, email }: FetchFormSubmissionParams,
+    { formType, email, phoneNumber }: FetchFormSubmissionParams,
     { rejectWithValue }
   ) => {
     try {
-      if (!email) {
-        throw new Error('Email is required to fetch form submissions');
+      if (!email && !phoneNumber) {
+        throw new Error('Email or phone number is required to fetch form submissions');
       }
 
-      const formTypeConfig = FORM_TYPES.find((f) => f.key === formType);
+      const formTypes = getFormTypes();
+      const formTypeConfig = formTypes.find((f) => f.key === formType);
+      
+      const envValues = {
+        VITE_FILLOUT_FORM_ID_DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS,
+        VITE_FILLOUT_FORM_ID_INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO,
+        VITE_FILLOUT_FORM_ID_CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION,
+      };
+      
       if (!formTypeConfig || !formTypeConfig.formId) {
-        throw new Error(`Form ID not configured for ${formType}`);
+        console.error('[formsSlice] Form ID not configured:', {
+          formType,
+          formTypeConfig,
+          envValues,
+          allFormTypes: formTypes,
+        });
+        const envVarName = formType === 'details' ? 'VITE_FILLOUT_FORM_ID_DETAILS' :
+                          formType === 'intro' ? 'VITE_FILLOUT_FORM_ID_INTRO' :
+                          'VITE_FILLOUT_FORM_ID_CHARACTERIZATION';
+        throw new Error(
+          `Form ID not configured for ${formType}. ` +
+          `Please set ${envVarName} in .env.local. ` +
+          `Current value: "${envValues[envVarName as keyof typeof envValues] || 'undefined'}". ` +
+          `After updating .env.local, restart the dev server.`
+        );
       }
+
+      console.log('[formsSlice] Fetching submission:', {
+        formType,
+        formId: formTypeConfig.formId,
+        email,
+        phoneNumber,
+        envVars: {
+          DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS,
+          INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO,
+          CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION,
+        },
+      });
 
       const submission = await findMostRecentSubmission(
         formTypeConfig.formId,
-        email
+        email,
+        phoneNumber
       );
 
       return {
@@ -88,20 +133,22 @@ export const fetchFormSubmission = createAsyncThunk(
 export const fetchAllFormSubmissions = createAsyncThunk(
   'forms/fetchAllFormSubmissions',
   async (
-    { email }: { email: string },
+    { email, phoneNumber }: { email?: string; phoneNumber?: string },
     { dispatch, rejectWithValue }
   ) => {
     try {
-      if (!email) {
-        throw new Error('Email is required to fetch form submissions');
+      if (!email && !phoneNumber) {
+        throw new Error('Email or phone number is required to fetch form submissions');
       }
 
       // Fetch all three forms in parallel
-      const promises = FORM_TYPES.map((formType) =>
+      const formTypes = getFormTypes();
+      const promises = formTypes.map((formType) =>
         dispatch(
           fetchFormSubmission({
             formType: formType.key as 'details' | 'intro' | 'characterization',
             email,
+            phoneNumber,
           })
         ).unwrap()
       );
@@ -141,23 +188,36 @@ const formsSlice = createSlice({
       .addCase(fetchFormSubmission.pending, (state, action) => {
         const key = action.meta.arg.formType;
         state.isLoading[key] = true;
-        state.error = null;
+        state.error = null; // Clear previous errors
       })
       .addCase(fetchFormSubmission.fulfilled, (state, action) => {
         const { formType, submission } = action.payload;
         const key = formType;
         state.isLoading[key] = false;
         state.submissions[key] = submission;
+        state.error = null; // Clear errors on success
+        console.log('[formsSlice] Submission fetched:', {
+          formType: key,
+          hasSubmission: !!submission,
+          submissionId: submission?.submissionId,
+        });
       })
       .addCase(fetchFormSubmission.rejected, (state, action) => {
         const key = action.meta.arg.formType;
         state.isLoading[key] = false;
-        state.error = action.payload as string;
+        const errorMsg = action.payload as string || action.error.message || 'Unknown error';
+        state.error = errorMsg;
+        console.error('[formsSlice] Error fetching submission:', {
+          formType: key,
+          error: errorMsg,
+          payload: action.payload,
+        });
       })
       // Fetch all form submissions
       .addCase(fetchAllFormSubmissions.pending, (state) => {
         // Set loading for all forms
-        FORM_TYPES.forEach((formType) => {
+        const formTypes = getFormTypes();
+        formTypes.forEach((formType) => {
           state.isLoading[formType.key] = true;
         });
         state.error = null;
@@ -166,7 +226,8 @@ const formsSlice = createSlice({
         // Loading states are managed by individual fetchFormSubmission actions
       })
       .addCase(fetchAllFormSubmissions.rejected, (state, action) => {
-        FORM_TYPES.forEach((formType) => {
+        const formTypes = getFormTypes();
+        formTypes.forEach((formType) => {
           state.isLoading[formType.key] = false;
         });
         state.error = action.payload as string;
@@ -176,4 +237,5 @@ const formsSlice = createSlice({
 
 export const { clearSubmission, clearAllSubmissions, clearError } = formsSlice.actions;
 export default formsSlice.reducer;
+
 

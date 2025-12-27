@@ -5,7 +5,7 @@
  * Shows questions and answers in a clean, readable format
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, X, FileText } from 'lucide-react';
+import { Loader2, X, FileText, RefreshCw } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchFormSubmission, type FormType } from '@/store/slices/formsSlice';
 import { format } from 'date-fns';
@@ -25,7 +25,8 @@ interface FormResponseModalProps {
   onClose: () => void;
   formType: FormType;
   submission: any | null;
-  leadEmail: string;
+  leadEmail?: string;
+  leadPhone?: string;
 }
 
 export const FormResponseModal: React.FC<FormResponseModalProps> = ({
@@ -34,23 +35,41 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
   formType,
   submission,
   leadEmail,
+  leadPhone,
 }) => {
   const dispatch = useAppDispatch();
-  const { isLoading } = useAppSelector((state) => state.forms);
+  const { isLoading, error } = useAppSelector((state) => state.forms);
 
   const loading = isLoading[formType.key] || false;
+  const formError = error;
 
-  // Fetch submission if not already loaded
-  useEffect(() => {
-    if (isOpen && !submission && leadEmail) {
+  // Fetch submission when modal opens
+  const fetchData = React.useCallback(() => {
+    if (leadEmail || leadPhone) {
+      console.log('[FormResponseModal] Fetching submission:', {
+        formType: formType.key,
+        formId: formType.formId,
+        leadEmail,
+        leadPhone,
+      });
+      
       dispatch(
         fetchFormSubmission({
           formType: formType.key as 'details' | 'intro' | 'characterization',
           email: leadEmail,
+          phoneNumber: leadPhone,
         })
-      );
+      ).catch((err) => {
+        console.error('[FormResponseModal] Error fetching submission:', err);
+      });
     }
-  }, [isOpen, submission, leadEmail, formType.key, dispatch]);
+  }, [leadEmail, leadPhone, formType.key, formType.formId, dispatch]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchData();
+    }
+  }, [isOpen, fetchData]);
 
   const formatAnswer = (value: any): string => {
     if (value === null || value === undefined) {
@@ -92,15 +111,60 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
               <Loader2 className="h-8 w-8 animate-spin text-purple-600 mb-4" />
               <p className="text-sm text-slate-600">טוען תשובות...</p>
             </div>
+          ) : formError ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <FileText className="h-12 w-12 text-red-300 mb-4" />
+              <p className="text-base font-medium text-red-600 mb-2">
+                שגיאה בטעינת הטופס
+              </p>
+              <p className="text-sm text-red-500 text-center mb-4">
+                {formError}
+              </p>
+              <div className="text-xs text-slate-400 text-center space-y-1">
+                <p>פרטי חיפוש:</p>
+                <p>טופס: {formType.formId || 'לא הוגדר'}</p>
+                {leadPhone && <p>טלפון: {leadPhone}</p>}
+                {leadEmail && <p>אימייל: {leadEmail}</p>}
+              </div>
+            </div>
           ) : !submission ? (
             <div className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-slate-300 mb-4" />
               <p className="text-base font-medium text-slate-600 mb-2">
                 לא נמצאה הגשה
               </p>
-              <p className="text-sm text-slate-500 text-center">
+              <p className="text-sm text-slate-500 text-center mb-4">
                 הלקוח עדיין לא הגיש את הטופס הזה
               </p>
+              <div className="text-xs text-slate-400 text-center space-y-1 bg-slate-50 p-3 rounded border border-slate-200">
+                <p className="font-semibold text-slate-600 mb-2">פרטי חיפוש:</p>
+                <p>מזהה טופס: <code className="bg-white px-1 rounded">{formType.formId || 'לא הוגדר'}</code></p>
+                {leadPhone && <p>מספר טלפון: <code className="bg-white px-1 rounded">{leadPhone}</code></p>}
+                {leadEmail && <p>אימייל: <code className="bg-white px-1 rounded">{leadEmail}</code></p>}
+                <div className="text-[10px] text-slate-500 mt-2 pt-2 border-t border-slate-200 text-right">
+                  <p className="font-semibold mb-1">משתני סביבה:</p>
+                  <div className="space-y-0.5">
+                    <p>VITE_FILLOUT_FORM_ID_DETAILS: <code className="bg-white px-1 rounded">{import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || 'לא הוגדר'}</code></p>
+                    <p>VITE_FILLOUT_FORM_ID_INTRO: <code className="bg-white px-1 rounded">{import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || 'לא הוגדר'}</code></p>
+                    <p>VITE_FILLOUT_FORM_ID_CHARACTERIZATION: <code className="bg-white px-1 rounded">{import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || 'לא הוגדר'}</code></p>
+                    <p>VITE_FILLOUT_API_KEY: <code className="bg-white px-1 rounded">{import.meta.env.VITE_FILLOUT_API_KEY ? '✅ קיים (' + import.meta.env.VITE_FILLOUT_API_KEY.substring(0, 8) + '...)' : '❌ לא הוגדר'}</code></p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-200">
+                  💡 בדוק את הקונסול (F12) למידע נוסף. לאחר עדכון .env.local יש לאתחל את השרת.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchData}
+                  disabled={loading}
+                  className="mt-3 h-8 text-xs"
+                >
+                  <RefreshCw className={`h-3 w-3 ml-1 ${loading ? 'animate-spin' : ''}`} />
+                  רענון
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-6">
@@ -169,4 +233,5 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
     </Dialog>
   );
 };
+
 

@@ -476,7 +476,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           />
 
           {/* Card 7: Fillout Forms */}
-          <LeadFormsCard leadEmail={customer?.email || null} />
+          <LeadFormsCard 
+            leadEmail={customer?.email || activeLead?.email || null} 
+            leadPhone={activeLead?.phone || customer?.phone || null}
+          />
 
           {/* Card 8: Stripe Payment Center */}
           <LeadPaymentCard

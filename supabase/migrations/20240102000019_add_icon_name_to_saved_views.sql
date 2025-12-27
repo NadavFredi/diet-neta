@@ -10,3 +10,4 @@ COMMENT ON COLUMN saved_views.icon_name IS 'Name of the Lucide icon component to
 
 
 
+

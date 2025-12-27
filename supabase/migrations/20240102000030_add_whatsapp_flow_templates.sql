@@ -69,3 +69,4 @@ COMMENT ON COLUMN public.whatsapp_flow_templates.template_content IS 'Message te
 
 
 
+

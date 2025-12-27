@@ -19,3 +19,4 @@ COMMENT ON POLICY "Authenticated users can update leads" ON public.leads IS
 
 
 
+
