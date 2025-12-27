@@ -16,11 +16,18 @@ export interface FilloutQuestion {
   value: string | number | boolean | null;
 }
 
+export interface FilloutUrlParameter {
+  id: string;
+  name: string;
+  value: string;
+}
+
 export interface FilloutSubmission {
   submissionId: string;
   submissionTime: string;
   lastUpdatedAt: string;
   questions: FilloutQuestion[];
+  urlParameters?: FilloutUrlParameter[]; // URL parameters from form URL (e.g., ?lead_id=xxx)
 }
 
 export interface FilloutFormSubmissionsResponse {
@@ -112,6 +119,12 @@ export const getFormSubmissions = async (
       totalResponses: data.totalResponses,
       pageCount: data.pageCount,
       responsesCount: data.responses?.length || 0,
+      firstSubmissionStructure: data.responses?.[0] ? {
+        hasUrlParameters: !!data.responses[0].urlParameters,
+        urlParametersCount: data.responses[0].urlParameters?.length || 0,
+        urlParameters: data.responses[0].urlParameters || [],
+        questionsCount: data.responses[0].questions?.length || 0,
+      } : null,
     });
     
     // Note: Email filtering is handled in findMostRecentSubmission function
@@ -183,17 +196,18 @@ const normalizePhoneNumber = (phone: string): string => {
 };
 
 /**
- * Find the most recent submission for a lead (by email OR phone number)
- * Prioritizes phone number matching if both are provided
+ * Find the most recent submission for a lead (by lead_id, email OR phone number)
+ * Prioritizes lead_id matching (most reliable), then phone number, then email
  */
 export const findMostRecentSubmission = async (
   formId: string,
   email?: string,
-  phoneNumber?: string
+  phoneNumber?: string,
+  leadId?: string
 ): Promise<FilloutSubmission | null> => {
   try {
-    if (!email && !phoneNumber) {
-      console.log('[Fillout] No email or phone provided for form:', formId);
+    if (!leadId && !email && !phoneNumber) {
+      console.log('[Fillout] No lead_id, email, or phone provided for form:', formId);
       return null;
     }
 
@@ -203,6 +217,7 @@ export const findMostRecentSubmission = async (
 
     console.log('[Fillout] Searching for submission:', {
       formId,
+      leadId,
       email,
       phoneNumber,
       normalizedPhone,
@@ -226,6 +241,29 @@ export const findMostRecentSubmission = async (
       return null;
     }
 
+    // Debug: Log all submissions structure to understand what Fillout returns
+    console.log('[Fillout] 📋 Sample submission structure:', {
+      totalSubmissions: response.responses.length,
+      firstSubmission: response.responses[0] ? {
+        submissionId: response.responses[0].submissionId,
+        submissionTime: response.responses[0].submissionTime,
+        hasUrlParameters: !!response.responses[0].urlParameters,
+        urlParametersCount: response.responses[0].urlParameters?.length || 0,
+        urlParameters: response.responses[0].urlParameters || [],
+        questionsCount: response.responses[0].questions?.length || 0,
+        questionIds: response.responses[0].questions?.map(q => q.id) || [],
+        questionNames: response.responses[0].questions?.map(q => q.name) || [],
+        questionTypes: response.responses[0].questions?.map(q => q.type) || [],
+        sampleValues: response.responses[0].questions?.slice(0, 5).map(q => ({
+          id: q.id,
+          name: q.name,
+          value: q.value,
+        })) || [],
+        // Full structure for debugging
+        fullStructure: Object.keys(response.responses[0]),
+      } : null,
+    });
+
     // Debug: Log all phone numbers found in submissions
     if (phoneNumber) {
       console.log('[Fillout] Checking submissions for phone:', {
@@ -237,20 +275,25 @@ export const findMostRecentSubmission = async (
       console.log(`[Fillout] Total submissions to check: ${response.responses.length}`);
       
       response.responses.forEach((submission, idx) => {
-        const allValues = submission.questions.map(q => ({
-          name: q.name,
-          type: q.type,
-          value: q.value,
-          normalized: q.value ? normalizePhoneNumber(String(q.value)) : null,
-        }));
-        const hasMatchingPhone = allValues.some(q => 
-          q.normalized === normalizedPhone && q.normalized && q.normalized.length > 0
-        );
+        const allValues = submission.questions.map(q => {
+          const value = q.value ? String(q.value) : '';
+          const normalized = q.value ? normalizePhoneNumber(value) : null;
+          return {
+            name: q.name,
+            type: q.type,
+            value: value,
+            normalized: normalized,
+            matchesPhone: normalized === normalizedPhone && normalized && normalized.length >= 7,
+          };
+        });
+        const hasMatchingPhone = allValues.some(q => q.matchesPhone);
         console.log(`[Fillout] Submission ${idx + 1} (${hasMatchingPhone ? '✅ MATCH' : '❌ no match'}):`, {
           submissionId: submission.submissionId,
           submissionTime: submission.submissionTime,
           hasMatchingPhone,
-          questions: allValues,
+          targetPhone: phoneNumber,
+          targetNormalized: normalizedPhone,
+          allQuestions: allValues,
         });
       });
     }
@@ -280,61 +323,146 @@ export const findMostRecentSubmission = async (
       normalizedEmail,
     });
 
-    // Filter submissions by phone number (priority) or email
+    // Filter submissions by lead_id (priority), phone number, or email
     const matchingSubmissions = response.responses.filter((submission) => {
-      // First, try to match by phone number if provided
-      if (normalizedPhone && normalizedPhone.length > 0) {
-        // Strategy 1: Check all phone-named fields first (more efficient)
-        let phoneMatch = submission.questions.some((question) => {
-          // Check if this is a phone field
-          const isPhoneField = 
-            question.type === 'PhoneNumber' ||
-            question.type === 'Phone' ||
-            question.name.toLowerCase().includes('phone') ||
-            question.name.toLowerCase().includes('טלפון') ||
-            question.name.toLowerCase().includes('mobile') ||
-            question.name.toLowerCase().includes('נייד');
-          
-          if (isPhoneField && question.value) {
-            const submissionPhone = normalizePhoneNumber(String(question.value));
-            const matches = submissionPhone === normalizedPhone && submissionPhone.length > 0;
-            if (matches) {
-              console.log('[Fillout] Phone match found in phone field:', {
-                fieldName: question.name,
-                fieldType: question.type,
-                originalValue: question.value,
-                normalized: submissionPhone,
+      // Strategy 1: Match by lead_id (most reliable - from URL parameter)
+      // IMPORTANT: URL parameters are stored in urlParameters array, not in questions!
+      if (leadId && leadId.trim().length > 0) {
+        // First, check urlParameters array (where Fillout stores URL params)
+        if (submission.urlParameters && submission.urlParameters.length > 0) {
+          const urlParamMatch = submission.urlParameters.some((param) => {
+            const paramName = param.name?.toLowerCase() || '';
+            const paramValue = String(param.value || '').trim();
+            
+            // Check if this is the lead_id parameter
+            if ((paramName === 'lead_id' || paramName === 'leadid') && paramValue === leadId) {
+              console.log('[Fillout] ✅ Lead ID match found in urlParameters:', {
+                leadId,
+                paramName: param.name,
+                paramValue: paramValue,
+                submissionId: submission.submissionId,
+                allUrlParams: submission.urlParameters,
               });
+              return true;
             }
-            return matches;
+            return false;
+          });
+          
+          if (urlParamMatch) {
+            return true;
           }
+          
+          // Log urlParameters for debugging
+          console.log('[Fillout] Checking urlParameters:', {
+            submissionId: submission.submissionId,
+            targetLeadId: leadId,
+            urlParameters: submission.urlParameters,
+          });
+        }
+        
+        // Fallback: Also check questions array (in case lead_id was pre-filled into a field)
+        const leadIdMatch = submission.questions.some((question) => {
+          if (!question.value) return false;
+          
+          const questionValue = String(question.value).trim();
+          const questionName = question.name?.toLowerCase() || '';
+          const questionId = question.id?.toLowerCase() || '';
+          
+          // Check if this is a lead_id field (by name or ID)
+          const isLeadIdField = 
+            questionName.includes('lead_id') || 
+            questionName.includes('leadid') ||
+            questionId.includes('lead_id') ||
+            questionId.includes('leadid');
+          
+          // Check if the value matches the lead_id
+          const valueMatches = questionValue === leadId;
+          
+          // Also check if the field name suggests it's a lead_id field and value matches
+          if (isLeadIdField && valueMatches) {
+            console.log('[Fillout] ✅ Lead ID match found in question field:', {
+              leadId,
+              fieldName: question.name,
+              fieldId: question.id,
+              fieldValue: questionValue,
+              submissionId: submission.submissionId,
+            });
+            return true;
+          }
+          
+          // Also check if ANY field value matches (URL params can go to any field)
+          if (valueMatches) {
+            console.log('[Fillout] ✅ Lead ID match found in question value:', {
+              leadId,
+              fieldName: question.name,
+              fieldId: question.id,
+              fieldType: question.type,
+              fieldValue: questionValue,
+              submissionId: submission.submissionId,
+            });
+            return true;
+          }
+          
           return false;
         });
         
-        // Strategy 2: If no phone field match, check ALL question values
-        // This handles cases where URL parameters pre-fill any field (hidden fields, etc.)
-        if (!phoneMatch && normalizedPhone.length >= 7) {
-          phoneMatch = submission.questions.some((question) => {
-            if (!question.value) return false;
-            const questionValue = String(question.value);
-            // Skip obviously non-phone values (emails, very long text, etc.)
-            if (questionValue.includes('@') || questionValue.length > 25) {
-              return false;
-            }
-            // Normalize and compare
-            const submissionPhone = normalizePhoneNumber(questionValue);
-            const matches = submissionPhone === normalizedPhone && submissionPhone.length >= 7;
-            if (matches) {
-              console.log('[Fillout] Phone match found in generic field:', {
-                fieldName: question.name,
-                fieldType: question.type,
-                originalValue: question.value,
-                normalized: submissionPhone,
-              });
-            }
-            return matches;
+        if (leadIdMatch) {
+          return true;
+        } else {
+          // Debug: Log all fields for lead_id search
+          console.log('[Fillout] ❌ No lead_id match found. Submission details:', {
+            submissionId: submission.submissionId,
+            targetLeadId: leadId,
+            hasUrlParameters: !!submission.urlParameters,
+            urlParametersCount: submission.urlParameters?.length || 0,
+            urlParameters: submission.urlParameters || [],
+            questionsCount: submission.questions?.length || 0,
+            sampleQuestions: submission.questions?.slice(0, 3).map(q => ({
+              id: q.id,
+              name: q.name,
+              type: q.type,
+              value: q.value,
+            })) || [],
           });
         }
+      }
+      
+      // Strategy 2: Match by phone number if provided
+      if (normalizedPhone && normalizedPhone.length > 0) {
+        // Check ALL question values (URL parameters can pre-fill any field)
+        // This is more important than checking phone-named fields first
+        const phoneMatch = submission.questions.some((question) => {
+          if (!question.value) return false;
+          
+          const questionValue = String(question.value);
+          
+          // Skip obviously non-phone values (emails, very long text, etc.)
+          if (questionValue.includes('@') || questionValue.length > 25) {
+            return false;
+          }
+          
+          // Normalize and compare - try multiple normalization strategies
+          const submissionPhone = normalizePhoneNumber(questionValue);
+          const matches = submissionPhone === normalizedPhone && submissionPhone.length >= 7;
+          
+          // Also try matching without normalization in case formats are very similar
+          const directMatch = questionValue.includes(phoneNumber?.replace(/[\s\-\(\)]/g, '') || '') ||
+                             (phoneNumber && questionValue.replace(/\D/g, '') === phoneNumber.replace(/\D/g, ''));
+          
+          if (matches || directMatch) {
+            console.log('[Fillout] ✅ Phone match found:', {
+              fieldName: question.name,
+              fieldType: question.type,
+              originalValue: question.value,
+              normalized: submissionPhone,
+              targetNormalized: normalizedPhone,
+              matchType: matches ? 'normalized' : 'direct',
+            });
+            return true;
+          }
+          
+          return false;
+        });
         
         if (phoneMatch) {
           return true;

@@ -477,6 +477,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
           {/* Card 7: Fillout Forms */}
           <LeadFormsCard 
+            leadId={activeLead?.id || null} // Pass lead ID for URL parameter matching
             leadEmail={customer?.email || activeLead?.email || null} 
             leadPhone={activeLead?.phone || customer?.phone || null}
           />

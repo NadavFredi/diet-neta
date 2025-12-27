@@ -31,7 +31,16 @@ export const getGreenApiConfig = (): GreenApiConfig | null => {
   const apiTokenInstance = import.meta.env.VITE_GREEN_API_TOKEN_INSTANCE;
 
   if (!idInstance || !apiTokenInstance) {
-    console.warn('[GreenAPI] Missing environment variables for Green API');
+    const missing = [];
+    if (!idInstance) missing.push('VITE_GREEN_API_ID_INSTANCE');
+    if (!apiTokenInstance) missing.push('VITE_GREEN_API_TOKEN_INSTANCE');
+    
+    console.warn('[GreenAPI] Missing environment variables:', missing.join(', '));
+    console.warn('[GreenAPI] Available env vars:', {
+      hasIdInstance: !!idInstance,
+      hasApiTokenInstance: !!apiTokenInstance,
+      idInstanceValue: idInstance ? `${idInstance.substring(0, 4)}...` : 'undefined',
+    });
     return null;
   }
 

@@ -25,6 +25,7 @@ interface FormResponseModalProps {
   onClose: () => void;
   formType: FormType;
   submission: any | null;
+  leadId?: string; // Supabase lead row ID (priority for matching)
   leadEmail?: string;
   leadPhone?: string;
 }
@@ -34,6 +35,7 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
   onClose,
   formType,
   submission,
+  leadId,
   leadEmail,
   leadPhone,
 }) => {
@@ -45,10 +47,11 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
 
   // Fetch submission when modal opens
   const fetchData = React.useCallback(() => {
-    if (leadEmail || leadPhone) {
+    if (leadId || leadEmail || leadPhone) {
       console.log('[FormResponseModal] Fetching submission:', {
         formType: formType.key,
         formId: formType.formId,
+        leadId,
         leadEmail,
         leadPhone,
       });
@@ -56,6 +59,7 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
       dispatch(
         fetchFormSubmission({
           formType: formType.key as 'details' | 'intro' | 'characterization',
+          leadId: leadId, // Priority: use lead_id for matching
           email: leadEmail,
           phoneNumber: leadPhone,
         })
@@ -63,7 +67,7 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
         console.error('[FormResponseModal] Error fetching submission:', err);
       });
     }
-  }, [leadEmail, leadPhone, formType.key, formType.formId, dispatch]);
+  }, [leadId, leadEmail, leadPhone, formType.key, formType.formId, dispatch]);
 
   useEffect(() => {
     if (isOpen) {
@@ -123,6 +127,7 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
               <div className="text-xs text-slate-400 text-center space-y-1">
                 <p>פרטי חיפוש:</p>
                 <p>טופס: {formType.formId || 'לא הוגדר'}</p>
+                {leadId && <p>מזהה ליד (Lead ID): <strong>{leadId}</strong></p>}
                 {leadPhone && <p>טלפון: {leadPhone}</p>}
                 {leadEmail && <p>אימייל: {leadEmail}</p>}
               </div>
@@ -139,6 +144,7 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
               <div className="text-xs text-slate-400 text-center space-y-1 bg-slate-50 p-3 rounded border border-slate-200">
                 <p className="font-semibold text-slate-600 mb-2">פרטי חיפוש:</p>
                 <p>מזהה טופס: <code className="bg-white px-1 rounded">{formType.formId || 'לא הוגדר'}</code></p>
+                {leadId && <p>מזהה ליד (Lead ID): <code className="bg-white px-1 rounded font-semibold">{leadId}</code></p>}
                 {leadPhone && <p>מספר טלפון: <code className="bg-white px-1 rounded">{leadPhone}</code></p>}
                 {leadEmail && <p>אימייל: <code className="bg-white px-1 rounded">{leadEmail}</code></p>}
                 <div className="text-[10px] text-slate-500 mt-2 pt-2 border-t border-slate-200 text-right">

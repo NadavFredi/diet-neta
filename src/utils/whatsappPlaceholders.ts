@@ -22,6 +22,7 @@ export const AVAILABLE_PLACEHOLDERS: Placeholder[] = [
   // Lead/Inquiry information
   { key: 'status', label: 'סטטוס', description: 'סטטוס ההתעניינות', category: 'lead' },
   { key: 'created_date', label: 'תאריך יצירה', description: 'תאריך יצירת ההתעניינות', category: 'lead' },
+  { key: 'lead_id', label: 'מזהה ליד', description: 'מזהה ייחודי של הליד ב-Supabase (לשימוש בפרמטר URL)', category: 'lead' },
   
   // Fitness information
   { key: 'fitness_goal', label: 'מטרת כושר', description: 'מטרת הכושר של הלקוח', category: 'fitness' },

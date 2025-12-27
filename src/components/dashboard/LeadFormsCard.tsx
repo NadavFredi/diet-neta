@@ -16,17 +16,18 @@ import { FormResponseModal } from './FormResponseModal';
 interface LeadFormsCardProps {
   leadEmail?: string | null;
   leadPhone?: string | null;
+  leadId?: string | null; // Supabase lead row ID (for matching form submissions)
 }
 
-export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPhone }) => {
+export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPhone, leadId }) => {
   const dispatch = useAppDispatch();
   const { submissions, isLoading } = useAppSelector((state) => state.forms);
   const [selectedFormType, setSelectedFormType] = useState<FormType | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch all form submissions when component mounts or email/phone changes
+  // Fetch all form submissions when component mounts or leadId/email/phone changes
   useEffect(() => {
-    if (leadEmail || leadPhone) {
+    if (leadId || leadEmail || leadPhone) {
       const formTypes = getFormTypes();
       
       // Debug: Log environment variables
@@ -38,29 +39,34 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
       });
       
       console.log('[LeadFormsCard] Fetching form submissions:', {
+        leadId,
         leadEmail,
         leadPhone,
         formTypes: formTypes.map(f => ({ key: f.key, formId: f.formId, label: f.label })),
       });
       
       formTypes.forEach((formType) => {
-        if (!formType.formId) {
-          console.warn(`[LeadFormsCard] Skipping ${formType.label} - form ID not configured`);
+        // Skip if form ID is not configured or is still a placeholder
+        if (!formType.formId || 
+            formType.formId === 'your_characterization_form_id' ||
+            formType.formId.trim() === '') {
+          console.warn(`[LeadFormsCard] Skipping ${formType.label} - form ID not configured or is placeholder: "${formType.formId}"`);
           return;
         }
         
         dispatch(
           fetchFormSubmission({
             formType: formType.key as 'details' | 'intro' | 'characterization',
+            leadId: leadId || undefined, // Priority: use lead_id for matching
             email: leadEmail || undefined,
             phoneNumber: leadPhone || undefined,
           })
         );
       });
     } else {
-      console.log('[LeadFormsCard] Skipping fetch - no email or phone provided');
+      console.log('[LeadFormsCard] Skipping fetch - no leadId, email, or phone provided');
     }
-  }, [leadEmail, leadPhone, dispatch]);
+  }, [leadId, leadEmail, leadPhone, dispatch]);
 
   const handleFormClick = (formType: FormType) => {
     setSelectedFormType(formType);
@@ -72,7 +78,7 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
     setSelectedFormType(null);
   };
 
-  if (!leadEmail && !leadPhone) {
+  if (!leadId && !leadEmail && !leadPhone) {
     return null;
   }
 
@@ -131,6 +137,7 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
           onClose={handleCloseModal}
           formType={selectedFormType}
           submission={submissions[selectedFormType.key] || null}
+          leadId={leadId || undefined}
           leadEmail={leadEmail || undefined}
           leadPhone={leadPhone || undefined}
         />

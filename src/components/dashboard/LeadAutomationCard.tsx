@@ -130,6 +130,7 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
       gender: getGenderLabel(lead?.gender),
       status: status,
       created_date: formatDate(lead?.created_at),
+      lead_id: lead?.id || '', // Supabase row ID for URL parameters
       fitness_goal: lead?.fitness_goal || '',
       activity_level: lead?.activity_level || '',
       preferred_time: lead?.preferred_time || '',

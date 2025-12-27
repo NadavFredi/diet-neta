@@ -111,13 +111,13 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const quillRef = useRef<ReactQuill>(null);
 
-  // Track if this is the first time the modal is opening
-  const isFirstOpen = React.useRef(true);
+  // Track previous isOpen state to detect when modal opens
+  const prevIsOpen = React.useRef(isOpen);
   
-  // Reset template and buttons only when modal first opens
+  // Reset template and buttons when modal opens (but not on every render)
   useEffect(() => {
-    if (isOpen && isFirstOpen.current) {
-      isFirstOpen.current = false;
+    // Only update when modal transitions from closed to open
+    if (isOpen && !prevIsOpen.current) {
       try {
         setTemplate(String(initialTemplate || ''));
         setButtons(getValidButtons(initialButtons));
@@ -126,13 +126,9 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
         setTemplate('');
         setButtons([]);
       }
-    } else if (!isOpen) {
-      // Reset flag when modal closes so it resets on next open
-      isFirstOpen.current = true;
-      setTemplate('');
-      setButtons([]);
     }
-  }, [isOpen, initialTemplate, initialButtons]);
+    prevIsOpen.current = isOpen;
+  }, [isOpen]); // Only depend on isOpen, update initialTemplate/initialButtons manually if needed
 
   // Custom toolbar configuration for RTL support
   const toolbarOptions = useMemo(() => [
