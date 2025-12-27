@@ -175,14 +175,26 @@ export const sendWhatsAppMessage = async (
       apikeyLength: headers['apikey']?.length || 0,
     });
 
+    // Clean the message to remove HTML tags and format for WhatsApp
+    const cleanedMessage = cleanWhatsAppMessage(params.message);
+    
+    // Clean button text as well
+    const cleanedButtons = params.buttons?.map(btn => ({
+      id: btn.id,
+      text: cleanWhatsAppMessage(btn.text),
+    }));
+    
+    // Clean footer if present
+    const cleanedFooter = params.footer ? cleanWhatsAppMessage(params.footer) : undefined;
+
     const response = await fetch(functionUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         phoneNumber: params.phoneNumber,
-        message: params.message,
-        buttons: params.buttons,
-        footer: params.footer,
+        message: cleanedMessage,
+        buttons: cleanedButtons,
+        footer: cleanedFooter,
       }),
     });
 
@@ -233,6 +245,48 @@ export const sendWhatsAppMessage = async (
       error: error?.message || 'Failed to send WhatsApp message',
     };
   }
+};
+
+/**
+ * Clean HTML tags and format text for WhatsApp
+ * Removes HTML tags, converts to proper line breaks, and cleans up formatting
+ */
+export const cleanWhatsAppMessage = (text: string): string => {
+  if (!text) return text;
+  
+  let cleaned = text;
+  
+  // Replace common HTML tags with appropriate formatting
+  // <p> and </p> -> double line break (paragraph)
+  cleaned = cleaned.replace(/<p[^>]*>/gi, '\n\n');
+  cleaned = cleaned.replace(/<\/p>/gi, '');
+  
+  // <br> and <br/> -> single line break
+  cleaned = cleaned.replace(/<br\s*\/?>/gi, '\n');
+  
+  // Remove other HTML tags but preserve their content
+  cleaned = cleaned.replace(/<[^>]+>/g, '');
+  
+  // Decode HTML entities
+  cleaned = cleaned
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+  
+  // Clean up excessive line breaks (more than 2 consecutive)
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  
+  // Trim whitespace from start and end, but preserve intentional line breaks
+  cleaned = cleaned.trim();
+  
+  // Remove trailing spaces from each line
+  cleaned = cleaned.split('\n').map(line => line.trimEnd()).join('\n');
+  
+  return cleaned;
 };
 
 /**
