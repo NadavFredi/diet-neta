@@ -2,8 +2,9 @@
  * Green API Service
  * 
  * Service for sending WhatsApp messages via Green API
- * Uses environment variables for configuration
+ * Uses Supabase Edge Function to proxy requests (solves CORS issues)
  */
+import { supabase } from '@/lib/supabaseClient';
 
 export interface GreenApiConfig {
   idInstance: string;
@@ -44,6 +45,16 @@ export const getGreenApiConfig = (): GreenApiConfig | null => {
     return null;
   }
 
+  // Check for placeholder values
+  if (idInstance === 'your_instance_id' || apiTokenInstance === 'your_token') {
+    console.error('[GreenAPI] Placeholder values detected! Please replace with actual credentials in .env.local');
+    console.error('[GreenAPI] Current values:', {
+      idInstance: idInstance === 'your_instance_id' ? 'PLACEHOLDER' : '✓',
+      apiTokenInstance: apiTokenInstance === 'your_token' ? 'PLACEHOLDER' : '✓',
+    });
+    return null;
+  }
+
   return {
     idInstance,
     apiTokenInstance,
@@ -77,36 +88,24 @@ export const formatPhoneNumber = (phone: string): string => {
 };
 
 /**
- * Send WhatsApp message via Green API
+ * Send WhatsApp message via Green API using Supabase Edge Function
+ * This solves CORS issues by proxying requests through the backend
  * Supports both plain text messages and interactive button messages
  */
 export const sendWhatsAppMessage = async (
   params: SendMessageParams
 ): Promise<GreenApiResponse> => {
   try {
-    const config = getGreenApiConfig();
-    
-    if (!config) {
+    // Validate button count (max 3)
+    if (params.buttons && params.buttons.length > 3) {
       return {
         success: false,
-        error: 'Green API configuration not found. Please check environment variables.',
+        error: 'Maximum 3 buttons allowed per message',
       };
     }
 
-    const formattedPhone = formatPhoneNumber(params.phoneNumber);
-    const chatId = `${formattedPhone}@c.us`;
-
-    // If buttons are provided, use SendButtons endpoint
-    if (params.buttons && params.buttons.length > 0) {
-      // Validate button count (max 3)
-      if (params.buttons.length > 3) {
-        return {
-          success: false,
-          error: 'Maximum 3 buttons allowed per message',
-        };
-      }
-
-      // Validate button text length (max 25 characters per Green API)
+    // Validate button text length (max 25 characters per Green API)
+    if (params.buttons) {
       for (const button of params.buttons) {
         if (button.text.length > 25) {
           return {
@@ -115,70 +114,118 @@ export const sendWhatsAppMessage = async (
           };
         }
       }
+    }
 
-      // Use SendButtons endpoint
-      const url = `https://api.green-api.com/waInstance${config.idInstance}/SendButtons/${config.apiTokenInstance}`;
-
-      const requestBody: any = {
-        chatId,
-        message: params.message,
-        buttons: params.buttons.map((btn, index) => ({
-          buttonId: String(index + 1), // Green API expects buttonId as string "1", "2", "3"
-          buttonText: btn.text,
-        })),
-      };
-
-      // Add footer if provided
-      if (params.footer) {
-        requestBody.footer = params.footer;
-      }
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
+    // Ensure we have an active session before calling the function
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('[GreenAPI] Session error:', sessionError);
       return {
-        success: true,
-        data,
-      };
-    } else {
-      // Use standard sendMessage endpoint for plain text
-      const url = `https://api.green-api.com/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chatId,
-          message: params.message,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      return {
-        success: true,
-        data,
+        success: false,
+        error: 'Authentication error. Please log in again.',
       };
     }
+    
+    if (!session) {
+      console.error('[GreenAPI] No active session');
+      return {
+        success: false,
+        error: 'Authentication required. Please log in again.',
+      };
+    }
+    
+    // Verify session is still valid
+    if (!session.access_token) {
+      console.error('[GreenAPI] Invalid session - no access token');
+      return {
+        success: false,
+        error: 'Invalid session. Please log in again.',
+      };
+    }
+    
+    console.log('[GreenAPI] Session valid, calling Edge Function');
+
+    // Call Edge Function directly via fetch to avoid Supabase client routing issues
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const functionUrl = `${supabaseUrl}/functions/v1/send-whatsapp-message`;
+    
+    console.log('[GreenAPI] Calling function URL:', functionUrl);
+    console.log('[GreenAPI] Request body:', {
+      phoneNumber: params.phoneNumber,
+      messageLength: params.message.length,
+      hasButtons: !!params.buttons,
+      buttonCount: params.buttons?.length || 0,
+    });
+
+    // Build headers - Supabase functions need both apikey and Authorization
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+    };
+    
+    // Only add Authorization if we have a valid token
+    if (session.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+    
+    console.log('[GreenAPI] Request headers:', {
+      hasApikey: !!headers['apikey'],
+      hasAuth: !!headers['Authorization'],
+      apikeyLength: headers['apikey']?.length || 0,
+    });
+
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        phoneNumber: params.phoneNumber,
+        message: params.message,
+        buttons: params.buttons,
+        footer: params.footer,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText };
+      }
+      
+      console.error('[GreenAPI] Edge function error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+        errorText: errorText,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+      
+      // Log the full error for debugging
+      console.error('[GreenAPI] Full error response:', JSON.stringify(errorData, null, 2));
+      
+      return {
+        success: false,
+        error: errorData.error || errorData.message || errorText || `HTTP error! status: ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+
+    // The edge function returns { success, data, error }
+    if (data && !data.success) {
+      return {
+        success: false,
+        error: data.error || 'Failed to send WhatsApp message',
+      };
+    }
+
+    return {
+      success: true,
+      data: data?.data,
+    };
   } catch (error: any) {
     console.error('[GreenAPI] Error sending message:', error);
     return {

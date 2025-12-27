@@ -13,7 +13,8 @@ import { supabase } from '@/lib/supabaseClient';
 // Types
 // ============================================
 
-export type SidebarType = 'none' | 'history' | 'notes';
+export type SidebarType = 'none' | 'history' | 'notes' | 'submission';
+export type LeftSidebarType = 'none' | 'history' | 'submission';
 
 export interface CustomerNote {
   id: string;
@@ -26,8 +27,11 @@ export interface CustomerNote {
 }
 
 interface LeadViewState {
-  // Sidebar state
-  activeSidebar: SidebarType;
+  // Sidebar state - split into left sidebar and notes (independent)
+  leftSidebar: LeftSidebarType; // Left sidebar: history or submission
+  notesOpen: boolean; // Right sidebar: notes (independent from left sidebar)
+  selectedFormType: 'details' | 'intro' | 'characterization' | null; // Track which form is open in submission sidebar
+  // Legacy: keep activeSidebar for backward compatibility, computed from leftSidebar and notesOpen
   
   // Notes state (customer-centric)
   notes: {
@@ -39,6 +43,9 @@ interface LeadViewState {
   notesError: {
     [customerId: string]: string | null;
   };
+  currentNoteFilter: {
+    [customerId: string]: string | null;
+  };
 }
 
 // ============================================
@@ -46,7 +53,9 @@ interface LeadViewState {
 // ============================================
 
 const initialState: LeadViewState = {
-  activeSidebar: 'none',
+  leftSidebar: 'none',
+  notesOpen: false,
+  selectedFormType: null,
   notes: {},
   isLoadingNotes: {},
   notesError: {},
@@ -221,20 +230,77 @@ const leadViewSlice = createSlice({
   name: 'leadView',
   initialState,
   reducers: {
-    // Sidebar state management
+    // Left sidebar state management (history or submission)
+    setLeftSidebar: (state, action: PayloadAction<LeftSidebarType>) => {
+      state.leftSidebar = action.payload;
+      // Clear selected form type if closing submission sidebar or opening different sidebar
+      if (action.payload !== 'submission') {
+        state.selectedFormType = null;
+      }
+    },
+    toggleLeftSidebar: (state, action: PayloadAction<LeftSidebarType>) => {
+      // If clicking the same sidebar type, close it; otherwise switch to it
+      if (state.leftSidebar === action.payload) {
+        state.leftSidebar = 'none';
+        if (action.payload === 'submission') {
+          state.selectedFormType = null;
+        }
+      } else {
+        state.leftSidebar = action.payload;
+        // Clear selected form type when switching to history
+        if (action.payload === 'history') {
+          state.selectedFormType = null;
+        }
+      }
+    },
+    setSelectedFormType: (state, action: PayloadAction<'details' | 'intro' | 'characterization'>) => {
+      state.selectedFormType = action.payload;
+      state.leftSidebar = 'submission'; // Automatically open submission sidebar (replaces history)
+    },
+    // Notes sidebar state management (independent from left sidebar)
+    setNotesOpen: (state, action: PayloadAction<boolean>) => {
+      state.notesOpen = action.payload;
+    },
+    toggleNotes: (state) => {
+      state.notesOpen = !state.notesOpen;
+    },
+    // Legacy: backward compatibility helpers
     setActiveSidebar: (state, action: PayloadAction<SidebarType>) => {
-      state.activeSidebar = action.payload;
+      // Map legacy calls to new state structure
+      if (action.payload === 'notes') {
+        state.notesOpen = true;
+      } else if (action.payload === 'none') {
+        state.leftSidebar = 'none';
+        state.notesOpen = false;
+      } else {
+        state.leftSidebar = action.payload as LeftSidebarType;
+        if (action.payload !== 'submission') {
+          state.selectedFormType = null;
+        }
+      }
     },
     toggleSidebar: (state, action: PayloadAction<SidebarType>) => {
-      // If clicking the same sidebar type, close it; otherwise switch to it
-      if (state.activeSidebar === action.payload) {
-        state.activeSidebar = 'none';
+      // Map legacy calls to new state structure
+      if (action.payload === 'notes') {
+        state.notesOpen = !state.notesOpen;
       } else {
-        state.activeSidebar = action.payload;
+        if (state.leftSidebar === action.payload) {
+          state.leftSidebar = 'none';
+          if (action.payload === 'submission') {
+            state.selectedFormType = null;
+          }
+        } else {
+          state.leftSidebar = action.payload as LeftSidebarType;
+          if (action.payload === 'history') {
+            state.selectedFormType = null;
+          }
+        }
       }
     },
     closeSidebar: (state) => {
-      state.activeSidebar = 'none';
+      state.leftSidebar = 'none';
+      state.notesOpen = false;
+      state.selectedFormType = null;
     },
 
     // Clear notes cache when navigating away
@@ -367,16 +433,35 @@ const leadViewSlice = createSlice({
 // ============================================
 
 export const {
-  setActiveSidebar,
-  toggleSidebar,
+  setLeftSidebar,
+  toggleLeftSidebar,
+  setSelectedFormType,
+  setNotesOpen,
+  toggleNotes,
+  setActiveSidebar, // Legacy - for backward compatibility
+  toggleSidebar, // Legacy - for backward compatibility
   closeSidebar,
   clearNotesCache,
   setNoteFilter,
 } = leadViewSlice.actions;
 
 // Selectors
-export const selectActiveSidebar = (state: { leadView: LeadViewState }) => 
-  state.leadView.activeSidebar;
+// New selectors for independent sidebar states
+export const selectLeftSidebar = (state: { leadView: LeadViewState }) => 
+  state.leadView.leftSidebar;
+
+export const selectNotesOpen = (state: { leadView: LeadViewState }) => 
+  state.leadView.notesOpen;
+
+// Legacy selector for backward compatibility (returns the "main" sidebar state)
+export const selectActiveSidebar = (state: { leadView: LeadViewState }): SidebarType => {
+  // If notes are open, prioritize notes for legacy compatibility
+  // Otherwise return left sidebar
+  if (state.leadView.notesOpen) {
+    return 'notes';
+  }
+  return state.leadView.leftSidebar;
+};
 
 export const selectCustomerNotes = (customerId: string | null | undefined) => 
   (state: { leadView: LeadViewState }): CustomerNote[] => {

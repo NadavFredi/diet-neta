@@ -114,3 +114,8 @@ entrypoint = "./functions/send-bulk-messages/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/get-attendance/index.ts"
+
+[functions.send-whatsapp-message]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-whatsapp-message/index.ts"

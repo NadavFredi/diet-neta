@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { FileText, Loader2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchFormSubmission, getFormTypes, type FormType } from '@/store/slices/formsSlice';
-import { FormResponseModal } from './FormResponseModal';
+import { setSelectedFormType } from '@/store/slices/leadViewSlice';
 
 interface LeadFormsCardProps {
   leadEmail?: string | null;
@@ -21,9 +21,7 @@ interface LeadFormsCardProps {
 
 export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPhone, leadId }) => {
   const dispatch = useAppDispatch();
-  const { submissions, isLoading } = useAppSelector((state) => state.forms);
-  const [selectedFormType, setSelectedFormType] = useState<FormType | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { submissions, isLoading, error } = useAppSelector((state) => state.forms);
 
   // Fetch all form submissions when component mounts or leadId/email/phone changes
   useEffect(() => {
@@ -69,13 +67,20 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
   }, [leadId, leadEmail, leadPhone, dispatch]);
 
   const handleFormClick = (formType: FormType) => {
-    setSelectedFormType(formType);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedFormType(null);
+    // Fetch the submission if not already loaded
+    const submission = submissions[formType.key];
+    if (!submission && !isLoading[formType.key]) {
+      dispatch(
+        fetchFormSubmission({
+          formType: formType.key as 'details' | 'intro' | 'characterization',
+          leadId: leadId || undefined,
+          email: leadEmail || undefined,
+          phoneNumber: leadPhone || undefined,
+        })
+      );
+    }
+    // Open submission sidebar with this form type (this will close history sidebar automatically)
+    dispatch(setSelectedFormType(formType.key as 'details' | 'intro' | 'characterization'));
   };
 
   if (!leadId && !leadEmail && !leadPhone) {
@@ -130,18 +135,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
         </CardContent>
       </Card>
 
-      {/* Form Response Modal */}
-      {selectedFormType && (
-        <FormResponseModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          formType={selectedFormType}
-          submission={submissions[selectedFormType.key] || null}
-          leadId={leadId || undefined}
-          leadEmail={leadEmail || undefined}
-          leadPhone={leadPhone || undefined}
-        />
-      )}
     </>
   );
 };

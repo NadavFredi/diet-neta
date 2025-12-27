@@ -8,44 +8,56 @@
 import { useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
+  selectLeftSidebar,
+  selectNotesOpen,
   selectActiveSidebar,
-  toggleSidebar,
-  setActiveSidebar,
+  toggleLeftSidebar,
+  setLeftSidebar,
+  setSelectedFormType,
+  setNotesOpen,
+  toggleNotes as toggleNotesAction,
   closeSidebar,
   type SidebarType,
+  type LeftSidebarType,
 } from '@/store/slices/leadViewSlice';
 
 export const useLeadSidebar = () => {
   const dispatch = useAppDispatch();
-  const activeSidebar = useAppSelector(selectActiveSidebar);
+  const leftSidebar = useAppSelector(selectLeftSidebar);
+  const notesOpen = useAppSelector(selectNotesOpen);
+  const activeSidebar = useAppSelector(selectActiveSidebar); // Legacy compatibility
 
   const openHistory = useCallback(() => {
-    dispatch(setActiveSidebar('history'));
+    dispatch(setLeftSidebar('history'));
   }, [dispatch]);
 
   const openNotes = useCallback(() => {
-    dispatch(setActiveSidebar('notes'));
+    dispatch(setNotesOpen(true));
   }, [dispatch]);
 
   const toggleHistory = useCallback(() => {
-    dispatch(toggleSidebar('history'));
+    dispatch(toggleLeftSidebar('history'));
   }, [dispatch]);
 
   const toggleNotes = useCallback(() => {
-    dispatch(toggleSidebar('notes'));
+    dispatch(toggleNotesAction());
   }, [dispatch]);
 
   const close = useCallback(() => {
     dispatch(closeSidebar());
   }, [dispatch]);
 
-  const isHistoryOpen = activeSidebar === 'history';
-  const isNotesOpen = activeSidebar === 'notes';
-  const isAnyOpen = activeSidebar !== 'none';
+  const isHistoryOpen = leftSidebar === 'history';
+  const isSubmissionOpen = leftSidebar === 'submission';
+  const isNotesOpen = notesOpen;
+  const isAnyOpen = leftSidebar !== 'none' || notesOpen;
 
   return {
-    activeSidebar,
+    activeSidebar, // Legacy compatibility
+    leftSidebar,
+    notesOpen,
     isHistoryOpen,
+    isSubmissionOpen,
     isNotesOpen,
     isAnyOpen,
     openHistory,

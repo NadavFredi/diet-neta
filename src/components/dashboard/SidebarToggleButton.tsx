@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { History, StickyNote } from 'lucide-react';
 import { useLeadSidebar } from '@/hooks/useLeadSidebar';
 import { useAppSelector } from '@/store/hooks';
-import { selectActiveSidebar } from '@/store/slices/leadViewSlice';
+import { selectLeftSidebar, selectNotesOpen } from '@/store/slices/leadViewSlice';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -27,24 +27,22 @@ export const SidebarToggleButton: React.FC = () => {
     toggleNotes,
   } = useLeadSidebar();
 
-  const activeSidebar = useAppSelector(selectActiveSidebar);
+  const leftSidebar = useAppSelector(selectLeftSidebar);
+  const notesOpen = useAppSelector(selectNotesOpen);
 
   // Calculate position relative to viewport
   // Main content starts 256px from right (DashboardSidebar width)
-  // History/Notes sidebars extend from the right edge of main content
-  // Buttons attach to the LEFT edge of the History/Notes sidebar
+  // Notes sidebar is on the right (independent from left sidebar)
+  // Buttons attach to the LEFT edge of the Notes sidebar
   const DASHBOARD_SIDEBAR_WIDTH = 256;
   
   const getRightPosition = () => {
-    if (activeSidebar === 'history') {
-      // Main content margin (256px) + History sidebar width (350px) = 606px from viewport right
-      return `${DASHBOARD_SIDEBAR_WIDTH + 350}px`;
-    }
-    if (activeSidebar === 'notes') {
+    // Notes are on the right side, so buttons position relative to notes sidebar
+    if (notesOpen) {
       // Main content margin (256px) + Notes sidebar width (450px) = 706px from viewport right
       return `${DASHBOARD_SIDEBAR_WIDTH + 450}px`;
     }
-    // When closed: buttons at right edge of main content (256px from viewport right)
+    // When notes closed: buttons at right edge of main content (256px from viewport right)
     return `${DASHBOARD_SIDEBAR_WIDTH}px`;
   };
 

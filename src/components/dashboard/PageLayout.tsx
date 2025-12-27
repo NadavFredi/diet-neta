@@ -9,12 +9,12 @@ import React from 'react';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardSidebar } from './DashboardSidebar';
 import { ClientHero } from './ClientHero';
-import { LeadHistorySidebar } from './LeadHistorySidebar';
+import { LeadSidebarContainer } from './LeadSidebarContainer';
 import { ResizableNotesPanel } from './ResizableNotesPanel';
 import { ActionDashboard } from './ActionDashboard';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector } from '@/store/hooks';
-import { selectActiveSidebar } from '@/store/slices/leadViewSlice';
+import { getFormTypes } from '@/store/slices/formsSlice';
 
 interface PageLayoutProps {
   userEmail?: string;
@@ -62,8 +62,36 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   onEditViewClick,
 }) => {
   const sidebarWidth = useSidebarWidth();
-  const activeSidebar = useAppSelector(selectActiveSidebar);
-  const isNotesOpen = activeSidebar === 'notes';
+  const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
+  const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
+  
+  // Get form submission state for sidebar
+  const formsState = useAppSelector((state) => state.forms);
+  const selectedFormType = useAppSelector((state) => state.leadView.selectedFormType);
+  const formTypes = getFormTypes();
+  
+  // Find the selected form based on selectedFormType from Redux
+  const selectedForm = React.useMemo(() => {
+    if (selectedFormType) {
+      return formTypes.find((ft) => ft.key === selectedFormType) || formTypes[0];
+    }
+    return formTypes[0];
+  }, [formTypes, selectedFormType]);
+  
+  // Prepare form submission data for sidebar
+  const formSubmissionData = React.useMemo(() => {
+    if (leftSidebar !== 'submission' || !selectedForm) return null;
+    
+    return {
+      formType: selectedForm,
+      submission: formsState.submissions[selectedForm.key] || null,
+      leadId: activeLead?.id || null,
+      leadEmail: customer?.email || activeLead?.email || null,
+      leadPhone: activeLead?.phone || customer?.phone || null,
+      isLoading: formsState.isLoading[selectedForm.key] || false,
+      error: formsState.error,
+    };
+  }, [leftSidebar, selectedForm, formsState, activeLead, customer]);
   
   // Get Notes panel width from localStorage (same key as ResizableNotesPanel)
   const [notesPanelWidth, setNotesPanelWidth] = React.useState(450);
@@ -153,8 +181,8 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           }}
           dir="rtl"
         >
-          {/* Notes Panel - Right Side (First in row = Right in RTL, next to nav) */}
-          {activeSidebar === 'notes' && (
+          {/* Notes Panel - Right Side (First in row = Right in RTL, next to nav) - Independent from left sidebar */}
+          {notesOpen && (
             <ResizableNotesPanel 
               customerId={customer?.id || null} 
               leads={sortedLeads.map(lead => ({
@@ -174,7 +202,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               padding: '20px'
             }}
           >
-            {/* Content Area - Split View for History Sidebar */}
+            {/* Content Area - Split View for History/Submission Sidebar */}
             <div 
               className="flex-1 flex gap-4" 
               style={{ 
@@ -183,18 +211,15 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
                 minHeight: 'fit-content'
               }}
             >
-              {/* Left Side: Lead History Sidebar */}
-              {activeSidebar === 'history' && (
-                <div className="relative flex-shrink-0 overflow-hidden transition-all duration-300 w-[350px]">
-            <LeadHistorySidebar
-              leads={sortedLeads}
-              activeLeadId={activeLeadId}
-              onLeadSelect={onLeadSelect}
-              getStatusColor={getStatusColor}
-              getStatusBorderColor={getStatusBorderColor}
-            />
-                </div>
-              )}
+              {/* Left Side: History or Submission Sidebar */}
+              <LeadSidebarContainer
+                leads={sortedLeads}
+                activeLeadId={activeLeadId}
+                onLeadSelect={onLeadSelect}
+                getStatusColor={getStatusColor}
+                getStatusBorderColor={getStatusBorderColor}
+                formSubmission={formSubmissionData}
+              />
 
               {/* Center: ActionDashboard - Scrollable Content */}
               <div 
