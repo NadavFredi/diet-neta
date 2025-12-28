@@ -9,7 +9,8 @@
 -- =====================================================
 
 -- Enable UUID generation
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Note: Using gen_random_uuid() (built-in PostgreSQL 13+) instead of uuid_generate_v4() for better Supabase compatibility
+-- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =====================================================
 -- 2. UTILITY FUNCTIONS
@@ -75,7 +76,7 @@ CREATE TRIGGER on_auth_user_created
 
 CREATE TABLE IF NOT EXISTS leads (
     -- Meta Data
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     assigned_to UUID REFERENCES profiles(id) ON DELETE SET NULL,
