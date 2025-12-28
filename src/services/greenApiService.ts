@@ -66,7 +66,7 @@ export const getGreenApiConfig = async (): Promise<GreenApiConfig | null> => {
       // Update cache
       credentialsCache = config;
       credentialsCacheTime = now;
-
+    
       console.log('[GreenAPI] Using credentials from environment variables');
       return config;
     }
@@ -101,10 +101,10 @@ export const getGreenApiConfig = async (): Promise<GreenApiConfig | null> => {
 
     if (!data.id_instance || !data.api_token_instance) {
       console.warn('[GreenAPI] Green API credentials found but incomplete in database');
-      return null;
-    }
+    return null;
+  }
 
-    // Check for placeholder values
+  // Check for placeholder values
     if (data.id_instance === 'your_instance_id' || data.api_token_instance === 'your_token') {
       console.error('[GreenAPI] Placeholder values detected in database. Please update with actual credentials.');
       return null;
@@ -190,7 +190,7 @@ export const sendWhatsAppMessage = async (
         error: 'Green API credentials not configured. Please set them in the settings.',
       };
     }
-
+    
     // Format phone number
     let formattedPhone = formatPhoneNumber(params.phoneNumber);
     const chatId = `${formattedPhone}@c.us`;
@@ -326,31 +326,31 @@ export const sendWhatsAppMessage = async (
         body: JSON.stringify({
           chatId,
           message: cleanedMessage,
-        }),
-      });
+      }),
+    });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText };
-        }
-
-        console.error('[GreenAPI] Green API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
-        });
-
-        return {
-          success: false,
-          error: errorData.error || errorData.message || errorText || `HTTP error! status: ${response.status}`,
-        };
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText };
       }
+      
+        console.error('[GreenAPI] Green API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+      });
+      
+      return {
+        success: false,
+        error: errorData.error || errorData.message || errorText || `HTTP error! status: ${response.status}`,
+      };
+    }
 
-      const data = await response.json();
+    const data = await response.json();
 
       return {
         success: true,

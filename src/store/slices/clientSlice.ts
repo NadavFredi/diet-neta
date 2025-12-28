@@ -6,12 +6,36 @@ export interface DailyCheckIn {
   customer_id: string;
   lead_id: string | null;
   check_in_date: string;
+  // Legacy fields (still supported)
   workout_completed: boolean;
   steps_goal_met: boolean;
   steps_actual: number | null;
   nutrition_goal_met: boolean;
   supplements_taken: string[];
   notes: string | null;
+  // Physical measurements (6 fields)
+  weight: number | null; // kg
+  belly_circumference: number | null; // cm - היקף בטן
+  waist_circumference: number | null; // cm - היקף מותן
+  thigh_circumference: number | null; // cm - היקף ירכיים
+  arm_circumference: number | null; // cm - היקף יד
+  neck_circumference: number | null; // cm - היקף צוואר
+  // Activity metrics (4 fields)
+  exercises_count: number | null; // כמה תרגילים עשית
+  cardio_amount: number | null; // minutes - כמה אירובי עשית
+  intervals_count: number | null; // כמה אינטרוולים
+  // Nutrition and Hydration (4 fields)
+  calories_daily: number | null; // קלוריות יומי
+  protein_daily: number | null; // grams - חלבון יומי
+  fiber_daily: number | null; // grams - סיבים יומי
+  water_amount: number | null; // liters - כמה מים שתית
+  // Well-being scales 1-10 (3 fields)
+  stress_level: number | null; // 1-10 - רמת הלחץ היומי
+  hunger_level: number | null; // 1-10 - רמת הרעב שלך
+  energy_level: number | null; // 1-10 - רמת האנרגיה שלך
+  // Rest (1 field)
+  sleep_hours: number | null; // hours - כמה שעות ישנת
+  // Metadata
   created_at: string;
   updated_at: string;
 }

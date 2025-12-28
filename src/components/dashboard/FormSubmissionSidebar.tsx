@@ -402,49 +402,49 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
                 <p className="text-xs text-gray-500 text-center py-4">אין תשובות להצגה</p>
               ) : (
                 <div className="space-y-4">
-                    {Object.entries(categorizedQuestions).map(([category, questions]) => {
-                      const isExpanded = expandedCategories.has(category);
-                      
-                      return (
+                  {Object.entries(categorizedQuestions).map(([category, questions]) => {
+                    const isExpanded = expandedCategories.has(category);
+                    
+                    return (
                         <Card
-                          key={category}
+                        key={category}
                           className="border border-slate-100 rounded-xl shadow-md bg-white overflow-hidden"
-                        >
-                          {/* Category Header - Collapsible */}
-                          <button
-                            onClick={() => toggleCategory(category)}
+                      >
+                        {/* Category Header - Collapsible */}
+                        <button
+                          onClick={() => toggleCategory(category)}
                             className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between border-b border-slate-100"
                           >
                             <h3 className="text-sm font-bold text-gray-900">{category}</h3>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-400 font-normal">
-                                ({questions.length})
-                              </span>
-                              {isExpanded ? (
+                              ({questions.length})
+                            </span>
+                            {isExpanded ? (
                                 <ChevronUp className="h-4 w-4 text-gray-400" />
-                              ) : (
+                            ) : (
                                 <ChevronDown className="h-4 w-4 text-gray-400" />
-                              )}
-                            </div>
-                          </button>
+                            )}
+                          </div>
+                        </button>
 
-                          {/* Category Content */}
-                          {isExpanded && (
-                            <div className={cn(
+                        {/* Category Content */}
+                        {isExpanded && (
+                          <div className={cn(
                               "p-6",
                               viewMode === 'grid' && width >= 600 ? "grid grid-cols-2 gap-x-4 gap-y-4" : "space-y-4"
-                            )}>
-                              {questions.map((question, index) => (
+                          )}>
+                            {questions.map((question, index) => (
                                 <ReadOnlyField
-                                  key={question.id || index}
+                                key={question.id || index}
                                   label={question.name || 'שדה ללא שם'}
                                   value={formatAnswer(question.value)}
                                   className="border-0 p-0"
                                   valueClassName="break-words"
                                 />
-                              ))}
-                            </div>
-                          )}
+                            ))}
+                          </div>
+                        )}
                         </Card>
                     );
                   })}

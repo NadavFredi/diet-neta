@@ -214,6 +214,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     leadId={lead?.id || null}
                     customerEmail={customer.email || null}
                     customerName={customer.full_name || null}
+                    customerPhone={customer.phone || null}
                     customerUserId={customer.user_id || null}
                     customerInvitationUserId={customerInvitation?.user_id || null}
                   />
