@@ -316,6 +316,113 @@ export const fetchInvitations = createAsyncThunk(
   }
 );
 
+// Create trainee user with password directly (no email link)
+export const createTraineeUserWithPassword = createAsyncThunk(
+  'invitation/createWithPassword',
+  async (
+    {
+      email,
+      password,
+      customerId,
+      leadId,
+    }: {
+      email: string;
+      password: string;
+      customerId: string;
+      leadId?: string | null;
+    },
+    { rejectWithValue, getState }
+  ) => {
+    try {
+      // Get current user for audit
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      // Check if user is admin/manager
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, email')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('[createTraineeUserWithPassword] Profile fetch error:', profileError);
+        throw new Error(`Failed to verify permissions: ${profileError.message}`);
+      }
+
+      if (!profile || !['admin', 'user'].includes(profile.role)) {
+        throw new Error('Unauthorized: Only admins and managers can create trainee users');
+      }
+
+      // Check if user already exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id, role, email')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existingProfile) {
+        if (existingProfile.role === 'trainee') {
+          throw new Error('User already exists as a trainee');
+        }
+        // Update existing user to trainee role
+        await supabase
+          .from('profiles')
+          .update({ role: 'trainee' })
+          .eq('id', existingProfile.id);
+        
+        return {
+          userId: existingProfile.id,
+          email,
+          isNewUser: false,
+        };
+      }
+
+      // Create user via edge function (uses admin API)
+      const { data: functionData, error: functionError } = await supabase.functions.invoke(
+        'create-trainee-user',
+        {
+          body: {
+            email,
+            password,
+            customerId,
+            leadId: leadId || null,
+            invitedBy: user.id,
+          },
+        }
+      );
+
+      if (functionError) {
+        console.error('[createTraineeUserWithPassword] Edge function error:', functionError);
+        throw new Error(functionError.message || 'Failed to create user');
+      }
+
+      if (!functionData || !functionData.userId) {
+        throw new Error('Failed to create user: No user ID returned');
+      }
+
+      // Log audit event
+      await supabase.from('invitation_audit_log').insert({
+        invitation_id: null, // No invitation for direct creation
+        action: 'created_with_password',
+        performed_by: user.id,
+        metadata: { email, customerId, leadId, method: 'direct_password' },
+      });
+
+      return {
+        userId: functionData.userId,
+        email,
+        isNewUser: true,
+      };
+    } catch (error: any) {
+      console.error('[createTraineeUserWithPassword] Error:', error);
+      return rejectWithValue(error?.message || 'Failed to create trainee user');
+    }
+  }
+);
+
 // Revoke invitation
 export const revokeInvitation = createAsyncThunk(
   'invitation/revoke',
@@ -391,6 +498,17 @@ const invitationSlice = createSlice({
         if (invitation) {
           invitation.status = 'revoked';
         }
+      })
+      .addCase(createTraineeUserWithPassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(createTraineeUserWithPassword.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(createTraineeUserWithPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
       });
   },
 });

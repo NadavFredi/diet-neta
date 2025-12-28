@@ -294,8 +294,16 @@ export const useDashboardLogic = () => {
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
 
   const handleLogout = useCallback(async () => {
-    await dispatch(logoutUser());
-    navigate('/login');
+    try {
+      console.log('[useDashboardLogic] Logout initiated');
+      await dispatch(logoutUser()).unwrap();
+      console.log('[useDashboardLogic] Logout successful, navigating to login');
+      navigate('/login');
+    } catch (error) {
+      console.error('[useDashboardLogic] Logout error:', error);
+      // Navigate to login even if logout fails
+      navigate('/login');
+    }
   }, [dispatch, navigate]);
 
   const handleAddLead = useCallback(() => {

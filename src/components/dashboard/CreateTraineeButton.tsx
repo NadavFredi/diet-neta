@@ -1,14 +1,14 @@
 /**
  * CreateTraineeButton Component
  * 
- * Secure button to create trainee user from lead without passwords
+ * Button to create trainee user with password and send details via WhatsApp
  */
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { UserPlus, Loader2 } from 'lucide-react';
+import { UserPlus, Loader2, MessageCircle } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { createTraineeInvitation, sendInvitationEmail } from '@/store/slices/invitationSlice';
+import { createTraineeUserWithPassword } from '@/store/slices/invitationSlice';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -21,14 +21,16 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { sendWhatsAppMessage, replacePlaceholders, formatPhoneNumber } from '@/services/greenApiService';
 
 interface CreateTraineeButtonProps {
   customerId: string;
   leadId?: string | null;
   customerEmail?: string | null;
   customerName?: string | null;
+  customerPhone?: string | null;
 }
 
 export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
@@ -36,14 +38,19 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   leadId,
   customerEmail,
   customerName,
+  customerPhone,
 }) => {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
   const { user } = useAppSelector((state) => state.auth);
-  const { isLoading, lastCreatedInvitation } = useAppSelector((state) => state.invitation);
+  const { isLoading } = useAppSelector((state) => state.invitation);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [email, setEmail] = useState(customerEmail || '');
-  const [magicLink, setMagicLink] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [userCreated, setUserCreated] = useState(false);
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
   // Check if user is admin/manager
   const canCreateTrainee = user?.role === 'admin' || user?.role === 'user';
@@ -62,27 +69,41 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
       return;
     }
 
+    if (!password || password.length < 6) {
+      toast({
+        title: 'שגיאה',
+        description: 'הסיסמה חייבת להכיל לפחות 6 תווים',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast({
+        title: 'שגיאה',
+        description: 'הסיסמאות אינן תואמות',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
-      // Create invitation (no password)
+      // Create user with password
       const result = await dispatch(
-        createTraineeInvitation({
+        createTraineeUserWithPassword({
           email,
+          password,
           customerId,
           leadId: leadId || null,
-          expiresInDays: 7,
         })
       ).unwrap();
 
-      // Send invitation email
-      const emailResult = await dispatch(
-        sendInvitationEmail({ invitationId: result.invitation.id })
-      ).unwrap();
-
-      setMagicLink(emailResult.magicLink);
+      setUserCreated(true);
+      setCreatedUserId(result.userId);
 
       toast({
         title: 'הצלחה',
-        description: 'הזמנה נשלחה בהצלחה. המשתמש יקבל אימייל עם קישור כניסה.',
+        description: 'משתמש מתאמן נוצר בהצלחה!',
       });
     } catch (error: any) {
       console.error('[CreateTraineeButton] Error:', error);
@@ -91,7 +112,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
       let errorMessage = 'נכשל ביצירת משתמש מתאמן';
       if (error?.message) {
         if (error.message.includes('permission denied')) {
-          errorMessage = 'אין הרשאה ליצור הזמנות. אנא ודא שאתה מחובר כמנהל.';
+          errorMessage = 'אין הרשאה ליצור משתמשים. אנא ודא שאתה מחובר כמנהל.';
         } else if (error.message.includes('already exists')) {
           errorMessage = 'משתמש זה כבר קיים במערכת.';
         } else {
@@ -106,6 +127,67 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         description: errorMessage,
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!customerPhone) {
+      toast({
+        title: 'שגיאה',
+        description: 'מספר טלפון לא זמין ללקוח',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSendingWhatsApp(true);
+    try {
+      // Default template for trainee user credentials
+      const defaultTemplate = `שלום {{name}},
+
+חשבון המשתמש שלך נוצר בהצלחה!
+
+פרטי הכניסה:
+📧 אימייל: {{email}}
+🔑 סיסמה: {{password}}
+
+ניתן להתחבר בכתובת:
+{{login_url}}
+
+בברכה,
+צוות DietNeta`;
+
+      const placeholders = {
+        name: customerName || 'לקוח',
+        email: email,
+        password: password,
+        login_url: `${window.location.origin}/login`,
+      };
+
+      const message = replacePlaceholders(defaultTemplate, placeholders);
+
+      const result = await sendWhatsAppMessage({
+        phoneNumber: customerPhone,
+        message,
+      });
+
+      if (result.success) {
+        toast({
+          title: 'הצלחה',
+          description: 'פרטי הכניסה נשלחו בהצלחה ב-WhatsApp!',
+        });
+      } else {
+        throw new Error(result.error || 'Failed to send WhatsApp message');
+      }
+    } catch (error: any) {
+      console.error('[CreateTraineeButton] WhatsApp error:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בשליחת הודעת WhatsApp',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSendingWhatsApp(false);
     }
   };
 
@@ -124,7 +206,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         <DialogHeader>
           <DialogTitle>צור משתמש מתאמן</DialogTitle>
           <DialogDescription>
-            המשתמש יקבל אימייל עם קישור כניסה מאובטח. לא נדרש סיסמה.
+            צור משתמש עם סיסמה ושלוח את פרטי הכניסה דרך WhatsApp
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -136,24 +218,50 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="user@example.com"
-              disabled={isLoading || !!magicLink}
+              disabled={isLoading || userCreated}
             />
           </div>
 
-          {magicLink && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
+          {!userCreated && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="password">סיסמה</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={isLoading}
+                  minLength={6}
+                />
+                <p className="text-xs text-gray-500">מינימום 6 תווים</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">אימות סיסמה</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={isLoading}
+                  minLength={6}
+                />
+              </div>
+            </>
+          )}
+
+          {userCreated && (
+            <Alert className="border-green-200 bg-green-50">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
               <AlertDescription className="mt-2">
-                <p className="font-semibold mb-2">קישור כניסה נוצר בהצלחה!</p>
-                <p className="text-sm text-gray-600 mb-2">
-                  הקישור נשלח לאימייל. ניתן גם להעתיק את הקישור הבא:
-                </p>
-                <div className="bg-gray-50 p-2 rounded text-xs break-all font-mono">
-                  {magicLink}
+                <p className="font-semibold mb-2 text-green-800">משתמש נוצר בהצלחה!</p>
+                <div className="text-sm text-green-700 space-y-1">
+                  <p><strong>אימייל:</strong> {email}</p>
+                  <p><strong>סיסמה:</strong> {password}</p>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  הקישור תקף ל-7 ימים בלבד
-                </p>
               </AlertDescription>
             </Alert>
           )}
@@ -164,32 +272,58 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
             </div>
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button
             variant="outline"
             onClick={() => {
               setIsDialogOpen(false);
-              setMagicLink(null);
+              setUserCreated(false);
+              setPassword('');
+              setConfirmPassword('');
               setEmail(customerEmail || '');
+              setCreatedUserId(null);
             }}
-            disabled={isLoading}
+            disabled={isLoading || isSendingWhatsApp}
+            className="w-full sm:w-auto"
           >
-            ביטול
+            {userCreated ? 'סגור' : 'ביטול'}
           </Button>
-          <Button
-            onClick={handleCreateTrainee}
-            disabled={isLoading || !email || !!magicLink}
-            className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                יוצר...
-              </>
-            ) : (
-              'צור ושלוח הזמנה'
-            )}
-          </Button>
+          {!userCreated ? (
+            <Button
+              onClick={handleCreateTrainee}
+              disabled={isLoading || !email || !password || password !== confirmPassword}
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 w-full sm:w-auto"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                  יוצר...
+                </>
+              ) : (
+                'צור משתמש'
+              )}
+            </Button>
+          ) : (
+            customerPhone && (
+              <Button
+                onClick={handleSendWhatsApp}
+                disabled={isSendingWhatsApp}
+                className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
+              >
+                {isSendingWhatsApp ? (
+                  <>
+                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                    שולח...
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="h-4 w-4 ml-2" />
+                    שלח פרטי כניסה ב-WhatsApp
+                  </>
+                )}
+              </Button>
+            )
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

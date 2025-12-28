@@ -135,7 +135,12 @@ export const DashboardHeader = ({
             <Button 
               variant="outline"
               size="default" 
-              onClick={onLogout} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[DashboardHeader] Logout button clicked');
+                onLogout();
+              }}
               className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
             >
               <LogOut className="h-4 w-4 ml-2" />

@@ -226,7 +226,7 @@ BEGIN
       'בינוני'
     WHERE NOT EXISTS (
       SELECT 1 FROM leads 
-      WHERE customer_id = v_client_customer_id
+      WHERE customer_id = v_client_customer_id 
     )
     RETURNING id INTO v_client_lead_id;
     
