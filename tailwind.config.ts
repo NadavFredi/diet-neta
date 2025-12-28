@@ -60,7 +60,7 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			fontFamily: {
-				sans: ['Inter', 'system-ui', 'sans-serif']
+				sans: ['Heebo', 'system-ui', 'sans-serif']
 			},
 			animation: {
 				'fade-up': 'fadeUp 0.6s ease-out',

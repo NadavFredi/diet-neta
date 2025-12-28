@@ -8,6 +8,19 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      // Proxy Green API SendButtons endpoint to avoid CORS issues
+      '/api/green-api': {
+        target: 'https://api.green-api.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/green-api/, ''),
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, res) => {
+            console.log('proxy error', err);
+          });
+        },
+      },
+    },
   },
   plugins: [
     react(),
