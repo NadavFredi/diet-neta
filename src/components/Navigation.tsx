@@ -10,7 +10,7 @@ const Navigation = () => {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b" dir="rtl">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
@@ -23,21 +23,21 @@ const Navigation = () => {
               size="sm"
               asChild
             >
-              <Link to="/">Home</Link>
+              <Link to="/">בית</Link>
             </Button>
             <Button
               variant={isActive('/about') ? 'default' : 'ghost'}
               size="sm"
               asChild
             >
-              <Link to="/about">About</Link>
+              <Link to="/about">אודות</Link>
             </Button>
             <Button
               variant={isActive('/contact') ? 'default' : 'ghost'}
               size="sm"
               asChild
             >
-              <Link to="/contact">Contact</Link>
+              <Link to="/contact">צור קשר</Link>
             </Button>
           </div>
         </div>

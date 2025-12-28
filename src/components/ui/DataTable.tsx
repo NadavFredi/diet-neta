@@ -1,0 +1,1674 @@
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  flexRender,
+  type ColumnDef,
+  type SortingState,
+  type ColumnResizeMode,
+  type VisibilityState,
+  type ColumnOrderState,
+} from '@tanstack/react-table';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  initializeTableState,
+  setColumnVisibility as setColumnVisibilityAction,
+  setColumnSizing as setColumnSizingAction,
+  setAllColumnSizing as setAllColumnSizingAction,
+  setColumnOrder as setColumnOrderAction,
+  toggleColumnVisibility as toggleColumnVisibilityAction,
+  selectColumnVisibility,
+  selectColumnSizing,
+  selectColumnOrder,
+  selectGroupByKey,
+  selectGroupByKeys,
+  selectGroupSorting,
+  selectCollapsedGroups,
+  toggleGroupCollapse,
+  type ResourceKey,
+} from '@/store/slices/tableStateSlice';
+import { groupDataByKey, groupDataByKeys, type GroupedData, type MultiLevelGroupedData } from '@/utils/groupDataByKey';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { ArrowUp, ArrowDown, GripVertical, Columns, GripHorizontal, EyeOff, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+
+export interface DataTableColumn<T> {
+  id: string;
+  header: string | ((props: any) => React.ReactNode);
+  accessorKey?: keyof T;
+  accessorFn?: (row: T) => any;
+  cell?: (props: any) => React.ReactNode;
+  enableSorting?: boolean;
+  enableResizing?: boolean;
+  enableHiding?: boolean;
+  minSize?: number;
+  maxSize?: number;
+  size?: number;
+  meta?: {
+    align?: 'left' | 'right' | 'center';
+    isNumeric?: boolean;
+    truncate?: boolean; // Whether to truncate this column's content
+  };
+}
+
+export interface DataTableProps<T> {
+  data: T[];
+  columns: DataTableColumn<T>[];
+  onRowClick?: (row: T) => void;
+  className?: string;
+  emptyMessage?: string;
+  dir?: 'ltr' | 'rtl';
+  enableColumnVisibility?: boolean;
+  enableColumnReordering?: boolean;
+  resourceKey?: ResourceKey; // Resource key for Redux state management
+  initialColumnVisibility?: Record<string, boolean>; // Optional initial visibility state (deprecated - use Redux)
+  initialColumnOrder?: string[]; // Optional initial column order (deprecated - use Redux)
+}
+
+// Helper function to get header text and smart truncate
+function getHeaderText(header: any): string {
+  const headerContent = flexRender(header.column.columnDef.header, header.getContext());
+  if (typeof headerContent === 'string') {
+    return headerContent;
+  }
+  if (React.isValidElement(headerContent) && headerContent.props?.children) {
+    return String(headerContent.props.children);
+  }
+  return String(headerContent);
+}
+
+// Helper function to smart truncate text - show first 2-3 words
+// Only truncate if absolutely necessary, be generous with space
+function smartTruncate(text: string, maxLength: number = 20): { display: string; isTruncated: boolean } {
+  // Be more generous - only truncate if text is significantly longer
+  const effectiveMaxLength = Math.max(maxLength, text.length * 0.9); // Allow up to 90% of text
+  
+  if (text.length <= effectiveMaxLength) {
+    return { display: text, isTruncated: false };
+  }
+  
+  // Try to preserve first 2-3 words, but be more generous
+  const words = text.split(/\s+/);
+  let display = '';
+  let wordCount = 0;
+  const targetWordCount = words.length <= 3 ? words.length : 3;
+  
+  for (const word of words) {
+    if (wordCount < targetWordCount && (display.length + word.length + 1) <= maxLength) {
+      display += (display ? ' ' : '') + word;
+      wordCount++;
+    } else {
+      break;
+    }
+  }
+  
+  // Only add ellipsis if we actually truncated
+  if (display.length < text.length && display.length > 0) {
+    return { display: display + '...', isTruncated: true };
+  }
+  
+  // Fallback: show as much as possible
+  return { display: text.substring(0, maxLength - 3) + '...', isTruncated: true };
+}
+
+// Sortable Header Component
+function SortableHeader<T>({
+  header,
+  table,
+  dir,
+  onHeaderClick,
+  getSortIcon,
+  onResizeStart,
+  width,
+  isResizing,
+  onHideColumn,
+}: {
+  header: any;
+  table: any;
+  dir: 'ltr' | 'rtl';
+  onHeaderClick: (columnId: string) => void;
+  getSortIcon: (columnId: string) => React.ReactNode;
+  onResizeStart: (e: React.MouseEvent, columnId: string) => void;
+  width: number;
+  isResizing: boolean;
+  onHideColumn: (columnId: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: header.id,
+  });
+
+  const column = table.getColumn(header.id);
+  const canSort = column?.getCanSort();
+  const canResize = column?.columnDef.enableResizing !== false;
+  const canHide = column?.columnDef.enableHiding !== false;
+  const meta = column?.columnDef.meta;
+  const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+    const columnWidth = header.getSize();
+  const [isHovered, setIsHovered] = useState(false);
+
+  const headerText = getHeaderText(header);
+  // Let CSS handle truncation naturally - only use JS truncation for very long text (>50 chars)
+  // This allows text to use maximum available space
+  const isVeryLong = headerText.length > 50;
+  const { display: displayText, isTruncated } = isVeryLong 
+    ? smartTruncate(headerText, 50) 
+    : { display: headerText, isTruncated: false };
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    width: `${columnWidth}px`,
+    minWidth: `${columnWidth}px`,
+    maxWidth: `${columnWidth}px`,
+  };
+
+  const handleHideClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onHideColumn(header.id);
+  };
+
+  return (
+    <th
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative h-16 px-1 font-bold text-sm text-slate-800 group',
+        `text-${align}`,
+        canSort && 'cursor-pointer select-none hover:bg-gray-100/60',
+        'transition-colors duration-150',
+        isDragging && 'z-50'
+      )}
+      onClick={() => canSort && onHeaderClick(header.id)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div 
+        className="flex items-center h-full relative" 
+        style={{ 
+          flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+          justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
+          alignItems: 'center',
+          gap: '2px', // Minimal gap - icons close to text
+          overflow: 'hidden',
+          width: '100%',
+        }}
+      >
+        {/* Header Text - Smart shrinking: allow flex to shrink, CSS handles truncation */}
+        <span 
+          className="truncate"
+          style={{ 
+            flex: '1 1 0%', // Take available space, can shrink
+            minWidth: 0, // Critical: allow flex to shrink below content size
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            paddingRight: dir === 'rtl' ? '0' : '2px',
+            paddingLeft: dir === 'rtl' ? '2px' : '0',
+          }}
+          title={headerText}
+        >
+          {headerText}
+        </span>
+
+        {/* Icons - Gliding layout, can overlay text edge if narrow */}
+        <div 
+          className="flex items-center flex-shrink-0"
+          style={{ 
+            gap: '2px',
+            position: 'relative',
+            zIndex: 1, // Allow icons to overlay text if needed
+          }}
+        >
+          {/* Sort Icon - appears immediately after text */}
+          {canSort && (
+            <span 
+              className="flex-shrink-0 text-slate-600"
+              style={{ 
+                width: '14px', 
+                height: '14px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onHeaderClick(header.id);
+              }}
+            >
+              {getSortIcon(header.id)}
+            </span>
+          )}
+          
+          {/* Hide Column Button - Shows on Hover, can overlay if narrow */}
+          {canHide && isHovered && (
+            <button
+              onClick={handleHideClick}
+              className="flex-shrink-0 rounded hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+              title="הסתר עמודה"
+              aria-label="הסתר עמודה"
+              style={{ 
+                width: '16px', 
+                height: '16px', 
+                padding: '0',
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <EyeOff className="h-3 w-3 text-slate-600 hover:text-slate-800" />
+            </button>
+          )}
+
+          {/* Drag Handle - appears on hover */}
+          <div
+            {...attributes}
+            {...listeners}
+            className={cn(
+              'cursor-grab active:cursor-grabbing flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity',
+              'touch-none'
+            )}
+            title="גרור לשינוי סדר"
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              width: '16px', 
+              height: '16px', 
+              padding: '0',
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <GripHorizontal className="h-3 w-3 text-slate-500" />
+          </div>
+        </div>
+
+        {/* Resize Handle */}
+        {canResize && (
+          <div
+            className={cn(
+              'absolute top-0 bottom-0 w-1 cursor-col-resize transition-all z-10',
+              dir === 'rtl' ? 'left-0' : 'right-0',
+              isResizing
+                ? 'bg-blue-500 w-0.5' 
+                : 'bg-transparent hover:bg-blue-400/60'
+            )}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              onResizeStart(e, header.id);
+            }}
+            style={{
+              touchAction: 'none',
+            }}
+            title="גרור לשינוי רוחב"
+          >
+            <GripVertical 
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 h-4 w-4 transition-opacity",
+                isResizing 
+                  ? "text-blue-500 opacity-100" 
+                  : "text-gray-400 opacity-0 group-hover:opacity-100"
+              )} 
+              style={{ [dir === 'rtl' ? 'left' : 'right']: '-1.5px' }} 
+            />
+          </div>
+        )}
+      </div>
+    </th>
+  );
+}
+
+export function DataTable<T extends Record<string, any>>({
+  data,
+  columns,
+  onRowClick,
+  className,
+  emptyMessage = 'לא נמצאו תוצאות',
+  dir = 'rtl',
+  enableColumnVisibility = true,
+  enableColumnReordering = true,
+  resourceKey,
+  initialColumnVisibility,
+  initialColumnOrder,
+}: DataTableProps<T>) {
+  const dispatch = useAppDispatch();
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [isResizing, setIsResizing] = useState<string | null>(null);
+  const tableRef = React.useRef<HTMLDivElement>(null);
+  const [hasMeasured, setHasMeasured] = useState(false);
+
+  // Get state from Redux if resourceKey is provided, otherwise use local state (backward compatibility)
+  const reduxColumnVisibility = resourceKey ? useAppSelector((state) => selectColumnVisibility(state, resourceKey)) : {};
+  const reduxColumnSizing = resourceKey ? useAppSelector((state) => selectColumnSizing(state, resourceKey)) : {};
+  const reduxColumnOrder = resourceKey ? useAppSelector((state) => selectColumnOrder(state, resourceKey)) : [];
+  const groupByKey = resourceKey ? useAppSelector((state) => selectGroupByKey(state, resourceKey)) : null;
+  const groupByKeys = resourceKey ? useAppSelector((state) => selectGroupByKeys(state, resourceKey)) : [null, null];
+  const groupSorting = resourceKey ? useAppSelector((state) => selectGroupSorting(state, resourceKey)) : { level1: null, level2: null };
+  const collapsedGroups = resourceKey ? useAppSelector((state) => selectCollapsedGroups(state, resourceKey)) : [];
+  
+  // Convert collapsedGroups array to Set for efficient lookup
+  const collapsedGroupsSet = useMemo(() => new Set(collapsedGroups), [collapsedGroups]);
+
+  // Initialize Redux state on mount if resourceKey is provided
+  useEffect(() => {
+    if (resourceKey && columns.length > 0) {
+      const columnIds = columns.map((col) => col.id);
+      dispatch(
+        initializeTableState({
+          resourceKey,
+          columnIds,
+          initialVisibility: initialColumnVisibility,
+          initialSizing: undefined,
+          initialOrder: initialColumnOrder,
+        })
+      );
+    }
+  }, [resourceKey, dispatch, columns, initialColumnVisibility, initialColumnOrder]);
+
+  // Use Redux state if resourceKey is provided, otherwise use empty object (will be managed locally)
+  const columnVisibility = resourceKey ? reduxColumnVisibility : {};
+  const columnSizing = resourceKey ? reduxColumnSizing : {};
+
+  // Local state for column sizing (backward compatibility only)
+  const [localColumnSizing, setLocalColumnSizing] = useState<Record<string, number>>({});
+
+  // Use Redux state if resourceKey is provided, otherwise use local state
+  const effectiveColumnSizing = resourceKey ? columnSizing : localColumnSizing;
+
+  // Fit-to-content: Measure and adjust column widths on initial load
+  React.useEffect(() => {
+    // Skip if already measured, no data
+    if (hasMeasured || data.length === 0) {
+      return;
+    }
+
+    // Check if user has manually resized any column (effectiveColumnSizing has values that differ from defaults)
+    const hasManualResizing = Object.keys(effectiveColumnSizing).length > 0 && Object.keys(effectiveColumnSizing).some((colId) => {
+      const col = columns.find((c) => c.id === colId);
+      if (!col) return false;
+      const defaultSize = col.size || 150;
+      return effectiveColumnSizing[colId] !== defaultSize;
+    });
+
+    if (hasManualResizing) {
+      setHasMeasured(true); // Mark as measured to prevent auto-sizing
+      return;
+    }
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    const measureColumns = () => {
+      if (!tableRef.current) return;
+
+      const table = tableRef.current.querySelector('table');
+      if (!table) return;
+
+      const newSizing: Record<string, number> = {};
+      
+      // Create a temporary measurement container
+      const measureDiv = document.createElement('div');
+      measureDiv.style.position = 'absolute';
+      measureDiv.style.visibility = 'hidden';
+      measureDiv.style.whiteSpace = 'nowrap';
+      measureDiv.style.fontSize = '0.875rem'; // text-sm
+      measureDiv.style.fontFamily = getComputedStyle(table).fontFamily;
+      measureDiv.style.fontWeight = '600'; // font-semibold for headers
+      document.body.appendChild(measureDiv);
+
+      columns.forEach((col) => {
+        // Measure header text
+        const headerText = typeof col.header === 'string' ? col.header : col.id;
+        measureDiv.textContent = headerText;
+        const headerWidth = measureDiv.offsetWidth;
+
+        // Measure sample cell content (use first few rows)
+        let maxCellWidth = 0;
+        const sampleRows = data.slice(0, Math.min(5, data.length));
+        sampleRows.forEach((row) => {
+          let cellText = '';
+          if (col.accessorKey) {
+            const value = (row as any)[col.accessorKey];
+            cellText = value !== null && value !== undefined ? String(value) : '';
+          } else if (col.accessorFn) {
+            const value = col.accessorFn(row);
+            cellText = value !== null && value !== undefined ? String(value) : '';
+          }
+          
+          measureDiv.textContent = cellText;
+          measureDiv.style.fontWeight = '400'; // Normal weight for cells
+          const cellWidth = measureDiv.offsetWidth;
+          maxCellWidth = Math.max(maxCellWidth, cellWidth);
+          measureDiv.style.fontWeight = '600'; // Reset for next header
+        });
+
+        // Calculate optimal width: max of header, cells, plus padding and icons
+        const padding = 32; // px-2 on both sides = 16px * 2
+        const iconSpace = 60; // Space for sort icon, hide button, drag handle
+        const optimalWidth = Math.max(
+          col.minSize || 80,
+          Math.max(headerWidth, maxCellWidth) + padding + iconSpace,
+          col.size || 150
+        );
+
+        // Cap at maxSize if defined
+        const finalWidth = col.maxSize ? Math.min(optimalWidth, col.maxSize) : optimalWidth;
+        newSizing[col.id] = finalWidth;
+      });
+
+      document.body.removeChild(measureDiv);
+
+      // Only apply if we have measurements
+      if (Object.keys(newSizing).length > 0) {
+        if (resourceKey) {
+          // Update Redux state
+          dispatch(setAllColumnSizingAction({ resourceKey, sizing: newSizing }));
+        } else {
+          // Update local state (backward compatibility)
+          setLocalColumnSizing(newSizing);
+        }
+        setHasMeasured(true);
+      }
+    };
+
+    // Small delay to ensure DOM is fully rendered
+    const timeoutId = setTimeout(() => {
+      requestAnimationFrame(measureColumns);
+    }, 100);
+
+      return () => clearTimeout(timeoutId);
+    }, [data, columns, hasMeasured, effectiveColumnSizing, resourceKey, dispatch]);
+  // Use Redux state for column order if resourceKey is provided, otherwise use local state
+  const [localColumnOrder, setLocalColumnOrder] = useState<string[]>(() => {
+    if (initialColumnOrder) {
+      const validOrder = initialColumnOrder.filter((id) => 
+        columns.some((col) => col.id === id)
+      );
+      const missingColumns = columns
+        .filter((col) => !validOrder.includes(col.id))
+        .map((col) => col.id);
+      return [...validOrder, ...missingColumns];
+    }
+    return columns.map((col) => col.id);
+  });
+
+  const columnOrder = resourceKey ? (reduxColumnOrder.length > 0 ? reduxColumnOrder : columns.map((col) => col.id)) : localColumnOrder;
+
+  // Initialize column visibility for backward compatibility (when resourceKey is not provided)
+  React.useEffect(() => {
+    if (resourceKey) {
+      // Redux manages this, no local state needed
+      return;
+    }
+
+    // Legacy local state management (backward compatibility)
+    const initialVisibility: VisibilityState = {};
+    columns.forEach((col) => {
+      if (initialColumnVisibility && col.id in initialColumnVisibility) {
+        initialVisibility[col.id] = initialColumnVisibility[col.id];
+      } else {
+        initialVisibility[col.id] = col.enableHiding !== false;
+      }
+    });
+    
+    // Only initialize if columnVisibility is empty (first render)
+    if (Object.keys(columnVisibility).length === 0) {
+      // This will be handled by the local state setter below if needed
+    }
+  }, [columns, initialColumnVisibility, resourceKey, columnVisibility]);
+
+  // Local state for column visibility (backward compatibility only)
+  const [localColumnVisibility, setLocalColumnVisibility] = useState<VisibilityState>(() => {
+    if (resourceKey) return {}; // Redux manages this
+    
+    const initialVisibility: VisibilityState = {};
+        columns.forEach((col) => {
+      if (initialColumnVisibility && col.id in initialColumnVisibility) {
+        initialVisibility[col.id] = initialColumnVisibility[col.id];
+          } else {
+        initialVisibility[col.id] = col.enableHiding !== false;
+          }
+        });
+    return initialVisibility;
+  });
+
+  // Use Redux state if resourceKey is provided, otherwise use local state
+  const effectiveColumnVisibility = resourceKey ? columnVisibility : localColumnVisibility;
+
+  // DnD Kit sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Convert our column format to TanStack Table format
+  const tableColumns = useMemo<ColumnDef<T>[]>(() => {
+    // Filter and order columns based on visibility and order state
+    const orderedColumns = columnOrder
+      .map((id) => columns.find((col) => col.id === id))
+      .filter((col): col is DataTableColumn<T> => col !== undefined && effectiveColumnVisibility[col.id] !== false);
+
+    // Calculate weighted widths based on header text length (Smart Density)
+    const getHeaderTextLength = (col: DataTableColumn<T>): number => {
+      if (typeof col.header === 'string') {
+        return col.header.length;
+      }
+      // Estimate for function headers - use column id as fallback
+      return col.id.length;
+    };
+
+    // Calculate base width and weights for Smart Density
+    const visibleCount = orderedColumns.length;
+    const headerLengths = orderedColumns.map(col => getHeaderTextLength(col));
+    const totalLength = headerLengths.reduce((sum, len) => sum + len, 0);
+    const baseWidth = 100; // Minimum readable width
+    const charWidth = 10; // Pixels per character for Hebrew text (more generous)
+    const iconSpace = 40; // Space reserved for icons
+
+    return orderedColumns.map((col, index) => {
+      // Use provided size or calculate based on weighted width
+      let defaultSize = col.size;
+      
+      if (!defaultSize) {
+        // Special cases for compact columns
+        if (col.id === 'id' || col.id === 'actions') {
+          defaultSize = 80; // Very compact for IDs
+        } else if (col.meta?.isNumeric) {
+          defaultSize = 90; // Compact for numbers
+        } else {
+          // Weighted width: ensure header text fits comfortably
+          const headerLength = getHeaderTextLength(col);
+          // Calculate natural width needed: text width + icon space + padding
+          const textWidth = headerLength * charWidth;
+          const naturalWidth = textWidth + iconSpace + 16; // 16px for padding
+          
+          // Use natural width, but ensure minimum readability
+          defaultSize = Math.max(baseWidth, Math.min(naturalWidth, 280));
+        }
+      }
+
+      return {
+        id: col.id,
+        header: col.header,
+        accessorKey: col.accessorKey as string,
+        accessorFn: col.accessorFn,
+        cell: col.cell
+          ? ({ getValue, row }: any) => col.cell!({ getValue, row })
+          : ({ getValue }: any) => getValue(),
+        enableSorting: col.enableSorting !== false,
+        enableResizing: col.enableResizing !== false,
+        enableHiding: col.enableHiding !== false,
+        minSize: col.minSize || 60, // Reduced minimum to allow smaller columns
+        maxSize: col.maxSize || Infinity,
+        size: defaultSize,
+        meta: col.meta,
+      };
+    });
+  }, [columns, columnOrder, effectiveColumnVisibility]);
+
+  const table = useReactTable({
+    data,
+    columns: tableColumns,
+    state: {
+      sorting,
+      columnSizing: effectiveColumnSizing,
+      columnVisibility: effectiveColumnVisibility,
+      columnOrder,
+    },
+    onSortingChange: setSorting,
+    onColumnSizingChange: (updater: any) => {
+      const newSizing = typeof updater === 'function' ? updater(effectiveColumnSizing) : updater;
+      if (resourceKey) {
+        dispatch(setAllColumnSizingAction({ resourceKey, sizing: newSizing }));
+      } else {
+        setLocalColumnSizing(newSizing);
+      }
+    },
+    onColumnVisibilityChange: (updater: any) => {
+      const newVisibility = typeof updater === 'function' ? updater(effectiveColumnVisibility) : updater;
+      if (resourceKey) {
+        // Update Redux state column by column
+        Object.keys(newVisibility).forEach((colId) => {
+          dispatch(setColumnVisibilityAction({ resourceKey, columnId: colId, visible: newVisibility[colId] }));
+        });
+      } else {
+        setLocalColumnVisibility(newVisibility);
+      }
+    },
+    onColumnOrderChange: (updater: any) => {
+      const newOrder = typeof updater === 'function' ? updater(columnOrder) : updater;
+      if (resourceKey) {
+        dispatch(setColumnOrderAction({ resourceKey, order: newOrder }));
+      } else {
+        setLocalColumnOrder(newOrder);
+      }
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    columnResizeMode: 'onChange' as ColumnResizeMode,
+    defaultColumn: {
+      minSize: 60, // Reduced minimum to allow smaller columns
+      maxSize: Infinity,
+      size: 200,
+    },
+  });
+
+  const getSortIcon = (columnId: string) => {
+    const column = table.getColumn(columnId);
+    if (!column || !column.getCanSort()) return null;
+
+    const sortDirection = column.getIsSorted();
+    if (sortDirection === 'asc') {
+      return <ArrowUp className="h-4 w-4 text-blue-600" />;
+    }
+    if (sortDirection === 'desc') {
+      return <ArrowDown className="h-4 w-4 text-blue-600" />;
+    }
+    return <ArrowUp className="h-4 w-4 text-slate-400 opacity-50" />;
+  };
+
+  const handleHeaderClick = (columnId: string) => {
+    const column = table.getColumn(columnId);
+    if (column && column.getCanSort()) {
+      column.toggleSorting(undefined, true);
+    }
+  };
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent, columnId: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startWidth = table.getColumn(columnId)?.getSize() || 150;
+      setIsResizing(columnId);
+
+      const handleMouseMove = (e: MouseEvent) => {
+        const delta = dir === 'rtl' ? startX - e.clientX : e.clientX - startX;
+        // Allow much smaller columns - minimum 60px to ensure icons are visible
+        const newWidth = Math.max(60, Math.min(Infinity, startWidth + delta));
+        if (resourceKey) {
+          dispatch(setColumnSizingAction({ resourceKey, columnId, size: newWidth }));
+        } else {
+          setLocalColumnSizing((prev) => ({
+          ...prev,
+          [columnId]: newWidth,
+        }));
+        }
+      };
+
+      const handleMouseUp = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        setIsResizing(null);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    },
+    [table, dir]
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = columnOrder.indexOf(active.id as string);
+      const newIndex = columnOrder.indexOf(over.id as string);
+      const newOrder = arrayMove(columnOrder, oldIndex, newIndex);
+      
+      if (resourceKey) {
+        dispatch(setColumnOrderAction({ resourceKey, order: newOrder }));
+      } else {
+        setLocalColumnOrder(newOrder);
+      }
+    }
+  };
+
+  const toggleColumnVisibility = (columnId: string) => {
+    if (resourceKey) {
+      dispatch(toggleColumnVisibilityAction({ resourceKey, columnId }));
+    } else {
+      setLocalColumnVisibility((prev) => ({
+      ...prev,
+      [columnId]: !prev[columnId],
+    }));
+    }
+  };
+
+  const handleHideColumn = (columnId: string) => {
+    if (resourceKey) {
+      dispatch(setColumnVisibilityAction({ resourceKey, columnId, visible: false }));
+    } else {
+      setLocalColumnVisibility((prev) => ({
+      ...prev,
+      [columnId]: false,
+    }));
+    }
+  };
+
+  // Handle group collapse toggle
+  const handleToggleGroup = (groupKey: string) => {
+    if (resourceKey) {
+      dispatch(toggleGroupCollapse({ resourceKey, groupKey }));
+    }
+  };
+
+  // Get grouped data - support both legacy single-level and new multi-level grouping
+  const groupedData = useMemo(() => {
+    // Check if multi-level grouping is active
+    const hasMultiLevelGrouping = groupByKeys[0] || groupByKeys[1];
+    
+    if (!hasMultiLevelGrouping && !groupByKey) {
+      return null;
+    }
+    
+    if (!table || !data || data.length === 0) {
+      return null;
+    }
+    
+    // Use the table's row model to get processed (sorted/filtered) data
+    const processedData = table.getRowModel().rows.map((row: any) => row.original);
+    if (processedData.length === 0) {
+      return null;
+    }
+    
+    // Use multi-level grouping if active
+    if (hasMultiLevelGrouping) {
+      return groupDataByKeys(processedData, groupByKeys, groupSorting);
+    }
+    
+    // Fallback to legacy single-level grouping
+    if (groupByKey) {
+      return groupDataByKey(processedData, groupByKey);
+    }
+    
+    return null;
+  }, [data, groupByKey, groupByKeys, groupSorting, table]);
+
+  // Get column header text for group by column
+  const getGroupColumnHeader = (columnId: string | null) => {
+    if (!columnId) return '';
+    const column = columns.find((col) => col.id === columnId);
+    if (!column) return columnId;
+    return typeof column.header === 'string' ? column.header : columnId;
+  };
+
+  // Helper to check if groupedData is multi-level
+  const isMultiLevelGrouping = (data: any): data is MultiLevelGroupedData<T>[] => {
+    return Array.isArray(data) && data.length > 0 && 'level1Key' in data[0];
+  };
+
+  const getCellContent = (cell: any, column: any) => {
+    const content = flexRender(cell.column.columnDef.cell, cell.getContext());
+    const meta = column?.columnDef.meta;
+    const shouldTruncate = meta?.truncate !== false; // Default to truncating unless explicitly disabled
+
+    // Extract text content for tooltip
+    const getTextContent = (node: any): string => {
+      if (typeof node === 'string' || typeof node === 'number') {
+        return String(node);
+      }
+      if (React.isValidElement(node)) {
+        const props = node.props as any;
+        if (props?.children) {
+          return getTextContent(props.children);
+        }
+        if (props?.title) {
+          return props.title;
+        }
+      }
+      return '';
+    };
+
+    const contentString = getTextContent(content);
+
+    if (!shouldTruncate || !contentString) {
+      return <div className="w-full">{content}</div>;
+    }
+
+    // For truncation, wrap in tooltip
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="truncate w-full cursor-help">
+              {content}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs" dir={dir}>
+            <p className="break-words">{contentString}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
+  if (data.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+          <svg
+            className="w-8 h-8 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+        </div>
+        <p className="text-lg font-medium text-gray-600 mb-2">{emptyMessage}</p>
+        <p className="text-sm text-gray-500">נסה לשנות את פרמטרי החיפוש</p>
+      </div>
+    );
+  }
+
+  const visibleColumns = columns.filter((col) => effectiveColumnVisibility[col.id] !== false);
+
+  return (
+    <div className={cn('w-full', className)} dir={dir}>
+      {/* Column Visibility Control */}
+      {enableColumnVisibility && (
+        <div className="mb-4 flex justify-end">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Columns className="h-4 w-4" />
+                <span>עמודות</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64" align="end" dir={dir}>
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm mb-3">הצגת עמודות</h4>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {/* STRICT SCHEMA: Only show columns that are explicitly defined in the passed columns prop */}
+                  {/* Show columns in the same order as columnOrder to maintain consistency */}
+                  {columnOrder
+                    .map((colId) => columns.find((col) => col.id === colId))
+                    .filter((col): col is DataTableColumn<T> => 
+                      col !== undefined && col.enableHiding !== false
+                    )
+                    .map((col) => {
+                      const headerText = typeof col.header === 'string' ? col.header : col.id;
+                      const isVisible = columnVisibility[col.id] !== false;
+                      return (
+                        <div key={col.id} className="flex items-center space-x-2 space-x-reverse">
+                          <Checkbox
+                            id={`col-${col.id}`}
+                            checked={isVisible}
+                            onCheckedChange={() => toggleColumnVisibility(col.id)}
+                            disabled={col.enableHiding === false}
+                          />
+                          <Label
+                            htmlFor={`col-${col.id}`}
+                            className="text-sm font-normal cursor-pointer flex-1"
+                          >
+                            {headerText}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+
+      {/* Table with Horizontal Scroll */}
+      <div 
+        ref={tableRef}
+        className="w-full overflow-x-auto overflow-y-visible"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#cbd5e1 #f1f5f9',
+        }}
+      >
+        <style>{`
+          div::-webkit-scrollbar {
+            height: 8px;
+          }
+          div::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+          }
+          div::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+          }
+          div::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+          }
+        `}</style>
+        {enableColumnReordering ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <TableContent
+              table={table}
+              tableColumns={tableColumns}
+              visibleColumns={visibleColumns}
+              dir={dir}
+              enableColumnReordering={enableColumnReordering}
+              onRowClick={onRowClick}
+              handleHeaderClick={handleHeaderClick}
+              getSortIcon={getSortIcon}
+              handleResizeStart={handleResizeStart}
+              getCellContent={getCellContent}
+              onHideColumn={handleHideColumn}
+              isResizing={isResizing}
+              columnSizing={effectiveColumnSizing}
+              groupedData={groupedData}
+              groupByKey={groupByKey}
+              groupByKeys={groupByKeys}
+              columns={columns}
+              collapsedGroupsSet={collapsedGroupsSet}
+              onToggleGroup={handleToggleGroup}
+              getGroupColumnHeader={getGroupColumnHeader}
+            />
+          </DndContext>
+        ) : (
+          <TableContent
+            table={table}
+            tableColumns={tableColumns}
+            visibleColumns={visibleColumns}
+            dir={dir}
+            enableColumnReordering={enableColumnReordering}
+            onRowClick={onRowClick}
+            handleHeaderClick={handleHeaderClick}
+            getSortIcon={getSortIcon}
+            handleResizeStart={handleResizeStart}
+            getCellContent={getCellContent}
+            onHideColumn={handleHideColumn}
+              isResizing={isResizing}
+              columnSizing={effectiveColumnSizing}
+              groupedData={groupedData}
+              groupByKey={groupByKey}
+              groupByKeys={groupByKeys}
+              columns={columns}
+              collapsedGroupsSet={collapsedGroupsSet}
+              onToggleGroup={handleToggleGroup}
+              getGroupColumnHeader={getGroupColumnHeader}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Extracted table content component to avoid duplication
+function TableContent<T>({
+  table,
+  tableColumns,
+  visibleColumns,
+  dir,
+  enableColumnReordering,
+  onRowClick,
+  handleHeaderClick,
+  getSortIcon,
+  handleResizeStart,
+  getCellContent,
+  onHideColumn,
+  isResizing,
+  columnSizing,
+  groupedData,
+  groupByKey,
+  groupByKeys,
+  columns,
+  collapsedGroupsSet,
+  onToggleGroup,
+  getGroupColumnHeader,
+}: {
+  table: any;
+  tableColumns: any[];
+  visibleColumns: any[];
+  dir: 'ltr' | 'rtl';
+  enableColumnReordering: boolean;
+  onRowClick?: (row: T) => void;
+  handleHeaderClick: (columnId: string) => void;
+  getSortIcon: (columnId: string) => React.ReactNode;
+  handleResizeStart: (e: React.MouseEvent, columnId: string) => void;
+  getCellContent: (cell: any, column: any) => React.ReactNode;
+  onHideColumn: (columnId: string) => void;
+  isResizing: string | null;
+  columnSizing: Record<string, number>;
+  groupedData: GroupedData<T>[] | MultiLevelGroupedData<T>[] | null;
+  groupByKey: string | null;
+  groupByKeys: [string | null, string | null];
+  columns: DataTableColumn<T>[];
+  collapsedGroupsSet: Set<string>;
+  onToggleGroup: (groupKey: string) => void;
+  getGroupColumnHeader: (columnId?: string | null) => string;
+}) {
+  // Helper to check if groupedData is multi-level
+  const isMultiLevelGrouping = (data: any): data is MultiLevelGroupedData<T>[] => {
+    return Array.isArray(data) && data.length > 0 && 'level1Key' in data[0];
+  };
+
+  // Get column header text for group by column
+  const getGroupColumnHeaderText = (columnId: string | null) => {
+    if (!columnId) return '';
+    const column = columns.find((col) => col.id === columnId);
+    if (!column) return columnId;
+    return typeof column.header === 'string' ? column.header : columnId;
+  };
+  // Calculate total width using pixel-based sizing
+  const totalWidth = tableColumns.reduce((sum, col) => {
+    const size = columnSizing[col.id] || col.size || 150;
+    return sum + size;
+  }, 0);
+
+  return (
+    <table className="border-collapse" style={{ tableLayout: 'auto', width: '100%', minWidth: `${totalWidth}px` }}>
+      <thead>
+        {table.getHeaderGroups().map((headerGroup: any) => {
+          const headers = headerGroup.headers;
+          
+          const headerContent = headers.map((header: any) => {
+            const width = columnSizing[header.id] || header.getSize() || 150;
+            
+            if (enableColumnReordering) {
+              return (
+                <SortableHeader
+                  key={header.id}
+                  header={header}
+                  table={table}
+                  dir={dir}
+                  onHeaderClick={handleHeaderClick}
+                  getSortIcon={getSortIcon}
+                  onResizeStart={handleResizeStart}
+                  width={width}
+                  isResizing={isResizing === header.id}
+                  onHideColumn={onHideColumn}
+                />
+              );
+            }
+
+            // Regular header (non-sortable) with improved styling
+            const column = table.getColumn(header.id);
+            const canSort = column?.getCanSort();
+            const canResize = column?.columnDef.enableResizing !== false;
+            const canHide = column?.columnDef.enableHiding !== false;
+            const meta = column?.columnDef.meta;
+            const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+            const [isHovered, setIsHovered] = useState(false);
+
+            const headerText = getHeaderText(header);
+            // Let CSS handle truncation naturally - only use JS truncation for very long text (>50 chars)
+            // This allows text to use maximum available space
+            const isVeryLong = headerText.length > 50;
+            const { display: displayText, isTruncated } = isVeryLong 
+              ? smartTruncate(headerText, 50) 
+              : { display: headerText, isTruncated: false };
+
+            const handleHideClick = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              onHideColumn(header.id);
+            };
+
+            return (
+              <th
+                key={header.id}
+                className={cn(
+                  'relative h-16 px-1 font-bold text-sm text-slate-800 group',
+                  `text-${align}`,
+                  canSort && 'cursor-pointer select-none hover:bg-gray-100/60',
+                  'transition-colors duration-150'
+                )}
+                style={{
+                  width: `${width}px`,
+                  minWidth: `${width}px`,
+                  maxWidth: `${width}px`,
+                }}
+                onClick={() => canSort && handleHeaderClick(header.id)}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+              >
+                <div 
+                  className="flex items-center h-full relative" 
+                  style={{ 
+                    flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+                    justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
+                    alignItems: 'center',
+                    gap: '2px', // Minimal gap - icons close to text
+                    overflow: 'hidden',
+                    width: '100%',
+                  }}
+                >
+                  {/* Header Text - Smart shrinking: allow flex to shrink, CSS handles truncation */}
+                  <span 
+                    className="truncate"
+                    style={{ 
+                      flex: '1 1 0%', // Take available space, can shrink
+                      minWidth: 0, // Critical: allow flex to shrink below content size
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      paddingRight: dir === 'rtl' ? '0' : '2px',
+                      paddingLeft: dir === 'rtl' ? '2px' : '0',
+                    }}
+                    title={headerText}
+                  >
+                    {headerText}
+                  </span>
+
+                  {/* Icons - Gliding layout, can overlay text edge if narrow */}
+                  <div 
+                    className="flex items-center flex-shrink-0"
+                    style={{ 
+                      gap: '2px',
+                      position: 'relative',
+                      zIndex: 1, // Allow icons to overlay text if needed
+                    }}
+                  >
+                    {/* Sort Icon - appears immediately after text */}
+                    {canSort && (
+                      <span 
+                        className="flex-shrink-0 text-slate-600"
+                        style={{ 
+                          width: '14px', 
+                          height: '14px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleHeaderClick(header.id);
+                        }}
+                      >
+                        {getSortIcon(header.id)}
+                      </span>
+                    )}
+                    
+                    {/* Hide Column Button - Shows on Hover, can overlay if narrow */}
+                    {canHide && isHovered && (
+                      <button
+                        onClick={handleHideClick}
+                        className="flex-shrink-0 rounded hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+                        title="הסתר עמודה"
+                        aria-label="הסתר עמודה"
+                        style={{ 
+                          width: '16px', 
+                          height: '16px', 
+                          padding: '0',
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <EyeOff className="h-3 w-3 text-slate-600 hover:text-slate-800" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Resize Handle */}
+                  {canResize && (
+                    <div
+                      className={cn(
+                        'absolute top-0 bottom-0 w-1 cursor-col-resize transition-all z-10',
+                        dir === 'rtl' ? 'left-0' : 'right-0',
+                        isResizing === header.id 
+                          ? 'bg-blue-500 w-0.5' 
+                          : 'bg-transparent hover:bg-blue-400/60'
+                      )}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        handleResizeStart(e, header.id);
+                      }}
+                      style={{
+                        touchAction: 'none',
+                      }}
+                      title="גרור לשינוי רוחב"
+                    >
+                      <GripVertical 
+                        className={cn(
+                          "absolute top-1/2 -translate-y-1/2 h-4 w-4 transition-opacity",
+                          isResizing === header.id 
+                            ? "text-blue-500 opacity-100" 
+                            : "text-gray-400 opacity-0 group-hover:opacity-100"
+                        )} 
+                        style={{ [dir === 'rtl' ? 'left' : 'right']: '-1.5px' }} 
+                      />
+                    </div>
+                  )}
+                </div>
+              </th>
+            );
+          });
+
+          return (
+            <tr
+              key={headerGroup.id}
+              className="bg-gray-50/50 border-b border-gray-100"
+            >
+              {enableColumnReordering ? (
+                <SortableContext
+                  items={headers.map((h: any) => h.id)}
+                  strategy={horizontalListSortingStrategy}
+                >
+                  {headerContent}
+                </SortableContext>
+              ) : (
+                headerContent
+              )}
+            </tr>
+          );
+        })}
+      </thead>
+      <tbody>
+        {groupedData && groupedData.length > 0 ? (
+          // Render grouped data (supports both single-level and multi-level)
+          isMultiLevelGrouping(groupedData) ? (
+            // Multi-level grouping rendering
+            groupedData.map((level1Group) => {
+              const level1Key = `level1:${level1Group.level1Key}`;
+              const isLevel1Collapsed = collapsedGroupsSet.has(level1Key);
+              const level1Header = getGroupColumnHeaderText(groupByKeys[0]);
+
+              // Get all rows for this level 1 group
+              const allLevel1Rows: any[] = [];
+              if (level1Group.level2Groups && level1Group.level2Groups.length > 0) {
+                // Has level 2 groups
+                level1Group.level2Groups.forEach((level2Group) => {
+                  const level2Key = `${level1Key}|level2:${level2Group.groupKey}`;
+                  const isLevel2Collapsed = collapsedGroupsSet.has(level2Key);
+                  const level2Header = getGroupColumnHeaderText(groupByKeys[1]);
+
+                  // Match rows for this level 2 group
+                  const level2Rows = table.getRowModel().rows.filter((row: any) => {
+                    const rowOriginal = row.original;
+                    const rowLevel1Value = rowOriginal[groupByKeys[0]!];
+                    const rowLevel2Value = rowOriginal[groupByKeys[1]!];
+                    const normalizedLevel1 = rowLevel1Value === null || rowLevel1Value === undefined ? 'ללא ערך' : String(rowLevel1Value);
+                    const normalizedLevel2 = rowLevel2Value === null || rowLevel2Value === undefined ? 'ללא ערך' : String(rowLevel2Value);
+                    return normalizedLevel1 === level1Group.level1Key && normalizedLevel2 === level2Group.groupKey;
+                  });
+
+                  allLevel1Rows.push({
+                    type: 'level2-header',
+                    key: level2Key,
+                    group: level2Group,
+                    rows: level2Rows,
+                    isCollapsed: isLevel2Collapsed,
+                    header: level2Header,
+                  });
+
+                  if (!isLevel2Collapsed) {
+                    allLevel1Rows.push({
+                      type: 'level2-rows',
+                      key: `${level2Key}-rows`,
+                      rows: level2Rows,
+                    });
+                  }
+                });
+              } else {
+                // No level 2 groups, just level 1 items
+                const level1Rows = table.getRowModel().rows.filter((row: any) => {
+                  const rowOriginal = row.original;
+                  const rowLevel1Value = rowOriginal[groupByKeys[0]!];
+                  const normalizedLevel1 = rowLevel1Value === null || rowLevel1Value === undefined ? 'ללא ערך' : String(rowLevel1Value);
+                  return normalizedLevel1 === level1Group.level1Key;
+                });
+                allLevel1Rows.push({
+                  type: 'level1-rows',
+                  key: `${level1Key}-rows`,
+                  rows: level1Rows,
+                });
+              }
+
+              const totalItems = level1Group.level2Groups
+                ? level1Group.level2Groups.reduce((sum, g) => sum + g.items.length, 0)
+                : level1Group.items.length;
+
+              return (
+                <React.Fragment key={level1Key}>
+                  {/* Level 1 Group Header */}
+                  <tr
+                    className={cn(
+                      "bg-slate-50 border-t border-b border-slate-200",
+                      "hover:bg-slate-100 transition-colors duration-200 cursor-pointer"
+                    )}
+                    onClick={() => onToggleGroup(level1Key)}
+                  >
+                    <td colSpan={visibleColumns.length} className="px-4 py-3">
+                      <div
+                        className="flex items-center gap-3"
+                        style={{
+                          flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+                          justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
+                        }}
+                      >
+                        <div className="flex-shrink-0 transition-transform duration-200">
+                          {isLevel1Collapsed ? (
+                            <ChevronRight className="h-4 w-4 text-slate-600" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-slate-600" />
+                          )}
+                        </div>
+                        <span className="text-sm font-bold text-slate-900">
+                          {level1Header}: {level1Group.level1Key}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
+                          {totalItems} {totalItems === 1 ? 'ליד' : 'לידים'}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                  {/* Level 1 Content */}
+                  {!isLevel1Collapsed && allLevel1Rows.map((item) => {
+                    if (item.type === 'level2-header') {
+                      return (
+                        <tr
+                          key={item.key}
+                          className={cn(
+                            "bg-slate-100/50 border-b border-slate-200",
+                            "hover:bg-slate-150 transition-colors duration-200 cursor-pointer"
+                          )}
+                          onClick={() => onToggleGroup(item.key)}
+                          style={{
+                            paddingRight: dir === 'rtl' ? '24px' : '0',
+                            paddingLeft: dir === 'ltr' ? '24px' : '0',
+                          }}
+                        >
+                          <td colSpan={visibleColumns.length} className="px-4 py-2.5">
+                            <div
+                              className="flex items-center gap-3"
+                              style={{
+                                flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+                                justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
+                                marginRight: dir === 'rtl' ? '24px' : '0',
+                                marginLeft: dir === 'ltr' ? '24px' : '0',
+                              }}
+                            >
+                              <div className="flex-shrink-0 transition-transform duration-200">
+                                {item.isCollapsed ? (
+                                  <ChevronRight className="h-4 w-4 text-slate-500" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                                )}
+                              </div>
+                              <span className="text-sm font-semibold text-slate-700">
+                                {item.header}: {item.group.groupKey}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
+                                {item.group.items.length} {item.group.items.length === 1 ? 'ליד' : 'לידים'}
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    } else if (item.type === 'level2-rows' || item.type === 'level1-rows') {
+                      return (
+                        <React.Fragment key={item.key}>
+                          {item.rows.map((row: any, rowIndex: number) => (
+                            <tr
+                              key={row.id || `${item.key}-${rowIndex}`}
+                              className={cn(
+                                'border-b border-gray-100 transition-all duration-200',
+                                'bg-white',
+                                onRowClick && 'cursor-pointer hover:bg-gray-50',
+                                'group',
+                                'hover:shadow-sm'
+                              )}
+                              onClick={() => onRowClick?.(row.original)}
+                              style={{
+                                borderRight: dir === 'rtl' ? '2px solid #e2e8f0' : 'none',
+                                borderLeft: dir === 'ltr' ? '2px solid #e2e8f0' : 'none',
+                                paddingRight: dir === 'rtl' ? (item.type === 'level2-rows' ? '48px' : '24px') : '0',
+                                paddingLeft: dir === 'ltr' ? (item.type === 'level2-rows' ? '48px' : '24px') : '0',
+                              }}
+                            >
+                              {row.getVisibleCells().map((cell: any) => {
+                                const column = table.getColumn(cell.column.id);
+                                const meta = column?.columnDef.meta;
+                                const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+                                const isNumeric = meta?.isNumeric;
+                                const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+
+                                return (
+                                  <td
+                                    key={cell.id}
+                                    className={cn(
+                                      'px-2 py-4 text-sm transition-colors overflow-hidden',
+                                      `text-${align}`,
+                                      isNumeric
+                                        ? 'font-mono tabular-nums text-gray-900'
+                                        : 'text-gray-900',
+                                      (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
+                                        ? 'text-gray-600'
+                                        : '',
+                                      (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
+                                        ? 'whitespace-nowrap'
+                                        : ''
+                                    )}
+                                    style={{
+                                      width: `${width}px`,
+                                      minWidth: `${width}px`,
+                                      maxWidth: `${width}px`,
+                                    }}
+                                    title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                                  >
+                                    {getCellContent(cell, column)}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    }
+                    return null;
+                  })}
+                </React.Fragment>
+              );
+            })
+          ) : (
+            // Legacy single-level grouping rendering
+            (groupedData as GroupedData<T>[]).map((group) => {
+              const isCollapsed = collapsedGroupsSet.has(group.groupKey);
+              const groupRows = table.getRowModel().rows.filter((row: any) => {
+                const rowOriginal = row.original;
+                const rowGroupValue = rowOriginal[groupByKey!];
+                const normalizedRowValue = rowGroupValue === null || rowGroupValue === undefined ? 'ללא ערך' : String(rowGroupValue);
+                return normalizedRowValue === group.groupKey;
+              });
+
+              if (group.items.length === 0) {
+                return null;
+              }
+
+              return (
+                <React.Fragment key={group.groupKey}>
+                  <tr
+                    className={cn(
+                      "bg-slate-50 border-t border-b border-slate-200",
+                      "hover:bg-slate-100 transition-colors duration-200 cursor-pointer"
+                    )}
+                    onClick={() => onToggleGroup(group.groupKey)}
+                  >
+                    <td colSpan={visibleColumns.length} className="px-4 py-3">
+                      <div
+                        className="flex items-center gap-3"
+                        style={{
+                          flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+                          justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
+                        }}
+                      >
+                        <div className="flex-shrink-0 transition-transform duration-200">
+                          {isCollapsed ? (
+                            <ChevronRight className="h-4 w-4 text-slate-600" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-slate-600" />
+                          )}
+                        </div>
+                        <span className="text-sm font-bold text-slate-900">
+                          {getGroupColumnHeader(groupByKey)}: {group.groupKey}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
+                          {group.items.length} {group.items.length === 1 ? 'ליד' : 'לידים'}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                  {!isCollapsed && groupRows.length > 0 && (
+                    <>
+                      {groupRows.map((row: any, rowIndex: number) => (
+                        <tr
+                          key={row.id || `group-row-${group.groupKey}-${rowIndex}`}
+                          className={cn(
+                            'border-b border-gray-100 transition-all duration-200',
+                            'bg-white',
+                            onRowClick && 'cursor-pointer hover:bg-gray-50',
+                            'group',
+                            'hover:shadow-sm'
+                          )}
+                          onClick={() => onRowClick?.(row.original)}
+                          style={{
+                            borderRight: dir === 'rtl' ? '2px solid #e2e8f0' : 'none',
+                            borderLeft: dir === 'ltr' ? '2px solid #e2e8f0' : 'none',
+                          }}
+                        >
+                          {row.getVisibleCells().map((cell: any) => {
+                            const column = table.getColumn(cell.column.id);
+                            const meta = column?.columnDef.meta;
+                            const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+                            const isNumeric = meta?.isNumeric;
+                            const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+
+                            return (
+                              <td
+                                key={cell.id}
+                                className={cn(
+                                  'px-2 py-4 text-sm transition-colors overflow-hidden',
+                                  `text-${align}`,
+                                  isNumeric
+                                    ? 'font-mono tabular-nums text-gray-900'
+                                    : 'text-gray-900',
+                                  (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
+                                    ? 'text-gray-600'
+                                    : '',
+                                  (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
+                                    ? 'whitespace-nowrap'
+                                    : ''
+                                )}
+                                style={{
+                                  width: `${width}px`,
+                                  minWidth: `${width}px`,
+                                  maxWidth: `${width}px`,
+                                }}
+                                title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                              >
+                                {getCellContent(cell, column)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </>
+                  )}
+                </React.Fragment>
+              );
+            })
+          )
+        ) : (
+          // Render normal (ungrouped) data
+          table.getRowModel().rows.map((row: any, rowIndex: number) => (
+            <tr
+              key={row.id}
+              className={cn(
+                'border-b border-gray-100 transition-all duration-200',
+                'bg-white',
+                onRowClick && 'cursor-pointer hover:bg-gray-50',
+                'group',
+                'hover:shadow-sm'
+              )}
+              onClick={() => onRowClick?.(row.original)}
+            >
+              {row.getVisibleCells().map((cell: any) => {
+                const column = table.getColumn(cell.column.id);
+                const meta = column?.columnDef.meta;
+                const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
+                const isNumeric = meta?.isNumeric;
+                const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+
+                return (
+                  <td
+                    key={cell.id}
+                    className={cn(
+                      'px-2 py-4 text-sm transition-colors overflow-hidden',
+                      `text-${align}`,
+                      isNumeric 
+                        ? 'font-mono tabular-nums text-gray-900' 
+                        : 'text-gray-900',
+                      (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
+                        ? 'text-gray-600'
+                        : '',
+                      (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
+                        ? 'whitespace-nowrap'
+                        : ''
+                    )}
+                    style={{
+                      width: `${width}px`,
+                      minWidth: `${width}px`,
+                      maxWidth: `${width}px`,
+                    }}
+                    title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                  >
+                    {getCellContent(cell, column)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  );
+}
+
+

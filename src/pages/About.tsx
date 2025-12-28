@@ -1,35 +1,37 @@
-
 import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Target, Lightbulb } from "lucide-react";
+import { useAboutPage } from './About';
 
 const About = () => {
+  useAboutPage(); // For consistency with pattern
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" dir="rtl">
       <Navigation />
       
       <div className="pt-24 pb-16 px-6">
         <div className="container mx-auto max-w-4xl">
           {/* Header */}
           <div className="text-center mb-16 animate-fade-up">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">About SimpleWeb</h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">אודות SimpleWeb</h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Discover the story behind our passion for creating beautiful, functional web experiences.
+              גלו את הסיפור מאחורי התשוקה שלנו ליצור חוויות אינטרנט יפות ופונקציונליות.
             </p>
           </div>
 
           {/* Story Section */}
           <div className="grid lg:grid-cols-2 gap-12 mb-16">
             <div className="animate-fade-in">
-              <h2 className="text-2xl font-bold mb-4">Our Story</h2>
+              <h2 className="text-2xl font-bold mb-4">הסיפור שלנו</h2>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                SimpleWeb was born from a simple idea: web design should be both beautiful and accessible. 
-                We believe that great design doesn't have to be complicated.
+                SimpleWeb נולד מרעיון פשוט: עיצוב אתרים צריך להיות גם יפה וגם נגיש. 
+                אנחנו מאמינים שעיצוב מעולה לא חייב להיות מסובך.
               </p>
               <p className="text-muted-foreground leading-relaxed">
-                Our team of designers and developers work tirelessly to create experiences that not only 
-                look amazing but also feel intuitive and natural to use.
+                הצוות שלנו של מעצבים ומפתחים עובד ללא לאות כדי ליצור חוויות שלא רק 
+                נראות מדהימות אלא גם מרגישות אינטואיטיביות וטבעיות לשימוש.
               </p>
             </div>
             
@@ -39,7 +41,7 @@ const About = () => {
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Heart className="h-8 w-8 text-primary" />
                   </div>
-                  <p className="text-sm text-muted-foreground">Made with passion</p>
+                  <p className="text-sm text-muted-foreground">נוצר בתשוקה</p>
                 </div>
               </div>
             </div>
@@ -50,21 +52,21 @@ const About = () => {
             {[
               {
                 icon: <Target className="h-8 w-8 text-primary" />,
-                title: "Purpose-Driven",
-                description: "Every design decision serves a clear purpose and enhances user experience.",
-                tags: ["Goal-oriented", "User-focused"]
+                title: "מונע מטרה",
+                description: "כל החלטת עיצוב משרתת מטרה ברורה ומשפרת את חוויית המשתמש.",
+                tags: ["ממוקד מטרה", "ממוקד משתמש"]
               },
               {
                 icon: <Lightbulb className="h-8 w-8 text-primary" />,
-                title: "Innovation",
-                description: "We embrace new technologies and creative solutions to stay ahead.",
-                tags: ["Creative", "Forward-thinking"]
+                title: "חדשנות",
+                description: "אנחנו מאמצים טכנולוגיות חדשות ופתרונות יצירתיים כדי להישאר בחזית.",
+                tags: ["יצירתי", "חושב קדימה"]
               },
               {
                 icon: <Heart className="h-8 w-8 text-primary" />,
-                title: "Quality",
-                description: "We never compromise on quality, ensuring every project exceeds expectations.",
-                tags: ["Excellence", "Attention to detail"]
+                title: "איכות",
+                description: "אנחנו לעולם לא מתפשרים על איכות, ומבטיחים שכל פרויקט עולה על הציפיות.",
+                tags: ["מצוינות", "תשומת לב לפרטים"]
               }
             ].map((value, index) => (
               <Card key={index} className="hover:card-shadow-hover transition-all duration-300 animate-fade-in border-0 card-shadow">

@@ -1,5 +1,5 @@
 # A string used to distinguish different Supabase projects on the same host. Defaults to the workspace name when running locally.
-project_id = "dolittle-airtable"
+project_id = "diet-neta"
 
 [api]
 enabled = true
@@ -56,7 +56,7 @@ smtp_port = 54325
 pop3_port = 54326
 
 [storage]
-enabled = true
+enabled = false
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
@@ -114,3 +114,8 @@ entrypoint = "./functions/send-bulk-messages/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/get-attendance/index.ts"
+
+[functions.send-whatsapp-message]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-whatsapp-message/index.ts"

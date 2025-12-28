@@ -71,10 +71,21 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Heebo', system-ui, -apple-system, sans-serif;
   }
 
   html {
     scroll-behavior: smooth;
+    direction: rtl;
+    font-family: 'Heebo', system-ui, -apple-system, sans-serif;
+  }
+
+  html[dir="rtl"] {
+    direction: rtl;
+  }
+
+  html[dir="ltr"] {
+    direction: ltr;
   }
 }
 
@@ -98,6 +109,21 @@
   .animate-fade-in {
     animation: fadeIn 0.8s ease-out;
   }
+
+  /* Modern smooth transitions */
+  .transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Better hover effects */
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  }
 }
 
 @keyframes fadeUp {
@@ -118,4 +144,72 @@
   to {
     opacity: 1;
   }
+}
+
+/* Custom Scrollbar Styling */
+@layer utilities {
+  /* Webkit browsers (Chrome, Safari, Edge) */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+  }
+
+  /* Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+  }
+}
+
+/* Quill Editor RTL Support & Styling */
+.quill-editor-rtl .ql-container {
+  direction: rtl;
+  font-family: 'Heebo', system-ui, -apple-system, sans-serif;
+}
+
+.quill-editor-rtl .ql-editor {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Heebo', system-ui, -apple-system, sans-serif;
+}
+
+.quill-editor-rtl .ql-editor.ql-blank::before {
+  right: 15px;
+  left: auto;
+  font-style: normal;
+  color: #9ca3af;
+}
+
+/* Ensure Quill editor border is perfect */
+.quill-editor-rtl .ql-container {
+  border: none !important;
+}
+
+.quill-editor-rtl .ql-toolbar {
+  border: none !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* Focus state for Quill editor container */
+.quill-editor-rtl:focus-within .ql-container {
+  outline: none;
+}
+
+/* RTL support for Quill toolbar buttons */
+.quill-editor-rtl #toolbar {
+  direction: rtl;
 }

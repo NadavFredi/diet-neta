@@ -1,0 +1,89 @@
+import { useMemo } from 'react';
+import { DataTable } from '@/components/ui/DataTable';
+import type { WorkoutTemplate } from '@/hooks/useWorkoutTemplates';
+import { Button } from '@/components/ui/button';
+import { Edit, Trash2 } from 'lucide-react';
+import type { TemplateColumnVisibility } from './TemplateColumnSettings';
+import { workoutTemplateColumns } from './columns/templateColumns';
+
+interface WorkoutTemplatesDataTableProps {
+  templates: WorkoutTemplate[];
+  columnVisibility: TemplateColumnVisibility;
+  onEdit: (template: WorkoutTemplate) => void;
+  onDelete: (template: WorkoutTemplate) => void;
+}
+
+export const WorkoutTemplatesDataTable = ({
+  enableColumnVisibility = true,
+  templates,
+  columnVisibility,
+  onEdit,
+  onDelete,
+}: WorkoutTemplatesDataTableProps) => {
+  // CRITICAL: Pass ALL columns from schema to DataTable
+  // This ensures the column visibility popover shows ALL available Workout Template columns
+  // DataTable will filter visible columns internally
+  const columns = useMemo(() => {
+    return workoutTemplateColumns.map((col) => {
+      // Add actions cell renderer if this is the actions column
+      if (col.id === 'actions') {
+        return {
+          ...col,
+          cell: ({ row }: { row: any }) => {
+            const template = row.original;
+            return (
+              <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(template);
+                  }}
+                  className="hover:bg-blue-50"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(template);
+                  }}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            );
+          },
+        };
+      }
+      return col;
+    });
+  }, [onEdit, onDelete]);
+
+  const handleRowClick = (template: WorkoutTemplate) => {
+    onEdit(template);
+  };
+
+  return (
+    <DataTable
+      data={templates}
+      columns={columns}
+      onRowClick={handleRowClick}
+      dir="rtl"
+      emptyMessage={
+        templates.length === 0
+          ? 'אין תוכניות. צור תוכנית חדשה כדי להתחיל'
+          : 'לא נמצאו תוכניות התואמות לחיפוש'
+      }
+      enableColumnVisibility={false}
+      enableColumnReordering={true}
+      resourceKey="templates"
+    />
+  );
+};
+
+
