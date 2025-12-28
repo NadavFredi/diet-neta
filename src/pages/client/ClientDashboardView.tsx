@@ -5,7 +5,7 @@
  * Logic is separated to useClientDashboard hook.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
   Activity,
   LogOut,
   X,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
@@ -39,6 +40,7 @@ import { InlineEditableField } from '@/components/dashboard/InlineEditableField'
 import { NetaLogo } from '@/components/ui/NetaLogo';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 export const ClientDashboardView: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -47,6 +49,7 @@ export const ClientDashboardView: React.FC = () => {
   const { customer, activeLead, leads, isLoading, error, stats, handleSelectLead } = useClientDashboard();
   const { user } = useAppSelector((state) => state.auth);
   const { isImpersonating, previousLocation } = useAppSelector((state) => state.impersonation);
+  const { checkIns } = useAppSelector((state) => state.client);
   const { handleLogout } = useAuth();
   const [activeTab, setActiveTab] = useState('workout');
 
@@ -56,6 +59,30 @@ export const ClientDashboardView: React.FC = () => {
 
   // Set up polling for data sync (every 5 minutes)
   useClientRealtime(customer?.id || null);
+
+  // 7-day average calculations (from last 7 days of check-ins) - Numeric values
+  // MUST be called before any early returns to follow Rules of Hooks
+  const sevenDayAverages = useMemo(() => {
+    const last7Days = checkIns.slice(0, 7);
+    
+    if (last7Days.length === 0) {
+      return { exercises: 0, steps: 0, nutrition: 0 };
+    }
+
+    // Exercises: average number of exercises per day
+    const totalExercises = last7Days.reduce((sum, ci) => sum + (ci.exercises_count || 0), 0);
+    const exercises = Math.round((totalExercises / last7Days.length) * 10) / 10; // Round to 1 decimal
+
+    // Steps: average steps per day
+    const totalSteps = last7Days.reduce((sum, ci) => sum + (ci.steps_actual || 0), 0);
+    const steps = Math.round(totalSteps / last7Days.length);
+
+    // Nutrition: average calories per day
+    const totalCalories = last7Days.reduce((sum, ci) => sum + (ci.calories_daily || 0), 0);
+    const nutrition = Math.round(totalCalories / last7Days.length);
+    
+    return { exercises, steps, nutrition };
+  }, [checkIns]);
 
   // Handle profile updates
   const handleUpdateWeight = async (newValue: string | number) => {
@@ -125,6 +152,9 @@ export const ClientDashboardView: React.FC = () => {
 
   const greeting = `שלום, ${customer.full_name || user?.email || 'לקוח'}!`;
 
+  // Get goals from daily_protocol
+  const dailyProtocol = activeLead?.daily_protocol || {};
+
   return (
     <div className="bg-gray-50" dir="rtl">
       {/* Header */}
@@ -175,97 +205,72 @@ export const ClientDashboardView: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 pb-4">
-        {/* Stats Summary - Compact Single Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-          <Card className="border border-slate-200">
-            <CardContent className="p-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 pb-0">
+        {/* 7-Day Averages Header - Premium Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <Card className="p-4 border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <Activity className="h-5 w-5 text-blue-600" />
+                <div className="w-12 h-12 rounded-lg bg-[#5B6FB9]/10 flex items-center justify-center flex-shrink-0">
+                  <Activity className="h-6 w-6 text-[#5B6FB9]" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600 flex-shrink-0">משקל</span>
-                    <InlineEditableField
-                      label=""
-                      value={stats.weight || 0}
-                      onSave={handleUpdateWeight}
-                      type="number"
-                      formatValue={(val) => {
-                        const numVal = typeof val === 'number' ? val : Number(val);
-                        return numVal && numVal > 0 ? `${numVal} ק"ג` : '—';
-                      }}
-                      className="flex-1 min-w-0 py-0 [&>div]:py-0 [&>div>span:first-child]:hidden"
-                      valueClassName="text-lg font-bold text-slate-900 truncate"
-                    />
-                  </div>
+                <div>
+                  <div className="text-sm uppercase tracking-widest text-black font-bold">תרגילים</div>
+                  <div className="text-xs text-black">ממוצע - 7 ימים אחרונים</div>
                 </div>
               </div>
-            </CardContent>
+              <div className="flex items-baseline gap-1">
+                <div 
+                  className="text-3xl font-bold transition-all duration-300 ease-out leading-none"
+                  style={{ 
+                    color: sevenDayAverages.exercises > 0 ? '#5B6FB9' : '#000000',
+                  }}
+                >
+                  {sevenDayAverages.exercises.toFixed(1)}
+                </div>
+                <span className="text-sm text-black font-medium">/יום</span>
+              </div>
+            </div>
           </Card>
 
-          <Card className="border border-slate-200">
-            <CardContent className="p-3">
+          <Card className="p-4 border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
+                <div className="w-12 h-12 rounded-lg bg-[#5B6FB9]/10 flex items-center justify-center flex-shrink-0">
+                  <Footprints className="h-6 w-6 text-[#5B6FB9]" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600 flex-shrink-0">גובה</span>
-                    <InlineEditableField
-                      label=""
-                      value={stats.height || 0}
-                      onSave={handleUpdateHeight}
-                      type="number"
-                      formatValue={(val) => {
-                        const numVal = typeof val === 'number' ? val : Number(val);
-                        return !isNaN(numVal) && numVal > 0 ? `${numVal} ס"מ` : '—';
-                      }}
-                      className="flex-1 min-w-0 py-0 [&>div]:py-0 [&>div>span:first-child]:hidden"
-                      valueClassName="text-lg font-bold text-slate-900 truncate"
-                    />
-                  </div>
+                <div>
+                  <div className="text-sm uppercase tracking-widest text-black font-bold">צעדים</div>
+                  <div className="text-xs text-black">ממוצע - 7 ימים אחרונים</div>
                 </div>
               </div>
-            </CardContent>
+              <div className="flex items-baseline gap-1">
+                <div className="text-3xl font-bold text-black transition-all duration-300 leading-none">
+                  {sevenDayAverages.steps.toLocaleString()}
+                </div>
+                <span className="text-sm text-black font-medium">צעדים</span>
+              </div>
+            </div>
           </Card>
 
-          <Card className="border border-slate-200">
-            <CardContent className="p-3">
+          <Card className="p-4 border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-                  <Target className="h-5 w-5 text-purple-600" />
+                <div className="w-12 h-12 rounded-lg bg-[#5B6FB9]/10 flex items-center justify-center flex-shrink-0">
+                  <UtensilsCrossed className="h-6 w-6 text-[#5B6FB9]" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">BMI</span>
-                    <span className="text-lg font-bold text-slate-900 truncate">
-                      {stats.bmi ? stats.bmi.toFixed(1) : '—'}
-                    </span>
-                  </div>
+                <div>
+                  <div className="text-sm uppercase tracking-widest text-black font-bold">תזונה</div>
+                  <div className="text-xs text-black">ממוצע - 7 ימים אחרונים</div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border border-slate-200">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <Target className="h-5 w-5 text-orange-600" />
+              <div className="flex items-baseline gap-1">
+                <div className="text-3xl font-bold text-black transition-all duration-300 leading-none">
+                  {sevenDayAverages.nutrition.toLocaleString()}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">יעד כושר</span>
-                    <span className="text-base font-semibold text-slate-900 truncate">
-                      {stats.fitnessGoal || '—'}
-                    </span>
-                  </div>
-                </div>
+                <span className="text-sm text-black font-medium">קק״ל</span>
               </div>
-            </CardContent>
+            </div>
           </Card>
         </div>
 
@@ -319,7 +324,7 @@ export const ClientDashboardView: React.FC = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="checkin" className="space-y-6">
+          <TabsContent value="checkin" className="space-y-0">
             <DailyCheckInView customerId={customer.id} />
           </TabsContent>
         </Tabs>

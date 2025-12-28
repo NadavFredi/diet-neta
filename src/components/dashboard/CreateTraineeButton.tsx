@@ -4,9 +4,9 @@
  * Button to create trainee user with password and send details via WhatsApp
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { UserPlus, Loader2, MessageCircle } from 'lucide-react';
+import { UserPlus, Loader2, MessageCircle, Settings } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { createTraineeUserWithPassword } from '@/store/slices/invitationSlice';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +23,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import { sendWhatsAppMessage, replacePlaceholders, formatPhoneNumber } from '@/services/greenApiService';
+import { sendWhatsAppMessage, replacePlaceholders } from '@/services/greenApiService';
+import { TemplateEditorModal } from './TemplateEditorModal';
 
 interface CreateTraineeButtonProps {
   customerId: string;
@@ -45,12 +46,45 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   const { user } = useAppSelector((state) => state.auth);
   const { isLoading } = useAppSelector((state) => state.invitation);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
   const [email, setEmail] = useState(customerEmail || '');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [userCreated, setUserCreated] = useState(false);
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [messageTemplate, setMessageTemplate] = useState('');
+
+  // Default template for trainee user credentials
+  const DEFAULT_TRAINEE_TEMPLATE = `שלום {{name}},
+
+חשבון המשתמש שלך נוצר בהצלחה!
+
+פרטי הכניסה:
+📧 אימייל: {{email}}
+🔑 סיסמה: {{password}}
+
+ניתן להתחבר בכתובת:
+{{login_url}}
+
+בברכה,
+צוות DietNeta`;
+
+  // Load template from localStorage on mount
+  useEffect(() => {
+    const savedTemplate = localStorage.getItem('traineeUserMessageTemplate');
+    if (savedTemplate) {
+      setMessageTemplate(savedTemplate);
+    } else {
+      setMessageTemplate(DEFAULT_TRAINEE_TEMPLATE);
+    }
+  }, []);
+
+  // Save template to localStorage when it changes
+  useEffect(() => {
+    if (messageTemplate) {
+      localStorage.setItem('traineeUserMessageTemplate', messageTemplate);
+    }
+  }, [messageTemplate]);
 
   // Check if user is admin/manager
   const canCreateTrainee = user?.role === 'admin' || user?.role === 'user';
@@ -73,15 +107,6 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
       toast({
         title: 'שגיאה',
         description: 'הסיסמה חייבת להכיל לפחות 6 תווים',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast({
-        title: 'שגיאה',
-        description: 'הסיסמאות אינן תואמות',
         variant: 'destructive',
       });
       return;
@@ -142,20 +167,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
 
     setIsSendingWhatsApp(true);
     try {
-      // Default template for trainee user credentials
-      const defaultTemplate = `שלום {{name}},
-
-חשבון המשתמש שלך נוצר בהצלחה!
-
-פרטי הכניסה:
-📧 אימייל: {{email}}
-🔑 סיסמה: {{password}}
-
-ניתן להתחבר בכתובת:
-{{login_url}}
-
-בברכה,
-צוות DietNeta`;
+      const template = messageTemplate || DEFAULT_TRAINEE_TEMPLATE;
 
       const placeholders = {
         name: customerName || 'לקוח',
@@ -164,7 +176,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         login_url: `${window.location.origin}/login`,
       };
 
-      const message = replacePlaceholders(defaultTemplate, placeholders);
+      const message = replacePlaceholders(template, placeholders);
 
       const result = await sendWhatsAppMessage({
         phoneNumber: customerPhone,
@@ -203,10 +215,20 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]" dir="rtl">
-        <DialogHeader>
+          <DialogHeader>
           <DialogTitle>צור משתמש מתאמן</DialogTitle>
-          <DialogDescription>
-            צור משתמש עם סיסמה ושלוח את פרטי הכניסה דרך WhatsApp
+          <DialogDescription className="flex items-center justify-between">
+            <span>צור משתמש עם סיסמה ושלוח את פרטי הכניסה דרך WhatsApp</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsTemplateEditorOpen(true)}
+              disabled={isLoading || userCreated || isSendingWhatsApp}
+              className="h-7 px-2 text-xs text-gray-600 hover:text-black hover:bg-gray-50"
+            >
+              <Settings className="h-3 w-3 ml-1" />
+              ערוך טמפלייט
+            </Button>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -223,34 +245,19 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
           </div>
 
           {!userCreated && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="password">סיסמה</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  disabled={isLoading}
-                  minLength={6}
-                />
-                <p className="text-xs text-gray-500">מינימום 6 תווים</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">אימות סיסמה</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  disabled={isLoading}
-                  minLength={6}
-                />
-              </div>
-            </>
+            <div className="space-y-2">
+              <Label htmlFor="password">סיסמה</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                disabled={isLoading}
+                minLength={6}
+              />
+              <p className="text-xs text-gray-500">מינימום 6 תווים</p>
+            </div>
           )}
 
           {userCreated && (
@@ -279,7 +286,6 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
               setIsDialogOpen(false);
               setUserCreated(false);
               setPassword('');
-              setConfirmPassword('');
               setEmail(customerEmail || '');
               setCreatedUserId(null);
             }}
@@ -291,7 +297,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
           {!userCreated ? (
             <Button
               onClick={handleCreateTrainee}
-              disabled={isLoading || !email || !password || password !== confirmPassword}
+              disabled={isLoading || !email || !password || password.length < 6}
               className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 w-full sm:w-auto"
             >
               {isLoading ? (
@@ -326,6 +332,19 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Template Editor Modal */}
+      <TemplateEditorModal
+        isOpen={isTemplateEditorOpen}
+        onOpenChange={setIsTemplateEditorOpen}
+        flowKey="trainee_user_credentials"
+        flowLabel="פרטי כניסה למתאמן"
+        initialTemplate={messageTemplate || DEFAULT_TRAINEE_TEMPLATE}
+        onSave={async (template) => {
+          setMessageTemplate(template);
+          localStorage.setItem('traineeUserMessageTemplate', template);
+        }}
+      />
     </Dialog>
   );
 };

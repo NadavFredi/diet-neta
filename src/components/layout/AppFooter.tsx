@@ -1,8 +1,12 @@
 import React from "react"
 
-export function AppFooter() {
+interface AppFooterProps {
+  className?: string;
+}
+
+export function AppFooter({ className }: AppFooterProps) {
     return (
-        <footer className="mt-10" dir="rtl">
+        <footer className={className || "mt-10"} dir="rtl">
             <div
                 className="text-white"
                 style={{

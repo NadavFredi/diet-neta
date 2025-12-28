@@ -31,6 +31,7 @@ const AppContent = () => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
   const isDashboardPage = location.pathname === '/dashboard' || location.pathname.startsWith('/leads');
+  const isClientDashboard = location.pathname === '/client/dashboard';
   
   return (
     <div className="flex min-h-screen flex-col">
@@ -124,7 +125,7 @@ const AppContent = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      {!isLoginPage && <AppFooter />}
+      {!isLoginPage && <AppFooter className={isClientDashboard ? "mt-0" : "mt-10"} />}
     </div>
   );
 };

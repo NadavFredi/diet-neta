@@ -16,6 +16,8 @@ export const AVAILABLE_PLACEHOLDERS: Placeholder[] = [
   { key: 'name', label: 'שם מלא', description: 'שם הלקוח', category: 'customer' },
   { key: 'phone', label: 'טלפון', description: 'מספר טלפון', category: 'customer' },
   { key: 'email', label: 'אימייל', description: 'כתובת אימייל', category: 'customer' },
+  { key: 'password', label: 'סיסמה', description: 'סיסמת המשתמש', category: 'customer' },
+  { key: 'login_url', label: 'קישור התחברות', description: 'קישור לדף ההתחברות', category: 'customer' },
   { key: 'city', label: 'עיר', description: 'עיר מגורים', category: 'customer' },
   { key: 'gender', label: 'מגדר', description: 'מגדר הלקוח', category: 'customer' },
   

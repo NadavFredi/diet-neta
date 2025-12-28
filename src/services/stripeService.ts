@@ -11,6 +11,10 @@ export interface CreatePaymentLinkParams {
   customerEmail?: string;
   customerName?: string;
   description?: string;
+  // Subscription parameters
+  billingMode?: 'one_time' | 'subscription';
+  subscriptionInterval?: 'month' | 'week';
+  billingCycles?: number | null; // null = continuous/unlimited
 }
 
 export interface StripePaymentLinkResponse {
@@ -71,10 +75,32 @@ export const createStripePaymentLink = async (
 
     // Prepare request body
     const formData = new URLSearchParams();
-    formData.append('line_items[0][price_data][currency]', params.currency);
-    formData.append('line_items[0][price_data][product_data][name]', params.description || 'Payment');
-    formData.append('line_items[0][price_data][unit_amount]', String(params.amount));
-    formData.append('line_items[0][quantity]', '1');
+    
+    const isSubscription = params.billingMode === 'subscription';
+    const interval = params.subscriptionInterval || 'month';
+    
+    if (isSubscription) {
+      // Subscription mode
+      formData.append('line_items[0][price_data][currency]', params.currency);
+      formData.append('line_items[0][price_data][product_data][name]', params.description || 'Subscription');
+      formData.append('line_items[0][price_data][recurring][interval]', interval);
+      formData.append('line_items[0][price_data][unit_amount]', String(params.amount));
+      formData.append('line_items[0][quantity]', '1');
+      
+      // Set billing cycle limit if specified (otherwise continuous)
+      if (params.billingCycles !== null && params.billingCycles !== undefined && params.billingCycles > 0) {
+        formData.append('subscription_data[billing_cycle_anchor]', 'now');
+        // Note: Stripe Payment Links API doesn't directly support billing cycle limits
+        // For now, we'll create the subscription without cycle limits
+        // In production, you might want to handle this via webhooks or use Checkout Sessions
+      }
+    } else {
+      // One-time payment mode
+      formData.append('line_items[0][price_data][currency]', params.currency);
+      formData.append('line_items[0][price_data][product_data][name]', params.description || 'Payment');
+      formData.append('line_items[0][price_data][unit_amount]', String(params.amount));
+      formData.append('line_items[0][quantity]', '1');
+    }
 
     // Add customer information if provided
     if (params.customerEmail) {
