@@ -184,9 +184,14 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
 
       if (result.success) {
         toast({
-          title: 'הצלחה',
-          description: 'ההודעה נשלחה בהצלחה!',
+          title: result.warning ? 'הצלחה (עם אזהרה)' : 'הצלחה',
+          description: result.warning || 'ההודעה נשלחה בהצלחה!',
+          variant: result.warning ? 'default' : 'default',
         });
+        
+        if (result.warning) {
+          console.warn('[LeadAutomationCard]', result.warning);
+        }
       } else {
         throw new Error(result.error || 'Failed to send message');
       }

@@ -22,6 +22,7 @@ export interface GreenApiResponse {
   success: boolean;
   data?: any;
   error?: string;
+  warning?: string; // Optional warning message (e.g., when falling back to regular message)
 }
 
 // Cache for credentials to avoid repeated DB calls
@@ -38,7 +39,7 @@ export const clearGreenApiConfigCache = (): void => {
 };
 
 /**
- * Get Green API configuration from PostgreSQL database
+ * Get Green API configuration from environment variables (priority) or PostgreSQL database (fallback)
  */
 export const getGreenApiConfig = async (): Promise<GreenApiConfig | null> => {
   // Check cache first
@@ -47,6 +48,31 @@ export const getGreenApiConfig = async (): Promise<GreenApiConfig | null> => {
     return credentialsCache;
   }
 
+  // Priority 1: Check environment variables first (from .env.local)
+  const envIdInstance = import.meta.env.VITE_GREEN_API_ID_INSTANCE;
+  const envApiTokenInstance = import.meta.env.VITE_GREEN_API_TOKEN_INSTANCE;
+
+  if (envIdInstance && envApiTokenInstance) {
+    // Check for placeholder values
+    if (envIdInstance === 'your_instance_id' || envApiTokenInstance === 'your_token') {
+      console.warn('[GreenAPI] Placeholder values detected in environment variables. Checking database...');
+    } else {
+      // Valid env vars found, use them
+      const config: GreenApiConfig = {
+        idInstance: envIdInstance,
+        apiTokenInstance: envApiTokenInstance,
+      };
+
+      // Update cache
+      credentialsCache = config;
+      credentialsCacheTime = now;
+
+      console.log('[GreenAPI] Using credentials from environment variables');
+      return config;
+    }
+  }
+
+  // Priority 2: Fallback to database
   try {
     const { data, error } = await supabase
       .from('green_api_settings')
@@ -68,7 +94,8 @@ export const getGreenApiConfig = async (): Promise<GreenApiConfig | null> => {
 
     // maybeSingle() returns null if no rows found (no error, just no data)
     if (!data) {
-      console.warn('[GreenAPI] No Green API credentials found in database. Please insert credentials into green_api_settings table.');
+      console.warn('[GreenAPI] No Green API credentials found in database or environment variables.');
+      console.warn('[GreenAPI] Please set VITE_GREEN_API_ID_INSTANCE and VITE_GREEN_API_TOKEN_INSTANCE in .env.local');
       return null;
     }
 
@@ -92,6 +119,7 @@ export const getGreenApiConfig = async (): Promise<GreenApiConfig | null> => {
     credentialsCache = config;
     credentialsCacheTime = now;
 
+    console.log('[GreenAPI] Using credentials from database');
     return config;
   } catch (error: any) {
     console.error('[GreenAPI] Unexpected error fetching credentials:', error);
@@ -187,8 +215,16 @@ export const sendWhatsAppMessage = async (
     });
 
     // If buttons are provided, use SendButtons endpoint
+    // Note: SendButtons endpoint has CORS restrictions, so we use Vite proxy in development
+    // For production, you may need to configure CORS on Green API side or use a server-side proxy
     if (cleanedButtons && cleanedButtons.length > 0) {
-      const url = `https://api.green-api.com/waInstance${config.idInstance}/SendButtons/${config.apiTokenInstance}`;
+      // Use Vite proxy in development to avoid CORS issues
+      // In production, this will attempt direct call (may need server-side proxy if CORS is still blocked)
+      const baseUrl = import.meta.env.DEV 
+        ? '/api/green-api'  // Use Vite proxy in development
+        : 'https://api.green-api.com';  // Direct call in production (may fail due to CORS)
+      
+      const url = `${baseUrl}/waInstance${config.idInstance}/SendButtons/${config.apiTokenInstance}`;
 
       const requestBody: any = {
         chatId,
@@ -220,11 +256,51 @@ export const sendWhatsAppMessage = async (
           errorData = { error: errorText };
         }
 
-        console.error('[GreenAPI] Green API error:', {
+        console.error('[GreenAPI] SendButtons error:', {
           status: response.status,
           statusText: response.statusText,
           error: errorData,
         });
+
+        // If SendButtons fails with 403, it likely means the account doesn't have access to this feature
+        // Fall back to sending as regular message (buttons will be sent as text)
+        if (response.status === 403) {
+          console.warn('[GreenAPI] SendButtons endpoint returned 403. This usually means the account does not have access to interactive buttons (requires premium plan). Falling back to regular message...');
+          
+          // Fallback: Send as regular message with buttons listed in text
+          const buttonsText = cleanedButtons.map((btn, idx) => `${idx + 1}. ${btn.text}`).join('\n');
+          const messageWithButtons = `${cleanedMessage}\n\n${buttonsText}`;
+          
+          // Use direct URL for fallback (not proxy, since sendMessage works directly)
+          const fallbackUrl = `https://api.green-api.com/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
+          
+          const fallbackResponse = await fetch(fallbackUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chatId,
+              message: messageWithButtons,
+            }),
+          });
+
+          if (!fallbackResponse.ok) {
+            const fallbackErrorText = await fallbackResponse.text();
+            return {
+              success: false,
+              error: `SendButtons requires premium plan (403). Fallback message also failed: ${fallbackErrorText}`,
+            };
+          }
+
+          const fallbackData = await fallbackResponse.json();
+          
+          return {
+            success: true,
+            data: fallbackData,
+            warning: 'Interactive buttons are not available on your plan. Message sent as text with button options listed.',
+          };
+        }
 
         return {
           success: false,

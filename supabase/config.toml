@@ -1,5 +1,5 @@
 # A string used to distinguish different Supabase projects on the same host. Defaults to the workspace name when running locally.
-project_id = "dolittle-airtable"
+project_id = "diet-neta"
 
 [api]
 enabled = true

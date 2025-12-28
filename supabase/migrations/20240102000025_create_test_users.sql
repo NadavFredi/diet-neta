@@ -176,6 +176,7 @@ BEGIN
   
   IF v_client_user_id IS NOT NULL THEN
     -- Create customer record linked to client user
+    -- Use upsert approach since we can't rely on ON CONFLICT with partial unique index
     INSERT INTO customers (full_name, phone, email, user_id)
     VALUES (
       'לקוח בדיקה',
@@ -183,11 +184,21 @@ BEGIN
       'client@dietneta.com',
       v_client_user_id
     )
-    ON CONFLICT (user_id) DO UPDATE
-      SET full_name = EXCLUDED.full_name,
-          phone = EXCLUDED.phone,
+    ON CONFLICT (phone) DO UPDATE
+      SET user_id = EXCLUDED.user_id,
+          full_name = EXCLUDED.full_name,
           email = EXCLUDED.email
     RETURNING id INTO v_client_customer_id;
+    
+    -- If customer already existed with different user_id, update it
+    IF v_client_customer_id IS NULL THEN
+      UPDATE customers
+      SET user_id = v_client_user_id,
+          full_name = 'לקוח בדיקה',
+          email = 'client@dietneta.com'
+      WHERE phone = '0501234567'
+      RETURNING id INTO v_client_customer_id;
+    END IF;
     
     RAISE NOTICE '✅ Customer record created/updated for client (ID: %)', v_client_customer_id;
     
@@ -196,11 +207,10 @@ BEGIN
     -- =====================================================
     
     -- Create a lead record for the client (only if doesn't exist)
+    -- Note: After normalization, leads table no longer has full_name, phone, email columns
+    -- Those are in the customers table, linked via customer_id
     INSERT INTO leads (
       customer_id,
-      full_name,
-      phone,
-      email,
       status_main,
       fitness_goal,
       height,
@@ -209,9 +219,6 @@ BEGIN
     )
     SELECT 
       v_client_customer_id,
-      'לקוח בדיקה',
-      '0501234567',
-      'client@dietneta.com',
       'בטיפול',
       'ירידה במשקל',
       175.0,
@@ -219,8 +226,7 @@ BEGIN
       'בינוני'
     WHERE NOT EXISTS (
       SELECT 1 FROM leads 
-      WHERE customer_id = v_client_customer_id 
-      AND phone = '0501234567'
+      WHERE customer_id = v_client_customer_id
     )
     RETURNING id INTO v_client_lead_id;
     

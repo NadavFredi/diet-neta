@@ -9,12 +9,15 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "linkProject": "supabase link --project-ref <PROEJCT_ID>",
+    "linkProject": "supabase link --project-ref xghoqeayrtwgymfafrdm",
     "db:reset": "supabase db reset --local",
     "create-users": "node scripts/create_test_users.js",
     "reset-manager-password": "node scripts/reset_manager_password.js",
     "deploy:functions": "node scripts/deploy-functions.js",
-    "functions:local": "supabase functions serve --env-file .env.local"
+    "functions:local": "supabase functions serve --env-file .env.local",
+    "db:backup": "./scripts/backup-db.sh",
+    "db:restore": "./scripts/restore-local-db.sh",
+    "db:restore:remote": "./scripts/restore-remote-db.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

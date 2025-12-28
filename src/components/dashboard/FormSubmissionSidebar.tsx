@@ -223,17 +223,24 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
   };
 
   // Toggle all categories collapse/expand
-  const toggleAllCategories = () => {
-    const allCategoryKeys = Object.keys(categorizedQuestions);
-    const allExpanded = allCategoryKeys.every(key => expandedCategories.has(key));
+  const toggleAllCategories = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     
-    if (allExpanded) {
-      // Collapse all
-      setExpandedCategories(new Set());
-    } else {
-      // Expand all
-      setExpandedCategories(new Set(allCategoryKeys));
-    }
+    const allCategoryKeys = Object.keys(categorizedQuestions);
+    if (allCategoryKeys.length === 0) return;
+    
+    setExpandedCategories((prev) => {
+      const allExpanded = allCategoryKeys.every(key => prev.has(key));
+      
+      if (allExpanded) {
+        // Collapse all
+        return new Set();
+      } else {
+        // Expand all
+        return new Set(allCategoryKeys);
+      }
+    });
     setCategoriesInitialized(true);
   };
 
@@ -288,9 +295,9 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={toggleAllCategories}
-                  className="h-6 text-xs px-2 py-0"
+                  className="h-6 px-2 text-xs text-gray-500 hover:text-gray-900 hover:bg-white/80"
                 >
-                  <ChevronsUpDown className="h-3 w-3 ml-1" />
+                  <ChevronsUpDown className="h-3.5 w-3.5" />
                   {Object.keys(categorizedQuestions).every(key => expandedCategories.has(key))
                     ? 'כווץ הכל'
                     : 'הרחב הכל'}
