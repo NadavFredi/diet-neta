@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { FileText, X, Loader2, RefreshCw, Maximize2, Grid3x3, List, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, X, Loader2, RefreshCw, Maximize2, Grid3x3, List, ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
@@ -17,6 +17,7 @@ import { fetchFormSubmission, type FormType } from '@/store/slices/formsSlice';
 import { useLeadSidebar } from '@/hooks/useLeadSidebar';
 import { cn } from '@/lib/utils';
 import type { FilloutSubmission } from '@/services/filloutService';
+import { ReadOnlyField } from './ReadOnlyField';
 
 interface FormSubmissionSidebarProps {
   formType: FormType;
@@ -58,6 +59,7 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [categoriesInitialized, setCategoriesInitialized] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeHandleRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef<number>(0);
@@ -214,14 +216,41 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
       }
       return next;
     });
+    // Mark as initialized once user interacts
+    if (!categoriesInitialized) {
+      setCategoriesInitialized(true);
+    }
   };
 
-  // Expand all categories by default
-  useEffect(() => {
-    if (submission?.questions && expandedCategories.size === 0) {
-      setExpandedCategories(new Set(Object.keys(categorizedQuestions)));
+  // Toggle all categories collapse/expand
+  const toggleAllCategories = () => {
+    const allCategoryKeys = Object.keys(categorizedQuestions);
+    const allExpanded = allCategoryKeys.every(key => expandedCategories.has(key));
+    
+    if (allExpanded) {
+      // Collapse all
+      setExpandedCategories(new Set());
+    } else {
+      // Expand all
+      setExpandedCategories(new Set(allCategoryKeys));
     }
-  }, [submission, categorizedQuestions, expandedCategories.size]);
+    setCategoriesInitialized(true);
+  };
+
+  // Expand all categories by default (only on initial load)
+  useEffect(() => {
+    if (submission?.questions && !categoriesInitialized && Object.keys(categorizedQuestions).length > 0) {
+      setExpandedCategories(new Set(Object.keys(categorizedQuestions)));
+      setCategoriesInitialized(true);
+    }
+  }, [submission, categorizedQuestions, categoriesInitialized]);
+
+  // Reset initialization when submission changes
+  useEffect(() => {
+    if (submission) {
+      setCategoriesInitialized(false);
+    }
+  }, [submission?.submissionId]);
 
   const isExpanded = width >= 600;
 
@@ -253,6 +282,20 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
               <h2 className="text-sm font-bold text-gray-900 truncate">{formType.label}</h2>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
+              {/* Collapse/Expand All Button - Only show when submission exists and has categories */}
+              {submission && Object.keys(categorizedQuestions).length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleAllCategories}
+                  className="h-6 text-xs px-2 py-0"
+                >
+                  <ChevronsUpDown className="h-3 w-3 ml-1" />
+                  {Object.keys(categorizedQuestions).every(key => expandedCategories.has(key))
+                    ? 'כווץ הכל'
+                    : 'הרחב הכל'}
+                </Button>
+              )}
               {/* View Mode Toggle - Only show when expanded */}
               {isExpanded && (
                 <>
@@ -301,12 +344,18 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
               <p className="text-xs text-slate-600">טוען תשובות...</p>
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center py-8 px-4">
-              <FileText className="h-10 w-10 text-red-300 mb-3" />
-              <p className="text-xs font-medium text-red-600 mb-1 text-center">
-                שגיאה בטעינת הטופס
-              </p>
-              <p className="text-xs text-red-500 text-center mb-3">{error}</p>
+            <div className="flex flex-col items-center justify-center py-8 px-6">
+              <div className="flex flex-col gap-1.5 py-0.5 min-w-0 w-full text-right mb-4 max-w-md">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>
+                  שגיאה בטעינת הטופס:
+                </span>
+                <span 
+                  className="text-sm font-semibold text-red-600 flex-1 min-w-0 break-words"
+                  style={{ fontSize: '14px', fontWeight: 600 }}
+                >
+                  {error}
+                </span>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -318,14 +367,18 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
               </Button>
             </div>
           ) : !submission ? (
-            <div className="flex flex-col items-center justify-center py-8 px-4">
-              <FileText className="h-10 w-10 text-slate-300 mb-3" />
-              <p className="text-xs font-medium text-slate-600 mb-1 text-center">
-                לא נמצאה הגשה
-              </p>
-              <p className="text-xs text-slate-500 text-center mb-3">
-                הלקוח עדיין לא הגיש את הטופס הזה
-              </p>
+            <div className="flex flex-col items-center justify-center py-8 px-6">
+              <div className="flex flex-col gap-1.5 py-0.5 min-w-0 w-full text-right mb-4 max-w-md">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>
+                  סטטוס הגשה:
+                </span>
+                <span 
+                  className="text-sm font-semibold text-slate-900 flex-1 min-w-0 break-words"
+                  style={{ fontSize: '14px', fontWeight: 600 }}
+                >
+                  הלקוח עדיין לא הגיש את הטופס הזה
+                </span>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -337,95 +390,55 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
               </Button>
             </div>
           ) : (
-            <div className="p-3">
+            <div className="p-6">
               {Object.keys(categorizedQuestions).length === 0 ? (
                 <p className="text-xs text-gray-500 text-center py-4">אין תשובות להצגה</p>
               ) : (
-                <div className={cn(
-                  "space-y-2",
-                  viewMode === 'grid' && isExpanded && "grid grid-cols-2 gap-2"
-                )}>
-                  {Object.entries(categorizedQuestions).map(([category, questions]) => {
-                    const isExpanded = expandedCategories.has(category);
-                    
-                    return (
-                      <div
-                        key={category}
-                        className="border border-gray-200 rounded-lg overflow-hidden bg-white"
-                      >
-                        {/* Category Header - Collapsible */}
-                        <button
-                          onClick={() => toggleCategory(category)}
-                          className="w-full px-2.5 py-1.5 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between text-xs font-semibold text-gray-700 border-b border-gray-200"
+                <div className="space-y-4">
+                    {Object.entries(categorizedQuestions).map(([category, questions]) => {
+                      const isExpanded = expandedCategories.has(category);
+                      
+                      return (
+                        <Card
+                          key={category}
+                          className="border border-slate-100 rounded-xl shadow-md bg-white overflow-hidden"
                         >
-                          <span>{category}</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-gray-400 font-normal">
-                              ({questions.length})
-                            </span>
-                            {isExpanded ? (
-                              <ChevronUp className="h-3 w-3 text-gray-400" />
-                            ) : (
-                              <ChevronDown className="h-3 w-3 text-gray-400" />
-                            )}
-                          </div>
-                        </button>
+                          {/* Category Header - Collapsible */}
+                          <button
+                            onClick={() => toggleCategory(category)}
+                            className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between border-b border-slate-100"
+                          >
+                            <h3 className="text-sm font-bold text-gray-900">{category}</h3>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400 font-normal">
+                                ({questions.length})
+                              </span>
+                              {isExpanded ? (
+                                <ChevronUp className="h-4 w-4 text-gray-400" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                              )}
+                            </div>
+                          </button>
 
-                        {/* Category Content */}
-                        {isExpanded && (
-                          <div className={cn(
-                            "p-1",
-                            viewMode === 'grid' && isExpanded ? "space-y-1" : "space-y-0.5"
-                          )}>
-                            {questions.map((question, index) => (
-                              <div
-                                key={question.id || index}
-                                className={cn(
-                                  "px-2 py-1.5 rounded border border-gray-100 bg-gray-50/30 hover:bg-gray-100/50 hover:border-gray-200 transition-all",
-                                  viewMode === 'grid' && isExpanded && "min-h-[50px] flex flex-col justify-center"
-                                )}
-                              >
-                                <div className={cn(
-                                  viewMode === 'grid' && isExpanded
-                                    ? "flex flex-col gap-0.5"
-                                    : "grid grid-cols-2 gap-2 items-start"
-                                )}>
-                                  {/* Label */}
-                                  <div className="min-w-0 flex-shrink-0" style={{ width: viewMode === 'grid' && isExpanded ? '100%' : 'auto' }}>
-                                    <span 
-                                      className={cn(
-                                        "font-semibold text-gray-700 break-words inline-block",
-                                        viewMode === 'grid' && isExpanded
-                                          ? "text-[10px] leading-tight mb-0.5"
-                                          : "text-[11px] leading-snug"
-                                      )}
-                                      title={question.name || 'שדה ללא שם'}
-                                    >
-                                      {question.name || 'שדה ללא שם'}
-                                    </span>
-                                  </div>
-                                  {/* Value */}
-                                  <div className={cn(
-                                    "flex items-start min-w-0",
-                                    viewMode === 'grid' && isExpanded && "flex-1"
-                                  )}>
-                                    <span 
-                                      className={cn(
-                                        "text-gray-900 break-words",
-                                        viewMode === 'grid' && isExpanded
-                                          ? "text-[10px] leading-tight"
-                                          : "text-[11px] leading-snug"
-                                      )}
-                                    >
-                                      {formatAnswer(question.value)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                          {/* Category Content */}
+                          {isExpanded && (
+                            <div className={cn(
+                              "p-6",
+                              viewMode === 'grid' && width >= 600 ? "grid grid-cols-2 gap-x-4 gap-y-4" : "space-y-4"
+                            )}>
+                              {questions.map((question, index) => (
+                                <ReadOnlyField
+                                  key={question.id || index}
+                                  label={question.name || 'שדה ללא שם'}
+                                  value={formatAnswer(question.value)}
+                                  className="border-0 p-0"
+                                  valueClassName="break-words"
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </Card>
                     );
                   })}
                 </div>

@@ -57,6 +57,51 @@ export const getFilloutConfig = (): FilloutConfig | null => {
 };
 
 /**
+ * Convert error to user-friendly message
+ * Detects network errors and provides appropriate messages
+ */
+const getErrorMessage = (error: any): string => {
+  // Get error message as string
+  const errorMessage = error?.message || String(error || 'Unknown error');
+  const errorString = typeof errorMessage === 'string' ? errorMessage : String(error);
+  
+  // Check for network errors (TypeError: Failed to fetch, etc.)
+  if (error instanceof TypeError && errorMessage === 'Failed to fetch') {
+    return 'שגיאת חיבור לאינטרנט. אנא בדוק את החיבור שלך ונסה שוב.';
+  }
+  
+  // Check for common network error patterns in the error message
+  const lowerErrorMessage = errorString.toLowerCase();
+  if (
+    lowerErrorMessage.includes('failed to fetch') ||
+    lowerErrorMessage.includes('network') ||
+    lowerErrorMessage.includes('err_internet_disconnected') ||
+    lowerErrorMessage.includes('err_network_changed') ||
+    lowerErrorMessage.includes('err_connection_refused') ||
+    lowerErrorMessage.includes('networkerror') ||
+    lowerErrorMessage.includes('network request failed')
+  ) {
+    return 'שגיאת חיבור לאינטרנט. אנא בדוק את החיבור שלך ונסה שוב.';
+  }
+  
+  // If error message is already in Hebrew or looks user-friendly, return as-is
+  // Otherwise return generic error message
+  if (errorString && typeof errorString === 'string' && errorString.length > 0) {
+    // Check if message contains Hebrew characters (might be already translated)
+    if (/[\u0590-\u05FF]/.test(errorString)) {
+      return errorString;
+    }
+    // If it's a technical error message, return generic Hebrew message
+    if (errorString.includes('TypeError') || errorString.includes('Error:')) {
+      return 'שגיאה בטעינת הטופס. אנא נסה שוב מאוחר יותר.';
+    }
+    return errorString;
+  }
+  
+  return 'שגיאה בטעינת הטופס. אנא נסה שוב מאוחר יותר.';
+};
+
+/**
  * Get form submissions from Fillout API
  * @param formId - The Fillout form ID
  * @param filters - Optional filters including email to match submissions
@@ -133,7 +178,10 @@ export const getFormSubmissions = async (
     return data;
   } catch (error: any) {
     console.error('[Fillout] Error fetching form submissions:', error);
-    throw error;
+    // Convert to user-friendly error message
+    const friendlyError = new Error(getErrorMessage(error));
+    friendlyError.name = error?.name || 'FetchError';
+    throw friendlyError;
   }
 };
 
@@ -173,7 +221,10 @@ export const getFormSubmissionById = async (
     return data;
   } catch (error: any) {
     console.error('[Fillout] Error fetching form submission:', error);
-    throw error;
+    // Convert to user-friendly error message
+    const friendlyError = new Error(getErrorMessage(error));
+    friendlyError.name = error?.name || 'FetchError';
+    throw friendlyError;
   }
 };
 
@@ -498,7 +549,10 @@ export const findMostRecentSubmission = async (
     return matchingSubmissions.length > 0 ? matchingSubmissions[0] : null;
   } catch (error: any) {
     console.error('[Fillout] Error finding most recent submission:', error);
-    throw error;
+    // Convert to user-friendly error message
+    const friendlyError = new Error(getErrorMessage(error));
+    friendlyError.name = error?.name || 'SubmissionError';
+    throw friendlyError;
   }
 };
 

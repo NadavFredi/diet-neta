@@ -2,7 +2,7 @@
  * Green API Service
  * 
  * Service for sending WhatsApp messages via Green API
- * Uses Supabase Edge Function to proxy requests (solves CORS issues)
+ * Fetches credentials from PostgreSQL and makes direct API calls
  */
 import { supabase } from '@/lib/supabaseClient';
 
@@ -24,41 +24,79 @@ export interface GreenApiResponse {
   error?: string;
 }
 
+// Cache for credentials to avoid repeated DB calls
+let credentialsCache: GreenApiConfig | null = null;
+let credentialsCacheTime: number = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Get Green API configuration from environment variables
+ * Clear the credentials cache (useful when settings are updated)
  */
-export const getGreenApiConfig = (): GreenApiConfig | null => {
-  const idInstance = import.meta.env.VITE_GREEN_API_ID_INSTANCE;
-  const apiTokenInstance = import.meta.env.VITE_GREEN_API_TOKEN_INSTANCE;
+export const clearGreenApiConfigCache = (): void => {
+  credentialsCache = null;
+  credentialsCacheTime = 0;
+};
 
-  if (!idInstance || !apiTokenInstance) {
-    const missing = [];
-    if (!idInstance) missing.push('VITE_GREEN_API_ID_INSTANCE');
-    if (!apiTokenInstance) missing.push('VITE_GREEN_API_TOKEN_INSTANCE');
-    
-    console.warn('[GreenAPI] Missing environment variables:', missing.join(', '));
-    console.warn('[GreenAPI] Available env vars:', {
-      hasIdInstance: !!idInstance,
-      hasApiTokenInstance: !!apiTokenInstance,
-      idInstanceValue: idInstance ? `${idInstance.substring(0, 4)}...` : 'undefined',
-    });
-    return null;
+/**
+ * Get Green API configuration from PostgreSQL database
+ */
+export const getGreenApiConfig = async (): Promise<GreenApiConfig | null> => {
+  // Check cache first
+  const now = Date.now();
+  if (credentialsCache && (now - credentialsCacheTime) < CACHE_DURATION) {
+    return credentialsCache;
   }
 
-  // Check for placeholder values
-  if (idInstance === 'your_instance_id' || apiTokenInstance === 'your_token') {
-    console.error('[GreenAPI] Placeholder values detected! Please replace with actual credentials in .env.local');
-    console.error('[GreenAPI] Current values:', {
-      idInstance: idInstance === 'your_instance_id' ? 'PLACEHOLDER' : '✓',
-      apiTokenInstance: apiTokenInstance === 'your_token' ? 'PLACEHOLDER' : '✓',
-    });
+  try {
+    const { data, error } = await supabase
+      .from('green_api_settings')
+      .select('id_instance, api_token_instance')
+      .limit(1)
+      .maybeSingle(); // Use maybeSingle() to handle empty table gracefully
+
+    if (error) {
+      console.error('[GreenAPI] Error fetching credentials from database:', error);
+      
+      // Check if table doesn't exist (406 or relation errors)
+      if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist') || error.message?.includes('406')) {
+        console.error('[GreenAPI] Table "green_api_settings" does not exist. Please run: supabase db reset --local');
+        return null;
+      }
+      
+      return null;
+    }
+
+    // maybeSingle() returns null if no rows found (no error, just no data)
+    if (!data) {
+      console.warn('[GreenAPI] No Green API credentials found in database. Please insert credentials into green_api_settings table.');
+      return null;
+    }
+
+    if (!data.id_instance || !data.api_token_instance) {
+      console.warn('[GreenAPI] Green API credentials found but incomplete in database');
+      return null;
+    }
+
+    // Check for placeholder values
+    if (data.id_instance === 'your_instance_id' || data.api_token_instance === 'your_token') {
+      console.error('[GreenAPI] Placeholder values detected in database. Please update with actual credentials.');
+      return null;
+    }
+
+    const config: GreenApiConfig = {
+      idInstance: data.id_instance,
+      apiTokenInstance: data.api_token_instance,
+    };
+
+    // Update cache
+    credentialsCache = config;
+    credentialsCacheTime = now;
+
+    return config;
+  } catch (error: any) {
+    console.error('[GreenAPI] Unexpected error fetching credentials:', error);
     return null;
   }
-
-  return {
-    idInstance,
-    apiTokenInstance,
-  };
 };
 
 /**
@@ -88,8 +126,8 @@ export const formatPhoneNumber = (phone: string): string => {
 };
 
 /**
- * Send WhatsApp message via Green API using Supabase Edge Function
- * This solves CORS issues by proxying requests through the backend
+ * Send WhatsApp message via Green API
+ * Fetches credentials from PostgreSQL and makes direct API calls to Green API
  * Supports both plain text messages and interactive button messages
  */
 export const sendWhatsAppMessage = async (
@@ -116,64 +154,18 @@ export const sendWhatsAppMessage = async (
       }
     }
 
-    // Ensure we have an active session before calling the function
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.error('[GreenAPI] Session error:', sessionError);
+    // Get credentials from database
+    const config = await getGreenApiConfig();
+    if (!config) {
       return {
         success: false,
-        error: 'Authentication error. Please log in again.',
+        error: 'Green API credentials not configured. Please set them in the settings.',
       };
     }
-    
-    if (!session) {
-      console.error('[GreenAPI] No active session');
-      return {
-        success: false,
-        error: 'Authentication required. Please log in again.',
-      };
-    }
-    
-    // Verify session is still valid
-    if (!session.access_token) {
-      console.error('[GreenAPI] Invalid session - no access token');
-      return {
-        success: false,
-        error: 'Invalid session. Please log in again.',
-      };
-    }
-    
-    console.log('[GreenAPI] Session valid, calling Edge Function');
 
-    // Call Edge Function directly via fetch to avoid Supabase client routing issues
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const functionUrl = `${supabaseUrl}/functions/v1/send-whatsapp-message`;
-    
-    console.log('[GreenAPI] Calling function URL:', functionUrl);
-    console.log('[GreenAPI] Request body:', {
-      phoneNumber: params.phoneNumber,
-      messageLength: params.message.length,
-      hasButtons: !!params.buttons,
-      buttonCount: params.buttons?.length || 0,
-    });
-
-    // Build headers - Supabase functions need both apikey and Authorization
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-    };
-    
-    // Only add Authorization if we have a valid token
-    if (session.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`;
-    }
-    
-    console.log('[GreenAPI] Request headers:', {
-      hasApikey: !!headers['apikey'],
-      hasAuth: !!headers['Authorization'],
-      apikeyLength: headers['apikey']?.length || 0,
-    });
+    // Format phone number
+    let formattedPhone = formatPhoneNumber(params.phoneNumber);
+    const chatId = `${formattedPhone}@c.us`;
 
     // Clean the message to remove HTML tags and format for WhatsApp
     const cleanedMessage = cleanWhatsAppMessage(params.message);
@@ -187,59 +179,119 @@ export const sendWhatsAppMessage = async (
     // Clean footer if present
     const cleanedFooter = params.footer ? cleanWhatsAppMessage(params.footer) : undefined;
 
-    const response = await fetch(functionUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        phoneNumber: params.phoneNumber,
-        message: cleanedMessage,
-        buttons: cleanedButtons,
-        footer: cleanedFooter,
-      }),
+    console.log('[GreenAPI] Sending message to Green API:', {
+      chatId,
+      messageLength: cleanedMessage.length,
+      hasButtons: !!cleanedButtons && cleanedButtons.length > 0,
+      buttonCount: cleanedButtons?.length || 0,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: errorText };
+    // If buttons are provided, use SendButtons endpoint
+    if (cleanedButtons && cleanedButtons.length > 0) {
+      const url = `https://api.green-api.com/waInstance${config.idInstance}/SendButtons/${config.apiTokenInstance}`;
+
+      const requestBody: any = {
+        chatId,
+        message: cleanedMessage,
+        buttons: cleanedButtons.map((btn, index) => ({
+          buttonId: String(index + 1),
+          buttonText: btn.text,
+        })),
+      };
+
+      if (cleanedFooter) {
+        requestBody.footer = cleanedFooter;
       }
-      
-      console.error('[GreenAPI] Edge function error:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorData,
-        errorText: errorText,
-        headers: Object.fromEntries(response.headers.entries()),
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       });
-      
-      // Log the full error for debugging
-      console.error('[GreenAPI] Full error response:', JSON.stringify(errorData, null, 2));
-      
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+
+        console.error('[GreenAPI] Green API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+        });
+
+        return {
+          success: false,
+          error: errorData.error || errorData.message || errorText || `HTTP error! status: ${response.status}`,
+        };
+      }
+
+      const data = await response.json();
+
       return {
-        success: false,
-        error: errorData.error || errorData.message || errorText || `HTTP error! status: ${response.status}`,
+        success: true,
+        data,
+      };
+    } else {
+      // Use standard sendMessage endpoint
+      const url = `https://api.green-api.com/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chatId,
+          message: cleanedMessage,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+
+        console.error('[GreenAPI] Green API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+        });
+
+        return {
+          success: false,
+          error: errorData.error || errorData.message || errorText || `HTTP error! status: ${response.status}`,
+        };
+      }
+
+      const data = await response.json();
+
+      return {
+        success: true,
+        data,
       };
     }
-
-    const data = await response.json();
-
-    // The edge function returns { success, data, error }
-    if (data && !data.success) {
-      return {
-        success: false,
-        error: data.error || 'Failed to send WhatsApp message',
-      };
-    }
-
-    return {
-      success: true,
-      data: data?.data,
-    };
   } catch (error: any) {
     console.error('[GreenAPI] Error sending message:', error);
+    
+    // Check if it's a CORS error
+    if (error?.message?.includes('CORS') || error?.message?.includes('Failed to fetch')) {
+      return {
+        success: false,
+        error: 'CORS error: Direct browser calls to Green API may be blocked. Please check Green API CORS settings or use a proxy.',
+      };
+    }
+
     return {
       success: false,
       error: error?.message || 'Failed to send WhatsApp message',
