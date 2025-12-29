@@ -17,6 +17,7 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { AddBudgetDialog } from '@/components/dashboard/dialogs/AddBudgetDialog';
 import { EditBudgetDialog } from '@/components/dashboard/dialogs/EditBudgetDialog';
 import { DeleteBudgetDialog } from '@/components/dashboard/dialogs/DeleteBudgetDialog';
+import { SendBudgetModal } from '@/components/dashboard/SendBudgetModal';
 import { useTableFilters } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
@@ -68,6 +69,9 @@ const BudgetManagement = () => {
     handleSaveViewClick,
     getCurrentFilterConfig,
     deleteBudget,
+    handleExportPDF,
+    handleSendWhatsApp,
+    sendingBudget,
   } = useBudgetManagement();
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
@@ -134,6 +138,8 @@ const BudgetManagement = () => {
                     columnVisibility={columnVisibility}
                     onEdit={handleEditBudget}
                     onDelete={handleDeleteClick}
+                    onExportPDF={handleExportPDF}
+                    onSendWhatsApp={handleSendWhatsApp}
                   />
                 ) : (
                   <div className="p-8 text-center text-gray-500">
@@ -197,6 +203,17 @@ const BudgetManagement = () => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);
         }}
+      />
+
+      {/* Send Budget Modal */}
+      <SendBudgetModal
+        isOpen={!!sendingBudget}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleSendWhatsApp(null);
+          }
+        }}
+        budget={sendingBudget}
       />
     </>
   );
