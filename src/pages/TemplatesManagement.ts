@@ -217,8 +217,16 @@ export const useTemplatesManagement = () => {
 
   // Handlers
   const handleLogout = async () => {
-    await dispatch(logoutUser());
-    navigate('/login');
+    try {
+      console.log('[TemplatesManagement] Logout initiated');
+      await dispatch(logoutUser()).unwrap();
+      console.log('[TemplatesManagement] Logout successful, navigating to login');
+      navigate('/login');
+    } catch (error) {
+      console.error('[TemplatesManagement] Logout error:', error);
+      // Navigate to login even if logout fails
+      navigate('/login');
+    }
   };
 
   const handleDateSelect = (date: Date | undefined) => {

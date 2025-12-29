@@ -15,8 +15,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector } from '@/store/hooks';
-import { StyledActionButton } from '@/components/ui/StyledActionButton';
-import { LayoutDashboard } from 'lucide-react';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -118,17 +116,6 @@ const Dashboard = () => {
           }}
         >
           <div className="p-6">
-            {/* Styled Action Button */}
-            <div className="mb-4">
-              <StyledActionButton
-                onClick={handleAddLead}
-                icon={LayoutDashboard}
-                label="הוסף ליד חדש"
-                variant="default"
-                active={false}
-                fullWidth={false}
-              />
-            </div>
             {/* Unified Workspace Panel - Master Container */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
               {/* Header Section - Control Deck */}

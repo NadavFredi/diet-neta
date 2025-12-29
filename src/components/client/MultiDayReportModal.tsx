@@ -31,16 +31,30 @@ interface MultiDayReportModalProps {
 
 interface DayData {
   date: string;
+  // Physical (6)
   weight: number | null;
+  belly_circumference: number | null;
+  waist_circumference: number | null;
+  thigh_circumference: number | null;
+  arm_circumference: number | null;
+  neck_circumference: number | null;
+  // Activity (4)
   steps_actual: number | null;
+  exercises_count: number | null;
+  cardio_amount: number | null;
+  intervals_count: number | null;
+  // Nutrition (4)
   calories_daily: number | null;
   protein_daily: number | null;
-  exercises_count: number | null;
+  fiber_daily: number | null;
+  water_amount: number | null;
+  // Wellness (4)
   stress_level: number | null;
   hunger_level: number | null;
   energy_level: number | null;
   sleep_hours: number | null;
-  water_amount: number | null;
+  // Notes
+  notes: string | null;
 }
 
 export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
@@ -69,16 +83,30 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
       
       result.push({
         date: dateStr,
+        // Physical (6)
         weight: existing?.weight ?? null,
+        belly_circumference: existing?.belly_circumference ?? null,
+        waist_circumference: existing?.waist_circumference ?? null,
+        thigh_circumference: existing?.thigh_circumference ?? null,
+        arm_circumference: existing?.arm_circumference ?? null,
+        neck_circumference: existing?.neck_circumference ?? null,
+        // Activity (4)
         steps_actual: existing?.steps_actual ?? null,
+        exercises_count: existing?.exercises_count ?? null,
+        cardio_amount: existing?.cardio_amount ?? null,
+        intervals_count: existing?.intervals_count ?? null,
+        // Nutrition (4)
         calories_daily: existing?.calories_daily ?? null,
         protein_daily: existing?.protein_daily ?? null,
-        exercises_count: existing?.exercises_count ?? null,
+        fiber_daily: existing?.fiber_daily ?? null,
+        water_amount: existing?.water_amount ?? null,
+        // Wellness (4)
         stress_level: existing?.stress_level ?? null,
         hunger_level: existing?.hunger_level ?? null,
         energy_level: existing?.energy_level ?? null,
         sleep_hours: existing?.sleep_hours ?? null,
-        water_amount: existing?.water_amount ?? null,
+        // Notes
+        notes: existing?.notes ?? null,
       });
     }
     
@@ -92,7 +120,7 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
     setDayData(days);
   }, [days]);
 
-  const updateDayData = (date: string, field: keyof DayData, value: number | null) => {
+  const updateDayData = (date: string, field: keyof DayData, value: number | string | null) => {
     setDayData((prev) =>
       prev.map((day) => (day.date === date ? { ...day, [field]: value } : day))
     );
@@ -106,31 +134,54 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
           // Only save days that have at least one field filled
           return (
             day.weight !== null ||
+            day.belly_circumference !== null ||
+            day.waist_circumference !== null ||
+            day.thigh_circumference !== null ||
+            day.arm_circumference !== null ||
+            day.neck_circumference !== null ||
             day.steps_actual !== null ||
+            day.exercises_count !== null ||
+            day.cardio_amount !== null ||
+            day.intervals_count !== null ||
             day.calories_daily !== null ||
             day.protein_daily !== null ||
-            day.exercises_count !== null ||
+            day.fiber_daily !== null ||
+            day.water_amount !== null ||
             day.stress_level !== null ||
             day.hunger_level !== null ||
             day.energy_level !== null ||
             day.sleep_hours !== null ||
-            day.water_amount !== null
+            (day.notes !== null && day.notes.trim() !== '')
           );
         })
         .map((day) => ({
           customer_id: customerId,
           lead_id: leadId,
           check_in_date: day.date,
+          // Physical (6)
           weight: day.weight,
+          belly_circumference: day.belly_circumference,
+          waist_circumference: day.waist_circumference,
+          thigh_circumference: day.thigh_circumference,
+          arm_circumference: day.arm_circumference,
+          neck_circumference: day.neck_circumference,
+          // Activity (4)
           steps_actual: day.steps_actual,
+          exercises_count: day.exercises_count,
+          cardio_amount: day.cardio_amount,
+          intervals_count: day.intervals_count,
+          // Nutrition (4)
           calories_daily: day.calories_daily,
           protein_daily: day.protein_daily,
-          exercises_count: day.exercises_count,
+          fiber_daily: day.fiber_daily,
+          water_amount: day.water_amount,
+          // Wellness (4)
           stress_level: day.stress_level,
           hunger_level: day.hunger_level,
           energy_level: day.energy_level,
           sleep_hours: day.sleep_hours,
-          water_amount: day.water_amount,
+          // Notes
+          notes: day.notes?.trim() || null,
           // Set defaults for required fields
           workout_completed: false,
           steps_goal_met: false,
@@ -179,16 +230,28 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
       // Find next field
       const currentDayIndex = dayData.findIndex((d) => d.date === currentDate);
       const fields: Array<keyof DayData> = [
+        // Physical (6)
         'weight',
+        'belly_circumference',
+        'waist_circumference',
+        'thigh_circumference',
+        'arm_circumference',
+        'neck_circumference',
+        // Activity (4)
         'steps_actual',
+        'exercises_count',
+        'cardio_amount',
+        'intervals_count',
+        // Nutrition (4)
         'calories_daily',
         'protein_daily',
-        'exercises_count',
+        'fiber_daily',
+        'water_amount',
+        // Wellness (4)
         'stress_level',
         'hunger_level',
         'energy_level',
         'sleep_hours',
-        'water_amount',
       ];
       
       const currentFieldIndex = fields.indexOf(currentField);
@@ -222,25 +285,52 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col" dir="rtl">
+      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col" dir="rtl">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold text-black">דיווח מרובה ימים</DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 overflow-auto">
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <table className="w-full border-collapse" dir="rtl">
+          <div className="border border-slate-200 rounded-lg overflow-x-auto">
+            <table className="w-full border-collapse min-w-max" dir="rtl">
               <thead className="bg-slate-50 sticky top-0 z-10">
                 <tr>
                   <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-right sticky right-0 bg-slate-50 min-w-[120px]">
                     תאריך
                   </th>
+                  {/* Physical (6) */}
                   <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
                     משקל (ק״ג)
                   </th>
                   <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
+                    היקף בטן (ס״מ)
+                  </th>
+                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
+                    היקף מותן (ס״מ)
+                  </th>
+                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
+                    היקף ירכיים (ס״מ)
+                  </th>
+                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
+                    היקף יד (ס״מ)
+                  </th>
+                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
+                    היקף צוואר (ס״מ)
+                  </th>
+                  {/* Activity (4) */}
+                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
                     צעדים
                   </th>
+                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
+                    תרגילים
+                  </th>
+                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
+                    אירובי (דקות)
+                  </th>
+                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
+                    אינטרוולים
+                  </th>
+                  {/* Nutrition (4) */}
                   <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
                     קלוריות
                   </th>
@@ -248,8 +338,12 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                     חלבון (גרם)
                   </th>
                   <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
-                    תרגילים
+                    סיבים (גרם)
                   </th>
+                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
+                    מים (ליטר)
+                  </th>
+                  {/* Wellness (4) */}
                   <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
                     לחץ (1-10)
                   </th>
@@ -262,8 +356,9 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                   <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
                     שינה (שעות)
                   </th>
-                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[80px]">
-                    מים (ליטר)
+                  {/* Notes */}
+                  <th className="border border-slate-200 px-3 py-2 text-xs uppercase tracking-widest text-black font-bold text-center min-w-[150px]">
+                    הערות
                   </th>
                 </tr>
               </thead>

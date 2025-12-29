@@ -381,23 +381,54 @@ export const createTraineeUserWithPassword = createAsyncThunk(
       }
 
       // Create user via edge function (uses admin API)
-      const { data: functionData, error: functionError } = await supabase.functions.invoke(
-        'create-trainee-user',
-        {
-          body: {
-            email,
-            password,
-            customerId,
-            leadId: leadId || null,
-            invitedBy: user.id,
-          },
-        }
-      );
-
-      if (functionError) {
-        console.error('[createTraineeUserWithPassword] Edge function error:', functionError);
-        throw new Error(functionError.message || 'Failed to create user');
+      console.log('[createTraineeUserWithPassword] Calling edge function with:', {
+        email,
+        customerId,
+        leadId: leadId || null,
+        invitedBy: user.id,
+        passwordLength: password?.length,
+      });
+      
+      // Use fetch directly to get the actual error message from response body
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Not authenticated');
       }
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/create-trainee-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          customerId,
+          leadId: leadId || null,
+          invitedBy: user.id,
+        }),
+      });
+      
+      const responseData = await response.json();
+      console.log('[createTraineeUserWithPassword] Function response:', { status: response.status, data: responseData });
+      
+      if (!response.ok) {
+        const errorMsg = responseData?.error || responseData?.message || `HTTP ${response.status}: ${response.statusText}`;
+        console.error('[createTraineeUserWithPassword] Edge function error:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      if (!responseData.success) {
+        const errorMsg = responseData.error || 'Failed to create user';
+        console.error('[createTraineeUserWithPassword] Function returned failure:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      const functionData = responseData;
 
       if (!functionData || !functionData.userId) {
         throw new Error('Failed to create user: No user ID returned');

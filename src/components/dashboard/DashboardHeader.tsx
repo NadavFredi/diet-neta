@@ -133,13 +133,20 @@ export const DashboardHeader = ({
               <span className="text-base font-semibold text-gray-700">{userEmail}</span>
             </div>
             <Button 
+              type="button"
               variant="outline"
               size="default" 
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('[DashboardHeader] Logout button clicked');
-                onLogout();
+                try {
+                  await onLogout();
+                } catch (error) {
+                  console.error('[DashboardHeader] Logout error:', error);
+                  // Force navigation to login even if logout fails
+                  navigate('/login');
+                }
               }}
               className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
             >
