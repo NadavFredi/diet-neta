@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Settings, LayoutDashboard, Dumbbell, Apple, Link2, FileText, Calculator } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Apple, Calculator } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection } from '@/store/slices/sidebarSlice';
@@ -54,27 +54,6 @@ const navigationItems: NavItem[] = [
     label: 'תקציבים',
     icon: Calculator,
     path: '/dashboard/budgets',
-  },
-  {
-    id: 'interfaces',
-    resourceKey: 'interfaces',
-    label: 'ממשקים',
-    icon: Link2,
-    path: '/interfaces',
-  },
-  {
-    id: 'pages',
-    resourceKey: 'pages',
-    label: 'דפים',
-    icon: FileText,
-    path: '/pages',
-  },
-  {
-    id: 'settings',
-    resourceKey: 'settings',
-    label: 'הגדרות',
-    icon: Settings,
-    path: '/settings',
   },
 ];
 
