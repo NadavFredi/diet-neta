@@ -21,6 +21,7 @@ import {
   Zap,
   Dumbbell,
   Edit,
+  Footprints,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -348,12 +349,14 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
     startDate,
     description,
     generalGoals,
+    stepsGoal,
     goalTags,
     weeklyWorkout,
     activeId,
     setStartDate,
     setDescription,
     setGeneralGoals,
+    setStepsGoal,
     setGoalTags,
     addExercise,
     updateExercise,
@@ -463,6 +466,23 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
               />
             </div>
           </div>
+          {mode === 'user' && (
+            <div>
+              <Label htmlFor="stepsGoal" className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2">
+                <Footprints className="h-4 w-4" />
+                יעד צעדים יומי
+              </Label>
+              <Input
+                id="stepsGoal"
+                type="number"
+                value={stepsGoal || ''}
+                onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
+                placeholder="לדוגמה: 7000"
+                className="max-w-xs"
+                dir="ltr"
+              />
+            </div>
+          )}
           {mode === 'template' && (
             <div>
               <Label htmlFor="goalTags" className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2">

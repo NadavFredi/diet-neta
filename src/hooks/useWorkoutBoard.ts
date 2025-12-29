@@ -11,6 +11,7 @@ export interface WorkoutBoardState {
   description: string;
   generalGoals: string;
   goalTags: string[];
+  stepsGoal: number;
   weeklyWorkout: WeeklyWorkout;
   activeId: string | null;
 }
@@ -20,6 +21,7 @@ export interface WorkoutBoardActions {
   setDescription: (desc: string) => void;
   setGeneralGoals: (goals: string) => void;
   setGoalTags: (tags: string[]) => void;
+  setStepsGoal: (steps: number) => void;
   updateDay: (dayKey: keyof WeeklyWorkout['days'], updates: Partial<DayWorkout> | ((prev: DayWorkout) => Partial<DayWorkout>)) => void;
   addExercise: (dayKey: keyof WeeklyWorkout['days'], exercise: Exercise) => void;
   updateExercise: (dayKey: keyof WeeklyWorkout['days'], exerciseId: string, updates: Partial<Exercise>) => void;
@@ -98,6 +100,15 @@ export const useWorkoutBoard = (
     initialData && 'description' in initialData ? initialData.description || '' : ''
   );
   const [generalGoals, setGeneralGoals] = useState('');
+  const [stepsGoal, setStepsGoal] = useState<number>(() => {
+    // Initialize from initial data if available
+    if (initialData) {
+      const workoutData = (initialData as any)?.routine_data?.weeklyWorkout || 
+                         (initialData as any)?.custom_attributes?.data?.weeklyWorkout;
+      return workoutData?.stepsGoal || 0;
+    }
+    return 0;
+  });
   const [goalTags, setGoalTags] = useState<string[]>(() => {
     // Initialize from template data if available
     if (initialData && 'goal_tags' in initialData) {
@@ -114,6 +125,13 @@ export const useWorkoutBoard = (
       const initialized = initializeWeeklyWorkout(initialData);
       setWeeklyWorkout(initialized);
       setGeneralGoals(initialized.generalGoals || '');
+      
+      // Initialize stepsGoal from workout data
+      const workoutData = (initialData as any)?.routine_data?.weeklyWorkout || 
+                         (initialData as any)?.custom_attributes?.data?.weeklyWorkout;
+      if (workoutData?.stepsGoal) {
+        setStepsGoal(workoutData.stepsGoal);
+      }
       
       if ('start_date' in initialData && initialData.start_date) {
         setStartDate(new Date(initialData.start_date));
@@ -390,6 +408,7 @@ export const useWorkoutBoard = (
       startDate: startDate ? format(startDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
       description,
       generalGoals,
+      stepsGoal,
     };
 
     if (mode === 'user') {
@@ -425,12 +444,13 @@ export const useWorkoutBoard = (
         },
       };
     }
-  }, [mode, startDate, description, generalGoals, goalTags, weeklyWorkout, customerId]);
+  }, [mode, startDate, description, generalGoals, goalTags, stepsGoal, weeklyWorkout, customerId]);
 
   const reset = useCallback(() => {
     setStartDate(new Date());
     setDescription('');
     setGeneralGoals('');
+    setStepsGoal(0);
     setGoalTags([]);
     setWeeklyWorkout(initializeWeeklyWorkout());
   }, []);
@@ -447,6 +467,7 @@ export const useWorkoutBoard = (
     startDate,
     description,
     generalGoals,
+    stepsGoal,
     goalTags,
     weeklyWorkout,
     activeId,
@@ -454,6 +475,7 @@ export const useWorkoutBoard = (
     setStartDate,
     setDescription,
     setGeneralGoals,
+    setStepsGoal,
     setGoalTags,
     updateDay,
     addExercise,

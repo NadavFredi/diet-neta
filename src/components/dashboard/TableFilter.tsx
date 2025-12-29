@@ -189,7 +189,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
           <Button
             variant="outline"
             size="sm"
-            className="h-11 gap-2 border-indigo-200/60 shadow-sm hover:shadow-md transition-all"
+            className="h-11 gap-2 border-[#5B6FB9]/60 shadow-sm hover:shadow-md hover:border-[#5B6FB9] hover:bg-[#5B6FB9]/10 transition-all"
           >
             <Filter className="h-4 w-4" />
             <span>סינון</span>
@@ -253,7 +253,12 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                         variant={selectedOperator === op ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => handleOperatorSelect(op)}
-                        className="text-xs"
+                        className={cn(
+                          "text-xs",
+                          selectedOperator === op 
+                            ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white" 
+                            : "border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white"
+                        )}
                       >
                         {OPERATOR_LABELS[op]}
                       </Button>
@@ -306,12 +311,12 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                             key={option}
                             className={cn(
                               "flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded",
-                              selectedValues.includes(option) && "bg-indigo-50"
+                              selectedValues.includes(option) && "bg-[#5B6FB9]/10"
                             )}
                             onClick={() => handleValueToggle(option)}
                           >
                             {selectedValues.includes(option) && (
-                              <Check className="h-4 w-4 text-indigo-600" />
+                              <Check className="h-4 w-4 text-[#5B6FB9]" />
                             )}
                             <span className="text-sm">{option}</span>
                           </div>
@@ -349,7 +354,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                 <Button
                   onClick={handleApplyFilter}
                   disabled={!canApply()}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700"
+                  className="w-full bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
                   size="sm"
                 >
                   הוסף סינון

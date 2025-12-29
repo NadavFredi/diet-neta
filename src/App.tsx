@@ -14,6 +14,7 @@ import Register from "./pages/Register.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import TemplatesManagement from "./pages/TemplatesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
+import BudgetManagement from "./pages/BudgetManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -65,6 +66,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <NutritionTemplatesManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/budgets"
+            element={
+              <ProtectedRoute>
+                <BudgetManagement />
               </ProtectedRoute>
             }
           />

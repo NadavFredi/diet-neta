@@ -453,6 +453,7 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
+            className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white"
           >
             ביטול
           </Button>
