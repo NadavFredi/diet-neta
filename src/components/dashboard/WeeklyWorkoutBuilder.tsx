@@ -44,6 +44,7 @@ export interface WeeklyWorkout {
   startDate: string;
   description: string;
   generalGoals: string;
+  stepsGoal?: number;
   days: {
     sunday: DayWorkout;
     monday: DayWorkout;

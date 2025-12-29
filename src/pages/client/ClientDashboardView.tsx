@@ -196,7 +196,7 @@ export const ClientDashboardView: React.FC = () => {
                     description: 'חזרת למצב מנהל',
                   });
                 }}
-                className="border-orange-500 bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:border-orange-600 text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
+                className="border-[#5B6FB9] bg-[#5B6FB9]/10 text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
               >
                 <X className="h-4 w-4 ml-2" />
                 צא ממצב צפייה

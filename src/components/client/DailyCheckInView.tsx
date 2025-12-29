@@ -302,7 +302,7 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                 variant="outline"
                 size="sm"
                 onClick={onMultiDayClick}
-                className="text-xs border-slate-200 hover:bg-slate-50 h-8"
+                className="text-xs border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white h-8"
               >
                 דיווח מרובה ימים
               </Button>

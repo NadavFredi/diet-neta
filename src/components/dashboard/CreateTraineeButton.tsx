@@ -215,7 +215,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]" dir="rtl">
-          <DialogHeader>
+        <DialogHeader>
           <DialogTitle>צור משתמש מתאמן</DialogTitle>
           <DialogDescription className="flex items-center justify-between">
             <span>צור משתמש עם סיסמה ושלוח את פרטי הכניסה דרך WhatsApp</span>
@@ -245,19 +245,19 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
           </div>
 
           {!userCreated && (
-            <div className="space-y-2">
-              <Label htmlFor="password">סיסמה</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                disabled={isLoading}
-                minLength={6}
-              />
-              <p className="text-xs text-gray-500">מינימום 6 תווים</p>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">סיסמה</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={isLoading}
+                  minLength={6}
+                />
+                <p className="text-xs text-gray-500">מינימום 6 תווים</p>
+              </div>
           )}
 
           {userCreated && (
