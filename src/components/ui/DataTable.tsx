@@ -907,54 +907,6 @@ export function DataTable<T extends Record<string, any>>({
 
   return (
     <div className={cn('w-full', className)} dir={dir}>
-      {/* Column Visibility Control */}
-      {enableColumnVisibility && (
-        <div className="mb-4 flex justify-end">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Columns className="h-4 w-4" />
-                <span>עמודות</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64" align="end" dir={dir}>
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm mb-3">הצגת עמודות</h4>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {/* STRICT SCHEMA: Only show columns that are explicitly defined in the passed columns prop */}
-                  {/* Show columns in the same order as columnOrder to maintain consistency */}
-                  {columnOrder
-                    .map((colId) => columns.find((col) => col.id === colId))
-                    .filter((col): col is DataTableColumn<T> => 
-                      col !== undefined && col.enableHiding !== false
-                    )
-                    .map((col) => {
-                      const headerText = typeof col.header === 'string' ? col.header : col.id;
-                      const isVisible = columnVisibility[col.id] !== false;
-                      return (
-                        <div key={col.id} className="flex items-center space-x-2 space-x-reverse">
-                          <Checkbox
-                            id={`col-${col.id}`}
-                            checked={isVisible}
-                            onCheckedChange={() => toggleColumnVisibility(col.id)}
-                            disabled={col.enableHiding === false}
-                          />
-                          <Label
-                            htmlFor={`col-${col.id}`}
-                            className="text-sm font-normal cursor-pointer flex-1"
-                          >
-                            {headerText}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      )}
-
       {/* Table with Horizontal Scroll */}
       <div 
         ref={tableRef}

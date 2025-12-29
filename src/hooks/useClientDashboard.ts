@@ -31,7 +31,21 @@ export const useClientDashboard = () => {
       isTrainee,
     });
     
-    if (isTrainee && targetUserId) {
+    // When impersonating, we need both customer_id and user_id to be available
+    if (isImpersonating) {
+      if (targetCustomerId) {
+        // Prefer customer_id when available
+        console.log('[useClientDashboard] Fetching by customer_id (impersonating):', targetCustomerId);
+        dispatch(fetchClientData(targetCustomerId));
+      } else if (targetUserId) {
+        // Fallback to user_id if customer_id not available
+        console.log('[useClientDashboard] Fetching by user_id (impersonating, customer_id null):', targetUserId);
+        dispatch(fetchClientDataByUserId(targetUserId));
+      } else {
+        console.log('[useClientDashboard] Impersonation active but no user_id or customer_id available yet, waiting...');
+      }
+    } else if (isTrainee && targetUserId) {
+      // Regular trainee user flow
       // Try to fetch by customer_id first, if available
       if (targetCustomerId) {
         console.log('[useClientDashboard] Fetching by customer_id:', targetCustomerId);

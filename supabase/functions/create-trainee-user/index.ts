@@ -57,10 +57,30 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { email, password, customerId, leadId, invitedBy } = await req.json();
+    let body;
+    try {
+      body = await req.json();
+      console.log('[create-trainee-user] Request body received:', {
+        email: body.email,
+        customerId: body.customerId,
+        leadId: body.leadId,
+        invitedBy: body.invitedBy,
+        hasPassword: !!body.password,
+        passwordLength: body.password?.length,
+      });
+    } catch (parseError: any) {
+      console.error('[create-trainee-user] JSON parse error:', parseError);
+      throw new Error('Invalid request body: ' + (parseError.message || 'Failed to parse JSON'));
+    }
+
+    const { email, password, customerId, leadId, invitedBy } = body;
 
     if (!email || !password || !customerId) {
-      throw new Error('Missing required fields: email, password, customerId');
+      const missing = [];
+      if (!email) missing.push('email');
+      if (!password) missing.push('password');
+      if (!customerId) missing.push('customerId');
+      throw new Error(`Missing required fields: ${missing.join(', ')}`);
     }
 
     if (password.length < 6) {
@@ -97,6 +117,17 @@ serve(async (req) => {
         console.error('Profile update error:', profileUpdateError);
         // Continue even if profile update fails
       }
+
+      // Update customer record with user_id for existing users
+      const { error: customerUpdateError } = await supabaseAdmin
+        .from('customers')
+        .update({ user_id: userId })
+        .eq('id', customerId);
+
+      if (customerUpdateError) {
+        console.error('Customer update error:', customerUpdateError);
+        // Continue even if customer update fails (non-critical)
+      }
     } else {
       // Create new user
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -128,6 +159,17 @@ serve(async (req) => {
         console.error('Profile creation error:', profileError);
         // Continue even if profile creation fails (it might already exist)
       }
+
+      // Update customer record with user_id
+      const { error: customerUpdateError } = await supabaseAdmin
+        .from('customers')
+        .update({ user_id: userId })
+        .eq('id', customerId);
+
+      if (customerUpdateError) {
+        console.error('Customer update error:', customerUpdateError);
+        // Continue even if customer update fails (non-critical)
+      }
     }
 
     // Log audit event
@@ -152,10 +194,16 @@ serve(async (req) => {
     );
   } catch (error: any) {
     console.error('[create-trainee-user] Error:', error);
+    console.error('[create-trainee-user] Error stack:', error.stack);
+    console.error('[create-trainee-user] Error details:', JSON.stringify(error, null, 2));
+    
+    const errorMessage = error.message || 'Failed to create trainee user';
+    console.error('[create-trainee-user] Returning error response:', errorMessage);
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Failed to create trainee user',
+        error: errorMessage,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

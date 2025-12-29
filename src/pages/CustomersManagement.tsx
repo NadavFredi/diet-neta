@@ -17,8 +17,6 @@ import { useTableFilters } from '@/hooks/useTableFilters';
 import { customerColumns } from '@/components/dashboard/columns/customerColumns';
 import { useCustomersManagement } from './CustomersManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
-import { StyledActionButton } from '@/components/ui/StyledActionButton';
-import { Users } from 'lucide-react';
 
 const CustomersManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -69,17 +67,6 @@ const CustomersManagement = () => {
           }}
         >
             <div className="p-6">
-              {/* Styled Action Button */}
-              <div className="mb-4">
-                <StyledActionButton
-                  onClick={() => {}}
-                  icon={Users}
-                  label="ניהול לקוחות"
-                  variant="default"
-                  active={true}
-                  fullWidth={false}
-                />
-              </div>
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <TableActionHeader
                   resourceKey="customers"

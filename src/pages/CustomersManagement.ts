@@ -61,8 +61,16 @@ export const useCustomersManagement = () => {
 
   // Handlers
   const handleLogout = async () => {
-    await dispatch(logoutUser());
-    navigate('/login');
+    try {
+      console.log('[CustomersManagement] Logout initiated');
+      await dispatch(logoutUser()).unwrap();
+      console.log('[CustomersManagement] Logout successful, navigating to login');
+      navigate('/login');
+    } catch (error) {
+      console.error('[CustomersManagement] Logout error:', error);
+      // Navigate to login even if logout fails
+      navigate('/login');
+    }
   };
 
   const handleSaveViewClick = () => {

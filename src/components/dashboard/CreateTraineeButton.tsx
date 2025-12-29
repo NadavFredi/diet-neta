@@ -6,10 +6,13 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { UserPlus, Loader2, MessageCircle, Settings } from 'lucide-react';
+import { UserPlus, Loader2, MessageCircle, Settings, Eye } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { createTraineeUserWithPassword } from '@/store/slices/invitationSlice';
+import { startImpersonation } from '@/store/slices/impersonationSlice';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '@/lib/supabaseClient';
 import {
   Dialog,
   DialogContent,
@@ -42,6 +45,8 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   customerPhone,
 }) => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { user } = useAppSelector((state) => state.auth);
   const { isLoading } = useAppSelector((state) => state.invitation);
@@ -53,6 +58,9 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [messageTemplate, setMessageTemplate] = useState('');
+  const [userExists, setUserExists] = useState(false);
+  const [existingUserId, setExistingUserId] = useState<string | null>(null);
+  const [isCheckingUser, setIsCheckingUser] = useState(true);
 
   // Default template for trainee user credentials
   const DEFAULT_TRAINEE_TEMPLATE = `שלום {{name}},
@@ -85,6 +93,67 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
       localStorage.setItem('traineeUserMessageTemplate', messageTemplate);
     }
   }, [messageTemplate]);
+
+  // Check if customer already has a user account
+  useEffect(() => {
+    const checkExistingUser = async () => {
+      if (!customerId) {
+        setIsCheckingUser(false);
+        return;
+      }
+
+      try {
+        // Check if customer has a user_id
+        const { data: customer, error } = await supabase
+          .from('customers')
+          .select('user_id, email')
+          .eq('id', customerId)
+          .maybeSingle();
+
+        if (error) {
+          console.error('[CreateTraineeButton] Error checking customer:', error);
+          setIsCheckingUser(false);
+          return;
+        }
+
+        if (customer?.user_id) {
+          // Customer has a user account - check if it's a trainee
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, role')
+            .eq('id', customer.user_id)
+            .maybeSingle();
+
+          if (profile && profile.role === 'trainee') {
+            setExistingUserId(customer.user_id);
+            setUserExists(true);
+            // Update email if customer has email but we don't have it
+            if (customer.email && !email) {
+              setEmail(customer.email);
+            }
+          }
+        } else if (customerEmail) {
+          // Check if a user exists with this email
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, role')
+            .eq('email', customerEmail)
+            .maybeSingle();
+
+          if (profile && profile.role === 'trainee') {
+            setExistingUserId(profile.id);
+            setUserExists(true);
+          }
+        }
+      } catch (error) {
+        console.error('[CreateTraineeButton] Error checking existing user:', error);
+      } finally {
+        setIsCheckingUser(false);
+      }
+    };
+
+    checkExistingUser();
+  }, [customerId, customerEmail, email]);
 
   // Check if user is admin/manager
   const canCreateTrainee = user?.role === 'admin' || user?.role === 'user';
@@ -133,23 +202,91 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
     } catch (error: any) {
       console.error('[CreateTraineeButton] Error:', error);
       
-      // Provide more helpful error messages
-      let errorMessage = 'נכשל ביצירת משתמש מתאמן';
+      // Check if user already exists
+      const errorMessage = error?.message || '';
+      if (errorMessage.includes('already exists') || errorMessage.includes('already been registered')) {
+        // User exists - fetch their user ID and show "Watch as User" button
+        try {
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('id, role, email')
+            .eq('email', email)
+            .maybeSingle();
+          
+          if (existingProfile && existingProfile.id) {
+            setExistingUserId(existingProfile.id);
+            setUserExists(true);
+            toast({
+              title: 'משתמש כבר קיים',
+              description: 'המשתמש כבר קיים במערכת. תוכל לצפות כמשתמש זה.',
+            });
+            return;
+          }
+        } catch (fetchError) {
+          console.error('[CreateTraineeButton] Error fetching existing user:', fetchError);
+        }
+      }
+      
+      // Provide more helpful error messages for other errors
+      let displayMessage = 'נכשל ביצירת משתמש מתאמן';
       if (error?.message) {
         if (error.message.includes('permission denied')) {
-          errorMessage = 'אין הרשאה ליצור משתמשים. אנא ודא שאתה מחובר כמנהל.';
-        } else if (error.message.includes('already exists')) {
-          errorMessage = 'משתמש זה כבר קיים במערכת.';
+          displayMessage = 'אין הרשאה ליצור משתמשים. אנא ודא שאתה מחובר כמנהל.';
         } else {
-          errorMessage = error.message;
+          displayMessage = error.message;
         }
       } else if (typeof error === 'string') {
-        errorMessage = error;
+        displayMessage = error;
       }
       
       toast({
         title: 'שגיאה',
-        description: errorMessage,
+        description: displayMessage,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleWatchAsUser = async () => {
+    if (!existingUserId || !customerId) {
+      toast({
+        title: 'שגיאה',
+        description: 'חסר מידע על המשתמש',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Store current location before navigating
+      const currentLocation = location.pathname + location.search;
+      
+      // Start impersonation
+      dispatch(
+        startImpersonation({
+          userId: existingUserId,
+          customerId,
+          originalUser: {
+            id: user!.id,
+            email: user!.email || '',
+            role: user!.role || 'user',
+          },
+          previousLocation: currentLocation,
+        })
+      );
+
+      // Navigate to client dashboard
+      navigate('/client/dashboard');
+      
+      toast({
+        title: 'מצב תצוגה פעיל',
+        description: 'אתה צופה בממשק הלקוח. לחץ על "יציאה ממצב תצוגה" כדי לחזור.',
+      });
+    } catch (error: any) {
+      console.error('[CreateTraineeButton] Error starting impersonation:', error);
+      toast({
+        title: 'שגיאה',
+        description: 'נכשל בכניסה למצב תצוגה',
         variant: 'destructive',
       });
     }
@@ -203,15 +340,39 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
     }
   };
 
+  // If user exists, show "Watch as User" button that directly triggers impersonation
+  if (userExists && existingUserId && !isCheckingUser) {
+    return (
+      <Button
+        size="default"
+        onClick={handleWatchAsUser}
+        className="bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
+      >
+        <Eye className="h-5 w-5" strokeWidth={2.5} />
+        <span>צפה כמתאמן</span>
+      </Button>
+    );
+  }
+
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
         <Button
           size="default"
           className="bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
+          disabled={isCheckingUser}
         >
-          <UserPlus className="h-5 w-5" strokeWidth={2.5} />
-          <span>צור משתמש מתאמן</span>
+          {isCheckingUser ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.5} />
+              <span>בודק...</span>
+            </>
+          ) : (
+            <>
+              <UserPlus className="h-5 w-5" strokeWidth={2.5} />
+              <span>צור משתמש מתאמן</span>
+            </>
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]" dir="rtl">
@@ -273,6 +434,25 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
             </Alert>
           )}
 
+          {userExists && !userCreated && (
+            <Alert className="border-blue-200 bg-blue-50">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="mt-2">
+                <p className="font-semibold mb-2 text-blue-800">משתמש כבר קיים במערכת</p>
+                <p className="text-sm text-blue-700 mb-3">
+                  המשתמש עם האימייל {email} כבר קיים במערכת. תוכל לצפות בממשק שלו.
+                </p>
+                <Button
+                  onClick={handleWatchAsUser}
+                  className="bg-blue-600 hover:bg-blue-700 text-white w-full"
+                >
+                  <Eye className="h-4 w-4 ml-2" />
+                  צפה כמשתמש
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {customerName && (
             <div className="text-sm text-gray-600">
               <strong>לקוח:</strong> {customerName}
@@ -285,16 +465,18 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
             onClick={() => {
               setIsDialogOpen(false);
               setUserCreated(false);
+              setUserExists(false);
               setPassword('');
               setEmail(customerEmail || '');
               setCreatedUserId(null);
+              setExistingUserId(null);
             }}
             disabled={isLoading || isSendingWhatsApp}
             className="w-full sm:w-auto"
           >
-            {userCreated ? 'סגור' : 'ביטול'}
+            {userCreated || userExists ? 'סגור' : 'ביטול'}
           </Button>
-          {!userCreated ? (
+          {!userCreated && !userExists ? (
             <Button
               onClick={handleCreateTrainee}
               disabled={isLoading || !email || !password || password.length < 6}

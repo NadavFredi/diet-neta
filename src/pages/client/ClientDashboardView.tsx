@@ -150,14 +150,26 @@ export const ClientDashboardView: React.FC = () => {
   if (!customer && !isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Card className="p-8 max-w-md">
-          <div className="text-center text-gray-500">
-            <p className="text-base font-medium mb-2">לא נמצא מידע לקוח</p>
-            <p className="text-sm text-gray-400">
-              אנא צור קשר עם המאמן שלך כדי להגדיר את החשבון שלך
-            </p>
-          </div>
-        </Card>
+        <div className="flex flex-col items-center gap-6">
+          <Card className="p-8 max-w-md">
+            <div className="text-center text-gray-500">
+              <p className="text-base font-medium mb-2">לא נמצא מידע לקוח</p>
+              <p className="text-sm text-gray-400">
+                אנא צור קשר עם המאמן שלך כדי להגדיר את החשבון שלך
+              </p>
+            </div>
+          </Card>
+          {/* Logout Button */}
+          <Button 
+            variant="outline"
+            size="default" 
+            onClick={handleLogout} 
+            className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
+          >
+            <LogOut className="h-4 w-4 ml-2" />
+            התנתק
+          </Button>
+        </div>
       </div>
     );
   }
