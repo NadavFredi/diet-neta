@@ -7,8 +7,6 @@
  */
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
 import { CheckCircle2, Circle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setSelectedDate } from '@/store/slices/clientSlice';
@@ -120,9 +118,9 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
   }, []); // Empty dependency - only initialize once on mount
 
   return (
-    <div className="flex flex-col gap-4 h-full overflow-hidden p-3 pt-2" dir="rtl">
-      {/* Calendar */}
-      <div className="bg-white overflow-hidden flex-shrink-0">
+    <div className="flex flex-col h-full overflow-hidden" dir="rtl">
+      {/* Calendar - Fixed Size */}
+      <div className="bg-white overflow-hidden flex-shrink-0 p-3 pt-2 pb-3">
         <h3 className="text-sm uppercase tracking-widest text-black font-bold mb-2">לוח שנה</h3>
         <div className="overflow-hidden w-full">
           <DayPicker
@@ -202,10 +200,13 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
         </div>
       </div>
 
-      {/* History Table */}
-      <div className="bg-white flex-1 overflow-hidden flex flex-col min-h-0">
-        <h3 className="text-sm uppercase tracking-widest text-black font-bold mb-2">היסטוריה</h3>
-        <div className="flex-1 overflow-y-auto">
+      {/* History Section */}
+      <div className="bg-white flex-1 flex flex-col overflow-hidden">
+        <div className="px-3 pt-3 pb-4 flex flex-col h-full">
+          {/* Header */}
+          <h3 className="text-sm uppercase tracking-widest text-black font-bold mb-2">היסטוריה</h3>
+          
+          {/* History List */}
           <div className="space-y-2">
             {recentCheckIns.map((item) => {
               const dateObj = parseDateLocal(item.date);

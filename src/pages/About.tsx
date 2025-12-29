@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Target, Lightbulb } from "lucide-react";
 import { useAboutPage } from './About';
+import { StyledActionButton } from "@/components/ui/StyledActionButton";
 
 const About = () => {
   useAboutPage(); // For consistency with pattern
@@ -13,6 +14,16 @@ const About = () => {
       
       <div className="pt-24 pb-16 px-6">
         <div className="container mx-auto max-w-4xl">
+          {/* Styled Action Button */}
+          <div className="mb-8">
+            <StyledActionButton
+              onClick={() => window.location.href = '/contact'}
+              icon={Heart}
+              label="צור קשר"
+              variant="default"
+              active={false}
+            />
+          </div>
           {/* Header */}
           <div className="text-center mb-16 animate-fade-up">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">אודות SimpleWeb</h1>
