@@ -254,7 +254,6 @@ export const useBudgetManagement = () => {
   return {
     // Data
     budgets: filteredBudgets,
-    savedView,
     editingBudget,
     budgetToDelete,
     isLoading,

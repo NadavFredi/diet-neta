@@ -19,6 +19,8 @@ import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/Edit
 import { DeleteNutritionTemplateDialog } from '@/components/dashboard/dialogs/DeleteNutritionTemplateDialog';
 import { useNutritionTemplatesManagement } from './NutritionTemplatesManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { StyledActionButton } from '@/components/ui/StyledActionButton';
+import { Apple } from 'lucide-react';
 
 const NutritionTemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -83,6 +85,17 @@ const NutritionTemplatesManagement = () => {
           }}
         >
             <div className="p-6">
+              {/* Styled Action Button */}
+              <div className="mb-4">
+                <StyledActionButton
+                  onClick={handleAddTemplate}
+                  icon={Apple}
+                  label="הוסף תבנית תזונה"
+                  variant="default"
+                  active={false}
+                  fullWidth={false}
+                />
+              </div>
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <TableActionHeader
                   resourceKey="nutrition_templates"

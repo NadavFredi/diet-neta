@@ -70,7 +70,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const supportsViews = item.resourceKey === 'leads' || 
     item.resourceKey === 'customers' || 
     item.resourceKey === 'templates' || 
-    item.resourceKey === 'nutrition_templates';
+    item.resourceKey === 'nutrition_templates' ||
+    item.resourceKey === 'budgets';
   
   const { defaultView } = useDefaultView(item.resourceKey);
   const savedViewsQuery = useSavedViews(item.resourceKey);

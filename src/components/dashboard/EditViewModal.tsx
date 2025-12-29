@@ -340,14 +340,14 @@ export const EditViewModal = ({
                 <div className="grid gap-2">
                   <Label htmlFor="sort-by">מיין לפי</Label>
                   <Select
-                    value={filterConfig.sortBy || ''}
-                    onValueChange={(value) => handleSortChange(value, filterConfig.sortOrder || 'asc')}
+                    value={filterConfig.sortBy || 'none'}
+                    onValueChange={(value) => handleSortChange(value === 'none' ? '' : value, filterConfig.sortOrder || 'asc')}
                   >
                     <SelectTrigger id="sort-by" dir="rtl">
                       <SelectValue placeholder="בחר עמודה למיון" />
                     </SelectTrigger>
                     <SelectContent dir="rtl">
-                      <SelectItem value="">ללא מיון</SelectItem>
+                      <SelectItem value="none">ללא מיון</SelectItem>
                       {sortableColumns.map((key) => (
                         <SelectItem key={key} value={key}>
                           {getColumnLabel(key)}
@@ -357,7 +357,7 @@ export const EditViewModal = ({
                   </Select>
                 </div>
 
-                {filterConfig.sortBy && (
+                {filterConfig.sortBy && filterConfig.sortBy !== 'none' && (
                   <div className="grid gap-2">
                     <Label htmlFor="sort-order">כיוון מיון</Label>
                     <Select

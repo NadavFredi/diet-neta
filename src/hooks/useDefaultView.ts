@@ -93,6 +93,18 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
           actions: true,
         },
       };
+    case 'budgets':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+        columnVisibility: {
+          name: true,
+          description: true,
+          steps_goal: true,
+          createdDate: true,
+          actions: true,
+        },
+      };
     default:
       return {
         searchQuery: '',
@@ -140,6 +152,10 @@ export const useDefaultView = (resourceKey: string) => {
           ? 'כל הלקוחות'
           : resourceKey === 'templates'
           ? 'כל התכניות'
+          : resourceKey === 'nutrition_templates'
+          ? 'כל תבניות התזונה'
+          : resourceKey === 'budgets'
+          ? 'כל התקציבים'
           : 'כל התכניות';
 
         const { data: newView, error } = await supabase

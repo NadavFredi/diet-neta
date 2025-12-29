@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NetaLogo } from '@/components/ui/NetaLogo';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Home } from 'lucide-react';
 import { useLogin, type LoginMethod } from './Login';
+import { StyledActionButton } from "@/components/ui/StyledActionButton";
 
 const Login = () => {
   const {
@@ -30,6 +31,17 @@ const Login = () => {
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-lg">
+          {/* Styled Action Button */}
+          <div className="mb-4">
+            <StyledActionButton
+              onClick={() => window.location.href = '/'}
+              icon={Home}
+              label="חזור לדף הבית"
+              variant="default"
+              active={false}
+              fullWidth={false}
+            />
+          </div>
           {/* Login Card */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
             {/* Logo Area */}

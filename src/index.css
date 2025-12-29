@@ -173,6 +173,32 @@
     scrollbar-width: thin;
     scrollbar-color: #CBD5E1 transparent;
   }
+
+  /* Luxury Minimalist Scrollbar for History Sidebar - Always Visible */
+  .history-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .history-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+
+  .history-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  .history-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  /* Firefox */
+  .history-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+  }
 }
 
 /* Quill Editor RTL Support & Styling */

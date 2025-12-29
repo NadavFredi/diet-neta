@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CheckCircle2, XCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Eye, EyeOff, Home } from 'lucide-react';
+import { StyledActionButton } from "@/components/ui/StyledActionButton";
 import { supabase } from '@/lib/supabaseClient';
 import { supabaseAdmin } from '@/lib/supabaseAdminClient';
 import { verifyToken } from '@/utils/crypto';
@@ -335,7 +336,18 @@ export const InviteAccept = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4" dir="rtl">
-      <Card className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-4">
+        {/* Styled Action Button */}
+        <div>
+          <StyledActionButton
+            onClick={() => window.location.href = '/'}
+            icon={Home}
+            label="חזור לדף הבית"
+            variant="default"
+            active={false}
+          />
+        </div>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">אישור הזמנה</CardTitle>
         </CardHeader>
@@ -458,6 +470,7 @@ export const InviteAccept = () => {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };

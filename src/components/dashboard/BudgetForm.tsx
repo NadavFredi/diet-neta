@@ -346,14 +346,14 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
           <div className="space-y-2">
             <Label className="text-sm font-semibold">תבנית אימונים</Label>
             <Select
-              value={workoutTemplateId || ''}
-              onValueChange={(value) => setWorkoutTemplateId(value || null)}
+              value={workoutTemplateId || 'none'}
+              onValueChange={(value) => setWorkoutTemplateId(value === 'none' ? null : value || null)}
             >
               <SelectTrigger className="border-slate-200" dir="rtl">
                 <SelectValue placeholder="בחר תבנית אימונים (אופציונלי)" />
               </SelectTrigger>
               <SelectContent dir="rtl">
-                <SelectItem value="">ללא תבנית</SelectItem>
+                <SelectItem value="none">ללא תבנית</SelectItem>
                 {/* TODO: Add workout templates when available */}
               </SelectContent>
             </Select>
