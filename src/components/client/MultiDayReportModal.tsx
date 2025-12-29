@@ -68,12 +68,12 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Generate last 7 days
+  // Generate last 30 days
   const days = useMemo(() => {
     const result: DayData[] = [];
     const today = new Date();
     
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 30; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
@@ -290,8 +290,8 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
           <DialogTitle className="text-lg font-bold text-black">דיווח מרובה ימים</DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 overflow-auto">
-          <div className="border border-slate-200 rounded-lg overflow-x-auto">
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="border border-slate-200 rounded-lg overflow-x-auto overflow-y-auto flex-1">
             <table className="w-full border-collapse min-w-max" dir="rtl">
               <thead className="bg-slate-50 sticky top-0 z-10">
                 <tr>
@@ -369,10 +369,11 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                   
                   return (
                     <tr key={day.date} className={isToday ? 'bg-blue-50' : ''}>
-                      <td className="border border-slate-200 px-3 py-2 text-sm font-medium text-black sticky right-0 bg-white z-0">
+                      <td className={`border border-slate-200 px-3 py-2 text-sm font-medium text-black sticky right-0 z-0 ${isToday ? 'bg-blue-50' : 'bg-white'}`}>
                         {format(dateObj, 'd בMMMM', { locale: he })}
                         {isToday && ' (היום)'}
                       </td>
+                      {/* Physical (6) */}
                       <td className="border border-slate-200 p-0">
                         <input
                           type="number"
@@ -392,40 +393,83 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                         <input
                           type="number"
                           data-date={day.date}
+                          data-field="belly_circumference"
+                          value={day.belly_circumference ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'belly_circumference', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'belly_circumference', 1)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                        />
+                      </td>
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
+                          data-field="waist_circumference"
+                          value={day.waist_circumference ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'waist_circumference', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'waist_circumference', 2)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                        />
+                      </td>
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
+                          data-field="thigh_circumference"
+                          value={day.thigh_circumference ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'thigh_circumference', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'thigh_circumference', 3)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                        />
+                      </td>
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
+                          data-field="arm_circumference"
+                          value={day.arm_circumference ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'arm_circumference', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'arm_circumference', 4)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                        />
+                      </td>
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
+                          data-field="neck_circumference"
+                          value={day.neck_circumference ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'neck_circumference', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'neck_circumference', 5)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                        />
+                      </td>
+                      {/* Activity (4) */}
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
                           data-field="steps_actual"
                           value={day.steps_actual ?? ''}
                           onChange={(e) =>
                             updateDayData(day.date, 'steps_actual', e.target.value === '' ? null : parseFloat(e.target.value))
                           }
-                          onKeyDown={(e) => handleKeyDown(e, day.date, 'steps_actual', 1)}
-                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
-                          placeholder="—"
-                        />
-                      </td>
-                      <td className="border border-slate-200 p-0">
-                        <input
-                          type="number"
-                          data-date={day.date}
-                          data-field="calories_daily"
-                          value={day.calories_daily ?? ''}
-                          onChange={(e) =>
-                            updateDayData(day.date, 'calories_daily', e.target.value === '' ? null : parseFloat(e.target.value))
-                          }
-                          onKeyDown={(e) => handleKeyDown(e, day.date, 'calories_daily', 2)}
-                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
-                          placeholder="—"
-                        />
-                      </td>
-                      <td className="border border-slate-200 p-0">
-                        <input
-                          type="number"
-                          data-date={day.date}
-                          data-field="protein_daily"
-                          value={day.protein_daily ?? ''}
-                          onChange={(e) =>
-                            updateDayData(day.date, 'protein_daily', e.target.value === '' ? null : parseFloat(e.target.value))
-                          }
-                          onKeyDown={(e) => handleKeyDown(e, day.date, 'protein_daily', 3)}
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'steps_actual', 6)}
                           className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
                           placeholder="—"
                         />
@@ -439,11 +483,100 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                           onChange={(e) =>
                             updateDayData(day.date, 'exercises_count', e.target.value === '' ? null : parseFloat(e.target.value))
                           }
-                          onKeyDown={(e) => handleKeyDown(e, day.date, 'exercises_count', 4)}
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'exercises_count', 7)}
                           className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
                           placeholder="—"
                         />
                       </td>
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
+                          data-field="cardio_amount"
+                          value={day.cardio_amount ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'cardio_amount', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'cardio_amount', 8)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                        />
+                      </td>
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
+                          data-field="intervals_count"
+                          value={day.intervals_count ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'intervals_count', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'intervals_count', 9)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                        />
+                      </td>
+                      {/* Nutrition (4) */}
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
+                          data-field="calories_daily"
+                          value={day.calories_daily ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'calories_daily', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'calories_daily', 10)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                        />
+                      </td>
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
+                          data-field="protein_daily"
+                          value={day.protein_daily ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'protein_daily', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'protein_daily', 11)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                        />
+                      </td>
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
+                          data-field="fiber_daily"
+                          value={day.fiber_daily ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'fiber_daily', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'fiber_daily', 12)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                        />
+                      </td>
+                      <td className="border border-slate-200 p-0">
+                        <input
+                          type="number"
+                          data-date={day.date}
+                          data-field="water_amount"
+                          value={day.water_amount ?? ''}
+                          onChange={(e) =>
+                            updateDayData(day.date, 'water_amount', e.target.value === '' ? null : parseFloat(e.target.value))
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'water_amount', 13)}
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          placeholder="—"
+                          min={0}
+                          max={10}
+                          step={0.25}
+                        />
+                      </td>
+                      {/* Wellness (4) */}
                       <td className="border border-slate-200 p-0">
                         <input
                           type="number"
@@ -456,7 +589,7 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                               updateDayData(day.date, 'stress_level', val);
                             }
                           }}
-                          onKeyDown={(e) => handleKeyDown(e, day.date, 'stress_level', 5)}
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'stress_level', 14)}
                           className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
                           placeholder="—"
                           min={1}
@@ -475,7 +608,7 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                               updateDayData(day.date, 'hunger_level', val);
                             }
                           }}
-                          onKeyDown={(e) => handleKeyDown(e, day.date, 'hunger_level', 6)}
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'hunger_level', 15)}
                           className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
                           placeholder="—"
                           min={1}
@@ -494,7 +627,7 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                               updateDayData(day.date, 'energy_level', val);
                             }
                           }}
-                          onKeyDown={(e) => handleKeyDown(e, day.date, 'energy_level', 7)}
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'energy_level', 16)}
                           className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
                           placeholder="—"
                           min={1}
@@ -510,7 +643,7 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                           onChange={(e) =>
                             updateDayData(day.date, 'sleep_hours', e.target.value === '' ? null : parseFloat(e.target.value))
                           }
-                          onKeyDown={(e) => handleKeyDown(e, day.date, 'sleep_hours', 8)}
+                          onKeyDown={(e) => handleKeyDown(e, day.date, 'sleep_hours', 17)}
                           className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
                           placeholder="—"
                           min={0}
@@ -518,21 +651,18 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                           step={0.5}
                         />
                       </td>
+                      {/* Notes */}
                       <td className="border border-slate-200 p-0">
                         <input
-                          type="number"
+                          type="text"
                           data-date={day.date}
-                          data-field="water_amount"
-                          value={day.water_amount ?? ''}
+                          data-field="notes"
+                          value={day.notes ?? ''}
                           onChange={(e) =>
-                            updateDayData(day.date, 'water_amount', e.target.value === '' ? null : parseFloat(e.target.value))
+                            updateDayData(day.date, 'notes', e.target.value || null)
                           }
-                          onKeyDown={(e) => handleKeyDown(e, day.date, 'water_amount', 9)}
-                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
+                          className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-right"
                           placeholder="—"
-                          min={0}
-                          max={10}
-                          step={0.25}
                         />
                       </td>
                     </tr>
