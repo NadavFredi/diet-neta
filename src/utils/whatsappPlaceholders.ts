@@ -38,6 +38,8 @@ export const AVAILABLE_PLACEHOLDERS: Placeholder[] = [
   // Plans (if available)
   { key: 'workout_plan_name', label: 'שם תוכנית אימונים', description: 'שם תוכנית האימונים הפעילה', category: 'plans' },
   { key: 'nutrition_plan_name', label: 'שם תוכנית תזונה', description: 'שם תוכנית התזונה הפעילה', category: 'plans' },
+  { key: 'budget_link', label: 'קישור תקציב', description: 'קישור לתקציב (Taktziv)', category: 'plans' },
+  { key: 'budget_name', label: 'שם תקציב', description: 'שם התקציב', category: 'plans' },
   
   // Payment
   { key: 'payment_link', label: 'קישור תשלום', description: 'קישור לתשלום Stripe', category: 'customer' },

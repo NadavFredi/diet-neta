@@ -66,6 +66,8 @@ interface BudgetState {
   activeBudgetForCustomer: Record<string, Budget | null>; // customer_id -> Budget
   isLoading: boolean;
   error: string | null;
+  generatingPDF: Record<string, boolean>; // budgetId -> isGenerating
+  sendingWhatsApp: Record<string, boolean>; // budgetId -> isSending
 }
 
 const initialState: BudgetState = {
@@ -75,6 +77,8 @@ const initialState: BudgetState = {
   activeBudgetForCustomer: {},
   isLoading: false,
   error: null,
+  generatingPDF: {},
+  sendingWhatsApp: {},
 };
 
 // =====================================================
@@ -228,6 +232,12 @@ const budgetSlice = createSlice({
     setActiveBudgetForCustomer: (state, action: PayloadAction<{ customerId: string; budget: Budget | null }>) => {
       state.activeBudgetForCustomer[action.payload.customerId] = action.payload.budget;
     },
+    setGeneratingPDF: (state, action: PayloadAction<{ budgetId: string; isGenerating: boolean }>) => {
+      state.generatingPDF[action.payload.budgetId] = action.payload.isGenerating;
+    },
+    setSendingWhatsApp: (state, action: PayloadAction<{ budgetId: string; isSending: boolean }>) => {
+      state.sendingWhatsApp[action.payload.budgetId] = action.payload.isSending;
+    },
   },
   extraReducers: (builder) => {
     // Fetch budgets
@@ -284,6 +294,6 @@ const budgetSlice = createSlice({
   },
 });
 
-export const { clearError, setActiveBudgetForLead, setActiveBudgetForCustomer } = budgetSlice.actions;
+export const { clearError, setActiveBudgetForLead, setActiveBudgetForCustomer, setGeneratingPDF, setSendingWhatsApp } = budgetSlice.actions;
 export default budgetSlice.reducer;
 

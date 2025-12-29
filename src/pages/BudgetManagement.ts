@@ -18,8 +18,10 @@ import {
 } from '@/hooks/useBudgets';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
+import { setGeneratingPDF, setSendingWhatsApp } from '@/store/slices/budgetSlice';
 import { useToast } from '@/hooks/use-toast';
-import type { NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
+import { generateBudgetPDF } from '@/services/pdfService';
+import type { NutritionTargets, Supplement, Budget } from '@/store/slices/budgetSlice';
 
 export interface BudgetColumnVisibility {
   name: boolean;
@@ -47,6 +49,7 @@ export const useBudgetManagement = () => {
   const [budgetToDelete, setBudgetToDelete] = useState<Budget | null>(null);
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [sendingBudget, setSendingBudget] = useState<Budget | null>(null);
   const [columnVisibility, setColumnVisibility] = useState<BudgetColumnVisibility>({
     name: true,
     description: true,
@@ -240,6 +243,30 @@ export const useBudgetManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
+  const handleExportPDF = async (budget: Budget) => {
+    try {
+      dispatch(setGeneratingPDF({ budgetId: budget.id, isGenerating: true }));
+      await generateBudgetPDF(budget);
+      toast({
+        title: 'הצלחה',
+        description: 'קובץ PDF נוצר והורד בהצלחה',
+      });
+    } catch (error: any) {
+      console.error('[BudgetManagement] Error exporting PDF:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת קובץ PDF',
+        variant: 'destructive',
+      });
+    } finally {
+      dispatch(setGeneratingPDF({ budgetId: budget.id, isGenerating: false }));
+    }
+  };
+
+  const handleSendWhatsApp = (budget: Budget | null) => {
+    setSendingBudget(budget);
+  };
+
   const getCurrentFilterConfig = (
     advancedFilters?: any[],
     columnOrder?: string[],
@@ -266,6 +293,7 @@ export const useBudgetManagement = () => {
     budgetToDelete,
     isLoading,
     isLoadingView,
+    sendingBudget,
     
     // State
     searchQuery,
@@ -298,6 +326,8 @@ export const useBudgetManagement = () => {
     handleDeleteClick,
     handleConfirmDelete,
     handleSaveViewClick,
+    handleExportPDF,
+    handleSendWhatsApp,
     getCurrentFilterConfig,
     
     // Mutations
