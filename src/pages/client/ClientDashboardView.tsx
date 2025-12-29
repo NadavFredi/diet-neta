@@ -5,7 +5,7 @@
  * Logic is separated to useClientDashboard hook.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,10 +26,13 @@ import {
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
 import { DailyCheckInView } from '@/components/client/DailyCheckInView';
+import { CheckInCalendarSidebar } from '@/components/client/CheckInCalendarSidebar';
+import { MultiDayReportModal } from '@/components/client/MultiDayReportModal';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { stopImpersonation } from '@/store/slices/impersonationSlice';
+import { setSelectedDate } from '@/store/slices/clientSlice';
 import { useNavigate } from 'react-router-dom';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
@@ -49,9 +52,18 @@ export const ClientDashboardView: React.FC = () => {
   const { customer, activeLead, leads, isLoading, error, stats, handleSelectLead } = useClientDashboard();
   const { user } = useAppSelector((state) => state.auth);
   const { isImpersonating, previousLocation } = useAppSelector((state) => state.impersonation);
-  const { checkIns } = useAppSelector((state) => state.client);
+  const { checkIns, selectedDate } = useAppSelector((state) => state.client);
   const { handleLogout } = useAuth();
   const [activeTab, setActiveTab] = useState('workout');
+  const [isMultiDayModalOpen, setIsMultiDayModalOpen] = useState(false);
+
+  // Initialize selectedDate to today on mount
+  useEffect(() => {
+    if (!selectedDate) {
+      const today = new Date().toISOString().split('T')[0];
+      dispatch(setSelectedDate(today));
+    }
+  }, [selectedDate, dispatch]);
 
   // Fetch workout and nutrition plans for customer
   const { workoutPlan } = useWorkoutPlan(customer?.id || null);
@@ -156,9 +168,9 @@ export const ClientDashboardView: React.FC = () => {
   const dailyProtocol = activeLead?.daily_protocol || {};
 
   return (
-    <div className="bg-gray-50" dir="rtl">
+    <div className="bg-gray-50 flex flex-col min-h-0" dir="rtl">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -205,7 +217,7 @@ export const ClientDashboardView: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 pb-0">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 pb-6">
         {/* 7-Day Averages Header - Premium Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <Card className="p-4 border border-slate-200 bg-white shadow-sm">
@@ -275,8 +287,8 @@ export const ClientDashboardView: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
-          <TabsList className="grid w-full grid-cols-3 bg-white border border-gray-200">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-0">
+          <TabsList className="grid w-full grid-cols-3 bg-white border-x border-t border-slate-200 rounded-t-lg rounded-b-none">
             <TabsTrigger value="workout" className="data-[state=active]:bg-[#5B6FB9] data-[state=active]:text-white">
               אימונים
             </TabsTrigger>
@@ -288,7 +300,7 @@ export const ClientDashboardView: React.FC = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="workout" className="space-y-6">
+          <TabsContent value="workout" className="space-y-6 mt-3">
             {workoutPlan ? (
               <WorkoutPlanCard
                 workoutPlan={workoutPlan}
@@ -306,7 +318,7 @@ export const ClientDashboardView: React.FC = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="nutrition" className="space-y-6">
+          <TabsContent value="nutrition" className="space-y-6 mt-3">
             {nutritionPlan ? (
               <NutritionPlanCard
                 nutritionPlan={nutritionPlan}
@@ -324,8 +336,36 @@ export const ClientDashboardView: React.FC = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="checkin" className="space-y-0">
-            <DailyCheckInView customerId={customer.id} />
+          <TabsContent value="checkin" className="space-y-0 pb-4 mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] gap-0 lg:items-stretch">
+              {/* Left Side - Daily Report (70%) */}
+              <div className="flex flex-col">
+                <div className="border-x border-b border-slate-200 rounded-b-lg bg-white overflow-hidden flex-1 min-h-[600px] flex flex-col">
+                  <DailyCheckInView 
+                    customerId={customer.id} 
+                    onMultiDayClick={() => setIsMultiDayModalOpen(true)}
+                  />
+                </div>
+              </div>
+
+              {/* Right Side - Calendar & History (30%) */}
+              <div className="hidden lg:flex lg:flex-col lg:min-h-[600px]">
+                <div className="border-r border-b border-slate-200 rounded-b-lg bg-white overflow-hidden flex-1 flex flex-col">
+                  <CheckInCalendarSidebar checkIns={checkIns} />
+                </div>
+              </div>
+            </div>
+
+            {/* Multi-Day Report Modal */}
+            {customer && (
+              <MultiDayReportModal
+                open={isMultiDayModalOpen}
+                onOpenChange={setIsMultiDayModalOpen}
+                customerId={customer.id}
+                leadId={activeLead?.id || null}
+                existingCheckIns={checkIns}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </div>

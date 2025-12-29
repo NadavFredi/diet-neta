@@ -76,6 +76,7 @@ interface ClientState {
   isLoading: boolean;
   isLoadingCheckIns: boolean;
   error: string | null;
+  selectedDate: string | null; // ISO date string (YYYY-MM-DD)
 }
 
 const initialState: ClientState = {
@@ -86,6 +87,7 @@ const initialState: ClientState = {
   isLoading: false,
   isLoadingCheckIns: false,
   error: null,
+  selectedDate: null, // Will default to today
 };
 
 // Fetch client's customer data and leads by customer_id
@@ -243,6 +245,25 @@ export const upsertCheckIn = createAsyncThunk(
   }
 );
 
+// Batch create or update multiple daily check-ins
+export const batchUpsertCheckIns = createAsyncThunk(
+  'client/batchUpsertCheckIns',
+  async (checkIns: Array<Partial<DailyCheckIn> & { customer_id: string; check_in_date: string }>) => {
+    const { data, error } = await supabase
+      .from('daily_check_ins')
+      .upsert(
+        checkIns,
+        {
+          onConflict: 'customer_id,check_in_date',
+        }
+      )
+      .select();
+
+    if (error) throw error;
+    return (data || []) as DailyCheckIn[];
+  }
+);
+
 // Update lead (for weight, height, etc.)
 export const updateClientLead = createAsyncThunk(
   'client/updateLead',
@@ -281,6 +302,9 @@ const clientSlice = createSlice({
   reducers: {
     setActiveLead: (state, action: PayloadAction<ClientLead | null>) => {
       state.activeLead = action.payload;
+    },
+    setSelectedDate: (state, action: PayloadAction<string | null>) => {
+      state.selectedDate = action.payload;
     },
     clearError: (state) => {
       state.error = null;
@@ -345,6 +369,21 @@ const clientSlice = createSlice({
           state.checkIns.unshift(action.payload);
         }
       })
+      // Batch upsert check-ins
+      .addCase(batchUpsertCheckIns.fulfilled, (state, action) => {
+        action.payload.forEach((checkIn) => {
+          const index = state.checkIns.findIndex((ci) => ci.id === checkIn.id);
+          if (index >= 0) {
+            state.checkIns[index] = checkIn;
+          } else {
+            state.checkIns.unshift(checkIn);
+          }
+        });
+        // Sort by date descending
+        state.checkIns.sort((a, b) => 
+          new Date(b.check_in_date).getTime() - new Date(a.check_in_date).getTime()
+        );
+      })
       // Update lead
       .addCase(updateClientLead.fulfilled, (state, action) => {
         const index = state.leads.findIndex((l) => l.id === action.payload.id);
@@ -362,6 +401,6 @@ const clientSlice = createSlice({
   },
 });
 
-export const { setActiveLead, clearError } = clientSlice.actions;
+export const { setActiveLead, setSelectedDate, clearError } = clientSlice.actions;
 export default clientSlice.reducer;
 

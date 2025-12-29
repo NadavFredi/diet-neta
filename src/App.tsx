@@ -125,7 +125,7 @@ const AppContent = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      {!isLoginPage && <AppFooter className={isClientDashboard ? "mt-0" : "mt-10"} />}
+      {!isLoginPage && <AppFooter className={isClientDashboard ? "" : "mt-10"} />}
     </div>
   );
 };

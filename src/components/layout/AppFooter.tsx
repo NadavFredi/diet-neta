@@ -1,4 +1,5 @@
 import React from "react"
+import { cn } from "@/lib/utils"
 
 interface AppFooterProps {
   className?: string;
@@ -6,7 +7,7 @@ interface AppFooterProps {
 
 export function AppFooter({ className }: AppFooterProps) {
     return (
-        <footer className={className || "mt-10"} dir="rtl">
+        <footer className={cn("mt-10", className)} dir="rtl">
             <div
                 className="text-white"
                 style={{
@@ -40,7 +41,3 @@ export function AppFooter({ className }: AppFooterProps) {
         </footer>
     )
 }
-
-
-
-
