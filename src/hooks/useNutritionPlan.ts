@@ -7,6 +7,7 @@ export interface NutritionPlan {
   user_id: string;
   lead_id?: string;
   template_id?: string;
+  budget_id?: string | null;
   start_date: string;
   description?: string;
   targets: NutritionTargets;
@@ -42,7 +43,7 @@ export const useNutritionPlan = (customerId?: string) => {
 
       const { data, error: fetchError } = await supabase
         .from('nutrition_plans')
-        .select('*')
+        .select('*, budget_id')
         .eq('customer_id', customerId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -58,6 +59,7 @@ export const useNutritionPlan = (customerId?: string) => {
           user_id: data.user_id,
           lead_id: data.lead_id,
           template_id: data.template_id,
+          budget_id: data.budget_id,
           start_date: data.start_date,
           description: data.description || '',
           targets: data.targets || {
@@ -95,7 +97,9 @@ export const useNutritionPlan = (customerId?: string) => {
         .insert({
           user_id: user.id,
           customer_id: customerId,
+          lead_id: planData.lead_id,
           template_id: planData.template_id,
+          budget_id: planData.budget_id,
           start_date: planData.start_date,
           description: planData.description,
           targets: planData.targets || {
@@ -118,6 +122,7 @@ export const useNutritionPlan = (customerId?: string) => {
           user_id: data.user_id,
           lead_id: data.lead_id,
           template_id: data.template_id,
+          budget_id: data.budget_id,
           start_date: data.start_date,
           description: data.description || '',
           targets: data.targets || {

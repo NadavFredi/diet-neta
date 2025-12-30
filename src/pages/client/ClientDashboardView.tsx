@@ -194,9 +194,9 @@ export const ClientDashboardView: React.FC = () => {
   const dailyProtocol = activeLead?.daily_protocol || {};
 
   return (
-    <div className="bg-[#F8FAFC] flex flex-col min-h-screen" dir="rtl">
+    <div className="bg-[#F8FAFC] flex flex-col h-full" dir="rtl" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Fixed Header */}
-      <div className="bg-white border-b border-[#E2E8F0] sticky top-0 z-20 shadow-sm flex-shrink-0">
+      <div className="bg-white border-b border-[#E2E8F0] flex-shrink-0 z-20 shadow-sm">
         <div className="w-full px-8 xl:px-12 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -248,12 +248,7 @@ export const ClientDashboardView: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Vertical Navigation Sidebar */}
         <div className="w-64 bg-white border-l border-[#E2E8F0] flex-shrink-0 flex flex-col">
-          <div className="p-4 border-b border-[#E2E8F0]">
-            <h2 className="text-xs uppercase tracking-wider text-[#64748B] font-semibold mb-3" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
-              ניווט
-            </h2>
-          </div>
-          <nav className="flex-1 p-2">
+          <nav className="flex-1 p-3 pt-4">
             <button
               onClick={() => setActiveTab('workout')}
               className={cn(
@@ -294,76 +289,76 @@ export const ClientDashboardView: React.FC = () => {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="w-full px-6 xl:px-8 py-2">
-            {/* 7-Day Averages Header - Premium Cards */}
+        <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, flex: '1 1 auto' }}>
+          <div className="w-full px-6 xl:px-8 py-2 pb-4">
+            {/* 7-Day Averages Header - Larger Cards */}
             <div className="grid grid-cols-3 gap-3 mb-4">
-              <Card className="p-3 border border-[#E2E8F0] bg-white shadow-sm rounded-xl">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Activity className="h-4 w-4 text-[#5B6FB9] flex-shrink-0" />
+              <Card className="p-4 border border-slate-200 bg-white shadow-sm rounded-lg">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Activity className="h-5 w-5 text-[#5B6FB9] flex-shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-xs font-semibold text-[#334155] truncate" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      <div className="text-sm font-semibold text-black truncate">
                         תרגילים
                       </div>
-                      <div className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      <div className="text-xs text-slate-500">
                         ממוצע 7 ימים
                       </div>
                     </div>
                   </div>
                   <div className="flex items-baseline gap-1 flex-shrink-0">
-                    <div className="text-xl font-bold text-[#334155] leading-none" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                    <div className="text-2xl font-bold text-black leading-none">
                       {sevenDayAverages.exercises.toFixed(1)}
                     </div>
-                    <span className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                    <span className="text-xs text-slate-500">
                       /יום
                     </span>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-3 border border-[#E2E8F0] bg-white shadow-sm rounded-xl">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Footprints className="h-4 w-4 text-[#5B6FB9] flex-shrink-0" />
+              <Card className="p-4 border border-slate-200 bg-white shadow-sm rounded-lg">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Footprints className="h-5 w-5 text-[#5B6FB9] flex-shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-xs font-semibold text-[#334155] truncate" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      <div className="text-sm font-semibold text-black truncate">
                         צעדים
                       </div>
-                      <div className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      <div className="text-xs text-slate-500">
                         ממוצע 7 ימים
                       </div>
                     </div>
                   </div>
                   <div className="flex items-baseline gap-1 flex-shrink-0">
-                    <div className="text-xl font-bold text-[#334155] leading-none" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                    <div className="text-2xl font-bold text-black leading-none">
                       {sevenDayAverages.steps.toLocaleString()}
                     </div>
-                    <span className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                    <span className="text-xs text-slate-500">
                       צעדים
                     </span>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-3 border border-[#E2E8F0] bg-white shadow-sm rounded-xl">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <UtensilsCrossed className="h-4 w-4 text-[#5B6FB9] flex-shrink-0" />
+              <Card className="p-4 border border-slate-200 bg-white shadow-sm rounded-lg">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <UtensilsCrossed className="h-5 w-5 text-[#5B6FB9] flex-shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-xs font-semibold text-[#334155] truncate" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      <div className="text-sm font-semibold text-black truncate">
                         תזונה
                       </div>
-                      <div className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      <div className="text-xs text-slate-500">
                         ממוצע 7 ימים
                       </div>
                     </div>
                   </div>
                   <div className="flex items-baseline gap-1 flex-shrink-0">
-                    <div className="text-xl font-bold text-[#334155] leading-none" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                    <div className="text-2xl font-bold text-black leading-none">
                       {sevenDayAverages.nutrition.toLocaleString()}
                     </div>
-                    <span className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                    <span className="text-xs text-slate-500">
                       קק״ל
                     </span>
                   </div>
@@ -373,7 +368,7 @@ export const ClientDashboardView: React.FC = () => {
 
             {/* Content based on active tab */}
             {activeTab === 'workout' && (
-              <div className="space-y-6">
+              <div className="space-y-6 pb-4">
                 {workoutPlan ? (
                   <WorkoutPlanCard
                     workoutPlan={workoutPlan}
@@ -400,7 +395,7 @@ export const ClientDashboardView: React.FC = () => {
             )}
 
             {activeTab === 'nutrition' && (
-              <div className="space-y-6">
+              <div className="space-y-6 pb-4">
                 {isLoadingNutritionPlan ? (
                   <Card className="border border-slate-200 shadow-sm">
                     <CardContent className="p-12 text-center">
@@ -440,7 +435,7 @@ export const ClientDashboardView: React.FC = () => {
             )}
 
             {activeTab === 'checkin' && (
-              <div className="flex flex-col lg:flex-row gap-3 h-[calc(100vh-200px)]" dir="rtl">
+              <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0" style={{ maxHeight: '100%' }} dir="rtl">
                 {/* Calendar Sidebar - Right Side (20% width on desktop) - First in RTL = Right side */}
                 <div className="flex-shrink-0 flex flex-col lg:w-[20%] hidden lg:flex">
                   <div className="bg-white border border-slate-200 rounded-lg shadow-none overflow-hidden flex-1 flex flex-col">

@@ -36,7 +36,7 @@ const AppContent = () => {
   const isClientDashboard = location.pathname === '/client/dashboard';
   
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="min-h-screen flex flex-col">
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<AuthRedirect />} />
@@ -143,7 +143,7 @@ const AppContent = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      {!isLoginPage && <AppFooter className={isClientDashboard ? "" : "mt-10"} />}
+      {!isLoginPage && <AppFooter />}
     </div>
   );
 };

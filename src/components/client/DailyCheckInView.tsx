@@ -324,17 +324,17 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
 
   return (
     <div className="flex flex-col bg-white h-full" dir="rtl">
-      {/* Ultra-Compact Sticky Header */}
-      <div className="px-3 py-1.5 border-b border-slate-200 bg-white flex-shrink-0 sticky top-0 z-10">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-sm font-semibold text-black truncate">דיווח יומי - {displayDate}</h1>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+      {/* Page Header - Larger */}
+      <div className="px-4 py-3 border-b border-slate-200 bg-white flex-shrink-0 sticky top-0 z-10">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-base font-semibold text-black truncate">דיווח יומי - {displayDate}</h1>
+          <div className="flex items-center gap-2 flex-shrink-0">
             {onMultiDayClick && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onMultiDayClick}
-                className="text-[10px] border-slate-200 bg-white text-slate-600 hover:bg-slate-50 h-6 px-2"
+                className="text-sm border-slate-200 bg-white text-slate-600 hover:bg-slate-50 h-8 px-3 font-medium"
               >
                 דיווח מרובה
               </Button>
@@ -342,7 +342,7 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting || !isFormValid}
-              className="h-6 text-[10px] px-2.5 font-semibold bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white disabled:opacity-50"
+              className="h-8 text-sm px-4 font-semibold bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white disabled:opacity-50"
             >
               {isSubmitting ? 'שומר...' : 'שמור'}
             </Button>
@@ -351,7 +351,7 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
       </div>
 
       {/* Main Content - Ultra-Compact Accordions */}
-      <div className="px-2 pt-1.5 pb-2 flex-1 overflow-y-auto min-h-0">
+      <div className="px-3 pt-2 pb-2 flex-1 overflow-y-auto min-h-0">
         <Accordion 
           type="multiple" 
           value={openAccordions} 
@@ -370,7 +370,7 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-1 pb-1 bg-white">
-                <div className="grid grid-cols-2 gap-0.5">
+                <div className="grid grid-cols-3 gap-0.5">
                   {fieldConfig.fields.weight.visible && (
                     <CompactInputCell
                       ref={(el) => (inputRefs.current[0] = el)}
@@ -455,7 +455,7 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-1 pb-1 bg-white">
-                <div className="grid grid-cols-2 gap-0.5">
+                <div className="grid grid-cols-3 gap-0.5">
                   {fieldConfig.fields.stepsActual.visible && (
                     <CompactInputCell
                       ref={(el) => (inputRefs.current[6] = el)}
@@ -517,7 +517,7 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-1 pb-1 bg-white">
-                <div className="grid grid-cols-2 gap-0.5">
+                <div className="grid grid-cols-3 gap-0.5">
                   {fieldConfig.fields.caloriesDaily.visible && (
                     <CompactInputCell
                       ref={(el) => (inputRefs.current[10] = el)}
@@ -581,7 +581,7 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-1 pb-1 bg-white">
-                <div className="grid grid-cols-2 gap-0.5">
+                <div className="grid grid-cols-3 gap-0.5">
                   {fieldConfig.fields.stressLevel.visible && (
                     <CompactSlider
                       label={fieldConfig.fields.stressLevel.label}

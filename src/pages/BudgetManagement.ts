@@ -23,6 +23,8 @@ import { logoutUser } from '@/store/slices/authSlice';
 import { setGeneratingPDF, setSendingWhatsApp } from '@/store/slices/budgetSlice';
 import { useToast } from '@/hooks/use-toast';
 import { generateBudgetPDF } from '@/services/pdfService';
+import { syncPlansFromBudget, deleteAssociatedPlans } from '@/services/budgetPlanSync';
+import { supabase } from '@/lib/supabaseClient';
 import type { NutritionTargets, Supplement, Budget } from '@/store/slices/budgetSlice';
 
 export interface BudgetColumnVisibility {
@@ -187,6 +189,7 @@ export const useBudgetManagement = () => {
         });
         
         // Handle assignment if customer_id or lead_id is provided
+        // Also sync plans if budget templates changed
         if ((data as any).customer_id || (data as any).lead_id) {
           if ((data as any).customer_id) {
             await assignToCustomer.mutateAsync({
@@ -198,6 +201,42 @@ export const useBudgetManagement = () => {
               budgetId: editingBudget.id,
               leadId: (data as any).lead_id,
             });
+          }
+        } else {
+          // If budget templates changed, sync plans for existing assignments
+          const budgetChanged = 
+            (data as any).workout_template_id !== undefined ||
+            (data as any).nutrition_template_id !== undefined ||
+            (data as any).supplements !== undefined;
+          
+          if (budgetChanged) {
+            // Get active assignments for this budget
+            const { data: assignments } = await supabase
+              .from('budget_assignments')
+              .select('customer_id, lead_id')
+              .eq('budget_id', editingBudget.id)
+              .eq('is_active', true);
+
+            if (assignments && assignments.length > 0) {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                const updatedBudget = { ...editingBudget, ...data } as Budget;
+                
+                // Sync plans for each assignment
+                for (const assignment of assignments) {
+                  try {
+                    await syncPlansFromBudget({
+                      budget: updatedBudget,
+                      customerId: assignment.customer_id,
+                      leadId: assignment.lead_id,
+                      userId: user.id,
+                    });
+                  } catch (syncError) {
+                    console.error('Error syncing plans after budget update:', syncError);
+                  }
+                }
+              }
+            }
           }
         }
         
@@ -257,11 +296,21 @@ export const useBudgetManagement = () => {
     setDeleteDialogOpen(true);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (deletePlans: boolean) => {
     if (!budgetToDelete) return;
 
     try {
+      // Delete associated plans if requested
+      if (deletePlans) {
+        await deleteAssociatedPlans(budgetToDelete.id, true);
+      } else {
+        // Just remove the budget_id reference
+        await deleteAssociatedPlans(budgetToDelete.id, false);
+      }
+
+      // Delete the budget
       await deleteBudget.mutateAsync(budgetToDelete.id);
+      
       toast({
         title: 'הצלחה',
         description: 'התקציב נמחק בהצלחה',

@@ -420,7 +420,7 @@ export const CheckInSettingsPage: React.FC = () => {
         className="flex-1 overflow-y-auto"
         style={{ marginRight: `${sidebarWidth.width}px` }}
       >
-        <div className="p-4 max-w-7xl mx-auto space-y-3">
+        <div className="p-4 pt-6 max-w-7xl mx-auto space-y-3">
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <div>

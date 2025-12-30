@@ -281,7 +281,7 @@ export const logoutUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       console.log('[logoutUser] Starting logout...');
-      const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('[logoutUser] Sign out error:', error);
         // Even if there's an error, we should still clear the local state

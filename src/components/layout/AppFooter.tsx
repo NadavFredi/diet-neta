@@ -1,13 +1,8 @@
 import React from "react"
-import { cn } from "@/lib/utils"
 
-interface AppFooterProps {
-  className?: string;
-}
-
-export function AppFooter({ className }: AppFooterProps) {
+export function AppFooter() {
     return (
-        <footer className={cn("mt-10", className)} dir="rtl">
+        <footer className="mt-10" dir="rtl">
             <div
                 className="text-white"
                 style={{
@@ -17,7 +12,7 @@ export function AppFooter({ className }: AppFooterProps) {
                 <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row">
                     <div className="flex items-center gap-3 md:flex-row">
                         <img
-                            src="/logo.svg"
+                            src="/easyflow-logo.png"
                             alt="Easyflow logo"
                             className="h-10 w-auto"
                         />

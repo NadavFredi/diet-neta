@@ -12,6 +12,7 @@ import {
   Target,
   Trash2
 } from 'lucide-react';
+import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { format, differenceInDays, differenceInWeeks, differenceInMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ export interface WorkoutPlan {
   lead_id?: string; // DEPRECATED: Use customer_id instead
   customer_id?: string;
   template_id?: string;
+  budget_id?: string | null;
   start_date: string;
   description?: string;
   strength: number;
@@ -113,7 +115,7 @@ export const WorkoutPlanCard = ({
               <Dumbbell className="h-6 w-6 text-blue-600" />
               תוכנית אימונים
             </CardTitle>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               <Badge 
                 variant="outline" 
                 className="bg-blue-50 text-blue-700 border-blue-200 font-semibold px-3 py-1"
@@ -128,6 +130,7 @@ export const WorkoutPlanCard = ({
                 <Calendar className="h-3 w-3 mr-1" />
                 התחלה: {format(startDate, 'dd/MM/yyyy', { locale: he })}
               </Badge>
+              <BudgetLinkBadge budgetId={workoutPlan.budget_id} />
             </div>
           </div>
           {isEditable && (
