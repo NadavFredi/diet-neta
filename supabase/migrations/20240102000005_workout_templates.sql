@@ -114,3 +114,4 @@ COMMENT ON COLUMN workout_templates.is_public IS 'Whether the template is public
 
 
 
+
