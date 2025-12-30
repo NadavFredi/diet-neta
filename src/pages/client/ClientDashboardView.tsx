@@ -35,6 +35,8 @@ import { setSelectedDate } from '@/store/slices/clientSlice';
 import { useNavigate } from 'react-router-dom';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
+import { AddWorkoutPlanDialog } from '@/components/dashboard/dialogs/AddWorkoutPlanDialog';
+import { AddNutritionPlanDialog } from '@/components/dashboard/dialogs/AddNutritionPlanDialog';
 import { useClientRealtime } from '@/hooks/useClientRealtime';
 import { useToast } from '@/hooks/use-toast';
 import { updateClientLead } from '@/store/slices/clientSlice';
@@ -55,6 +57,8 @@ export const ClientDashboardView: React.FC = () => {
   const { handleLogout } = useAuth();
   const [activeTab, setActiveTab] = useState('workout');
   const [isMultiDayModalOpen, setIsMultiDayModalOpen] = useState(false);
+  const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
+  const [isNutritionPlanDialogOpen, setIsNutritionPlanDialogOpen] = useState(false);
 
   // Initialize selectedDate to today on mount
   useEffect(() => {
@@ -65,8 +69,8 @@ export const ClientDashboardView: React.FC = () => {
   }, [selectedDate, dispatch]);
 
   // Fetch workout and nutrition plans for customer
-  const { workoutPlan } = useWorkoutPlan(customer?.id || null);
-  const { nutritionPlan } = useNutritionPlan(customer?.id || null);
+  const { workoutPlan, createWorkoutPlan, fetchWorkoutPlan } = useWorkoutPlan(customer?.id || null);
+  const { nutritionPlan, createNutritionPlan, fetchNutritionPlan } = useNutritionPlan(customer?.id || null);
 
   // Set up polling for data sync (every 5 minutes)
   useClientRealtime(customer?.id || null);
@@ -356,10 +360,17 @@ export const ClientDashboardView: React.FC = () => {
                 ) : (
                   <Card className="border border-slate-200 shadow-sm">
                     <CardContent className="p-12 text-center">
-                      <Dumbbell className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                      <p className="text-base font-medium text-gray-500">
+                      <Dumbbell className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <p className="text-base font-medium text-gray-500 mb-6">
                         אין תוכנית אימונים פעילה
                       </p>
+                      <Button
+                        onClick={() => setIsWorkoutPlanDialogOpen(true)}
+                        className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+                      >
+                        <Dumbbell className="h-4 w-4 ml-2" />
+                        צור תוכנית אימונים
+                      </Button>
                     </CardContent>
                   </Card>
                 )}
@@ -376,10 +387,17 @@ export const ClientDashboardView: React.FC = () => {
                 ) : (
                   <Card className="border border-slate-200 shadow-sm">
                     <CardContent className="p-12 text-center">
-                      <Flame className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                      <p className="text-base font-medium text-gray-500">
+                      <Flame className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <p className="text-base font-medium text-gray-500 mb-6">
                         אין תוכנית תזונה פעילה
                       </p>
+                      <Button
+                        onClick={() => setIsNutritionPlanDialogOpen(true)}
+                        className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+                      >
+                        <Flame className="h-4 w-4 ml-2" />
+                        צור תוכנית תזונה
+                      </Button>
                     </CardContent>
                   </Card>
                 )}
@@ -387,21 +405,21 @@ export const ClientDashboardView: React.FC = () => {
             )}
 
             {activeTab === 'checkin' && (
-              <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6">
-                {/* Main Content - Daily Report */}
-                <div className="flex flex-col min-h-0">
+              <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-280px)]" dir="rtl">
+                {/* Calendar Sidebar - Right Side (20-25% width on desktop) - First in RTL = Right side */}
+                <div className="flex-shrink-0 flex flex-col lg:w-[25%] hidden lg:flex">
+                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
+                    <CheckInCalendarSidebar checkIns={checkIns} />
+                  </div>
+                </div>
+
+                {/* Main Content - Daily Report (75-80% width on desktop) - Second in RTL = Left side */}
+                <div className="flex-1 flex flex-col min-w-0 lg:w-[75%]">
                   <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
                     <DailyCheckInView 
                       customerId={customer.id} 
                       onMultiDayClick={() => setIsMultiDayModalOpen(true)}
                     />
-                  </div>
-                </div>
-
-                {/* Right Side - Calendar & History */}
-                <div className="hidden xl:flex xl:flex-col">
-                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
-                    <CheckInCalendarSidebar checkIns={checkIns} />
                   </div>
                 </div>
               </div>
@@ -420,6 +438,80 @@ export const ClientDashboardView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Workout Plan Creation Dialog */}
+      {customer && (
+        <AddWorkoutPlanDialog
+          isOpen={isWorkoutPlanDialogOpen}
+          onOpenChange={setIsWorkoutPlanDialogOpen}
+          onSave={async (data) => {
+            try {
+              const leadId = activeLead?.id || undefined;
+              const planData = {
+                ...data,
+                lead_id: leadId,
+              };
+              await createWorkoutPlan(planData);
+              await fetchWorkoutPlan(); // Refetch to update UI
+              toast({
+                title: 'הצלחה',
+                description: 'תוכנית האימונים נוצרה בהצלחה',
+              });
+              setIsWorkoutPlanDialogOpen(false);
+            } catch (error: any) {
+              console.error('Failed to create workout plan:', error);
+              toast({
+                title: 'שגיאה',
+                description: error?.message || 'נכשל ביצירת תוכנית האימונים',
+                variant: 'destructive',
+              });
+            }
+          }}
+          customerId={customer.id}
+          leadId={activeLead?.id}
+        />
+      )}
+
+      {/* Nutrition Plan Creation Dialog */}
+      {customer && (
+        <AddNutritionPlanDialog
+          isOpen={isNutritionPlanDialogOpen}
+          onOpenChange={setIsNutritionPlanDialogOpen}
+          onSave={async (data) => {
+            try {
+              const leadId = activeLead?.id || undefined;
+              const planData = {
+                lead_id: leadId,
+                start_date: new Date().toISOString(),
+                description: '',
+                targets: data || {
+                  calories: 2000,
+                  protein: 150,
+                  carbs: 200,
+                  fat: 65,
+                  fiber: 30,
+                },
+              };
+              await createNutritionPlan(planData);
+              await fetchNutritionPlan(); // Refetch to update UI
+              toast({
+                title: 'הצלחה',
+                description: 'תוכנית התזונה נוצרה בהצלחה',
+              });
+              setIsNutritionPlanDialogOpen(false);
+            } catch (error: any) {
+              console.error('Failed to create nutrition plan:', error);
+              toast({
+                title: 'שגיאה',
+                description: error?.message || 'נכשל ביצירת תוכנית התזונה',
+                variant: 'destructive',
+              });
+            }
+          }}
+          customerId={customer.id}
+          leadId={activeLead?.id}
+        />
+      )}
     </div>
   );
 };

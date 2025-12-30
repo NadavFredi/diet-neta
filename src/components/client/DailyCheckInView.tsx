@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Activity,
   UtensilsCrossed,
@@ -34,8 +36,8 @@ interface DailyCheckInViewProps {
   onMultiDayClick?: () => void;
 }
 
-// Sleek Minimalist Numeric Input Cell - Horizontal Layout (Label + Input on same line)
-const MinimalistInputCell = React.forwardRef<HTMLInputElement, {
+// Lead Page Style Input Cell - Using same component style as lead page body
+const LeadStyleInputCell = React.forwardRef<HTMLInputElement, {
   label: string;
   value: number | null;
   onChange: (value: number | null) => void;
@@ -46,12 +48,12 @@ const MinimalistInputCell = React.forwardRef<HTMLInputElement, {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }>(({ label, value, onChange, suffix, min, max, step = 1, onKeyDown }, ref) => {
   return (
-    <div className="flex flex-col gap-2" dir="rtl">
-      <span className="text-xs uppercase tracking-wider text-slate-600 font-semibold">
-        {label}
-      </span>
-      <div className="flex items-center justify-between pb-2 border-b-2 border-slate-200 focus-within:border-[#5B6FB9] transition-colors">
-        <input
+    <div className="flex flex-col gap-1.5 py-0.5 min-w-0 w-full text-right" dir="rtl">
+      <Label className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>
+        {label}:
+      </Label>
+      <div className="flex items-center gap-2 min-w-0 w-full relative">
+        <Input
           ref={ref}
           type="number"
           value={value ?? ''}
@@ -63,20 +65,31 @@ const MinimalistInputCell = React.forwardRef<HTMLInputElement, {
           min={min}
           max={max}
           step={step}
-          className="flex-1 bg-transparent border-0 text-lg font-bold text-black focus:outline-none text-right h-8 px-0 placeholder:text-slate-300"
+          className={cn(
+            "h-8 text-sm px-3 pr-3 flex-1",
+            "border-2 border-slate-200 focus:border-[#5B6FB9] focus-visible:ring-2 focus-visible:ring-[#5B6FB9]/20",
+            "transition-all duration-200",
+            "bg-white font-semibold text-slate-900"
+          )}
+          style={{ 
+            fontSize: '14px', 
+            fontWeight: 600,
+            textAlign: 'right'
+          }}
           dir="ltr"
           placeholder="—"
-          style={{ textAlign: 'right' }}
         />
-        <span className="text-sm text-slate-500 ml-3 flex-shrink-0 font-medium">{suffix}</span>
+        <span className="text-xs text-gray-500 flex-shrink-0 font-medium" style={{ fontSize: '12px' }}>
+          {suffix}
+        </span>
       </div>
     </div>
   );
 });
-MinimalistInputCell.displayName = 'MinimalistInputCell';
+LeadStyleInputCell.displayName = 'LeadStyleInputCell';
 
-// Ultra-Thin Luxury Slider (Label left, value right, line middle)
-const LuxurySlider: React.FC<{
+// Lead Page Style Slider - Matching lead page body style
+const LeadStyleSlider: React.FC<{
   label: string;
   value: number | null;
   onChange: (value: number | null) => void;
@@ -86,22 +99,32 @@ const LuxurySlider: React.FC<{
   const sliderValue = value ?? 5;
   
   return (
-    <div className="flex flex-col gap-3" dir="rtl">
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-slate-600 font-semibold">
-          {label}
+    <div className="flex flex-col gap-1.5 py-0.5 min-w-0 w-full text-right" dir="rtl">
+      <Label className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>
+        {label}:
+      </Label>
+      <div className="flex items-center gap-2 min-w-0 w-full relative">
+        <div className="flex-1 relative">
+          <Slider
+            value={[sliderValue]}
+            onValueChange={([val]) => onChange(val)}
+            min={min}
+            max={max}
+            step={1}
+            className="h-2 [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:border-2 [&_[role=slider]]:border-[#5B6FB9] [&_[role=slider]]:shadow-md"
+          />
+        </div>
+        <span 
+          className="text-sm font-semibold text-slate-900 flex-shrink-0" 
+          style={{ 
+            fontSize: '14px', 
+            fontWeight: 600,
+            minWidth: '24px',
+            textAlign: 'center'
+          }}
+        >
+          {sliderValue}
         </span>
-        <span className="text-xl font-bold text-black">{sliderValue}</span>
-      </div>
-      <div className="relative h-2 pb-2 border-b-2 border-slate-200 focus-within:border-[#5B6FB9] transition-colors">
-        <Slider
-          value={[sliderValue]}
-          onValueChange={([val]) => onChange(val)}
-          min={min}
-          max={max}
-          step={1}
-          className="h-2 [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:border-2 [&_[role=slider]]:border-[#5B6FB9] [&_[role=slider]]:shadow-md"
-        />
       </div>
     </div>
   );
@@ -287,17 +310,17 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
 
   return (
     <div className="flex flex-col bg-white h-full" dir="rtl">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-white flex-shrink-0">
+      {/* Fixed Header with Buttons */}
+      <div className="px-4 py-2.5 border-b border-slate-200 bg-white flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-black">דיווח יומי - {displayDate}</h1>
-          <div className="flex items-center gap-3">
+          <h1 className="text-base font-semibold text-black">דיווח יומי - {displayDate}</h1>
+          <div className="flex items-center gap-2">
             {onMultiDayClick && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onMultiDayClick}
-                className="text-sm border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white h-9"
+                className="text-xs border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-8 px-3"
               >
                 דיווח מרובה ימים
               </Button>
@@ -305,7 +328,7 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting || !isFormValid}
-              className="h-9 text-sm px-5 font-semibold bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white disabled:opacity-50 shadow-sm"
+              className="h-8 text-xs px-4 font-semibold bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white disabled:opacity-50 shadow-sm"
             >
               {isSubmitting ? 'שומר...' : 'שמור דיווח'}
             </Button>
@@ -314,25 +337,25 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
       </div>
 
       {/* Main Content - Accordions */}
-      <div className="px-6 pt-6 pb-6 flex-1 overflow-y-auto min-h-0">
+      <div className="px-4 pt-3 pb-4 flex-1 overflow-y-auto min-h-0">
         <Accordion 
           type="multiple" 
           value={openAccordions} 
           onValueChange={setOpenAccordions}
-          className="space-y-3"
+          className="space-y-2"
         >
           {/* מדדי גוף - Physical Measurements */}
-          <AccordionItem value="body" className="border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden">
-            <AccordionTrigger className="px-5 py-4 hover:no-underline bg-white hover:bg-slate-50 transition-colors duration-200">
-              <div className="flex items-center gap-3">
-                <Scale className="h-5 w-5 text-[#5B6FB9]" />
-                <span className="text-sm uppercase tracking-widest text-black font-bold">מדדי גוף</span>
+          <AccordionItem value="body" className="border border-slate-200 rounded-md bg-white overflow-hidden">
+            <AccordionTrigger className="px-3 py-2 hover:no-underline bg-white hover:bg-gray-50 transition-colors duration-200">
+              <div className="flex items-center gap-2">
+                <Scale className="h-4 w-4 text-[#5B6FB9]" />
+                <span className="text-xs uppercase tracking-wider text-black font-semibold">מדדי גוף</span>
               </div>
             </AccordionTrigger>
-            <AccordionContent className="px-5 pb-5 bg-white">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+            <AccordionContent className="px-3 pb-3 bg-white">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[0] = el)}
                     label="משקל"
                     value={weight}
@@ -343,8 +366,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(0)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[1] = el)}
                     label="היקף בטן"
                     value={bellyCircumference}
@@ -354,8 +377,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(1)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[2] = el)}
                     label="היקף מותן"
                     value={waistCircumference}
@@ -365,8 +388,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(2)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[3] = el)}
                     label="היקף ירכיים"
                     value={thighCircumference}
@@ -376,8 +399,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(3)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[4] = el)}
                     label="היקף יד"
                     value={armCircumference}
@@ -387,8 +410,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(4)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[5] = el)}
                     label="היקף צוואר"
                     value={neckCircumference}
@@ -403,17 +426,17 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
           </AccordionItem>
 
           {/* פעילות - Activity */}
-          <AccordionItem value="activity" className="border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden">
-            <AccordionTrigger className="px-5 py-4 hover:no-underline bg-white hover:bg-slate-50 transition-colors duration-200">
-              <div className="flex items-center gap-3">
-                <Activity className="h-5 w-5 text-[#5B6FB9]" />
-                <span className="text-sm uppercase tracking-widest text-black font-bold">פעילות</span>
+          <AccordionItem value="activity" className="border border-slate-200 rounded-md bg-white overflow-hidden">
+            <AccordionTrigger className="px-3 py-2 hover:no-underline bg-white hover:bg-gray-50 transition-colors duration-200">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-[#5B6FB9]" />
+                <span className="text-xs uppercase tracking-wider text-black font-semibold">פעילות</span>
               </div>
             </AccordionTrigger>
-            <AccordionContent className="px-5 pb-5 bg-white">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+            <AccordionContent className="px-3 pb-3 bg-white">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[6] = el)}
                     label="מס' צעדים יומי"
                     value={stepsActual}
@@ -423,8 +446,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(6)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[7] = el)}
                     label="כמה תרגילים עשית"
                     value={exercisesCount}
@@ -434,8 +457,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(7)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[8] = el)}
                     label="כמה אירובי עשית"
                     value={cardioAmount}
@@ -445,8 +468,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(8)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[9] = el)}
                     label="כמה אינטרוולים"
                     value={intervalsCount}
@@ -461,17 +484,17 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
           </AccordionItem>
 
           {/* תזונה - Nutrition */}
-          <AccordionItem value="nutrition" className="border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden">
-            <AccordionTrigger className="px-5 py-4 hover:no-underline bg-white hover:bg-slate-50 transition-colors duration-200">
-              <div className="flex items-center gap-3">
-                <UtensilsCrossed className="h-5 w-5 text-[#5B6FB9]" />
-                <span className="text-sm uppercase tracking-widest text-black font-bold">תזונה</span>
+          <AccordionItem value="nutrition" className="border border-slate-200 rounded-md bg-white overflow-hidden">
+            <AccordionTrigger className="px-3 py-2 hover:no-underline bg-white hover:bg-gray-50 transition-colors duration-200">
+              <div className="flex items-center gap-2">
+                <UtensilsCrossed className="h-4 w-4 text-[#5B6FB9]" />
+                <span className="text-xs uppercase tracking-wider text-black font-semibold">תזונה</span>
               </div>
             </AccordionTrigger>
-            <AccordionContent className="px-5 pb-5 bg-white">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+            <AccordionContent className="px-3 pb-3 bg-white">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[10] = el)}
                     label="קלוריות יומי"
                     value={caloriesDaily}
@@ -481,8 +504,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(10)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[11] = el)}
                     label="חלבון יומי"
                     value={proteinDaily}
@@ -492,8 +515,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(11)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[12] = el)}
                     label="סיבים יומי"
                     value={fiberDaily}
@@ -503,8 +526,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     onKeyDown={handleKeyDown(12)}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[13] = el)}
                     label="כמה מים שתית"
                     value={waterAmount}
@@ -521,17 +544,17 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
           </AccordionItem>
 
           {/* בריאות - Wellness */}
-          <AccordionItem value="wellness" className="border border-slate-200 rounded-lg bg-white shadow-sm overflow-hidden">
-            <AccordionTrigger className="px-5 py-4 hover:no-underline bg-white hover:bg-slate-50 transition-colors duration-200">
-              <div className="flex items-center gap-3">
-                <Moon className="h-5 w-5 text-[#5B6FB9]" />
-                <span className="text-sm uppercase tracking-widest text-black font-bold">בריאות</span>
+          <AccordionItem value="wellness" className="border border-slate-200 rounded-md bg-white overflow-hidden">
+            <AccordionTrigger className="px-3 py-2 hover:no-underline bg-white hover:bg-gray-50 transition-colors duration-200">
+              <div className="flex items-center gap-2">
+                <Moon className="h-4 w-4 text-[#5B6FB9]" />
+                <span className="text-xs uppercase tracking-wider text-black font-semibold">בריאות</span>
               </div>
             </AccordionTrigger>
-            <AccordionContent className="px-5 pb-5 bg-white">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <LuxurySlider
+            <AccordionContent className="px-3 pb-3 bg-white">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleSlider
                     label="רמת הלחץ היומי"
                     value={stressLevel}
                     onChange={setStressLevel}
@@ -539,8 +562,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     max={10}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <LuxurySlider
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleSlider
                     label="רמת הרעב שלך"
                     value={hungerLevel}
                     onChange={setHungerLevel}
@@ -548,8 +571,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     max={10}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <LuxurySlider
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleSlider
                     label="רמת האנרגיה שלך"
                     value={energyLevel}
                     onChange={setEnergyLevel}
@@ -557,8 +580,8 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     max={10}
                   />
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <MinimalistInputCell
+                <div className="bg-white rounded border border-slate-200 p-2.5">
+                  <LeadStyleInputCell
                     ref={(el) => (inputRefs.current[14] = el)}
                     label="כמה שעות ישנת"
                     value={sleepHours}
@@ -576,16 +599,16 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
         </Accordion>
 
         {/* Notes Section */}
-        <Card className="p-5 border border-slate-200 bg-white shadow-sm mt-4" dir="rtl">
-          <div className="space-y-3">
-            <span className="text-sm uppercase tracking-widest text-black font-bold">הערות (אופציונלי)</span>
+        <Card className="p-3 border border-slate-200 bg-white mt-2" dir="rtl">
+          <div className="space-y-2">
+            <span className="text-xs uppercase tracking-wider text-black font-semibold">הערות (אופציונלי)</span>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="הוסף הערות על היום שלך, איך הרגשת, מה היו האתגרים, או כל דבר אחר שתרצה לשתף..."
               dir="rtl"
-              rows={3}
-              className="text-sm border-slate-200 focus:border-[#5B6FB9] focus:ring-[#5B6FB9]/20 resize-none text-black min-h-[80px] bg-slate-50"
+              rows={2}
+              className="text-xs border-slate-200 focus:border-[#5B6FB9] focus:ring-[#5B6FB9]/20 resize-none text-black min-h-[60px] bg-gray-50"
             />
           </div>
         </Card>
