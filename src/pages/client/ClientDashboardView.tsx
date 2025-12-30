@@ -9,7 +9,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   User,
   Dumbbell,
@@ -180,10 +179,10 @@ export const ClientDashboardView: React.FC = () => {
   const dailyProtocol = activeLead?.daily_protocol || {};
 
   return (
-    <div className="bg-gray-50 flex flex-col min-h-0" dir="rtl">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm flex-shrink-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+    <div className="bg-gray-50 flex flex-col min-h-screen" dir="rtl">
+      {/* Fixed Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm flex-shrink-0">
+        <div className="w-full px-8 xl:px-12 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <NetaLogo 
@@ -228,10 +227,58 @@ export const ClientDashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex-1 pb-6">
-        {/* 7-Day Averages Header - Premium Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      {/* Main Layout: Sidebar + Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Vertical Navigation Sidebar */}
+        <div className="w-64 bg-white border-l border-slate-200 flex-shrink-0 flex flex-col">
+          <div className="p-4 border-b border-slate-200">
+            <h2 className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">ניווט</h2>
+          </div>
+          <nav className="flex-1 p-2">
+            <button
+              onClick={() => setActiveTab('workout')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                activeTab === 'workout'
+                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
+                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+              )}
+            >
+              <Dumbbell className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm">אימונים</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('nutrition')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                activeTab === 'nutrition'
+                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
+                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+              )}
+            >
+              <Flame className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm">תזונה</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('checkin')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                activeTab === 'checkin'
+                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
+                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+              )}
+            >
+              <Calendar className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm">דיווח יומי</span>
+            </button>
+          </nav>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="w-full px-8 xl:px-12 py-6">
+            {/* 7-Day Averages Header - Premium Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card className="p-4 border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -298,78 +345,70 @@ export const ClientDashboardView: React.FC = () => {
           </Card>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-0">
-          <TabsList className="grid w-full grid-cols-3 bg-white border-x border-t border-slate-200 rounded-t-lg rounded-b-none">
-            <TabsTrigger value="workout" className="data-[state=active]:bg-[#5B6FB9] data-[state=active]:text-white">
-              אימונים
-            </TabsTrigger>
-            <TabsTrigger value="nutrition" className="data-[state=active]:bg-[#5B6FB9] data-[state=active]:text-white">
-              תזונה
-            </TabsTrigger>
-            <TabsTrigger value="checkin" className="data-[state=active]:bg-[#5B6FB9] data-[state=active]:text-white">
-              דיווח יומי
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="workout" className="space-y-6 mt-3">
-            {workoutPlan ? (
-              <WorkoutPlanCard
-                workoutPlan={workoutPlan}
-                isEditable={false}
-              />
-            ) : (
-              <Card className="border-2 border-slate-200">
-                <CardContent className="p-12 text-center">
-                  <Dumbbell className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                  <p className="text-base font-medium text-gray-500">
-                    אין תוכנית אימונים פעילה
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="nutrition" className="space-y-6 mt-3">
-            {nutritionPlan ? (
-              <NutritionPlanCard
-                nutritionPlan={nutritionPlan}
-                isEditable={false}
-              />
-            ) : (
-              <Card className="border-2 border-slate-200">
-                <CardContent className="p-12 text-center">
-                  <Flame className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                  <p className="text-base font-medium text-gray-500">
-                    אין תוכנית תזונה פעילה
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="checkin" className="space-y-0 pb-4 mt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-[70%_30%] gap-0 lg:items-stretch">
-              {/* Left Side - Daily Report (70%) */}
-              <div className="flex flex-col">
-                <div className="border-x border-b border-slate-200 rounded-b-lg bg-white overflow-hidden flex-1 min-h-[600px] flex flex-col">
-                  <DailyCheckInView 
-                    customerId={customer.id} 
-                    onMultiDayClick={() => setIsMultiDayModalOpen(true)}
+            {/* Content based on active tab */}
+            {activeTab === 'workout' && (
+              <div className="space-y-6">
+                {workoutPlan ? (
+                  <WorkoutPlanCard
+                    workoutPlan={workoutPlan}
+                    isEditable={false}
                   />
-                </div>
+                ) : (
+                  <Card className="border border-slate-200 shadow-sm">
+                    <CardContent className="p-12 text-center">
+                      <Dumbbell className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                      <p className="text-base font-medium text-gray-500">
+                        אין תוכנית אימונים פעילה
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
+            )}
 
-              {/* Right Side - Calendar & History (30%) */}
-              <div className="hidden lg:flex lg:flex-col lg:min-h-[600px]">
-                <div className="border-r border-b border-slate-200 rounded-b-lg bg-white overflow-hidden flex-1 flex flex-col">
-                  <CheckInCalendarSidebar checkIns={checkIns} />
+            {activeTab === 'nutrition' && (
+              <div className="space-y-6">
+                {nutritionPlan ? (
+                  <NutritionPlanCard
+                    nutritionPlan={nutritionPlan}
+                    isEditable={false}
+                  />
+                ) : (
+                  <Card className="border border-slate-200 shadow-sm">
+                    <CardContent className="p-12 text-center">
+                      <Flame className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                      <p className="text-base font-medium text-gray-500">
+                        אין תוכנית תזונה פעילה
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'checkin' && (
+              <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6">
+                {/* Main Content - Daily Report */}
+                <div className="flex flex-col min-h-0">
+                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
+                    <DailyCheckInView 
+                      customerId={customer.id} 
+                      onMultiDayClick={() => setIsMultiDayModalOpen(true)}
+                    />
+                  </div>
+                </div>
+
+                {/* Right Side - Calendar & History */}
+                <div className="hidden xl:flex xl:flex-col">
+                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
+                    <CheckInCalendarSidebar checkIns={checkIns} />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Multi-Day Report Modal */}
-            {customer && (
+            {customer && activeTab === 'checkin' && (
               <MultiDayReportModal
                 open={isMultiDayModalOpen}
                 onOpenChange={setIsMultiDayModalOpen}
@@ -378,8 +417,8 @@ export const ClientDashboardView: React.FC = () => {
                 existingCheckIns={checkIns}
               />
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
     </div>
   );

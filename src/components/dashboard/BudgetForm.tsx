@@ -19,8 +19,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, ExternalLink } from 'lucide-react';
 import { useNutritionTemplates } from '@/hooks/useNutritionTemplates';
+import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates';
+import { useCustomers } from '@/hooks/useCustomers';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
 import { cn } from '@/lib/utils';
 
@@ -32,11 +37,44 @@ interface BudgetFormProps {
 }
 
 export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormProps) => {
+  const navigate = useNavigate();
   const { data: nutritionTemplates = [] } = useNutritionTemplates();
+  const { data: workoutTemplates = [] } = useWorkoutTemplates();
+  const { data: customers = [] } = useCustomers();
+  
+  // Fetch leads
+  const { data: leads = [] } = useQuery({
+    queryKey: ['leads-for-budget'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id, customer_id, status_main, status_sub, created_at, customers(full_name)')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      
+      if (error) {
+        console.error('Error fetching leads:', error);
+        return [];
+      }
+      
+      return (data || []).map((lead: any) => ({
+        id: lead.id,
+        customer_id: lead.customer_id,
+        status_main: lead.status_main,
+        status_sub: lead.status_sub,
+        created_at: lead.created_at,
+        customer_name: lead.customers?.full_name || '',
+      }));
+    },
+  });
   
   // Basic info
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  
+  // Customer/Lead selection
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   
   // Nutrition
   const [nutritionTemplateId, setNutritionTemplateId] = useState<string | null>(null);
@@ -65,6 +103,34 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
   const [eatingRules, setEatingRules] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Filter leads by selected customer
+  const filteredLeads = selectedCustomerId
+    ? leads.filter((lead) => lead.customer_id === selectedCustomerId)
+    : leads;
+  
+  // Fetch existing assignment when editing
+  const { data: existingAssignment } = useQuery({
+    queryKey: ['budget-assignment', initialData?.id],
+    queryFn: async () => {
+      if (!initialData?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('budget_assignments')
+        .select('customer_id, lead_id')
+        .eq('budget_id', initialData.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching budget assignment:', error);
+        return null;
+      }
+      
+      return data;
+    },
+    enabled: !!initialData?.id && mode === 'edit',
+  });
 
   // Initialize form with initial data
   useEffect(() => {
@@ -89,6 +155,23 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
       setEatingRules(initialData.eating_rules || '');
     }
   }, [initialData]);
+  
+  // Set customer/lead from existing assignment
+  useEffect(() => {
+    if (existingAssignment) {
+      if (existingAssignment.customer_id) {
+        setSelectedCustomerId(existingAssignment.customer_id);
+      }
+      if (existingAssignment.lead_id) {
+        setSelectedLeadId(existingAssignment.lead_id);
+        // Also set customer_id if lead has one
+        const lead = leads.find((l) => l.id === existingAssignment.lead_id);
+        if (lead?.customer_id) {
+          setSelectedCustomerId(lead.customer_id);
+        }
+      }
+    }
+  }, [existingAssignment, leads]);
 
   // Handle nutrition template selection
   const handleNutritionTemplateChange = (templateId: string) => {
@@ -143,12 +226,19 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
         supplements: supplements.filter((s) => s.name.trim() !== ''),
         eating_order: eatingOrder || null,
         eating_rules: eatingRules || null,
+        customer_id: selectedCustomerId || null,
+        lead_id: selectedLeadId || null,
       });
     } catch (error) {
       console.error('Error saving budget:', error);
     } finally {
       setIsSubmitting(false);
     }
+  };
+  
+  const handleCreateWorkoutPlan = () => {
+    // Open templates management in a new tab or navigate
+    window.open('/dashboard/templates', '_blank');
   };
 
   return (
@@ -182,6 +272,53 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
               className="border-slate-200"
               dir="rtl"
             />
+          </div>
+          
+          {/* Customer/Lead Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">לקוח (אופציונלי)</Label>
+              <Select
+                value={selectedCustomerId || 'none'}
+                onValueChange={(value) => {
+                  setSelectedCustomerId(value === 'none' ? null : value);
+                  setSelectedLeadId(null); // Reset lead when customer changes
+                }}
+              >
+                <SelectTrigger className="border-slate-200" dir="rtl">
+                  <SelectValue placeholder="בחר לקוח" />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  <SelectItem value="none">ללא לקוח</SelectItem>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.full_name} {customer.phone ? `(${customer.phone})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">ליד (אופציונלי)</Label>
+              <Select
+                value={selectedLeadId || 'none'}
+                onValueChange={(value) => setSelectedLeadId(value === 'none' ? null : value)}
+                disabled={!selectedCustomerId}
+              >
+                <SelectTrigger className="border-slate-200" dir="rtl" disabled={!selectedCustomerId}>
+                  <SelectValue placeholder={selectedCustomerId ? "בחר ליד" : "בחר קודם לקוח"} />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  <SelectItem value="none">ללא ליד</SelectItem>
+                  {filteredLeads.map((lead) => (
+                    <SelectItem key={lead.id} value={lead.id}>
+                      {lead.customer_name} - {lead.status_main || lead.status_sub || 'ליד חדש'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -339,8 +476,19 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
 
       {/* Workout */}
       <Card className="border border-slate-200">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 flex items-center justify-between">
           <CardTitle className="text-base font-bold">אימונים</CardTitle>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCreateWorkoutPlan}
+            className="text-xs"
+          >
+            <Plus className="h-3 w-3 ml-1" />
+            צור תכנית אימונים חדשה
+            <ExternalLink className="h-3 w-3 mr-1" />
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -354,7 +502,11 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
               </SelectTrigger>
               <SelectContent dir="rtl">
                 <SelectItem value="none">ללא תבנית</SelectItem>
-                {/* TODO: Add workout templates when available */}
+                {workoutTemplates.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    {template.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

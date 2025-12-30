@@ -14,6 +14,8 @@ import {
   useDeleteBudget,
   useCreateBudget,
   useUpdateBudget,
+  useAssignBudgetToCustomer,
+  useAssignBudgetToLead,
   type Budget,
 } from '@/hooks/useBudgets';
 import { useAppDispatch } from '@/store/hooks';
@@ -66,6 +68,8 @@ export const useBudgetManagement = () => {
   const createBudget = useCreateBudget();
   const updateBudget = useUpdateBudget();
   const deleteBudget = useDeleteBudget();
+  const assignToCustomer = useAssignBudgetToCustomer();
+  const assignToLead = useAssignBudgetToLead();
 
   // Auto-navigate to default view (only if defaultView exists)
   // If no defaultView, show all budgets (no view_id)
@@ -171,6 +175,8 @@ export const useBudgetManagement = () => {
       supplements: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
+      customer_id?: string | null;
+      lead_id?: string | null;
     }
   ) => {
     try {
@@ -179,6 +185,22 @@ export const useBudgetManagement = () => {
           budgetId: editingBudget.id,
           ...data,
         });
+        
+        // Handle assignment if customer_id or lead_id is provided
+        if ((data as any).customer_id || (data as any).lead_id) {
+          if ((data as any).customer_id) {
+            await assignToCustomer.mutateAsync({
+              budgetId: editingBudget.id,
+              customerId: (data as any).customer_id,
+            });
+          } else if ((data as any).lead_id) {
+            await assignToLead.mutateAsync({
+              budgetId: editingBudget.id,
+              leadId: (data as any).lead_id,
+            });
+          }
+        }
+        
         toast({
           title: 'הצלחה',
           description: 'התקציב עודכן בהצלחה',
@@ -186,7 +208,7 @@ export const useBudgetManagement = () => {
         setIsEditDialogOpen(false);
         setEditingBudget(null);
       } else {
-        await createBudget.mutateAsync({
+        const newBudget = await createBudget.mutateAsync({
           name: data.name!,
           description: data.description,
           nutrition_template_id: (data as any).nutrition_template_id,
@@ -199,6 +221,22 @@ export const useBudgetManagement = () => {
           eating_rules: (data as any).eating_rules,
           is_public: false,
         });
+        
+        // Handle assignment if customer_id or lead_id is provided
+        if ((data as any).customer_id || (data as any).lead_id) {
+          if ((data as any).customer_id) {
+            await assignToCustomer.mutateAsync({
+              budgetId: newBudget.id,
+              customerId: (data as any).customer_id,
+            });
+          } else if ((data as any).lead_id) {
+            await assignToLead.mutateAsync({
+              budgetId: newBudget.id,
+              leadId: (data as any).lead_id,
+            });
+          }
+        }
+        
         toast({
           title: 'הצלחה',
           description: 'התקציב נוצר בהצלחה',
