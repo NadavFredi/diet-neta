@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
 import type { Budget, BudgetAssignment, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
+import { syncPlansFromBudget } from '@/services/budgetPlanSync';
 
 // Helper function to get user ID from email
 const getUserIdFromEmail = async (email: string): Promise<string> => {
@@ -315,6 +316,16 @@ export const useAssignBudgetToLead = () => {
 
       const userId = await getUserIdFromEmail(user.email);
 
+      // Fetch the budget
+      const { data: budget, error: budgetError } = await supabase
+        .from('budgets')
+        .select('*')
+        .eq('id', budgetId)
+        .single();
+
+      if (budgetError) throw budgetError;
+      if (!budget) throw new Error('Budget not found');
+
       // Deactivate any existing active budget for this lead
       await supabase
         .from('budget_assignments')
@@ -339,10 +350,33 @@ export const useAssignBudgetToLead = () => {
         .single();
 
       if (error) throw error;
+
+      // Auto-sync plans from budget
+      try {
+        const { data: lead } = await supabase
+          .from('leads')
+          .select('customer_id')
+          .eq('id', leadId)
+          .single();
+
+        await syncPlansFromBudget({
+          budget: budget as Budget,
+          customerId: lead?.customer_id || null,
+          leadId,
+          userId,
+        });
+      } catch (syncError) {
+        console.error('Error syncing plans from budget:', syncError);
+        // Don't throw - assignment succeeded, just log the error
+      }
+
       return data as BudgetAssignment & { budget: Budget };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
     },
   });
 };
@@ -365,6 +399,16 @@ export const useAssignBudgetToCustomer = () => {
       if (!user?.email) throw new Error('User not authenticated');
 
       const userId = await getUserIdFromEmail(user.email);
+
+      // Fetch the budget
+      const { data: budget, error: budgetError } = await supabase
+        .from('budgets')
+        .select('*')
+        .eq('id', budgetId)
+        .single();
+
+      if (budgetError) throw budgetError;
+      if (!budget) throw new Error('Budget not found');
 
       // Deactivate any existing active budget for this customer
       await supabase
@@ -390,10 +434,27 @@ export const useAssignBudgetToCustomer = () => {
         .single();
 
       if (error) throw error;
+
+      // Auto-sync plans from budget
+      try {
+        await syncPlansFromBudget({
+          budget: budget as Budget,
+          customerId,
+          leadId: null,
+          userId,
+        });
+      } catch (syncError) {
+        console.error('Error syncing plans from budget:', syncError);
+        // Don't throw - assignment succeeded, just log the error
+      }
+
       return data as BudgetAssignment & { budget: Budget };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', variables.customerId] });
+      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
     },
   });
 };

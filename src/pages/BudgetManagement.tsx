@@ -176,13 +176,13 @@ const BudgetManagement = () => {
       />
 
       {/* Delete Confirmation Dialog */}
-      <DeleteBudgetDialog
-        isOpen={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        budgetToDelete={budgetToDelete}
-        isDeleting={deleteBudget.isPending}
-        onConfirm={handleConfirmDelete}
-      />
+          <DeleteBudgetDialog
+            isOpen={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            budgetToDelete={budgetToDelete}
+            isDeleting={deleteBudget.isPending}
+            onConfirm={(deletePlans) => handleConfirmDelete(deletePlans)}
+          />
 
       {/* Save View Modal */}
       <SaveViewModal

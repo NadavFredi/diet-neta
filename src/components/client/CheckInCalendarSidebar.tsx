@@ -14,7 +14,6 @@ import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import type { DailyCheckIn } from '@/store/slices/clientSlice';
-import { DayPicker } from 'react-day-picker';
 
 interface CheckInCalendarSidebarProps {
   checkIns: DailyCheckIn[];
@@ -82,28 +81,12 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
   }, [checkInDates]);
 
 
-  const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      // Normalize date to local timezone (set to midnight)
-      const normalizedDate = new Date(date);
-      normalizedDate.setHours(0, 0, 0, 0);
-      const dateStr = formatDateLocal(normalizedDate);
-      dispatch(setSelectedDate(dateStr));
-    }
-  };
-
-  // Custom day renderer to show check-in status
-  const modifiers = {
-    hasCheckIn: (date: Date) => {
-      const normalizedDate = new Date(date);
-      normalizedDate.setHours(0, 0, 0, 0);
-      const dateStr = formatDateLocal(normalizedDate);
-      return checkInDates.has(dateStr);
-    },
-  };
-
-  const modifiersClassNames = {
-    hasCheckIn: 'relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-[#5B6FB9] after:rounded-full',
+  const handleDateSelect = (date: Date) => {
+    // Normalize date to local timezone (set to midnight)
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    const dateStr = formatDateLocal(normalizedDate);
+    dispatch(setSelectedDate(dateStr));
   };
 
   // Initialize viewMonth only once on mount, don't update when selectedDate changes
@@ -117,94 +100,146 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency - only initialize once on mount
 
+  // Calculate days in month for custom calendar rendering with one week before and after
+  const daysInMonth = useMemo(() => {
+    const year = viewMonth.getFullYear();
+    const month = viewMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday (א), 6 = Saturday (ש)
+    
+    const days: Date[] = [];
+    
+    // Add one week before the month starts (exactly 7 days from previous month)
+    const prevMonth = month === 0 ? 11 : month - 1;
+    const prevYear = month === 0 ? year - 1 : year;
+    const prevMonthLastDay = new Date(prevYear, prevMonth + 1, 0).getDate();
+    
+    // Calculate how many days we need from previous month to fill the first week
+    const daysNeededBefore = startingDayOfWeek;
+    
+    // Add days from previous month (exactly the days needed, up to 7)
+    for (let i = daysNeededBefore - 1; i >= 0; i--) {
+      const day = prevMonthLastDay - i;
+      days.push(new Date(prevYear, prevMonth, day));
+    }
+    
+    // Add all days in the current month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day));
+    }
+    
+    // Add one week after the month ends (exactly 7 days from next month)
+    const nextMonth = month === 11 ? 0 : month + 1;
+    const nextYear = month === 11 ? year + 1 : year;
+    const totalDays = days.length;
+    const daysNeededAfter = 7 - (totalDays % 7);
+    
+    // Add exactly the days needed to complete the last week (max 7 days)
+    for (let day = 1; day <= Math.min(daysNeededAfter, 7); day++) {
+      days.push(new Date(nextYear, nextMonth, day));
+    }
+    
+    return days;
+  }, [viewMonth]);
+
+  // Hebrew day labels (א-ש)
+  const hebrewDays = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+
   return (
     <div className="flex flex-col h-full overflow-hidden" dir="rtl">
-      {/* Calendar - Compact */}
-      <div className="bg-white overflow-hidden flex-shrink-0 p-1.5 pt-1 pb-1.5">
-        <h3 className="text-[9px] uppercase tracking-wide text-black font-bold mb-0.5">לוח שנה</h3>
-        <div className="overflow-hidden w-full">
-          <DayPicker
-            key={`calendar-${viewMonth.getFullYear()}-${viewMonth.getMonth()}`}
-            mode="single"
-            selected={selectedDateObj}
-            onSelect={handleDateSelect}
-            locale={he}
-            modifiers={modifiers}
-            modifiersClassNames={modifiersClassNames}
-            showOutsideDays={true}
-            fixedWeeks={true}
-            month={viewMonth}
-            numberOfMonths={1}
-            className="rounded-md border-0 w-full p-0"
-            classNames={{
-              months: "flex flex-col space-y-0.5 w-full",
-              month: "space-y-0.5 w-full",
-              caption: "flex justify-center pt-0 pb-0.5 relative items-center mb-0.5",
-              caption_label: "text-[10px] font-medium text-black",
-              nav: "space-x-0.5 flex items-center",
-              nav_button: "h-2.5 w-2.5 bg-transparent p-0 opacity-50 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded",
-              nav_button_previous: "absolute left-0.5",
-              nav_button_next: "absolute right-0.5",
-              table: "w-full border-collapse",
-              head_row: "flex w-full",
-              head_cell: "text-slate-500 rounded-md font-normal text-[0.55rem] flex-1 text-center min-w-0",
-              row: "flex w-full mt-0.5",
-              cell: "h-3 w-3 text-center text-[0.6rem] p-0 relative flex-1 min-w-0 flex items-center justify-center",
-              day: "h-3 w-3 p-0 font-normal aria-selected:opacity-100 hover:bg-slate-100 rounded-md text-[0.6rem] flex items-center justify-center w-full h-full text-black [&>span]:text-black",
-              day_selected: "bg-[#5B6FB9] hover:bg-[#5B6FB9] focus:bg-[#5B6FB9] text-white !text-white font-semibold [&>span]:!text-white [&>span]:!font-semibold [&_*]:!text-white",
-              day_today: "bg-slate-100 text-black font-semibold",
-              day_outside: "text-slate-400 opacity-50",
-              day_disabled: "text-slate-300 opacity-50",
+      {/* Calendar - Professional Grid */}
+      <div className="bg-white overflow-hidden flex-shrink-0 p-3 pt-2 pb-2">
+        <h3 className="text-xs uppercase tracking-wide text-black font-bold mb-2 text-center">לוח שנה</h3>
+        
+        {/* Month Header */}
+        <div className="flex justify-center items-center relative mb-1.5 pb-1.5 border-b border-slate-200">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const prevMonth = new Date(viewMonth);
+              prevMonth.setMonth(prevMonth.getMonth() - 1);
+              setViewMonth(prevMonth);
             }}
-            components={{
-              IconLeft: () => <ChevronLeft className="h-1.5 w-1.5" />,
-              IconRight: () => <ChevronRight className="h-1.5 w-1.5" />,
-              Caption: ({ displayMonth: _displayMonth }) => {
-                // Show the viewMonth name instead of the display month
-                return (
-                  <div className="flex justify-center pt-0 pb-0.5 relative items-center mb-0.5">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const prevMonth = new Date(viewMonth);
-                        prevMonth.setMonth(prevMonth.getMonth() - 1);
-                        setViewMonth(prevMonth);
-                      }}
-                      className="absolute left-0.5 h-2.5 w-2.5 bg-transparent p-0 opacity-50 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded flex items-center justify-center transition-all"
-                    >
-                      <ChevronLeft className="h-1.5 w-1.5" />
-                    </button>
-                    <div className="text-[10px] font-medium text-black">
-                      {format(viewMonth, 'MMMM yyyy', { locale: he })}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const nextMonth = new Date(viewMonth);
-                        nextMonth.setMonth(nextMonth.getMonth() + 1);
-                        setViewMonth(nextMonth);
-                      }}
-                      className="absolute right-0.5 h-2.5 w-2.5 bg-transparent p-0 opacity-50 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded flex items-center justify-center transition-all"
-                    >
-                      <ChevronRight className="h-1.5 w-1.5" />
-                    </button>
-                  </div>
-                );
-              },
+            className="absolute left-0 h-5 w-5 bg-transparent p-0 opacity-60 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded flex items-center justify-center transition-all"
+          >
+            <ChevronLeft className="h-2.5 w-2.5" />
+          </button>
+          <div className="text-xs font-medium text-black">
+            {format(viewMonth, 'MMMM yyyy', { locale: he })}
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const nextMonth = new Date(viewMonth);
+              nextMonth.setMonth(nextMonth.getMonth() + 1);
+              setViewMonth(nextMonth);
             }}
-          />
+            className="absolute right-0 h-5 w-5 bg-transparent p-0 opacity-60 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded flex items-center justify-center transition-all"
+          >
+            <ChevronRight className="h-2.5 w-2.5" />
+          </button>
+        </div>
+
+        {/* Day Headers - 7 Column Grid */}
+        <div className="grid grid-cols-7 gap-0.5 mb-1">
+          {hebrewDays.map((day) => (
+            <div
+              key={day}
+              className="aspect-square flex items-center justify-center"
+            >
+              <span className="text-[9px] font-bold text-slate-600">
+                {day}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Grid - 7 Columns, Shows one week before and after */}
+        <div className="grid grid-cols-7 gap-0.5">
+          {daysInMonth.map((date, index) => {
+            const dateStr = formatDateLocal(date);
+            const isSelected = selectedDate === dateStr;
+            const todayStr = formatDateLocal(today);
+            const isToday = dateStr === todayStr;
+            const hasCheckIn = checkInDates.has(dateStr);
+            const isOutsideMonth = date.getMonth() !== viewMonth.getMonth();
+            
+            return (
+              <button
+                key={`${dateStr}-${index}`}
+                type="button"
+                onClick={() => handleDateSelect(date)}
+                className={cn(
+                  "aspect-square flex items-center justify-center rounded-full transition-all",
+                  "text-[10px] font-medium",
+                  isSelected
+                    ? "bg-[#5B6FB9] text-white shadow-md ring-2 ring-[#5B6FB9]/30"
+                    : isToday
+                    ? "bg-slate-100 text-black font-semibold hover:bg-slate-200"
+                    : isOutsideMonth
+                    ? "text-slate-400 hover:bg-slate-50 opacity-60"
+                    : "text-slate-700 hover:bg-slate-50",
+                  hasCheckIn && !isSelected && "relative after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-[#5B6FB9] after:rounded-full"
+                )}
+              >
+                {date.getDate()}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* History Section */}
-      <div className="bg-white flex-1 flex flex-col overflow-hidden">
-        <div className="px-2 pt-2 pb-3 flex flex-col h-full">
-          {/* Header */}
-          <h3 className="text-xs uppercase tracking-widest text-black font-bold mb-1.5">היסטוריה</h3>
+      <div className="bg-white flex-1 flex flex-col overflow-hidden border-t border-slate-200">
+        <div className="px-3 pt-2 pb-3 flex flex-col h-full">
+          {/* Header - Aligned with calendar grid */}
+          <h3 className="text-xs uppercase tracking-wide text-black font-bold mb-2 text-center">היסטוריה</h3>
           
           {/* History List */}
           <div className="space-y-1.5">
