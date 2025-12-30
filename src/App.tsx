@@ -17,6 +17,7 @@ import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.t
 import BudgetManagement from "./pages/BudgetManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
+import { CheckInSettingsPage } from "./pages/CheckInSettingsPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ClientDashboard from "./pages/client/ClientDashboard.tsx";
 import { InviteAccept } from "./pages/InviteAccept.tsx";
@@ -74,6 +75,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <BudgetManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/check-in-settings"
+            element={
+              <ProtectedRoute>
+                <CheckInSettingsPage />
               </ProtectedRoute>
             }
           />

@@ -69,8 +69,19 @@ export const ClientDashboardView: React.FC = () => {
   }, [selectedDate, dispatch]);
 
   // Fetch workout and nutrition plans for customer
-  const { workoutPlan, createWorkoutPlan, fetchWorkoutPlan } = useWorkoutPlan(customer?.id || null);
-  const { nutritionPlan, createNutritionPlan, fetchNutritionPlan } = useNutritionPlan(customer?.id || null);
+  const { workoutPlan, createWorkoutPlan, fetchWorkoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customer?.id || null);
+  const { nutritionPlan, createNutritionPlan, fetchNutritionPlan, isLoading: isLoadingNutritionPlan } = useNutritionPlan(customer?.id || null);
+
+  // Debug: Log nutrition plan data
+  useEffect(() => {
+    if (customer?.id) {
+      console.log('[ClientDashboard] Nutrition Plan Data:', {
+        customerId: customer.id,
+        nutritionPlan,
+        isLoadingNutritionPlan,
+      });
+    }
+  }, [customer?.id, nutritionPlan, isLoadingNutritionPlan]);
 
   // Set up polling for data sync (every 5 minutes)
   useClientRealtime(customer?.id || null);
@@ -183,9 +194,9 @@ export const ClientDashboardView: React.FC = () => {
   const dailyProtocol = activeLead?.daily_protocol || {};
 
   return (
-    <div className="bg-gray-50 flex flex-col min-h-screen" dir="rtl">
+    <div className="bg-[#F8FAFC] flex flex-col min-h-screen" dir="rtl">
       {/* Fixed Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm flex-shrink-0">
+      <div className="bg-white border-b border-[#E2E8F0] sticky top-0 z-20 shadow-sm flex-shrink-0">
         <div className="w-full px-8 xl:px-12 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -194,7 +205,9 @@ export const ClientDashboardView: React.FC = () => {
                 variant="default"
                 className="rounded-none border-0 p-0"
               />
-              <h1 className="text-2xl font-bold text-slate-900">{greeting}</h1>
+              <h1 className="text-2xl font-bold text-[#334155]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                {greeting}
+              </h1>
             </div>
             {/* Show Exit Impersonation button if admin is impersonating, otherwise show Logout */}
             {isImpersonating ? (
@@ -234,9 +247,11 @@ export const ClientDashboardView: React.FC = () => {
       {/* Main Layout: Sidebar + Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Vertical Navigation Sidebar */}
-        <div className="w-64 bg-white border-l border-slate-200 flex-shrink-0 flex flex-col">
-          <div className="p-4 border-b border-slate-200">
-            <h2 className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3">ניווט</h2>
+        <div className="w-64 bg-white border-l border-[#E2E8F0] flex-shrink-0 flex flex-col">
+          <div className="p-4 border-b border-[#E2E8F0]">
+            <h2 className="text-xs uppercase tracking-wider text-[#64748B] font-semibold mb-3" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+              ניווט
+            </h2>
           </div>
           <nav className="flex-1 p-2">
             <button
@@ -280,74 +295,81 @@ export const ClientDashboardView: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto">
-          <div className="w-full px-8 xl:px-12 py-6">
+          <div className="w-full px-6 xl:px-8 py-2">
             {/* 7-Day Averages Header - Premium Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="p-4 border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-[#5B6FB9]/10 flex items-center justify-center flex-shrink-0">
-                  <Activity className="h-6 w-6 text-[#5B6FB9]" />
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <Card className="p-3 border border-[#E2E8F0] bg-white shadow-sm rounded-xl">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Activity className="h-4 w-4 text-[#5B6FB9] flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-[#334155] truncate" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                        תרגילים
+                      </div>
+                      <div className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                        ממוצע 7 ימים
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-1 flex-shrink-0">
+                    <div className="text-xl font-bold text-[#334155] leading-none" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      {sevenDayAverages.exercises.toFixed(1)}
+                    </div>
+                    <span className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      /יום
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm uppercase tracking-widest text-black font-bold">תרגילים</div>
-                  <div className="text-xs text-black">ממוצע - 7 ימים אחרונים</div>
-                </div>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <div 
-                  className="text-3xl font-bold transition-all duration-300 ease-out leading-none"
-                  style={{ 
-                    color: sevenDayAverages.exercises > 0 ? '#5B6FB9' : '#000000',
-                  }}
-                >
-                  {sevenDayAverages.exercises.toFixed(1)}
-                </div>
-                <span className="text-sm text-black font-medium">/יום</span>
-              </div>
-            </div>
-          </Card>
+              </Card>
 
-          <Card className="p-4 border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-[#5B6FB9]/10 flex items-center justify-center flex-shrink-0">
-                  <Footprints className="h-6 w-6 text-[#5B6FB9]" />
+              <Card className="p-3 border border-[#E2E8F0] bg-white shadow-sm rounded-xl">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Footprints className="h-4 w-4 text-[#5B6FB9] flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-[#334155] truncate" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                        צעדים
+                      </div>
+                      <div className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                        ממוצע 7 ימים
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-1 flex-shrink-0">
+                    <div className="text-xl font-bold text-[#334155] leading-none" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      {sevenDayAverages.steps.toLocaleString()}
+                    </div>
+                    <span className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      צעדים
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm uppercase tracking-widest text-black font-bold">צעדים</div>
-                  <div className="text-xs text-black">ממוצע - 7 ימים אחרונים</div>
-                </div>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <div className="text-3xl font-bold text-black transition-all duration-300 leading-none">
-                  {sevenDayAverages.steps.toLocaleString()}
-                </div>
-                <span className="text-sm text-black font-medium">צעדים</span>
-              </div>
-            </div>
-          </Card>
+              </Card>
 
-          <Card className="p-4 border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-[#5B6FB9]/10 flex items-center justify-center flex-shrink-0">
-                  <UtensilsCrossed className="h-6 w-6 text-[#5B6FB9]" />
+              <Card className="p-3 border border-[#E2E8F0] bg-white shadow-sm rounded-xl">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <UtensilsCrossed className="h-4 w-4 text-[#5B6FB9] flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-[#334155] truncate" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                        תזונה
+                      </div>
+                      <div className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                        ממוצע 7 ימים
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-1 flex-shrink-0">
+                    <div className="text-xl font-bold text-[#334155] leading-none" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      {sevenDayAverages.nutrition.toLocaleString()}
+                    </div>
+                    <span className="text-[10px] text-[#64748B]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                      קק״ל
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm uppercase tracking-widest text-black font-bold">תזונה</div>
-                  <div className="text-xs text-black">ממוצע - 7 ימים אחרונים</div>
-                </div>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <div className="text-3xl font-bold text-black transition-all duration-300 leading-none">
-                  {sevenDayAverages.nutrition.toLocaleString()}
-                </div>
-                <span className="text-sm text-black font-medium">קק״ל</span>
-              </div>
+              </Card>
             </div>
-          </Card>
-        </div>
 
             {/* Content based on active tab */}
             {activeTab === 'workout' && (
@@ -379,7 +401,14 @@ export const ClientDashboardView: React.FC = () => {
 
             {activeTab === 'nutrition' && (
               <div className="space-y-6">
-                {nutritionPlan ? (
+                {isLoadingNutritionPlan ? (
+                  <Card className="border border-slate-200 shadow-sm">
+                    <CardContent className="p-12 text-center">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#5B6FB9] mb-4"></div>
+                      <p className="text-base font-medium text-gray-500">טוען תוכנית תזונה...</p>
+                    </CardContent>
+                  </Card>
+                ) : nutritionPlan ? (
                   <NutritionPlanCard
                     nutritionPlan={nutritionPlan}
                     isEditable={false}
@@ -388,12 +417,18 @@ export const ClientDashboardView: React.FC = () => {
                   <Card className="border border-slate-200 shadow-sm">
                     <CardContent className="p-12 text-center">
                       <Flame className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <p className="text-base font-medium text-gray-500 mb-6">
+                      <p className="text-base font-medium text-gray-500 mb-2">
                         אין תוכנית תזונה פעילה
                       </p>
+                      <p className="text-sm text-gray-400 mb-6">
+                        צור תוכנית תזונה חדשה עבור הלקוח
+                      </p>
                       <Button
-                        onClick={() => setIsNutritionPlanDialogOpen(true)}
-                        className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+                        onClick={() => {
+                          console.log('[ClientDashboard] Opening nutrition plan dialog for customer:', customer?.id);
+                          setIsNutritionPlanDialogOpen(true);
+                        }}
+                        className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white shadow-sm"
                       >
                         <Flame className="h-4 w-4 ml-2" />
                         צור תוכנית תזונה
@@ -405,17 +440,17 @@ export const ClientDashboardView: React.FC = () => {
             )}
 
             {activeTab === 'checkin' && (
-              <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-280px)]" dir="rtl">
-                {/* Calendar Sidebar - Right Side (20-25% width on desktop) - First in RTL = Right side */}
-                <div className="flex-shrink-0 flex flex-col lg:w-[25%] hidden lg:flex">
-                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
+              <div className="flex flex-col lg:flex-row gap-3 h-[calc(100vh-200px)]" dir="rtl">
+                {/* Calendar Sidebar - Right Side (20% width on desktop) - First in RTL = Right side */}
+                <div className="flex-shrink-0 flex flex-col lg:w-[20%] hidden lg:flex">
+                  <div className="bg-white border border-slate-200 rounded-lg shadow-none overflow-hidden flex-1 flex flex-col">
                     <CheckInCalendarSidebar checkIns={checkIns} />
                   </div>
                 </div>
 
-                {/* Main Content - Daily Report (75-80% width on desktop) - Second in RTL = Left side */}
-                <div className="flex-1 flex flex-col min-w-0 lg:w-[75%]">
-                  <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex-1 flex flex-col">
+                {/* Main Content - Daily Report (80% width on desktop) - Second in RTL = Left side */}
+                <div className="flex-1 flex flex-col min-w-0 lg:w-[80%]">
+                  <div className="bg-white border border-slate-200 rounded-lg shadow-none overflow-hidden flex-1 flex flex-col">
                     <DailyCheckInView 
                       customerId={customer.id} 
                       onMultiDayClick={() => setIsMultiDayModalOpen(true)}
