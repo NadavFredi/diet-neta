@@ -119,9 +119,9 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
 
   return (
     <div className="flex flex-col h-full overflow-hidden" dir="rtl">
-      {/* Calendar - Fixed Size */}
-      <div className="bg-white overflow-hidden flex-shrink-0 p-3 pt-2 pb-3">
-        <h3 className="text-sm uppercase tracking-widest text-black font-bold mb-2">לוח שנה</h3>
+      {/* Calendar - Compact */}
+      <div className="bg-white overflow-hidden flex-shrink-0 p-1.5 pt-1 pb-1.5">
+        <h3 className="text-[9px] uppercase tracking-wide text-black font-bold mb-0.5">לוח שנה</h3>
         <div className="overflow-hidden w-full">
           <DayPicker
             key={`calendar-${viewMonth.getFullYear()}-${viewMonth.getMonth()}`}
@@ -137,32 +137,32 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
             numberOfMonths={1}
             className="rounded-md border-0 w-full p-0"
             classNames={{
-              months: "flex flex-col space-y-1 w-full",
-              month: "space-y-1 w-full",
-              caption: "flex justify-center pt-0 pb-1 relative items-center mb-1",
-              caption_label: "text-sm font-medium text-black",
-              nav: "space-x-1 flex items-center",
-              nav_button: "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded",
-              nav_button_previous: "absolute left-1",
-              nav_button_next: "absolute right-1",
+              months: "flex flex-col space-y-0.5 w-full",
+              month: "space-y-0.5 w-full",
+              caption: "flex justify-center pt-0 pb-0.5 relative items-center mb-0.5",
+              caption_label: "text-[10px] font-medium text-black",
+              nav: "space-x-0.5 flex items-center",
+              nav_button: "h-2.5 w-2.5 bg-transparent p-0 opacity-50 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded",
+              nav_button_previous: "absolute left-0.5",
+              nav_button_next: "absolute right-0.5",
               table: "w-full border-collapse",
               head_row: "flex w-full",
-              head_cell: "text-slate-500 rounded-md font-normal text-[0.7rem] flex-1 text-center min-w-0",
+              head_cell: "text-slate-500 rounded-md font-normal text-[0.55rem] flex-1 text-center min-w-0",
               row: "flex w-full mt-0.5",
-              cell: "h-7 w-7 text-center text-xs p-0 relative flex-1 min-w-0 flex items-center justify-center",
-              day: "h-7 w-7 p-0 font-normal aria-selected:opacity-100 hover:bg-slate-100 rounded-md text-xs flex items-center justify-center w-full h-full text-black [&>span]:text-black",
+              cell: "h-3 w-3 text-center text-[0.6rem] p-0 relative flex-1 min-w-0 flex items-center justify-center",
+              day: "h-3 w-3 p-0 font-normal aria-selected:opacity-100 hover:bg-slate-100 rounded-md text-[0.6rem] flex items-center justify-center w-full h-full text-black [&>span]:text-black",
               day_selected: "bg-[#5B6FB9] hover:bg-[#5B6FB9] focus:bg-[#5B6FB9] text-white !text-white font-semibold [&>span]:!text-white [&>span]:!font-semibold [&_*]:!text-white",
               day_today: "bg-slate-100 text-black font-semibold",
               day_outside: "text-slate-400 opacity-50",
               day_disabled: "text-slate-300 opacity-50",
             }}
             components={{
-              IconLeft: () => <ChevronLeft className="h-4 w-4" />,
-              IconRight: () => <ChevronRight className="h-4 w-4" />,
+              IconLeft: () => <ChevronLeft className="h-1.5 w-1.5" />,
+              IconRight: () => <ChevronRight className="h-1.5 w-1.5" />,
               Caption: ({ displayMonth: _displayMonth }) => {
                 // Show the viewMonth name instead of the display month
                 return (
-                  <div className="flex justify-center pt-0 pb-1 relative items-center mb-1">
+                  <div className="flex justify-center pt-0 pb-0.5 relative items-center mb-0.5">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -172,11 +172,11 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
                         prevMonth.setMonth(prevMonth.getMonth() - 1);
                         setViewMonth(prevMonth);
                       }}
-                      className="absolute left-1 h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded flex items-center justify-center transition-all"
+                      className="absolute left-0.5 h-2.5 w-2.5 bg-transparent p-0 opacity-50 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded flex items-center justify-center transition-all"
                     >
-                      <ChevronLeft className="h-4 w-4" />
+                      <ChevronLeft className="h-1.5 w-1.5" />
                     </button>
-                    <div className="text-sm font-medium text-black">
+                    <div className="text-[10px] font-medium text-black">
                       {format(viewMonth, 'MMMM yyyy', { locale: he })}
                     </div>
                     <button
@@ -188,9 +188,9 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
                         nextMonth.setMonth(nextMonth.getMonth() + 1);
                         setViewMonth(nextMonth);
                       }}
-                      className="absolute right-1 h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded flex items-center justify-center transition-all"
+                      className="absolute right-0.5 h-2.5 w-2.5 bg-transparent p-0 opacity-50 hover:opacity-100 border border-slate-200 hover:border-[#5B6FB9] rounded flex items-center justify-center transition-all"
                     >
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-1.5 w-1.5" />
                     </button>
                   </div>
                 );
@@ -202,12 +202,12 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
 
       {/* History Section */}
       <div className="bg-white flex-1 flex flex-col overflow-hidden">
-        <div className="px-3 pt-3 pb-4 flex flex-col h-full">
+        <div className="px-2 pt-2 pb-3 flex flex-col h-full">
           {/* Header */}
-          <h3 className="text-sm uppercase tracking-widest text-black font-bold mb-2">היסטוריה</h3>
+          <h3 className="text-xs uppercase tracking-widest text-black font-bold mb-1.5">היסטוריה</h3>
           
           {/* History List */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {recentCheckIns.map((item) => {
               const dateObj = parseDateLocal(item.date);
               const isSelected = selectedDate === item.date;
@@ -219,20 +219,20 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
                   key={item.date}
                   onClick={() => dispatch(setSelectedDate(item.date))}
                   className={cn(
-                    "w-full flex items-center justify-between p-2 rounded-md border transition-colors text-right",
+                    "w-full flex items-center justify-between p-1.5 rounded-md border transition-colors text-right",
                     isSelected
                       ? "bg-[#5B6FB9] text-white border-[#5B6FB9]"
                       : "bg-white hover:bg-slate-50 border-slate-200 text-black"
                   )}
                   dir="rtl"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {item.hasCheckIn ? (
-                      <CheckCircle2 className={cn("h-4 w-4 flex-shrink-0", isSelected ? "text-white" : "text-[#5B6FB9]")} />
+                      <CheckCircle2 className={cn("h-3.5 w-3.5 flex-shrink-0", isSelected ? "text-white" : "text-[#5B6FB9]")} />
                     ) : (
-                      <Circle className={cn("h-4 w-4 flex-shrink-0", isSelected ? "text-white/50" : "text-slate-300")} />
+                      <Circle className={cn("h-3.5 w-3.5 flex-shrink-0", isSelected ? "text-white/50" : "text-slate-300")} />
                     )}
-                    <span className={cn("text-sm font-medium", isToday && !isSelected && "font-bold")}>
+                    <span className={cn("text-xs font-medium", isToday && !isSelected && "font-bold")}>
                       {format(dateObj, 'd בMMMM', { locale: he })}
                       {isToday && ' (היום)'}
                     </span>
@@ -246,4 +246,3 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
     </div>
   );
 };
-

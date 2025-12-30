@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, Apple, Calculator } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Apple, Calculator, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection } from '@/store/slices/sidebarSlice';
@@ -54,6 +54,13 @@ const navigationItems: NavItem[] = [
     label: 'תקציבים',
     icon: Calculator,
     path: '/dashboard/budgets',
+  },
+  {
+    id: 'check-in-settings',
+    resourceKey: 'check_in_settings',
+    label: 'הגדרות צ\'ק-אין',
+    icon: Settings,
+    path: '/dashboard/check-in-settings',
   },
 ];
 

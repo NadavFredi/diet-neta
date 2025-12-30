@@ -30,14 +30,15 @@ import { useAppSelector } from '@/store/hooks';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useCheckInFieldConfigurations } from '@/hooks/useCheckInFieldConfigurations';
 
 interface DailyCheckInViewProps {
   customerId: string | null;
   onMultiDayClick?: () => void;
 }
 
-// Lead Page Style Input Cell - Using same component style as lead page body
-const LeadStyleInputCell = React.forwardRef<HTMLInputElement, {
+// Ultra-Compact Horizontal Input Cell - Label and Input on same line (Bigger text)
+const CompactInputCell = React.forwardRef<HTMLInputElement, {
   label: string;
   value: number | null;
   onChange: (value: number | null) => void;
@@ -48,11 +49,11 @@ const LeadStyleInputCell = React.forwardRef<HTMLInputElement, {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }>(({ label, value, onChange, suffix, min, max, step = 1, onKeyDown }, ref) => {
   return (
-    <div className="flex flex-col gap-1.5 py-0.5 min-w-0 w-full text-right" dir="rtl">
-      <Label className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>
-        {label}:
-      </Label>
-      <div className="flex items-center gap-2 min-w-0 w-full relative">
+    <div className="flex items-center justify-between gap-2 py-1.5 px-2 border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-w-0" dir="rtl">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <Label className="text-sm text-slate-700 font-medium flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px', fontWeight: 500 }}>
+          {label}:
+        </Label>
         <Input
           ref={ref}
           type="number"
@@ -66,10 +67,10 @@ const LeadStyleInputCell = React.forwardRef<HTMLInputElement, {
           max={max}
           step={step}
           className={cn(
-            "h-8 text-sm px-3 pr-3 flex-1",
-            "border-2 border-slate-200 focus:border-[#5B6FB9] focus-visible:ring-2 focus-visible:ring-[#5B6FB9]/20",
-            "transition-all duration-200",
-            "bg-white font-semibold text-slate-900"
+            "h-7 text-sm px-2 flex-1 max-w-[120px]",
+            "border-0 border-b border-slate-200 focus:border-[#5B6FB9] focus:ring-0 focus-visible:ring-0",
+            "transition-all duration-150",
+            "bg-transparent font-semibold text-slate-900 p-0"
           )}
           style={{ 
             fontSize: '14px', 
@@ -79,17 +80,17 @@ const LeadStyleInputCell = React.forwardRef<HTMLInputElement, {
           dir="ltr"
           placeholder="—"
         />
-        <span className="text-xs text-gray-500 flex-shrink-0 font-medium" style={{ fontSize: '12px' }}>
+        <span className="text-xs text-slate-500 flex-shrink-0 font-medium">
           {suffix}
         </span>
       </div>
     </div>
   );
 });
-LeadStyleInputCell.displayName = 'LeadStyleInputCell';
+CompactInputCell.displayName = 'CompactInputCell';
 
-// Lead Page Style Slider - Matching lead page body style
-const LeadStyleSlider: React.FC<{
+// Ultra-Compact Horizontal Slider - Label, Slider, and Value on same line (Bigger text)
+const CompactSlider: React.FC<{
   label: string;
   value: number | null;
   onChange: (value: number | null) => void;
@@ -99,26 +100,26 @@ const LeadStyleSlider: React.FC<{
   const sliderValue = value ?? 5;
   
   return (
-    <div className="flex flex-col gap-1.5 py-0.5 min-w-0 w-full text-right" dir="rtl">
-      <Label className="text-xs text-gray-500 font-medium flex-shrink-0" style={{ fontSize: '12px', fontWeight: 500 }}>
-        {label}:
-      </Label>
-      <div className="flex items-center gap-2 min-w-0 w-full relative">
-        <div className="flex-1 relative">
+    <div className="flex items-center justify-between gap-2 py-1.5 px-2 border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-w-0" dir="rtl">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <Label className="text-sm text-slate-700 font-medium flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px', fontWeight: 500 }}>
+          {label}:
+        </Label>
+        <div className="flex-1 relative min-w-0">
           <Slider
             value={[sliderValue]}
             onValueChange={([val]) => onChange(val)}
             min={min}
             max={max}
             step={1}
-            className="h-2 [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:border-2 [&_[role=slider]]:border-[#5B6FB9] [&_[role=slider]]:shadow-md"
+            className="h-1.5 [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:border-2 [&_[role=slider]]:border-[#5B6FB9] [&_[role=slider]]:shadow-sm"
           />
         </div>
         <span 
-          className="text-sm font-semibold text-slate-900 flex-shrink-0" 
+          className="text-sm font-bold text-slate-900 flex-shrink-0" 
           style={{ 
             fontSize: '14px', 
-            fontWeight: 600,
+            fontWeight: 700,
             minWidth: '24px',
             textAlign: 'center'
           }}
@@ -141,6 +142,9 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
   } = useDailyCheckIn(customerId, selectedDate);
 
   const { activeLead } = useAppSelector((state) => state.client);
+  
+  // Fetch check-in field configuration
+  const { configuration: fieldConfig, isLoading: isLoadingConfig } = useCheckInFieldConfigurations(customerId);
 
   // All 19 Fields State
   // Physical (6)
@@ -177,8 +181,18 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
   // Notes
   const [notes, setNotes] = useState<string>('');
 
-  // Accordion state - all expanded by default
-  const [openAccordions, setOpenAccordions] = useState<string[]>(['body', 'activity', 'nutrition', 'wellness']);
+  // Accordion state - all visible sections expanded by default
+  const [openAccordions, setOpenAccordions] = useState<string[]>([]);
+  
+  // Initialize open accordions based on visible sections
+  useEffect(() => {
+    if (fieldConfig && !isLoadingConfig) {
+      const visibleSections = Object.entries(fieldConfig.sections)
+        .filter(([_, section]) => section.visible)
+        .map(([key]) => key);
+      setOpenAccordions(visibleSections);
+    }
+  }, [fieldConfig, isLoadingConfig]);
 
   // Input refs for Enter key navigation
   const inputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
@@ -293,7 +307,7 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
     });
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingConfig) {
     return (
       <div className="h-screen flex items-center justify-center bg-white" dir="rtl">
         <div className="text-center">
@@ -310,308 +324,324 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
 
   return (
     <div className="flex flex-col bg-white h-full" dir="rtl">
-      {/* Fixed Header with Buttons */}
-      <div className="px-4 py-2.5 border-b border-slate-200 bg-white flex-shrink-0 sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <h1 className="text-base font-semibold text-black">דיווח יומי - {displayDate}</h1>
-          <div className="flex items-center gap-2">
+      {/* Ultra-Compact Sticky Header */}
+      <div className="px-3 py-1.5 border-b border-slate-200 bg-white flex-shrink-0 sticky top-0 z-10">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-sm font-semibold text-black truncate">דיווח יומי - {displayDate}</h1>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {onMultiDayClick && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onMultiDayClick}
-                className="text-xs border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-8 px-3"
+                className="text-[10px] border-slate-200 bg-white text-slate-600 hover:bg-slate-50 h-6 px-2"
               >
-                דיווח מרובה ימים
+                דיווח מרובה
               </Button>
             )}
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting || !isFormValid}
-              className="h-8 text-xs px-4 font-semibold bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white disabled:opacity-50 shadow-sm"
+              className="h-6 text-[10px] px-2.5 font-semibold bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white disabled:opacity-50"
             >
-              {isSubmitting ? 'שומר...' : 'שמור דיווח'}
+              {isSubmitting ? 'שומר...' : 'שמור'}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Main Content - Accordions */}
-      <div className="px-4 pt-3 pb-4 flex-1 overflow-y-auto min-h-0">
+      {/* Main Content - Ultra-Compact Accordions */}
+      <div className="px-2 pt-1.5 pb-2 flex-1 overflow-y-auto min-h-0">
         <Accordion 
           type="multiple" 
           value={openAccordions} 
           onValueChange={setOpenAccordions}
-          className="space-y-2"
+          className="space-y-1"
         >
-          {/* מדדי גוף - Physical Measurements */}
-          <AccordionItem value="body" className="border border-slate-200 rounded-md bg-white overflow-hidden">
-            <AccordionTrigger className="px-3 py-2 hover:no-underline bg-white hover:bg-gray-50 transition-colors duration-200">
-              <div className="flex items-center gap-2">
-                <Scale className="h-4 w-4 text-[#5B6FB9]" />
-                <span className="text-xs uppercase tracking-wider text-black font-semibold">מדדי גוף</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-3 pb-3 bg-white">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[0] = el)}
-                    label="משקל"
-                    value={weight}
-                    onChange={setWeight}
-                    suffix="ק״ג"
-                    min={0}
-                    step={0.1}
-                    onKeyDown={handleKeyDown(0)}
-                  />
+          {/* Render sections dynamically based on configuration */}
+          {fieldConfig.sections.body.visible && (
+            <AccordionItem value="body" className="border border-slate-200 rounded-sm bg-white overflow-hidden">
+              <AccordionTrigger className="px-2 py-1.5 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <Scale className="h-4 w-4 text-[#5B6FB9]" />
+                  <span className="text-xs uppercase tracking-wide text-black font-semibold">
+                    {fieldConfig.sections.body.label}
+                  </span>
                 </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[1] = el)}
-                    label="היקף בטן"
-                    value={bellyCircumference}
-                    onChange={setBellyCircumference}
-                    suffix="ס״מ"
-                    min={0}
-                    onKeyDown={handleKeyDown(1)}
-                  />
+              </AccordionTrigger>
+              <AccordionContent className="px-1 pb-1 bg-white">
+                <div className="grid grid-cols-2 gap-0.5">
+                  {fieldConfig.fields.weight.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[0] = el)}
+                      label={fieldConfig.fields.weight.label}
+                      value={weight}
+                      onChange={setWeight}
+                      suffix={fieldConfig.fields.weight.unit || 'ק״ג'}
+                      min={0}
+                      step={0.1}
+                      onKeyDown={handleKeyDown(0)}
+                    />
+                  )}
+                  {fieldConfig.fields.bellyCircumference.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[1] = el)}
+                      label={fieldConfig.fields.bellyCircumference.label}
+                      value={bellyCircumference}
+                      onChange={setBellyCircumference}
+                      suffix={fieldConfig.fields.bellyCircumference.unit || 'ס״מ'}
+                      min={0}
+                      onKeyDown={handleKeyDown(1)}
+                    />
+                  )}
+                  {fieldConfig.fields.waistCircumference.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[2] = el)}
+                      label={fieldConfig.fields.waistCircumference.label}
+                      value={waistCircumference}
+                      onChange={setWaistCircumference}
+                      suffix={fieldConfig.fields.waistCircumference.unit || 'ס״מ'}
+                      min={0}
+                      onKeyDown={handleKeyDown(2)}
+                    />
+                  )}
+                  {fieldConfig.fields.thighCircumference.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[3] = el)}
+                      label={fieldConfig.fields.thighCircumference.label}
+                      value={thighCircumference}
+                      onChange={setThighCircumference}
+                      suffix={fieldConfig.fields.thighCircumference.unit || 'ס״מ'}
+                      min={0}
+                      onKeyDown={handleKeyDown(3)}
+                    />
+                  )}
+                  {fieldConfig.fields.armCircumference.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[4] = el)}
+                      label={fieldConfig.fields.armCircumference.label}
+                      value={armCircumference}
+                      onChange={setArmCircumference}
+                      suffix={fieldConfig.fields.armCircumference.unit || 'ס״מ'}
+                      min={0}
+                      onKeyDown={handleKeyDown(4)}
+                    />
+                  )}
+                  {fieldConfig.fields.neckCircumference.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[5] = el)}
+                      label={fieldConfig.fields.neckCircumference.label}
+                      value={neckCircumference}
+                      onChange={setNeckCircumference}
+                      suffix={fieldConfig.fields.neckCircumference.unit || 'ס״מ'}
+                      min={0}
+                      onKeyDown={handleKeyDown(5)}
+                    />
+                  )}
                 </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[2] = el)}
-                    label="היקף מותן"
-                    value={waistCircumference}
-                    onChange={setWaistCircumference}
-                    suffix="ס״מ"
-                    min={0}
-                    onKeyDown={handleKeyDown(2)}
-                  />
-                </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[3] = el)}
-                    label="היקף ירכיים"
-                    value={thighCircumference}
-                    onChange={setThighCircumference}
-                    suffix="ס״מ"
-                    min={0}
-                    onKeyDown={handleKeyDown(3)}
-                  />
-                </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[4] = el)}
-                    label="היקף יד"
-                    value={armCircumference}
-                    onChange={setArmCircumference}
-                    suffix="ס״מ"
-                    min={0}
-                    onKeyDown={handleKeyDown(4)}
-                  />
-                </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[5] = el)}
-                    label="היקף צוואר"
-                    value={neckCircumference}
-                    onChange={setNeckCircumference}
-                    suffix="ס״מ"
-                    min={0}
-                    onKeyDown={handleKeyDown(5)}
-                  />
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
           {/* פעילות - Activity */}
-          <AccordionItem value="activity" className="border border-slate-200 rounded-md bg-white overflow-hidden">
-            <AccordionTrigger className="px-3 py-2 hover:no-underline bg-white hover:bg-gray-50 transition-colors duration-200">
-              <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-[#5B6FB9]" />
-                <span className="text-xs uppercase tracking-wider text-black font-semibold">פעילות</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-3 pb-3 bg-white">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[6] = el)}
-                    label="מס' צעדים יומי"
-                    value={stepsActual}
-                    onChange={setStepsActual}
-                    suffix="צעדים"
-                    min={0}
-                    onKeyDown={handleKeyDown(6)}
-                  />
+          {fieldConfig.sections.activity.visible && (
+            <AccordionItem value="activity" className="border border-slate-200 rounded-sm bg-white overflow-hidden">
+              <AccordionTrigger className="px-2 py-1.5 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-[#5B6FB9]" />
+                  <span className="text-xs uppercase tracking-wide text-black font-semibold">
+                    {fieldConfig.sections.activity.label}
+                  </span>
                 </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[7] = el)}
-                    label="כמה תרגילים עשית"
-                    value={exercisesCount}
-                    onChange={setExercisesCount}
-                    suffix="תרגילים"
-                    min={0}
-                    onKeyDown={handleKeyDown(7)}
-                  />
+              </AccordionTrigger>
+              <AccordionContent className="px-1 pb-1 bg-white">
+                <div className="grid grid-cols-2 gap-0.5">
+                  {fieldConfig.fields.stepsActual.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[6] = el)}
+                      label={fieldConfig.fields.stepsActual.label}
+                      value={stepsActual}
+                      onChange={setStepsActual}
+                      suffix={fieldConfig.fields.stepsActual.unit || 'צעדים'}
+                      min={0}
+                      onKeyDown={handleKeyDown(6)}
+                    />
+                  )}
+                  {fieldConfig.fields.exercisesCount.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[7] = el)}
+                      label={fieldConfig.fields.exercisesCount.label}
+                      value={exercisesCount}
+                      onChange={setExercisesCount}
+                      suffix={fieldConfig.fields.exercisesCount.unit || 'תרגילים'}
+                      min={0}
+                      onKeyDown={handleKeyDown(7)}
+                    />
+                  )}
+                  {fieldConfig.fields.cardioAmount.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[8] = el)}
+                      label={fieldConfig.fields.cardioAmount.label}
+                      value={cardioAmount}
+                      onChange={setCardioAmount}
+                      suffix={fieldConfig.fields.cardioAmount.unit || 'דקות'}
+                      min={0}
+                      onKeyDown={handleKeyDown(8)}
+                    />
+                  )}
+                  {fieldConfig.fields.intervalsCount.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[9] = el)}
+                      label={fieldConfig.fields.intervalsCount.label}
+                      value={intervalsCount}
+                      onChange={setIntervalsCount}
+                      suffix={fieldConfig.fields.intervalsCount.unit || 'אינטרוולים'}
+                      min={0}
+                      onKeyDown={handleKeyDown(9)}
+                    />
+                  )}
                 </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[8] = el)}
-                    label="כמה אירובי עשית"
-                    value={cardioAmount}
-                    onChange={setCardioAmount}
-                    suffix="דקות"
-                    min={0}
-                    onKeyDown={handleKeyDown(8)}
-                  />
-                </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[9] = el)}
-                    label="כמה אינטרוולים"
-                    value={intervalsCount}
-                    onChange={setIntervalsCount}
-                    suffix="אינטרוולים"
-                    min={0}
-                    onKeyDown={handleKeyDown(9)}
-                  />
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
           {/* תזונה - Nutrition */}
-          <AccordionItem value="nutrition" className="border border-slate-200 rounded-md bg-white overflow-hidden">
-            <AccordionTrigger className="px-3 py-2 hover:no-underline bg-white hover:bg-gray-50 transition-colors duration-200">
-              <div className="flex items-center gap-2">
-                <UtensilsCrossed className="h-4 w-4 text-[#5B6FB9]" />
-                <span className="text-xs uppercase tracking-wider text-black font-semibold">תזונה</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-3 pb-3 bg-white">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[10] = el)}
-                    label="קלוריות יומי"
-                    value={caloriesDaily}
-                    onChange={setCaloriesDaily}
-                    suffix="קק״ל"
-                    min={0}
-                    onKeyDown={handleKeyDown(10)}
-                  />
+          {fieldConfig.sections.nutrition.visible && (
+            <AccordionItem value="nutrition" className="border border-slate-200 rounded-sm bg-white overflow-hidden">
+              <AccordionTrigger className="px-2 py-1.5 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <UtensilsCrossed className="h-4 w-4 text-[#5B6FB9]" />
+                  <span className="text-xs uppercase tracking-wide text-black font-semibold">
+                    {fieldConfig.sections.nutrition.label}
+                  </span>
                 </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[11] = el)}
-                    label="חלבון יומי"
-                    value={proteinDaily}
-                    onChange={setProteinDaily}
-                    suffix="גרם"
-                    min={0}
-                    onKeyDown={handleKeyDown(11)}
-                  />
+              </AccordionTrigger>
+              <AccordionContent className="px-1 pb-1 bg-white">
+                <div className="grid grid-cols-2 gap-0.5">
+                  {fieldConfig.fields.caloriesDaily.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[10] = el)}
+                      label={fieldConfig.fields.caloriesDaily.label}
+                      value={caloriesDaily}
+                      onChange={setCaloriesDaily}
+                      suffix={fieldConfig.fields.caloriesDaily.unit || 'קק״ל'}
+                      min={0}
+                      onKeyDown={handleKeyDown(10)}
+                    />
+                  )}
+                  {fieldConfig.fields.proteinDaily.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[11] = el)}
+                      label={fieldConfig.fields.proteinDaily.label}
+                      value={proteinDaily}
+                      onChange={setProteinDaily}
+                      suffix={fieldConfig.fields.proteinDaily.unit || 'גרם'}
+                      min={0}
+                      onKeyDown={handleKeyDown(11)}
+                    />
+                  )}
+                  {fieldConfig.fields.fiberDaily.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[12] = el)}
+                      label={fieldConfig.fields.fiberDaily.label}
+                      value={fiberDaily}
+                      onChange={setFiberDaily}
+                      suffix={fieldConfig.fields.fiberDaily.unit || 'גרם'}
+                      min={0}
+                      onKeyDown={handleKeyDown(12)}
+                    />
+                  )}
+                  {fieldConfig.fields.waterAmount.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[13] = el)}
+                      label={fieldConfig.fields.waterAmount.label}
+                      value={waterAmount}
+                      onChange={setWaterAmount}
+                      suffix={fieldConfig.fields.waterAmount.unit || 'ליטר'}
+                      min={0}
+                      max={10}
+                      step={0.25}
+                      onKeyDown={handleKeyDown(13)}
+                    />
+                  )}
                 </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[12] = el)}
-                    label="סיבים יומי"
-                    value={fiberDaily}
-                    onChange={setFiberDaily}
-                    suffix="גרם"
-                    min={0}
-                    onKeyDown={handleKeyDown(12)}
-                  />
-                </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[13] = el)}
-                    label="כמה מים שתית"
-                    value={waterAmount}
-                    onChange={setWaterAmount}
-                    suffix="ליטר"
-                    min={0}
-                    max={10}
-                    step={0.25}
-                    onKeyDown={handleKeyDown(13)}
-                  />
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
           {/* בריאות - Wellness */}
-          <AccordionItem value="wellness" className="border border-slate-200 rounded-md bg-white overflow-hidden">
-            <AccordionTrigger className="px-3 py-2 hover:no-underline bg-white hover:bg-gray-50 transition-colors duration-200">
-              <div className="flex items-center gap-2">
-                <Moon className="h-4 w-4 text-[#5B6FB9]" />
-                <span className="text-xs uppercase tracking-wider text-black font-semibold">בריאות</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-3 pb-3 bg-white">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleSlider
-                    label="רמת הלחץ היומי"
-                    value={stressLevel}
-                    onChange={setStressLevel}
-                    min={1}
-                    max={10}
-                  />
+          {fieldConfig.sections.wellness.visible && (
+            <AccordionItem value="wellness" className="border border-slate-200 rounded-sm bg-white overflow-hidden">
+              <AccordionTrigger className="px-2 py-1.5 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <Moon className="h-4 w-4 text-[#5B6FB9]" />
+                  <span className="text-xs uppercase tracking-wide text-black font-semibold">
+                    {fieldConfig.sections.wellness.label}
+                  </span>
                 </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleSlider
-                    label="רמת הרעב שלך"
-                    value={hungerLevel}
-                    onChange={setHungerLevel}
-                    min={1}
-                    max={10}
-                  />
+              </AccordionTrigger>
+              <AccordionContent className="px-1 pb-1 bg-white">
+                <div className="grid grid-cols-2 gap-0.5">
+                  {fieldConfig.fields.stressLevel.visible && (
+                    <CompactSlider
+                      label={fieldConfig.fields.stressLevel.label}
+                      value={stressLevel}
+                      onChange={setStressLevel}
+                      min={1}
+                      max={10}
+                    />
+                  )}
+                  {fieldConfig.fields.hungerLevel.visible && (
+                    <CompactSlider
+                      label={fieldConfig.fields.hungerLevel.label}
+                      value={hungerLevel}
+                      onChange={setHungerLevel}
+                      min={1}
+                      max={10}
+                    />
+                  )}
+                  {fieldConfig.fields.energyLevel.visible && (
+                    <CompactSlider
+                      label={fieldConfig.fields.energyLevel.label}
+                      value={energyLevel}
+                      onChange={setEnergyLevel}
+                      min={1}
+                      max={10}
+                    />
+                  )}
+                  {fieldConfig.fields.sleepHours.visible && (
+                    <CompactInputCell
+                      ref={(el) => (inputRefs.current[14] = el)}
+                      label={fieldConfig.fields.sleepHours.label}
+                      value={sleepHours}
+                      onChange={setSleepHours}
+                      suffix={fieldConfig.fields.sleepHours.unit || 'שעות'}
+                      min={0}
+                      max={24}
+                      step={0.5}
+                      onKeyDown={handleKeyDown(14)}
+                    />
+                  )}
                 </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleSlider
-                    label="רמת האנרגיה שלך"
-                    value={energyLevel}
-                    onChange={setEnergyLevel}
-                    min={1}
-                    max={10}
-                  />
-                </div>
-                <div className="bg-white rounded border border-slate-200 p-2.5">
-                  <LeadStyleInputCell
-                    ref={(el) => (inputRefs.current[14] = el)}
-                    label="כמה שעות ישנת"
-                    value={sleepHours}
-                    onChange={setSleepHours}
-                    suffix="שעות"
-                    min={0}
-                    max={24}
-                    step={0.5}
-                    onKeyDown={handleKeyDown(14)}
-                  />
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+              </AccordionContent>
+            </AccordionItem>
+          )}
         </Accordion>
 
-        {/* Notes Section */}
-        <Card className="p-3 border border-slate-200 bg-white mt-2" dir="rtl">
-          <div className="space-y-2">
-            <span className="text-xs uppercase tracking-wider text-black font-semibold">הערות (אופציונלי)</span>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="הוסף הערות על היום שלך, איך הרגשת, מה היו האתגרים, או כל דבר אחר שתרצה לשתף..."
-              dir="rtl"
-              rows={2}
-              className="text-xs border-slate-200 focus:border-[#5B6FB9] focus:ring-[#5B6FB9]/20 resize-none text-black min-h-[60px] bg-gray-50"
-            />
+        {/* Notes Section - Compact with Bigger Text */}
+        <div className="border border-slate-100 rounded-sm bg-white mt-1.5" dir="rtl">
+          <div className="px-2 py-1.5 border-b border-slate-100">
+            <span className="text-xs uppercase tracking-wide text-slate-600 font-semibold">הערות (אופציונלי)</span>
           </div>
-        </Card>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="הוסף הערות..."
+            dir="rtl"
+            rows={2}
+            className="text-sm border-0 focus:ring-0 resize-none text-black min-h-[60px] bg-transparent px-2 py-2"
+          />
+        </div>
       </div>
     </div>
   );
