@@ -97,6 +97,7 @@ export const AssignBudgetDialog = ({
       queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
       queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
       queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
 
       toast({
         title: 'הצלחה',

@@ -287,57 +287,97 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" dir="rtl" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+    <form onSubmit={handleSubmit} className="space-y-2.5" dir="rtl" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
       {/* Bento Grid Layout */}
-      <div className="grid grid-cols-2 gap-6">
-        {/* Card A: General Identity (Top Left) */}
-        <Card className="bg-white border-0 shadow-sm rounded-3xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-slate-900">מידע בסיסי</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium text-slate-500">שם התקציב *</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="לדוגמה: תקציב 1700 קלוריות"
-                required
-                className={cn(
-                  "h-11 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all",
-                  "text-slate-900 font-medium"
-                )}
-                dir="rtl"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-medium text-slate-500">תיאור</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="תיאור קצר של התקציב"
-                className={cn(
-                  "min-h-[60px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
-                  "text-slate-900 font-medium"
-                )}
-                dir="rtl"
-              />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-2.5">
+        {/* Left Column: Basic Info + Eating Guidelines */}
+        <div className="flex flex-col gap-2.5">
+          {/* Card A: General Identity */}
+          <Card className="bg-white border-0 shadow-sm rounded-xl">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <CardTitle className="text-base font-semibold text-slate-900">מידע בסיסי</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 px-4 pb-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="name" className="text-sm font-medium text-slate-500">שם התקציב *</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="לדוגמה: תקציב 1700 קלוריות"
+                  required
+                  className={cn(
+                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all",
+                    "text-slate-900 font-medium text-sm"
+                  )}
+                  dir="rtl"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="description" className="text-sm font-medium text-slate-500">תיאור</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="תיאור קצר של התקציב"
+                  className={cn(
+                    "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
+                    "text-slate-900 font-medium text-sm"
+                  )}
+                  dir="rtl"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Guidelines Card - Moved here */}
+          <Card className="bg-white border-0 shadow-sm rounded-xl">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <CardTitle className="text-base font-semibold text-slate-900">הנחיות אכילה</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 px-4 pb-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="eating_order" className="text-sm font-medium text-slate-500">סדר האכילה</Label>
+                <Textarea
+                  id="eating_order"
+                  value={eatingOrder}
+                  onChange={(e) => setEatingOrder(e.target.value)}
+                  placeholder="לדוגמה: מתחילה בירקות, ממשיכה לחלבון ומסיימת בפחמימה"
+                  className={cn(
+                    "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
+                    "text-slate-900 font-medium text-sm"
+                  )}
+                  dir="rtl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="eating_rules" className="text-sm font-medium text-slate-500">כללי אכילה</Label>
+                <Textarea
+                  id="eating_rules"
+                  value={eatingRules}
+                  onChange={(e) => setEatingRules(e.target.value)}
+                  placeholder="לדוגמה: לא תאכלי פחמימה לבדה - עם חלבון, סיבים ושומן"
+                  className={cn(
+                    "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
+                    "text-slate-900 font-medium text-sm"
+                  )}
+                  dir="rtl"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Card B: Plan Integration (Top Right) */}
-        <Card className="bg-white border-0 shadow-sm rounded-3xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-slate-900">אינטגרציית תכניות</CardTitle>
+        <Card className="bg-white border-0 shadow-sm rounded-xl">
+          <CardHeader className="pb-2 pt-3 px-4">
+            <CardTitle className="text-base font-semibold text-slate-900">אינטגרציית תכניות</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="space-y-2">
+          <CardContent className="space-y-3 px-4 pb-4">
+            <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Dumbbell className="h-4 w-4 text-slate-400" />
+                <Dumbbell className="h-3.5 w-3.5 text-slate-400" />
                 תכנית אימונים
               </Label>
               <div className="flex items-center gap-2">
@@ -346,8 +386,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                   onValueChange={(value) => setWorkoutTemplateId(value === 'none' ? null : value || null)}
                 >
                   <SelectTrigger className={cn(
-                    "h-11 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
-                    "text-slate-900 font-medium"
+                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
+                    "text-slate-900 font-medium text-sm"
                   )} dir="rtl">
                     <SelectValue placeholder="בחר תבנית אימונים" />
                   </SelectTrigger>
@@ -365,17 +405,17 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsWorkoutTemplateDialogOpen(true)}
-                  className="h-11 w-11 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                  className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
                   title="צור תבנית אימונים חדשה"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Apple className="h-4 w-4 text-slate-400" />
+                <Apple className="h-3.5 w-3.5 text-slate-400" />
                 תבנית תזונה
               </Label>
               <div className="flex items-center gap-2">
@@ -384,8 +424,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                   onValueChange={handleNutritionTemplateChange}
                 >
                   <SelectTrigger className={cn(
-                    "h-11 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
-                    "text-slate-900 font-medium"
+                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
+                    "text-slate-900 font-medium text-sm"
                   )} dir="rtl">
                     <SelectValue placeholder="בחר תבנית תזונה או הזן ידנית" />
                   </SelectTrigger>
@@ -403,23 +443,23 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsNutritionTemplateDialogOpen(true)}
-                  className="h-11 w-11 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                  className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
                   title="צור תבנית תזונה חדשה"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Pill className="h-4 w-4 text-slate-400" />
+                <Pill className="h-3.5 w-3.5 text-slate-400" />
                 תוספים
               </Label>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {supplements.length === 0 ? (
-                  <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl">
-                    <p className="text-sm text-slate-400 mb-3">אין תוספים</p>
+                  <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
+                    <p className="text-xs text-slate-400 mb-2">אין תוספים</p>
                     <Button
                       type="button"
                       variant="ghost"
@@ -434,27 +474,27 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                 ) : (
                   <div className="space-y-2">
                     {supplements.map((supplement, index) => (
-                      <div key={index} className="flex gap-2 items-start p-3 bg-slate-50 rounded-xl">
-                        <div className="flex-1 grid grid-cols-3 gap-2">
+                      <div key={index} className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
+                        <div className="flex-1 grid grid-cols-3 gap-1.5">
                           <Input
                             value={supplement.name}
                             onChange={(e) => updateSupplement(index, 'name', e.target.value)}
                             placeholder="שם התוסף"
-                            className="h-9 bg-white border-0 text-sm"
+                            className="h-8 bg-white border-0 text-xs"
                             dir="rtl"
                           />
                           <Input
                             value={supplement.dosage}
                             onChange={(e) => updateSupplement(index, 'dosage', e.target.value)}
                             placeholder="מינון"
-                            className="h-9 bg-white border-0 text-sm"
+                            className="h-8 bg-white border-0 text-xs"
                             dir="rtl"
                           />
                           <Input
                             value={supplement.timing}
                             onChange={(e) => updateSupplement(index, 'timing', e.target.value)}
                             placeholder="זמן נטילה"
-                            className="h-9 bg-white border-0 text-sm"
+                            className="h-8 bg-white border-0 text-xs"
                             dir="rtl"
                           />
                         </div>
@@ -463,9 +503,9 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                           variant="ghost"
                           size="icon"
                           onClick={() => removeSupplement(index)}
-                          className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                          className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ))}
@@ -484,9 +524,9 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Footprints className="h-4 w-4 text-slate-400" />
+                <Footprints className="h-3.5 w-3.5 text-slate-400" />
                 יעד צעדים יומי
               </Label>
               <Input
@@ -495,14 +535,14 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                 onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
                 placeholder="לדוגמה: 7000"
                 className={cn(
-                  "h-11 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                  "text-slate-900 font-medium"
+                  "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                  "text-slate-900 font-medium text-sm"
                 )}
                 dir="ltr"
               />
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="steps_instructions" className="text-sm font-medium text-slate-500">הוראות צעדים</Label>
               <Textarea
                 id="steps_instructions"
@@ -510,8 +550,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                 onChange={(e) => setStepsInstructions(e.target.value)}
                 placeholder="הוראות והנחיות נוספות לגבי הצעדים היומיים"
                 className={cn(
-                  "min-h-[60px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
-                  "text-slate-900 font-medium"
+                  "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
+                  "text-slate-900 font-medium text-sm"
                 )}
                 dir="rtl"
               />
@@ -522,11 +562,11 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
 
       {/* Card C: Nutrition Matrix (Bottom Full Width) */}
       {useCustomNutrition && (
-        <Card className="bg-white border-0 shadow-sm rounded-3xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-slate-900">מטריצת תזונה</CardTitle>
+        <Card className="bg-white border-0 shadow-sm rounded-xl">
+          <CardHeader className="pb-2 pt-3 px-4">
+            <CardTitle className="text-base font-semibold text-slate-900">מטריצת תזונה</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-3 px-4 pb-4">
             {/* Macro Split Bar */}
             <MacroSplitBar 
               protein={nutritionTargets.protein || 0}
@@ -535,9 +575,9 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
             />
 
             {/* Nutrition Grid - 3 columns */}
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-3 gap-3">
               {/* Row 1 */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="calories" className="text-sm font-medium text-slate-500">קלוריות</Label>
                 <div className="relative">
                   <Input
@@ -549,16 +589,16 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                     }
                     placeholder="0"
                     className={cn(
-                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-lg pr-16"
+                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-base pr-14"
                     )}
                     dir="ltr"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">קק״ל</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">קק״ל</span>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="protein" className="text-sm font-medium text-slate-500">חלבון</Label>
                 <div className="relative">
                   <Input
@@ -570,16 +610,16 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                     }
                     placeholder="0"
                     className={cn(
-                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-lg pr-12"
+                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-base pr-10"
                     )}
                     dir="ltr"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">ג׳</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">ג׳</span>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="carbs" className="text-sm font-medium text-slate-500">פחמימות</Label>
                 <div className="relative">
                   <Input
@@ -591,17 +631,17 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                     }
                     placeholder="0"
                     className={cn(
-                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-lg pr-12"
+                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-base pr-10"
                     )}
                     dir="ltr"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">ג׳</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">ג׳</span>
                 </div>
               </div>
 
               {/* Row 2 */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="fat" className="text-sm font-medium text-slate-500">שומן</Label>
                 <div className="relative">
                   <Input
@@ -613,16 +653,16 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                     }
                     placeholder="0"
                     className={cn(
-                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-lg pr-12"
+                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-base pr-10"
                     )}
                     dir="ltr"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">ג׳</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">ג׳</span>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="fiber_min" className="text-sm font-medium text-slate-500">סיבים</Label>
                 <div className="relative">
                   <Input
@@ -634,16 +674,16 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                     }
                     placeholder="20"
                     className={cn(
-                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-lg pr-12"
+                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-base pr-10"
                     )}
                     dir="ltr"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">ג׳</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">ג׳</span>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="water_min" className="text-sm font-medium text-slate-500">מים</Label>
                 <div className="relative">
                   <Input
@@ -656,8 +696,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                     }
                     placeholder="2.5"
                     className={cn(
-                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-lg pr-16"
+                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-base pr-14"
                     )}
                     dir="ltr"
                   />
@@ -669,64 +709,28 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
         </Card>
       )}
 
-      {/* Guidelines Card - Always visible */}
-      <Card className="bg-white border-0 shadow-sm rounded-3xl">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold text-slate-900">הנחיות אכילה</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="eating_order" className="text-sm font-medium text-slate-500">סדר האכילה</Label>
-            <Textarea
-              id="eating_order"
-              value={eatingOrder}
-              onChange={(e) => setEatingOrder(e.target.value)}
-              placeholder="לדוגמה: מתחילה בירקות, ממשיכה לחלבון ומסיימת בפחמימה"
-              className={cn(
-                "min-h-[60px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
-                "text-slate-900 font-medium"
-              )}
-              dir="rtl"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="eating_rules" className="text-sm font-medium text-slate-500">כללי אכילה</Label>
-            <Textarea
-              id="eating_rules"
-              value={eatingRules}
-              onChange={(e) => setEatingRules(e.target.value)}
-              placeholder="לדוגמה: לא תאכלי פחמימה לבדה - עם חלבון, סיבים ושומן"
-              className={cn(
-                "min-h-[60px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
-                "text-slate-900 font-medium"
-              )}
-              dir="rtl"
-            />
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Hero Save Button */}
-      <div className="flex justify-start gap-3 pt-6 border-t border-slate-100">
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={onCancel} 
-          disabled={isSubmitting}
-          className="h-12 px-6 text-slate-600 hover:text-slate-900 border-slate-200 hover:border-slate-300"
-        >
-          ביטול
-        </Button>
+      {/* Footer Actions - Bottom Left (RTL) */}
+      <div className="flex flex-row-reverse justify-start gap-2 pt-2.5 pb-1 border-t border-slate-100">
         <Button 
           type="submit" 
           disabled={isSubmitting || !name.trim()}
           className={cn(
-            "h-12 px-8 bg-gradient-to-r from-[#5B6FB9] to-[#5B6FB9]/90 text-white font-semibold",
+            "h-10 px-6 bg-gradient-to-r from-[#5B6FB9] to-[#5B6FB9]/90 text-white font-semibold text-sm",
             "hover:from-[#5B6FB9]/90 hover:to-[#5B6FB9] hover:-translate-y-0.5 transition-all duration-200",
             "shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
           )}
         >
           {isSubmitting ? 'שומר...' : mode === 'create' ? 'צור תקציב' : 'שמור שינויים'}
+        </Button>
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel} 
+          disabled={isSubmitting}
+          className="h-10 px-5 text-sm text-slate-600 hover:text-slate-900 border-slate-200 hover:border-slate-300"
+        >
+          ביטול
         </Button>
       </div>
       

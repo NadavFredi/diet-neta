@@ -17,6 +17,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
   return useQuery<PlansHistory>({
     queryKey: ['plans-history', customerId, leadId],
     queryFn: async () => {
+      console.log('[usePlansHistory] Fetching plans for:', { customerId, leadId });
       const workoutHistory: any[] = [];
       const nutritionHistory: any[] = [];
       const supplementsHistory: any[] = [];
@@ -29,16 +30,23 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
           .select('*, budget_id, workout_templates(name)')
           .order('created_at', { ascending: false });
 
-        if (customerId) {
+        // Use OR logic: plans that belong to either customer OR lead
+        if (customerId && leadId) {
+          workoutQuery = workoutQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
+        } else if (customerId) {
           workoutQuery = workoutQuery.eq('customer_id', customerId);
-        }
-        if (leadId) {
+        } else if (leadId) {
           workoutQuery = workoutQuery.eq('lead_id', leadId);
         }
 
-        const { data: workoutPlans } = await workoutQuery;
+        const { data: workoutPlans, error: workoutError } = await workoutQuery;
+        
+        if (workoutError) {
+          console.error('Error fetching workout plans:', workoutError);
+        }
 
-        if (workoutPlans) {
+        console.log('[usePlansHistory] Workout plans fetched:', workoutPlans?.length || 0);
+        if (workoutPlans && workoutPlans.length > 0) {
           workoutHistory.push(...workoutPlans.map((plan: any) => ({
             id: plan.id,
             name: plan.workout_templates?.name || plan.description || 'תוכנית אימונים',
@@ -48,10 +56,17 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
               ? `${Math.ceil((new Date(plan.end_date).getTime() - new Date(plan.start_date).getTime()) / (1000 * 60 * 60 * 24))} ימים`
               : 'ללא תאריך סיום',
             description: plan.description || '',
-            strengthCount: plan.split?.strength || 0,
-            cardioCount: plan.split?.cardio || 0,
-            intervalsCount: plan.split?.intervals || 0,
-            split: plan.split || {},
+            strengthCount: plan.split?.strength || plan.strength || 0,
+            cardioCount: plan.split?.cardio || plan.cardio || 0,
+            intervalsCount: plan.split?.intervals || plan.intervals || 0,
+            strength: plan.split?.strength || plan.strength || 0,
+            cardio: plan.split?.cardio || plan.cardio || 0,
+            intervals: plan.split?.intervals || plan.intervals || 0,
+            split: plan.split || { 
+              strength: plan.strength || 0, 
+              cardio: plan.cardio || 0, 
+              intervals: plan.intervals || 0 
+            },
             budget_id: plan.budget_id,
             created_at: plan.created_at,
             is_active: plan.is_active,
@@ -66,16 +81,23 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
           .select('*, budget_id, nutrition_templates(name)')
           .order('created_at', { ascending: false });
 
-        if (customerId) {
+        // Use OR logic: plans that belong to either customer OR lead
+        if (customerId && leadId) {
+          nutritionQuery = nutritionQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
+        } else if (customerId) {
           nutritionQuery = nutritionQuery.eq('customer_id', customerId);
-        }
-        if (leadId) {
+        } else if (leadId) {
           nutritionQuery = nutritionQuery.eq('lead_id', leadId);
         }
 
-        const { data: nutritionPlans } = await nutritionQuery;
+        const { data: nutritionPlans, error: nutritionError } = await nutritionQuery;
+        
+        if (nutritionError) {
+          console.error('Error fetching nutrition plans:', nutritionError);
+        }
 
-        if (nutritionPlans) {
+        console.log('[usePlansHistory] Nutrition plans fetched:', nutritionPlans?.length || 0);
+        if (nutritionPlans && nutritionPlans.length > 0) {
           nutritionHistory.push(...nutritionPlans.map((plan: any) => ({
             id: plan.id,
             startDate: plan.start_date,
@@ -97,26 +119,43 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
           .select('*, budget_id')
           .order('created_at', { ascending: false });
 
-        if (customerId) {
+        // Use OR logic: plans that belong to either customer OR lead
+        if (customerId && leadId) {
+          supplementQuery = supplementQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
+        } else if (customerId) {
           supplementQuery = supplementQuery.eq('customer_id', customerId);
-        }
-        if (leadId) {
+        } else if (leadId) {
           supplementQuery = supplementQuery.eq('lead_id', leadId);
         }
 
-        const { data: supplementPlans } = await supplementQuery;
+        const { data: supplementPlans, error: supplementError } = await supplementQuery;
+        
+        if (supplementError) {
+          console.error('Error fetching supplement plans:', supplementError);
+        }
 
-        if (supplementPlans) {
-          supplementsHistory.push(...supplementPlans.map((plan: any) => ({
-            id: plan.id,
-            startDate: plan.start_date,
-            endDate: plan.end_date || null,
-            supplements: plan.supplements || [],
-            description: plan.description || 'תוכנית תוספים',
-            budget_id: plan.budget_id,
-            created_at: plan.created_at,
-            is_active: plan.is_active,
-          })));
+        console.log('[usePlansHistory] Supplement plans fetched:', supplementPlans?.length || 0);
+        if (supplementPlans && supplementPlans.length > 0) {
+          // Handle supplements - can be array of strings or array of objects
+          supplementsHistory.push(...supplementPlans.map((plan: any) => {
+            let supplementsArray: string[] = [];
+            if (Array.isArray(plan.supplements)) {
+              supplementsArray = plan.supplements.map((sup: any) => 
+                typeof sup === 'string' ? sup : sup.name || JSON.stringify(sup)
+              );
+            }
+            
+            return {
+              id: plan.id,
+              startDate: plan.start_date,
+              endDate: plan.end_date || null,
+              supplements: supplementsArray,
+              description: plan.description || 'תוכנית תוספים',
+              budget_id: plan.budget_id,
+              created_at: plan.created_at,
+              is_active: plan.is_active,
+            };
+          }));
         }
       }
 
@@ -137,14 +176,22 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
         }
       }
 
-      return {
+      const result = {
         workoutHistory,
         nutritionHistory,
         supplementsHistory,
         stepsHistory,
       };
+      console.log('[usePlansHistory] Final result:', {
+        workout: result.workoutHistory.length,
+        nutrition: result.nutritionHistory.length,
+        supplements: result.supplementsHistory.length,
+        steps: result.stepsHistory.length,
+      });
+      return result;
     },
     enabled: !!(customerId || leadId),
   });
 };
+
 
