@@ -6,7 +6,7 @@
  * NO Lead History Table (moved to sidebar).
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,7 @@ import { LeadAutomationCard } from './LeadAutomationCard';
 import { LeadFormsCard } from './LeadFormsCard';
 import { ReadOnlyField } from './ReadOnlyField';
 import { LeadPaymentCard } from './LeadPaymentCard';
+import { usePlansHistory } from '@/hooks/usePlansHistory';
 
 interface LeadData {
   id: string;
@@ -132,6 +133,40 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   };
 
   const bmi = calculateBMI(activeLead.height, activeLead.weight);
+
+  // Fetch plans history from plan tables
+  const leadId = activeLead?.id;
+  const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
+
+  // Merge plans from database with JSONB history (plans take precedence)
+  const mergedWorkoutHistory = useMemo(() => {
+    const plans = plansHistory?.workoutHistory || [];
+    const jsonbHistory = activeLead?.workout_history || [];
+    
+    // Combine: plans first (newer), then JSONB history (legacy)
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.workoutHistory, activeLead?.workout_history]);
+
+  const mergedNutritionHistory = useMemo(() => {
+    const plans = plansHistory?.nutritionHistory || [];
+    const jsonbHistory = activeLead?.nutrition_history || [];
+    
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.nutritionHistory, activeLead?.nutrition_history]);
+
+  const mergedSupplementsHistory = useMemo(() => {
+    const plans = plansHistory?.supplementsHistory || [];
+    const jsonbHistory = activeLead?.supplements_history || [];
+    
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.supplementsHistory, activeLead?.supplements_history]);
+
+  const mergedStepsHistory = useMemo(() => {
+    const plans = plansHistory?.stepsHistory || [];
+    const jsonbHistory = activeLead?.steps_history || [];
+    
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.stepsHistory, activeLead?.steps_history]);
 
   // Helper to get badge color for fitness info
   const getFitnessBadgeColor = (type: string) => {
@@ -497,10 +532,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         {/* Workout, Steps, Nutrition & Supplements History Tabs - Full Width - Always Visible */}
         <div className="w-full">
           <LeadHistoryTabs
-            workoutHistory={activeLead.workout_history}
-            stepsHistory={activeLead.steps_history}
-            nutritionHistory={activeLead.nutrition_history}
-            supplementsHistory={activeLead.supplements_history}
+            workoutHistory={mergedWorkoutHistory}
+            stepsHistory={mergedStepsHistory}
+            nutritionHistory={mergedNutritionHistory}
+            supplementsHistory={mergedSupplementsHistory}
             budgetAssignments={budgetAssignments}
             onAddWorkoutPlan={onAddWorkoutPlan}
             onAddDietPlan={onAddDietPlan}

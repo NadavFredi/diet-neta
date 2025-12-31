@@ -199,10 +199,13 @@ export const sendWhatsAppMessage = async (
     const cleanedMessage = cleanWhatsAppMessage(params.message);
     
     // Clean button text as well
-    const cleanedButtons = params.buttons?.map(btn => ({
-      id: btn.id,
-      text: cleanWhatsAppMessage(btn.text),
-    }));
+    // Clean and validate buttons
+    const cleanedButtons = params.buttons
+      ?.map(btn => ({
+        id: btn.id,
+        text: cleanWhatsAppMessage(btn.text),
+      }))
+      .filter(btn => btn.text && btn.text.trim().length > 0); // Filter out buttons with empty text
     
     // Clean footer if present
     const cleanedFooter = params.footer ? cleanWhatsAppMessage(params.footer) : undefined;
@@ -214,8 +217,9 @@ export const sendWhatsAppMessage = async (
       buttonCount: cleanedButtons?.length || 0,
     });
 
-    // If buttons are provided, use SendButtons endpoint
-    // Note: SendButtons endpoint has CORS restrictions, so we use Vite proxy in development
+    // If buttons are provided, use sendInteractiveButtonsReply endpoint
+    // Reference: https://console.green-api.com/app/api/sendInteractiveButtonsReply
+    // Note: This endpoint has CORS restrictions, so we use Vite proxy in development
     // For production, you may need to configure CORS on Green API side or use a server-side proxy
     if (cleanedButtons && cleanedButtons.length > 0) {
       // Use Vite proxy in development to avoid CORS issues
@@ -224,16 +228,32 @@ export const sendWhatsAppMessage = async (
         ? '/api/green-api'  // Use Vite proxy in development
         : 'https://api.green-api.com';  // Direct call in production (may fail due to CORS)
       
-      const url = `${baseUrl}/waInstance${config.idInstance}/SendButtons/${config.apiTokenInstance}`;
+      // Use the correct endpoint: sendInteractiveButtonsReply
+      const url = `${baseUrl}/waInstance${config.idInstance}/sendInteractiveButtonsReply/${config.apiTokenInstance}`;
 
+      // Format according to Green API documentation:
+      // Reference: https://console.green-api.com/app/api/sendInteractiveButtonsReply
+      // The request body should have 'body' field (not 'message') for the message text
+      // Each button needs buttonId (unique identifier) and buttonText (the label)
+      // Ensure all buttons have valid buttonText (required field)
       const requestBody: any = {
         chatId,
-        message: cleanedMessage,
-        buttons: cleanedButtons.map((btn, index) => ({
-          buttonId: String(index + 1),
-          buttonText: btn.text,
-        })),
+        body: cleanedMessage || '', // Use 'body' field as per Green API spec
+        buttons: cleanedButtons
+          .filter(btn => btn.text && btn.text.trim().length > 0) // Ensure buttonText is not empty
+          .map((btn, index) => ({
+            buttonId: btn.id || `btn_${index + 1}`, // Use the button's ID or generate one
+            buttonText: btn.text.trim(), // Use buttonText as per Green API spec (required field)
+          })),
       };
+      
+      // Validate that we have at least one valid button
+      if (requestBody.buttons.length === 0 && cleanedButtons.length > 0) {
+        return {
+          success: false,
+          error: 'All buttons must have non-empty text',
+        };
+      }
 
       if (cleanedFooter) {
         requestBody.footer = cleanedFooter;
@@ -256,16 +276,16 @@ export const sendWhatsAppMessage = async (
           errorData = { error: errorText };
         }
 
-        console.error('[GreenAPI] SendButtons error:', {
+        console.error('[GreenAPI] sendInteractiveButtonsReply error:', {
           status: response.status,
           statusText: response.statusText,
           error: errorData,
         });
 
-        // If SendButtons fails with 403, it likely means the account doesn't have access to this feature
+        // If sendInteractiveButtonsReply fails with 403, it likely means the account doesn't have access to this feature
         // Fall back to sending as regular message (buttons will be sent as text)
         if (response.status === 403) {
-          console.warn('[GreenAPI] SendButtons endpoint returned 403. This usually means the account does not have access to interactive buttons (requires premium plan). Falling back to regular message...');
+          console.warn('[GreenAPI] sendInteractiveButtonsReply endpoint returned 403. This usually means the account does not have access to interactive buttons (requires premium plan). Falling back to regular message...');
           
           // Fallback: Send as regular message with buttons listed in text
           const buttonsText = cleanedButtons.map((btn, idx) => `${idx + 1}. ${btn.text}`).join('\n');
@@ -289,7 +309,7 @@ export const sendWhatsAppMessage = async (
             const fallbackErrorText = await fallbackResponse.text();
             return {
               success: false,
-              error: `SendButtons requires premium plan (403). Fallback message also failed: ${fallbackErrorText}`,
+              error: `sendInteractiveButtonsReply requires premium plan (403). Fallback message also failed: ${fallbackErrorText}`,
             };
           }
 

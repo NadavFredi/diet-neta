@@ -28,6 +28,7 @@ export async function syncPlansFromBudget({
   nutritionPlanId?: string;
   supplementPlanId?: string;
 }> {
+  console.log('[syncPlansFromBudget] Starting sync:', { budgetId: budget.id, customerId, leadId, userId });
   const result: {
     workoutPlanId?: string;
     nutritionPlanId?: string;
@@ -37,20 +38,27 @@ export async function syncPlansFromBudget({
   // Get customer_id from lead if only leadId is provided
   let finalCustomerId = customerId;
   if (leadId && !customerId) {
-    const { data: lead } = await supabase
+    const { data: lead, error: leadError } = await supabase
       .from('leads')
       .select('customer_id')
       .eq('id', leadId)
       .single();
     
+    if (leadError) {
+      console.error('[syncPlansFromBudget] Error fetching lead:', leadError);
+    }
+    
     if (lead?.customer_id) {
       finalCustomerId = lead.customer_id;
+      console.log('[syncPlansFromBudget] Found customer_id from lead:', finalCustomerId);
     }
   }
 
   if (!finalCustomerId && !leadId) {
     throw new Error('Either customerId or leadId must be provided');
   }
+
+  console.log('[syncPlansFromBudget] Final customerId:', finalCustomerId, 'leadId:', leadId);
 
   // 1. Sync Workout Plan
   if (budget.workout_template_id) {
@@ -70,6 +78,13 @@ export async function syncPlansFromBudget({
           .from('workout_plans')
           .update({ is_active: false })
           .eq('customer_id', finalCustomerId)
+          .eq('is_active', true);
+      } else if (leadId) {
+        // Also deactivate plans for leads without customers
+        await supabase
+          .from('workout_plans')
+          .update({ is_active: false })
+          .eq('lead_id', leadId)
           .eq('is_active', true);
       }
 
@@ -95,9 +110,11 @@ export async function syncPlansFromBudget({
         .single();
 
       if (workoutError) {
-        console.error('Error creating workout plan:', workoutError);
+        console.error('[syncPlansFromBudget] Error creating workout plan:', workoutError);
+        throw new Error(`Failed to create workout plan: ${workoutError.message}`);
       } else {
         result.workoutPlanId = workoutPlan.id;
+        console.log('[syncPlansFromBudget] Workout plan created successfully:', workoutPlan.id);
       }
     }
   }
@@ -110,6 +127,13 @@ export async function syncPlansFromBudget({
         .from('nutrition_plans')
         .update({ is_active: false })
         .eq('customer_id', finalCustomerId)
+        .eq('is_active', true);
+    } else if (leadId) {
+      // Also deactivate plans for leads without customers
+      await supabase
+        .from('nutrition_plans')
+        .update({ is_active: false })
+        .eq('lead_id', leadId)
         .eq('is_active', true);
     }
 
@@ -152,9 +176,11 @@ export async function syncPlansFromBudget({
       .single();
 
     if (nutritionError) {
-      console.error('Error creating nutrition plan:', nutritionError);
+      console.error('[syncPlansFromBudget] Error creating nutrition plan:', nutritionError);
+      throw new Error(`Failed to create nutrition plan: ${nutritionError.message}`);
     } else {
       result.nutritionPlanId = nutritionPlan.id;
+      console.log('[syncPlansFromBudget] Nutrition plan created successfully:', nutritionPlan.id);
     }
   }
 
@@ -216,12 +242,15 @@ export async function syncPlansFromBudget({
       .single();
 
     if (supplementError) {
-      console.error('Error creating supplement plan:', supplementError);
+      console.error('[syncPlansFromBudget] Error creating supplement plan:', supplementError);
+      throw new Error(`Failed to create supplement plan: ${supplementError.message}`);
     } else {
       result.supplementPlanId = supplementPlan.id;
+      console.log('[syncPlansFromBudget] Supplement plan created successfully:', supplementPlan.id);
     }
   }
 
+  console.log('[syncPlansFromBudget] Sync completed:', result);
   return result;
 }
 

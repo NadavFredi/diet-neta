@@ -113,7 +113,7 @@ export const LeadHistoryTabs = ({
   onAddSupplementsPlan,
   onAssignBudget,
 }: LeadHistoryTabsProps) => {
-  const [activeTab, setActiveTab] = useState('workouts');
+  const [activeTab, setActiveTab] = useState('budgets');
 
   const hasWorkoutHistory = workoutHistory && workoutHistory.length > 0;
   const hasStepsHistory = stepsHistory && stepsHistory.length > 0;
@@ -163,6 +163,12 @@ export const LeadHistoryTabs = ({
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="w-full">
         <TabsList className="grid w-full grid-cols-5 mb-4 h-10 bg-gray-100 rounded-lg p-1">
           <TabsTrigger 
+            value="budgets" 
+            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+          >
+            תקציבים
+          </TabsTrigger>
+          <TabsTrigger 
             value="workouts" 
             className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
           >
@@ -185,12 +191,6 @@ export const LeadHistoryTabs = ({
             className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
           >
             תכניות תוספים
-          </TabsTrigger>
-          <TabsTrigger 
-            value="budgets" 
-            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
-          >
-            תקציבים
           </TabsTrigger>
         </TabsList>
 
