@@ -20,8 +20,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDate } from '@/utils/dashboard';
+import { BudgetLinkBadge } from './BudgetLinkBadge';
 
 interface WorkoutHistoryItem {
+  id?: string;
   name?: string;
   startDate?: string;
   validUntil?: string;
@@ -36,6 +38,9 @@ interface WorkoutHistoryItem {
   strength?: number;
   cardio?: number;
   intervals?: number;
+  budget_id?: string;
+  created_at?: string;
+  is_active?: boolean;
 }
 
 interface StepsHistoryItem {
@@ -60,15 +65,20 @@ interface NutritionHistoryItem {
     fat?: number;
     fiber?: number;
   };
+  budget_id?: string;
   created_at?: string;
+  is_active?: boolean;
 }
 
 interface SupplementsHistoryItem {
+  id?: string;
   startDate?: string;
   endDate?: string;
   supplements?: string[];
   description?: string;
+  budget_id?: string;
   created_at?: string;
+  is_active?: boolean;
 }
 
 interface BudgetAssignmentItem {
@@ -232,8 +242,13 @@ export const LeadHistoryTabs = ({
                         <TableCell className="text-xs font-semibold text-gray-900 py-3">
                           {workout.startDate ? formatDate(workout.startDate) : '-'}
                         </TableCell>
-                        <TableCell className="text-xs max-w-xs truncate font-semibold text-gray-900 py-3">
-                          {workout.description || workout.name || '-'}
+                        <TableCell className="text-xs max-w-xs font-semibold text-gray-900 py-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="truncate">{workout.description || workout.name || '-'}</span>
+                            {workout.budget_id && (
+                              <BudgetLinkBadge budgetId={workout.budget_id} />
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="py-3">
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border border-blue-200 text-xs px-2 py-0.5 font-semibold">
@@ -373,8 +388,13 @@ export const LeadHistoryTabs = ({
                       <TableCell className="text-xs font-semibold text-gray-900 py-3">
                         {nutrition.endDate ? formatDate(nutrition.endDate) : '-'}
                       </TableCell>
-                      <TableCell className="text-xs max-w-xs truncate font-semibold text-gray-900 py-3">
-                        {nutrition.description || '-'}
+                      <TableCell className="text-xs max-w-xs font-semibold text-gray-900 py-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="truncate">{nutrition.description || '-'}</span>
+                          {nutrition.budget_id && (
+                            <BudgetLinkBadge budgetId={nutrition.budget_id} />
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="py-3">
                         <Badge variant="outline" className="bg-orange-50 text-orange-700 border border-orange-200 text-xs px-2 py-0.5 font-semibold">
@@ -449,8 +469,13 @@ export const LeadHistoryTabs = ({
                       <TableCell className="text-xs font-semibold text-gray-900 py-3">
                         {supplement.endDate ? formatDate(supplement.endDate) : '-'}
                       </TableCell>
-                      <TableCell className="text-xs max-w-xs truncate font-semibold text-gray-900 py-3">
-                        {supplement.description || '-'}
+                      <TableCell className="text-xs max-w-xs font-semibold text-gray-900 py-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="truncate">{supplement.description || '-'}</span>
+                          {supplement.budget_id && (
+                            <BudgetLinkBadge budgetId={supplement.budget_id} />
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="py-3">
                         <div className="flex flex-wrap gap-1">
