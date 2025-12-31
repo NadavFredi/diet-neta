@@ -32,6 +32,7 @@ const getStripeSecretKey = (): string | null => {
     console.error('[Stripe] Missing VITE_STRIPE_SECRET_KEY environment variable');
     console.error('[Stripe] Please add VITE_STRIPE_SECRET_KEY to your .env.local file');
     console.error('[Stripe] Example: VITE_STRIPE_SECRET_KEY=sk_test_51AbCdEf...');
+    console.error('[Stripe] ⚠️ IMPORTANT: After adding the key, restart your dev server (npm run dev)');
     return null;
   }
   
@@ -44,9 +45,21 @@ const getStripeSecretKey = (): string | null => {
   
   // Validate key format (Stripe keys start with sk_test_ or sk_live_)
   if (!key.startsWith('sk_test_') && !key.startsWith('sk_live_')) {
-    console.error('[Stripe] Invalid Stripe secret key format');
-    console.error('[Stripe] Key should start with "sk_test_" (test mode) or "sk_live_" (live mode)');
-    console.error('[Stripe] Current key prefix:', key.substring(0, 12));
+    console.error('[Stripe] ❌ Invalid Stripe secret key format detected!');
+    console.error('[Stripe] Your key starts with:', key.substring(0, 8));
+    console.error('[Stripe] Expected format: Key should start with "sk_test_" (test mode) or "sk_live_" (live mode)');
+    console.error('[Stripe]');
+    console.error('[Stripe] Common mistakes:');
+    console.error('[Stripe] - Using publishable key (pk_...) instead of secret key (sk_...)');
+    console.error('[Stripe] - Using restricted key (rk_...) instead of secret key');
+    console.error('[Stripe] - Using webhook signing secret (whsec_...) instead of secret key');
+    console.error('[Stripe]');
+    console.error('[Stripe] 📝 How to get your Stripe Secret Key:');
+    console.error('[Stripe] 1. Go to https://dashboard.stripe.com/apikeys');
+    console.error('[Stripe] 2. Click "Create secret key" or use an existing one');
+    console.error('[Stripe] 3. Copy the key that starts with "sk_test_" (for testing)');
+    console.error('[Stripe] 4. Add it to .env.local as: VITE_STRIPE_SECRET_KEY=sk_test_...');
+    console.error('[Stripe] 5. Restart your dev server');
     return null;
   }
   
