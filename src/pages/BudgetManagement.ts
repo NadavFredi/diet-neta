@@ -14,9 +14,6 @@ import {
   useDeleteBudget,
   useCreateBudget,
   useUpdateBudget,
-  useAssignBudgetToCustomer,
-  useAssignBudgetToLead,
-  type Budget,
 } from '@/hooks/useBudgets';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
@@ -25,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { generateBudgetPDF } from '@/services/pdfService';
 import { syncPlansFromBudget, deleteAssociatedPlans } from '@/services/budgetPlanSync';
 import { supabase } from '@/lib/supabaseClient';
-import type { NutritionTargets, Supplement, Budget } from '@/store/slices/budgetSlice';
+import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
 
 export interface BudgetColumnVisibility {
   name: boolean;
@@ -70,8 +67,6 @@ export const useBudgetManagement = () => {
   const createBudget = useCreateBudget();
   const updateBudget = useUpdateBudget();
   const deleteBudget = useDeleteBudget();
-  const assignToCustomer = useAssignBudgetToCustomer();
-  const assignToLead = useAssignBudgetToLead();
 
   // Auto-navigate to default view (only if defaultView exists)
   // If no defaultView, show all budgets (no view_id)
@@ -177,8 +172,6 @@ export const useBudgetManagement = () => {
       supplements: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
-      customer_id?: string | null;
-      lead_id?: string | null;
     }
   ) => {
     try {
@@ -188,52 +181,37 @@ export const useBudgetManagement = () => {
           ...data,
         });
         
-        // Handle assignment if customer_id or lead_id is provided
-        // Also sync plans if budget templates changed
-        if ((data as any).customer_id || (data as any).lead_id) {
-          if ((data as any).customer_id) {
-            await assignToCustomer.mutateAsync({
-              budgetId: editingBudget.id,
-              customerId: (data as any).customer_id,
-            });
-          } else if ((data as any).lead_id) {
-            await assignToLead.mutateAsync({
-              budgetId: editingBudget.id,
-              leadId: (data as any).lead_id,
-            });
-          }
-        } else {
-          // If budget templates changed, sync plans for existing assignments
-          const budgetChanged = 
-            (data as any).workout_template_id !== undefined ||
-            (data as any).nutrition_template_id !== undefined ||
-            (data as any).supplements !== undefined;
-          
-          if (budgetChanged) {
-            // Get active assignments for this budget
-            const { data: assignments } = await supabase
-              .from('budget_assignments')
-              .select('customer_id, lead_id')
-              .eq('budget_id', editingBudget.id)
-              .eq('is_active', true);
+        // If budget templates changed, sync plans for existing assignments
+        // (Budget is a template - changes should propagate to all assigned customers)
+        const budgetChanged = 
+          (data as any).workout_template_id !== undefined ||
+          (data as any).nutrition_template_id !== undefined ||
+          (data as any).supplements !== undefined;
+        
+        if (budgetChanged) {
+          // Get active assignments for this budget
+          const { data: assignments } = await supabase
+            .from('budget_assignments')
+            .select('customer_id, lead_id')
+            .eq('budget_id', editingBudget.id)
+            .eq('is_active', true);
 
-            if (assignments && assignments.length > 0) {
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user) {
-                const updatedBudget = { ...editingBudget, ...data } as Budget;
-                
-                // Sync plans for each assignment
-                for (const assignment of assignments) {
-                  try {
-                    await syncPlansFromBudget({
-                      budget: updatedBudget,
-                      customerId: assignment.customer_id,
-                      leadId: assignment.lead_id,
-                      userId: user.id,
-                    });
-                  } catch (syncError) {
-                    console.error('Error syncing plans after budget update:', syncError);
-                  }
+          if (assignments && assignments.length > 0) {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const updatedBudget = { ...editingBudget, ...data } as Budget;
+              
+              // Sync plans for each assignment
+              for (const assignment of assignments) {
+                try {
+                  await syncPlansFromBudget({
+                    budget: updatedBudget,
+                    customerId: assignment.customer_id,
+                    leadId: assignment.lead_id,
+                    userId: user.id,
+                  });
+                } catch (syncError) {
+                  console.error('Error syncing plans after budget update:', syncError);
                 }
               }
             }
@@ -261,24 +239,9 @@ export const useBudgetManagement = () => {
           is_public: false,
         });
         
-        // Handle assignment if customer_id or lead_id is provided
-        if ((data as any).customer_id || (data as any).lead_id) {
-          if ((data as any).customer_id) {
-            await assignToCustomer.mutateAsync({
-              budgetId: newBudget.id,
-              customerId: (data as any).customer_id,
-            });
-          } else if ((data as any).lead_id) {
-            await assignToLead.mutateAsync({
-              budgetId: newBudget.id,
-              leadId: (data as any).lead_id,
-            });
-          }
-        }
-        
         toast({
           title: 'הצלחה',
-          description: 'התקציב נוצר בהצלחה',
+          description: 'תבנית התקציב נוצרה בהצלחה. ניתן להקצות אותה ללקוחות מהדף שלהם.',
         });
         setIsAddDialogOpen(false);
       }

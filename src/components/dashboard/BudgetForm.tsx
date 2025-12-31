@@ -1,11 +1,11 @@
 /**
  * BudgetForm Component
  * 
- * Comprehensive form for creating/editing budgets (Taktziv)
- * Handles all fields: nutrition, steps, workout, supplements, guidelines
+ * Premium Luxury Budget Configurator - Apple/Stripe Aesthetic
+ * Bento-style layout with world-class UI/UX
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,16 +18,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Plus, Trash2, X, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints } from 'lucide-react';
 import { useNutritionTemplates } from '@/hooks/useNutritionTemplates';
 import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates';
-import { useCustomers } from '@/hooks/useCustomers';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
 import { cn } from '@/lib/utils';
+import { AddWorkoutTemplateDialog } from '@/components/dashboard/dialogs/AddWorkoutTemplateDialog';
+import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCreateWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
+import { useCreateNutritionTemplate } from '@/hooks/useNutritionTemplates';
+import { useToast } from '@/hooks/use-toast';
 
 interface BudgetFormProps {
   mode: 'create' | 'edit';
@@ -36,45 +38,74 @@ interface BudgetFormProps {
   onCancel: () => void;
 }
 
+// Macro Split Bar Component
+const MacroSplitBar = ({ protein, carbs, fat }: { protein: number; carbs: number; fat: number }) => {
+  const totalCalories = protein * 4 + carbs * 4 + fat * 9;
+  
+  if (totalCalories === 0) {
+    return (
+      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-full bg-slate-200" />
+      </div>
+    );
+  }
+
+  const proteinPercent = Math.round((protein * 4 / totalCalories) * 100);
+  const carbsPercent = Math.round((carbs * 4 / totalCalories) * 100);
+  const fatPercent = Math.round((fat * 9 / totalCalories) * 100);
+
+  return (
+    <div className="space-y-2">
+      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex">
+        <div 
+          className="bg-blue-500 transition-all duration-300" 
+          style={{ width: `${proteinPercent}%` }}
+        />
+        <div 
+          className="bg-green-500 transition-all duration-300" 
+          style={{ width: `${carbsPercent}%` }}
+        />
+        <div 
+          className="bg-amber-500 transition-all duration-300" 
+          style={{ width: `${fatPercent}%` }}
+        />
+      </div>
+      <div className="flex items-center justify-between text-xs text-slate-500" dir="rtl">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-amber-500" />
+            <span>שומן {fatPercent}%</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span>פחמימות {carbsPercent}%</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-blue-500" />
+            <span>חלבון {proteinPercent}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormProps) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: nutritionTemplates = [] } = useNutritionTemplates();
   const { data: workoutTemplates = [] } = useWorkoutTemplates();
-  const { data: customers = [] } = useCustomers();
+  const createWorkoutTemplate = useCreateWorkoutTemplate();
+  const createNutritionTemplate = useCreateNutritionTemplate();
   
-  // Fetch leads
-  const { data: leads = [] } = useQuery({
-    queryKey: ['leads-for-budget'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('id, customer_id, status_main, status_sub, created_at, customers(full_name)')
-        .order('created_at', { ascending: false })
-        .limit(1000);
-      
-      if (error) {
-        console.error('Error fetching leads:', error);
-        return [];
-      }
-      
-      return (data || []).map((lead: any) => ({
-        id: lead.id,
-        customer_id: lead.customer_id,
-        status_main: lead.status_main,
-        status_sub: lead.status_sub,
-        created_at: lead.created_at,
-        customer_name: lead.customers?.full_name || '',
-      }));
-    },
-  });
+  // Template creation dialog states
+  const [isWorkoutTemplateDialogOpen, setIsWorkoutTemplateDialogOpen] = useState(false);
+  const [isNutritionTemplateDialogOpen, setIsNutritionTemplateDialogOpen] = useState(false);
   
   // Basic info
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  
-  // Customer/Lead selection
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   
   // Nutrition
   const [nutritionTemplateId, setNutritionTemplateId] = useState<string | null>(null);
@@ -103,34 +134,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
   const [eatingRules, setEatingRules] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Filter leads by selected customer
-  const filteredLeads = selectedCustomerId
-    ? leads.filter((lead) => lead.customer_id === selectedCustomerId)
-    : leads;
-  
-  // Fetch existing assignment when editing
-  const { data: existingAssignment } = useQuery({
-    queryKey: ['budget-assignment', initialData?.id],
-    queryFn: async () => {
-      if (!initialData?.id) return null;
-      
-      const { data, error } = await supabase
-        .from('budget_assignments')
-        .select('customer_id, lead_id')
-        .eq('budget_id', initialData.id)
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error fetching budget assignment:', error);
-        return null;
-      }
-      
-      return data;
-    },
-    enabled: !!initialData?.id && mode === 'edit',
-  });
 
   // Initialize form with initial data
   useEffect(() => {
@@ -155,23 +158,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
       setEatingRules(initialData.eating_rules || '');
     }
   }, [initialData]);
-  
-  // Set customer/lead from existing assignment
-  useEffect(() => {
-    if (existingAssignment) {
-      if (existingAssignment.customer_id) {
-        setSelectedCustomerId(existingAssignment.customer_id);
-      }
-      if (existingAssignment.lead_id) {
-        setSelectedLeadId(existingAssignment.lead_id);
-        // Also set customer_id if lead has one
-        const lead = leads.find((l) => l.id === existingAssignment.lead_id);
-        if (lead?.customer_id) {
-          setSelectedCustomerId(lead.customer_id);
-        }
-      }
-    }
-  }, [existingAssignment, leads]);
 
   // Handle nutrition template selection
   const handleNutritionTemplateChange = (templateId: string) => {
@@ -226,8 +212,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
         supplements: supplements.filter((s) => s.name.trim() !== ''),
         eating_order: eatingOrder || null,
         eating_rules: eatingRules || null,
-        customer_id: selectedCustomerId || null,
-        lead_id: selectedLeadId || null,
       });
     } catch (error) {
       console.error('Error saving budget:', error);
@@ -236,394 +220,528 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
     }
   };
   
-  const handleCreateWorkoutPlan = () => {
-    // Open templates management in a new tab or navigate
-    window.open('/dashboard/templates', '_blank');
+  // Handle creating new workout template
+  const handleCreateWorkoutTemplate = async (data: any) => {
+    try {
+      const newTemplate = await createWorkoutTemplate.mutateAsync(data);
+      
+      // Refresh templates list
+      queryClient.invalidateQueries({ queryKey: ['workoutTemplates'] });
+      
+      // Auto-select the newly created template
+      setWorkoutTemplateId(newTemplate.id);
+      
+      // Close dialog
+      setIsWorkoutTemplateDialogOpen(false);
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תבנית האימונים נוצרה בהצלחה ונבחרה אוטומטית',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת תבנית האימונים',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Handle creating new nutrition template
+  const handleCreateNutritionTemplate = async (data: any) => {
+    try {
+      const newTemplate = await createNutritionTemplate.mutateAsync(data);
+      
+      // Refresh templates list
+      queryClient.invalidateQueries({ queryKey: ['nutritionTemplates'] });
+      
+      // Auto-select the newly created template and load its targets
+      setNutritionTemplateId(newTemplate.id);
+      setUseCustomNutrition(false);
+      
+      if (newTemplate.targets) {
+        setNutritionTargets({
+          calories: newTemplate.targets.calories || 0,
+          protein: newTemplate.targets.protein || 0,
+          carbs: newTemplate.targets.carbs || 0,
+          fat: newTemplate.targets.fat || 0,
+          fiber_min: newTemplate.targets.fiber || 20,
+          water_min: nutritionTargets.water_min || 2.5,
+        });
+      }
+      
+      // Close dialog
+      setIsNutritionTemplateDialogOpen(false);
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תבנית התזונה נוצרה בהצלחה ונבחרה אוטומטית',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת תבנית התזונה',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" dir="rtl">
-      {/* Basic Info */}
-      <Card className="border border-slate-200">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-bold">מידע בסיסי</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-semibold">שם התקציב *</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="לדוגמה: תקציב 1700 קלוריות"
-              required
-              className="border-slate-200"
-              dir="rtl"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-sm font-semibold">תיאור</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="תיאור קצר של התקציב"
-              rows={2}
-              className="border-slate-200"
-              dir="rtl"
-            />
-          </div>
-          
-          {/* Customer/Lead Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+    <form onSubmit={handleSubmit} className="space-y-6" dir="rtl" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+      {/* Bento Grid Layout */}
+      <div className="grid grid-cols-2 gap-6">
+        {/* Card A: General Identity (Top Left) */}
+        <Card className="bg-white border-0 shadow-sm rounded-3xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-slate-900">מידע בסיסי</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">לקוח (אופציונלי)</Label>
-              <Select
-                value={selectedCustomerId || 'none'}
-                onValueChange={(value) => {
-                  setSelectedCustomerId(value === 'none' ? null : value);
-                  setSelectedLeadId(null); // Reset lead when customer changes
-                }}
-              >
-                <SelectTrigger className="border-slate-200" dir="rtl">
-                  <SelectValue placeholder="בחר לקוח" />
-                </SelectTrigger>
-                <SelectContent dir="rtl">
-                  <SelectItem value="none">ללא לקוח</SelectItem>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.full_name} {customer.phone ? `(${customer.phone})` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="name" className="text-sm font-medium text-slate-500">שם התקציב *</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="לדוגמה: תקציב 1700 קלוריות"
+                required
+                className={cn(
+                  "h-11 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all",
+                  "text-slate-900 font-medium"
+                )}
+                dir="rtl"
+              />
             </div>
             
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">ליד (אופציונלי)</Label>
-              <Select
-                value={selectedLeadId || 'none'}
-                onValueChange={(value) => setSelectedLeadId(value === 'none' ? null : value)}
-                disabled={!selectedCustomerId}
-              >
-                <SelectTrigger className="border-slate-200" dir="rtl" disabled={!selectedCustomerId}>
-                  <SelectValue placeholder={selectedCustomerId ? "בחר ליד" : "בחר קודם לקוח"} />
-                </SelectTrigger>
-                <SelectContent dir="rtl">
-                  <SelectItem value="none">ללא ליד</SelectItem>
-                  {filteredLeads.map((lead) => (
-                    <SelectItem key={lead.id} value={lead.id}>
-                      {lead.customer_name} - {lead.status_main || lead.status_sub || 'ליד חדש'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="description" className="text-sm font-medium text-slate-500">תיאור</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="תיאור קצר של התקציב"
+                className={cn(
+                  "min-h-[60px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
+                  "text-slate-900 font-medium"
+                )}
+                dir="rtl"
+              />
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Nutrition */}
-      <Card className="border border-slate-200">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-bold">תזונה</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">תבנית תזונה</Label>
-            <Select
-              value={useCustomNutrition ? 'custom' : nutritionTemplateId || ''}
-              onValueChange={handleNutritionTemplateChange}
-            >
-              <SelectTrigger className="border-slate-200" dir="rtl">
-                <SelectValue placeholder="בחר תבנית תזונה או הזן ידנית" />
-              </SelectTrigger>
-              <SelectContent dir="rtl">
-                <SelectItem value="custom">הזן ידנית</SelectItem>
-                {nutritionTemplates.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {useCustomNutrition && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2">
-              <div className="space-y-2">
-                <Label htmlFor="calories" className="text-xs">קלוריות (קק״ל)</Label>
-                <Input
-                  id="calories"
-                  type="number"
-                  value={nutritionTargets.calories || ''}
-                  onChange={(e) =>
-                    setNutritionTargets({ ...nutritionTargets, calories: parseFloat(e.target.value) || 0 })
-                  }
-                  placeholder="0"
-                  className="border-slate-200"
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="protein" className="text-xs">חלבון (ג׳)</Label>
-                <Input
-                  id="protein"
-                  type="number"
-                  value={nutritionTargets.protein || ''}
-                  onChange={(e) =>
-                    setNutritionTargets({ ...nutritionTargets, protein: parseFloat(e.target.value) || 0 })
-                  }
-                  placeholder="0"
-                  className="border-slate-200"
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="carbs" className="text-xs">פחמימות (ג׳)</Label>
-                <Input
-                  id="carbs"
-                  type="number"
-                  value={nutritionTargets.carbs || ''}
-                  onChange={(e) =>
-                    setNutritionTargets({ ...nutritionTargets, carbs: parseFloat(e.target.value) || 0 })
-                  }
-                  placeholder="0"
-                  className="border-slate-200"
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fat" className="text-xs">שומן (ג׳)</Label>
-                <Input
-                  id="fat"
-                  type="number"
-                  value={nutritionTargets.fat || ''}
-                  onChange={(e) =>
-                    setNutritionTargets({ ...nutritionTargets, fat: parseFloat(e.target.value) || 0 })
-                  }
-                  placeholder="0"
-                  className="border-slate-200"
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fiber_min" className="text-xs">סיבים מינימום (ג׳)</Label>
-                <Input
-                  id="fiber_min"
-                  type="number"
-                  value={nutritionTargets.fiber_min || ''}
-                  onChange={(e) =>
-                    setNutritionTargets({ ...nutritionTargets, fiber_min: parseFloat(e.target.value) || 20 })
-                  }
-                  placeholder="20"
-                  className="border-slate-200"
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="water_min" className="text-xs">מים מינימום (ליטר)</Label>
-                <Input
-                  id="water_min"
-                  type="number"
-                  step="0.1"
-                  value={nutritionTargets.water_min || ''}
-                  onChange={(e) =>
-                    setNutritionTargets({ ...nutritionTargets, water_min: parseFloat(e.target.value) || 2.5 })
-                  }
-                  placeholder="2.5"
-                  className="border-slate-200"
-                  dir="ltr"
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Steps */}
-      <Card className="border border-slate-200">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-bold">צעדים</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="steps_goal" className="text-sm font-semibold">יעד צעדים יומי</Label>
-            <Input
-              id="steps_goal"
-              type="number"
-              value={stepsGoal || ''}
-              onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
-              placeholder="לדוגמה: 7000"
-              className="border-slate-200"
-              dir="ltr"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="steps_instructions" className="text-sm font-semibold">הוראות צעדים</Label>
-            <Textarea
-              id="steps_instructions"
-              value={stepsInstructions}
-              onChange={(e) => setStepsInstructions(e.target.value)}
-              placeholder="לדוגמה: 10-15 דק' הליכה אחרי כל ארוחה"
-              rows={2}
-              className="border-slate-200"
-              dir="rtl"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Workout */}
-      <Card className="border border-slate-200">
-        <CardHeader className="pb-3 flex items-center justify-between">
-          <CardTitle className="text-base font-bold">אימונים</CardTitle>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleCreateWorkoutPlan}
-            className="text-xs"
-          >
-            <Plus className="h-3 w-3 ml-1" />
-            צור תכנית אימונים חדשה
-            <ExternalLink className="h-3 w-3 mr-1" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">תבנית אימונים</Label>
-            <Select
-              value={workoutTemplateId || 'none'}
-              onValueChange={(value) => setWorkoutTemplateId(value === 'none' ? null : value || null)}
-            >
-              <SelectTrigger className="border-slate-200" dir="rtl">
-                <SelectValue placeholder="בחר תבנית אימונים (אופציונלי)" />
-              </SelectTrigger>
-              <SelectContent dir="rtl">
-                <SelectItem value="none">ללא תבנית</SelectItem>
-                {workoutTemplates.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Supplements */}
-      <Card className="border border-slate-200">
-        <CardHeader className="pb-3 flex items-center justify-between">
-          <CardTitle className="text-base font-bold">תוספים</CardTitle>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addSupplement}
-            className="text-xs"
-          >
-            <Plus className="h-3 w-3 ml-1" />
-            הוסף תוסף
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {supplements.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">אין תוספים. לחץ על "הוסף תוסף" כדי להתחיל</p>
-          ) : (
-            supplements.map((supplement, index) => (
-              <div key={index} className="flex gap-2 items-start p-3 border border-slate-200 rounded-lg">
-                <div className="flex-1 grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">שם התוסף</Label>
-                    <Input
-                      value={supplement.name}
-                      onChange={(e) => updateSupplement(index, 'name', e.target.value)}
-                      placeholder="לדוגמה: ויטמין D3+K2"
-                      className="border-slate-200 text-sm"
-                      dir="rtl"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">מינון</Label>
-                    <Input
-                      value={supplement.dosage}
-                      onChange={(e) => updateSupplement(index, 'dosage', e.target.value)}
-                      placeholder="לדוגמה: 5000IU"
-                      className="border-slate-200 text-sm"
-                      dir="rtl"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">זמן נטילה</Label>
-                    <Input
-                      value={supplement.timing}
-                      onChange={(e) => updateSupplement(index, 'timing', e.target.value)}
-                      placeholder="לדוגמה: בבוקר"
-                      className="border-slate-200 text-sm"
-                      dir="rtl"
-                    />
-                  </div>
-                </div>
+        {/* Card B: Plan Integration (Top Right) */}
+        <Card className="bg-white border-0 shadow-sm rounded-3xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-slate-900">אינטגרציית תכניות</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                <Dumbbell className="h-4 w-4 text-slate-400" />
+                תכנית אימונים
+              </Label>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={workoutTemplateId || 'none'}
+                  onValueChange={(value) => setWorkoutTemplateId(value === 'none' ? null : value || null)}
+                >
+                  <SelectTrigger className={cn(
+                    "h-11 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
+                    "text-slate-900 font-medium"
+                  )} dir="rtl">
+                    <SelectValue placeholder="בחר תבנית אימונים" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value="none">ללא תבנית</SelectItem>
+                    {workoutTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
-                  onClick={() => removeSupplement(index)}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 mt-6"
+                  size="icon"
+                  onClick={() => setIsWorkoutTemplateDialogOpen(true)}
+                  className="h-11 w-11 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                  title="צור תבנית אימונים חדשה"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Plus className="h-4 w-4" />
                 </Button>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+            </div>
 
-      {/* Guidelines */}
-      <Card className="border border-slate-200">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-bold">הנחיות אכילה</CardTitle>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                <Apple className="h-4 w-4 text-slate-400" />
+                תבנית תזונה
+              </Label>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={useCustomNutrition ? 'custom' : nutritionTemplateId || ''}
+                  onValueChange={handleNutritionTemplateChange}
+                >
+                  <SelectTrigger className={cn(
+                    "h-11 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
+                    "text-slate-900 font-medium"
+                  )} dir="rtl">
+                    <SelectValue placeholder="בחר תבנית תזונה או הזן ידנית" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value="custom">הזן ידנית</SelectItem>
+                    {nutritionTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsNutritionTemplateDialogOpen(true)}
+                  className="h-11 w-11 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                  title="צור תבנית תזונה חדשה"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                <Pill className="h-4 w-4 text-slate-400" />
+                תוספים
+              </Label>
+              <div className="space-y-3">
+                {supplements.length === 0 ? (
+                  <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl">
+                    <p className="text-sm text-slate-400 mb-3">אין תוספים</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={addSupplement}
+                      className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                    >
+                      <Plus className="h-4 w-4 ml-1" />
+                      הוסף תוסף
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {supplements.map((supplement, index) => (
+                      <div key={index} className="flex gap-2 items-start p-3 bg-slate-50 rounded-xl">
+                        <div className="flex-1 grid grid-cols-3 gap-2">
+                          <Input
+                            value={supplement.name}
+                            onChange={(e) => updateSupplement(index, 'name', e.target.value)}
+                            placeholder="שם התוסף"
+                            className="h-9 bg-white border-0 text-sm"
+                            dir="rtl"
+                          />
+                          <Input
+                            value={supplement.dosage}
+                            onChange={(e) => updateSupplement(index, 'dosage', e.target.value)}
+                            placeholder="מינון"
+                            className="h-9 bg-white border-0 text-sm"
+                            dir="rtl"
+                          />
+                          <Input
+                            value={supplement.timing}
+                            onChange={(e) => updateSupplement(index, 'timing', e.target.value)}
+                            placeholder="זמן נטילה"
+                            className="h-9 bg-white border-0 text-sm"
+                            dir="rtl"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeSupplement(index)}
+                          className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={addSupplement}
+                      className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                    >
+                      <Plus className="h-4 w-4 ml-1" />
+                      הוסף תוסף נוסף
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                <Footprints className="h-4 w-4 text-slate-400" />
+                יעד צעדים יומי
+              </Label>
+              <Input
+                type="number"
+                value={stepsGoal || ''}
+                onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
+                placeholder="לדוגמה: 7000"
+                className={cn(
+                  "h-11 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                  "text-slate-900 font-medium"
+                )}
+                dir="ltr"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="steps_instructions" className="text-sm font-medium text-slate-500">הוראות צעדים</Label>
+              <Textarea
+                id="steps_instructions"
+                value={stepsInstructions}
+                onChange={(e) => setStepsInstructions(e.target.value)}
+                placeholder="הוראות והנחיות נוספות לגבי הצעדים היומיים"
+                className={cn(
+                  "min-h-[60px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
+                  "text-slate-900 font-medium"
+                )}
+                dir="rtl"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Card C: Nutrition Matrix (Bottom Full Width) */}
+      {useCustomNutrition && (
+        <Card className="bg-white border-0 shadow-sm rounded-3xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-slate-900">מטריצת תזונה</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Macro Split Bar */}
+            <MacroSplitBar 
+              protein={nutritionTargets.protein || 0}
+              carbs={nutritionTargets.carbs || 0}
+              fat={nutritionTargets.fat || 0}
+            />
+
+            {/* Nutrition Grid - 3 columns */}
+            <div className="grid grid-cols-3 gap-6">
+              {/* Row 1 */}
+              <div className="space-y-2">
+                <Label htmlFor="calories" className="text-sm font-medium text-slate-500">קלוריות</Label>
+                <div className="relative">
+                  <Input
+                    id="calories"
+                    type="number"
+                    value={nutritionTargets.calories || ''}
+                    onChange={(e) =>
+                      setNutritionTargets({ ...nutritionTargets, calories: parseFloat(e.target.value) || 0 })
+                    }
+                    placeholder="0"
+                    className={cn(
+                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-lg pr-16"
+                    )}
+                    dir="ltr"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">קק״ל</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="protein" className="text-sm font-medium text-slate-500">חלבון</Label>
+                <div className="relative">
+                  <Input
+                    id="protein"
+                    type="number"
+                    value={nutritionTargets.protein || ''}
+                    onChange={(e) =>
+                      setNutritionTargets({ ...nutritionTargets, protein: parseFloat(e.target.value) || 0 })
+                    }
+                    placeholder="0"
+                    className={cn(
+                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-lg pr-12"
+                    )}
+                    dir="ltr"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">ג׳</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="carbs" className="text-sm font-medium text-slate-500">פחמימות</Label>
+                <div className="relative">
+                  <Input
+                    id="carbs"
+                    type="number"
+                    value={nutritionTargets.carbs || ''}
+                    onChange={(e) =>
+                      setNutritionTargets({ ...nutritionTargets, carbs: parseFloat(e.target.value) || 0 })
+                    }
+                    placeholder="0"
+                    className={cn(
+                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-lg pr-12"
+                    )}
+                    dir="ltr"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">ג׳</span>
+                </div>
+              </div>
+
+              {/* Row 2 */}
+              <div className="space-y-2">
+                <Label htmlFor="fat" className="text-sm font-medium text-slate-500">שומן</Label>
+                <div className="relative">
+                  <Input
+                    id="fat"
+                    type="number"
+                    value={nutritionTargets.fat || ''}
+                    onChange={(e) =>
+                      setNutritionTargets({ ...nutritionTargets, fat: parseFloat(e.target.value) || 0 })
+                    }
+                    placeholder="0"
+                    className={cn(
+                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-lg pr-12"
+                    )}
+                    dir="ltr"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">ג׳</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fiber_min" className="text-sm font-medium text-slate-500">סיבים</Label>
+                <div className="relative">
+                  <Input
+                    id="fiber_min"
+                    type="number"
+                    value={nutritionTargets.fiber_min || ''}
+                    onChange={(e) =>
+                      setNutritionTargets({ ...nutritionTargets, fiber_min: parseFloat(e.target.value) || 20 })
+                    }
+                    placeholder="20"
+                    className={cn(
+                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-lg pr-12"
+                    )}
+                    dir="ltr"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">ג׳</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="water_min" className="text-sm font-medium text-slate-500">מים</Label>
+                <div className="relative">
+                  <Input
+                    id="water_min"
+                    type="number"
+                    step="0.1"
+                    value={nutritionTargets.water_min || ''}
+                    onChange={(e) =>
+                      setNutritionTargets({ ...nutritionTargets, water_min: parseFloat(e.target.value) || 2.5 })
+                    }
+                    placeholder="2.5"
+                    className={cn(
+                      "h-12 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-semibold text-lg pr-16"
+                    )}
+                    dir="ltr"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">ליטר</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Guidelines Card - Always visible */}
+      <Card className="bg-white border-0 shadow-sm rounded-3xl">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-semibold text-slate-900">הנחיות אכילה</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="eating_order" className="text-sm font-semibold">סדר האכילה</Label>
+            <Label htmlFor="eating_order" className="text-sm font-medium text-slate-500">סדר האכילה</Label>
             <Textarea
               id="eating_order"
               value={eatingOrder}
               onChange={(e) => setEatingOrder(e.target.value)}
               placeholder="לדוגמה: מתחילה בירקות, ממשיכה לחלבון ומסיימת בפחמימה"
-              rows={2}
-              className="border-slate-200"
+              className={cn(
+                "min-h-[60px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
+                "text-slate-900 font-medium"
+              )}
               dir="rtl"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="eating_rules" className="text-sm font-semibold">כללי אכילה</Label>
+            <Label htmlFor="eating_rules" className="text-sm font-medium text-slate-500">כללי אכילה</Label>
             <Textarea
               id="eating_rules"
               value={eatingRules}
               onChange={(e) => setEatingRules(e.target.value)}
               placeholder="לדוגמה: לא תאכלי פחמימה לבדה - עם חלבון, סיבים ושומן"
-              rows={2}
-              className="border-slate-200"
+              className={cn(
+                "min-h-[60px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
+                "text-slate-900 font-medium"
+              )}
               dir="rtl"
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+      {/* Hero Save Button */}
+      <div className="flex justify-start gap-3 pt-6 border-t border-slate-100">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel} 
+          disabled={isSubmitting}
+          className="h-12 px-6 text-slate-600 hover:text-slate-900 border-slate-200 hover:border-slate-300"
+        >
           ביטול
         </Button>
-        <Button type="submit" disabled={isSubmitting || !name.trim()}>
+        <Button 
+          type="submit" 
+          disabled={isSubmitting || !name.trim()}
+          className={cn(
+            "h-12 px-8 bg-gradient-to-r from-[#5B6FB9] to-[#5B6FB9]/90 text-white font-semibold",
+            "hover:from-[#5B6FB9]/90 hover:to-[#5B6FB9] hover:-translate-y-0.5 transition-all duration-200",
+            "shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+          )}
+        >
           {isSubmitting ? 'שומר...' : mode === 'create' ? 'צור תקציב' : 'שמור שינויים'}
         </Button>
       </div>
+      
+      {/* Template Creation Dialogs */}
+      <AddWorkoutTemplateDialog
+        isOpen={isWorkoutTemplateDialogOpen}
+        onOpenChange={setIsWorkoutTemplateDialogOpen}
+        onSave={handleCreateWorkoutTemplate}
+      />
+      
+      <AddNutritionTemplateDialog
+        isOpen={isNutritionTemplateDialogOpen}
+        onOpenChange={setIsNutritionTemplateDialogOpen}
+        onSave={handleCreateNutritionTemplate}
+      />
     </form>
   );
 };
-

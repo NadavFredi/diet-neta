@@ -20,7 +20,7 @@ export const AddBudgetDialog = ({
 }: AddBudgetDialogProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange} dir="rtl">
-      <DialogContent className="max-w-5xl w-[90vw] h-[90vh] flex flex-col p-0 overflow-hidden" dir="rtl">
+      <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden" dir="rtl">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="text-lg font-bold">יצירת תקציב חדש</DialogTitle>
         </DialogHeader>

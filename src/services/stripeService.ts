@@ -29,9 +29,27 @@ export interface StripePaymentLinkResponse {
 const getStripeSecretKey = (): string | null => {
   const key = import.meta.env.VITE_STRIPE_SECRET_KEY;
   if (!key) {
-    console.warn('[Stripe] Missing VITE_STRIPE_SECRET_KEY environment variable');
+    console.error('[Stripe] Missing VITE_STRIPE_SECRET_KEY environment variable');
+    console.error('[Stripe] Please add VITE_STRIPE_SECRET_KEY to your .env.local file');
+    console.error('[Stripe] Example: VITE_STRIPE_SECRET_KEY=sk_test_51AbCdEf...');
     return null;
   }
+  
+  // Check if it's a placeholder value
+  if (key.includes('...') || key.length < 20) {
+    console.error('[Stripe] Invalid or placeholder Stripe secret key detected');
+    console.error('[Stripe] The key appears to be a placeholder. Please replace it with your actual Stripe secret key from https://dashboard.stripe.com/apikeys');
+    return null;
+  }
+  
+  // Validate key format (Stripe keys start with sk_test_ or sk_live_)
+  if (!key.startsWith('sk_test_') && !key.startsWith('sk_live_')) {
+    console.error('[Stripe] Invalid Stripe secret key format');
+    console.error('[Stripe] Key should start with "sk_test_" (test mode) or "sk_live_" (live mode)');
+    console.error('[Stripe] Current key prefix:', key.substring(0, 12));
+    return null;
+  }
+  
   return key;
 };
 
@@ -119,10 +137,24 @@ export const createStripePaymentLink = async (
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const errorMessage = errorData.error?.message || `HTTP error! status: ${response.status}`;
+      
+      // Enhanced error logging for 401 Unauthorized
+      if (response.status === 401) {
+        console.error('[Stripe] 401 Unauthorized Error - Possible issues:');
+        console.error('1. Check if VITE_STRIPE_SECRET_KEY is set in .env.local');
+        console.error('2. Verify the key starts with sk_test_ or sk_live_');
+        console.error('3. Ensure the dev server was restarted after adding the env variable');
+        console.error('4. Check that the key is not expired or revoked');
+        console.error('[Stripe] Current key prefix:', secretKey?.substring(0, 12) || 'NOT SET');
+        console.error('[Stripe] Full error response:', errorData);
+      }
+      
       console.error('[Stripe] API Error:', errorData);
       return {
         success: false,
-        error: errorMessage,
+        error: response.status === 401 
+          ? 'Stripe API authentication failed. Please check your VITE_STRIPE_SECRET_KEY in .env.local file and restart the dev server.'
+          : errorMessage,
       };
     }
 
