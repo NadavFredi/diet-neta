@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
@@ -71,14 +71,25 @@ interface SupplementsHistoryItem {
   created_at?: string;
 }
 
+interface BudgetAssignmentItem {
+  id: string;
+  budget_id: string;
+  budget_name?: string;
+  assigned_at: string;
+  is_active: boolean;
+  notes?: string;
+}
+
 interface LeadHistoryTabsProps {
   workoutHistory?: WorkoutHistoryItem[] | null;
   stepsHistory?: StepsHistoryItem[] | null;
   nutritionHistory?: NutritionHistoryItem[] | null;
   supplementsHistory?: SupplementsHistoryItem[] | null;
+  budgetAssignments?: BudgetAssignmentItem[] | null;
   onAddWorkoutPlan: () => void;
   onAddDietPlan: () => void;
   onAddSupplementsPlan: () => void;
+  onAssignBudget: () => void;
 }
 
 export const LeadHistoryTabs = ({ 
@@ -86,9 +97,11 @@ export const LeadHistoryTabs = ({
   stepsHistory, 
   nutritionHistory, 
   supplementsHistory,
+  budgetAssignments,
   onAddWorkoutPlan,
   onAddDietPlan,
   onAddSupplementsPlan,
+  onAssignBudget,
 }: LeadHistoryTabsProps) => {
   const [activeTab, setActiveTab] = useState('workouts');
 
@@ -96,6 +109,7 @@ export const LeadHistoryTabs = ({
   const hasStepsHistory = stepsHistory && stepsHistory.length > 0;
   const hasNutritionHistory = nutritionHistory && nutritionHistory.length > 0;
   const hasSupplementsHistory = supplementsHistory && supplementsHistory.length > 0;
+  const hasBudgetAssignments = budgetAssignments && budgetAssignments.length > 0;
 
   // Handler functions
   const handleWorkoutClick = () => {
@@ -112,58 +126,20 @@ export const LeadHistoryTabs = ({
   };
 
   // Get the appropriate button for the active tab
+  // Managers can only assign budgets - all other plans are created automatically
   const getActionButton = () => {
-    switch (activeTab) {
-      case 'workouts':
-      case 'steps':
-        return (
-          <Button 
-            size="sm" 
-            onClick={handleWorkoutClick}
-            type="button"
-            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
-          >
-            <Plus className="h-4 w-4" />
-            הוסף תכנית אימונים
-          </Button>
-        );
-      case 'nutrition':
-        return (
-          <Button 
-            size="sm" 
-            onClick={handleDietClick}
-            type="button"
-            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
-          >
-            <Plus className="h-4 w-4" />
-            הוסף תכנית תזונה
-          </Button>
-        );
-      case 'supplements':
-        return (
-          <Button 
-            size="sm" 
-            onClick={handleSupplementsClick}
-            type="button"
-            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
-          >
-            <Plus className="h-4 w-4" />
-            הוסף תכנית תוספים
-          </Button>
-        );
-      default:
-        return (
-          <Button 
-            size="sm" 
-            onClick={handleWorkoutClick}
-            type="button"
-            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
-          >
-            <Plus className="h-4 w-4" />
-            הוסף תכנית אימונים
-          </Button>
-        );
-    }
+    // Only show budget assignment button - all plans are created from budgets
+    return (
+      <Button 
+        size="sm" 
+        onClick={onAssignBudget}
+        type="button"
+        className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
+      >
+        <Plus className="h-4 w-4" />
+        הקצה תקציב
+      </Button>
+    );
   };
 
   // Always show tabs, even if empty
@@ -175,7 +151,7 @@ export const LeadHistoryTabs = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-4 h-10 bg-gray-100 rounded-lg p-1">
+        <TabsList className="grid w-full grid-cols-5 mb-4 h-10 bg-gray-100 rounded-lg p-1">
           <TabsTrigger 
             value="workouts" 
             className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
@@ -200,6 +176,12 @@ export const LeadHistoryTabs = ({
           >
             תכניות תוספים
           </TabsTrigger>
+          <TabsTrigger 
+            value="budgets" 
+            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+          >
+            תקציבים
+          </TabsTrigger>
         </TabsList>
 
         {/* Workout History Tab */}
@@ -210,15 +192,16 @@ export const LeadHistoryTabs = ({
                 <Dumbbell className="h-6 w-6 text-gray-400" />
               </div>
               <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תוכניות אימון</p>
+              <p className="text-gray-400 text-xs mb-3">תכניות אימונים נוצרות אוטומטית מהתקציב</p>
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={() => onAddWorkoutPlan()}
+                onClick={onAssignBudget}
                 type="button"
                 className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
               >
                 <Plus className="h-4 w-4" />
-                הוסף תכנית אימונים
+                הקצה תקציב
               </Button>
             </div>
           ) : (
@@ -283,7 +266,18 @@ export const LeadHistoryTabs = ({
               <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-cyan-100 flex items-center justify-center">
                 <Footprints className="h-6 w-6 text-cyan-400" />
               </div>
-              <p className="text-gray-500 text-sm font-medium">אין היסטוריית צעדים</p>
+              <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריית צעדים</p>
+              <p className="text-gray-400 text-xs mb-3">יעדי צעדים נקבעים אוטומטית מהתקציב</p>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={onAssignBudget}
+                type="button"
+                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
+              >
+                <Plus className="h-4 w-4" />
+                הקצה תקציב
+              </Button>
             </div>
           ) : (
             <div className="space-y-2">
@@ -339,15 +333,16 @@ export const LeadHistoryTabs = ({
                 <UtensilsCrossed className="h-6 w-6 text-orange-400" />
               </div>
               <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תכניות תזונה</p>
+              <p className="text-gray-400 text-xs mb-3">תכניות תזונה נוצרות אוטומטית מהתקציב</p>
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={() => onAddDietPlan()}
+                onClick={onAssignBudget}
                 type="button"
                 className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
               >
                 <Plus className="h-4 w-4" />
-                הוסף תכנית תזונה
+                הקצה תקציב
               </Button>
             </div>
           ) : (
@@ -417,18 +412,16 @@ export const LeadHistoryTabs = ({
                 <Pill className="h-6 w-6 text-green-400" />
               </div>
               <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תכניות תוספים</p>
+              <p className="text-gray-400 text-xs mb-3">תכניות תוספים נוצרות אוטומטית מהתקציב</p>
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={() => {
-                  // Supplements plan - placeholder for now (empty as requested)
-                  onAddSupplementsPlan();
-                }}
+                onClick={onAssignBudget}
                 type="button"
-                className="gap-2"
+                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
               >
                 <Plus className="h-4 w-4" />
-                הוסף תכנית תוספים
+                הקצה תקציב
               </Button>
             </div>
           ) : (
@@ -474,6 +467,73 @@ export const LeadHistoryTabs = ({
                             <span className="text-xs text-gray-400">-</span>
                           )}
                         </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Budget Assignments Tab */}
+        <TabsContent value="budgets" className="mt-0">
+          {!hasBudgetAssignments ? (
+            <div className="text-center py-12">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-purple-100 flex items-center justify-center">
+                <Wallet className="h-6 w-6 text-purple-400" />
+              </div>
+              <p className="text-gray-500 text-sm font-medium mb-3">אין תקציבים מוקצים</p>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={onAssignBudget}
+                type="button"
+                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
+              >
+                <Plus className="h-4 w-4" />
+                הקצה תקציב
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-100">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50 border-b border-gray-200">
+                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תקציב</TableHead>
+                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך הקצאה</TableHead>
+                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">סטטוס</TableHead>
+                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">הערות</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {budgetAssignments.map((assignment, index) => (
+                    <TableRow
+                      key={assignment.id}
+                      className={`transition-all duration-200 ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                      } hover:bg-purple-50 hover:shadow-sm border-b border-gray-100`}
+                    >
+                      <TableCell className="text-xs font-semibold text-gray-900 py-3">
+                        {assignment.budget_name || assignment.budget_id}
+                      </TableCell>
+                      <TableCell className="text-xs font-semibold text-gray-900 py-3">
+                        {assignment.assigned_at ? formatDate(assignment.assigned_at) : '-'}
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <Badge 
+                          variant="outline" 
+                          className={`${
+                            assignment.is_active
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-gray-50 text-gray-700 border-gray-200'
+                          } text-xs px-2 py-0.5 font-semibold`}
+                        >
+                          {assignment.is_active ? 'פעיל' : 'לא פעיל'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs max-w-xs truncate font-semibold text-gray-900 py-3">
+                        {assignment.notes || '-'}
                       </TableCell>
                     </TableRow>
                   ))}

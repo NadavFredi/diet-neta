@@ -20,7 +20,11 @@ import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
 import { AddWorkoutPlanDialog } from '@/components/dashboard/dialogs/AddWorkoutPlanDialog';
 import { AddNutritionPlanDialog } from '@/components/dashboard/dialogs/AddNutritionPlanDialog';
+import { AssignBudgetDialog } from '@/components/dashboard/dialogs/AssignBudgetDialog';
 import { useToast } from '@/hooks/use-toast';
+import { useActiveBudgetForLead, useActiveBudgetForCustomer } from '@/hooks/useBudgets';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabaseClient';
 
 const UnifiedProfileView = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -53,10 +57,77 @@ const UnifiedProfileView = () => {
   // Dialog state management
   const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
   const [isNutritionPlanDialogOpen, setIsNutritionPlanDialogOpen] = useState(false);
+  const [isAssignBudgetDialogOpen, setIsAssignBudgetDialogOpen] = useState(false);
 
   // Hooks for creating plans
   const { createWorkoutPlan } = useWorkoutPlan(customer?.id);
   const { createNutritionPlan } = useNutritionPlan(customer?.id);
+
+  // Fetch budget assignments for the lead
+  const leadId = activeLead?.id || mostRecentLead?.id;
+  const { data: budgetAssignments } = useQuery({
+    queryKey: ['budget-assignments', leadId, customer?.id],
+    queryFn: async () => {
+      const assignments: any[] = [];
+      
+      // Fetch assignments for lead
+      if (leadId) {
+        const { data: leadAssignments } = await supabase
+          .from('budget_assignments')
+          .select(`
+            id,
+            budget_id,
+            assigned_at,
+            is_active,
+            notes,
+            budget:budgets(name)
+          `)
+          .eq('lead_id', leadId)
+          .order('assigned_at', { ascending: false });
+        
+        if (leadAssignments) {
+          assignments.push(...leadAssignments.map((a: any) => ({
+            id: a.id,
+            budget_id: a.budget_id,
+            budget_name: a.budget?.name,
+            assigned_at: a.assigned_at,
+            is_active: a.is_active,
+            notes: a.notes,
+          })));
+        }
+      }
+      
+      // Fetch assignments for customer
+      if (customer?.id) {
+        const { data: customerAssignments } = await supabase
+          .from('budget_assignments')
+          .select(`
+            id,
+            budget_id,
+            assigned_at,
+            is_active,
+            notes,
+            budget:budgets(name)
+          `)
+          .eq('customer_id', customer.id)
+          .order('assigned_at', { ascending: false });
+        
+        if (customerAssignments) {
+          assignments.push(...customerAssignments.map((a: any) => ({
+            id: a.id,
+            budget_id: a.budget_id,
+            budget_name: a.budget?.name,
+            assigned_at: a.assigned_at,
+            is_active: a.is_active,
+            notes: a.notes,
+          })));
+        }
+      }
+      
+      return assignments;
+    },
+    enabled: !!(leadId || customer?.id),
+  });
 
   if (isLoadingCustomer) {
     return (
@@ -112,6 +183,10 @@ const UnifiedProfileView = () => {
     if (customer?.id) {
       setIsNutritionPlanDialogOpen(true);
     }
+  };
+
+  const handleAssignBudget = () => {
+    setIsAssignBudgetDialogOpen(true);
   };
 
   // Handle workout plan save
@@ -210,6 +285,8 @@ const UnifiedProfileView = () => {
         onUpdateCustomer={handleUpdateCustomer}
         onAddWorkoutPlan={handleAddWorkoutPlan}
         onAddDietPlan={handleAddDietPlan}
+        onAssignBudget={handleAssignBudget}
+        budgetAssignments={budgetAssignments}
         getInitials={getInitials}
         getStatusColor={getStatusColor}
         getStatusBorderColor={getStatusBorderColor}
@@ -232,6 +309,18 @@ const UnifiedProfileView = () => {
         onSave={handleNutritionPlanSave}
         customerId={customer?.id}
         leadId={activeLead?.id || mostRecentLead?.id}
+      />
+
+      {/* Budget Assignment Dialog */}
+      <AssignBudgetDialog
+        isOpen={isAssignBudgetDialogOpen}
+        onOpenChange={setIsAssignBudgetDialogOpen}
+        leadId={activeLead?.id || mostRecentLead?.id}
+        customerId={customer?.id}
+        onSuccess={() => {
+          // Invalidate queries to refresh budget assignments
+          // The query will automatically refetch
+        }}
       />
     </>
   );

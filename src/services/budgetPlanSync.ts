@@ -158,7 +158,30 @@ export async function syncPlansFromBudget({
     }
   }
 
-  // 3. Sync Supplement Plan
+  // 3. Update daily_protocol with steps_goal from budget
+  if (budget.steps_goal && budget.steps_goal > 0 && finalCustomerId) {
+    // Update customer's daily_protocol with steps goal
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('daily_protocol')
+      .eq('id', finalCustomerId)
+      .single();
+
+    if (customer) {
+      const dailyProtocol = customer.daily_protocol || {};
+      const updatedProtocol = {
+        ...dailyProtocol,
+        stepsGoal: budget.steps_goal,
+      };
+
+      await supabase
+        .from('customers')
+        .update({ daily_protocol: updatedProtocol })
+        .eq('id', finalCustomerId);
+    }
+  }
+
+  // 4. Sync Supplement Plan
   if (budget.supplements && budget.supplements.length > 0) {
     // Deactivate existing active supplement plans for this customer/lead
     if (finalCustomerId) {

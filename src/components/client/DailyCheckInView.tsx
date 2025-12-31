@@ -49,7 +49,7 @@ const CompactInputCell = React.forwardRef<HTMLInputElement, {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }>(({ label, value, onChange, suffix, min, max, step = 1, onKeyDown }, ref) => {
   return (
-    <div className="flex items-center justify-between gap-2 py-1.5 px-2 border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-w-0" dir="rtl">
+    <div className="flex items-center justify-between gap-2 py-2.5 px-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50/50 hover:border-[#5B6FB9]/30 transition-all min-w-0 shadow-sm" dir="rtl">
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <Label className="text-sm text-slate-700 font-medium flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px', fontWeight: 500 }}>
           {label}:
@@ -67,10 +67,10 @@ const CompactInputCell = React.forwardRef<HTMLInputElement, {
           max={max}
           step={step}
           className={cn(
-            "h-7 text-sm px-2 flex-1 max-w-[120px]",
-            "border-0 border-b border-slate-200 focus:border-[#5B6FB9] focus:ring-0 focus-visible:ring-0",
+            "h-8 text-sm px-2.5 flex-1 max-w-[140px]",
+            "border border-slate-200 rounded-md focus:border-[#5B6FB9] focus:ring-1 focus:ring-[#5B6FB9]/20 focus-visible:ring-0",
             "transition-all duration-150",
-            "bg-transparent font-semibold text-slate-900 p-0"
+            "bg-white font-semibold text-slate-900"
           )}
           style={{ 
             fontSize: '14px', 
@@ -100,27 +100,27 @@ const CompactSlider: React.FC<{
   const sliderValue = value ?? 5;
   
   return (
-    <div className="flex items-center justify-between gap-2 py-1.5 px-2 border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-w-0" dir="rtl">
+    <div className="flex items-center justify-between gap-2 py-2.5 px-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50/50 hover:border-[#5B6FB9]/30 transition-all min-w-0 shadow-sm" dir="rtl">
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <Label className="text-sm text-slate-700 font-medium flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px', fontWeight: 500 }}>
           {label}:
         </Label>
-        <div className="flex-1 relative min-w-0">
+        <div className="flex-1 relative min-w-0 px-2">
           <Slider
             value={[sliderValue]}
             onValueChange={([val]) => onChange(val)}
             min={min}
             max={max}
             step={1}
-            className="h-1.5 [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:border-2 [&_[role=slider]]:border-[#5B6FB9] [&_[role=slider]]:shadow-sm"
+            className="h-2 [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:border-2 [&_[role=slider]]:border-[#5B6FB9] [&_[role=slider]]:shadow-md"
           />
         </div>
         <span 
-          className="text-sm font-bold text-slate-900 flex-shrink-0" 
+          className="text-sm font-bold text-[#5B6FB9] flex-shrink-0 bg-[#5B6FB9]/10 px-2 py-0.5 rounded-md" 
           style={{ 
             fontSize: '14px', 
             fontWeight: 700,
-            minWidth: '24px',
+            minWidth: '32px',
             textAlign: 'center'
           }}
         >
@@ -350,27 +350,27 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
         </div>
       </div>
 
-      {/* Main Content - Ultra-Compact Accordions */}
-      <div className="px-3 pt-2 pb-2 flex-1 overflow-y-auto min-h-0">
+      {/* Main Content - Well-Organized Accordions with Grid */}
+      <div className="px-4 pt-3 pb-4 flex-1 overflow-y-auto min-h-0">
         <Accordion 
           type="multiple" 
           value={openAccordions} 
           onValueChange={setOpenAccordions}
-          className="space-y-1"
+          className="space-y-3"
         >
           {/* Render sections dynamically based on configuration */}
           {fieldConfig.sections.body.visible && (
-            <AccordionItem value="body" className="border border-slate-200 rounded-sm bg-white overflow-hidden">
-              <AccordionTrigger className="px-2 py-1.5 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
+            <AccordionItem value="body" className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-center gap-2">
                   <Scale className="h-4 w-4 text-[#5B6FB9]" />
-                  <span className="text-xs uppercase tracking-wide text-black font-semibold">
+                  <span className="text-sm uppercase tracking-wide text-black font-semibold">
                     {fieldConfig.sections.body.label}
                   </span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-1 pb-1 bg-white">
-                <div className="grid grid-cols-3 gap-0.5">
+              <AccordionContent className="px-2 py-2 bg-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {fieldConfig.fields.weight.visible && (
                     <CompactInputCell
                       ref={(el) => (inputRefs.current[0] = el)}
@@ -445,17 +445,17 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
 
           {/* פעילות - Activity */}
           {fieldConfig.sections.activity.visible && (
-            <AccordionItem value="activity" className="border border-slate-200 rounded-sm bg-white overflow-hidden">
-              <AccordionTrigger className="px-2 py-1.5 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
+            <AccordionItem value="activity" className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-center gap-2">
                   <Activity className="h-4 w-4 text-[#5B6FB9]" />
-                  <span className="text-xs uppercase tracking-wide text-black font-semibold">
+                  <span className="text-sm uppercase tracking-wide text-black font-semibold">
                     {fieldConfig.sections.activity.label}
                   </span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-1 pb-1 bg-white">
-                <div className="grid grid-cols-3 gap-0.5">
+              <AccordionContent className="px-2 py-2 bg-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                   {fieldConfig.fields.stepsActual.visible && (
                     <CompactInputCell
                       ref={(el) => (inputRefs.current[6] = el)}
@@ -507,17 +507,17 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
 
           {/* תזונה - Nutrition */}
           {fieldConfig.sections.nutrition.visible && (
-            <AccordionItem value="nutrition" className="border border-slate-200 rounded-sm bg-white overflow-hidden">
-              <AccordionTrigger className="px-2 py-1.5 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
+            <AccordionItem value="nutrition" className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-center gap-2">
                   <UtensilsCrossed className="h-4 w-4 text-[#5B6FB9]" />
-                  <span className="text-xs uppercase tracking-wide text-black font-semibold">
+                  <span className="text-sm uppercase tracking-wide text-black font-semibold">
                     {fieldConfig.sections.nutrition.label}
                   </span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-1 pb-1 bg-white">
-                <div className="grid grid-cols-3 gap-0.5">
+              <AccordionContent className="px-2 py-2 bg-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                   {fieldConfig.fields.caloriesDaily.visible && (
                     <CompactInputCell
                       ref={(el) => (inputRefs.current[10] = el)}
@@ -571,17 +571,17 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
 
           {/* בריאות - Wellness */}
           {fieldConfig.sections.wellness.visible && (
-            <AccordionItem value="wellness" className="border border-slate-200 rounded-sm bg-white overflow-hidden">
-              <AccordionTrigger className="px-2 py-1.5 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
+            <AccordionItem value="wellness" className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline bg-white hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-center gap-2">
                   <Moon className="h-4 w-4 text-[#5B6FB9]" />
-                  <span className="text-xs uppercase tracking-wide text-black font-semibold">
+                  <span className="text-sm uppercase tracking-wide text-black font-semibold">
                     {fieldConfig.sections.wellness.label}
                   </span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-1 pb-1 bg-white">
-                <div className="grid grid-cols-3 gap-0.5">
+              <AccordionContent className="px-2 py-2 bg-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                   {fieldConfig.fields.stressLevel.visible && (
                     <CompactSlider
                       label={fieldConfig.fields.stressLevel.label}
@@ -628,18 +628,18 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
           )}
         </Accordion>
 
-        {/* Notes Section - Compact with Bigger Text */}
-        <div className="border border-slate-100 rounded-sm bg-white mt-1.5" dir="rtl">
-          <div className="px-2 py-1.5 border-b border-slate-100">
-            <span className="text-xs uppercase tracking-wide text-slate-600 font-semibold">הערות (אופציונלי)</span>
+        {/* Notes Section - Premium Styling */}
+        <div className="border border-slate-200 rounded-lg bg-white mt-3 shadow-sm" dir="rtl">
+          <div className="px-4 py-3 border-b border-slate-200">
+            <span className="text-sm uppercase tracking-wide text-slate-700 font-semibold">הערות (אופציונלי)</span>
           </div>
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="הוסף הערות..."
             dir="rtl"
-            rows={2}
-            className="text-sm border-0 focus:ring-0 resize-none text-black min-h-[60px] bg-transparent px-2 py-2"
+            rows={3}
+            className="text-sm border-0 focus:ring-0 resize-none text-black min-h-[80px] bg-transparent px-4 py-3"
           />
         </div>
       </div>
