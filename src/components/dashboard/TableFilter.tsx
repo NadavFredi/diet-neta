@@ -189,7 +189,10 @@ export const TableFilter: React.FC<TableFilterProps> = ({
           <Button
             variant="outline"
             size="sm"
-            className="h-11 gap-2 border-[#5B6FB9]/60 shadow-sm hover:shadow-md hover:border-[#5B6FB9] hover:bg-[#5B6FB9]/10 transition-all"
+            className={cn(
+              "gap-2 h-11",
+              activeFilters.length > 0 && "bg-slate-50 border-slate-300"
+            )}
           >
             <Filter className="h-4 w-4" />
             <span>סינון</span>
