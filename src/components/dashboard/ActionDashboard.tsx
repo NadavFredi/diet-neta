@@ -67,6 +67,8 @@ interface ActionDashboardProps {
   onUpdateLead: (updates: any) => Promise<void>;
   onAddWorkoutPlan: () => void;
   onAddDietPlan: () => void;
+  onAssignBudget?: () => void;
+  budgetAssignments?: any[] | null;
   getStatusColor: (status: string) => string;
 }
 
@@ -77,6 +79,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   onUpdateLead,
   onAddWorkoutPlan,
   onAddDietPlan,
+  onAssignBudget,
+  budgetAssignments,
   getStatusColor,
 }) => {
   if (isLoading) {
@@ -497,12 +501,14 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             stepsHistory={activeLead.steps_history}
             nutritionHistory={activeLead.nutrition_history}
             supplementsHistory={activeLead.supplements_history}
+            budgetAssignments={budgetAssignments}
             onAddWorkoutPlan={onAddWorkoutPlan}
             onAddDietPlan={onAddDietPlan}
             onAddSupplementsPlan={() => {
               // Supplements plan creation - placeholder for future implementation
               console.log('Add supplements plan');
             }}
+            onAssignBudget={onAssignBudget || (() => {})}
           />
         </div>
       </div>

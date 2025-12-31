@@ -151,7 +151,7 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
     <div className="flex flex-col h-full overflow-hidden" dir="rtl">
       {/* Calendar - Professional Grid */}
       <div className="bg-white overflow-hidden flex-shrink-0 p-3 pt-2 pb-2">
-        <h3 className="text-xs uppercase tracking-wide text-black font-bold mb-2 text-center">לוח שנה</h3>
+        <h3 className="text-sm uppercase tracking-wide text-black font-bold mb-2 text-center">לוח שנה</h3>
         
         {/* Month Header */}
         <div className="flex justify-center items-center relative mb-1.5 pb-1.5 border-b border-slate-200">
@@ -168,7 +168,7 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
           >
             <ChevronLeft className="h-2.5 w-2.5" />
           </button>
-          <div className="text-xs font-medium text-black">
+          <div className="text-sm font-medium text-black">
             {format(viewMonth, 'MMMM yyyy', { locale: he })}
           </div>
           <button
@@ -187,13 +187,13 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
         </div>
 
         {/* Day Headers - 7 Column Grid */}
-        <div className="grid grid-cols-7 gap-0.5 mb-1">
+        <div className="grid grid-cols-7 gap-0.5 mb-1.5">
           {hebrewDays.map((day) => (
             <div
               key={day}
               className="aspect-square flex items-center justify-center"
             >
-              <span className="text-[9px] font-bold text-slate-600">
+              <span className="text-[11px] font-bold text-slate-600">
                 {day}
               </span>
             </div>
@@ -217,7 +217,7 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
                 onClick={() => handleDateSelect(date)}
                 className={cn(
                   "aspect-square flex items-center justify-center rounded-full transition-all",
-                  "text-[10px] font-medium",
+                  "text-sm font-medium",
                   isSelected
                     ? "bg-[#5B6FB9] text-white shadow-md ring-2 ring-[#5B6FB9]/30"
                     : isToday
@@ -225,7 +225,7 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
                     : isOutsideMonth
                     ? "text-slate-400 hover:bg-slate-50 opacity-60"
                     : "text-slate-700 hover:bg-slate-50",
-                  hasCheckIn && !isSelected && "relative after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-[#5B6FB9] after:rounded-full"
+                  hasCheckIn && !isSelected && "relative after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-[#5B6FB9] after:rounded-full"
                 )}
               >
                 {date.getDate()}
@@ -239,10 +239,10 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
       <div className="bg-white flex-1 flex flex-col overflow-hidden border-t border-slate-200">
         <div className="px-3 pt-2 pb-3 flex flex-col h-full">
           {/* Header - Aligned with calendar grid */}
-          <h3 className="text-xs uppercase tracking-wide text-black font-bold mb-2 text-center">היסטוריה</h3>
+          <h3 className="text-sm uppercase tracking-wide text-black font-bold mb-2 text-center">היסטוריה</h3>
           
           {/* History List */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {recentCheckIns.map((item) => {
               const dateObj = parseDateLocal(item.date);
               const isSelected = selectedDate === item.date;
@@ -254,20 +254,20 @@ export const CheckInCalendarSidebar: React.FC<CheckInCalendarSidebarProps> = ({ 
                   key={item.date}
                   onClick={() => dispatch(setSelectedDate(item.date))}
                   className={cn(
-                    "w-full flex items-center justify-between p-1.5 rounded-md border transition-colors text-right",
+                    "w-full flex items-center justify-between p-2 rounded-md border transition-colors text-right",
                     isSelected
                       ? "bg-[#5B6FB9] text-white border-[#5B6FB9]"
                       : "bg-white hover:bg-slate-50 border-slate-200 text-black"
                   )}
                   dir="rtl"
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     {item.hasCheckIn ? (
-                      <CheckCircle2 className={cn("h-3.5 w-3.5 flex-shrink-0", isSelected ? "text-white" : "text-[#5B6FB9]")} />
+                      <CheckCircle2 className={cn("h-4 w-4 flex-shrink-0", isSelected ? "text-white" : "text-[#5B6FB9]")} />
                     ) : (
-                      <Circle className={cn("h-3.5 w-3.5 flex-shrink-0", isSelected ? "text-white/50" : "text-slate-300")} />
+                      <Circle className={cn("h-4 w-4 flex-shrink-0", isSelected ? "text-white/50" : "text-slate-300")} />
                     )}
-                    <span className={cn("text-xs font-medium", isToday && !isSelected && "font-bold")}>
+                    <span className={cn("text-sm font-medium", isToday && !isSelected && "font-bold")}>
                       {format(dateObj, 'd בMMMM', { locale: he })}
                       {isToday && ' (היום)'}
                     </span>
