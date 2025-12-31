@@ -9,7 +9,7 @@
  * - PageLayout: Main wrapper
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useActiveBudgetForLead, useActiveBudgetForCustomer } from '@/hooks/useBudgets';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
+import { usePlansHistory } from '@/hooks/usePlansHistory';
 
 const UnifiedProfileView = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -63,8 +64,53 @@ const UnifiedProfileView = () => {
   const { createWorkoutPlan } = useWorkoutPlan(customer?.id);
   const { createNutritionPlan } = useNutritionPlan(customer?.id);
 
-  // Fetch budget assignments for the lead
+  // Fetch plans history from plan tables
   const leadId = activeLead?.id || mostRecentLead?.id;
+  const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
+
+  // Merge plans from database with JSONB history (plans take precedence)
+  const mergedWorkoutHistory = useMemo(() => {
+    const plans = plansHistory?.workoutHistory || [];
+    const jsonbHistory = activeLead?.workout_history || [];
+    
+    // Combine: plans first (newer), then JSONB history (legacy)
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.workoutHistory, activeLead?.workout_history]);
+
+  const mergedNutritionHistory = useMemo(() => {
+    const plans = plansHistory?.nutritionHistory || [];
+    const jsonbHistory = activeLead?.nutrition_history || [];
+    
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.nutritionHistory, activeLead?.nutrition_history]);
+
+  const mergedSupplementsHistory = useMemo(() => {
+    const plans = plansHistory?.supplementsHistory || [];
+    const jsonbHistory = activeLead?.supplements_history || [];
+    
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.supplementsHistory, activeLead?.supplements_history]);
+
+  const mergedStepsHistory = useMemo(() => {
+    const plans = plansHistory?.stepsHistory || [];
+    const jsonbHistory = activeLead?.steps_history || [];
+    
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.stepsHistory, activeLead?.steps_history]);
+
+  // Create merged activeLead with plans history
+  const activeLeadWithPlans = useMemo(() => {
+    if (!activeLead) return null;
+    return {
+      ...activeLead,
+      workout_history: mergedWorkoutHistory,
+      nutrition_history: mergedNutritionHistory,
+      supplements_history: mergedSupplementsHistory,
+      steps_history: mergedStepsHistory,
+    };
+  }, [activeLead, mergedWorkoutHistory, mergedNutritionHistory, mergedSupplementsHistory, mergedStepsHistory]);
+
+  // Fetch budget assignments for the lead
   const { data: budgetAssignments } = useQuery({
     queryKey: ['budget-assignments', leadId, customer?.id],
     queryFn: async () => {
@@ -274,7 +320,7 @@ const UnifiedProfileView = () => {
         customer={customer}
         mostRecentLead={mostRecentLead}
         sortedLeads={sortedLeads || []}
-        activeLead={activeLead}
+        activeLead={activeLeadWithPlans || activeLead}
         activeLeadId={selectedInterestId}
         status={mostRecentLeadStatus || 'ללא סטטוס'}
         isLoadingLead={isLoadingLead}
