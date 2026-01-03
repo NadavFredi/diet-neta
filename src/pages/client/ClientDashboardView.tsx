@@ -21,12 +21,15 @@ import {
   LogOut,
   X,
   UtensilsCrossed,
+  FileText,
 } from 'lucide-react';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
+import { WorkoutProgramView } from '@/components/client/WorkoutProgramView';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
 import { DailyCheckInView } from '@/components/client/DailyCheckInView';
 import { CheckInCalendarSidebar } from '@/components/client/CheckInCalendarSidebar';
 import { MultiDayReportModal } from '@/components/client/MultiDayReportModal';
+import { WeeklySummariesView } from '@/components/client/WeeklySummariesView';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
@@ -285,6 +288,18 @@ export const ClientDashboardView: React.FC = () => {
               <Calendar className="h-5 w-5 flex-shrink-0" />
               <span className="text-sm">דיווח יומי</span>
             </button>
+            <button
+              onClick={() => setActiveTab('summaries')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                activeTab === 'summaries'
+                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
+                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+              )}
+            >
+              <Target className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm">סיכומים שבועיים</span>
+            </button>
           </nav>
         </div>
 
@@ -370,12 +385,9 @@ export const ClientDashboardView: React.FC = () => {
             {activeTab === 'workout' && (
               <div className="space-y-6 pb-4">
                 {workoutPlan ? (
-                  <WorkoutPlanCard
-                    workoutPlan={workoutPlan}
-                    isEditable={false}
-                  />
+                  <WorkoutProgramView workoutPlan={workoutPlan} />
                 ) : (
-                  <Card className="border border-slate-200 shadow-sm">
+                  <Card className="border border-slate-200 shadow-sm rounded-3xl">
                     <CardContent className="p-12 text-center">
                       <Dumbbell className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                       <p className="text-base font-medium text-gray-500 mb-6">
@@ -452,6 +464,15 @@ export const ClientDashboardView: React.FC = () => {
                     />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'summaries' && (
+              <div className="space-y-6">
+                <WeeklySummariesView
+                  leadId={activeLead?.id}
+                  customerId={customer?.id}
+                />
               </div>
             )}
 
