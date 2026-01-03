@@ -29,7 +29,6 @@ import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
 import { DailyCheckInView } from '@/components/client/DailyCheckInView';
 import { CheckInCalendarSidebar } from '@/components/client/CheckInCalendarSidebar';
 import { MultiDayReportModal } from '@/components/client/MultiDayReportModal';
-import { WeeklySummariesView } from '@/components/client/WeeklySummariesView';
 import { BudgetView } from '@/components/client/BudgetView';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
@@ -252,7 +251,7 @@ export const ClientDashboardView: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Vertical Navigation Sidebar */}
         <div className="w-64 bg-white border-l border-[#E2E8F0] flex-shrink-0 flex flex-col">
-          <nav className="flex-1 p-3 pt-4">
+          <nav className="flex-1 p-3 pt-4 overflow-y-auto">
             <button
               onClick={() => setActiveTab('workout')}
               className={cn(
@@ -485,10 +484,18 @@ export const ClientDashboardView: React.FC = () => {
 
             {activeTab === 'summaries' && (
               <div className="space-y-6">
-                <WeeklySummariesView
-                  leadId={activeLead?.id}
-                  customerId={customer?.id}
-                />
+                {/* Weekly summaries content can be added here if needed */}
+                <Card className="border border-slate-200 shadow-sm rounded-3xl">
+                  <CardContent className="p-12 text-center">
+                    <Target className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-base font-medium text-gray-500 mb-2">
+                      אין סיכומים שבועיים עדיין
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      המאמן שלך יוסיף סיכומים שבועיים כאן
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
             )}
 

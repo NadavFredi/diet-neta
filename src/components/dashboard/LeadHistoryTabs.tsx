@@ -9,8 +9,10 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Activity, CalendarDays, Save } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DailyActivityLog } from './DailyActivityLog';
+import { WeeklyReviewModule } from './WeeklyReviewModule';
 import {
   Table,
   TableBody,
@@ -96,10 +98,14 @@ interface LeadHistoryTabsProps {
   nutritionHistory?: NutritionHistoryItem[] | null;
   supplementsHistory?: SupplementsHistoryItem[] | null;
   budgetAssignments?: BudgetAssignmentItem[] | null;
+  leadId?: string | null;
+  customerId?: string | null;
   onAddWorkoutPlan: () => void;
   onAddDietPlan: () => void;
   onAddSupplementsPlan: () => void;
   onAssignBudget: () => void;
+  onSaveWeeklyReview?: () => void;
+  isSavingWeeklyReview?: boolean;
 }
 
 export const LeadHistoryTabs = ({ 
@@ -108,10 +114,15 @@ export const LeadHistoryTabs = ({
   nutritionHistory, 
   supplementsHistory,
   budgetAssignments,
+  leadId,
+  customerId,
   onAddWorkoutPlan,
   onAddDietPlan,
   onAddSupplementsPlan,
   onAssignBudget,
+  onSaveWeeklyReview,
+  isSavingWeeklyReview = false,
+  weeklyReviewModule,
 }: LeadHistoryTabsProps) => {
   const [activeTab, setActiveTab] = useState('budgets');
 
@@ -137,8 +148,33 @@ export const LeadHistoryTabs = ({
 
   // Get the appropriate button for the active tab
   // Managers can only assign budgets - all other plans are created automatically
+  // When weekly-checkin tab is active, show save button instead
   const getActionButton = () => {
-    // Only show budget assignment button - all plans are created from budgets
+    if (activeTab === 'weekly-checkin' && onSaveWeeklyReview) {
+      return (
+        <Button 
+          size="sm" 
+          onClick={onSaveWeeklyReview}
+          type="button"
+          disabled={isSavingWeeklyReview}
+          className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
+        >
+          {isSavingWeeklyReview ? (
+            <>
+              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              שומר...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              שמור סיכום שבועי
+            </>
+          )}
+        </Button>
+      );
+    }
+    
+    // Default: show budget assignment button - all plans are created from budgets
     return (
       <Button 
         size="sm" 
@@ -161,7 +197,7 @@ export const LeadHistoryTabs = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-4 h-10 bg-gray-100 rounded-lg p-1">
+        <TabsList className="grid w-full grid-cols-7 mb-4 h-10 bg-gray-100 rounded-lg p-1">
           <TabsTrigger 
             value="budgets" 
             className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
@@ -191,6 +227,18 @@ export const LeadHistoryTabs = ({
             className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
           >
             תכניות תוספים
+          </TabsTrigger>
+          <TabsTrigger 
+            value="daily-activity" 
+            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+          >
+            יומן פעילות יומי
+          </TabsTrigger>
+          <TabsTrigger 
+            value="weekly-checkin" 
+            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+          >
+            דיווח שבועי
           </TabsTrigger>
         </TabsList>
 
@@ -499,6 +547,25 @@ export const LeadHistoryTabs = ({
               </Table>
             </div>
           )}
+        </TabsContent>
+
+        {/* Daily Activity Log Tab */}
+        <TabsContent value="daily-activity" className="mt-0">
+          <DailyActivityLog leadId={leadId} customerId={customerId} showCardWrapper={false} />
+        </TabsContent>
+
+        {/* Weekly Check-in Tab */}
+        <TabsContent value="weekly-checkin" className="mt-0">
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden p-4">
+            {weeklyReviewModule || (
+              <WeeklyReviewModule
+                leadId={leadId || undefined}
+                customerId={customerId || undefined}
+                customerPhone={null}
+                customerName={null}
+              />
+            )}
+          </div>
         </TabsContent>
 
         {/* Budget Assignments Tab */}

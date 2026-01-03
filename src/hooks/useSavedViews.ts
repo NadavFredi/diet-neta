@@ -87,7 +87,7 @@ export const useSavedViews = (resourceKey: string) => {
 
         const { data, error } = await supabase
           .from('saved_views')
-          .select('*')
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
           .eq('resource_key', resourceKey)
           .eq('created_by', userId)
           .order('is_default', { ascending: false })
@@ -123,7 +123,7 @@ export const useSavedView = (viewId: string | null) => {
 
         const { data, error } = await supabase
           .from('saved_views')
-          .select('*')
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
           .eq('id', viewId)
           .eq('created_by', userId)
           .single();

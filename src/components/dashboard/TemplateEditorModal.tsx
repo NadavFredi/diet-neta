@@ -118,7 +118,9 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     if (isOpen && !prevIsOpen.current) {
       try {
         setTemplate(String(initialTemplate || ''));
-        setButtons(getValidButtons(initialButtons));
+        // Always reset buttons from initialButtons, even if empty array
+        const validButtons = getValidButtons(initialButtons);
+        setButtons(validButtons);
       } catch (error) {
         console.error('[TemplateEditorModal] Error resetting state:', error);
         setTemplate('');
@@ -126,7 +128,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
       }
     }
     prevIsOpen.current = isOpen;
-  }, [isOpen]);
+  }, [isOpen, initialTemplate, initialButtons]);
 
   const toolbarOptions = useMemo(() => [
     [{ 'header': [1, 2, 3, false] }],
@@ -253,7 +255,8 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave(template, safeButtons.length > 0 ? safeButtons : undefined);
+      // Always pass buttons array (empty array if no buttons) to ensure deletion is saved
+      await onSave(template, safeButtons);
       onOpenChange(false);
     } catch (error) {
       console.error('[TemplateEditorModal] Error saving template:', error);
@@ -366,12 +369,31 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     }
   }, [buttons]);
 
-  // Live preview of message
+  // Live preview of message - preserve line breaks
   const previewMessage = useMemo(() => {
-    // Strip HTML tags for preview
+    if (!template) return '';
+    
+    // Convert HTML line break elements to newlines before extracting text
+    let htmlWithBreaks = template;
+    
+    // Replace <br>, <br/>, <br /> with newlines
+    htmlWithBreaks = htmlWithBreaks.replace(/<br\s*\/?>/gi, '\n');
+    
+    // Replace closing </p> tags with newlines
+    htmlWithBreaks = htmlWithBreaks.replace(/<\/p>/gi, '\n');
+    
+    // Replace closing </div> tags with newlines (but not opening tags to avoid double breaks)
+    htmlWithBreaks = htmlWithBreaks.replace(/<\/div>/gi, '\n');
+    
+    // Create a temporary div to parse HTML and extract text
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = template;
-    return tempDiv.textContent || tempDiv.innerText || '';
+    tempDiv.innerHTML = htmlWithBreaks;
+    
+    // Get text content which now includes line breaks
+    const text = tempDiv.textContent || tempDiv.innerText || '';
+    
+    // Clean up multiple consecutive newlines (more than 2) to max 2
+    return text.replace(/\n{3,}/g, '\n\n');
   }, [template]);
 
   return (
@@ -441,6 +463,25 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                   <CustomToolbar />
                   
                   <div className="relative" style={{ height: 'calc(100% - 48px)' }}>
+                    <style>{`
+                      .quill-editor-rtl .ql-editor {
+                        color: #000000 !important;
+                        color: rgb(15 23 42) !important;
+                      }
+                      .quill-editor-rtl .ql-editor * {
+                        color: #000000 !important;
+                        color: rgb(15 23 42) !important;
+                      }
+                      .quill-editor-rtl .ql-editor p,
+                      .quill-editor-rtl .ql-editor div,
+                      .quill-editor-rtl .ql-editor span,
+                      .quill-editor-rtl .ql-editor strong,
+                      .quill-editor-rtl .ql-editor em,
+                      .quill-editor-rtl .ql-editor u {
+                        color: #000000 !important;
+                        color: rgb(15 23 42) !important;
+                      }
+                    `}</style>
                     <ReactQuill
                       ref={quillRef}
                       value={template}
@@ -458,10 +499,13 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                         "quill-editor-rtl",
                         "[&_.ql-editor]:text-right [&_.ql-editor]:font-heebo [&_.ql-editor]:text-sm [&_.ql-editor]:leading-relaxed",
                         "[&_.ql-editor]:min-h-[350px] [&_.ql-editor]:bg-white",
+                        "[&_.ql-editor]:text-slate-900 [&_.ql-editor]:text-black",
+                        "[&_.ql-editor_*]:text-slate-900 [&_.ql-editor_*]:text-black",
                         "[&_.ql-editor]:placeholder:text-slate-400",
                         "[&_.ql-container]:border-0 [&_.ql-container]:rounded-b-2xl",
                         "[&_.ql-toolbar]:hidden"
                       )}
+                      theme="snow"
                     />
                     
                     <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>

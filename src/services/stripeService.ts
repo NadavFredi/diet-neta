@@ -5,6 +5,119 @@
  * Uses Stripe REST API via backend proxy or direct API calls
  */
 
+export interface StripeProduct {
+  id: string;
+  name: string;
+  description?: string;
+  active: boolean;
+  prices: StripePrice[];
+}
+
+export interface StripePrice {
+  id: string;
+  product_id: string;
+  active: boolean;
+  currency: string;
+  unit_amount: number; // Amount in smallest currency unit (e.g., cents)
+  type: 'one_time' | 'recurring';
+  recurring?: {
+    interval: 'day' | 'week' | 'month' | 'year';
+    interval_count: number;
+  };
+}
+
+export interface StripeProductsResponse {
+  success: boolean;
+  products?: StripeProduct[];
+  error?: string;
+}
+
+/**
+ * Fetch Stripe products from backend proxy
+ * In production, this should go through your backend API
+ */
+export const fetchStripeProducts = async (): Promise<StripeProductsResponse> => {
+  try {
+    const secretKey = getStripeSecretKey();
+    
+    if (!secretKey) {
+      return {
+        success: false,
+        error: 'Stripe configuration not found. Please check environment variables.',
+      };
+    }
+
+    // Fetch products with prices
+    const productsUrl = 'https://api.stripe.com/v1/products?active=true&limit=100';
+    const pricesUrl = 'https://api.stripe.com/v1/prices?active=true&limit=100';
+
+    // Fetch products and prices in parallel
+    const [productsResponse, pricesResponse] = await Promise.all([
+      fetch(productsUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${secretKey}`,
+        },
+      }),
+      fetch(pricesUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${secretKey}`,
+        },
+      }),
+    ]);
+
+    if (!productsResponse.ok || !pricesResponse.ok) {
+      const errorData = await productsResponse.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.error?.message || 'Failed to fetch Stripe products',
+      };
+    }
+
+    const productsData = await productsResponse.json();
+    const pricesData = await pricesResponse.json();
+
+    // Group prices by product
+    const pricesByProduct: Record<string, StripePrice[]> = {};
+    (pricesData.data || []).forEach((price: any) => {
+      const productId = price.product;
+      if (!pricesByProduct[productId]) {
+        pricesByProduct[productId] = [];
+      }
+      pricesByProduct[productId].push({
+        id: price.id,
+        product_id: productId,
+        active: price.active,
+        currency: price.currency,
+        unit_amount: price.unit_amount,
+        type: price.type,
+        recurring: price.recurring || undefined,
+      });
+    });
+
+    // Map products with their prices
+    const products: StripeProduct[] = (productsData.data || []).map((product: any) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description || undefined,
+      active: product.active,
+      prices: pricesByProduct[product.id] || [],
+    })).filter((product: StripeProduct) => product.prices.length > 0); // Only include products with prices
+
+    return {
+      success: true,
+      products,
+    };
+  } catch (error: any) {
+    console.error('[Stripe] Error fetching products:', error);
+    return {
+      success: false,
+      error: error?.message || 'Failed to fetch Stripe products',
+    };
+  }
+};
+
 export interface CreatePaymentLinkParams {
   amount: number; // Amount in smallest currency unit (e.g., cents for USD, agorot for ILS)
   currency: 'ils' | 'usd' | 'eur'; // Stripe uses lowercase currency codes
@@ -15,6 +128,8 @@ export interface CreatePaymentLinkParams {
   billingMode?: 'one_time' | 'subscription';
   subscriptionInterval?: 'month' | 'week';
   billingCycles?: number | null; // null = continuous/unlimited
+  // Stripe Price ID (if using existing Stripe Price)
+  priceId?: string;
 }
 
 export interface StripePaymentLinkResponse {
@@ -110,27 +225,34 @@ export const createStripePaymentLink = async (
     const isSubscription = params.billingMode === 'subscription';
     const interval = params.subscriptionInterval || 'month';
     
-    if (isSubscription) {
-      // Subscription mode
-      formData.append('line_items[0][price_data][currency]', params.currency);
-      formData.append('line_items[0][price_data][product_data][name]', params.description || 'Subscription');
-      formData.append('line_items[0][price_data][recurring][interval]', interval);
-      formData.append('line_items[0][price_data][unit_amount]', String(params.amount));
+    // If priceId is provided, use it directly (preferred method)
+    if (params.priceId) {
+      formData.append('line_items[0][price]', params.priceId);
       formData.append('line_items[0][quantity]', '1');
-      
-      // Set billing cycle limit if specified (otherwise continuous)
-      if (params.billingCycles !== null && params.billingCycles !== undefined && params.billingCycles > 0) {
-        formData.append('subscription_data[billing_cycle_anchor]', 'now');
-        // Note: Stripe Payment Links API doesn't directly support billing cycle limits
-        // For now, we'll create the subscription without cycle limits
-        // In production, you might want to handle this via webhooks or use Checkout Sessions
-      }
     } else {
-      // One-time payment mode
-      formData.append('line_items[0][price_data][currency]', params.currency);
-      formData.append('line_items[0][price_data][product_data][name]', params.description || 'Payment');
-      formData.append('line_items[0][price_data][unit_amount]', String(params.amount));
-      formData.append('line_items[0][quantity]', '1');
+      // Otherwise, create price_data dynamically
+      if (isSubscription) {
+        // Subscription mode
+        formData.append('line_items[0][price_data][currency]', params.currency);
+        formData.append('line_items[0][price_data][product_data][name]', params.description || 'Subscription');
+        formData.append('line_items[0][price_data][recurring][interval]', interval);
+        formData.append('line_items[0][price_data][unit_amount]', String(params.amount));
+        formData.append('line_items[0][quantity]', '1');
+        
+        // Set billing cycle limit if specified (otherwise continuous)
+        if (params.billingCycles !== null && params.billingCycles !== undefined && params.billingCycles > 0) {
+          formData.append('subscription_data[billing_cycle_anchor]', 'now');
+          // Note: Stripe Payment Links API doesn't directly support billing cycle limits
+          // For now, we'll create the subscription without cycle limits
+          // In production, you might want to handle this via webhooks or use Checkout Sessions
+        }
+      } else {
+        // One-time payment mode
+        formData.append('line_items[0][price_data][currency]', params.currency);
+        formData.append('line_items[0][price_data][product_data][name]', params.description || 'Payment');
+        formData.append('line_items[0][price_data][unit_amount]', String(params.amount));
+        formData.append('line_items[0][quantity]', '1');
+      }
     }
 
     // Add customer information if provided

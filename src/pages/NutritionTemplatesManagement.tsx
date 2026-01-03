@@ -19,6 +19,7 @@ import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/Edit
 import { DeleteNutritionTemplateDialog } from '@/components/dashboard/dialogs/DeleteNutritionTemplateDialog';
 import { useNutritionTemplatesManagement } from './NutritionTemplatesManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { nutritionTemplateColumns } from '@/components/dashboard/columns/templateColumns';
 
 const NutritionTemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -96,10 +97,12 @@ const NutritionTemplatesManagement = () => {
                   onAddClick={handleAddTemplate}
                   enableColumnVisibility={true}
                   enableFilters={true}
+                  enableGroupBy={true}
                   enableSearch={true}
                   useTemplateColumnSettings={true}
                   templateColumnVisibility={columnVisibility}
                   onToggleTemplateColumn={handleToggleColumn}
+                  columns={nutritionTemplateColumns}
                 />
                 
                 <div className="bg-white">

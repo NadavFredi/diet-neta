@@ -150,7 +150,7 @@ export const NutritionTemplateForm = ({
     return activityEntries.reduce((sum, entry) => sum + (entry.minutesPerWeek || 0), 0);
   }, [activityEntries]);
 
-  // Highcharts Donut Chart for Macro Distribution
+  // Highcharts Donut Chart for Macro Distribution (Compact for grid)
   const donutChartOptions = useMemo((): Highcharts.Options => {
     const proteinCalories = (targets.protein || 0) * 4;
     const carbsCalories = (targets.carbs || 0) * 4;
@@ -159,7 +159,7 @@ export const NutritionTemplateForm = ({
 
     if (total === 0) {
       return {
-        chart: { type: 'pie', height: 280, backgroundColor: 'transparent' },
+        chart: { type: 'pie', height: 220, backgroundColor: 'transparent' },
         title: { text: '' },
         series: [{ type: 'pie', data: [] }],
         credits: { enabled: false },
@@ -169,10 +169,17 @@ export const NutritionTemplateForm = ({
     return {
       chart: {
         type: 'pie',
-        height: 280,
+        height: 200,
         backgroundColor: 'transparent',
       },
-      title: { text: '' },
+      title: {
+        text: 'סיכום ויזואלי',
+        style: {
+          fontSize: '12px',
+          fontWeight: '600',
+          fontFamily: 'Heebo, system-ui, sans-serif',
+        },
+      },
       credits: { enabled: false },
       tooltip: {
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -191,9 +198,9 @@ export const NutritionTemplateForm = ({
             format: '<b>{point.name}</b><br/>{point.percentage:.1f}%',
             style: {
               fontFamily: 'Heebo, system-ui, sans-serif',
-              fontSize: '11px',
+              fontSize: '10px',
             },
-            distance: 15,
+            distance: 12,
           },
           showInLegend: true,
           states: {
@@ -209,7 +216,7 @@ export const NutritionTemplateForm = ({
         verticalAlign: 'middle',
         itemStyle: {
           fontFamily: 'Heebo, system-ui, sans-serif',
-          fontSize: '11px',
+          fontSize: '10px',
         },
       },
       series: [
@@ -226,73 +233,7 @@ export const NutritionTemplateForm = ({
     };
   }, [targets]);
 
-  // Highcharts Column Chart for TDEE Comparison
-  const columnChartOptions = useMemo((): Highcharts.Options => {
-    const targetCalories = targets.calories || 0;
-    
-    return {
-      chart: {
-        type: 'column',
-        height: 280,
-        backgroundColor: 'transparent',
-      },
-      title: { text: '' },
-      credits: { enabled: false },
-      xAxis: {
-        categories: ['קלוריות תחזוקה (TDEE)', 'קלוריות מטרה'],
-        labels: {
-          style: {
-            fontFamily: 'Heebo, system-ui, sans-serif',
-            fontSize: '11px',
-          },
-        },
-      },
-      yAxis: {
-        title: {
-          text: 'קלוריות',
-          style: {
-            fontFamily: 'Heebo, system-ui, sans-serif',
-            fontSize: '11px',
-          },
-        },
-        labels: {
-          style: {
-            fontFamily: 'Heebo, system-ui, sans-serif',
-            fontSize: '11px',
-          },
-        },
-      },
-      tooltip: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderColor: '#e5e7eb',
-        borderRadius: 8,
-        formatter: function() {
-          return `<b>${this.x}</b><br/>${this.y} קק״ל`;
-        },
-      },
-      plotOptions: {
-        column: {
-          dataLabels: {
-            enabled: true,
-            format: '{y} קק״ל',
-            style: {
-              fontFamily: 'Heebo, system-ui, sans-serif',
-              fontSize: '11px',
-            },
-          },
-          colorByPoint: true,
-          colors: ['#3b82f6', '#22c55e'],
-        },
-      },
-      series: [
-        {
-          type: 'column',
-          name: 'קלוריות',
-          data: [tdee, targetCalories],
-        },
-      ],
-    };
-  }, [tdee, targets.calories]);
+  // Column chart removed - space used for better grid layout
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -329,22 +270,22 @@ export const NutritionTemplateForm = ({
     unit: string;
     color: string;
   }) => (
-    <Card className="border-2 hover:border-opacity-80 transition-colors rounded-xl shadow-sm" style={{ borderColor: color }}>
-      <CardHeader className="pb-2 pt-3 px-3">
+    <Card className="border border-slate-200 hover:border-opacity-80 transition-colors rounded-3xl shadow-sm flex flex-col" style={{ borderColor: color }}>
+      <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${color}15` }}>
-            <Icon className="h-3.5 w-3.5" style={{ color }} />
+          <div className="p-1 rounded" style={{ backgroundColor: `${color}15` }}>
+            <Icon className="h-4 w-4" style={{ color }} />
           </div>
-          <CardTitle className="text-xs font-semibold">{label}</CardTitle>
+          <CardTitle className="text-sm font-semibold">{label}</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="px-3 pb-3 pt-0">
-        <div className="flex items-center gap-2">
+      <CardContent className="px-3 pb-3 pt-0 flex-1 flex items-center">
+        <div className="flex items-center gap-2 w-full">
           <Input
             type="number"
             value={value || ''}
             onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-            className="text-lg font-bold text-center h-8 rounded-lg"
+            className="text-base font-bold text-center h-9 rounded-lg flex-1"
             dir="ltr"
             min="0"
           />
@@ -357,11 +298,11 @@ export const NutritionTemplateForm = ({
   return (
     <TooltipProvider>
       <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0" dir="rtl">
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-4">
-          {/* Top Row: Name and Description (1/3 and 2/3 split) */}
-          <div className="grid grid-cols-3 gap-4">
+        <div className="flex-1 overflow-hidden p-4 bg-slate-50/50">
+          {/* Top Row: Name and Description */}
+          <div className="grid grid-cols-3 gap-3 mb-3">
             <div>
-              <Label htmlFor="name" className="text-xs font-semibold mb-1.5 block text-right">
+              <Label htmlFor="name" className="text-xs font-semibold mb-1 block text-right">
                 {mode === 'template' ? 'שם התבנית' : 'שם התוכנית'}
               </Label>
               <Input
@@ -370,12 +311,12 @@ export const NutritionTemplateForm = ({
                 onChange={(e) => setName(e.target.value)}
                 placeholder={mode === 'template' ? 'לדוגמה: תבנית חיטוב' : 'שם התוכנית'}
                 required
-                className="text-sm h-9 rounded-xl"
+                className="text-sm h-8 rounded-3xl"
                 dir="rtl"
               />
             </div>
             <div className="col-span-2">
-              <Label htmlFor="description" className="text-xs font-semibold mb-1.5 block text-right">
+              <Label htmlFor="description" className="text-xs font-semibold mb-1 block text-right">
                 תיאור
               </Label>
               <Input
@@ -383,29 +324,29 @@ export const NutritionTemplateForm = ({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="תיאור התבנית או התוכנית..."
-                className="text-sm h-9 rounded-xl"
+                className="text-sm h-8 rounded-3xl"
                 dir="rtl"
               />
             </div>
           </div>
 
-          {/* Main Data Section: 3-Column Grid with Visual Partition */}
-          <div className="grid grid-cols-3 gap-4">
-            {/* Column 1: Biometrics & Activity Level/Goals (Input Section) */}
-            <div className="space-y-4 bg-slate-50/30 rounded-xl p-4">
+          {/* Main 3-Column Bento Grid - Optimized Layout */}
+          <div className="grid grid-cols-3 gap-3 h-[calc(100vh-200px)]">
+            {/* Right Column: Inputs (Biometrics only) */}
+            <div className="flex flex-col gap-3 h-full overflow-hidden">
               {/* Biometric Data Card */}
-              <Card className="rounded-xl shadow-sm border">
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <CardTitle className="text-sm flex items-center gap-2 text-right">
-                    <Calculator className="h-3.5 w-3.5" />
+              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+                <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
+                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
+                    <Calculator className="h-3.5 w-3.5 text-[#5B6FB9]" />
                     נתונים ביומטריים
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2.5 px-4 pb-3">
-                  {/* Compact horizontal inputs */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="calc-weight" className="text-xs w-16 text-right flex-shrink-0">
+                <CardContent className="px-3 pb-3 flex-1 flex flex-col space-y-2 overflow-y-auto">
+                  {/* Horizontal Layout: Label Right, Input Left */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="calc-weight" className="text-[10px] font-medium text-right flex-shrink-0 w-20">
                         משקל (ק"ג)
                       </Label>
                       <Input
@@ -415,11 +356,11 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('weight', parseFloat(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
-                        className="h-7 text-xs rounded-lg flex-1"
+                        className="h-6 text-xs rounded-lg flex-1"
                       />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="calc-height" className="text-xs w-16 text-right flex-shrink-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="calc-height" className="text-[10px] font-medium text-right flex-shrink-0 w-20">
                         גובה (ס"מ)
                       </Label>
                       <Input
@@ -429,11 +370,11 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('height', parseFloat(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
-                        className="h-7 text-xs rounded-lg flex-1"
+                        className="h-6 text-xs rounded-lg flex-1"
                       />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="calc-age" className="text-xs w-16 text-right flex-shrink-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="calc-age" className="text-[10px] font-medium text-right flex-shrink-0 w-20">
                         גיל
                       </Label>
                       <Input
@@ -443,18 +384,18 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('age', parseInt(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
-                        className="h-7 text-xs rounded-lg flex-1"
+                        className="h-6 text-xs rounded-lg flex-1"
                       />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="calc-gender" className="text-xs w-16 text-right flex-shrink-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="calc-gender" className="text-[10px] font-medium text-right flex-shrink-0 w-20">
                         מין
                       </Label>
                       <Select
                         value={calculatorInputs.gender}
                         onValueChange={(value: 'male' | 'female') => setCalculatorInput('gender', value)}
                       >
-                        <SelectTrigger id="calc-gender" className="h-7 text-xs rounded-lg flex-1">
+                        <SelectTrigger id="calc-gender" className="h-6 text-xs rounded-lg flex-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent dir="rtl">
@@ -465,24 +406,24 @@ export const NutritionTemplateForm = ({
                     </div>
                   </div>
 
-                  <Separator className="my-2" />
+                  <Separator className="my-1.5" />
 
                   {/* Navy Method Measurements */}
                   <div>
-                    <div className="flex items-center gap-1.5 mb-2 justify-end">
-                      <Label className="text-xs font-semibold text-right">מדידות גוף (Navy)</Label>
+                    <div className="flex items-center gap-1.5 mb-1.5 justify-end">
+                      <Label className="text-[9px] font-semibold text-right">מדידות גוף (Navy)</Label>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help flex-shrink-0" />
+                          <Info className="h-2.5 w-2.5 text-muted-foreground cursor-help flex-shrink-0" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs" side="left">
                           <p className="text-xs">שיטת Navy לחישוב אחוז שומן</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="calc-waist" className="text-xs w-20 text-right flex-shrink-0">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="calc-waist" className="text-[9px] font-medium text-right flex-shrink-0 w-20">
                           מותן (ס"מ)
                         </Label>
                         <Input
@@ -492,11 +433,11 @@ export const NutritionTemplateForm = ({
                           onChange={(e) => setCalculatorInput('waist', parseFloat(e.target.value) || 0)}
                           dir="ltr"
                           min="0"
-                          className="h-7 text-xs rounded-lg flex-1"
+                          className="h-6 text-xs rounded-lg flex-1"
                         />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="calc-neck" className="text-xs w-20 text-right flex-shrink-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="calc-neck" className="text-[9px] font-medium text-right flex-shrink-0 w-20">
                           צוואר (ס"מ)
                         </Label>
                         <Input
@@ -506,12 +447,12 @@ export const NutritionTemplateForm = ({
                           onChange={(e) => setCalculatorInput('neck', parseFloat(e.target.value) || 0)}
                           dir="ltr"
                           min="0"
-                          className="h-7 text-xs rounded-lg flex-1"
+                          className="h-6 text-xs rounded-lg flex-1"
                         />
                       </div>
                       {calculatorInputs.gender === 'female' && (
-                        <div className="col-span-2 flex items-center gap-2">
-                          <Label htmlFor="calc-hip" className="text-xs w-20 text-right flex-shrink-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor="calc-hip" className="text-[9px] font-medium text-right flex-shrink-0 w-20">
                             אגן (ס"מ)
                           </Label>
                           <Input
@@ -521,7 +462,7 @@ export const NutritionTemplateForm = ({
                             onChange={(e) => setCalculatorInput('hip', parseFloat(e.target.value) || 0)}
                             dir="ltr"
                             min="0"
-                            className="h-7 text-xs rounded-lg flex-1"
+                            className="h-6 text-xs rounded-lg flex-1"
                           />
                         </div>
                       )}
@@ -529,22 +470,25 @@ export const NutritionTemplateForm = ({
                   </div>
                 </CardContent>
               </Card>
+            </div>
 
-              {/* Activity Level & Goals Card */}
-              <Card className="rounded-xl shadow-sm border">
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <CardTitle className="text-sm flex items-center gap-2 text-right">
-                    <Activity className="h-3.5 w-3.5" />
+            {/* Middle Column: Activity Level + METS Table + Donut Chart */}
+            <div className="flex flex-col gap-3 h-full overflow-hidden">
+              {/* Activity Level & Goals Card - Moved here, same level as METS */}
+              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-shrink-0">
+                <CardHeader className="pb-2 pt-3 px-3">
+                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
+                    <Activity className="h-3.5 w-3.5 text-[#5B6FB9]" />
                     רמת פעילות ומטרות
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 px-4 pb-3">
+                <CardContent className="px-3 pb-3 space-y-2.5">
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1.5 justify-end">
-                      <Label className="text-xs font-semibold text-right">רמת פעילות (PAL)</Label>
+                    <div className="flex items-center gap-1.5 mb-1 justify-end">
+                      <Label className="text-[10px] font-semibold text-right">רמת פעילות (PAL)</Label>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help flex-shrink-0" />
+                          <Info className="h-2.5 w-2.5 text-muted-foreground cursor-help flex-shrink-0" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs" side="left">
                           <p className="text-xs">Physical Activity Level</p>
@@ -555,7 +499,7 @@ export const NutritionTemplateForm = ({
                       value={calculatorInputs.pal.toString()}
                       onValueChange={(value) => setCalculatorInput('pal', parseFloat(value))}
                     >
-                      <SelectTrigger className="h-8 text-xs rounded-lg">
+                      <SelectTrigger className="h-7 text-xs rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent dir="rtl">
@@ -569,19 +513,19 @@ export const NutritionTemplateForm = ({
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5">
-                        <Label className="text-xs font-semibold text-right">גרעון/עודף קלורי (%)</Label>
+                        <Label className="text-[10px] font-semibold text-right">גרעון/עודף קלורי (%)</Label>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground cursor-help flex-shrink-0" />
+                            <Info className="h-2.5 w-2.5 text-muted-foreground cursor-help flex-shrink-0" />
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs" side="left">
                             <p className="text-xs">אחוז גרעון או עודף קלורי</p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
-                      <span className="text-xs font-bold">{calculatorInputs.caloricDeficitPercent > 0 ? '-' : '+'}{Math.abs(calculatorInputs.caloricDeficitPercent)}%</span>
+                      <span className="text-[10px] font-bold">{calculatorInputs.caloricDeficitPercent > 0 ? '-' : '+'}{Math.abs(calculatorInputs.caloricDeficitPercent)}%</span>
                     </div>
                     <Slider
                       value={[calculatorInputs.caloricDeficitPercent]}
@@ -591,7 +535,7 @@ export const NutritionTemplateForm = ({
                       step={1}
                       className="w-full"
                     />
-                    <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                    <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
                       <span>+20%</span>
                       <span>0%</span>
                       <span>-20%</span>
@@ -599,15 +543,13 @@ export const NutritionTemplateForm = ({
                   </div>
                 </CardContent>
               </Card>
-            </div>
 
-            {/* Column 2: Activity Table (The Engine) */}
-            <div className="bg-white rounded-xl p-4">
-              <Card className="rounded-xl shadow-sm border h-full">
-                <CardHeader className="pb-2 pt-3 px-4">
+              {/* Physical Activity (METS) Table */}
+              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+                <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm flex items-center gap-2 text-right">
-                      <Activity className="h-3.5 w-3.5" />
+                    <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
+                      <Activity className="h-3.5 w-3.5 text-[#5B6FB9]" />
                       פעילות גופנית (METS)
                     </CardTitle>
                     <Button
@@ -615,111 +557,123 @@ export const NutritionTemplateForm = ({
                       variant="outline"
                       size="sm"
                       onClick={addActivityEntry}
-                      className="h-6 text-[10px] px-2 rounded-lg"
+                      className="h-6 text-[9px] px-2 rounded-lg"
                     >
-                      <Plus className="h-3 w-3 ml-1" />
+                      <Plus className="h-2.5 w-2.5 ml-1" />
                       הוסף
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  <div className="space-y-2">
-                    <div className="max-h-[320px] overflow-y-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="h-7 text-[10px] text-right p-1.5">סוג פעילות</TableHead>
-                            <TableHead className="h-7 text-[10px] w-16 text-center p-1.5">
-                              METS
-                            </TableHead>
-                            <TableHead className="h-7 text-[10px] w-20 text-center p-1.5">דקות/שבוע</TableHead>
-                            <TableHead className="h-7 text-[10px] w-8 p-1.5"></TableHead>
+                <CardContent className="px-3 pb-3 flex-1 flex flex-col min-h-0">
+                  <div className="flex-1 overflow-y-auto min-h-0 -mx-1 px-1">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-white z-10">
+                        <TableRow>
+                          <TableHead className="h-7 text-[10px] text-right p-1.5">סוג פעילות</TableHead>
+                          <TableHead className="h-7 text-[10px] w-16 text-center p-1.5">METS</TableHead>
+                          <TableHead className="h-7 text-[10px] w-20 text-center p-1.5">דקות/שבוע</TableHead>
+                          <TableHead className="h-7 text-[10px] w-8 p-1.5"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {activityEntries.map((entry) => (
+                          <TableRow key={entry.id}>
+                            <TableCell className="p-1.5">
+                              <Input
+                                value={entry.activityType}
+                                onChange={(e) => updateActivityEntry(entry.id, { activityType: e.target.value })}
+                                placeholder="פעילות"
+                                className="h-6 text-xs"
+                                dir="rtl"
+                              />
+                            </TableCell>
+                            <TableCell className="p-1.5">
+                              <Input
+                                type="number"
+                                value={entry.mets || ''}
+                                onChange={(e) => updateActivityEntry(entry.id, { mets: parseFloat(e.target.value) || 0 })}
+                                dir="ltr"
+                                className="h-6 text-xs text-center"
+                                min="0"
+                                step="0.1"
+                              />
+                            </TableCell>
+                            <TableCell className="p-1.5">
+                              <Input
+                                type="number"
+                                value={entry.minutesPerWeek || ''}
+                                onChange={(e) => updateActivityEntry(entry.id, { minutesPerWeek: parseInt(e.target.value) || 0 })}
+                                dir="ltr"
+                                className="h-6 text-xs text-center"
+                                min="0"
+                              />
+                            </TableCell>
+                            <TableCell className="p-1.5">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeActivityEntry(entry.id)}
+                                className="h-6 w-6 p-0"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {activityEntries.map((entry) => {
-                            const weeklyEE = entry.mets * calculatorInputs.weight * (entry.minutesPerWeek / 60);
-                            return (
-                              <TableRow key={entry.id}>
-                                <TableCell className="p-1.5">
-                                  <Input
-                                    value={entry.activityType}
-                                    onChange={(e) => updateActivityEntry(entry.id, { activityType: e.target.value })}
-                                    placeholder="פעילות"
-                                    className="h-6 text-xs"
-                                    dir="rtl"
-                                  />
-                                </TableCell>
-                                <TableCell className="p-1.5">
-                                  <Input
-                                    type="number"
-                                    value={entry.mets || ''}
-                                    onChange={(e) => updateActivityEntry(entry.id, { mets: parseFloat(e.target.value) || 0 })}
-                                    dir="ltr"
-                                    className="h-6 text-xs text-center"
-                                    min="0"
-                                    step="0.1"
-                                  />
-                                </TableCell>
-                                <TableCell className="p-1.5">
-                                  <Input
-                                    type="number"
-                                    value={entry.minutesPerWeek || ''}
-                                    onChange={(e) => updateActivityEntry(entry.id, { minutesPerWeek: parseInt(e.target.value) || 0 })}
-                                    dir="ltr"
-                                    className="h-6 text-xs text-center"
-                                    min="0"
-                                  />
-                                </TableCell>
-                                <TableCell className="p-1.5">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => removeActivityEntry(entry.id)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex flex-col gap-1 pt-2 border-t text-[9px] flex-shrink-0">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">סה״כ דקות:</span>
+                      <span className="font-semibold">{totalWeeklyMinutes}</span>
                     </div>
-                    <div className="flex flex-col gap-1 pt-2 border-t text-[10px]">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">סה״כ דקות:</span>
-                        <span className="font-semibold">{totalWeeklyMinutes}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">הוצאה יומית:</span>
-                        <span className="font-semibold text-green-600">{exerciseEE} קק״ל</span>
-                      </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">הוצאה יומית:</span>
+                      <span className="font-semibold text-green-600">{exerciseEE} קק״ל</span>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Donut Chart (Macro Distribution) */}
+              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+                <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
+                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
+                    <BarChart3 className="h-3.5 w-3.5 text-[#5B6FB9]" />
+                    סיכום ויזואלי
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 flex-1 flex items-center justify-center min-h-0">
+                  <div className="w-full h-full">
+                    <HighchartsReact
+                      highcharts={Highcharts}
+                      options={donutChartOptions}
+                      containerProps={{ style: { height: '100%', width: '100%' } }}
+                    />
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Column 3: Macro Targets & Calculated Metrics (Results Section) */}
-            <div className="space-y-4 bg-slate-50/30 rounded-xl p-4">
+            {/* Left Column: Output & Results (Macro Targets + Calculated Metrics) */}
+            <div className="flex flex-col gap-3 h-full overflow-hidden">
               {/* Macro Targets Card */}
-              <Card className="rounded-xl shadow-sm border">
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <CardTitle className="text-sm flex items-center gap-2 text-right">
-                    <Target className="h-3.5 w-3.5" />
+              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+                <CardHeader className="pb-3 pt-4 px-4 flex-shrink-0">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-right">
+                    <Target className="h-4 w-4 text-[#5B6FB9]" />
                     יעדי מקרו-נוטריאנטים
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 px-4 pb-3">
-                  {/* Grams per KG Inputs - Compact */}
-                  <div className="space-y-2 p-2 bg-muted/30 rounded-lg">
-                    <Label className="text-[10px] font-semibold text-right block">גרם/ק"ג משקל</Label>
-                    <div className="grid grid-cols-3 gap-1.5">
+                <CardContent className="px-4 pb-4 flex-1 flex flex-col space-y-3 min-h-0 overflow-y-auto">
+                  {/* Grams per KG Inputs */}
+                  <div className="space-y-2 p-3 bg-slate-50 rounded-lg flex-shrink-0">
+                    <Label className="text-xs font-semibold text-right block mb-2">גרם/ק"ג משקל</Label>
+                    <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <Label className="text-[10px] mb-0.5 block text-center">חלבון</Label>
+                        <Label className="text-[10px] mb-1 block text-center">חלבון</Label>
                         <Input
                           type="number"
                           value={calculatorInputs.proteinPerKg}
@@ -728,11 +682,11 @@ export const NutritionTemplateForm = ({
                           min="1.5"
                           max="3.0"
                           step="0.1"
-                          className="h-6 text-xs text-center"
+                          className="h-7 text-xs text-center"
                         />
                       </div>
                       <div>
-                        <Label className="text-[10px] mb-0.5 block text-center">שומן</Label>
+                        <Label className="text-[10px] mb-1 block text-center">שומן</Label>
                         <Input
                           type="number"
                           value={calculatorInputs.fatPerKg}
@@ -741,11 +695,11 @@ export const NutritionTemplateForm = ({
                           min="0.5"
                           max="1.5"
                           step="0.1"
-                          className="h-6 text-xs text-center"
+                          className="h-7 text-xs text-center"
                         />
                       </div>
                       <div>
-                        <Label className="text-[10px] mb-0.5 block text-center">פחמימות</Label>
+                        <Label className="text-[10px] mb-1 block text-center">פחמימות</Label>
                         <Input
                           type="number"
                           value={calculatorInputs.carbsPerKg}
@@ -754,14 +708,14 @@ export const NutritionTemplateForm = ({
                           min="1.0"
                           max="4.0"
                           step="0.1"
-                          className="h-6 text-xs text-center"
+                          className="h-7 text-xs text-center"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Final Target Cards - 2x3 Grid */}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5 flex-1 content-start">
                     <MacroInputCard
                       label="קלוריות"
                       icon={Flame}
@@ -807,86 +761,58 @@ export const NutritionTemplateForm = ({
               </Card>
 
               {/* Calculated Metrics Card */}
-              <Card className="rounded-xl shadow-sm border">
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <CardTitle className="text-sm text-right">מדדים מחושבים</CardTitle>
+              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+                <CardHeader className="pb-3 pt-4 px-4 flex-shrink-0">
+                  <CardTitle className="text-sm font-semibold text-right">מדדים מחושבים</CardTitle>
                 </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="text-center p-2 bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-lg border border-blue-200/50">
-                      <Label className="text-[10px] text-muted-foreground mb-1 block">% שומן</Label>
+                <CardContent className="px-4 pb-4 flex-1 flex flex-col overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-2.5 flex-shrink-0">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <Label className="text-xs text-muted-foreground mb-1 block">% שומן</Label>
                       <p className="text-lg font-bold text-blue-700">{bodyFatPercent !== null ? bodyFatPercent.toFixed(1) : '—'}</p>
                     </div>
-                    <div className="text-center p-2 bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-lg border border-purple-200/50">
-                      <Label className="text-[10px] text-muted-foreground mb-1 block">LBM (ק"ג)</Label>
+                    <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+                      <Label className="text-xs text-muted-foreground mb-1 block">LBM (ק"ג)</Label>
                       <p className="text-lg font-bold text-purple-700">{lbm !== null ? lbm.toFixed(1) : '—'}</p>
                     </div>
-                    <div className="text-center p-2 bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-lg border border-amber-200/50">
-                      <Label className="text-[10px] text-muted-foreground mb-1 block">BMR</Label>
+                    <div className="text-center p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <Label className="text-xs text-muted-foreground mb-1 block">BMR</Label>
                       <p className="text-lg font-bold text-amber-700">{bmrResults.average}</p>
-                      <p className="text-[9px] text-muted-foreground mt-0.5">קק״ל/יום</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">קק״ל/יום</p>
                     </div>
-                    <div className="text-center p-2 bg-gradient-to-br from-green-50 to-green-100/50 rounded-lg border border-green-200/50">
-                      <Label className="text-[10px] text-muted-foreground mb-1 block">TDEE</Label>
+                    <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                      <Label className="text-xs text-muted-foreground mb-1 block">TDEE</Label>
                       <p className="text-lg font-bold text-green-700">{tdee}</p>
-                      <p className="text-[9px] text-muted-foreground mt-0.5">קק״ל/יום</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">קק״ל/יום</p>
                     </div>
                   </div>
                   
                   {/* BMR Formula Details */}
-                  <div className="mt-2 pt-2 border-t grid grid-cols-3 gap-1.5">
+                  <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 flex-shrink-0">
                     <div className="text-center">
-                      <p className="text-[9px] text-muted-foreground mb-0.5">MSJ</p>
-                      <p className="text-xs font-semibold">{bmrResults.mifflinStJeor}</p>
+                      <p className="text-[10px] text-muted-foreground mb-1">MSJ</p>
+                      <p className="text-sm font-semibold">{bmrResults.mifflinStJeor}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-[9px] text-muted-foreground mb-0.5">HB</p>
-                      <p className="text-xs font-semibold">{bmrResults.harrisBenedict}</p>
+                      <p className="text-[10px] text-muted-foreground mb-1">HB</p>
+                      <p className="text-sm font-semibold">{bmrResults.harrisBenedict}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-[9px] text-muted-foreground mb-0.5">KM</p>
-                      <p className="text-xs font-semibold">{bmrResults.katchMcArdle || '—'}</p>
+                      <p className="text-[10px] text-muted-foreground mb-1">KM</p>
+                      <p className="text-sm font-semibold">{bmrResults.katchMcArdle || '—'}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </div>
-
-          {/* Visual Analysis Section: Charts Side-by-Side */}
-          <Card className="rounded-xl shadow-sm border">
-            <CardHeader className="pb-3 pt-4 px-5">
-              <CardTitle className="text-base flex items-center gap-2 text-right">
-                <BarChart3 className="h-4 w-4" />
-                סיכום ויזואלי של התכנית
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-5">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <HighchartsReact
-                    highcharts={Highcharts}
-                    options={donutChartOptions}
-                    containerProps={{ style: { height: '100%', width: '100%' } }}
-                  />
-                </div>
-                <div>
-                  <HighchartsReact
-                    highcharts={Highcharts}
-                    options={columnChartOptions}
-                    containerProps={{ style: { height: '100%', width: '100%' } }}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Footer Actions */}
-        <div className="border-t bg-white p-4 flex gap-3 flex-shrink-0" dir="rtl">
+        {/* Footer Actions - Compact */}
+        <div className="border-t bg-white px-4 py-3 flex gap-3 flex-shrink-0" dir="rtl">
           <Button
             type="submit"
-            className="flex-1 h-10 text-sm bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-xl font-semibold"
+            className="h-9 text-sm bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-3xl font-semibold px-6"
             disabled={isSubmitting || !name.trim()}
           >
             שמור {mode === 'template' ? 'תבנית' : 'תוכנית'}
@@ -895,7 +821,7 @@ export const NutritionTemplateForm = ({
             type="button"
             variant="outline"
             onClick={onCancel}
-            className="flex-1 h-10 text-sm rounded-xl font-semibold"
+            className="h-9 text-sm rounded-3xl font-semibold px-6"
           >
             ביטול
           </Button>

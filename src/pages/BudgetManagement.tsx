@@ -22,6 +22,7 @@ import { useTableFilters } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { budgetColumns } from '@/components/dashboard/BudgetsDataTable';
 
 const BudgetManagement = () => {
   const navigate = useNavigate();
@@ -121,9 +122,11 @@ const BudgetManagement = () => {
                 onAddClick={handleAddBudget}
                 enableColumnVisibility={true}
                 enableFilters={true}
+                enableGroupBy={true}
                 enableSearch={true}
                 legacySearchQuery={searchQuery}
                 legacyOnSearchChange={setSearchQuery}
+                columns={budgetColumns}
               />
               
               <div className="bg-white">

@@ -123,6 +123,29 @@ export const NUTRITION_TEMPLATE_FILTER_FIELDS: FilterField[] = [
   },
 ];
 
+// Define filter fields for Meetings table
+export const MEETING_FILTER_FIELDS: FilterField[] = [
+  {
+    id: 'created_at',
+    label: 'תאריך יצירה',
+    type: 'date',
+    operators: ['equals', 'before', 'after', 'between'],
+  },
+  {
+    id: 'meeting_date',
+    label: 'תאריך פגישה',
+    type: 'date',
+    operators: ['equals', 'before', 'after', 'between'],
+  },
+  {
+    id: 'status',
+    label: 'סטטוס',
+    type: 'select',
+    options: ['פעיל', 'בוטל', 'הושלם', 'מתוכנן'],
+    operators: ['is', 'isNot'],
+  },
+];
+
 export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
   const [filters, setFilters] = useState<ActiveFilter[]>(initialFilters);
 
