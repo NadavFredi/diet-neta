@@ -307,7 +307,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           .from('weekly_reviews')
           .update(reviewData)
           .eq('id', existingReview.id)
-          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+          .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
           .single();
         if (error) throw error;
         return updated;
@@ -319,7 +319,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           .from('weekly_reviews')
           .update(reviewData)
           .eq('id', existingReview.id)
-          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+          .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
           .single();
         if (error) throw error;
         lastSavedWeekRef.current = currentWeekKey;
@@ -332,7 +332,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
             onConflict: 'week_start_date,lead_id,customer_id',
             ignoreDuplicates: false,
           })
-          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+          .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
           .single();
         if (error) {
           // If conflict (409), try to fetch and update the existing review
@@ -355,7 +355,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                 .from('weekly_reviews')
                 .update(reviewData)
                 .eq('id', conflictReview.id)
-                .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+                .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
                 .single();
               if (updateError) throw updateError;
               lastSavedWeekRef.current = currentWeekKey;

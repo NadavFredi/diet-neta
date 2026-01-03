@@ -115,6 +115,16 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/get-attendance/index.ts"
 
+[functions.receive-fillout-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/receive-fillout-webhook/index.ts"
+
+[functions.sync-fillout-meetings]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/sync-fillout-meetings/index.ts"
+
 [functions.send-whatsapp-message]
 enabled = true
 verify_jwt = false

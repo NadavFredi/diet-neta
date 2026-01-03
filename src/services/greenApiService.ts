@@ -228,6 +228,8 @@ export const sendWhatsAppMessage = async (
     // For production, you may need to configure CORS on Green API side or use a server-side proxy
     let url: string;
     let response: Response;
+    let responseText: string;
+    let responseData: any;
     if (hasValidButtons) {
       // Use Vite proxy in development to avoid CORS issues
       // In production, this will attempt direct call (may need server-side proxy if CORS is still blocked)
@@ -272,8 +274,7 @@ export const sendWhatsAppMessage = async (
         body: JSON.stringify(requestBody),
       });
 
-      const responseText = await response.text();
-      let responseData;
+      responseText = await response.text();
       try {
         responseData = JSON.parse(responseText);
       } catch {
@@ -381,8 +382,7 @@ export const sendWhatsAppMessage = async (
       }),
     });
 
-    const responseText = await response.text();
-    let responseData;
+    responseText = await response.text();
     try {
       responseData = JSON.parse(responseText);
     } catch {
