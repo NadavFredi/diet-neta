@@ -106,6 +106,11 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     // Route: /dashboard/customers/:id (not /profile routes which are for leads)
     isProfileRoute = location.pathname.startsWith('/dashboard/customers/') && 
                      location.pathname.split('/').length === 4; // /dashboard/customers/:id
+  } else if (item.resourceKey === 'meetings') {
+    // For meetings: check if we're on a meeting detail route
+    // Route: /dashboard/meetings/:id
+    isProfileRoute = location.pathname.startsWith('/dashboard/meetings/') && 
+                     location.pathname.split('/').length === 4; // /dashboard/meetings/:id
   }
   
   // If on profile route for THIS resource and no view_id, consider default view as active
@@ -293,6 +298,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           >
             <button
               onClick={() => {
+                // Always use the base resource path, not the current location
+                // This ensures clicking a view from a detail page navigates to the list with that view
                 onViewClick(view, item.path);
                 setPopoverOpen(false);
               }}

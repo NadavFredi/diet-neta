@@ -100,3 +100,4 @@ COMMENT ON COLUMN public.meetings.customer_id IS 'Link to the customer that the 
 COMMENT ON COLUMN public.meetings.fillout_submission_id IS 'Unique identifier from Fillout submission';
 COMMENT ON COLUMN public.meetings.meeting_data IS 'Flexible JSONB containing all meeting data from Fillout form';
 
+
