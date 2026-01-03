@@ -59,6 +59,7 @@ interface TableActionHeaderProps {
   onAddClick?: () => void;
   enableColumnVisibility?: boolean;
   enableFilters?: boolean;
+  enableGroupBy?: boolean;
   enableSearch?: boolean;
   enableSettings?: boolean;
   onSettingsClick?: () => void;
@@ -95,6 +96,7 @@ export const TableActionHeader = ({
   onAddClick,
   enableColumnVisibility = true,
   enableFilters = true,
+  enableGroupBy = true,
   enableSearch = true,
   enableSettings = false,
   onSettingsClick,
@@ -317,7 +319,7 @@ export const TableActionHeader = ({
           )}
 
           {/* Group By Button */}
-          {enableColumnVisibility && columns && columns.length > 0 && (
+          {enableGroupBy && columns && columns.length > 0 && (
             <Popover open={isGroupByOpen} onOpenChange={setIsGroupByOpen}>
               <PopoverTrigger asChild>
                 <Button 

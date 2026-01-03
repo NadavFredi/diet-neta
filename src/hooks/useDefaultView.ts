@@ -105,6 +105,19 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
           actions: true,
         },
       };
+    case 'meetings':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+        columnVisibility: {
+          customer_name: true,
+          meeting_date: true,
+          meeting_time: true,
+          phone: true,
+          status: true,
+          created_at: true,
+        },
+      };
     default:
       return {
         searchQuery: '',
@@ -129,7 +142,7 @@ export const useDefaultView = (resourceKey: string) => {
         // Check if default view exists
         const { data: existingDefault, error: fetchError } = await supabase
           .from('saved_views')
-          .select('*')
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
           .eq('resource_key', resourceKey)
           .eq('created_by', userId)
           .eq('is_default', true)
@@ -156,6 +169,8 @@ export const useDefaultView = (resourceKey: string) => {
           ? 'כל תבניות התזונה'
           : resourceKey === 'budgets'
           ? 'כל התקציבים'
+          : resourceKey === 'meetings'
+          ? 'כל הפגישות'
           : 'כל התכניות';
 
         const { data: newView, error } = await supabase
@@ -167,7 +182,7 @@ export const useDefaultView = (resourceKey: string) => {
             is_default: true,
             created_by: userId,
           })
-          .select()
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
           .single();
 
         if (error) {

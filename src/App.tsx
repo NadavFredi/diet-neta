@@ -16,6 +16,8 @@ import TemplatesManagement from "./pages/TemplatesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
 import BudgetManagement from "./pages/BudgetManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
+import MeetingsManagement from "./pages/MeetingsManagement.tsx";
+import MeetingDetailView from "./pages/MeetingDetailView.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
 import { CheckInSettingsPage } from "./pages/CheckInSettingsPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -91,6 +93,22 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <CustomersManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/meetings"
+            element={
+              <ProtectedRoute>
+                <MeetingsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/meetings/:id"
+            element={
+              <ProtectedRoute>
+                <MeetingDetailView />
               </ProtectedRoute>
             }
           />

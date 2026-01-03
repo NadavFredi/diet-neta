@@ -6,7 +6,7 @@
  * NO Lead History Table (moved to sidebar).
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,6 @@ import {
   Clock, 
   MapPin, 
   Wallet, 
-  TrendingUp,
   Dumbbell,
   Flame,
   FileText,
@@ -29,18 +28,14 @@ import {
 import { formatDate } from '@/utils/dashboard';
 import { 
   FITNESS_GOAL_OPTIONS, 
-  ACTIVITY_LEVEL_OPTIONS, 
-  PREFERRED_TIME_OPTIONS, 
   SOURCE_OPTIONS 
 } from '@/utils/dashboard';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
-import { LeadHistoryTabs } from './LeadHistoryTabs';
+import { WeeklyReviewWrapper } from './WeeklyReviewWrapper';
 import { LeadAutomationCard } from './LeadAutomationCard';
 import { LeadFormsCard } from './LeadFormsCard';
 import { ReadOnlyField } from './ReadOnlyField';
 import { LeadPaymentCard } from './LeadPaymentCard';
-import { DailyActivityLog } from './DailyActivityLog';
-import { WeeklyReviewModule } from './WeeklyReviewModule';
 import { usePlansHistory } from '@/hooks/usePlansHistory';
 
 interface LeadData {
@@ -170,22 +165,20 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.stepsHistory, activeLead?.steps_history]);
 
-  // Helper to get badge color for fitness info
+  // Helper to get badge color
   const getFitnessBadgeColor = (type: string) => {
     switch (type) {
-      case 'activity_level': return 'bg-orange-50 text-orange-700 border-orange-200';
       case 'source': return 'bg-purple-50 text-purple-700 border-purple-200';
       case 'fitness_goal': return 'bg-green-50 text-green-700 border-green-200';
-      case 'preferred_time': return 'bg-blue-50 text-blue-700 border-blue-200';
       default: return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden w-full" dir="rtl">
-      <div className="p-6 w-full min-w-0 text-right">
+      <div className="p-4 w-full min-w-0 text-right">
         {/* Row 1: 3-Column Grid - Subscription, CRM Status, Personal Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6" style={{ gridAutoRows: 'min-content' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Card 1: Subscription Details */}
           <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
@@ -434,81 +427,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
         </div>
 
-        {/* Row 2: 3-Column Grid - Fitness Info, Daily Protocol, WhatsApp Automation */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6" style={{ gridAutoRows: 'min-content' }}>
-          {/* Card 4: Fitness Info */}
-          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center">
-                <Activity className="h-4 w-4 text-pink-600" />
-              </div>
-              <h3 className="text-sm font-bold text-gray-900">מידע כושר</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 flex-1 auto-rows-min">
-              <InlineEditableSelect
-                label="רמת פעילות"
-                value={activeLead.activity_level || ''}
-                options={[...ACTIVITY_LEVEL_OPTIONS]}
-                onSave={async (newValue) => {
-                  await onUpdateLead({ activity_level: newValue });
-                }}
-                badgeClassName={getFitnessBadgeColor('activity_level')}
-                className="border-0 p-0"
-              />
-              <InlineEditableSelect
-                label="זמן מועדף"
-                value={activeLead.preferred_time || ''}
-                options={[...PREFERRED_TIME_OPTIONS]}
-                onSave={async (newValue) => {
-                  await onUpdateLead({ preferred_time: newValue });
-                }}
-                badgeClassName={getFitnessBadgeColor('preferred_time')}
-                className="border-0 p-0"
-              />
-            </div>
-          </Card>
-
-          {/* Card 5: Daily Protocol */}
-          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-purple-600" />
-              </div>
-              <h3 className="text-sm font-bold text-gray-900">פרוטוקול יומי</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 flex-1 auto-rows-min">
-              <InlineEditableField
-                label="אימונים/שבוע"
-                value={activeLead.daily_protocol?.workoutGoal || 0}
-                onSave={async (newValue) => {
-                  const updatedProtocol = {
-                    ...(activeLead.daily_protocol || {}),
-                    workoutGoal: Number(newValue),
-                  };
-                  await onUpdateLead({ daily_protocol: updatedProtocol });
-                }}
-                type="number"
-                formatValue={(val) => val === 0 ? '-' : String(val)}
-                className="border-0 p-0"
-              />
-              <InlineEditableField
-                label="יעד צעדים"
-                value={activeLead.daily_protocol?.stepsGoal || 0}
-                onSave={async (newValue) => {
-                  const updatedProtocol = {
-                    ...(activeLead.daily_protocol || {}),
-                    stepsGoal: Number(newValue),
-                  };
-                  await onUpdateLead({ daily_protocol: updatedProtocol });
-                }}
-                type="number"
-                formatValue={(val) => val === 0 ? '-' : `${val}`}
-                className="border-0 p-0"
-              />
-            </div>
-          </Card>
-
-          {/* Card 6: WhatsApp Automation - Compact Version */}
+        {/* Row 2: 3-Column Grid - WhatsApp Automation, Fillout Forms, Payment Center */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" style={{ gridAutoRows: 'min-content' }}>
+          {/* Card 4: WhatsApp Automation - Compact Version */}
           <LeadAutomationCard
             customer={customer}
             lead={activeLead}
@@ -516,14 +437,14 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             nutritionPlanName={null}
           />
 
-          {/* Card 7: Fillout Forms */}
+          {/* Card 5: Fillout Forms */}
           <LeadFormsCard 
             leadId={activeLead?.id || null} // Pass lead ID for URL parameter matching
             leadEmail={customer?.email || activeLead?.email || null} 
             leadPhone={activeLead?.phone || customer?.phone || null}
           />
 
-          {/* Card 8: Stripe Payment Center */}
+          {/* Card 6: Stripe Payment Center */}
           <LeadPaymentCard
             customerPhone={activeLead.phone || customer?.phone || null}
             customerName={customer?.full_name || activeLead.name || null}
@@ -533,7 +454,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
         {/* Workout, Steps, Nutrition & Supplements History Tabs - Full Width - Always Visible */}
         <div className="w-full">
-          <LeadHistoryTabs
+          <WeeklyReviewWrapper
+            leadId={activeLead.id}
+            customerId={customer?.id}
+            customerPhone={customer?.phone || activeLead.phone}
+            customerName={customer?.full_name || activeLead.name}
             workoutHistory={mergedWorkoutHistory}
             stepsHistory={mergedStepsHistory}
             nutritionHistory={mergedNutritionHistory}
@@ -548,21 +473,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             onAssignBudget={onAssignBudget || (() => {})}
           />
         </div>
-
-        {/* Daily Activity Log & Weekly Review - Full Width */}
-        <div className="w-full space-y-6 mt-6">
-          <DailyActivityLog
-            leadId={activeLead.id}
-            customerId={customer?.id}
-          />
-          <WeeklyReviewModule
-            leadId={activeLead.id}
-            customerId={customer?.id}
-            customerPhone={customer?.phone || activeLead.phone}
-            customerName={customer?.full_name || activeLead.name}
-          />
-        </div>
       </div>
+
     </div>
   );
 };

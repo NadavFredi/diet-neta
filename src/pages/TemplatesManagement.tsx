@@ -19,6 +19,7 @@ import { EditWorkoutTemplateDialog } from '@/components/dashboard/dialogs/EditWo
 import { DeleteWorkoutTemplateDialog } from '@/components/dashboard/dialogs/DeleteWorkoutTemplateDialog';
 import { useTemplatesManagement } from './TemplatesManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { workoutTemplateColumns } from '@/components/dashboard/columns/templateColumns';
 
 const TemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -101,10 +102,12 @@ const TemplatesManagement = () => {
                   onAddClick={handleAddTemplate}
                   enableColumnVisibility={true}
                   enableFilters={true}
+                  enableGroupBy={true}
                   enableSearch={true}
                   useTemplateColumnSettings={true}
                   templateColumnVisibility={columnVisibility}
                   onToggleTemplateColumn={handleToggleColumn}
+                  columns={workoutTemplateColumns}
                 />
                 
                 <div className="bg-white">

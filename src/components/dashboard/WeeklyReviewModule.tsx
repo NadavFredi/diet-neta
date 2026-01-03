@@ -5,7 +5,7 @@
  * Aggregates daily check-in data and allows trainer to provide feedback.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useActiveBudgetForLead, useActiveBudgetForCustomer } from '@/hooks/useBudgets';
@@ -59,6 +59,9 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   customerId,
   customerPhone,
   customerName,
+  onSave,
+  onSaveRef,
+  onSaveStateChange,
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -81,19 +84,39 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   const { data: weekCheckIns, isLoading: isLoadingCheckIns } = useQuery({
     queryKey: ['weekly-check-ins', leadId, customerId, weekStartStr, weekEndStr],
     queryFn: async () => {
+      // Always query by customer_id (required field)
+      // If we only have leadId, fetch the lead first to get customer_id
+      let finalCustomerId = customerId;
+      
+      if (!finalCustomerId && leadId) {
+        const { data: leadData, error: leadError } = await supabase
+          .from('leads')
+          .select('customer_id')
+          .eq('id', leadId)
+          .single();
+        
+        if (leadError) throw leadError;
+        if (!leadData?.customer_id) return [];
+        finalCustomerId = leadData.customer_id;
+      }
+
+      if (!finalCustomerId) return [];
+
+      // Always query by customer_id (required field)
+      // Show all check-ins for this customer, including those with lead_id = null
+      // If leadId is provided, also include check-ins specifically for that lead
       let query = supabase
         .from('daily_check_ins')
         .select('*')
+        .eq('customer_id', finalCustomerId)
         .gte('check_in_date', weekStartStr)
         .lte('check_in_date', weekEndStr)
         .order('check_in_date', { ascending: true });
 
+      // If leadId is provided, show check-ins for that lead OR check-ins with null lead_id
+      // This ensures we see all check-ins for the customer, including those saved without a lead
       if (leadId) {
-        query = query.eq('lead_id', leadId);
-      } else if (customerId) {
-        query = query.eq('customer_id', customerId);
-      } else {
-        return [];
+        query = query.or(`lead_id.eq.${leadId},lead_id.is.null`);
       }
 
       const { data, error } = await query;
@@ -248,6 +271,16 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     }
   }, [existingReview, targets]);
 
+  // Reset saved week ref when week changes
+  React.useEffect(() => {
+    lastSavedWeekRef.current = null;
+    hasShownSuccessToast.current = false;
+  }, [weekStartStr, leadId, customerId]);
+
+  // Track if we've already shown a success toast to prevent duplicates
+  const hasShownSuccessToast = useRef(false);
+  const lastSavedWeekRef = useRef<string | null>(null);
+
   // Save review mutation
   const saveReviewMutation = useMutation({
     mutationFn: async (data: WeeklyReviewData) => {
@@ -258,34 +291,93 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
         created_by: user?.id || null,
       };
 
+      // Check if we're trying to save the same week again
+      const currentWeekKey = `${reviewData.week_start_date}-${leadId || customerId}`;
+      if (lastSavedWeekRef.current === currentWeekKey && existingReview?.id) {
+        // Already saved this week, just update
+        const { data: updated, error } = await supabase
+          .from('weekly_reviews')
+          .update(reviewData)
+          .eq('id', existingReview.id)
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+          .single();
+        if (error) throw error;
+        return updated;
+      }
+
       if (existingReview?.id) {
         // Update existing review
         const { data: updated, error } = await supabase
           .from('weekly_reviews')
           .update(reviewData)
           .eq('id', existingReview.id)
-          .select()
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
           .single();
         if (error) throw error;
+        lastSavedWeekRef.current = currentWeekKey;
         return updated;
       } else {
-        // Create new review
+        // Use upsert to handle conflicts (e.g., if review was created between query and insert)
         const { data: created, error } = await supabase
           .from('weekly_reviews')
-          .insert(reviewData)
-          .select()
+          .upsert(reviewData, {
+            onConflict: 'week_start_date,lead_id,customer_id',
+            ignoreDuplicates: false,
+          })
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
           .single();
-        if (error) throw error;
+        if (error) {
+          // If conflict (409), try to fetch and update the existing review
+          if (error.code === '23505' || error.code === '409' || error.message?.includes('conflict')) {
+            let conflictQuery = supabase
+              .from('weekly_reviews')
+              .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+              .eq('week_start_date', reviewData.week_start_date);
+            
+            if (leadId) {
+              conflictQuery = conflictQuery.eq('lead_id', leadId);
+            } else if (customerId) {
+              conflictQuery = conflictQuery.eq('customer_id', customerId);
+            }
+            
+            const { data: conflictReview } = await conflictQuery.maybeSingle();
+            if (conflictReview) {
+              // Update the existing review instead
+              const { data: updated, error: updateError } = await supabase
+                .from('weekly_reviews')
+                .update(reviewData)
+                .eq('id', conflictReview.id)
+                .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+                .single();
+              if (updateError) throw updateError;
+              lastSavedWeekRef.current = currentWeekKey;
+              return updated;
+            }
+          }
+          throw error;
+        }
+        lastSavedWeekRef.current = currentWeekKey;
         return created;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['weekly-review'] });
       queryClient.invalidateQueries({ queryKey: ['weekly-reviews'] });
-      toast({
-        title: 'הצלחה',
-        description: 'הסיכום השבועי נשמר בהצלחה',
-      });
+      
+      // Only show toast if we haven't shown one for this save operation
+      if (!hasShownSuccessToast.current) {
+        hasShownSuccessToast.current = true;
+        toast({
+          title: 'הצלחה',
+          description: 'הסיכום השבועי נשמר בהצלחה',
+        });
+        // Reset after a delay to allow for future saves
+        setTimeout(() => {
+          hasShownSuccessToast.current = false;
+        }, 2000);
+      }
+      
+      if (onSave) onSave();
     },
     onError: (error: any) => {
       toast({
@@ -299,8 +391,13 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   // Send WhatsApp mutation
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!leadId && !customerId) return;
+    
+    // Prevent duplicate saves
+    if (saveReviewMutation.isPending) {
+      return;
+    }
 
     const reviewData: WeeklyReviewData = {
       week_start_date: weekStartStr,
@@ -319,8 +416,8 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       actual_calories_weekly_avg: calculatedAverages.calories,
       weekly_avg_weight: calculatedAverages.weight,
       waist_measurement: calculatedAverages.waist,
-      trainer_summary,
-      action_plan,
+      trainer_summary: trainerSummary,
+      action_plan: actionPlan,
       updated_steps_goal: updatedStepsGoal ? parseInt(updatedStepsGoal, 10) : null,
       updated_calories_target: updatedCaloriesTarget ? parseInt(updatedCaloriesTarget, 10) : null,
     };
@@ -333,7 +430,33 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     }
 
     await saveReviewMutation.mutateAsync(reviewData);
-  };
+  }, [
+    leadId,
+    customerId,
+    weekStartStr,
+    weekEndStr,
+    targets,
+    calculatedAverages,
+    trainerSummary,
+    actionPlan,
+    updatedStepsGoal,
+    updatedCaloriesTarget,
+    saveReviewMutation,
+  ]);
+
+  // Expose save handler to parent
+  React.useEffect(() => {
+    if (onSaveRef) {
+      onSaveRef(handleSave);
+    }
+  }, [onSaveRef, handleSave]);
+
+  // Notify parent of save state changes
+  React.useEffect(() => {
+    if (onSaveStateChange) {
+      onSaveStateChange(saveReviewMutation.isPending);
+    }
+  }, [saveReviewMutation.isPending, onSaveStateChange]);
 
   const handleSendWhatsApp = async () => {
     if (!customerPhone) {
@@ -549,8 +672,8 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           </table>
         </div>
 
-        {/* Trainer Inputs */}
-        <div className="space-y-4">
+        {/* Trainer Inputs - Side by Side */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="trainer-summary" className="text-sm font-semibold mb-2 block">
               סיכום ומסקנות
@@ -578,8 +701,9 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
               dir="rtl"
             />
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="updated-steps" className="text-sm font-semibold mb-2 block">
                 יעד צעדים לשבוע הבא
@@ -607,19 +731,10 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
               />
             </div>
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 pt-4 border-t">
-          <Button
-            onClick={handleSave}
-            disabled={saveReviewMutation.isPending}
-            className="flex-1 gap-2"
-          >
-            <Save className="h-4 w-4" />
-            שמור סיכום
-          </Button>
-          {customerPhone && (
+        {/* Action Buttons - Only show WhatsApp button, save is in header */}
+        {customerPhone && (
+          <div className="flex gap-3 pt-4 border-t">
             <Button
               onClick={handleSendWhatsApp}
               disabled={isSendingWhatsApp || saveReviewMutation.isPending}
@@ -629,8 +744,8 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
               <MessageSquare className="h-4 w-4" />
               {isSendingWhatsApp ? 'שולח...' : 'שלח לווטסאפ'}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -155,11 +155,9 @@ export const saveTemplate = createAsyncThunk(
         template_content: templateContent,
       };
       
-      // Only include buttons if provided (to allow clearing buttons)
+      // Always update buttons - use empty array if undefined or empty to clear buttons
       // Supabase will automatically handle JSONB conversion
-      if (buttons !== undefined) {
-        updateData.buttons = buttons.length > 0 ? buttons : [];
-      }
+      updateData.buttons = (buttons && buttons.length > 0) ? buttons : [];
 
       if (existingTemplate) {
         // Update existing template

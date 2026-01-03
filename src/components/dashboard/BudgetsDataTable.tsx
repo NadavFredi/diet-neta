@@ -13,6 +13,7 @@ import type { BudgetColumnVisibility } from '@/pages/BudgetManagement';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useAppSelector } from '@/store/hooks';
+import type { DataTableColumn } from '@/components/ui/DataTable';
 
 interface BudgetsDataTableProps {
   budgets: Budget[];
@@ -23,16 +24,22 @@ interface BudgetsDataTableProps {
   onSendWhatsApp?: (budget: Budget) => void;
 }
 
-const budgetColumns = [
+export const budgetColumns: DataTableColumn<Budget>[] = [
   {
     id: 'name',
     header: 'שם',
     accessorKey: 'name',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
   },
   {
     id: 'description',
     header: 'תיאור',
     accessorKey: 'description',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
     cell: ({ row }: { row: any }) => {
       const desc = row.original.description;
       return desc ? <span className="text-sm text-gray-600">{desc}</span> : <span className="text-gray-400">—</span>;
@@ -42,6 +49,9 @@ const budgetColumns = [
     id: 'steps_goal',
     header: 'יעד צעדים',
     accessorKey: 'steps_goal',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
     cell: ({ row }: { row: any }) => {
       const goal = row.original.steps_goal;
       return goal ? <span className="text-sm font-medium">{goal.toLocaleString()}</span> : <span className="text-gray-400">—</span>;
@@ -51,6 +61,9 @@ const budgetColumns = [
     id: 'createdDate',
     header: 'תאריך יצירה',
     accessorKey: 'created_at',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
     cell: ({ row }: { row: any }) => {
       const date = row.original.created_at;
       return date ? (
@@ -65,6 +78,10 @@ const budgetColumns = [
   {
     id: 'actions',
     header: 'פעולות',
+    accessorKey: 'id',
+    enableSorting: false,
+    enableResizing: true,
+    enableHiding: true,
     cell: () => null, // Will be overridden
   },
 ];

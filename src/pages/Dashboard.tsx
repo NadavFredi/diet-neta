@@ -131,6 +131,7 @@ const Dashboard = () => {
                 onAddClick={handleAddLead}
                 enableColumnVisibility={true}
                 enableFilters={true}
+                enableGroupBy={true}
                 enableSearch={true}
                 columns={leadColumns}
                 legacySearchQuery={searchQuery}

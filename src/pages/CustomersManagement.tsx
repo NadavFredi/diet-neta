@@ -78,6 +78,7 @@ const CustomersManagement = () => {
                   searchPlaceholder="חיפוש לפי שם, טלפון או אימייל..."
                   enableColumnVisibility={true}
                   enableFilters={true}
+                  enableGroupBy={true}
                   enableSearch={true}
                   columns={customerColumns}
                 />
