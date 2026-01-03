@@ -146,6 +146,15 @@ serve(async (req) => {
 
     const filloutData: FilloutFormSubmissionsResponse = await filloutResponse.json();
     console.log('[sync-fillout-meetings] Fetched submissions:', filloutData.totalResponses);
+    
+    // Log the first submission structure to understand the format
+    if (filloutData.responses && filloutData.responses.length > 0) {
+      console.log('[sync-fillout-meetings] First submission structure:', JSON.stringify(filloutData.responses[0], null, 2));
+      console.log('[sync-fillout-meetings] First submission keys:', Object.keys(filloutData.responses[0]));
+      if (filloutData.responses[0].questions) {
+        console.log('[sync-fillout-meetings] First submission questions:', JSON.stringify(filloutData.responses[0].questions, null, 2));
+      }
+    }
 
     if (!filloutData.responses || filloutData.responses.length === 0) {
       return successResponse({ 
@@ -166,14 +175,30 @@ serve(async (req) => {
         // Check if meeting already exists
         const { data: existing } = await supabase
           .from('meetings')
-          .select('id')
+          .select('id, meeting_data')
           .eq('fillout_submission_id', submission.submissionId)
           .maybeSingle();
 
         if (existing) {
-          console.log('[sync-fillout-meetings] Meeting already exists, skipping:', submission.submissionId);
-          skipped++;
-          continue;
+          console.log('[sync-fillout-meetings] Meeting already exists, checking if update needed:', submission.submissionId);
+          
+          // Check if meeting_data only has metadata (needs backfill)
+          const existingData = existing.meeting_data || {};
+          const hasOnlyMetadata = Object.keys(existingData).every(key => 
+            key.startsWith('_') || 
+            key === 'formId' || 
+            key === 'submissionId' || 
+            key === 'submissionTime' ||
+            key === 'lastUpdatedAt'
+          );
+          
+          if (hasOnlyMetadata) {
+            console.log('[sync-fillout-meetings] Meeting has only metadata, will update with full data');
+          } else {
+            console.log('[sync-fillout-meetings] Meeting already has full data, skipping update');
+            skipped++;
+            continue;
+          }
         }
 
         // Extract lead_id and customer_id from URL parameters
@@ -211,34 +236,144 @@ serve(async (req) => {
 
         // Build meeting_data from questions
         const meetingData: Record<string, any> = {};
+        
+        // Log submission structure for debugging
+        console.log(`[sync-fillout-meetings] Processing submission ${submission.submissionId}`);
+        console.log(`[sync-fillout-meetings] Submission keys:`, Object.keys(submission));
+        console.log(`[sync-fillout-meetings] Full submission:`, JSON.stringify(submission, null, 2));
+        
+        // Helper function to extract question data
+        const extractQuestions = (questions: any[], source: string) => {
+          console.log(`[sync-fillout-meetings] Extracting questions from ${source}, count:`, questions.length);
+          questions.forEach((question: any, index: number) => {
+            console.log(`[sync-fillout-meetings] Question ${index}:`, JSON.stringify(question));
+            
+            // Try multiple possible field names for the key
+            const key = question.name || 
+                       question.id || 
+                       question.key || 
+                       question.field || 
+                       question.label ||
+                       question.title ||
+                       `question_${question.id || question.key || index}`;
+            
+            // Try multiple possible field names for the value
+            const value = question.value !== undefined ? question.value :
+                         question.answer !== undefined ? question.answer :
+                         question.response !== undefined ? question.response :
+                         question.data !== undefined ? question.data :
+                         question.text !== undefined ? question.text :
+                         null;
+            
+            if (key && value !== null && value !== undefined) {
+              meetingData[key] = value;
+              console.log(`[sync-fillout-meetings] Stored field: ${key} = ${JSON.stringify(value)}`);
+            } else {
+              console.log(`[sync-fillout-meetings] Skipped question ${index} - missing key or value`);
+            }
+          });
+        };
+        
+        // Try questions array at top level (most common Fillout format)
         if (submission.questions && Array.isArray(submission.questions)) {
-          submission.questions.forEach((question: any) => {
-            const key = question.name || question.id || `question_${question.id}`;
-            meetingData[key] = question.value;
+          extractQuestions(submission.questions, 'submission.questions');
+        }
+        
+        // Try data.questions or response.questions
+        if (submission.data) {
+          const questions = submission.data.questions || submission.data.response?.questions;
+          if (questions && Array.isArray(questions)) {
+            extractQuestions(questions, 'submission.data.questions');
+          }
+        }
+        
+        // Try response.questions
+        if (submission.response && submission.response.questions && Array.isArray(submission.response.questions)) {
+          extractQuestions(submission.response.questions, 'submission.response.questions');
+        }
+        
+        // Try direct data object (if questions are properties of data - flat structure)
+        if (submission.data && typeof submission.data === 'object' && !Array.isArray(submission.data)) {
+          console.log('[sync-fillout-meetings] Checking submission.data for direct fields');
+          Object.keys(submission.data).forEach((key) => {
+            // Skip metadata fields and arrays (already processed)
+            if (!key.startsWith('_') && 
+                key !== 'formId' && 
+                key !== 'submissionId' && 
+                key !== 'submissionTime' && 
+                key !== 'lastUpdatedAt' &&
+                key !== 'questions' &&
+                !Array.isArray(submission.data[key]) &&
+                typeof submission.data[key] !== 'object') {
+              meetingData[key] = submission.data[key];
+              console.log(`[sync-fillout-meetings] Stored direct field from submission.data: ${key} = ${JSON.stringify(submission.data[key])}`);
+            }
           });
         }
+        
+        // Try all top-level properties that aren't metadata (Fillout might use flat structure)
+        Object.keys(submission).forEach((key) => {
+          // Skip known metadata fields
+          if (key !== 'submissionId' && 
+              key !== 'submissionTime' && 
+              key !== 'lastUpdatedAt' &&
+              key !== 'questions' &&
+              key !== 'urlParameters' &&
+              key !== 'data' &&
+              key !== 'response' &&
+              !Array.isArray(submission[key]) &&
+              typeof submission[key] !== 'object' &&
+              submission[key] !== null &&
+              submission[key] !== undefined) {
+            meetingData[key] = submission[key];
+            console.log(`[sync-fillout-meetings] Stored top-level field: ${key} = ${JSON.stringify(submission[key])}`);
+          }
+        });
+        
+        console.log(`[sync-fillout-meetings] Extracted meeting_data fields for ${submission.submissionId}:`, Object.keys(meetingData));
 
         // Add metadata
         meetingData._formId = formId;
         meetingData._submissionTime = submission.submissionTime;
         meetingData._lastUpdatedAt = submission.lastUpdatedAt;
 
-        // Create meeting
-        const { error: insertError } = await supabase
-          .from('meetings')
-          .insert({
-            fillout_submission_id: submission.submissionId,
-            meeting_data: meetingData,
-            lead_id: leadId,
-            customer_id: customerId,
-          });
+        if (existing) {
+          // Update existing meeting with full data
+          const { error: updateError } = await supabase
+            .from('meetings')
+            .update({
+              meeting_data: meetingData,
+              lead_id: leadId,
+              customer_id: customerId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existing.id);
 
-        if (insertError) {
-          console.error('[sync-fillout-meetings] Error creating meeting:', insertError);
-          errors.push(`Failed to create meeting for submission ${submission.submissionId}: ${insertError.message}`);
+          if (updateError) {
+            console.error('[sync-fillout-meetings] Error updating meeting:', updateError);
+            errors.push(`Failed to update meeting for submission ${submission.submissionId}: ${updateError.message}`);
+          } else {
+            console.log('[sync-fillout-meetings] Updated meeting for submission:', submission.submissionId);
+            synced++;
+          }
         } else {
-          console.log('[sync-fillout-meetings] Created meeting for submission:', submission.submissionId);
-          synced++;
+          // Create new meeting
+          const { error: insertError } = await supabase
+            .from('meetings')
+            .insert({
+              fillout_submission_id: submission.submissionId,
+              meeting_data: meetingData,
+              lead_id: leadId,
+              customer_id: customerId,
+            });
+
+          if (insertError) {
+            console.error('[sync-fillout-meetings] Error creating meeting:', insertError);
+            errors.push(`Failed to create meeting for submission ${submission.submissionId}: ${insertError.message}`);
+          } else {
+            console.log('[sync-fillout-meetings] Created meeting for submission:', submission.submissionId);
+            synced++;
+          }
         }
       } catch (error: any) {
         console.error('[sync-fillout-meetings] Error processing submission:', error);

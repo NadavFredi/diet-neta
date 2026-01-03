@@ -270,26 +270,26 @@ export const NutritionTemplateForm = ({
     unit: string;
     color: string;
   }) => (
-    <Card className="border border-slate-200 hover:border-opacity-80 transition-colors rounded-3xl shadow-sm flex flex-col" style={{ borderColor: color }}>
-      <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="p-1 rounded" style={{ backgroundColor: `${color}15` }}>
-            <Icon className="h-4 w-4" style={{ color }} />
+    <Card className="border border-slate-200 hover:border-opacity-80 transition-colors rounded-2xl shadow-sm flex flex-col" style={{ borderColor: color }}>
+      <CardHeader className="pb-1.5 pt-2 px-2.5 flex-shrink-0">
+        <div className="flex items-center gap-1.5">
+          <div className="p-0.5 rounded" style={{ backgroundColor: `${color}15` }}>
+            <Icon className="h-3 w-3" style={{ color }} />
           </div>
-          <CardTitle className="text-sm font-semibold">{label}</CardTitle>
+          <CardTitle className="text-base font-semibold">{label}</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="px-3 pb-3 pt-0 flex-1 flex items-center">
-        <div className="flex items-center gap-2 w-full">
+      <CardContent className="px-2.5 pb-2.5 pt-0 flex-1 flex items-center">
+        <div className="flex items-center gap-1.5 w-full">
           <Input
             type="number"
             value={value || ''}
             onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-            className="text-base font-bold text-center h-9 rounded-lg flex-1"
+            className="text-lg font-bold text-center h-10 rounded-lg flex-1"
             dir="ltr"
             min="0"
           />
-          <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">{unit}</span>
+          <span className="text-sm font-semibold text-muted-foreground whitespace-nowrap">{unit}</span>
         </div>
       </CardContent>
     </Card>
@@ -302,7 +302,7 @@ export const NutritionTemplateForm = ({
           {/* Top Row: Name and Description */}
           <div className="grid grid-cols-3 gap-3 mb-3">
             <div>
-              <Label htmlFor="name" className="text-xs font-semibold mb-1 block text-right">
+              <Label htmlFor="name" className="text-sm font-semibold mb-1 block text-right">
                 {mode === 'template' ? 'שם התבנית' : 'שם התוכנית'}
               </Label>
               <Input
@@ -311,12 +311,12 @@ export const NutritionTemplateForm = ({
                 onChange={(e) => setName(e.target.value)}
                 placeholder={mode === 'template' ? 'לדוגמה: תבנית חיטוב' : 'שם התוכנית'}
                 required
-                className="text-sm h-8 rounded-3xl"
+                className="text-base h-10 rounded-3xl"
                 dir="rtl"
               />
             </div>
             <div className="col-span-2">
-              <Label htmlFor="description" className="text-xs font-semibold mb-1 block text-right">
+              <Label htmlFor="description" className="text-sm font-semibold mb-1 block text-right">
                 תיאור
               </Label>
               <Input
@@ -324,7 +324,7 @@ export const NutritionTemplateForm = ({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="תיאור התבנית או התוכנית..."
-                className="text-sm h-8 rounded-3xl"
+                className="text-base h-10 rounded-3xl"
                 dir="rtl"
               />
             </div>
@@ -337,16 +337,16 @@ export const NutritionTemplateForm = ({
               {/* Biometric Data Card */}
               <Card className="rounded-3xl border border-slate-200 shadow-sm flex-shrink-0">
                 <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
-                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
-                    <Calculator className="h-3.5 w-3.5 text-[#5B6FB9]" />
+                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5 text-right">
+                    <Calculator className="h-4 w-4 text-[#5B6FB9]" />
                     נתונים ביומטריים
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-3 pb-3 flex flex-col space-y-2">
                   {/* Horizontal Layout: Label Right, Input Left */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <Label htmlFor="calc-weight" className="text-[10px] font-medium text-right flex-shrink-0 w-20">
+                      <Label htmlFor="calc-weight" className="text-sm font-medium text-right flex-shrink-0 w-24">
                         משקל (ק"ג)
                       </Label>
                       <Input
@@ -356,11 +356,11 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('weight', parseFloat(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
-                        className="h-6 text-xs rounded-lg flex-1"
+                        className="h-8 text-sm rounded-lg flex-1"
                       />
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <Label htmlFor="calc-height" className="text-[10px] font-medium text-right flex-shrink-0 w-20">
+                      <Label htmlFor="calc-height" className="text-sm font-medium text-right flex-shrink-0 w-24">
                         גובה (ס"מ)
                       </Label>
                       <Input
@@ -370,11 +370,11 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('height', parseFloat(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
-                        className="h-6 text-xs rounded-lg flex-1"
+                        className="h-8 text-sm rounded-lg flex-1"
                       />
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <Label htmlFor="calc-age" className="text-[10px] font-medium text-right flex-shrink-0 w-20">
+                      <Label htmlFor="calc-age" className="text-sm font-medium text-right flex-shrink-0 w-24">
                         גיל
                       </Label>
                       <Input
@@ -384,18 +384,18 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('age', parseInt(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
-                        className="h-6 text-xs rounded-lg flex-1"
+                        className="h-8 text-sm rounded-lg flex-1"
                       />
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <Label htmlFor="calc-gender" className="text-[10px] font-medium text-right flex-shrink-0 w-20">
+                      <Label htmlFor="calc-gender" className="text-sm font-medium text-right flex-shrink-0 w-24">
                         מין
                       </Label>
                       <Select
                         value={calculatorInputs.gender}
                         onValueChange={(value: 'male' | 'female') => setCalculatorInput('gender', value)}
                       >
-                        <SelectTrigger id="calc-gender" className="h-6 text-xs rounded-lg flex-1">
+                        <SelectTrigger id="calc-gender" className="h-8 text-sm rounded-lg flex-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent dir="rtl">
@@ -410,20 +410,20 @@ export const NutritionTemplateForm = ({
 
                   {/* Navy Method Measurements */}
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1.5 justify-end">
-                      <Label className="text-[9px] font-semibold text-right">מדידות גוף (Navy)</Label>
+                    <div className="flex items-center gap-1.5 mb-2 justify-end">
+                      <Label className="text-xs font-semibold text-right">מדידות גוף (Navy)</Label>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-2.5 w-2.5 text-muted-foreground cursor-help flex-shrink-0" />
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help flex-shrink-0" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs" side="left">
-                          <p className="text-xs">שיטת Navy לחישוב אחוז שומן</p>
+                          <p className="text-sm">שיטת Navy לחישוב אחוז שומן</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <Label htmlFor="calc-waist" className="text-[9px] font-medium text-right flex-shrink-0 w-20">
+                        <Label htmlFor="calc-waist" className="text-sm font-medium text-right flex-shrink-0 w-24">
                           מותן (ס"מ)
                         </Label>
                         <Input
@@ -433,11 +433,11 @@ export const NutritionTemplateForm = ({
                           onChange={(e) => setCalculatorInput('waist', parseFloat(e.target.value) || 0)}
                           dir="ltr"
                           min="0"
-                          className="h-6 text-xs rounded-lg flex-1"
+                          className="h-8 text-sm rounded-lg flex-1"
                         />
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <Label htmlFor="calc-neck" className="text-[9px] font-medium text-right flex-shrink-0 w-20">
+                        <Label htmlFor="calc-neck" className="text-sm font-medium text-right flex-shrink-0 w-24">
                           צוואר (ס"מ)
                         </Label>
                         <Input
@@ -447,12 +447,12 @@ export const NutritionTemplateForm = ({
                           onChange={(e) => setCalculatorInput('neck', parseFloat(e.target.value) || 0)}
                           dir="ltr"
                           min="0"
-                          className="h-6 text-xs rounded-lg flex-1"
+                          className="h-8 text-sm rounded-lg flex-1"
                         />
                       </div>
                       {calculatorInputs.gender === 'female' && (
                         <div className="flex items-center justify-between gap-2">
-                          <Label htmlFor="calc-hip" className="text-[9px] font-medium text-right flex-shrink-0 w-20">
+                          <Label htmlFor="calc-hip" className="text-sm font-medium text-right flex-shrink-0 w-24">
                             אגן (ס"מ)
                           </Label>
                           <Input
@@ -462,7 +462,7 @@ export const NutritionTemplateForm = ({
                             onChange={(e) => setCalculatorInput('hip', parseFloat(e.target.value) || 0)}
                             dir="ltr"
                             min="0"
-                            className="h-6 text-xs rounded-lg flex-1"
+                            className="h-8 text-sm rounded-lg flex-1"
                           />
                         </div>
                       )}
@@ -474,8 +474,8 @@ export const NutritionTemplateForm = ({
               {/* Donut Chart (Macro Distribution) - Moved to right column below biometrics */}
               <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
                 <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
-                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
-                    <BarChart3 className="h-3.5 w-3.5 text-[#5B6FB9]" />
+                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5 text-right">
+                    <BarChart3 className="h-4 w-4 text-[#5B6FB9]" />
                     סיכום ויזואלי
                   </CardTitle>
                 </CardHeader>
@@ -501,21 +501,21 @@ export const NutritionTemplateForm = ({
               {/* Activity Level & Goals Card - Moved here, same level as METS */}
               <Card className="rounded-3xl border border-slate-200 shadow-sm flex-shrink-0">
                 <CardHeader className="pb-2 pt-3 px-3">
-                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
-                    <Activity className="h-3.5 w-3.5 text-[#5B6FB9]" />
+                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5 text-right">
+                    <Activity className="h-4 w-4 text-[#5B6FB9]" />
                     רמת פעילות ומטרות
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-3 pb-3 space-y-2.5">
+                <CardContent className="px-3 pb-3 space-y-3">
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1 justify-end">
-                      <Label className="text-[10px] font-semibold text-right">רמת פעילות (PAL)</Label>
+                    <div className="flex items-center gap-1.5 mb-2 justify-end">
+                      <Label className="text-sm font-semibold text-right">רמת פעילות (PAL)</Label>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-2.5 w-2.5 text-muted-foreground cursor-help flex-shrink-0" />
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help flex-shrink-0" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs" side="left">
-                          <p className="text-xs">Physical Activity Level</p>
+                          <p className="text-sm">Physical Activity Level</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -523,7 +523,7 @@ export const NutritionTemplateForm = ({
                       value={calculatorInputs.pal.toString()}
                       onValueChange={(value) => setCalculatorInput('pal', parseFloat(value))}
                     >
-                      <SelectTrigger className="h-7 text-xs rounded-lg">
+                      <SelectTrigger className="h-9 text-sm rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent dir="rtl">
@@ -537,19 +537,19 @@ export const NutritionTemplateForm = ({
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-1.5">
-                        <Label className="text-[10px] font-semibold text-right">גרעון/עודף קלורי (%)</Label>
+                        <Label className="text-sm font-semibold text-right">גרעון/עודף קלורי (%)</Label>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Info className="h-2.5 w-2.5 text-muted-foreground cursor-help flex-shrink-0" />
+                            <Info className="h-3 w-3 text-muted-foreground cursor-help flex-shrink-0" />
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs" side="left">
-                            <p className="text-xs">אחוז גרעון או עודף קלורי</p>
+                            <p className="text-sm">אחוז גרעון או עודף קלורי</p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
-                      <span className="text-[10px] font-bold">{calculatorInputs.caloricDeficitPercent > 0 ? '-' : '+'}{Math.abs(calculatorInputs.caloricDeficitPercent)}%</span>
+                      <span className="text-sm font-bold">{calculatorInputs.caloricDeficitPercent > 0 ? '-' : '+'}{Math.abs(calculatorInputs.caloricDeficitPercent)}%</span>
                     </div>
                     <Slider
                       value={[calculatorInputs.caloricDeficitPercent]}
@@ -559,7 +559,7 @@ export const NutritionTemplateForm = ({
                       step={1}
                       className="w-full"
                     />
-                    <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
                       <span>+20%</span>
                       <span>0%</span>
                       <span>-20%</span>
@@ -572,8 +572,8 @@ export const NutritionTemplateForm = ({
               <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
                 <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
-                      <Activity className="h-3.5 w-3.5 text-[#5B6FB9]" />
+                    <CardTitle className="text-sm font-semibold flex items-center gap-1.5 text-right">
+                      <Activity className="h-4 w-4 text-[#5B6FB9]" />
                       פעילות גופנית (METS)
                     </CardTitle>
                     <Button
@@ -581,54 +581,54 @@ export const NutritionTemplateForm = ({
                       variant="outline"
                       size="sm"
                       onClick={addActivityEntry}
-                      className="h-6 text-[9px] px-2 rounded-lg"
+                      className="h-8 text-xs px-3 rounded-lg"
                     >
-                      <Plus className="h-2.5 w-2.5 ml-1" />
+                      <Plus className="h-3 w-3 ml-1" />
                       הוסף
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="px-3 pb-3 flex-1 flex flex-col min-h-0">
-                  <div className="flex-1 overflow-y-auto min-h-0 -mx-1 px-1">
+                  <div className="flex-1 min-h-0 -mx-1 px-1">
                     <Table>
                       <TableHeader className="sticky top-0 bg-white z-10">
                         <TableRow>
-                          <TableHead className="h-7 text-[10px] text-right p-1.5">סוג פעילות</TableHead>
-                          <TableHead className="h-7 text-[10px] w-16 text-center p-1.5">METS</TableHead>
-                          <TableHead className="h-7 text-[10px] w-20 text-center p-1.5">דקות/שבוע</TableHead>
-                          <TableHead className="h-7 text-[10px] w-8 p-1.5"></TableHead>
+                          <TableHead className="h-9 text-sm text-right p-2">סוג פעילות</TableHead>
+                          <TableHead className="h-9 text-sm w-16 text-center p-2">METS</TableHead>
+                          <TableHead className="h-9 text-sm w-20 text-center p-2">דקות/שבוע</TableHead>
+                          <TableHead className="h-9 text-sm w-8 p-2"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {activityEntries.map((entry) => (
                           <TableRow key={entry.id}>
-                            <TableCell className="p-1.5">
+                            <TableCell className="p-2">
                               <Input
                                 value={entry.activityType}
                                 onChange={(e) => updateActivityEntry(entry.id, { activityType: e.target.value })}
                                 placeholder="פעילות"
-                                className="h-6 text-xs"
+                                className="h-8 text-sm"
                                 dir="rtl"
                               />
                             </TableCell>
-                            <TableCell className="p-1.5">
+                            <TableCell className="p-2">
                               <Input
                                 type="number"
                                 value={entry.mets || ''}
                                 onChange={(e) => updateActivityEntry(entry.id, { mets: parseFloat(e.target.value) || 0 })}
                                 dir="ltr"
-                                className="h-6 text-xs text-center"
+                                className="h-8 text-sm text-center"
                                 min="0"
                                 step="0.1"
                               />
                             </TableCell>
-                            <TableCell className="p-1.5">
+                            <TableCell className="p-2">
                               <Input
                                 type="number"
                                 value={entry.minutesPerWeek || ''}
                                 onChange={(e) => updateActivityEntry(entry.id, { minutesPerWeek: parseInt(e.target.value) || 0 })}
                                 dir="ltr"
-                                className="h-6 text-xs text-center"
+                                className="h-8 text-sm text-center"
                                 min="0"
                               />
                             </TableCell>
@@ -648,7 +648,7 @@ export const NutritionTemplateForm = ({
                       </TableBody>
                     </Table>
                   </div>
-                  <div className="flex flex-col gap-1 pt-2 border-t text-[9px] flex-shrink-0">
+                  <div className="flex flex-col gap-1.5 pt-2 border-t text-sm flex-shrink-0">
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">סה״כ דקות:</span>
                       <span className="font-semibold">{totalWeeklyMinutes}</span>
@@ -665,20 +665,20 @@ export const NutritionTemplateForm = ({
             {/* Left Column: Output & Results (Macro Targets + Calculated Metrics) */}
             <div className="flex flex-col gap-3 h-full overflow-hidden">
               {/* Macro Targets Card */}
-              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
-                <CardHeader className="pb-3 pt-4 px-4 flex-shrink-0">
+              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-shrink-0">
+                <CardHeader className="pb-2 pt-3 px-4 flex-shrink-0">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2 text-right">
                     <Target className="h-4 w-4 text-[#5B6FB9]" />
                     יעדי מקרו-נוטריאנטים
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-4 pb-4 flex-1 flex flex-col space-y-3 min-h-0 overflow-y-auto">
+                <CardContent className="px-4 pb-3 flex flex-col space-y-2.5">
                   {/* Grams per KG Inputs */}
-                  <div className="space-y-2 p-3 bg-slate-50 rounded-lg flex-shrink-0">
-                    <Label className="text-xs font-semibold text-right block mb-2">גרם/ק"ג משקל</Label>
+                  <div className="space-y-1.5 p-2.5 bg-slate-50 rounded-lg flex-shrink-0">
+                    <Label className="text-sm font-semibold text-right block mb-1.5">גרם/ק"ג משקל</Label>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <Label className="text-[10px] mb-1 block text-center">חלבון</Label>
+                        <Label className="text-sm mb-1 block text-center">חלבון</Label>
                         <Input
                           type="number"
                           value={calculatorInputs.proteinPerKg}
@@ -687,11 +687,11 @@ export const NutritionTemplateForm = ({
                           min="1.5"
                           max="3.0"
                           step="0.1"
-                          className="h-7 text-xs text-center"
+                          className="h-9 text-sm text-center"
                         />
                       </div>
                       <div>
-                        <Label className="text-[10px] mb-1 block text-center">שומן</Label>
+                        <Label className="text-sm mb-1 block text-center">שומן</Label>
                         <Input
                           type="number"
                           value={calculatorInputs.fatPerKg}
@@ -700,11 +700,11 @@ export const NutritionTemplateForm = ({
                           min="0.5"
                           max="1.5"
                           step="0.1"
-                          className="h-7 text-xs text-center"
+                          className="h-9 text-sm text-center"
                         />
                       </div>
                       <div>
-                        <Label className="text-[10px] mb-1 block text-center">פחמימות</Label>
+                        <Label className="text-sm mb-1 block text-center">פחמימות</Label>
                         <Input
                           type="number"
                           value={calculatorInputs.carbsPerKg}
@@ -713,14 +713,14 @@ export const NutritionTemplateForm = ({
                           min="1.0"
                           max="4.0"
                           step="0.1"
-                          className="h-7 text-xs text-center"
+                          className="h-9 text-sm text-center"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Final Target Cards - 2x3 Grid */}
-                  <div className="grid grid-cols-2 gap-2.5 flex-1 content-start">
+                  {/* Final Target Cards - 3 columns Grid */}
+                  <div className="grid grid-cols-3 gap-2 flex-shrink-0">
                     <MacroInputCard
                       label="קלוריות"
                       icon={Flame}
@@ -767,44 +767,44 @@ export const NutritionTemplateForm = ({
 
               {/* Calculated Metrics Card */}
               <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
-                <CardHeader className="pb-3 pt-4 px-4 flex-shrink-0">
-                  <CardTitle className="text-sm font-semibold text-right">מדדים מחושבים</CardTitle>
+                <CardHeader className="pb-2 pt-3 px-4 flex-shrink-0">
+                  <CardTitle className="text-base font-semibold text-right">מדדים מחושבים</CardTitle>
                 </CardHeader>
-                <CardContent className="px-4 pb-4 flex-1 flex flex-col overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-2.5 flex-shrink-0">
-                    <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <Label className="text-xs text-muted-foreground mb-1 block">% שומן</Label>
-                      <p className="text-lg font-bold text-blue-700">{bodyFatPercent !== null ? bodyFatPercent.toFixed(1) : '—'}</p>
+                <CardContent className="px-4 pb-3 flex-1 flex flex-col">
+                  <div className="grid grid-cols-2 gap-2 flex-shrink-0">
+                    <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200">
+                      <Label className="text-sm text-muted-foreground mb-0.5 block">% שומן</Label>
+                      <p className="text-xl font-bold text-blue-700">{bodyFatPercent !== null ? bodyFatPercent.toFixed(1) : '—'}</p>
                     </div>
-                    <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
-                      <Label className="text-xs text-muted-foreground mb-1 block">LBM (ק"ג)</Label>
-                      <p className="text-lg font-bold text-purple-700">{lbm !== null ? lbm.toFixed(1) : '—'}</p>
+                    <div className="text-center p-2 bg-purple-50 rounded-lg border border-purple-200">
+                      <Label className="text-sm text-muted-foreground mb-0.5 block">LBM (ק"ג)</Label>
+                      <p className="text-xl font-bold text-purple-700">{lbm !== null ? lbm.toFixed(1) : '—'}</p>
                     </div>
-                    <div className="text-center p-3 bg-amber-50 rounded-lg border border-amber-200">
-                      <Label className="text-xs text-muted-foreground mb-1 block">BMR</Label>
-                      <p className="text-lg font-bold text-amber-700">{bmrResults.average}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">קק״ל/יום</p>
+                    <div className="text-center p-2 bg-amber-50 rounded-lg border border-amber-200">
+                      <Label className="text-sm text-muted-foreground mb-0.5 block">BMR</Label>
+                      <p className="text-xl font-bold text-amber-700">{bmrResults.average}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">קק״ל/יום</p>
                     </div>
-                    <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                      <Label className="text-xs text-muted-foreground mb-1 block">TDEE</Label>
-                      <p className="text-lg font-bold text-green-700">{tdee}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">קק״ל/יום</p>
+                    <div className="text-center p-2 bg-green-50 rounded-lg border border-green-200">
+                      <Label className="text-sm text-muted-foreground mb-0.5 block">TDEE</Label>
+                      <p className="text-xl font-bold text-green-700">{tdee}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">קק״ל/יום</p>
                     </div>
                   </div>
                   
                   {/* BMR Formula Details */}
-                  <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 flex-shrink-0">
+                  <div className="mt-1.5 pt-1.5 border-t grid grid-cols-3 gap-1.5 flex-shrink-0">
                     <div className="text-center">
-                      <p className="text-[10px] text-muted-foreground mb-1">MSJ</p>
-                      <p className="text-sm font-semibold">{bmrResults.mifflinStJeor}</p>
+                      <p className="text-xs text-muted-foreground mb-1">MSJ</p>
+                      <p className="text-base font-semibold">{bmrResults.mifflinStJeor}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-[10px] text-muted-foreground mb-1">HB</p>
-                      <p className="text-sm font-semibold">{bmrResults.harrisBenedict}</p>
+                      <p className="text-xs text-muted-foreground mb-1">HB</p>
+                      <p className="text-base font-semibold">{bmrResults.harrisBenedict}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-[10px] text-muted-foreground mb-1">KM</p>
-                      <p className="text-sm font-semibold">{bmrResults.katchMcArdle || '—'}</p>
+                      <p className="text-xs text-muted-foreground mb-1">KM</p>
+                      <p className="text-base font-semibold">{bmrResults.katchMcArdle || '—'}</p>
                     </div>
                   </div>
                 </CardContent>

@@ -73,6 +73,9 @@ interface TableActionHeaderProps {
   // For generic column settings (when not using template column settings)
   columns?: DataTableColumn<any>[];
   
+  // Custom actions to add to the header (e.g., sync button for meetings)
+  customActions?: React.ReactNode;
+  
   // Legacy support: For leads, we still use dashboardSlice for search/filters
   // If these are provided, they override Redux state
   legacySearchQuery?: string;
@@ -98,6 +101,7 @@ export const TableActionHeader = ({
   enableFilters = true,
   enableGroupBy = true,
   enableSearch = true,
+  customActions,
   enableSettings = false,
   onSettingsClick,
   className,
@@ -358,7 +362,7 @@ export const TableActionHeader = ({
             />
           )}
 
-          {/* Add Button - Leftmost (last in RTL flex) */}
+          {/* Add Button */}
           {addButtonLabel && onAddClick && (
             <Button
               onClick={onAddClick}
@@ -369,6 +373,9 @@ export const TableActionHeader = ({
               <span>{addButtonLabel}</span>
             </Button>
           )}
+
+          {/* Custom actions slot - Leftmost (last in RTL flex) */}
+          {customActions}
 
           {/* Settings Button (Optional) - Not used in current design */}
           {enableSettings && onSettingsClick && (
