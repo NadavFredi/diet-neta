@@ -205,61 +205,66 @@ export const sendWhatsAppMessage = async (
         id: btn.id,
         text: cleanWhatsAppMessage(btn.text),
       }))
-      .filter(btn => btn.text && btn.text.trim().length > 0); // Filter out buttons with empty text
+      .filter(btn => btn.text && btn.text.trim().length > 0) || []; // Filter out buttons with empty text, default to empty array
     
     // Clean footer if present
     const cleanedFooter = params.footer ? cleanWhatsAppMessage(params.footer) : undefined;
 
+    // Determine if we should use buttons endpoint
+    // Only use SendButtons if we have valid buttons after cleaning
+    const hasValidButtons = cleanedButtons.length > 0;
+
     console.log('[GreenAPI] Sending message to Green API:', {
       chatId,
       messageLength: cleanedMessage.length,
-      hasButtons: !!cleanedButtons && cleanedButtons.length > 0,
-      buttonCount: cleanedButtons?.length || 0,
+      hasButtons: hasValidButtons,
+      buttonCount: cleanedButtons.length,
+      originalButtonCount: params.buttons?.length || 0,
     });
 
-    // If buttons are provided, use sendInteractiveButtonsReply endpoint
-    // Reference: https://console.green-api.com/app/api/sendInteractiveButtonsReply
+    // If buttons are provided and valid, use SendButtons endpoint
+    // Reference: https://console.green-api.com/app/api/SendButtons
     // Note: This endpoint has CORS restrictions, so we use Vite proxy in development
     // For production, you may need to configure CORS on Green API side or use a server-side proxy
-    if (cleanedButtons && cleanedButtons.length > 0) {
+    let url: string;
+    let response: Response;
+    if (hasValidButtons) {
       // Use Vite proxy in development to avoid CORS issues
       // In production, this will attempt direct call (may need server-side proxy if CORS is still blocked)
       const baseUrl = import.meta.env.DEV 
         ? '/api/green-api'  // Use Vite proxy in development
         : 'https://api.green-api.com';  // Direct call in production (may fail due to CORS)
       
-      // Use the correct endpoint: sendInteractiveButtonsReply
-      const url = `${baseUrl}/waInstance${config.idInstance}/sendInteractiveButtonsReply/${config.apiTokenInstance}`;
+      // Use the correct endpoint: SendButtons (capital S)
+      url = `${baseUrl}/waInstance${config.idInstance}/SendButtons/${config.apiTokenInstance}`;
 
       // Format according to Green API documentation:
-      // Reference: https://console.green-api.com/app/api/sendInteractiveButtonsReply
-      // The request body should have 'body' field (not 'message') for the message text
+      // Reference: https://console.green-api.com/app/api/SendButtons
+      // The request body should have 'message' field for the message text
       // Each button needs buttonId (unique identifier) and buttonText (the label)
       // Ensure all buttons have valid buttonText (required field)
       const requestBody: any = {
         chatId,
-        body: cleanedMessage || '', // Use 'body' field as per Green API spec
+        message: cleanedMessage || '', // Use 'message' field as per Green API spec for SendButtons
         buttons: cleanedButtons
           .filter(btn => btn.text && btn.text.trim().length > 0) // Ensure buttonText is not empty
           .map((btn, index) => ({
-            buttonId: btn.id || `btn_${index + 1}`, // Use the button's ID or generate one
+            buttonId: String(index + 1), // GreenAPI requires sequential IDs: "1", "2", "3"
             buttonText: btn.text.trim(), // Use buttonText as per Green API spec (required field)
           })),
       };
       
-      // Validate that we have at least one valid button
-      if (requestBody.buttons.length === 0 && cleanedButtons.length > 0) {
-        return {
-          success: false,
-          error: 'All buttons must have non-empty text',
-        };
-      }
-
+      // We have valid buttons, proceed with SendButtons endpoint
       if (cleanedFooter) {
         requestBody.footer = cleanedFooter;
       }
 
-      const response = await fetch(url, {
+      console.log('[GreenAPI] Request details:', {
+        url,
+        requestBody: JSON.stringify(requestBody, null, 2),
+      });
+
+      response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -267,25 +272,31 @@ export const sendWhatsAppMessage = async (
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText };
-        }
+      const responseText = await response.text();
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        responseData = { raw: responseText };
+      }
 
-        console.error('[GreenAPI] sendInteractiveButtonsReply error:', {
+      console.log('[GreenAPI] Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: responseData,
+      });
+
+      if (!response.ok) {
+        console.error('[GreenAPI] SendButtons error:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorData,
+          error: responseData,
         });
 
-        // If sendInteractiveButtonsReply fails with 403, it likely means the account doesn't have access to this feature
+        // If SendButtons fails with 403, it likely means the account doesn't have access to this feature
         // Fall back to sending as regular message (buttons will be sent as text)
         if (response.status === 403) {
-          console.warn('[GreenAPI] sendInteractiveButtonsReply endpoint returned 403. This usually means the account does not have access to interactive buttons (requires premium plan). Falling back to regular message...');
+          console.warn('[GreenAPI] SendButtons endpoint returned 403. This usually means the account does not have access to interactive buttons (requires premium plan). Falling back to regular message...');
           
           // Fallback: Send as regular message with buttons listed in text
           const buttonsText = cleanedButtons.map((btn, idx) => `${idx + 1}. ${btn.text}`).join('\n');
@@ -309,7 +320,7 @@ export const sendWhatsAppMessage = async (
             const fallbackErrorText = await fallbackResponse.text();
             return {
               success: false,
-              error: `sendInteractiveButtonsReply requires premium plan (403). Fallback message also failed: ${fallbackErrorText}`,
+              error: `SendButtons requires premium plan (403). Fallback message also failed: ${fallbackErrorText}`,
             };
           }
 
@@ -324,21 +335,42 @@ export const sendWhatsAppMessage = async (
 
         return {
           success: false,
-          error: errorData.error || errorData.message || errorText || `HTTP error! status: ${response.status}`,
+          error: responseData.error || responseData.message || responseText || `HTTP error! status: ${response.status}`,
         };
       }
 
-      const data = await response.json();
+      // Check if response indicates failure even with 200 status
+      // GreenAPI sometimes returns 200 with error in body
+      if (responseData.error || responseData.errorMessage || (responseData.idMessage === null && responseData.idMessage !== undefined)) {
+        const errorMsg = responseData.error || responseData.errorMessage || 'Message failed to send (idMessage is null)';
+        console.error('[GreenAPI] Message send failed despite 200 status:', errorMsg);
+        return {
+          success: false,
+          error: errorMsg,
+        };
+      }
+
+      // Verify message was actually queued/sent
+      if (!responseData.idMessage) {
+        console.warn('[GreenAPI] Response missing idMessage, message may not have been sent:', responseData);
+      }
 
       return {
         success: true,
-        data,
+        data: responseData,
       };
-    } else {
-      // Use standard sendMessage endpoint
-      const url = `https://api.green-api.com/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
+    
+    // If we reach here, either no buttons were provided OR all buttons were invalid
+    // Use standard sendMessage endpoint for regular messages
+    url = `https://api.green-api.com/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
 
-      const response = await fetch(url, {
+      console.log('[GreenAPI] Sending regular message:', {
+        url,
+        chatId,
+        messageLength: cleanedMessage.length,
+      });
+
+      response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -349,33 +381,91 @@ export const sendWhatsAppMessage = async (
       }),
     });
 
+    const responseText = await response.text();
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      responseData = { raw: responseText };
+    }
+
+    // Log full response details for debugging
+    console.log('[GreenAPI] sendMessage response:', {
+      status: response.status,
+      statusText: response.statusText,
+      data: responseData,
+      idMessage: responseData.idMessage,
+      hasError: !!responseData.error,
+      errorMessage: responseData.error || responseData.errorMessage,
+      fullResponse: JSON.stringify(responseData, null, 2),
+    });
+
     if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: errorText };
-      }
-      
-        console.error('[GreenAPI] Green API error:', {
+      console.error('[GreenAPI] sendMessage error:', {
         status: response.status,
         statusText: response.statusText,
-        error: errorData,
+        error: responseData,
       });
       
       return {
         success: false,
-        error: errorData.error || errorData.message || errorText || `HTTP error! status: ${response.status}`,
+        error: responseData.error || responseData.message || responseText || `HTTP error! status: ${response.status}`,
       };
     }
 
-    const data = await response.json();
-
+    // Check if response indicates failure even with 200 status
+    // GreenAPI sometimes returns 200 with error in body
+    if (responseData.error || responseData.errorMessage) {
+      const errorMsg = responseData.error || responseData.errorMessage || 'Unknown error in response';
+      console.error('[GreenAPI] Message send failed despite 200 status:', {
+        error: errorMsg,
+        fullResponse: responseData,
+      });
       return {
-        success: true,
-        data,
+        success: false,
+        error: errorMsg,
       };
+    }
+
+    // Verify message was actually queued/sent
+    // idMessage should be present and not null for successful sends
+    if (responseData.idMessage === null || responseData.idMessage === undefined) {
+      console.error('[GreenAPI] Response missing idMessage - message was NOT sent:', {
+        responseData,
+        chatId,
+        messageLength: cleanedMessage.length,
+        formattedPhone: formattedPhone,
+        fullResponse: JSON.stringify(responseData, null, 2),
+      });
+      return {
+        success: false,
+        error: 'Message failed to send: Response missing idMessage. This usually means the message was not queued by WhatsApp. Check if the phone number is valid and the WhatsApp account is properly connected.',
+      };
+    }
+
+    // Additional check: idMessage should be a string (not null, not undefined, not empty)
+    if (typeof responseData.idMessage !== 'string' || responseData.idMessage.trim() === '') {
+      console.error('[GreenAPI] Invalid idMessage format:', {
+        idMessage: responseData.idMessage,
+        type: typeof responseData.idMessage,
+        responseData,
+      });
+      return {
+        success: false,
+        error: 'Message failed to send: Invalid idMessage format in response.',
+      };
+    }
+
+    console.log('[GreenAPI] Message successfully queued:', {
+      idMessage: responseData.idMessage,
+      chatId,
+      phoneNumber: formattedPhone,
+    });
+
+    return {
+      success: true,
+      data: responseData,
+    };
     }
   } catch (error: any) {
     console.error('[GreenAPI] Error sending message:', error);

@@ -169,7 +169,7 @@ export const NutritionTemplateForm = ({
     return {
       chart: {
         type: 'pie',
-        height: 200,
+        height: 250, // Fixed height that will scale with container
         backgroundColor: 'transparent',
       },
       title: {
@@ -330,19 +330,19 @@ export const NutritionTemplateForm = ({
             </div>
           </div>
 
-          {/* Main 3-Column Bento Grid - Optimized Layout */}
-          <div className="grid grid-cols-3 gap-3 h-[calc(100vh-200px)]">
-            {/* Right Column: Inputs (Biometrics only) */}
+          {/* Main 3-Column Bento Grid - Fine Grid Layout */}
+          <div className="grid grid-cols-3 gap-3 h-[calc(100vh-200px)] auto-rows-fr">
+            {/* Right Column: Biometrics + Chart */}
             <div className="flex flex-col gap-3 h-full overflow-hidden">
               {/* Biometric Data Card */}
-              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-shrink-0">
                 <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
                   <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
                     <Calculator className="h-3.5 w-3.5 text-[#5B6FB9]" />
                     נתונים ביומטריים
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-3 pb-3 flex-1 flex flex-col space-y-2 overflow-y-auto">
+                <CardContent className="px-3 pb-3 flex flex-col space-y-2">
                   {/* Horizontal Layout: Label Right, Input Left */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
@@ -470,9 +470,33 @@ export const NutritionTemplateForm = ({
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Donut Chart (Macro Distribution) - Moved to right column below biometrics */}
+              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+                <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
+                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
+                    <BarChart3 className="h-3.5 w-3.5 text-[#5B6FB9]" />
+                    סיכום ויזואלי
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 flex-1 flex items-center justify-center min-h-0 overflow-hidden">
+                  <div className="w-full h-full flex items-center justify-center" style={{ minHeight: '200px' }}>
+                    <HighchartsReact
+                      highcharts={Highcharts}
+                      options={donutChartOptions}
+                      containerProps={{ 
+                        style: { 
+                          height: '100%', 
+                          width: '100%',
+                        } 
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Middle Column: Activity Level + METS Table + Donut Chart */}
+            {/* Middle Column: Activity Level + METS Table */}
             <div className="flex flex-col gap-3 h-full overflow-hidden">
               {/* Activity Level & Goals Card - Moved here, same level as METS */}
               <Card className="rounded-3xl border border-slate-200 shadow-sm flex-shrink-0">
@@ -633,25 +657,6 @@ export const NutritionTemplateForm = ({
                       <span className="text-muted-foreground">הוצאה יומית:</span>
                       <span className="font-semibold text-green-600">{exerciseEE} קק״ל</span>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Donut Chart (Macro Distribution) */}
-              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
-                <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
-                  <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-right">
-                    <BarChart3 className="h-3.5 w-3.5 text-[#5B6FB9]" />
-                    סיכום ויזואלי
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-3 flex-1 flex items-center justify-center min-h-0">
-                  <div className="w-full h-full">
-                    <HighchartsReact
-                      highcharts={Highcharts}
-                      options={donutChartOptions}
-                      containerProps={{ style: { height: '100%', width: '100%' } }}
-                    />
                   </div>
                 </CardContent>
               </Card>

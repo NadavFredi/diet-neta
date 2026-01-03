@@ -5,7 +5,7 @@
  * and popover for sub-menus in collapsed state.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
@@ -138,7 +138,12 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       // In collapsed mode, open popover for resources with views
       setPopoverOpen(true);
     } else {
-      onToggle();
+      // If we have a default view but section is not expanded, expand it
+      if (defaultView && !isExpanded) {
+        onToggle();
+      } else {
+        onToggle();
+      }
     }
   };
 
@@ -253,12 +258,21 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
 
   // Sub-views list - show if we have any views (from savedViews or defaultView)
   const hasViews = supportsViews && (savedViews.length > 0 || defaultView);
-  // Ensure defaultView is included in the list to display
+  // Ensure defaultView is always included in the list to display
   const viewsToDisplay = useMemo(() => {
     if (!supportsViews) return [];
-    if (savedViews.length > 0) return savedViews;
-    if (defaultView) return [defaultView];
-    return [];
+    
+    // Always include defaultView if it exists and isn't already in savedViews
+    if (defaultView) {
+      const hasDefaultInList = savedViews.some(view => view.id === defaultView.id);
+      if (!hasDefaultInList) {
+        // Default view not in list yet, add it at the beginning
+        return [defaultView, ...savedViews];
+      }
+    }
+    
+    // Return savedViews (which should already include defaultView if it was fetched)
+    return savedViews;
   }, [savedViews, defaultView, supportsViews]);
   
   const subViewsList = hasViews && (

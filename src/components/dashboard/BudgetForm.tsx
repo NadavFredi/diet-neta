@@ -109,7 +109,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
   
   // Nutrition
   const [nutritionTemplateId, setNutritionTemplateId] = useState<string | null>(null);
-  const [useCustomNutrition, setUseCustomNutrition] = useState(false);
   const [nutritionTargets, setNutritionTargets] = useState<NutritionTargets>({
     calories: 0,
     protein: 0,
@@ -141,7 +140,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
       setName(initialData.name || '');
       setDescription(initialData.description || '');
       setNutritionTemplateId(initialData.nutrition_template_id);
-      setUseCustomNutrition(!initialData.nutrition_template_id);
       setNutritionTargets(initialData.nutrition_targets || {
         calories: 0,
         protein: 0,
@@ -161,11 +159,17 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
 
   // Handle nutrition template selection
   const handleNutritionTemplateChange = (templateId: string) => {
-    if (templateId === 'custom') {
-      setUseCustomNutrition(true);
+    if (templateId === 'none') {
       setNutritionTemplateId(null);
+      setNutritionTargets({
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        fiber_min: 20,
+        water_min: 2.5,
+      });
     } else {
-      setUseCustomNutrition(false);
       setNutritionTemplateId(templateId);
       const template = nutritionTemplates.find((t) => t.id === templateId);
       if (template && template.targets) {
@@ -204,7 +208,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
       await onSave({
         name,
         description: description || null,
-        nutrition_template_id: useCustomNutrition ? null : nutritionTemplateId,
+        nutrition_template_id: nutritionTemplateId || null,
         nutrition_targets: nutritionTargets,
         steps_goal: stepsGoal,
         steps_instructions: stepsInstructions || null,
@@ -257,7 +261,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
       
       // Auto-select the newly created template and load its targets
       setNutritionTemplateId(newTemplate.id);
-      setUseCustomNutrition(false);
       
       if (newTemplate.targets) {
         setNutritionTargets({
@@ -420,17 +423,17 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
               </Label>
               <div className="flex items-center gap-2">
                 <Select
-                  value={useCustomNutrition ? 'custom' : nutritionTemplateId || ''}
+                  value={nutritionTemplateId || 'none'}
                   onValueChange={handleNutritionTemplateChange}
                 >
                   <SelectTrigger className={cn(
                     "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
                     "text-slate-900 font-medium text-sm"
                   )} dir="rtl">
-                    <SelectValue placeholder="בחר תבנית תזונה או הזן ידנית" />
+                    <SelectValue placeholder="בחר תבנית תזונה" />
                   </SelectTrigger>
                   <SelectContent dir="rtl">
-                    <SelectItem value="custom">הזן ידנית</SelectItem>
+                    <SelectItem value="none">ללא תבנית</SelectItem>
                     {nutritionTemplates.map((template) => (
                       <SelectItem key={template.id} value={template.id}>
                         {template.name}
@@ -560,154 +563,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
         </Card>
       </div>
 
-      {/* Card C: Nutrition Matrix (Bottom Full Width) */}
-      {useCustomNutrition && (
-        <Card className="bg-white border-0 shadow-sm rounded-xl">
-          <CardHeader className="pb-2 pt-3 px-4">
-            <CardTitle className="text-base font-semibold text-slate-900">מטריצת תזונה</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 px-4 pb-4">
-            {/* Macro Split Bar */}
-            <MacroSplitBar 
-              protein={nutritionTargets.protein || 0}
-              carbs={nutritionTargets.carbs || 0}
-              fat={nutritionTargets.fat || 0}
-            />
-
-            {/* Nutrition Grid - 3 columns */}
-            <div className="grid grid-cols-3 gap-3">
-              {/* Row 1 */}
-              <div className="space-y-1.5">
-                <Label htmlFor="calories" className="text-sm font-medium text-slate-500">קלוריות</Label>
-                <div className="relative">
-                  <Input
-                    id="calories"
-                    type="number"
-                    value={nutritionTargets.calories || ''}
-                    onChange={(e) =>
-                      setNutritionTargets({ ...nutritionTargets, calories: parseFloat(e.target.value) || 0 })
-                    }
-                    placeholder="0"
-                    className={cn(
-                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-base pr-14"
-                    )}
-                    dir="ltr"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">קק״ל</span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="protein" className="text-sm font-medium text-slate-500">חלבון</Label>
-                <div className="relative">
-                  <Input
-                    id="protein"
-                    type="number"
-                    value={nutritionTargets.protein || ''}
-                    onChange={(e) =>
-                      setNutritionTargets({ ...nutritionTargets, protein: parseFloat(e.target.value) || 0 })
-                    }
-                    placeholder="0"
-                    className={cn(
-                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-base pr-10"
-                    )}
-                    dir="ltr"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">ג׳</span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="carbs" className="text-sm font-medium text-slate-500">פחמימות</Label>
-                <div className="relative">
-                  <Input
-                    id="carbs"
-                    type="number"
-                    value={nutritionTargets.carbs || ''}
-                    onChange={(e) =>
-                      setNutritionTargets({ ...nutritionTargets, carbs: parseFloat(e.target.value) || 0 })
-                    }
-                    placeholder="0"
-                    className={cn(
-                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-base pr-10"
-                    )}
-                    dir="ltr"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">ג׳</span>
-                </div>
-              </div>
-
-              {/* Row 2 */}
-              <div className="space-y-1.5">
-                <Label htmlFor="fat" className="text-sm font-medium text-slate-500">שומן</Label>
-                <div className="relative">
-                  <Input
-                    id="fat"
-                    type="number"
-                    value={nutritionTargets.fat || ''}
-                    onChange={(e) =>
-                      setNutritionTargets({ ...nutritionTargets, fat: parseFloat(e.target.value) || 0 })
-                    }
-                    placeholder="0"
-                    className={cn(
-                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-base pr-10"
-                    )}
-                    dir="ltr"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">ג׳</span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="fiber_min" className="text-sm font-medium text-slate-500">סיבים</Label>
-                <div className="relative">
-                  <Input
-                    id="fiber_min"
-                    type="number"
-                    value={nutritionTargets.fiber_min || ''}
-                    onChange={(e) =>
-                      setNutritionTargets({ ...nutritionTargets, fiber_min: parseFloat(e.target.value) || 20 })
-                    }
-                    placeholder="20"
-                    className={cn(
-                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-base pr-10"
-                    )}
-                    dir="ltr"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">ג׳</span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="water_min" className="text-sm font-medium text-slate-500">מים</Label>
-                <div className="relative">
-                  <Input
-                    id="water_min"
-                    type="number"
-                    step="0.1"
-                    value={nutritionTargets.water_min || ''}
-                    onChange={(e) =>
-                      setNutritionTargets({ ...nutritionTargets, water_min: parseFloat(e.target.value) || 2.5 })
-                    }
-                    placeholder="2.5"
-                    className={cn(
-                      "h-10 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-semibold text-base pr-14"
-                    )}
-                    dir="ltr"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">ליטר</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
 
       {/* Footer Actions - Bottom Left (RTL) */}

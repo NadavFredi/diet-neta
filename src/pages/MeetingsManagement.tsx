@@ -15,7 +15,6 @@ import { meetingColumns } from '@/components/dashboard/columns/meetingColumns';
 import { useMeetingsManagement } from './MeetingsManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { MEETING_FILTER_FIELDS } from '@/hooks/useTableFilters';
-import { useToast } from '@/hooks/use-toast';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 
@@ -25,7 +24,6 @@ const MeetingsManagement = () => {
   const viewId = searchParams.get('view_id');
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
-  const { toast } = useToast();
   const { defaultView } = useDefaultView('meetings');
   const { data: savedView } = useSavedView(viewId);
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
@@ -64,14 +62,6 @@ const MeetingsManagement = () => {
     setIsEditViewModalOpen(true);
   }, []);
 
-  const handleAddMeeting = useCallback(() => {
-    toast({
-      title: 'הוספת פגישה',
-      description: 'פגישות נוצרות אוטומטית מטופסי Fillout.',
-      variant: 'info',
-    });
-  }, [toast]);
-
   return (
     <>
       <DashboardHeader 
@@ -98,8 +88,6 @@ const MeetingsManagement = () => {
                   pluralLabel="פגישות"
                   filterFields={MEETING_FILTER_FIELDS}
                   searchPlaceholder="חיפוש לפי שם לקוח, טלפון, תאריך פגישה..."
-                  addButtonLabel="הוסף פגישה"
-                  onAddClick={handleAddMeeting}
                   enableColumnVisibility={true}
                   enableFilters={true}
                   enableGroupBy={true}

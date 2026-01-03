@@ -103,24 +103,31 @@ export const useMeetingsManagement = () => {
         switch (filter.fieldId) {
           case 'created_at':
             // Filter by creation date
-            if (filter.operator === 'equals' && filter.value) {
-              const filterDate = format(new Date(filter.value as string), 'yyyy-MM-dd');
+            if (filter.operator === 'equals' && filter.values && filter.values[0]) {
+              const filterDate = format(new Date(filter.values[0]), 'yyyy-MM-dd');
               result = result.filter((meeting) => {
                 const meetingDate = format(new Date(meeting.created_at), 'yyyy-MM-dd');
                 return meetingDate === filterDate;
               });
-            } else if (filter.operator === 'before' && filter.value) {
-              const filterDate = new Date(filter.value as string);
+            } else if (filter.operator === 'before' && filter.values && filter.values[0]) {
+              const filterDate = new Date(filter.values[0]);
               result = result.filter((meeting) => new Date(meeting.created_at) < filterDate);
-            } else if (filter.operator === 'after' && filter.value) {
-              const filterDate = new Date(filter.value as string);
+            } else if (filter.operator === 'after' && filter.values && filter.values[0]) {
+              const filterDate = new Date(filter.values[0]);
               result = result.filter((meeting) => new Date(meeting.created_at) > filterDate);
+            } else if (filter.operator === 'between' && filter.values && filter.values[0] && filter.values[1]) {
+              const filterDateStart = new Date(filter.values[0]);
+              const filterDateEnd = new Date(filter.values[1]);
+              result = result.filter((meeting) => {
+                const meetingDate = new Date(meeting.created_at);
+                return meetingDate >= filterDateStart && meetingDate <= filterDateEnd;
+              });
             }
             break;
           case 'meeting_date':
             // Filter by meeting date (from meeting_data)
-            if (filter.operator === 'equals' && filter.value) {
-              const filterDate = format(new Date(filter.value as string), 'yyyy-MM-dd');
+            if (filter.operator === 'equals' && filter.values && filter.values[0]) {
+              const filterDate = format(new Date(filter.values[0]), 'yyyy-MM-dd');
               result = result.filter((meeting) => {
                 const meetingData = meeting.meeting_data || {};
                 const meetingDateValue = meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'];
@@ -132,21 +139,59 @@ export const useMeetingsManagement = () => {
                   return false;
                 }
               });
+            } else if (filter.operator === 'before' && filter.values && filter.values[0]) {
+              const filterDate = new Date(filter.values[0]);
+              result = result.filter((meeting) => {
+                const meetingData = meeting.meeting_data || {};
+                const meetingDateValue = meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'];
+                if (!meetingDateValue) return false;
+                try {
+                  return new Date(meetingDateValue) < filterDate;
+                } catch {
+                  return false;
+                }
+              });
+            } else if (filter.operator === 'after' && filter.values && filter.values[0]) {
+              const filterDate = new Date(filter.values[0]);
+              result = result.filter((meeting) => {
+                const meetingData = meeting.meeting_data || {};
+                const meetingDateValue = meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'];
+                if (!meetingDateValue) return false;
+                try {
+                  return new Date(meetingDateValue) > filterDate;
+                } catch {
+                  return false;
+                }
+              });
+            } else if (filter.operator === 'between' && filter.values && filter.values[0] && filter.values[1]) {
+              const filterDateStart = new Date(filter.values[0]);
+              const filterDateEnd = new Date(filter.values[1]);
+              result = result.filter((meeting) => {
+                const meetingData = meeting.meeting_data || {};
+                const meetingDateValue = meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'];
+                if (!meetingDateValue) return false;
+                try {
+                  const meetingDate = new Date(meetingDateValue);
+                  return meetingDate >= filterDateStart && meetingDate <= filterDateEnd;
+                } catch {
+                  return false;
+                }
+              });
             }
             break;
           case 'status':
             // Filter by status
-            if (filter.operator === 'is' && filter.value) {
+            if (filter.operator === 'is' && filter.values && filter.values.length > 0) {
               result = result.filter((meeting) => {
                 const meetingData = meeting.meeting_data || {};
                 const status = String(meetingData.status || meetingData['סטטוס'] || '');
-                return status === filter.value;
+                return filter.values.includes(status);
               });
-            } else if (filter.operator === 'isNot' && filter.value) {
+            } else if (filter.operator === 'isNot' && filter.values && filter.values.length > 0) {
               result = result.filter((meeting) => {
                 const meetingData = meeting.meeting_data || {};
                 const status = String(meetingData.status || meetingData['סטטוס'] || '');
-                return status !== filter.value;
+                return !filter.values.includes(status);
               });
             }
             break;

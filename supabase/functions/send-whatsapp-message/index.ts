@@ -2,19 +2,11 @@
 // This solves CORS issues by making the API call server-side
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-interface SendMessageRequest {
-  phoneNumber: string;
-  message: string;
-  buttons?: Array<{ id: string; text: string }>;
-  footer?: string;
-}
+import { handleCors } from '../_shared/cors.ts';
+import { createSupabaseClient } from '../_shared/supabase.ts';
+import { successResponse, errorResponse } from '../_shared/response.ts';
+import { parseJsonBody, getChatId } from '../_shared/utils.ts';
+import type { SendMessageRequest } from '../_shared/types.ts';
 
 serve(async (req) => {
   console.log('[send-whatsapp-message] Function called:', {
@@ -24,9 +16,10 @@ serve(async (req) => {
   });
 
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
+  const corsResponse = handleCors(req);
+  if (corsResponse) {
     console.log('[send-whatsapp-message] Handling OPTIONS request');
-    return new Response('ok', { headers: corsHeaders });
+    return corsResponse;
   }
 
   try {
@@ -47,32 +40,14 @@ serve(async (req) => {
     if (!idInstance || !apiTokenInstance) {
       const errorMsg = `Green API configuration not found. Missing: ${!idInstance ? 'GREEN_API_ID_INSTANCE' : ''} ${!apiTokenInstance ? 'GREEN_API_TOKEN_INSTANCE' : ''}. Please set these in .env.local and restart the Edge Function with --env-file .env.local`;
       console.error('[send-whatsapp-message]', errorMsg);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: errorMsg,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse(errorMsg, 500);
     }
 
     // Check for placeholder values
     if (idInstance === 'your_instance_id' || apiTokenInstance === 'your_token') {
       const errorMsg = 'Green API credentials are still set to placeholder values. Please replace "your_instance_id" and "your_token" in .env.local with your actual Green API credentials, then restart the Edge Function.';
       console.error('[send-whatsapp-message]', errorMsg);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: errorMsg,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse(errorMsg, 500);
     }
 
     // When verify_jwt = true, Supabase automatically verifies the JWT before the function runs
@@ -82,16 +57,7 @@ serve(async (req) => {
 
     if (!supabaseUrl || !supabaseAnonKey) {
       console.error('[send-whatsapp-message] Missing Supabase environment variables');
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Server configuration error: Missing Supabase URL or Anon Key',
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse('Server configuration error: Missing Supabase URL or Anon Key', 500);
     }
 
     // Since verify_jwt = false, we'll verify auth manually if header is present
@@ -101,22 +67,22 @@ serve(async (req) => {
     
     if (authHeader) {
       // Try to verify the user if auth header is present
-      const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      });
+      try {
+        const supabaseClient = createSupabaseClient(authHeader);
+        const {
+          data: { user: verifiedUser },
+          error: authError,
+        } = await supabaseClient.auth.getUser();
 
-      const {
-        data: { user: verifiedUser },
-        error: authError,
-      } = await supabaseClient.auth.getUser();
-
-      if (!authError && verifiedUser) {
-        user = verifiedUser;
-        console.log('[send-whatsapp-message] Authenticated user:', user.id);
-      } else {
-        console.warn('[send-whatsapp-message] Auth header present but user verification failed:', authError?.message);
+        if (!authError && verifiedUser) {
+          user = verifiedUser;
+          console.log('[send-whatsapp-message] Authenticated user:', user.id);
+        } else {
+          console.warn('[send-whatsapp-message] Auth header present but user verification failed:', authError?.message);
+          // Don't fail - allow the request to proceed for local dev
+        }
+      } catch (error) {
+        console.warn('[send-whatsapp-message] Error creating Supabase client:', error);
         // Don't fail - allow the request to proceed for local dev
       }
     } else {
@@ -126,78 +92,30 @@ serve(async (req) => {
     // Parse request body
     let body: SendMessageRequest;
     try {
-      body = await req.json();
-    } catch (error) {
+      body = await parseJsonBody<SendMessageRequest>(req);
+    } catch (error: any) {
       console.error('[send-whatsapp-message] JSON parse error:', error);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Invalid JSON in request body',
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse('Invalid JSON in request body', 400);
     }
 
     const { phoneNumber, message, buttons, footer } = body;
 
     if (!phoneNumber || !message) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'phoneNumber and message are required',
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse('phoneNumber and message are required', 400);
     }
 
-    // Format phone number (remove +, 0, spaces, hyphens)
-    let formattedPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
-    if (formattedPhone.startsWith('+')) {
-      formattedPhone = formattedPhone.substring(1);
-    }
-    if (formattedPhone.startsWith('0')) {
-      formattedPhone = '972' + formattedPhone.substring(1);
-    }
-    if (!formattedPhone.startsWith('972') && formattedPhone.length === 9) {
-      formattedPhone = '972' + formattedPhone;
-    }
-
-    const chatId = `${formattedPhone}@c.us`;
+    const chatId = getChatId(phoneNumber);
 
     // If buttons are provided, use SendButtons endpoint
     if (buttons && buttons.length > 0) {
       if (buttons.length > 3) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Maximum 3 buttons allowed per message',
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
+        return errorResponse('Maximum 3 buttons allowed per message', 400);
       }
 
       // Validate button text length
       for (const button of buttons) {
         if (button.text.length > 25) {
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: `Button text "${button.text}" exceeds 25 character limit`,
-            }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            }
-          );
+          return errorResponse(`Button text "${button.text}" exceeds 25 character limit`, 400);
         }
       }
 
@@ -226,30 +144,14 @@ serve(async (req) => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: errorData.error || `HTTP error! status: ${response.status}`,
-          }),
-          {
-            status: response.status,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
+        return errorResponse(
+          errorData.error || `HTTP error! status: ${response.status}`,
+          response.status
         );
       }
 
       const data = await response.json();
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return successResponse(data);
     } else {
       // Use standard sendMessage endpoint
       const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiTokenInstance}`;
@@ -267,43 +169,17 @@ serve(async (req) => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: errorData.error || `HTTP error! status: ${response.status}`,
-          }),
-          {
-            status: response.status,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
+        return errorResponse(
+          errorData.error || `HTTP error! status: ${response.status}`,
+          response.status
         );
       }
 
       const data = await response.json();
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return successResponse(data);
     }
   } catch (error: any) {
     console.error('[send-whatsapp-message] Error:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error?.message || 'Failed to send WhatsApp message',
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return errorResponse(error?.message || 'Failed to send WhatsApp message', 500);
   }
 });
-

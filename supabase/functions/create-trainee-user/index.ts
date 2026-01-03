@@ -5,45 +5,31 @@
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { createSupabaseAdmin, verifyUser } from '../_shared/supabase.ts';
+import { successResponse, errorResponse } from '../_shared/response.ts';
+import { parseJsonBody } from '../_shared/utils.ts';
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('Missing authorization header');
+      return errorResponse('Missing authorization header', 401);
     }
-
-    // Create Supabase client with service role key (admin access)
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
 
     // Verify the requesting user is authenticated
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (authError || !user) {
-      throw new Error('Unauthorized');
+    const user = await verifyUser(authHeader);
+    if (!user) {
+      return errorResponse('Unauthorized', 401);
     }
+
+    // Create Supabase admin client
+    const supabaseAdmin = createSupabaseAdmin();
 
     // Check if user is admin/manager
     const { data: profile, error: profileError } = await supabaseAdmin
@@ -53,13 +39,13 @@ serve(async (req) => {
       .single();
 
     if (profileError || !profile || !['admin', 'user'].includes(profile.role)) {
-      throw new Error('Unauthorized: Only admins and managers can create trainee users');
+      return errorResponse('Unauthorized: Only admins and managers can create trainee users', 403);
     }
 
     // Parse request body
     let body;
     try {
-      body = await req.json();
+      body = await parseJsonBody(req);
       console.log('[create-trainee-user] Request body received:', {
         email: body.email,
         customerId: body.customerId,
@@ -70,7 +56,7 @@ serve(async (req) => {
       });
     } catch (parseError: any) {
       console.error('[create-trainee-user] JSON parse error:', parseError);
-      throw new Error('Invalid request body: ' + (parseError.message || 'Failed to parse JSON'));
+      return errorResponse('Invalid request body: ' + (parseError.message || 'Failed to parse JSON'), 400);
     }
 
     const { email, password, customerId, leadId, invitedBy } = body;
@@ -80,11 +66,11 @@ serve(async (req) => {
       if (!email) missing.push('email');
       if (!password) missing.push('password');
       if (!customerId) missing.push('customerId');
-      throw new Error(`Missing required fields: ${missing.join(', ')}`);
+      return errorResponse(`Missing required fields: ${missing.join(', ')}`, 400);
     }
 
     if (password.length < 6) {
-      throw new Error('Password must be at least 6 characters');
+      return errorResponse('Password must be at least 6 characters', 400);
     }
 
     // Check if user already exists
@@ -104,7 +90,7 @@ serve(async (req) => {
       );
 
       if (updatePasswordError) {
-        throw new Error(`Failed to update password: ${updatePasswordError.message}`);
+        return errorResponse(`Failed to update password: ${updatePasswordError.message}`, 400);
       }
 
       // Update profile role to trainee
@@ -140,7 +126,7 @@ serve(async (req) => {
       });
 
       if (createError || !newUser.user) {
-        throw new Error(`Failed to create user: ${createError?.message || 'Unknown error'}`);
+        return errorResponse(`Failed to create user: ${createError?.message || 'Unknown error'}`, 400);
       }
 
       userId = newUser.user.id;
@@ -180,18 +166,11 @@ serve(async (req) => {
       metadata: { email, customerId, leadId, method: 'direct_password', userId },
     });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        userId,
-        email,
-        isNewUser: !existingUserData,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
+    return successResponse({
+      userId,
+      email,
+      isNewUser: !existingUserData,
+    });
   } catch (error: any) {
     console.error('[create-trainee-user] Error:', error);
     console.error('[create-trainee-user] Error stack:', error.stack);
@@ -200,16 +179,6 @@ serve(async (req) => {
     const errorMessage = error.message || 'Failed to create trainee user';
     console.error('[create-trainee-user] Returning error response:', errorMessage);
     
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: errorMessage,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    );
+    return errorResponse(errorMessage, 400);
   }
 });
-
