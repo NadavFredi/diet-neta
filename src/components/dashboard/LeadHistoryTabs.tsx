@@ -9,10 +9,11 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Activity, CalendarDays, Save } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Activity, CalendarDays } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DailyActivityLog } from './DailyActivityLog';
 import { WeeklyReviewModule } from './WeeklyReviewModule';
+import { WeeklyCheckInsList } from './WeeklyCheckInsList';
 import {
   Table,
   TableBody,
@@ -104,8 +105,7 @@ interface LeadHistoryTabsProps {
   onAddDietPlan: () => void;
   onAddSupplementsPlan: () => void;
   onAssignBudget: () => void;
-  onSaveWeeklyReview?: () => void;
-  isSavingWeeklyReview?: boolean;
+  onAddWeeklyCheckIn?: () => void;
 }
 
 export const LeadHistoryTabs = ({ 
@@ -120,8 +120,7 @@ export const LeadHistoryTabs = ({
   onAddDietPlan,
   onAddSupplementsPlan,
   onAssignBudget,
-  onSaveWeeklyReview,
-  isSavingWeeklyReview = false,
+  onAddWeeklyCheckIn,
   weeklyReviewModule,
 }: LeadHistoryTabsProps) => {
   const [activeTab, setActiveTab] = useState('budgets');
@@ -148,28 +147,18 @@ export const LeadHistoryTabs = ({
 
   // Get the appropriate button for the active tab
   // Managers can only assign budgets - all other plans are created automatically
-  // When weekly-checkin tab is active, show save button instead
+  // When weekly-checkin tab is active, show "Add Check-in" button
   const getActionButton = () => {
-    if (activeTab === 'weekly-checkin' && onSaveWeeklyReview) {
+    if (activeTab === 'weekly-checkin' && onAddWeeklyCheckIn) {
       return (
         <Button 
           size="sm" 
-          onClick={onSaveWeeklyReview}
+          onClick={onAddWeeklyCheckIn}
           type="button"
-          disabled={isSavingWeeklyReview}
           className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
         >
-          {isSavingWeeklyReview ? (
-            <>
-              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              שומר...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              שמור סיכום שבועי
-            </>
-          )}
+          <Plus className="h-4 w-4" />
+          הוסף דיווח שבועי
         </Button>
       );
     }
@@ -556,16 +545,12 @@ export const LeadHistoryTabs = ({
 
         {/* Weekly Check-in Tab */}
         <TabsContent value="weekly-checkin" className="mt-0">
-          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden p-4">
-            {weeklyReviewModule || (
-              <WeeklyReviewModule
-                leadId={leadId || undefined}
-                customerId={customerId || undefined}
-                customerPhone={null}
-                customerName={null}
-              />
-            )}
-          </div>
+          <WeeklyCheckInsList
+            leadId={leadId || undefined}
+            customerId={customerId || undefined}
+            customerPhone={null}
+            customerName={null}
+          />
         </TabsContent>
 
         {/* Budget Assignments Tab */}

@@ -18,6 +18,7 @@ const loadSidebarState = (): Partial<SidebarState> => {
           customers: true,
           templates: true,
           nutrition_templates: true,
+          meetings: true,
         },
       };
     }
@@ -34,6 +35,7 @@ const initialState: SidebarState = {
     customers: true,
     templates: true,
     nutrition_templates: true,
+    meetings: true,
   },
   ...loadSidebarState(),
 };

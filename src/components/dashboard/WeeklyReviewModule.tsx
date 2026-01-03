@@ -28,6 +28,10 @@ interface WeeklyReviewModuleProps {
   customerId?: string | null;
   customerPhone?: string | null;
   customerName?: string | null;
+  initialWeekStart?: string; // ISO date string for the week to load/edit
+  onSave?: () => void; // Callback when save is successful
+  onSaveRef?: (handler: () => Promise<void>) => void; // Expose save handler to parent
+  onSaveStateChange?: (isSaving: boolean) => void; // Notify parent of save state
 }
 
 interface WeeklyReviewData {
@@ -59,6 +63,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   customerId,
   customerPhone,
   customerName,
+  initialWeekStart,
   onSave,
   onSaveRef,
   onSaveStateChange,
@@ -66,7 +71,10 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
-    // Default to start of current week (Sunday)
+    // Use initialWeekStart if provided, otherwise default to start of current week (Sunday)
+    if (initialWeekStart) {
+      return new Date(initialWeekStart);
+    }
     return startOfWeek(new Date(), { weekStartsOn: 0 });
   });
 
@@ -227,7 +235,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     queryFn: async () => {
       let query = supabase
         .from('weekly_reviews')
-        .select('*')
+        .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
         .eq('week_start_date', weekStartStr)
         .maybeSingle();
 
@@ -331,7 +339,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           if (error.code === '23505' || error.code === '409' || error.message?.includes('conflict')) {
             let conflictQuery = supabase
               .from('weekly_reviews')
-              .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+              .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
               .eq('week_start_date', reviewData.week_start_date);
             
             if (leadId) {
@@ -732,20 +740,41 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
             </div>
           </div>
 
-        {/* Action Buttons - Only show WhatsApp button, save is in header */}
-        {customerPhone && (
-          <div className="flex gap-3 pt-4 border-t">
+        {/* Action Buttons - Save button on left, WhatsApp on right */}
+        <div className="flex gap-3 pt-4 border-t items-center justify-between">
+          {/* Save button on the left */}
+          <Button
+            onClick={handleSave}
+            disabled={saveReviewMutation.isPending}
+            variant="default"
+            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+          >
+            {saveReviewMutation.isPending ? (
+              <>
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                שומר...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                שמור סיכום שבועי
+              </>
+            )}
+          </Button>
+
+          {/* WhatsApp button on the right */}
+          {customerPhone && (
             <Button
               onClick={handleSendWhatsApp}
               disabled={isSendingWhatsApp || saveReviewMutation.isPending}
               variant="default"
-              className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
+              className="gap-2 bg-green-600 hover:bg-green-700"
             >
               <MessageSquare className="h-4 w-4" />
               {isSendingWhatsApp ? 'שולח...' : 'שלח לווטסאפ'}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   );

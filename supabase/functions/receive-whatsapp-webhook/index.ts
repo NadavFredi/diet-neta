@@ -2,38 +2,9 @@
 // This handles incoming messages, button replies, and other webhook events
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
-};
-
-interface WhatsAppWebhookBody {
-  typeWebhook?: string;
-  timestamp?: number;
-  idMessage?: string;
-  senderData?: {
-    sender?: string;
-    senderName?: string;
-    chatId?: string;
-  };
-  messageData?: {
-    typeMessage?: string;
-    textMessageData?: {
-      textMessage?: string;
-    };
-    extendedTextMessageData?: {
-      text?: string;
-    };
-    buttonResponseMessageData?: {
-      selectedButtonId?: string;
-      selectedButtonText?: string;
-    };
-  };
-  [key: string]: any; // Allow other fields
-}
+import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { successResponse, errorResponse } from '../_shared/response.ts';
+import type { WhatsAppWebhookBody } from '../_shared/types.ts';
 
 serve(async (req) => {
   console.log('[receive-whatsapp-webhook] Function called:', {
@@ -43,9 +14,10 @@ serve(async (req) => {
   });
 
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
+  const corsResponse = handleCors(req);
+  if (corsResponse) {
     console.log('[receive-whatsapp-webhook] Handling OPTIONS request');
-    return new Response('ok', { headers: corsHeaders });
+    return corsResponse;
   }
 
   // Handle GET requests (for webhook verification from Green API)
@@ -75,16 +47,7 @@ serve(async (req) => {
       }
     } catch (error) {
       console.error('[receive-whatsapp-webhook] Error reading request body:', error);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Failed to read request body',
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse('Failed to read request body', 400);
     }
 
     // Log the complete webhook payload as JSON
@@ -143,30 +106,13 @@ serve(async (req) => {
     }
 
     // Return success response to Green API
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Webhook received and logged',
-        webhookType,
-        timestamp: new Date().toISOString(),
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return successResponse({
+      message: 'Webhook received and logged',
+      webhookType,
+      timestamp: new Date().toISOString(),
+    });
   } catch (error: any) {
     console.error('[receive-whatsapp-webhook] Error processing webhook:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error?.message || 'Failed to process webhook',
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return errorResponse(error?.message || 'Failed to process webhook', 500);
   }
 });
-
