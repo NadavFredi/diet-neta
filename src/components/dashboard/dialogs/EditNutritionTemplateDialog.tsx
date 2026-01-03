@@ -27,7 +27,7 @@ export const EditNutritionTemplateDialog = ({
         <DialogHeader className="px-3 pt-3 pb-2 border-b flex-shrink-0">
           <DialogTitle className="text-base">עריכת תבנית תזונה</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden min-h-0">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
           {editingTemplate && (
             <NutritionTemplateForm
               mode="template"

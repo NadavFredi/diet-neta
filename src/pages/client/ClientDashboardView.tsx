@@ -22,14 +22,15 @@ import {
   X,
   UtensilsCrossed,
   FileText,
+  Wallet,
 } from 'lucide-react';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
-import { WorkoutProgramView } from '@/components/client/WorkoutProgramView';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
 import { DailyCheckInView } from '@/components/client/DailyCheckInView';
 import { CheckInCalendarSidebar } from '@/components/client/CheckInCalendarSidebar';
 import { MultiDayReportModal } from '@/components/client/MultiDayReportModal';
 import { WeeklySummariesView } from '@/components/client/WeeklySummariesView';
+import { BudgetView } from '@/components/client/BudgetView';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
@@ -300,6 +301,18 @@ export const ClientDashboardView: React.FC = () => {
               <Target className="h-5 w-5 flex-shrink-0" />
               <span className="text-sm">סיכומים שבועיים</span>
             </button>
+            <button
+              onClick={() => setActiveTab('budget')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                activeTab === 'budget'
+                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
+                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+              )}
+            >
+              <Wallet className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm">תקציב</span>
+            </button>
           </nav>
         </div>
 
@@ -385,7 +398,10 @@ export const ClientDashboardView: React.FC = () => {
             {activeTab === 'workout' && (
               <div className="space-y-6 pb-4">
                 {workoutPlan ? (
-                  <WorkoutProgramView workoutPlan={workoutPlan} />
+                  <WorkoutPlanCard
+                    workoutPlan={workoutPlan}
+                    isEditable={false}
+                  />
                 ) : (
                   <Card className="border border-slate-200 shadow-sm rounded-3xl">
                     <CardContent className="p-12 text-center">
@@ -470,6 +486,15 @@ export const ClientDashboardView: React.FC = () => {
             {activeTab === 'summaries' && (
               <div className="space-y-6">
                 <WeeklySummariesView
+                  leadId={activeLead?.id}
+                  customerId={customer?.id}
+                />
+              </div>
+            )}
+
+            {activeTab === 'budget' && (
+              <div className="space-y-6">
+                <BudgetView
                   leadId={activeLead?.id}
                   customerId={customer?.id}
                 />
