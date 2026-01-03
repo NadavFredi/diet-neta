@@ -160,64 +160,71 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
             </div>
           )}
 
-          {/* Supplements - Compact List */}
-          {supplements.length > 0 && (
+          {/* Supplements and Eating Guidelines - Side by Side */}
+          {(supplements.length > 0 || budget.eating_order || budget.eating_rules) && (
             <div className="pt-2 border-t border-slate-200">
-              <div className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-1.5">
-                <Pill className="h-4 w-4 text-[#5B6FB9]" />
-                תוספי תזונה
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {supplements.map((supplement, index) => (
-                  <div
-                    key={index}
-                    className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-emerald-900 mb-0.5">
-                          {supplement.name}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Supplements - Compact List */}
+                {supplements.length > 0 && (
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <Pill className="h-4 w-4 text-[#5B6FB9]" />
+                      תוספי תזונה
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {supplements.map((supplement, index) => (
+                        <div
+                          key={index}
+                          className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-semibold text-emerald-900 mb-0.5">
+                                {supplement.name}
+                              </div>
+                              {supplement.dosage && (
+                                <div className="text-[10px] text-emerald-700 mb-0.5">
+                                  {supplement.dosage}
+                                </div>
+                              )}
+                              {supplement.timing && (
+                                <div className="text-[10px] text-emerald-600">
+                                  {supplement.timing}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        {supplement.dosage && (
-                          <div className="text-[10px] text-emerald-700 mb-0.5">
-                            {supplement.dosage}
-                          </div>
-                        )}
-                        {supplement.timing && (
-                          <div className="text-[10px] text-emerald-600">
-                            {supplement.timing}
-                          </div>
-                        )}
-                      </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Eating Guidelines - Compact */}
-          {(budget.eating_order || budget.eating_rules) && (
-            <div className="pt-2 border-t border-slate-200">
-              <div className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-1.5">
-                <UtensilsCrossed className="h-4 w-4 text-[#5B6FB9]" />
-                הנחיות אכילה
-              </div>
-              <div className="space-y-2">
-                {budget.eating_order && (
-                  <div className="p-2.5 bg-indigo-50 rounded-lg border border-indigo-200">
-                    <div className="text-[10px] font-semibold text-indigo-900 mb-1">סדר אכילה מומלץ</div>
-                    <p className="text-xs text-indigo-800 leading-relaxed" dir="rtl">
-                      {budget.eating_order}
-                    </p>
-                  </div>
                 )}
-                {budget.eating_rules && (
-                  <div className="p-2.5 bg-violet-50 rounded-lg border border-violet-200">
-                    <div className="text-[10px] font-semibold text-violet-900 mb-1">כללי אכילה</div>
-                    <p className="text-xs text-violet-800 leading-relaxed" dir="rtl">
-                      {budget.eating_rules}
-                    </p>
+
+                {/* Eating Guidelines - Compact */}
+                {(budget.eating_order || budget.eating_rules) && (
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-1.5">
+                      <UtensilsCrossed className="h-4 w-4 text-[#5B6FB9]" />
+                      הנחיות אכילה
+                    </div>
+                    <div className="space-y-2">
+                      {budget.eating_order && (
+                        <div className="p-2.5 bg-indigo-50 rounded-lg border border-indigo-200">
+                          <div className="text-[10px] font-semibold text-indigo-900 mb-1">סדר אכילה מומלץ</div>
+                          <p className="text-xs text-indigo-800 leading-relaxed" dir="rtl">
+                            {budget.eating_order}
+                          </p>
+                        </div>
+                      )}
+                      {budget.eating_rules && (
+                        <div className="p-2.5 bg-violet-50 rounded-lg border border-violet-200">
+                          <div className="text-[10px] font-semibold text-violet-900 mb-1">כללי אכילה</div>
+                          <p className="text-xs text-violet-800 leading-relaxed" dir="rtl">
+                            {budget.eating_rules}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

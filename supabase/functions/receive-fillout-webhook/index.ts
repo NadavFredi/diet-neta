@@ -156,24 +156,156 @@ serve(async (req) => {
     // Build meeting_data from questions - try multiple formats
     const meetingData: Record<string, any> = {};
     
-    // Try questions array
-    if (body.questions && Array.isArray(body.questions)) {
-      body.questions.forEach((question: any) => {
-        const key = question.name || question.id || question.key || `question_${question.id || question.key}`;
-        meetingData[key] = question.value !== undefined ? question.value : question.answer;
+    // Log the full body structure for debugging
+    console.log('[receive-fillout-webhook] Full body structure:', JSON.stringify(body, null, 2));
+    console.log('[receive-fillout-webhook] Body keys:', Object.keys(body));
+    
+    // Helper function to extract question data
+    const extractQuestions = (questions: any[], source: string) => {
+      console.log(`[receive-fillout-webhook] Extracting questions from ${source}, count:`, questions.length);
+      questions.forEach((question: any, index: number) => {
+        console.log(`[receive-fillout-webhook] Question ${index}:`, JSON.stringify(question));
+        
+        // Try multiple possible field names for the key
+        const key = question.name || 
+                   question.id || 
+                   question.key || 
+                   question.field || 
+                   question.label ||
+                   question.title ||
+                   `question_${question.id || question.key || index}`;
+        
+        // Try multiple possible field names for the value
+        const value = question.value !== undefined ? question.value :
+                     question.answer !== undefined ? question.answer :
+                     question.response !== undefined ? question.response :
+                     question.data !== undefined ? question.data :
+                     question.text !== undefined ? question.text :
+                     null;
+        
+        if (key && value !== null && value !== undefined) {
+          meetingData[key] = value;
+          console.log(`[receive-fillout-webhook] Stored field: ${key} = ${JSON.stringify(value)}`);
+        } else {
+          console.log(`[receive-fillout-webhook] Skipped question ${index} - missing key or value`);
+        }
       });
+    };
+    
+    // Try questions array at top level (most common Fillout format)
+    if (body.questions && Array.isArray(body.questions)) {
+      extractQuestions(body.questions, 'body.questions');
     }
     
     // Try data.questions or response.questions
-    if (Object.keys(meetingData).length === 0) {
-      const questions = body.data?.questions || body.response?.questions || body.submission?.questions;
+    if (body.data) {
+      const questions = body.data.questions || body.data.response?.questions;
       if (questions && Array.isArray(questions)) {
-        questions.forEach((question: any) => {
-          const key = question.name || question.id || question.key || `question_${question.id || question.key}`;
-          meetingData[key] = question.value !== undefined ? question.value : question.answer;
-        });
+        extractQuestions(questions, 'body.data.questions');
       }
     }
+    
+    // Try response.questions
+    if (body.response && body.response.questions && Array.isArray(body.response.questions)) {
+      extractQuestions(body.response.questions, 'body.response.questions');
+    }
+    
+    // Try submission.questions
+    if (body.submission && body.submission.questions && Array.isArray(body.submission.questions)) {
+      extractQuestions(body.submission.questions, 'body.submission.questions');
+    }
+    
+    // Try direct data object (if questions are properties of data - flat structure)
+    if (body.data && typeof body.data === 'object' && !Array.isArray(body.data)) {
+      console.log('[receive-fillout-webhook] Checking body.data for direct fields');
+      Object.keys(body.data).forEach((key) => {
+        // Skip metadata fields and arrays (already processed)
+        if (!key.startsWith('_') && 
+            key !== 'formId' && 
+            key !== 'submissionId' && 
+            key !== 'submissionTime' &&
+            key !== 'lastUpdatedAt' &&
+            key !== 'questions' &&
+            !Array.isArray(body.data[key]) &&
+            typeof body.data[key] !== 'object') {
+          meetingData[key] = body.data[key];
+          console.log(`[receive-fillout-webhook] Stored direct field from body.data: ${key} = ${JSON.stringify(body.data[key])}`);
+        }
+      });
+    }
+    
+    // Try response object (if questions are properties of response)
+    if (body.response && typeof body.response === 'object' && !Array.isArray(body.response)) {
+      console.log('[receive-fillout-webhook] Checking body.response for direct fields');
+      Object.keys(body.response).forEach((key) => {
+        // Skip metadata fields and arrays
+        if (!key.startsWith('_') && 
+            key !== 'formId' && 
+            key !== 'submissionId' && 
+            key !== 'submissionTime' &&
+            key !== 'lastUpdatedAt' &&
+            key !== 'questions' &&
+            !Array.isArray(body.response[key]) &&
+            typeof body.response[key] !== 'object') {
+          meetingData[key] = body.response[key];
+          console.log(`[receive-fillout-webhook] Stored direct field from body.response: ${key} = ${JSON.stringify(body.response[key])}`);
+        }
+      });
+    }
+    
+    // Try submission object (if questions are properties of submission)
+    if (body.submission && typeof body.submission === 'object' && !Array.isArray(body.submission)) {
+      console.log('[receive-fillout-webhook] Checking body.submission for direct fields');
+      Object.keys(body.submission).forEach((key) => {
+        // Skip metadata fields and arrays
+        if (!key.startsWith('_') && 
+            key !== 'formId' && 
+            key !== 'submissionId' && 
+            key !== 'submissionTime' &&
+            key !== 'lastUpdatedAt' &&
+            key !== 'questions' &&
+            !Array.isArray(body.submission[key]) &&
+            typeof body.submission[key] !== 'object') {
+          meetingData[key] = body.submission[key];
+          console.log(`[receive-fillout-webhook] Stored direct field from body.submission: ${key} = ${JSON.stringify(body.submission[key])}`);
+        }
+      });
+    }
+    
+    // Try all top-level properties that aren't metadata (Fillout might use flat structure)
+    Object.keys(body).forEach((key) => {
+      // Skip known metadata fields
+      if (key !== 'formId' && 
+          key !== 'form_id' &&
+          key !== 'formName' &&
+          key !== 'form_name' &&
+          key !== 'submissionId' && 
+          key !== 'submission_id' &&
+          key !== 'submissionTime' && 
+          key !== 'submission_time' &&
+          key !== 'lastUpdatedAt' &&
+          key !== 'last_updated_at' &&
+          key !== 'eventId' &&
+          key !== 'event_id' &&
+          key !== 'eventType' &&
+          key !== 'event_type' &&
+          key !== 'questions' &&
+          key !== 'urlParameters' &&
+          key !== 'url_parameters' &&
+          key !== 'data' &&
+          key !== 'response' &&
+          key !== 'submission' &&
+          !Array.isArray(body[key]) &&
+          typeof body[key] !== 'object' &&
+          body[key] !== null &&
+          body[key] !== undefined) {
+        meetingData[key] = body[key];
+        console.log(`[receive-fillout-webhook] Stored top-level field: ${key} = ${JSON.stringify(body[key])}`);
+      }
+    });
+    
+    console.log('[receive-fillout-webhook] Extracted meeting_data fields:', Object.keys(meetingData));
+    console.log('[receive-fillout-webhook] Extracted meeting_data:', JSON.stringify(meetingData, null, 2));
 
     // Add metadata
     meetingData._formId = formId;

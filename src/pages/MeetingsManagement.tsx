@@ -127,7 +127,7 @@ const MeetingsManagement = () => {
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <TableActionHeader
                   resourceKey="meetings"
-                  title={savedView?.view_name || 'ניהול פגישות'}
+                  title={savedView?.view_name || 'כל הפגישות'}
                   dataCount={filteredMeetings?.length || 0}
                   singularLabel="פגישה"
                   pluralLabel="פגישות"
@@ -144,6 +144,17 @@ const MeetingsManagement = () => {
                   legacyOnFilterAdd={addFilter}
                   legacyOnFilterRemove={removeFilter}
                   legacyOnFilterClear={clearFilters}
+                  customActions={
+                    <Button
+                      onClick={handleSyncMeetings}
+                      disabled={isSyncing}
+                      size="sm"
+                      className="gap-2 h-11 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                      {isSyncing ? 'מסנכרן...' : 'סנכרן מ-Fillout'}
+                    </Button>
+                  }
                 />
 
                 <div className="bg-white">
