@@ -39,6 +39,8 @@ import { LeadAutomationCard } from './LeadAutomationCard';
 import { LeadFormsCard } from './LeadFormsCard';
 import { ReadOnlyField } from './ReadOnlyField';
 import { LeadPaymentCard } from './LeadPaymentCard';
+import { DailyActivityLog } from './DailyActivityLog';
+import { WeeklyReviewModule } from './WeeklyReviewModule';
 import { usePlansHistory } from '@/hooks/usePlansHistory';
 
 interface LeadData {
@@ -544,6 +546,20 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               console.log('Add supplements plan');
             }}
             onAssignBudget={onAssignBudget || (() => {})}
+          />
+        </div>
+
+        {/* Daily Activity Log & Weekly Review - Full Width */}
+        <div className="w-full space-y-6 mt-6">
+          <DailyActivityLog
+            leadId={activeLead.id}
+            customerId={customer?.id}
+          />
+          <WeeklyReviewModule
+            leadId={activeLead.id}
+            customerId={customer?.id}
+            customerPhone={customer?.phone || activeLead.phone}
+            customerName={customer?.full_name || activeLead.name}
           />
         </div>
       </div>
