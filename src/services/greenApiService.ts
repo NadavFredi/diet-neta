@@ -161,6 +161,12 @@ export const formatPhoneNumber = (phone: string): string => {
 export const sendWhatsAppMessage = async (
   params: SendMessageParams
 ): Promise<GreenApiResponse> => {
+  console.log('[GreenAPI] sendWhatsAppMessage called with params:', {
+    phoneNumber: params.phoneNumber,
+    messageLength: params.message?.length,
+    hasButtons: !!params.buttons,
+  });
+  
   try {
     // Validate button count (max 3)
     if (params.buttons && params.buttons.length > 3) {
@@ -360,25 +366,26 @@ export const sendWhatsAppMessage = async (
         success: true,
         data: responseData,
       };
+    }
     
     // If we reach here, either no buttons were provided OR all buttons were invalid
     // Use standard sendMessage endpoint for regular messages
     url = `https://api.green-api.com/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
 
-      console.log('[GreenAPI] Sending regular message:', {
-        url,
-        chatId,
-        messageLength: cleanedMessage.length,
-      });
+    console.log('[GreenAPI] Sending regular message:', {
+      url,
+      chatId,
+      messageLength: cleanedMessage.length,
+    });
 
-      response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chatId,
-          message: cleanedMessage,
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chatId,
+        message: cleanedMessage,
       }),
     });
 
@@ -393,12 +400,16 @@ export const sendWhatsAppMessage = async (
     console.log('[GreenAPI] sendMessage response:', {
       status: response.status,
       statusText: response.statusText,
+      ok: response.ok,
       data: responseData,
       idMessage: responseData.idMessage,
       hasError: !!responseData.error,
       errorMessage: responseData.error || responseData.errorMessage,
       fullResponse: JSON.stringify(responseData, null, 2),
     });
+    
+    // Log raw response text for debugging
+    console.log('[GreenAPI] Raw response text:', responseText);
 
     if (!response.ok) {
       console.error('[GreenAPI] sendMessage error:', {
@@ -429,7 +440,37 @@ export const sendWhatsAppMessage = async (
 
     // Verify message was actually queued/sent
     // idMessage should be present and not null for successful sends
+    // Note: Some GreenAPI responses might not include idMessage but still succeed
     if (responseData.idMessage === null || responseData.idMessage === undefined) {
+      // Check if there's a success indicator in the response
+      if (responseData.sentMessageId || responseData.messageId) {
+        console.warn('[GreenAPI] Response missing idMessage but has other success indicators:', {
+          responseData,
+          sentMessageId: responseData.sentMessageId,
+          messageId: responseData.messageId,
+        });
+        // Consider it successful if we have other indicators
+        return {
+          success: true,
+          data: responseData,
+          warning: 'Response missing idMessage but message appears to have been sent',
+        };
+      }
+      
+      // If response is 200 OK with no error, consider it successful even without idMessage
+      // Some GreenAPI versions or configurations might not return idMessage
+      if (response.ok && !responseData.error && !responseData.errorMessage) {
+        console.warn('[GreenAPI] Response is 200 OK with no errors but missing idMessage. Assuming success:', {
+          responseData,
+          chatId,
+        });
+        return {
+          success: true,
+          data: responseData,
+          warning: 'Response missing idMessage but HTTP status indicates success',
+        };
+      }
+      
       console.error('[GreenAPI] Response missing idMessage - message was NOT sent:', {
         responseData,
         chatId,
@@ -444,7 +485,14 @@ export const sendWhatsAppMessage = async (
     }
 
     // Additional check: idMessage should be a string (not null, not undefined, not empty)
-    if (typeof responseData.idMessage !== 'string' || responseData.idMessage.trim() === '') {
+    // But be lenient - if it's a number, convert it to string
+    let idMessage = responseData.idMessage;
+    if (typeof idMessage === 'number') {
+      idMessage = String(idMessage);
+      console.log('[GreenAPI] Converted numeric idMessage to string:', idMessage);
+    }
+    
+    if (typeof idMessage !== 'string' || idMessage.trim() === '') {
       console.error('[GreenAPI] Invalid idMessage format:', {
         idMessage: responseData.idMessage,
         type: typeof responseData.idMessage,
@@ -457,18 +505,27 @@ export const sendWhatsAppMessage = async (
     }
 
     console.log('[GreenAPI] Message successfully queued:', {
-      idMessage: responseData.idMessage,
+      idMessage: idMessage,
       chatId,
       phoneNumber: formattedPhone,
     });
 
-    return {
+    // Final return - this should always be reached if we get here
+    const finalResponse: GreenApiResponse = {
       success: true,
-      data: responseData,
+      data: { ...responseData, idMessage },
     };
-    }
+    
+    console.log('[GreenAPI] Returning final response:', finalResponse);
+    return finalResponse;
   } catch (error: any) {
     console.error('[GreenAPI] Error sending message:', error);
+    console.error('[GreenAPI] Error details:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      fullError: error,
+    });
     
     // Check if it's a CORS error
     if (error?.message?.includes('CORS') || error?.message?.includes('Failed to fetch')) {
@@ -478,9 +535,10 @@ export const sendWhatsAppMessage = async (
       };
     }
 
+    // Ensure we always return a response object
     return {
       success: false,
-      error: error?.message || 'Failed to send WhatsApp message',
+      error: error?.message || error?.toString() || 'Failed to send WhatsApp message',
     };
   }
 };

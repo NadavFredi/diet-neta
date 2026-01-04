@@ -23,6 +23,7 @@ import { useSavedViews, type SavedView } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useToast } from '@/hooks/use-toast';
 import { DeleteViewDialog } from './DeleteViewDialog';
+import { getResourceKeyFromPath } from '@/utils/resourceUtils';
 
 interface NavItem {
   id: string;
@@ -67,6 +68,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const [lastClickTime, setLastClickTime] = useState(0);
 
   const location = useLocation();
+  const currentResourceKey = getResourceKeyFromPath(location.pathname);
+  
   const supportsViews = item.resourceKey === 'leads' || 
     item.resourceKey === 'customers' || 
     item.resourceKey === 'templates' || 
@@ -74,8 +77,17 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     item.resourceKey === 'budgets' ||
     item.resourceKey === 'meetings';
   
-  const { defaultView } = useDefaultView(item.resourceKey);
-  const savedViewsQuery = useSavedViews(item.resourceKey);
+  // Only fetch saved views and default view for:
+  // 1. The current resource (when on that page) - always fetch
+  // 2. The expanded item (when sidebar section is expanded) - fetch to show sub-views
+  // This prevents fetching saved views for all 7 resources when only on "leads" page
+  const shouldFetchData = supportsViews && (
+    item.resourceKey === currentResourceKey || 
+    (isExpanded && item.resourceKey !== currentResourceKey)
+  );
+  
+  const { defaultView } = useDefaultView(shouldFetchData ? item.resourceKey : null);
+  const savedViewsQuery = useSavedViews(shouldFetchData ? item.resourceKey : null);
   // Combine saved views with default view if it exists and isn't already in the list
   const allSavedViews = supportsViews ? (savedViewsQuery?.data || []) : [];
   const savedViews = useMemo(() => {

@@ -260,21 +260,81 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       });
 
       // Send WhatsApp message
-      const whatsappResponse = await sendWhatsAppMessage({
+      console.log('[LeadPaymentCard] Preparing to send WhatsApp message:', {
         phoneNumber: customerPhone,
-        message: message,
+        messageLength: message.length,
+        messagePreview: message.substring(0, 100) + '...',
+        paymentUrl: paymentUrl,
       });
+      
+      let whatsappResponse: any = undefined;
+      try {
+        console.log('[LeadPaymentCard] Calling sendWhatsAppMessage...');
+        const result = await sendWhatsAppMessage({
+          phoneNumber: customerPhone,
+          message: message,
+        });
+        
+        console.log('[LeadPaymentCard] Raw result from sendWhatsAppMessage:', result);
+        console.log('[LeadPaymentCard] Result type:', typeof result);
+        console.log('[LeadPaymentCard] Result is null?', result === null);
+        console.log('[LeadPaymentCard] Result is undefined?', result === undefined);
+        
+        whatsappResponse = result;
+        
+        // Safety check: if result is undefined or null, create error response
+        if (!whatsappResponse) {
+          console.error('[LeadPaymentCard] sendWhatsAppMessage returned undefined/null!');
+          whatsappResponse = {
+            success: false,
+            error: 'שגיאה בשליחת הודעת WhatsApp: הפונקציה לא החזירה תגובה',
+          };
+        }
+        
+        console.log('[LeadPaymentCard] WhatsApp response received:', {
+          success: whatsappResponse?.success,
+          error: whatsappResponse?.error,
+          hasData: !!whatsappResponse?.data,
+          fullResponse: whatsappResponse,
+        });
+      } catch (whatsappError: any) {
+        console.error('[LeadPaymentCard] Exception in sendWhatsAppMessage:', whatsappError);
+        console.error('[LeadPaymentCard] Error stack:', whatsappError?.stack);
+        console.error('[LeadPaymentCard] Error name:', whatsappError?.name);
+        console.error('[LeadPaymentCard] Error message:', whatsappError?.message);
+        whatsappResponse = {
+          success: false,
+          error: whatsappError?.message || 'שגיאה בשליחת הודעת WhatsApp',
+        };
+      }
+      
+      // Final safety check
+      if (!whatsappResponse) {
+        console.error('[LeadPaymentCard] whatsappResponse is still undefined after try-catch!');
+        whatsappResponse = {
+          success: false,
+          error: 'שגיאה בשליחת הודעת WhatsApp: תגובה לא התקבלה',
+        };
+      }
 
-      if (!whatsappResponse.success) {
-        dispatch(setError(whatsappResponse.error || 'שגיאה בשליחת הודעת WhatsApp'));
+      // Safety check: ensure response exists
+      if (!whatsappResponse || !whatsappResponse.success) {
+        const errorMessage = whatsappResponse?.error || 'שגיאה בשליחת הודעת WhatsApp';
+        console.error('[LeadPaymentCard] WhatsApp send failed:', {
+          response: whatsappResponse,
+          errorMessage,
+        });
+        dispatch(setError(errorMessage));
         toast({
           title: 'שגיאה',
-          description: whatsappResponse.error || 'שגיאה בשליחת הודעת WhatsApp',
+          description: errorMessage,
           variant: 'destructive',
         });
         dispatch(setGeneratingLink(false));
         return;
       }
+      
+      console.log('[LeadPaymentCard] WhatsApp message sent successfully!');
 
       // Success!
       toast({

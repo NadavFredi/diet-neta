@@ -11,41 +11,19 @@ import { useAppSelector } from '@/store/hooks';
 import type { Budget, BudgetAssignment, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
 import { syncPlansFromBudget } from '@/services/budgetPlanSync';
 
-// Helper function to get user ID from email
-const getUserIdFromEmail = async (email: string): Promise<string> => {
-  try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (user && !authError) return user.id;
-  } catch (e) {
-    // Auth session not available, continue to profile lookup
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle();
-
-  if (profile && profile.id) {
-    return profile.id;
-  }
-
-  throw new Error(
-    `User profile not found for email: ${email}. ` +
-    `Please contact an administrator to create your account via the secure invitation system.`
-  );
-};
+// Note: We now use user.id from Redux auth state instead of getUserIdFromEmail
+// This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all budgets (public + user's own)
 export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['budgets', filters, user?.email],
+    queryKey: ['budgets', filters, user?.id],
     queryFn: async () => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
       let query = supabase
         .from('budgets')
         .select(`
@@ -77,7 +55,7 @@ export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) =>
       }
       return data as Budget[];
     },
-    enabled: !!user?.email,
+    enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -88,12 +66,12 @@ export const useBudget = (budgetId: string | null) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['budget', budgetId, user?.email],
+    queryKey: ['budget', budgetId, user?.id],
     queryFn: async () => {
       if (!budgetId) return null;
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { data, error } = await supabase
         .from('budgets')
@@ -105,7 +83,7 @@ export const useBudget = (budgetId: string | null) => {
       if (error) throw error;
       return data as Budget | null;
     },
-    enabled: !!budgetId && !!user?.email,
+    enabled: !!budgetId && !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -190,9 +168,9 @@ export const useCreateBudget = () => {
       eating_rules?: string | null;
       is_public?: boolean;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { data, error } = await supabase
         .from('budgets')
@@ -251,9 +229,9 @@ export const useUpdateBudget = () => {
       eating_rules?: string | null;
       is_public?: boolean;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const updateData: Partial<Budget> = {};
       Object.keys(updates).forEach((key) => {
@@ -287,9 +265,9 @@ export const useDeleteBudget = () => {
 
   return useMutation({
     mutationFn: async (budgetId: string) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { error } = await supabase
         .from('budgets')
@@ -320,9 +298,9 @@ export const useAssignBudgetToLead = () => {
       leadId: string;
       notes?: string;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       // Fetch the budget
       const { data: budget, error: budgetError } = await supabase
@@ -405,9 +383,9 @@ export const useAssignBudgetToCustomer = () => {
       customerId: string;
       notes?: string;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       // Fetch the budget
       const { data: budget, error: budgetError } = await supabase

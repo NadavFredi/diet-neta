@@ -5,11 +5,17 @@
  * Supports double-click to edit and Enter to save.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
 import { Edit, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+
+export interface InlineEditableSelectRef {
+  save: () => Promise<void>;
+  cancel: () => void;
+  isEditing: boolean;
+}
 
 interface InlineEditableSelectProps {
   label: string;
@@ -22,9 +28,10 @@ interface InlineEditableSelectProps {
   valueClassName?: string;
   disabled?: boolean;
   badgeClassName?: string;
+  onEditingChange?: (isEditing: boolean) => void;
 }
 
-export const InlineEditableSelect = ({
+export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEditableSelectProps>(({
   label,
   value,
   options,
@@ -35,7 +42,8 @@ export const InlineEditableSelect = ({
   valueClassName,
   disabled = false,
   badgeClassName,
-}: InlineEditableSelectProps) => {
+  onEditingChange,
+}, ref) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const [isSaving, setIsSaving] = useState(false);
@@ -61,21 +69,14 @@ export const InlineEditableSelect = ({
     setEditValue(value);
   }, [value]);
 
-  const handleEdit = () => {
-    if (disabled) return;
-    setIsEditing(true);
-    setEditValue(value);
-    setIsAddingNew(false);
-  };
-
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setIsEditing(false);
     setEditValue(value);
     setIsAddingNew(false);
     setNewOptionValue('');
-  };
+  }, [value]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (editValue === value && !isAddingNew) {
       setIsEditing(false);
       return;
@@ -114,6 +115,39 @@ export const InlineEditableSelect = ({
     } finally {
       setIsSaving(false);
     }
+  }, [editValue, value, isAddingNew, newOptionValue, onAddOption, onSave]);
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    save: handleSave,
+    cancel: handleCancel,
+    isEditing,
+  }), [handleSave, handleCancel, isEditing]);
+
+  // Store callback in ref to avoid dependency issues
+  const onEditingChangeRef = useRef(onEditingChange);
+  
+  // Update ref when callback changes
+  useEffect(() => {
+    onEditingChangeRef.current = onEditingChange;
+  }, [onEditingChange]);
+  
+  // Track previous editing state to avoid unnecessary calls
+  const prevIsEditingRef = useRef(isEditing);
+  
+  // Notify parent of editing state changes (only when state actually changes)
+  useEffect(() => {
+    if (prevIsEditingRef.current !== isEditing) {
+      prevIsEditingRef.current = isEditing;
+      onEditingChangeRef.current?.(isEditing);
+    }
+  }, [isEditing]);
+
+  const handleEdit = () => {
+    if (disabled) return;
+    setIsEditing(true);
+    setEditValue(value);
+    setIsAddingNew(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -256,7 +290,9 @@ export const InlineEditableSelect = ({
       </div>
     </div>
   );
-};
+});
+
+InlineEditableSelect.displayName = 'InlineEditableSelect';
 
 
 

@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { getUserIdFromEmail } from '@/hooks/useSavedViews';
+// Note: We now use user.id from Redux auth state instead of getUserIdFromEmail
 import { 
   setPreferences as setReduxPreferences, 
   updatePreference as updateReduxPreference,
@@ -34,12 +34,12 @@ export const useInterfaceIconPreferences = () => {
   const isInitialized = useAppSelector(selectIsIconPreferencesInitialized);
 
   const query = useQuery({
-    queryKey: ['interfaceIconPreferences', user?.email],
+    queryKey: ['interfaceIconPreferences', user?.id],
     queryFn: async (): Promise<Record<string, string>> => {
-      if (!user?.email) return {};
+      if (!user?.id) return {};
 
       try {
-        const userId = await getUserIdFromEmail(user.email);
+        const userId = user.id; // Use user.id from Redux instead of API call
 
         const { data, error } = await supabase
           .from('user_interface_preferences')
@@ -63,7 +63,7 @@ export const useInterfaceIconPreferences = () => {
         return {};
       }
     },
-    enabled: !!user?.email && !isInitialized, // Only fetch if not already initialized
+    enabled: !!user?.id && !isInitialized, // Only fetch if not already initialized
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
@@ -100,9 +100,9 @@ export const useUpdateInterfaceIconPreference = () => {
       interfaceKey: string;
       iconName: string;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       // Update Redux immediately for instant UI feedback
       dispatch(updateReduxPreference({ interfaceKey, iconName }));

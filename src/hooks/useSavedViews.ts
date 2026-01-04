@@ -74,16 +74,16 @@ export const getUserIdFromEmail = async (email: string): Promise<string> => {
 };
 
 // Fetch saved views for a specific resource
-export const useSavedViews = (resourceKey: string) => {
+export const useSavedViews = (resourceKey: string | null) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['savedViews', resourceKey, user?.email],
+    queryKey: ['savedViews', resourceKey, user?.id],
     queryFn: async () => {
-      if (!user?.email) return [];
+      if (!user?.id || !resourceKey) return [];
 
       try {
-        const userId = await getUserIdFromEmail(user.email);
+        const userId = user.id; // Use user.id from Redux instead of API call
 
         const { data, error } = await supabase
           .from('saved_views')
@@ -103,7 +103,7 @@ export const useSavedViews = (resourceKey: string) => {
         return [];
       }
     },
-    enabled: !!user?.email,
+    enabled: !!user?.email && !!resourceKey,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
@@ -115,13 +115,13 @@ export const useSavedView = (viewId: string | null) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['savedView', viewId, user?.email],
+    queryKey: ['savedView', viewId, user?.id],
     queryFn: async () => {
       if (!viewId) return null;
-      if (!user?.email) return null;
+      if (!user?.id) return null;
 
       try {
-        const userId = await getUserIdFromEmail(user.email);
+        const userId = user.id; // Use user.id from Redux instead of API call
 
         const { data, error } = await supabase
           .from('saved_views')
@@ -140,7 +140,7 @@ export const useSavedView = (viewId: string | null) => {
         return null;
       }
     },
-    enabled: !!viewId && !!user?.email,
+    enabled: !!viewId && !!user?.id,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
@@ -164,9 +164,9 @@ export const useCreateSavedView = () => {
       filterConfig: FilterConfig;
       isDefault?: boolean;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       // If this is set as default, unset other defaults for this resource
       if (isDefault) {
@@ -216,9 +216,9 @@ export const useUpdateSavedView = () => {
       filterConfig?: FilterConfig;
       isDefault?: boolean;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       // If setting as default, unset other defaults
       if (isDefault === true) {
@@ -269,9 +269,9 @@ export const useDeleteSavedView = () => {
 
   return useMutation({
     mutationFn: async ({ viewId, resourceKey }: { viewId: string; resourceKey: string }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { error } = await supabase
         .from('saved_views')

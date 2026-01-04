@@ -6,12 +6,12 @@
  * NO Lead History Table (moved to sidebar).
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { InlineEditableField } from './InlineEditableField';
-import { InlineEditableSelect } from './InlineEditableSelect';
+import { InlineEditableField, type InlineEditableFieldRef } from './InlineEditableField';
+import { InlineEditableSelect, type InlineEditableSelectRef } from './InlineEditableSelect';
+import { CardHeaderWithActions } from './CardHeaderWithActions';
 import { 
   Target, 
   Activity, 
@@ -132,6 +132,165 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
   const bmi = calculateBMI(activeLead.height, activeLead.weight);
 
+  // Refs for Subscription card editable fields
+  const joinDateRef = useRef<InlineEditableFieldRef>(null);
+  const currentWeekRef = useRef<InlineEditableFieldRef>(null);
+  const monthsRef = useRef<InlineEditableFieldRef>(null);
+  const initialPriceRef = useRef<InlineEditableFieldRef>(null);
+  const renewalPriceRef = useRef<InlineEditableFieldRef>(null);
+
+  // Refs for CRM card editable fields
+  const statusRef = useRef<InlineEditableSelectRef>(null);
+  const sourceRef = useRef<InlineEditableSelectRef>(null);
+  const fitnessGoalRef = useRef<InlineEditableSelectRef>(null);
+  const cityRef = useRef<InlineEditableFieldRef>(null);
+  const genderRef = useRef<InlineEditableSelectRef>(null);
+  const createdAtRef = useRef<InlineEditableFieldRef>(null);
+
+  // Refs for Personal Details card editable fields
+  const heightRef = useRef<InlineEditableFieldRef>(null);
+  const weightRef = useRef<InlineEditableFieldRef>(null);
+  const birthDateRef = useRef<InlineEditableFieldRef>(null);
+
+  // Track editing state for all cards
+  const [subscriptionEditingFields, setSubscriptionEditingFields] = useState<Set<string>>(new Set());
+  const [crmEditingFields, setCrmEditingFields] = useState<Set<string>>(new Set());
+  const [personalEditingFields, setPersonalEditingFields] = useState<Set<string>>(new Set());
+
+  const handleSubscriptionFieldEditingChange = useCallback((fieldId: string, isEditing: boolean) => {
+    setSubscriptionEditingFields(prev => {
+      const next = new Set(prev);
+      if (isEditing) {
+        next.add(fieldId);
+      } else {
+        next.delete(fieldId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCrmFieldEditingChange = useCallback((fieldId: string, isEditing: boolean) => {
+    setCrmEditingFields(prev => {
+      const next = new Set(prev);
+      if (isEditing) {
+        next.add(fieldId);
+      } else {
+        next.delete(fieldId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handlePersonalFieldEditingChange = useCallback((fieldId: string, isEditing: boolean) => {
+    setPersonalEditingFields(prev => {
+      const next = new Set(prev);
+      if (isEditing) {
+        next.add(fieldId);
+      } else {
+        next.delete(fieldId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSubscriptionSave = useCallback(async () => {
+    const refs = [
+      joinDateRef,
+      currentWeekRef,
+      monthsRef,
+      initialPriceRef,
+      renewalPriceRef,
+    ];
+
+    const savePromises = refs
+      .filter(ref => ref.current?.isEditing)
+      .map(ref => ref.current?.save());
+
+    await Promise.all(savePromises);
+  }, []);
+
+  const handleSubscriptionCancel = useCallback(() => {
+    const refs = [
+      joinDateRef,
+      currentWeekRef,
+      monthsRef,
+      initialPriceRef,
+      renewalPriceRef,
+    ];
+
+    refs.forEach(ref => {
+      if (ref.current?.isEditing) {
+        ref.current.cancel();
+      }
+    });
+  }, []);
+
+  const handleCrmSave = useCallback(async () => {
+    const refs = [
+      statusRef,
+      sourceRef,
+      fitnessGoalRef,
+      cityRef,
+      genderRef,
+      createdAtRef,
+    ];
+
+    const savePromises = refs
+      .filter(ref => ref.current?.isEditing)
+      .map(ref => ref.current?.save());
+
+    await Promise.all(savePromises);
+  }, []);
+
+  const handleCrmCancel = useCallback(() => {
+    const refs = [
+      statusRef,
+      sourceRef,
+      fitnessGoalRef,
+      cityRef,
+      genderRef,
+      createdAtRef,
+    ];
+
+    refs.forEach(ref => {
+      if (ref.current?.isEditing) {
+        ref.current.cancel();
+      }
+    });
+  }, []);
+
+  const handlePersonalSave = useCallback(async () => {
+    const refs = [
+      heightRef,
+      weightRef,
+      birthDateRef,
+    ];
+
+    const savePromises = refs
+      .filter(ref => ref.current?.isEditing)
+      .map(ref => ref.current?.save());
+
+    await Promise.all(savePromises);
+  }, []);
+
+  const handlePersonalCancel = useCallback(() => {
+    const refs = [
+      heightRef,
+      weightRef,
+      birthDateRef,
+    ];
+
+    refs.forEach(ref => {
+      if (ref.current?.isEditing) {
+        ref.current.cancel();
+      }
+    });
+  }, []);
+
+  const isSubscriptionEditing = subscriptionEditingFields.size > 0;
+  const isCrmEditing = crmEditingFields.size > 0;
+  const isPersonalEditing = personalEditingFields.size > 0;
+
   // Fetch plans history from plan tables
   const leadId = activeLead?.id;
   const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
@@ -182,14 +341,18 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Card 1: Subscription Details */}
           <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                <Wallet className="h-4 w-4 text-green-600" />
-              </div>
-              <h3 className="text-sm font-bold text-gray-900">פרטי מנוי</h3>
-            </div>
+            <CardHeaderWithActions
+              icon={Wallet}
+              iconBgColor="bg-green-100"
+              iconColor="text-green-600"
+              title="פרטי מנוי"
+              isEditing={isSubscriptionEditing}
+              onSave={handleSubscriptionSave}
+              onCancel={handleSubscriptionCancel}
+            />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <InlineEditableField
+                ref={joinDateRef}
                 label="תאריך הצטרפות"
                 value={activeLead.join_date || ''}
                 onSave={async (newValue) => {
@@ -199,8 +362,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 formatValue={(val) => formatDate(String(val))}
                 className="border-0 p-0"
                 valueClassName="text-sm font-semibold text-slate-900"
+                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('join_date', isEditing)}
               />
               <InlineEditableField
+                ref={currentWeekRef}
                 label="שבוע נוכחי"
                 value={subscriptionData.currentWeekInProgram || 0}
                 onSave={async (newValue) => {
@@ -214,8 +379,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 formatValue={(val) => String(val)}
                 className="border-0 p-0"
                 valueClassName="text-base font-bold text-blue-900"
+                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('current_week', isEditing)}
               />
               <InlineEditableField
+                ref={monthsRef}
                 label="חבילה ראשונית"
                 value={subscriptionData.months || 0}
                 onSave={async (newValue) => {
@@ -228,8 +395,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 type="number"
                 formatValue={(val) => `${val} חודשים`}
                 className="border-0 p-0"
+                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('months', isEditing)}
               />
               <InlineEditableField
+                ref={initialPriceRef}
                 label="מחיר ראשוני"
                 value={subscriptionData.initialPrice || 0}
                 onSave={async (newValue) => {
@@ -242,8 +411,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 type="number"
                 formatValue={(val) => `₪${val}`}
                 className="border-0 p-0"
+                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('initial_price', isEditing)}
               />
               <InlineEditableField
+                ref={renewalPriceRef}
                 label="מחיר חידוש חודשי"
                 value={subscriptionData.renewalPrice || 0}
                 onSave={async (newValue) => {
@@ -256,20 +427,25 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 type="number"
                 formatValue={(val) => `₪${val}`}
                 className="border-0 p-0"
+                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('renewal_price', isEditing)}
               />
             </div>
           </Card>
 
           {/* Card 2: CRM Status & Info */}
           <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                <Target className="h-4 w-4 text-indigo-600" />
-              </div>
-              <h3 className="text-sm font-bold text-gray-900">סטטוס ומידע CRM</h3>
-            </div>
+            <CardHeaderWithActions
+              icon={Target}
+              iconBgColor="bg-indigo-100"
+              iconColor="text-indigo-600"
+              title="סטטוס ומידע CRM"
+              isEditing={isCrmEditing}
+              onSave={handleCrmSave}
+              onCancel={handleCrmCancel}
+            />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <InlineEditableSelect
+                ref={statusRef}
                 label="סטטוס"
                 value={displayStatus}
                 options={[
@@ -302,8 +478,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 }}
                 badgeClassName={getStatusColor(displayStatus)}
                 className="border-0 p-0"
+                onEditingChange={(isEditing) => handleCrmFieldEditingChange('status', isEditing)}
               />
               <InlineEditableSelect
+                ref={sourceRef}
                 label="מקור"
                 value={activeLead.source || ''}
                 options={[...SOURCE_OPTIONS]}
@@ -312,8 +490,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 }}
                 badgeClassName={getFitnessBadgeColor('source')}
                 className="border-0 p-0"
+                onEditingChange={(isEditing) => handleCrmFieldEditingChange('source', isEditing)}
               />
               <InlineEditableSelect
+                ref={fitnessGoalRef}
                 label="מטרת כושר"
                 value={activeLead.fitness_goal || ''}
                 options={[...FITNESS_GOAL_OPTIONS]}
@@ -322,8 +502,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 }}
                 badgeClassName={getFitnessBadgeColor('fitness_goal')}
                 className="border-0 p-0"
+                onEditingChange={(isEditing) => handleCrmFieldEditingChange('fitness_goal', isEditing)}
               />
               <InlineEditableField
+                ref={cityRef}
                 label="עיר"
                 value={activeLead.city || ''}
                 onSave={async (newValue) => {
@@ -331,8 +513,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 }}
                 type="text"
                 className="border-0 p-0"
+                onEditingChange={(isEditing) => handleCrmFieldEditingChange('city', isEditing)}
               />
               <InlineEditableSelect
+                ref={genderRef}
                 label="מגדר"
                 value={activeLead.gender || ''}
                 options={['male', 'female', 'other']}
@@ -347,9 +531,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 }}
                 badgeClassName="bg-gray-50 text-gray-700 border-gray-200"
                 className="border-0 p-0"
+                onEditingChange={(isEditing) => handleCrmFieldEditingChange('gender', isEditing)}
               />
               {onUpdateLead && (
                 <InlineEditableField
+                  ref={createdAtRef}
                   label="תאריך יצירה"
                   value={activeLead.created_at || ''}
                   onSave={async (newValue) => {
@@ -361,6 +547,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                   formatValue={(val) => formatDate(String(val))}
                   className="border-0 p-0"
                   valueClassName="text-sm font-semibold text-slate-900"
+                  onEditingChange={(isEditing) => handleCrmFieldEditingChange('created_at', isEditing)}
                 />
               )}
             </div>
@@ -368,12 +555,15 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
           {/* Card 3: Personal Details */}
           <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
-                <Target className="h-4 w-4 text-cyan-600" />
-              </div>
-              <h3 className="text-sm font-bold text-gray-900">פרטים אישיים</h3>
-            </div>
+            <CardHeaderWithActions
+              icon={Target}
+              iconBgColor="bg-cyan-100"
+              iconColor="text-cyan-600"
+              title="פרטים אישיים"
+              isEditing={isPersonalEditing}
+              onSave={handlePersonalSave}
+              onCancel={handlePersonalCancel}
+            />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <ReadOnlyField
                 label="גיל"
@@ -381,6 +571,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 className="border-0 p-0"
               />
               <InlineEditableField
+                ref={heightRef}
                 label="גובה"
                 value={activeLead.height || 0}
                 onSave={async (newValue) => {
@@ -389,8 +580,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 type="number"
                 formatValue={(val) => val === 0 ? '-' : `${val} ס"מ`}
                 className="border-0 p-0"
+                onEditingChange={(isEditing) => handlePersonalFieldEditingChange('height', isEditing)}
               />
               <InlineEditableField
+                ref={weightRef}
                 label="משקל"
                 value={activeLead.weight || 0}
                 onSave={async (newValue) => {
@@ -399,6 +592,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 type="number"
                 formatValue={(val) => val === 0 ? '-' : `${val} ק"ג`}
                 className="border-0 p-0"
+                onEditingChange={(isEditing) => handlePersonalFieldEditingChange('weight', isEditing)}
               />
               <div className="flex flex-col gap-1.5 min-w-0 w-full">
                 <span className="text-xs text-gray-500 font-medium flex-shrink-0">BMI:</span>
@@ -407,6 +601,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 </span>
               </div>
               <InlineEditableField
+                ref={birthDateRef}
                 label="תאריך לידה"
                 value={activeLead.birth_date || ''}
                 onSave={async (newValue) => {
@@ -416,6 +611,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 formatValue={(val) => val ? formatDate(String(val)) : '-'}
                 className="border-0 p-0"
                 valueClassName="text-sm font-semibold text-slate-900"
+                onEditingChange={(isEditing) => handlePersonalFieldEditingChange('birth_date', isEditing)}
               />
               {activeLead.target_weight && (
                 <ReadOnlyField

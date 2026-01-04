@@ -229,6 +229,9 @@ export const createStripePaymentLink = async (
     if (params.priceId) {
       formData.append('line_items[0][price]', params.priceId);
       formData.append('line_items[0][quantity]', '1');
+      
+      // Note: When using a price ID, Stripe automatically detects if it's a subscription or one-time payment
+      // We don't need to specify billingMode separately when using priceId
     } else {
       // Otherwise, create price_data dynamically
       if (isSubscription) {
@@ -270,8 +273,15 @@ export const createStripePaymentLink = async (
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error?.message || `HTTP error! status: ${response.status}`;
+      const errorText = await response.text();
+      let errorData: any = {};
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { raw: errorText };
+      }
+      
+      const errorMessage = errorData.error?.message || errorData.message || errorData.raw || `HTTP error! status: ${response.status}`;
       
       // Enhanced error logging for 401 Unauthorized
       if (response.status === 401) {
@@ -282,6 +292,22 @@ export const createStripePaymentLink = async (
         console.error('4. Check that the key is not expired or revoked');
         console.error('[Stripe] Current key prefix:', secretKey?.substring(0, 12) || 'NOT SET');
         console.error('[Stripe] Full error response:', errorData);
+      }
+      
+      // Enhanced error logging for 400 Bad Request
+      if (response.status === 400) {
+        console.error('[Stripe] 400 Bad Request Error - Request validation failed:');
+        console.error('[Stripe] Request params:', {
+          amount: params.amount,
+          currency: params.currency,
+          billingMode: params.billingMode,
+          priceId: params.priceId,
+          subscriptionInterval: params.subscriptionInterval,
+          description: params.description,
+        });
+        console.error('[Stripe] Form data sent:', formData.toString());
+        console.error('[Stripe] Full error response:', errorData);
+        console.error('[Stripe] Error details:', errorData.error);
       }
       
       console.error('[Stripe] API Error:', errorData);
