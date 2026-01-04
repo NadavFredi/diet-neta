@@ -254,7 +254,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     enabled: !!(leadId || customerId),
   });
 
-  // Form state
+  // Form state - All fields editable
   const [trainerSummary, setTrainerSummary] = useState(existingReview?.trainer_summary || '');
   const [actionPlan, setActionPlan] = useState(existingReview?.action_plan || '');
   const [updatedStepsGoal, setUpdatedStepsGoal] = useState<string>(
@@ -263,21 +263,98 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   const [updatedCaloriesTarget, setUpdatedCaloriesTarget] = useState<string>(
     existingReview?.updated_calories_target?.toString() || targets.calories?.toString() || ''
   );
+  
+  // Editable target values
+  const [targetCalories, setTargetCalories] = useState<string>(
+    existingReview?.target_calories?.toString() || targets.calories?.toString() || ''
+  );
+  const [targetProtein, setTargetProtein] = useState<string>(
+    existingReview?.target_protein?.toString() || targets.protein?.toString() || ''
+  );
+  const [targetCarbs, setTargetCarbs] = useState<string>(
+    existingReview?.target_carbs?.toString() || targets.carbs?.toString() || ''
+  );
+  const [targetFat, setTargetFat] = useState<string>(
+    existingReview?.target_fat?.toString() || targets.fat?.toString() || ''
+  );
+  const [targetFiber, setTargetFiber] = useState<string>(
+    existingReview?.target_fiber?.toString() || targets.fiber?.toString() || ''
+  );
+  const [targetSteps, setTargetSteps] = useState<string>(
+    existingReview?.target_steps?.toString() || targets.steps?.toString() || ''
+  );
+  
+  // Editable actual values
+  const [actualCalories, setActualCalories] = useState<string>(
+    existingReview?.actual_calories_avg?.toString() || calculatedAverages.calories?.toString() || ''
+  );
+  const [actualProtein, setActualProtein] = useState<string>(
+    existingReview?.actual_protein_avg?.toString() || calculatedAverages.protein?.toString() || ''
+  );
+  const [actualCarbs, setActualCarbs] = useState<string>(
+    existingReview?.actual_carbs_avg?.toString() || calculatedAverages.carbs?.toString() || ''
+  );
+  const [actualFat, setActualFat] = useState<string>(
+    existingReview?.actual_fat_avg?.toString() || calculatedAverages.fat?.toString() || ''
+  );
+  const [actualFiber, setActualFiber] = useState<string>(
+    existingReview?.actual_fiber_avg?.toString() || calculatedAverages.fiber?.toString() || ''
+  );
+  const [actualWeight, setActualWeight] = useState<string>(
+    existingReview?.weekly_avg_weight?.toString() || calculatedAverages.weight?.toString() || ''
+  );
+  const [actualWaist, setActualWaist] = useState<string>(
+    existingReview?.waist_measurement?.toString() || calculatedAverages.waist?.toString() || ''
+  );
 
-  // Update form when existing review changes
+  // Update form when existing review or calculated averages change
   React.useEffect(() => {
     if (existingReview) {
       setTrainerSummary(existingReview.trainer_summary || '');
       setActionPlan(existingReview.action_plan || '');
       setUpdatedStepsGoal(existingReview.updated_steps_goal?.toString() || targets.steps?.toString() || '');
       setUpdatedCaloriesTarget(existingReview.updated_calories_target?.toString() || targets.calories?.toString() || '');
+      
+      // Update editable targets
+      setTargetCalories(existingReview.target_calories?.toString() || targets.calories?.toString() || '');
+      setTargetProtein(existingReview.target_protein?.toString() || targets.protein?.toString() || '');
+      setTargetCarbs(existingReview.target_carbs?.toString() || targets.carbs?.toString() || '');
+      setTargetFat(existingReview.target_fat?.toString() || targets.fat?.toString() || '');
+      setTargetFiber(existingReview.target_fiber?.toString() || targets.fiber?.toString() || '');
+      setTargetSteps(existingReview.target_steps?.toString() || targets.steps?.toString() || '');
+      
+      // Update editable actuals
+      setActualCalories(existingReview.actual_calories_avg?.toString() || calculatedAverages.calories?.toString() || '');
+      setActualProtein(existingReview.actual_protein_avg?.toString() || calculatedAverages.protein?.toString() || '');
+      setActualCarbs(existingReview.actual_carbs_avg?.toString() || calculatedAverages.carbs?.toString() || '');
+      setActualFat(existingReview.actual_fat_avg?.toString() || calculatedAverages.fat?.toString() || '');
+      setActualFiber(existingReview.actual_fiber_avg?.toString() || calculatedAverages.fiber?.toString() || '');
+      setActualWeight(existingReview.weekly_avg_weight?.toString() || calculatedAverages.weight?.toString() || '');
+      setActualWaist(existingReview.waist_measurement?.toString() || calculatedAverages.waist?.toString() || '');
     } else {
       setTrainerSummary('');
       setActionPlan('');
       setUpdatedStepsGoal(targets.steps?.toString() || '');
       setUpdatedCaloriesTarget(targets.calories?.toString() || '');
+      
+      // Initialize editable targets from budget
+      setTargetCalories(targets.calories?.toString() || '');
+      setTargetProtein(targets.protein?.toString() || '');
+      setTargetCarbs(targets.carbs?.toString() || '');
+      setTargetFat(targets.fat?.toString() || '');
+      setTargetFiber(targets.fiber?.toString() || '');
+      setTargetSteps(targets.steps?.toString() || '');
+      
+      // Initialize editable actuals from calculated averages
+      setActualCalories(calculatedAverages.calories?.toString() || '');
+      setActualProtein(calculatedAverages.protein?.toString() || '');
+      setActualCarbs(calculatedAverages.carbs?.toString() || '');
+      setActualFat(calculatedAverages.fat?.toString() || '');
+      setActualFiber(calculatedAverages.fiber?.toString() || '');
+      setActualWeight(calculatedAverages.weight?.toString() || '');
+      setActualWaist(calculatedAverages.waist?.toString() || '');
     }
-  }, [existingReview, targets]);
+  }, [existingReview, targets, calculatedAverages]);
 
   // Reset saved week ref when week changes
   React.useEffect(() => {
@@ -407,27 +484,34 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       return;
     }
 
+    // Helper function to parse number from string
+    const parseNumber = (value: string | null | undefined): number | null => {
+      if (!value || value.trim() === '') return null;
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? null : parsed;
+    };
+
     const reviewData: WeeklyReviewData = {
       week_start_date: weekStartStr,
       week_end_date: weekEndStr,
-      target_calories: targets.calories,
-      target_protein: targets.protein,
-      target_carbs: targets.carbs,
-      target_fat: targets.fat,
-      target_fiber: targets.fiber,
-      target_steps: targets.steps,
-      actual_calories_avg: calculatedAverages.calories,
-      actual_protein_avg: calculatedAverages.protein,
-      actual_carbs_avg: calculatedAverages.carbs,
-      actual_fat_avg: calculatedAverages.fat,
-      actual_fiber_avg: calculatedAverages.fiber,
-      actual_calories_weekly_avg: calculatedAverages.calories,
-      weekly_avg_weight: calculatedAverages.weight,
-      waist_measurement: calculatedAverages.waist,
+      target_calories: parseNumber(targetCalories),
+      target_protein: parseNumber(targetProtein),
+      target_carbs: parseNumber(targetCarbs),
+      target_fat: parseNumber(targetFat),
+      target_fiber: parseNumber(targetFiber),
+      target_steps: parseNumber(targetSteps),
+      actual_calories_avg: parseNumber(actualCalories),
+      actual_protein_avg: parseNumber(actualProtein),
+      actual_carbs_avg: parseNumber(actualCarbs),
+      actual_fat_avg: parseNumber(actualFat),
+      actual_fiber_avg: parseNumber(actualFiber),
+      actual_calories_weekly_avg: parseNumber(actualCalories),
+      weekly_avg_weight: parseNumber(actualWeight),
+      waist_measurement: parseNumber(actualWaist),
       trainer_summary: trainerSummary,
       action_plan: actionPlan,
-      updated_steps_goal: updatedStepsGoal ? parseInt(updatedStepsGoal, 10) : null,
-      updated_calories_target: updatedCaloriesTarget ? parseInt(updatedCaloriesTarget, 10) : null,
+      updated_steps_goal: parseNumber(updatedStepsGoal),
+      updated_calories_target: parseNumber(updatedCaloriesTarget),
     };
 
     if (leadId) {
