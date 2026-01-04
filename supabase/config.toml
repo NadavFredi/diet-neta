@@ -59,6 +59,8 @@ pop3_port = 54326
 enabled = false
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
+# NOTE: Storage requires additional setup. Enable when ready to use file uploads.
+# For production, storage will work automatically.
 
 [auth]
 enabled = true
@@ -114,6 +116,11 @@ entrypoint = "./functions/send-bulk-messages/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/get-attendance/index.ts"
+
+[functions.create-trainee-user]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/create-trainee-user/index.ts"
 
 [functions.receive-fillout-webhook]
 enabled = true

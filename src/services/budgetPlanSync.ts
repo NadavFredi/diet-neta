@@ -72,69 +72,132 @@ export async function syncPlansFromBudget({
     if (templateError) {
       console.error('Error fetching workout template:', templateError);
     } else if (workoutTemplate) {
-      // Deactivate existing active workout plans for this customer/lead
+      // Check if a workout plan already exists for this budget
+      let existingWorkoutPlan = null;
+      if (finalCustomerId) {
+        const { data } = await supabase
+          .from('workout_plans')
+          .select('id')
+          .eq('budget_id', budget.id)
+          .eq('customer_id', finalCustomerId)
+          .maybeSingle();
+        existingWorkoutPlan = data;
+      } else if (leadId) {
+        const { data } = await supabase
+          .from('workout_plans')
+          .select('id')
+          .eq('budget_id', budget.id)
+          .eq('lead_id', leadId)
+          .maybeSingle();
+        existingWorkoutPlan = data;
+      }
+
+      // Deactivate existing active workout plans for this customer/lead (except the one we're updating)
       if (finalCustomerId) {
         await supabase
           .from('workout_plans')
           .update({ is_active: false })
           .eq('customer_id', finalCustomerId)
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .neq('id', existingWorkoutPlan?.id || '00000000-0000-0000-0000-000000000000');
       } else if (leadId) {
-        // Also deactivate plans for leads without customers
         await supabase
           .from('workout_plans')
           .update({ is_active: false })
           .eq('lead_id', leadId)
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .neq('id', existingWorkoutPlan?.id || '00000000-0000-0000-0000-000000000000');
       }
 
-      // Create new workout plan from template
-      const { data: workoutPlan, error: workoutError } = await supabase
-        .from('workout_plans')
-        .insert({
-          user_id: userId,
-          customer_id: finalCustomerId || null,
-          lead_id: leadId || null,
-          template_id: budget.workout_template_id,
-          budget_id: budget.id,
-          start_date: new Date().toISOString().split('T')[0],
-          description: `תוכנית אימונים מתקציב: ${budget.name}`,
-          strength: workoutTemplate.routine_data?.weeklyWorkout?.strength || 0,
-          cardio: workoutTemplate.routine_data?.weeklyWorkout?.cardio || 0,
-          intervals: workoutTemplate.routine_data?.weeklyWorkout?.intervals || 0,
-          custom_attributes: workoutTemplate.routine_data || { schema: [], data: {} },
-          is_active: true,
-          created_by: userId,
-        })
-        .select()
-        .single();
+      const planData = {
+        user_id: userId,
+        customer_id: finalCustomerId || null,
+        lead_id: leadId || null,
+        template_id: budget.workout_template_id,
+        budget_id: budget.id,
+        start_date: new Date().toISOString().split('T')[0],
+        description: `תוכנית אימונים מתקציב: ${budget.name}`,
+        strength: workoutTemplate.routine_data?.weeklyWorkout?.strength || 0,
+        cardio: workoutTemplate.routine_data?.weeklyWorkout?.cardio || 0,
+        intervals: workoutTemplate.routine_data?.weeklyWorkout?.intervals || 0,
+        custom_attributes: workoutTemplate.routine_data || { schema: [], data: {} },
+        is_active: true,
+        created_by: userId,
+      };
 
-      if (workoutError) {
-        console.error('[syncPlansFromBudget] Error creating workout plan:', workoutError);
-        throw new Error(`Failed to create workout plan: ${workoutError.message}`);
+      let workoutPlan;
+      if (existingWorkoutPlan) {
+        // Update existing plan
+        const { data, error: workoutError } = await supabase
+          .from('workout_plans')
+          .update(planData)
+          .eq('id', existingWorkoutPlan.id)
+          .select()
+          .single();
+        
+        if (workoutError) {
+          console.error('[syncPlansFromBudget] Error updating workout plan:', workoutError);
+          throw new Error(`Failed to update workout plan: ${workoutError.message}`);
+        }
+        workoutPlan = data;
+        console.log('[syncPlansFromBudget] Workout plan updated successfully:', workoutPlan.id);
       } else {
-        result.workoutPlanId = workoutPlan.id;
+        // Create new workout plan from template
+        const { data, error: workoutError } = await supabase
+          .from('workout_plans')
+          .insert(planData)
+          .select()
+          .single();
+
+        if (workoutError) {
+          console.error('[syncPlansFromBudget] Error creating workout plan:', workoutError);
+          throw new Error(`Failed to create workout plan: ${workoutError.message}`);
+        }
+        workoutPlan = data;
         console.log('[syncPlansFromBudget] Workout plan created successfully:', workoutPlan.id);
       }
+
+      result.workoutPlanId = workoutPlan.id;
     }
   }
 
   // 2. Sync Nutrition Plan
   if (budget.nutrition_template_id || budget.nutrition_targets) {
-    // Deactivate existing active nutrition plans for this customer/lead
+    // Check if a nutrition plan already exists for this budget
+    let existingNutritionPlan = null;
+    if (finalCustomerId) {
+      const { data } = await supabase
+        .from('nutrition_plans')
+        .select('id')
+        .eq('budget_id', budget.id)
+        .eq('customer_id', finalCustomerId)
+        .maybeSingle();
+      existingNutritionPlan = data;
+    } else if (leadId) {
+      const { data } = await supabase
+        .from('nutrition_plans')
+        .select('id')
+        .eq('budget_id', budget.id)
+        .eq('lead_id', leadId)
+        .maybeSingle();
+      existingNutritionPlan = data;
+    }
+
+    // Deactivate existing active nutrition plans for this customer/lead (except the one we're updating)
     if (finalCustomerId) {
       await supabase
         .from('nutrition_plans')
         .update({ is_active: false })
         .eq('customer_id', finalCustomerId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .neq('id', existingNutritionPlan?.id || '00000000-0000-0000-0000-000000000000');
     } else if (leadId) {
-      // Also deactivate plans for leads without customers
       await supabase
         .from('nutrition_plans')
         .update({ is_active: false })
         .eq('lead_id', leadId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .neq('id', existingNutritionPlan?.id || '00000000-0000-0000-0000-000000000000');
     }
 
     let nutritionTargets = budget.nutrition_targets;
@@ -152,36 +215,57 @@ export async function syncPlansFromBudget({
       }
     }
 
-    // Create new nutrition plan
-    const { data: nutritionPlan, error: nutritionError } = await supabase
-      .from('nutrition_plans')
-      .insert({
-        user_id: userId,
-        customer_id: finalCustomerId || null,
-        lead_id: leadId || null,
-        template_id: budget.nutrition_template_id || null,
-        budget_id: budget.id,
-        start_date: new Date().toISOString().split('T')[0],
-        description: `תוכנית תזונה מתקציב: ${budget.name}`,
-        targets: nutritionTargets || {
-          calories: 2000,
-          protein: 150,
-          carbs: 200,
-          fat: 65,
-          fiber: 30,
-        },
-        created_by: userId,
-      })
-      .select()
-      .single();
+    const planData = {
+      user_id: userId,
+      customer_id: finalCustomerId || null,
+      lead_id: leadId || null,
+      template_id: budget.nutrition_template_id || null,
+      budget_id: budget.id,
+      start_date: new Date().toISOString().split('T')[0],
+      description: `תוכנית תזונה מתקציב: ${budget.name}`,
+      targets: nutritionTargets || {
+        calories: 2000,
+        protein: 150,
+        carbs: 200,
+        fat: 65,
+        fiber: 30,
+      },
+      created_by: userId,
+    };
 
-    if (nutritionError) {
-      console.error('[syncPlansFromBudget] Error creating nutrition plan:', nutritionError);
-      throw new Error(`Failed to create nutrition plan: ${nutritionError.message}`);
+    let nutritionPlan;
+    if (existingNutritionPlan) {
+      // Update existing plan
+      const { data, error: nutritionError } = await supabase
+        .from('nutrition_plans')
+        .update(planData)
+        .eq('id', existingNutritionPlan.id)
+        .select()
+        .single();
+
+      if (nutritionError) {
+        console.error('[syncPlansFromBudget] Error updating nutrition plan:', nutritionError);
+        throw new Error(`Failed to update nutrition plan: ${nutritionError.message}`);
+      }
+      nutritionPlan = data;
+      console.log('[syncPlansFromBudget] Nutrition plan updated successfully:', nutritionPlan.id);
     } else {
-      result.nutritionPlanId = nutritionPlan.id;
+      // Create new nutrition plan
+      const { data, error: nutritionError } = await supabase
+        .from('nutrition_plans')
+        .insert(planData)
+        .select()
+        .single();
+
+      if (nutritionError) {
+        console.error('[syncPlansFromBudget] Error creating nutrition plan:', nutritionError);
+        throw new Error(`Failed to create nutrition plan: ${nutritionError.message}`);
+      }
+      nutritionPlan = data;
       console.log('[syncPlansFromBudget] Nutrition plan created successfully:', nutritionPlan.id);
     }
+
+    result.nutritionPlanId = nutritionPlan.id;
   }
 
   // 3. Update daily_protocol with steps_goal from budget
@@ -209,45 +293,88 @@ export async function syncPlansFromBudget({
 
   // 4. Sync Supplement Plan
   if (budget.supplements && budget.supplements.length > 0) {
-    // Deactivate existing active supplement plans for this customer/lead
+    // Check if a supplement plan already exists for this budget
+    let existingSupplementPlan = null;
+    if (finalCustomerId) {
+      const { data } = await supabase
+        .from('supplement_plans')
+        .select('id')
+        .eq('budget_id', budget.id)
+        .eq('customer_id', finalCustomerId)
+        .maybeSingle();
+      existingSupplementPlan = data;
+    } else if (leadId) {
+      const { data } = await supabase
+        .from('supplement_plans')
+        .select('id')
+        .eq('budget_id', budget.id)
+        .eq('lead_id', leadId)
+        .maybeSingle();
+      existingSupplementPlan = data;
+    }
+
+    // Deactivate existing active supplement plans for this customer/lead (except the one we're updating)
     if (finalCustomerId) {
       await supabase
         .from('supplement_plans')
         .update({ is_active: false })
         .eq('customer_id', finalCustomerId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .neq('id', existingSupplementPlan?.id || '00000000-0000-0000-0000-000000000000');
     } else if (leadId) {
       await supabase
         .from('supplement_plans')
         .update({ is_active: false })
         .eq('lead_id', leadId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .neq('id', existingSupplementPlan?.id || '00000000-0000-0000-0000-000000000000');
     }
 
-    // Create new supplement plan
-    const { data: supplementPlan, error: supplementError } = await supabase
-      .from('supplement_plans')
-      .insert({
-        user_id: userId,
-        customer_id: finalCustomerId || null,
-        lead_id: leadId || null,
-        budget_id: budget.id,
-        start_date: new Date().toISOString().split('T')[0],
-        description: `תוכנית תוספים מתקציב: ${budget.name}`,
-        supplements: budget.supplements,
-        is_active: true,
-        created_by: userId,
-      })
-      .select()
-      .single();
+    const planData = {
+      user_id: userId,
+      customer_id: finalCustomerId || null,
+      lead_id: leadId || null,
+      budget_id: budget.id,
+      start_date: new Date().toISOString().split('T')[0],
+      description: `תוכנית תוספים מתקציב: ${budget.name}`,
+      supplements: budget.supplements,
+      is_active: true,
+      created_by: userId,
+    };
 
-    if (supplementError) {
-      console.error('[syncPlansFromBudget] Error creating supplement plan:', supplementError);
-      throw new Error(`Failed to create supplement plan: ${supplementError.message}`);
+    let supplementPlan;
+    if (existingSupplementPlan) {
+      // Update existing plan
+      const { data, error: supplementError } = await supabase
+        .from('supplement_plans')
+        .update(planData)
+        .eq('id', existingSupplementPlan.id)
+        .select()
+        .single();
+
+      if (supplementError) {
+        console.error('[syncPlansFromBudget] Error updating supplement plan:', supplementError);
+        throw new Error(`Failed to update supplement plan: ${supplementError.message}`);
+      }
+      supplementPlan = data;
+      console.log('[syncPlansFromBudget] Supplement plan updated successfully:', supplementPlan.id);
     } else {
-      result.supplementPlanId = supplementPlan.id;
+      // Create new supplement plan
+      const { data, error: supplementError } = await supabase
+        .from('supplement_plans')
+        .insert(planData)
+        .select()
+        .single();
+
+      if (supplementError) {
+        console.error('[syncPlansFromBudget] Error creating supplement plan:', supplementError);
+        throw new Error(`Failed to create supplement plan: ${supplementError.message}`);
+      }
+      supplementPlan = data;
       console.log('[syncPlansFromBudget] Supplement plan created successfully:', supplementPlan.id);
     }
+
+    result.supplementPlanId = supplementPlan.id;
   }
 
   console.log('[syncPlansFromBudget] Sync completed:', result);

@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Edit2, Trash2, X, Plus, Clock, Filter } from 'lucide-react';
+import { FileText, Edit2, Trash2, X, Plus, Clock, Filter, Paperclip, Image as ImageIcon, File, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -29,6 +29,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useLeadSidebar } from '@/hooks/useLeadSidebar';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabaseClient';
+import { ImageLightbox } from '@/components/ui/ImageLightbox';
 
 interface LeadOption {
   id: string;
@@ -99,8 +101,14 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
   const [newNoteContent, setNewNoteContent] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch notes when customerId changes
   useEffect(() => {
@@ -121,16 +129,136 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Handle file selection
+  const handleFileSelect = async (file: File) => {
+    // Validate file type
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const validDocTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    
+    if (!validImageTypes.includes(file.type) && !validDocTypes.includes(file.type)) {
+      toast({
+        title: 'סוג קובץ לא נתמך',
+        description: 'אנא העלה תמונה או מסמך (PDF, Word)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'קובץ גדול מדי',
+        description: 'גודל הקובץ לא יכול לעלות על 10MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setAttachmentFile(file);
+
+    // Create preview for images
+    if (validImageTypes.includes(file.type)) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAttachmentPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setAttachmentPreview(null);
+    }
+  };
+
+  // Upload attachment to Supabase Storage
+  const uploadAttachment = async (file: File): Promise<string | null> => {
+    if (!customerId) return null;
+
+    try {
+      setIsUploadingAttachment(true);
+
+      // Generate unique filename
+      const timestamp = Date.now();
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${timestamp}.${fileExt}`;
+      const filePath = `${customerId}/notes/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('client-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      return filePath;
+    } catch (error: any) {
+      console.error('Error uploading attachment:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'לא ניתן היה להעלות את הקובץ',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setIsUploadingAttachment(false);
+    }
+  };
+
+  // Delete attachment from Supabase Storage
+  const deleteAttachment = async (attachmentUrl: string) => {
+    try {
+      const { error } = await supabase.storage
+        .from('client-assets')
+        .remove([attachmentUrl]);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error deleting attachment:', error);
+      toast({
+        title: 'שגיאה',
+        description: 'לא ניתן היה למחוק את הקובץ',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Get signed URL for attachment
+  const getAttachmentUrl = async (path: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('client-assets')
+        .createSignedUrl(path, 3600);
+
+      if (error) throw error;
+      return data?.signedUrl || null;
+    } catch (error) {
+      console.error('Error getting attachment URL:', error);
+      return null;
+    }
+  };
+
   const handleAddNote = async (e?: React.MouseEvent | React.KeyboardEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     
-    if (!customerId || !newNoteContent.trim() || isSubmitting) return;
+    if (!customerId || (!newNoteContent.trim() && !attachmentFile) || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
+      // Upload attachment if present
+      let attachmentUrl: string | null = null;
+      if (attachmentFile) {
+        attachmentUrl = await uploadAttachment(attachmentFile);
+        if (!attachmentUrl && attachmentFile) {
+          // If upload failed, don't create the note
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       // When adding a note:
       // - If a specific lead is selected in the dropdown, use that lead_id
       // - If "All Notes" is selected (selectedLeadIdForFilter === null), use activeLeadId from main dashboard
@@ -152,17 +280,33 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
         selectedLeadIdForFilter, 
         activeLeadId, 
         mostRecentLeadId,
-        content: newNoteContent.trim() 
+        content: newNoteContent.trim(),
+        attachmentUrl
       });
       
       await dispatch(
-        addCustomerNote({ customerId, content: newNoteContent.trim(), leadId })
+        addCustomerNote({ 
+          customerId, 
+          content: newNoteContent.trim() || '', 
+          leadId,
+          attachmentUrl
+        })
       ).unwrap();
+      
       setNewNoteContent('');
+      setAttachmentFile(null);
+      setAttachmentPreview(null);
+      
       // Clear textarea focus
       if (textareaRef.current) {
         textareaRef.current.blur();
       }
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
       toast({
         title: 'ההערה נוספה בהצלחה',
         description: 'ההערה נשמרה והופיעה בהיסטוריה',
@@ -209,6 +353,33 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
       toast({
         title: 'שגיאה',
         description: 'לא ניתן היה לעדכן את ההערה',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteAttachment = async (note: CustomerNote) => {
+    if (!note.attachment_url) return;
+
+    if (!confirm('האם אתה בטוח שברצונך למחוק את הקובץ המצורף?')) return;
+
+    try {
+      // Delete from storage
+      await deleteAttachment(note.attachment_url!);
+
+      // Update note to remove attachment_url
+      await dispatch(
+        updateCustomerNote({ noteId: note.id, content: note.content, attachmentUrl: null })
+      ).unwrap();
+
+      toast({
+        title: 'הצלחה',
+        description: 'הקובץ נמחק',
+      });
+    } catch (error) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא ניתן היה למחוק את הקובץ',
         variant: 'destructive',
       });
     }
@@ -375,24 +546,97 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
           )}
 
           {/* Input Field - Below title, same border section */}
-          <div className="mt-3">
-            <Textarea
-              ref={textareaRef}
-              value={newNoteContent}
-              onChange={(e) => setNewNoteContent(e.target.value)}
-              placeholder="כתוב הערה חדשה..."
-              className="min-h-[100px] text-sm resize-none bg-white border border-gray-300 focus:border-gray-300 focus:ring-0 rounded-md placeholder:text-gray-400"
-              dir="rtl"
-              style={{ borderColor: '#E5E7EB' }}
-              onKeyDown={(e) => {
-                // Only submit on Ctrl+Enter or Cmd+Enter
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddNote();
-                }
-                // Allow Enter to create new line normally
-              }}
-            />
+          <div className="mt-3 space-y-2">
+            <div className="relative">
+              <Textarea
+                ref={textareaRef}
+                value={newNoteContent}
+                onChange={(e) => setNewNoteContent(e.target.value)}
+                placeholder="כתוב הערה חדשה..."
+                className="min-h-[100px] text-sm resize-none bg-white border border-gray-300 focus:border-gray-300 focus:ring-0 rounded-md placeholder:text-gray-400 pr-10"
+                dir="rtl"
+                style={{ borderColor: '#E5E7EB' }}
+                onKeyDown={(e) => {
+                  // Only submit on Ctrl+Enter or Cmd+Enter
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddNote();
+                  }
+                  // Allow Enter to create new line normally
+                }}
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileSelect(file);
+                  }
+                }}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute top-2 left-2 h-7 w-7 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                title="צרף קובץ"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Attachment Preview */}
+            {attachmentPreview && (
+              <div className="relative inline-block rounded-md border border-gray-200 p-2">
+                <img
+                  src={attachmentPreview}
+                  alt="Preview"
+                  className="h-20 w-20 object-cover rounded"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setAttachmentFile(null);
+                    setAttachmentPreview(null);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = '';
+                    }
+                  }}
+                  className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 hover:bg-red-600 text-white rounded-full"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+
+            {attachmentFile && !attachmentPreview && (
+              <div className="relative inline-flex items-center gap-2 rounded-md border border-gray-200 p-2">
+                <File className="h-4 w-4 text-gray-500" />
+                <span className="text-sm text-gray-700 truncate max-w-[200px]">
+                  {attachmentFile.name}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setAttachmentFile(null);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = '';
+                    }
+                  }}
+                  className="h-6 w-6 text-red-500 hover:text-red-600"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Add Note Button - Below input, same border section */}
@@ -401,11 +645,20 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
               type="button"
               size="sm"
               onClick={(e) => handleAddNote(e)}
-              disabled={!newNoteContent.trim() || isLoading || isSubmitting}
+              disabled={(!newNoteContent.trim() && !attachmentFile) || isLoading || isSubmitting || isUploadingAttachment}
               className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-0 rounded-md h-8 px-4 text-xs font-medium w-full flex items-center justify-center gap-1.5"
             >
-              <Plus className="h-3.5 w-3.5" />
-              {isSubmitting ? 'שומר...' : 'הוסף הערה'}
+              {isSubmitting || isUploadingAttachment ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  {isUploadingAttachment ? 'מעלה קובץ...' : 'שומר...'}
+                </>
+              ) : (
+                <>
+                  <Plus className="h-3.5 w-3.5" />
+                  הוסף הערה
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -495,9 +748,23 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                         </div>
 
                         {/* Note content - Below the date/hour, right-aligned */}
-                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap text-right w-full">
-                          {note.content}
-                        </p>
+                        {note.content && (
+                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap text-right w-full">
+                            {note.content}
+                          </p>
+                        )}
+
+                        {/* Attachment Display */}
+                        {note.attachment_url && (
+                          <AttachmentDisplay
+                            attachmentUrl={note.attachment_url}
+                            onDelete={() => handleDeleteAttachment(note)}
+                            onViewImage={(url) => {
+                              setLightboxImage(url);
+                              setLightboxOpen(true);
+                            }}
+                          />
+                        )}
 
                         {/* Edited indicator if applicable - RTL aligned */}
                         {note.updated_at !== note.created_at && (
@@ -534,6 +801,122 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
           )}
         </div>
       </div>
+
+      {/* Lightbox for viewing images */}
+      {lightboxImage && (
+        <ImageLightbox
+          isOpen={lightboxOpen}
+          onClose={() => {
+            setLightboxOpen(false);
+            setLightboxImage(null);
+          }}
+          images={[lightboxImage]}
+          currentIndex={0}
+        />
+      )}
+    </div>
+  );
+};
+
+// Attachment Display Component
+interface AttachmentDisplayProps {
+  attachmentUrl: string;
+  onDelete: () => void;
+  onViewImage: (url: string) => void;
+}
+
+const AttachmentDisplay: React.FC<AttachmentDisplayProps> = ({
+  attachmentUrl,
+  onDelete,
+  onViewImage,
+}) => {
+  const [signedUrl, setSignedUrl] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(attachmentUrl);
+
+  React.useEffect(() => {
+    const loadUrl = async () => {
+      try {
+        const { data, error } = await supabase.storage
+          .from('client-assets')
+          .createSignedUrl(attachmentUrl, 3600);
+
+        if (error) throw error;
+        setSignedUrl(data?.signedUrl || null);
+      } catch (error) {
+        console.error('Error loading attachment URL:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUrl();
+  }, [attachmentUrl]);
+
+  if (isLoading) {
+    return (
+      <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span>טוען קובץ...</span>
+      </div>
+    );
+  }
+
+  if (!signedUrl) {
+    return (
+      <div className="mt-2 text-sm text-red-500">
+        שגיאה בטעינת הקובץ
+      </div>
+    );
+  }
+
+  if (isImage) {
+    return (
+      <div className="mt-2 relative inline-block">
+        <img
+          src={signedUrl}
+          alt="Attachment"
+          className="h-32 w-32 object-cover rounded-md border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={() => onViewImage(signedUrl)}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 hover:bg-red-600 text-white rounded-full"
+        >
+          <X className="h-3 w-3" />
+        </Button>
+      </div>
+    );
+  }
+
+  // Document file
+  return (
+    <div className="mt-2 flex items-center gap-2 p-2 bg-gray-50 rounded-md border border-gray-200">
+      <File className="h-4 w-4 text-gray-500 flex-shrink-0" />
+      <a
+        href={signedUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm text-[#5B6FB9] hover:underline flex-1 truncate"
+      >
+        {attachmentUrl.split('/').pop()}
+      </a>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className="h-6 w-6 text-red-500 hover:text-red-600"
+      >
+        <X className="h-3 w-3" />
+      </Button>
     </div>
   );
 };

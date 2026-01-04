@@ -21,6 +21,7 @@ export interface CustomerNote {
   customer_id: string;
   lead_id: string | null; // Optional reference to a specific lead/inquiry
   content: string;
+  attachment_url: string | null; // URL/path to file attachment in Supabase Storage
   created_at: string;
   updated_at: string;
   created_by?: string;
@@ -96,11 +97,11 @@ export const fetchCustomerNotes = createAsyncThunk(
 export const addCustomerNote = createAsyncThunk(
   'leadView/addCustomerNote',
   async (
-    { customerId, content, leadId, tempId }: { customerId: string; content: string; leadId?: string | null; tempId?: string },
+    { customerId, content, leadId, attachmentUrl, tempId }: { customerId: string; content: string; leadId?: string | null; attachmentUrl?: string | null; tempId?: string },
     { rejectWithValue, getState }
   ) => {
     try {
-      // Insert into database with optional lead_id
+      // Insert into database with optional lead_id and attachment_url
       // Always include lead_id in the insert (can be null)
       const insertData: any = {
         customer_id: customerId,
@@ -113,6 +114,11 @@ export const addCustomerNote = createAsyncThunk(
       } else {
         // Explicitly set to null if not provided
         insertData.lead_id = null;
+      }
+
+      // Include attachment_url if provided
+      if (attachmentUrl) {
+        insertData.attachment_url = attachmentUrl;
       }
       
       console.log('Inserting note with data:', insertData);
@@ -147,7 +153,7 @@ export const addCustomerNote = createAsyncThunk(
 export const updateCustomerNote = createAsyncThunk(
   'leadView/updateCustomerNote',
   async (
-    { noteId, content }: { noteId: string; content: string },
+    { noteId, content, attachmentUrl }: { noteId: string; content: string; attachmentUrl?: string | null },
     { rejectWithValue, getState }
   ) => {
     try {
@@ -166,9 +172,14 @@ export const updateCustomerNote = createAsyncThunk(
         throw new Error('Customer ID not found for note');
       }
 
+      const updateData: any = { content };
+      if (attachmentUrl !== undefined) {
+        updateData.attachment_url = attachmentUrl;
+      }
+
       const { data, error } = await supabase
         .from('customer_notes')
-        .update({ content, updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', noteId)
         .select()
         .single();

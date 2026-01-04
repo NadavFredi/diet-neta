@@ -23,6 +23,7 @@ import {
   UtensilsCrossed,
   FileText,
   Wallet,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
@@ -30,6 +31,7 @@ import { DailyCheckInView } from '@/components/client/DailyCheckInView';
 import { CheckInCalendarSidebar } from '@/components/client/CheckInCalendarSidebar';
 import { MultiDayReportModal } from '@/components/client/MultiDayReportModal';
 import { BudgetView } from '@/components/client/BudgetView';
+import { VisualProgressCard } from '@/components/client/VisualProgressCard';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
@@ -312,6 +314,18 @@ export const ClientDashboardView: React.FC = () => {
               <Wallet className="h-5 w-5 flex-shrink-0" />
               <span className="text-sm">תקציב</span>
             </button>
+            <button
+              onClick={() => setActiveTab('progress')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                activeTab === 'progress'
+                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
+                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+              )}
+            >
+              <ImageIcon className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm">התקדמות ויזואלית</span>
+            </button>
           </nav>
         </div>
 
@@ -505,6 +519,13 @@ export const ClientDashboardView: React.FC = () => {
                   leadId={activeLead?.id}
                   customerId={customer?.id}
                 />
+              </div>
+            )}
+
+            {/* Visual Progress Tab */}
+            {activeTab === 'progress' && customer?.id && (
+              <div className="space-y-6">
+                <VisualProgressCard customerId={customer.id} />
               </div>
             )}
 

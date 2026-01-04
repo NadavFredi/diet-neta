@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --mode local",
+    "dev:prod": "vite --mode production",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
@@ -12,6 +14,7 @@
     "linkProject": "supabase link --project-ref xghoqeayrtwgymfafrdm",
     "db:reset": "supabase db reset --local",
     "create-users": "node scripts/create_test_users.js",
+    "create-trainee-prod": "node scripts/create_trainee_user_production.js",
     "reset-manager-password": "node scripts/reset_manager_password.js",
     "deploy:functions": "node scripts/deploy-functions.js",
     "functions:local": "supabase functions serve --env-file .env.local",

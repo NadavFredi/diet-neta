@@ -37,6 +37,7 @@ import { LeadFormsCard } from './LeadFormsCard';
 import { ReadOnlyField } from './ReadOnlyField';
 import { LeadPaymentCard } from './LeadPaymentCard';
 import { usePlansHistory } from '@/hooks/usePlansHistory';
+import { ProgressGalleryCard } from './ProgressGalleryCard';
 
 interface LeadData {
   id: string;
@@ -451,6 +452,13 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             customerEmail={customer?.email || activeLead.email || null}
           />
         </div>
+
+        {/* Row 3: Progress Gallery - Full Width */}
+        {customer?.id && (
+          <div className="mb-4">
+            <ProgressGalleryCard customerId={customer.id} />
+          </div>
+        )}
 
         {/* Workout, Steps, Nutrition & Supplements History Tabs - Full Width - Always Visible */}
         <div className="w-full">

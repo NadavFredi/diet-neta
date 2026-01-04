@@ -26,6 +26,12 @@ import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
 import { DailyCheckInDetailModal } from './dialogs/DailyCheckInDetailModal';
+import { AddWorkoutPlanDialog } from './dialogs/AddWorkoutPlanDialog';
+import { AddNutritionPlanDialog } from './dialogs/AddNutritionPlanDialog';
+import { StepsPlanDialog } from './dialogs/StepsPlanDialog';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface WorkoutHistoryItem {
   id?: string;
@@ -108,6 +114,7 @@ interface LeadHistoryTabsProps {
   onAddSupplementsPlan: () => void;
   onAssignBudget: () => void;
   onAddWeeklyCheckIn?: () => void;
+  weeklyReviewModule?: any;
 }
 
 export const LeadHistoryTabs = ({ 
@@ -126,8 +133,18 @@ export const LeadHistoryTabs = ({
   weeklyReviewModule,
 }: LeadHistoryTabsProps) => {
   const [activeTab, setActiveTab] = useState('budgets');
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
-  // Modal states
+  // Dialog states
+  const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
+  const [isNutritionPlanDialogOpen, setIsNutritionPlanDialogOpen] = useState(false);
+  const [isStepsPlanDialogOpen, setIsStepsPlanDialogOpen] = useState(false);
+  const [editingWorkoutPlan, setEditingWorkoutPlan] = useState<any>(null);
+  const [editingNutritionPlan, setEditingNutritionPlan] = useState<any>(null);
+  const [editingStepsPlan, setEditingStepsPlan] = useState<any>(null);
+  
+  // Modal states (for PlanDetailModal - keeping for backward compatibility)
   const [selectedWorkoutPlan, setSelectedWorkoutPlan] = useState<WorkoutHistoryItem | null>(null);
   const [selectedNutritionPlan, setSelectedNutritionPlan] = useState<NutritionHistoryItem | null>(null);
   const [selectedSupplementPlan, setSelectedSupplementPlan] = useState<SupplementsHistoryItem | null>(null);
@@ -280,7 +297,30 @@ export const LeadHistoryTabs = ({
                     return (
                       <TableRow
                         key={index}
-                        onClick={() => setSelectedWorkoutPlan(workout)}
+                        onClick={async () => {
+                          if (workout.id) {
+                            // Fetch full plan data
+                            try {
+                              const { data, error } = await supabase
+                                .from('workout_plans')
+                                .select('*')
+                                .eq('id', workout.id)
+                                .single();
+                              
+                              if (error) throw error;
+                              setEditingWorkoutPlan(data);
+                              setIsWorkoutPlanDialogOpen(true);
+                            } catch (error: any) {
+                              toast({
+                                title: 'שגיאה',
+                                description: error?.message || 'נכשל בטעינת תוכנית האימונים',
+                                variant: 'destructive',
+                              });
+                            }
+                          } else {
+                            setSelectedWorkoutPlan(workout);
+                          }
+                        }}
                         className={`transition-all duration-200 cursor-pointer ${
                           index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                         } hover:bg-blue-50 hover:shadow-sm border-b border-gray-100`}
@@ -347,7 +387,33 @@ export const LeadHistoryTabs = ({
                 return (
                   <div
                     key={index}
-                    className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-200 ${
+                    onClick={async () => {
+                      if (customerId) {
+                        // Fetch customer's daily_protocol for steps goal
+                        try {
+                          const { data, error } = await supabase
+                            .from('customers')
+                            .select('daily_protocol')
+                            .eq('id', customerId)
+                            .single();
+                          
+                          if (error) throw error;
+                          
+                          setEditingStepsPlan({
+                            stepsGoal: data?.daily_protocol?.stepsGoal || step.target || 0,
+                            stepsInstructions: '', // Steps instructions are stored in budget, not customer
+                          });
+                          setIsStepsPlanDialogOpen(true);
+                        } catch (error: any) {
+                          toast({
+                            title: 'שגיאה',
+                            description: error?.message || 'נכשל בטעינת יעד הצעדים',
+                            variant: 'destructive',
+                          });
+                        }
+                      }
+                    }}
+                    className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
                       isCurrent
                         ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-300 shadow-md hover:shadow-lg'
                         : 'bg-white border-gray-200 hover:bg-gray-50 hover:shadow-sm'
@@ -424,7 +490,30 @@ export const LeadHistoryTabs = ({
                   {nutritionHistory.map((nutrition, index) => (
                     <TableRow
                       key={index}
-                      onClick={() => setSelectedNutritionPlan(nutrition)}
+                      onClick={async () => {
+                        if (nutrition.id) {
+                          // Fetch full plan data
+                          try {
+                            const { data, error } = await supabase
+                              .from('nutrition_plans')
+                              .select('*')
+                              .eq('id', nutrition.id)
+                              .single();
+                            
+                            if (error) throw error;
+                            setEditingNutritionPlan(data);
+                            setIsNutritionPlanDialogOpen(true);
+                          } catch (error: any) {
+                            toast({
+                              title: 'שגיאה',
+                              description: error?.message || 'נכשל בטעינת תוכנית התזונה',
+                              variant: 'destructive',
+                            });
+                          }
+                        } else {
+                          setSelectedNutritionPlan(nutrition);
+                        }
+                      }}
                       className={`transition-all duration-200 cursor-pointer ${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       } hover:bg-orange-50 hover:shadow-sm border-b border-gray-100`}
@@ -695,6 +784,114 @@ export const LeadHistoryTabs = ({
         onClose={() => setSelectedCheckIn(null)}
         checkIn={selectedCheckIn}
         customerId={customerId}
+      />
+
+      {/* Workout Plan Dialog */}
+      <AddWorkoutPlanDialog
+        isOpen={isWorkoutPlanDialogOpen}
+        onOpenChange={(open) => {
+          setIsWorkoutPlanDialogOpen(open);
+          if (!open) setEditingWorkoutPlan(null);
+        }}
+        onSave={async (data) => {
+          if (editingWorkoutPlan?.id) {
+            // Update existing plan
+            try {
+              const { error } = await supabase
+                .from('workout_plans')
+                .update({
+                  ...data,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', editingWorkoutPlan.id);
+              
+              if (error) throw error;
+              
+              queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+              queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+              
+              toast({
+                title: 'הצלחה',
+                description: 'תוכנית האימונים עודכנה בהצלחה',
+              });
+              
+              setIsWorkoutPlanDialogOpen(false);
+              setEditingWorkoutPlan(null);
+            } catch (error: any) {
+              toast({
+                title: 'שגיאה',
+                description: error?.message || 'נכשל בעדכון תוכנית האימונים',
+                variant: 'destructive',
+              });
+            }
+          } else {
+            // Create new plan
+            onAddWorkoutPlan();
+          }
+        }}
+        customerId={customerId}
+        leadId={leadId}
+        initialData={editingWorkoutPlan}
+      />
+
+      {/* Nutrition Plan Dialog */}
+      <AddNutritionPlanDialog
+        isOpen={isNutritionPlanDialogOpen}
+        onOpenChange={(open) => {
+          setIsNutritionPlanDialogOpen(open);
+          if (!open) setEditingNutritionPlan(null);
+        }}
+        onSave={async (data) => {
+          if (editingNutritionPlan?.id) {
+            // Update existing plan
+            try {
+              const { error } = await supabase
+                .from('nutrition_plans')
+                .update({
+                  targets: data,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', editingNutritionPlan.id);
+              
+              if (error) throw error;
+              
+              queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+              queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+              
+              toast({
+                title: 'הצלחה',
+                description: 'תוכנית התזונה עודכנה בהצלחה',
+              });
+              
+              setIsNutritionPlanDialogOpen(false);
+              setEditingNutritionPlan(null);
+            } catch (error: any) {
+              toast({
+                title: 'שגיאה',
+                description: error?.message || 'נכשל בעדכון תוכנית התזונה',
+                variant: 'destructive',
+              });
+            }
+          } else {
+            // Create new plan
+            onAddDietPlan();
+          }
+        }}
+        customerId={customerId}
+        leadId={leadId}
+        initialData={editingNutritionPlan}
+      />
+
+      {/* Steps Plan Dialog */}
+      <StepsPlanDialog
+        isOpen={isStepsPlanDialogOpen}
+        onOpenChange={(open) => {
+          setIsStepsPlanDialogOpen(open);
+          if (!open) setEditingStepsPlan(null);
+        }}
+        customerId={customerId}
+        leadId={leadId}
+        initialData={editingStepsPlan}
       />
     </Card>
   );

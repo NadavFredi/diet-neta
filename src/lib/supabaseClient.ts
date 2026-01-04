@@ -9,6 +9,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// Debug: Log which Supabase instance we're using (only in development)
+if (import.meta.env.DEV) {
+  console.log('[Supabase Client] Using:', {
+    url: supabaseUrl,
+    isLocal: supabaseUrl.includes('127.0.0.1') || supabaseUrl.includes('localhost'),
+    isCloud: supabaseUrl.includes('supabase.co'),
+  });
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   db: {
     schema: 'public',
