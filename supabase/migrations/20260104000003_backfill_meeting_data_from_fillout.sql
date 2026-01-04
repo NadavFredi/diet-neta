@@ -19,3 +19,4 @@
 
 COMMENT ON COLUMN public.meetings.meeting_data IS 'Flexible JSONB containing all meeting data from Fillout form, including Schedule field for actual meeting date/time';
 
+

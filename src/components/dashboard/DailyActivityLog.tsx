@@ -67,20 +67,14 @@ export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
       if (!finalCustomerId) return [];
 
       // Always query by customer_id (required field)
-      // Show all check-ins for this customer, including those with lead_id = null
-      // If leadId is provided, also include check-ins specifically for that lead
-      let query = supabase
+      // Show ALL check-ins for this customer, regardless of lead_id
+      // This ensures managers can see all check-ins, even if they were saved without a specific lead_id
+      const query = supabase
         .from('daily_check_ins')
-        .select('id, check_in_date, weight, calories_daily, protein_daily, carbs_daily, fiber_daily, steps_actual, energy_level')
+        .select('id, check_in_date, weight, calories_daily, protein_daily, carbs_daily, fiber_daily, steps_actual, energy_level, lead_id')
         .eq('customer_id', finalCustomerId)
         .order('check_in_date', { ascending: false })
         .limit(100); // Limit to last 100 check-ins
-
-      // If leadId is provided, show check-ins for that lead OR check-ins with null lead_id
-      // This ensures we see all check-ins for the customer, including those saved without a lead
-      if (leadId) {
-        query = query.or(`lead_id.eq.${leadId},lead_id.is.null`);
-      }
 
       const { data, error } = await query;
       if (error) throw error;

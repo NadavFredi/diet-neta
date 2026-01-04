@@ -428,9 +428,15 @@ export const createTraineeUserWithPassword = createAsyncThunk(
         throw new Error(errorMsg);
       }
       
-      const functionData = responseData;
+      // The successResponse wraps data in a 'data' property
+      const functionData = responseData.data || responseData;
 
       if (!functionData || !functionData.userId) {
+        console.error('[createTraineeUserWithPassword] Invalid response structure:', {
+          responseData,
+          hasData: !!responseData.data,
+          hasUserId: !!functionData?.userId,
+        });
         throw new Error('Failed to create user: No user ID returned');
       }
 
@@ -444,8 +450,8 @@ export const createTraineeUserWithPassword = createAsyncThunk(
 
       return {
         userId: functionData.userId,
-        email,
-        isNewUser: true,
+        email: functionData.email || email,
+        isNewUser: functionData.isNewUser !== undefined ? functionData.isNewUser : true,
       };
     } catch (error: any) {
       console.error('[createTraineeUserWithPassword] Error:', error);

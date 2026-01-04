@@ -157,8 +157,80 @@ serve(async (req) => {
     const meetingData: Record<string, any> = {};
     
     // Log the full body structure for debugging
+    console.log('[receive-fillout-webhook] ========== FULL WEBHOOK PAYLOAD ==========');
+    console.log('[receive-fillout-webhook] Raw body length:', rawBody.length);
     console.log('[receive-fillout-webhook] Full body structure:', JSON.stringify(body, null, 2));
     console.log('[receive-fillout-webhook] Body keys:', Object.keys(body));
+    console.log('[receive-fillout-webhook] Body type:', typeof body);
+    console.log('[receive-fillout-webhook] ===========================================');
+    
+    // Store the complete raw body for debugging (will be stored in meeting_data)
+    const rawWebhookPayload = body;
+    
+    // Helper function to recursively extract all fields from nested objects
+    const extractNestedFields = (obj: any, prefix: string = '', depth: number = 0): void => {
+      if (depth > 5) return; // Prevent infinite recursion
+      
+      if (obj === null || obj === undefined) return;
+      
+      // If it's an array, process each element
+      if (Array.isArray(obj)) {
+        obj.forEach((item, index) => {
+          extractNestedFields(item, `${prefix}[${index}]`, depth + 1);
+        });
+        return;
+      }
+      
+      // If it's not an object, it's a primitive value - skip
+      if (typeof obj !== 'object') return;
+      
+      // Process object properties
+      Object.keys(obj).forEach((key) => {
+        const value = obj[key];
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        
+        // Skip metadata fields
+        if (key.startsWith('_') || 
+            key === 'formId' || key === 'form_id' ||
+            key === 'submissionId' || key === 'submission_id' ||
+            key === 'submissionTime' || key === 'submission_time' ||
+            key === 'lastUpdatedAt' || key === 'last_updated_at' ||
+            key === 'eventId' || key === 'event_id' ||
+            key === 'eventType' || key === 'event_type' ||
+            key === 'urlParameters' || key === 'url_parameters') {
+          // Skip but continue to nested objects
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            extractNestedFields(value, fullKey, depth + 1);
+          }
+          return;
+        }
+        
+        // If value is a primitive (string, number, boolean), store it
+        if (value !== null && value !== undefined && 
+            (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) {
+          // Use the key without prefix for top-level fields, or with prefix for nested
+          // But prefer simple keys (without dots) for readability
+          const storageKey = depth === 0 ? key : (fullKey.includes('.') ? fullKey.replace(/\./g, '_') : fullKey);
+          // Only store if we don't already have this key, or if it's a top-level value (prefer top-level)
+          if (!meetingData[storageKey] || depth === 0) {
+            meetingData[storageKey] = value;
+            console.log(`[receive-fillout-webhook] Stored nested field: ${storageKey} = ${JSON.stringify(value)}`);
+          }
+        } else if (typeof value === 'object' && value !== null) {
+          // For objects, check if it's a simple key-value structure we should flatten
+          // If it has common form field patterns, extract directly
+          if (Array.isArray(value)) {
+            // Arrays are handled above, but if we get here, process each element
+            value.forEach((item, idx) => {
+              extractNestedFields(item, `${fullKey}[${idx}]`, depth + 1);
+            });
+          } else {
+            // Recursively process nested objects
+            extractNestedFields(value, fullKey, depth + 1);
+          }
+        }
+      });
+    };
     
     // Helper function to extract question data
     const extractQuestions = (questions: any[], source: string) => {
@@ -173,6 +245,7 @@ serve(async (req) => {
                    question.field || 
                    question.label ||
                    question.title ||
+                   question.question ||
                    `question_${question.id || question.key || index}`;
         
         // Try multiple possible field names for the value
@@ -181,12 +254,17 @@ serve(async (req) => {
                      question.response !== undefined ? question.response :
                      question.data !== undefined ? question.data :
                      question.text !== undefined ? question.text :
+                     question.answerText !== undefined ? question.answerText :
                      null;
         
         if (key && value !== null && value !== undefined) {
           meetingData[key] = value;
           console.log(`[receive-fillout-webhook] Stored field: ${key} = ${JSON.stringify(value)}`);
         } else {
+          // If question object has nested structure, extract it recursively
+          if (typeof question === 'object' && question !== null) {
+            extractNestedFields(question, key, 0);
+          }
           console.log(`[receive-fillout-webhook] Skipped question ${index} - missing key or value`);
         }
       });
@@ -213,6 +291,38 @@ serve(async (req) => {
     // Try submission.questions
     if (body.submission && body.submission.questions && Array.isArray(body.submission.questions)) {
       extractQuestions(body.submission.questions, 'body.submission.questions');
+    }
+    
+    // Try submission.data (Fillout often stores form fields directly in submission.data as key-value pairs)
+    if (body.submission && body.submission.data && typeof body.submission.data === 'object' && !Array.isArray(body.submission.data)) {
+      console.log('[receive-fillout-webhook] Checking body.submission.data for direct fields (Fillout format)');
+      Object.keys(body.submission.data).forEach((key) => {
+        // Skip metadata fields
+        if (!key.startsWith('_') && 
+            key !== 'formId' && 
+            key !== 'submissionId' && 
+            key !== 'submissionTime' &&
+            key !== 'lastUpdatedAt' &&
+            key !== 'questions') {
+          const value = body.submission.data[key];
+          // Store the value regardless of type (could be string, number, object, etc.)
+          meetingData[key] = value;
+          console.log(`[receive-fillout-webhook] Stored field from body.submission.data: ${key} = ${JSON.stringify(value)}`);
+        }
+      });
+    }
+    
+    // Try event.data (some webhook formats use event.data)
+    if (body.event && body.event.data && typeof body.event.data === 'object' && !Array.isArray(body.event.data)) {
+      console.log('[receive-fillout-webhook] Checking body.event.data for direct fields');
+      Object.keys(body.event.data).forEach((key) => {
+        if (!key.startsWith('_') && 
+            key !== 'formId' && 
+            key !== 'submissionId') {
+          meetingData[key] = body.event.data[key];
+          console.log(`[receive-fillout-webhook] Stored field from body.event.data: ${key} = ${JSON.stringify(body.event.data[key])}`);
+        }
+      });
     }
     
     // Try direct data object (if questions are properties of data - flat structure)
@@ -304,6 +414,11 @@ serve(async (req) => {
       }
     });
     
+    // Final pass: Recursively extract ALL fields from the entire body (except metadata)
+    // This catches any nested structures we might have missed
+    console.log('[receive-fillout-webhook] Performing final recursive extraction from entire body...');
+    extractNestedFields(body, '', 0);
+    
     console.log('[receive-fillout-webhook] Extracted meeting_data fields:', Object.keys(meetingData));
     console.log('[receive-fillout-webhook] Extracted meeting_data:', JSON.stringify(meetingData, null, 2));
 
@@ -311,7 +426,14 @@ serve(async (req) => {
     meetingData._formId = formId;
     meetingData._submissionTime = body.submissionTime || body.submission_time || body.createdAt || body.created_at || new Date().toISOString();
     meetingData._formName = body.formName || body.form_name || body.form?.name;
-    meetingData._rawBody = body; // Store raw body for debugging
+    meetingData._rawWebhookPayload = rawWebhookPayload; // Store complete raw webhook payload for debugging
+    
+    // Log what we extracted
+    console.log('[receive-fillout-webhook] ========== EXTRACTION SUMMARY ==========');
+    console.log('[receive-fillout-webhook] Total fields extracted:', Object.keys(meetingData).length);
+    console.log('[receive-fillout-webhook] Extracted fields:', Object.keys(meetingData));
+    console.log('[receive-fillout-webhook] Meeting data preview:', JSON.stringify(meetingData, null, 2).substring(0, 2000));
+    console.log('[receive-fillout-webhook] =========================================');
 
     console.log('[receive-fillout-webhook] Processing submission:', {
       submissionId: finalSubmissionId,

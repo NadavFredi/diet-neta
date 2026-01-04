@@ -242,6 +242,60 @@ serve(async (req) => {
         console.log(`[sync-fillout-meetings] Submission keys:`, Object.keys(submission));
         console.log(`[sync-fillout-meetings] Full submission:`, JSON.stringify(submission, null, 2));
         
+        // Helper function to recursively extract all fields from nested objects
+        const extractNestedFields = (obj: any, prefix: string = '', depth: number = 0): void => {
+          if (depth > 5) return; // Prevent infinite recursion
+          
+          if (obj === null || obj === undefined) return;
+          
+          // If it's an array, process each element
+          if (Array.isArray(obj)) {
+            obj.forEach((item, index) => {
+              extractNestedFields(item, `${prefix}[${index}]`, depth + 1);
+            });
+            return;
+          }
+          
+          // If it's not an object, it's a primitive value - skip
+          if (typeof obj !== 'object') return;
+          
+          // Process object properties
+          Object.keys(obj).forEach((key) => {
+            const value = obj[key];
+            const fullKey = prefix ? `${prefix}.${key}` : key;
+            
+            // Skip metadata fields
+            if (key.startsWith('_') || 
+                key === 'formId' || key === 'form_id' ||
+                key === 'submissionId' || key === 'submission_id' ||
+                key === 'submissionTime' || key === 'submission_time' ||
+                key === 'lastUpdatedAt' || key === 'last_updated_at' ||
+                key === 'eventId' || key === 'event_id' ||
+                key === 'eventType' || key === 'event_type' ||
+                key === 'urlParameters' || key === 'url_parameters') {
+              // Skip but continue to nested objects
+              if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                extractNestedFields(value, fullKey, depth + 1);
+              }
+              return;
+            }
+            
+            // If value is a primitive (string, number, boolean), store it
+            if (value !== null && value !== undefined && 
+                (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) {
+              // Use the key without prefix for top-level fields, or with prefix for nested
+              const storageKey = depth === 0 ? key : fullKey;
+              if (!meetingData[storageKey] || depth === 0) { // Prefer top-level values
+                meetingData[storageKey] = value;
+                console.log(`[sync-fillout-meetings] Stored nested field: ${storageKey} = ${JSON.stringify(value)}`);
+              }
+            } else if (typeof value === 'object' && value !== null) {
+              // Recursively process nested objects
+              extractNestedFields(value, fullKey, depth + 1);
+            }
+          });
+        };
+        
         // Helper function to extract question data
         const extractQuestions = (questions: any[], source: string) => {
           console.log(`[sync-fillout-meetings] Extracting questions from ${source}, count:`, questions.length);
@@ -255,6 +309,7 @@ serve(async (req) => {
                        question.field || 
                        question.label ||
                        question.title ||
+                       question.question ||
                        `question_${question.id || question.key || index}`;
             
             // Try multiple possible field names for the value
@@ -263,12 +318,17 @@ serve(async (req) => {
                          question.response !== undefined ? question.response :
                          question.data !== undefined ? question.data :
                          question.text !== undefined ? question.text :
+                         question.answerText !== undefined ? question.answerText :
                          null;
             
             if (key && value !== null && value !== undefined) {
               meetingData[key] = value;
               console.log(`[sync-fillout-meetings] Stored field: ${key} = ${JSON.stringify(value)}`);
             } else {
+              // If question object has nested structure, extract it recursively
+              if (typeof question === 'object' && question !== null) {
+                extractNestedFields(question, key, 0);
+              }
               console.log(`[sync-fillout-meetings] Skipped question ${index} - missing key or value`);
             }
           });
@@ -330,7 +390,13 @@ serve(async (req) => {
           }
         });
         
+        // Final pass: Recursively extract ALL fields from the entire submission (except metadata)
+        // This catches any nested structures we might have missed
+        console.log('[sync-fillout-meetings] Performing final recursive extraction from entire submission...');
+        extractNestedFields(submission, '', 0);
+        
         console.log(`[sync-fillout-meetings] Extracted meeting_data fields for ${submission.submissionId}:`, Object.keys(meetingData));
+        console.log(`[sync-fillout-meetings] Extracted meeting_data for ${submission.submissionId}:`, JSON.stringify(meetingData, null, 2));
 
         // Add metadata
         meetingData._formId = formId;

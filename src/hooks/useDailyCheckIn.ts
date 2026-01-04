@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchCheckIns, upsertCheckIn, type DailyCheckIn } from '@/store/slices/clientSlice';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabaseClient';
 
 export const useDailyCheckIn = (customerId: string | null, selectedDate?: string | null) => {
   const dispatch = useAppDispatch();
@@ -42,9 +43,26 @@ export const useDailyCheckIn = (customerId: string | null, selectedDate?: string
       const checkInDate = date || targetDate;
       // Auto-fill: use existing data for fields not provided
       const existingCheckIn = checkIns.find((ci) => ci.check_in_date === checkInDate);
+      
+      // Try to get lead_id from activeLead, or fetch the first lead for this customer
+      let leadId = activeLead?.id || null;
+      if (!leadId) {
+        // Try to fetch the first lead for this customer
+        const { data: leadsData } = await supabase
+          .from('leads')
+          .select('id')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        if (leadsData) {
+          leadId = leadsData.id;
+        }
+      }
+      
       const checkInData: Partial<DailyCheckIn> = {
         customer_id: customerId,
-        lead_id: activeLead?.id || null,
+        lead_id: leadId,
         check_in_date: checkInDate,
         // Legacy fields
         workout_completed: data.workout_completed ?? existingCheckIn?.workout_completed ?? false,
