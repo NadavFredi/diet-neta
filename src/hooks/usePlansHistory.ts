@@ -23,30 +23,92 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
       const supplementsHistory: any[] = [];
       const stepsHistory: any[] = [];
 
-      // Fetch workout plans
-      if (customerId || leadId) {
-        let workoutQuery = supabase
-          .from('workout_plans')
-          .select('*, budget_id, workout_templates(name)')
-          .order('created_at', { ascending: false });
+      // Fetch all plans in parallel using Promise.all for better performance
+      const [workoutResult, nutritionResult, supplementResult, customerResult] = await Promise.all([
+        // Fetch workout plans
+        (customerId || leadId) ? (() => {
+          let workoutQuery = supabase
+            .from('workout_plans')
+            .select('*, budget_id, workout_templates(name)')
+            .order('created_at', { ascending: false });
 
-        // Use OR logic: plans that belong to either customer OR lead
-        if (customerId && leadId) {
-          workoutQuery = workoutQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
-        } else if (customerId) {
-          workoutQuery = workoutQuery.eq('customer_id', customerId);
-        } else if (leadId) {
-          workoutQuery = workoutQuery.eq('lead_id', leadId);
-        }
+          if (customerId && leadId) {
+            workoutQuery = workoutQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
+          } else if (customerId) {
+            workoutQuery = workoutQuery.eq('customer_id', customerId);
+          } else if (leadId) {
+            workoutQuery = workoutQuery.eq('lead_id', leadId);
+          }
 
-        const { data: workoutPlans, error: workoutError } = await workoutQuery;
+          return workoutQuery;
+        })() : Promise.resolve({ data: null, error: null }),
         
-        if (workoutError) {
-          console.error('Error fetching workout plans:', workoutError);
-        }
+        // Nutrition plans
+        (customerId || leadId) ? (() => {
+          let nutritionQuery = supabase
+            .from('nutrition_plans')
+            .select('*, budget_id, nutrition_templates(name)')
+            .order('created_at', { ascending: false });
 
-        console.log('[usePlansHistory] Workout plans fetched:', workoutPlans?.length || 0);
-        if (workoutPlans && workoutPlans.length > 0) {
+          if (customerId && leadId) {
+            nutritionQuery = nutritionQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
+          } else if (customerId) {
+            nutritionQuery = nutritionQuery.eq('customer_id', customerId);
+          } else if (leadId) {
+            nutritionQuery = nutritionQuery.eq('lead_id', leadId);
+          }
+
+          return nutritionQuery;
+        })() : Promise.resolve({ data: null, error: null }),
+
+        // Supplement plans
+        (customerId || leadId) ? (() => {
+          let supplementQuery = supabase
+            .from('supplement_plans')
+            .select('*, budget_id')
+            .order('created_at', { ascending: false });
+
+          if (customerId && leadId) {
+            supplementQuery = supplementQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
+          } else if (customerId) {
+            supplementQuery = supplementQuery.eq('customer_id', customerId);
+          } else if (leadId) {
+            supplementQuery = supplementQuery.eq('lead_id', leadId);
+          }
+
+          return supplementQuery;
+        })() : Promise.resolve({ data: null, error: null }),
+
+        // Customer data for steps
+        customerId ? supabase
+          .from('customers')
+          .select('daily_protocol')
+          .eq('id', customerId)
+          .single() : Promise.resolve({ data: null, error: null }),
+      ]);
+
+      const { data: workoutPlans, error: workoutError } = workoutResult;
+      const { data: nutritionPlans, error: nutritionError } = nutritionResult;
+      const { data: supplementPlans, error: supplementError } = supplementResult;
+      const { data: customer, error: customerError } = customerResult;
+
+      if (workoutError) {
+        console.error('Error fetching workout plans:', workoutError);
+      }
+      if (nutritionError) {
+        console.error('Error fetching nutrition plans:', nutritionError);
+      }
+      if (supplementError) {
+        console.error('Error fetching supplement plans:', supplementError);
+      }
+
+      console.log('[usePlansHistory] Plans fetched:', {
+        workout: workoutPlans?.length || 0,
+        nutrition: nutritionPlans?.length || 0,
+        supplements: supplementPlans?.length || 0,
+      });
+
+      if (workoutPlans && workoutPlans.length > 0) {
           // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
           const uniquePlans = Array.from(
             new Map(workoutPlans.map((plan: any) => [plan.id, plan])).values()
@@ -76,33 +138,9 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
             created_at: plan.created_at,
             is_active: plan.is_active,
           })));
-        }
       }
 
-      // Fetch nutrition plans
-      if (customerId || leadId) {
-        let nutritionQuery = supabase
-          .from('nutrition_plans')
-          .select('*, budget_id, nutrition_templates(name)')
-          .order('created_at', { ascending: false });
-
-        // Use OR logic: plans that belong to either customer OR lead
-        if (customerId && leadId) {
-          nutritionQuery = nutritionQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
-        } else if (customerId) {
-          nutritionQuery = nutritionQuery.eq('customer_id', customerId);
-        } else if (leadId) {
-          nutritionQuery = nutritionQuery.eq('lead_id', leadId);
-        }
-
-        const { data: nutritionPlans, error: nutritionError } = await nutritionQuery;
-        
-        if (nutritionError) {
-          console.error('Error fetching nutrition plans:', nutritionError);
-        }
-
-        console.log('[usePlansHistory] Nutrition plans fetched:', nutritionPlans?.length || 0);
-        if (nutritionPlans && nutritionPlans.length > 0) {
+      if (nutritionPlans && nutritionPlans.length > 0) {
           // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
           const uniquePlans = Array.from(
             new Map(nutritionPlans.map((plan: any) => [plan.id, plan])).values()
@@ -119,33 +157,9 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
             created_at: plan.created_at,
             is_active: plan.is_active,
           })));
-        }
       }
 
-      // Fetch supplement plans
-      if (customerId || leadId) {
-        let supplementQuery = supabase
-          .from('supplement_plans')
-          .select('*, budget_id')
-          .order('created_at', { ascending: false });
-
-        // Use OR logic: plans that belong to either customer OR lead
-        if (customerId && leadId) {
-          supplementQuery = supplementQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
-        } else if (customerId) {
-          supplementQuery = supplementQuery.eq('customer_id', customerId);
-        } else if (leadId) {
-          supplementQuery = supplementQuery.eq('lead_id', leadId);
-        }
-
-        const { data: supplementPlans, error: supplementError } = await supplementQuery;
-        
-        if (supplementError) {
-          console.error('Error fetching supplement plans:', supplementError);
-        }
-
-        console.log('[usePlansHistory] Supplement plans fetched:', supplementPlans?.length || 0);
-        if (supplementPlans && supplementPlans.length > 0) {
+      if (supplementPlans && supplementPlans.length > 0) {
           // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
           const uniquePlans = Array.from(
             new Map(supplementPlans.map((plan: any) => [plan.id, plan])).values()
@@ -171,24 +185,15 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
               is_active: plan.is_active,
             };
           }));
-        }
       }
 
-      // Fetch steps history from daily_protocol
-      if (customerId) {
-        const { data: customer } = await supabase
-          .from('customers')
-          .select('daily_protocol')
-          .eq('id', customerId)
-          .single();
-
-        if (customer?.daily_protocol?.stepsGoal) {
-          stepsHistory.push({
-            weekNumber: 'נוכחי',
-            target: customer.daily_protocol.stepsGoal,
-            startDate: new Date().toISOString().split('T')[0],
-          });
-        }
+      // Use customer data from parallel fetch
+      if (customer?.daily_protocol?.stepsGoal) {
+        stepsHistory.push({
+          weekNumber: 'נוכחי',
+          target: customer.daily_protocol.stepsGoal,
+          startDate: new Date().toISOString().split('T')[0],
+        });
       }
 
       const result = {
@@ -206,6 +211,8 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
       return result;
     },
     enabled: !!(customerId || leadId),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 5 * 60 * 1000, // 5 minutes
   });
 };
 

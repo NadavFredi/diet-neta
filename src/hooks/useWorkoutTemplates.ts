@@ -85,6 +85,8 @@ export const useWorkoutTemplates = (filters?: { search?: string; goalTags?: stri
       return data as WorkoutTemplate[];
     },
     enabled: !!user?.email,
+    staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change often
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 
@@ -111,6 +113,8 @@ export const useWorkoutTemplate = (templateId: string | null) => {
       return data as WorkoutTemplate | null;
     },
     enabled: !!templateId && !!user?.email,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 

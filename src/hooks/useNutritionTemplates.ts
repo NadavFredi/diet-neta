@@ -86,6 +86,8 @@ export const useNutritionTemplates = (filters?: { search?: string; isPublic?: bo
       return data as NutritionTemplate[];
     },
     enabled: !!user?.email,
+    staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change often
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 
@@ -112,6 +114,8 @@ export const useNutritionTemplate = (templateId: string | null) => {
       return data as NutritionTemplate | null;
     },
     enabled: !!templateId && !!user?.email,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 

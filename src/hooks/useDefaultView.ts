@@ -210,6 +210,7 @@ export const useDefaultView = (resourceKey: string) => {
     },
     enabled: !!user?.email && !!resourceKey,
     staleTime: Infinity, // Default views don't change
+    cacheTime: Infinity, // Keep in cache forever
     retry: false,
   });
 

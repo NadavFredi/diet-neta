@@ -131,8 +131,8 @@ export const useCustomers = () => {
       }
     },
     enabled: !!user?.email,
-    retry: 1,
-    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 
@@ -186,5 +186,7 @@ export const useCustomer = (customerId: string | undefined) => {
       } as CustomerWithLeads;
     },
     enabled: !!customerId && !!user?.email,
+    staleTime: 2 * 60 * 1000, // 2 minutes - customer data changes more frequently
+    cacheTime: 5 * 60 * 1000, // 5 minutes
   });
 };

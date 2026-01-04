@@ -105,6 +105,8 @@ export const useSavedViews = (resourceKey: string) => {
     },
     enabled: !!user?.email,
     retry: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 
@@ -140,6 +142,8 @@ export const useSavedView = (viewId: string | null) => {
     },
     enabled: !!viewId && !!user?.email,
     retry: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 

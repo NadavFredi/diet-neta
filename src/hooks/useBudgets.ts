@@ -78,6 +78,8 @@ export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) =>
       return data as Budget[];
     },
     enabled: !!user?.email,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 
@@ -104,6 +106,8 @@ export const useBudget = (budgetId: string | null) => {
       return data as Budget | null;
     },
     enabled: !!budgetId && !!user?.email,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 

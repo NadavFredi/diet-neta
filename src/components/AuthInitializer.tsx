@@ -20,7 +20,28 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
     let timeoutId: NodeJS.Timeout;
     let initPromise: Promise<any> | null = null;
     
+    // Check if Supabase URL has changed (switched from local to production or vice versa)
+    const checkSupabaseUrlMismatch = async () => {
+      const currentUrl = import.meta.env.VITE_SUPABASE_URL;
+      const storedUrl = localStorage.getItem('supabase_url');
+      
+      if (storedUrl && storedUrl !== currentUrl) {
+        console.log('[AuthInitializer] Supabase URL changed, clearing session...', {
+          stored: storedUrl,
+          current: currentUrl
+        });
+        // Clear session if URL changed
+        await supabase.auth.signOut();
+        localStorage.removeItem('supabase_url');
+      }
+      
+      // Store current URL
+      localStorage.setItem('supabase_url', currentUrl);
+    };
+    
     const initAuth = async () => {
+      // Check for URL mismatch first
+      await checkSupabaseUrlMismatch();
       // Prevent multiple simultaneous calls
       if (isInitializing) {
         console.log('[AuthInitializer] Already initializing, skipping...');

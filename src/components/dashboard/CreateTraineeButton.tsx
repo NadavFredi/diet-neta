@@ -202,8 +202,25 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
     } catch (error: any) {
       console.error('[CreateTraineeButton] Error:', error);
       
-      // Check if user already exists
       const errorMessage = error?.message || '';
+      
+      // Check if session is invalid - prompt to re-login
+      if (errorMessage.includes('SESSION_MISMATCH') || errorMessage.includes('Session expired') || errorMessage.includes('log out and log back in') || errorMessage.includes('Invalid JWT')) {
+        // Clear session immediately
+        await supabase.auth.signOut();
+        localStorage.removeItem('supabase_url');
+        
+        toast({
+          title: 'סשן לא תקין',
+          description: 'הסשן שלך לא תקין. מעביר לדף ההתחברות...',
+          variant: 'destructive',
+        });
+        // Redirect immediately
+        window.location.href = '/login';
+        return;
+      }
+      
+      // Check if user already exists
       if (errorMessage.includes('already exists') || errorMessage.includes('already been registered')) {
         // User exists - fetch their user ID and show "Watch as User" button
         try {

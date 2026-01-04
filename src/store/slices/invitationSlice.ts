@@ -391,11 +391,25 @@ export const createTraineeUserWithPassword = createAsyncThunk(
       
       // Use fetch directly to get the actual error message from response body
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const { data: { session } } = await supabase.auth.getSession();
       
-      if (!session) {
-        throw new Error('Not authenticated');
+      // Get and refresh session to ensure we have a valid token
+      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      // If no session or session is expired, try to refresh
+      if (!session || sessionError) {
+        console.log('[createTraineeUserWithPassword] No session or error, attempting refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          throw new Error('Not authenticated. Please log in again.');
+        }
+        session = refreshedSession;
       }
+      
+      if (!session || !session.access_token) {
+        throw new Error('Not authenticated. Please log out and log back in.');
+      }
+      
+      console.log('[createTraineeUserWithPassword] Using session token (first 20 chars):', session.access_token.substring(0, 20));
       
       const response = await fetch(`${supabaseUrl}/functions/v1/create-trainee-user`, {
         method: 'POST',
@@ -419,6 +433,22 @@ export const createTraineeUserWithPassword = createAsyncThunk(
       if (!response.ok) {
         const errorMsg = responseData?.error || responseData?.message || `HTTP ${response.status}: ${response.statusText}`;
         console.error('[createTraineeUserWithPassword] Edge function error:', errorMsg);
+        
+        // Check if it's a JWT/authentication issue
+        if (response.status === 401 && (errorMsg.includes('JWT') || errorMsg.includes('Invalid') || errorMsg.includes('token'))) {
+          // Check if we're using production URL but have a local session
+          const currentUrl = import.meta.env.VITE_SUPABASE_URL;
+          const isProduction = currentUrl.includes('supabase.co');
+          
+          if (isProduction) {
+            // Clear the invalid session
+            console.log('[createTraineeUserWithPassword] Clearing invalid session...');
+            await supabase.auth.signOut();
+            
+            throw new Error('SESSION_MISMATCH: Your session is from a different Supabase instance. Please refresh the page and log in again.');
+          }
+        }
+        
         throw new Error(errorMsg);
       }
       

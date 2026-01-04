@@ -103,6 +103,8 @@ export const useLeadDetails = () => {
       } as Lead;
     },
     enabled: !!id && !!user?.email,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const handleBack = () => {

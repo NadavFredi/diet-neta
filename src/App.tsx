@@ -29,7 +29,18 @@ import { AppFooter } from "./components/layout/AppFooter";
 import { DevModeProvider } from "./hooks/useDevMode";
 import { AuthInitializer } from "./components/AuthInitializer";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes - data is fresh for 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes - keep unused data in cache for 10 minutes
+      refetchOnWindowFocus: false, // Don't refetch when window regains focus
+      refetchOnMount: false, // Don't refetch on component mount if data exists
+      refetchOnReconnect: true, // Only refetch on reconnect
+      retry: 1, // Only retry once on failure
+    },
+  },
+});
 
 const AppContent = () => {
   const location = useLocation();
