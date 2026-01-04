@@ -43,24 +43,26 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
         formTypes: formTypes.map(f => ({ key: f.key, formId: f.formId, label: f.label })),
       });
       
-      formTypes.forEach((formType) => {
-        // Skip if form ID is not configured or is still a placeholder
-        if (!formType.formId || 
-            formType.formId === 'your_characterization_form_id' ||
-            formType.formId.trim() === '') {
-          console.warn(`[LeadFormsCard] Skipping ${formType.label} - form ID not configured or is placeholder: "${formType.formId}"`);
-          return;
-        }
-        
-        dispatch(
-          fetchFormSubmission({
-            formType: formType.key as 'details' | 'intro' | 'characterization',
-            leadId: leadId || undefined, // Priority: use lead_id for matching
-            email: leadEmail || undefined,
-            phoneNumber: leadPhone || undefined,
-          })
-        );
-      });
+      formTypes
+        .filter((formType) => formType.key !== 'details') // Skip details form (first row)
+        .forEach((formType) => {
+          // Skip if form ID is not configured or is still a placeholder
+          if (!formType.formId || 
+              formType.formId === 'your_characterization_form_id' ||
+              formType.formId.trim() === '') {
+            console.warn(`[LeadFormsCard] Skipping ${formType.label} - form ID not configured or is placeholder: "${formType.formId}"`);
+            return;
+          }
+          
+          dispatch(
+            fetchFormSubmission({
+              formType: formType.key as 'details' | 'intro' | 'characterization',
+              leadId: leadId || undefined, // Priority: use lead_id for matching
+              email: leadEmail || undefined,
+              phoneNumber: leadPhone || undefined,
+            })
+          );
+        });
     } else {
       console.log('[LeadFormsCard] Skipping fetch - no leadId, email, or phone provided');
     }
@@ -98,39 +100,41 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
         </div>
         <CardContent className="p-0 flex-1">
           <div className="space-y-3">
-            {getFormTypes().map((formType) => {
-              const submission = submissions[formType.key];
-              const loading = isLoading[formType.key] || false;
-              const hasSubmission = !!submission;
+            {getFormTypes()
+              .filter((formType) => formType.key !== 'details') // Remove details form (first row)
+              .map((formType) => {
+                const submission = submissions[formType.key];
+                const loading = isLoading[formType.key] || false;
+                const hasSubmission = !!submission;
 
-              return (
-                <Button
-                  key={formType.key}
-                  variant="ghost"
-                  className="w-full justify-start h-auto py-3 px-4 hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors"
-                  onClick={() => handleFormClick(formType)}
-                  disabled={loading}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-4 w-4 text-slate-600 flex-shrink-0" />
-                      <span className="text-sm font-medium text-slate-900">
-                        {formType.label}
-                      </span>
+                return (
+                  <Button
+                    key={formType.key}
+                    variant="ghost"
+                    className="w-full justify-start h-auto py-3 px-4 hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors"
+                    onClick={() => handleFormClick(formType)}
+                    disabled={loading}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-4 w-4 text-slate-600 flex-shrink-0" />
+                        <span className="text-sm font-medium text-slate-900">
+                          {formType.label}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {loading ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                        ) : hasSubmission ? (
+                          <span className="text-xs text-green-600 font-medium">נמצא</span>
+                        ) : (
+                          <span className="text-xs text-slate-400">אין הגשה</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                      ) : hasSubmission ? (
-                        <span className="text-xs text-green-600 font-medium">נמצא</span>
-                      ) : (
-                        <span className="text-xs text-slate-400">אין הגשה</span>
-                      )}
-                    </div>
-                  </div>
-                </Button>
-              );
-            })}
+                  </Button>
+                );
+              })}
           </div>
         </CardContent>
       </Card>
