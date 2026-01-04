@@ -48,7 +48,11 @@ export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) =>
       const userId = await getUserIdFromEmail(user.email);
       let query = supabase
         .from('budgets')
-        .select('*')
+        .select(`
+          *,
+          workout_template:workout_templates(id, name),
+          nutrition_template:nutrition_templates(id, name)
+        `)
         .or(`is_public.eq.true,created_by.eq.${userId}`)
         .order('created_at', { ascending: false });
 

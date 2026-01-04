@@ -27,7 +27,6 @@ interface DailyCheckIn {
   weight: number | null;
   calories_daily: number | null;
   protein_daily: number | null;
-  carbs_daily: number | null;
   fiber_daily: number | null;
   steps_actual: number | null;
   energy_level: number | null;
@@ -37,50 +36,71 @@ interface DailyActivityLogProps {
   leadId?: string | null;
   customerId?: string | null;
   showCardWrapper?: boolean; // New prop to control Card wrapper
+  onRowClick?: (checkIn: DailyCheckIn) => void; // Callback for row clicks
 }
 
 export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
   leadId,
   customerId,
   showCardWrapper = true, // Default to true for backward compatibility
+  onRowClick,
 }) => {
   // Fetch daily check-ins
-  const { data: checkIns, isLoading } = useQuery({
+  const { data: checkIns, isLoading, error: queryError } = useQuery({
     queryKey: ['daily-check-ins', leadId, customerId],
     queryFn: async () => {
+      console.log('[DailyActivityLog] Fetching check-ins:', { leadId, customerId });
+      
       // Always query by customer_id (required field)
       // If we only have leadId, fetch the lead first to get customer_id
       let finalCustomerId = customerId;
       
       if (!finalCustomerId && leadId) {
+        console.log('[DailyActivityLog] Fetching customer_id from lead:', leadId);
         const { data: leadData, error: leadError } = await supabase
           .from('leads')
           .select('customer_id')
           .eq('id', leadId)
           .single();
         
-        if (leadError) throw leadError;
-        if (!leadData?.customer_id) return [];
+        if (leadError) {
+          console.error('[DailyActivityLog] Error fetching lead:', leadError);
+          throw leadError;
+        }
+        if (!leadData?.customer_id) {
+          console.warn('[DailyActivityLog] No customer_id found for lead:', leadId);
+          return [];
+        }
         finalCustomerId = leadData.customer_id;
+        console.log('[DailyActivityLog] Found customer_id:', finalCustomerId);
       }
 
-      if (!finalCustomerId) return [];
+      if (!finalCustomerId) {
+        console.warn('[DailyActivityLog] No customer_id available');
+        return [];
+      }
 
       // Always query by customer_id (required field)
       // Show ALL check-ins for this customer, regardless of lead_id
       // This ensures managers can see all check-ins, even if they were saved without a specific lead_id
-      const query = supabase
+      console.log('[DailyActivityLog] Querying check-ins for customer_id:', finalCustomerId);
+      const { data, error } = await supabase
         .from('daily_check_ins')
-        .select('id, check_in_date, weight, calories_daily, protein_daily, carbs_daily, fiber_daily, steps_actual, energy_level, lead_id')
+        .select('id, check_in_date, weight, calories_daily, protein_daily, fiber_daily, steps_actual, energy_level, lead_id')
         .eq('customer_id', finalCustomerId)
         .order('check_in_date', { ascending: false })
         .limit(100); // Limit to last 100 check-ins
 
-      const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('[DailyActivityLog] Error fetching check-ins:', error);
+        throw error;
+      }
+      
+      console.log('[DailyActivityLog] Found check-ins:', data?.length || 0, data);
       return (data || []) as DailyCheckIn[];
     },
     enabled: !!(leadId || customerId),
+    retry: 1,
   });
 
   const formatValue = (value: number | null | undefined): string => {
@@ -107,9 +127,21 @@ export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
         <div className="flex items-center justify-center py-8">
           <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
         </div>
+      ) : queryError ? (
+        <div className="text-center py-8 text-red-500 text-sm">
+          שגיאה בטעינת הדיווחים: {queryError instanceof Error ? queryError.message : 'שגיאה לא ידועה'}
+          <div className="mt-2 text-xs text-gray-500">
+            {process.env.NODE_ENV === 'development' && JSON.stringify(queryError)}
+          </div>
+        </div>
       ) : !checkIns || checkIns.length === 0 ? (
         <div className="text-center py-8 text-gray-500 text-sm">
           אין דיווחים יומיים עדיין
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-2 text-xs text-gray-400">
+              Debug: leadId={leadId || 'null'}, customerId={customerId || 'null'}
+            </div>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -129,9 +161,6 @@ export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
                   חלבון
                 </TableHead>
                 <TableHead className="text-right font-semibold text-xs text-gray-700 min-w-[70px]">
-                  פחמימות
-                </TableHead>
-                <TableHead className="text-right font-semibold text-xs text-gray-700 min-w-[70px]">
                   סיבים
                 </TableHead>
                 <TableHead className="text-right font-semibold text-xs text-gray-700 min-w-[70px]">
@@ -146,7 +175,8 @@ export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
               {checkIns.map((checkIn) => (
                 <TableRow 
                   key={checkIn.id}
-                  className="hover:bg-gray-50 transition-colors border-b border-gray-100"
+                  onClick={() => onRowClick?.(checkIn)}
+                  className={`hover:bg-gray-50 transition-colors border-b border-gray-100 ${onRowClick ? 'cursor-pointer' : ''}`}
                 >
                   <TableCell className="text-xs font-semibold text-gray-900 py-2">
                     {formatDate(checkIn.check_in_date)}
@@ -159,9 +189,6 @@ export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
                   </TableCell>
                   <TableCell className="text-xs text-gray-700 py-2">
                     {formatValue(checkIn.protein_daily)} {checkIn.protein_daily !== null && checkIn.protein_daily !== undefined ? 'גרם' : ''}
-                  </TableCell>
-                  <TableCell className="text-xs text-gray-700 py-2">
-                    {formatValue(checkIn.carbs_daily)} {checkIn.carbs_daily !== null && checkIn.carbs_daily !== undefined ? 'גרם' : ''}
                   </TableCell>
                   <TableCell className="text-xs text-gray-700 py-2">
                     {formatValue(checkIn.fiber_daily)} {checkIn.fiber_daily !== null && checkIn.fiber_daily !== undefined ? 'גרם' : ''}

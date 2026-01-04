@@ -47,7 +47,12 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
 
         console.log('[usePlansHistory] Workout plans fetched:', workoutPlans?.length || 0);
         if (workoutPlans && workoutPlans.length > 0) {
-          workoutHistory.push(...workoutPlans.map((plan: any) => ({
+          // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
+          const uniquePlans = Array.from(
+            new Map(workoutPlans.map((plan: any) => [plan.id, plan])).values()
+          );
+          
+          workoutHistory.push(...uniquePlans.map((plan: any) => ({
             id: plan.id,
             name: plan.workout_templates?.name || plan.description || 'תוכנית אימונים',
             startDate: plan.start_date,
@@ -98,7 +103,12 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
 
         console.log('[usePlansHistory] Nutrition plans fetched:', nutritionPlans?.length || 0);
         if (nutritionPlans && nutritionPlans.length > 0) {
-          nutritionHistory.push(...nutritionPlans.map((plan: any) => ({
+          // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
+          const uniquePlans = Array.from(
+            new Map(nutritionPlans.map((plan: any) => [plan.id, plan])).values()
+          );
+          
+          nutritionHistory.push(...uniquePlans.map((plan: any) => ({
             id: plan.id,
             startDate: plan.start_date,
             endDate: plan.end_date || null,
@@ -136,8 +146,13 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
 
         console.log('[usePlansHistory] Supplement plans fetched:', supplementPlans?.length || 0);
         if (supplementPlans && supplementPlans.length > 0) {
+          // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
+          const uniquePlans = Array.from(
+            new Map(supplementPlans.map((plan: any) => [plan.id, plan])).values()
+          );
+          
           // Handle supplements - can be array of strings or array of objects
-          supplementsHistory.push(...supplementPlans.map((plan: any) => {
+          supplementsHistory.push(...uniquePlans.map((plan: any) => {
             let supplementsArray: string[] = [];
             if (Array.isArray(plan.supplements)) {
               supplementsArray = plan.supplements.map((sup: any) => 

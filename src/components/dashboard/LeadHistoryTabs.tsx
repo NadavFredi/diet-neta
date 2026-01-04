@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/table';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
+import { PlanDetailModal } from './dialogs/PlanDetailModal';
+import { DailyCheckInDetailModal } from './dialogs/DailyCheckInDetailModal';
 
 interface WorkoutHistoryItem {
   id?: string;
@@ -124,6 +126,12 @@ export const LeadHistoryTabs = ({
   weeklyReviewModule,
 }: LeadHistoryTabsProps) => {
   const [activeTab, setActiveTab] = useState('budgets');
+  
+  // Modal states
+  const [selectedWorkoutPlan, setSelectedWorkoutPlan] = useState<WorkoutHistoryItem | null>(null);
+  const [selectedNutritionPlan, setSelectedNutritionPlan] = useState<NutritionHistoryItem | null>(null);
+  const [selectedSupplementPlan, setSelectedSupplementPlan] = useState<SupplementsHistoryItem | null>(null);
+  const [selectedCheckIn, setSelectedCheckIn] = useState<any | null>(null);
 
   const hasWorkoutHistory = workoutHistory && workoutHistory.length > 0;
   const hasStepsHistory = stepsHistory && stepsHistory.length > 0;
@@ -272,7 +280,8 @@ export const LeadHistoryTabs = ({
                     return (
                       <TableRow
                         key={index}
-                        className={`transition-all duration-200 ${
+                        onClick={() => setSelectedWorkoutPlan(workout)}
+                        className={`transition-all duration-200 cursor-pointer ${
                           index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                         } hover:bg-blue-50 hover:shadow-sm border-b border-gray-100`}
                       >
@@ -415,7 +424,8 @@ export const LeadHistoryTabs = ({
                   {nutritionHistory.map((nutrition, index) => (
                     <TableRow
                       key={index}
-                      className={`transition-all duration-200 ${
+                      onClick={() => setSelectedNutritionPlan(nutrition)}
+                      className={`transition-all duration-200 cursor-pointer ${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       } hover:bg-orange-50 hover:shadow-sm border-b border-gray-100`}
                     >
@@ -496,7 +506,8 @@ export const LeadHistoryTabs = ({
                   {supplementsHistory.map((supplement, index) => (
                     <TableRow
                       key={index}
-                      className={`transition-all duration-200 ${
+                      onClick={() => setSelectedSupplementPlan(supplement)}
+                      className={`transition-all duration-200 cursor-pointer ${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       } hover:bg-green-50 hover:shadow-sm border-b border-gray-100`}
                     >
@@ -540,7 +551,12 @@ export const LeadHistoryTabs = ({
 
         {/* Daily Activity Log Tab */}
         <TabsContent value="daily-activity" className="mt-0">
-          <DailyActivityLog leadId={leadId} customerId={customerId} showCardWrapper={false} />
+          <DailyActivityLog 
+            leadId={leadId} 
+            customerId={customerId} 
+            showCardWrapper={false}
+            onRowClick={(checkIn) => setSelectedCheckIn(checkIn)}
+          />
         </TabsContent>
 
         {/* Weekly Check-in Tab */}
@@ -620,6 +636,66 @@ export const LeadHistoryTabs = ({
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Modals */}
+      <PlanDetailModal
+        isOpen={!!selectedWorkoutPlan}
+        onClose={() => setSelectedWorkoutPlan(null)}
+        planType="workout"
+        planData={selectedWorkoutPlan ? {
+          id: selectedWorkoutPlan.id,
+          startDate: selectedWorkoutPlan.startDate,
+          description: selectedWorkoutPlan.description || selectedWorkoutPlan.name,
+          strength: selectedWorkoutPlan.split?.strength || selectedWorkoutPlan.strengthCount || selectedWorkoutPlan.strength || 0,
+          cardio: selectedWorkoutPlan.split?.cardio || selectedWorkoutPlan.cardioCount || selectedWorkoutPlan.cardio || 0,
+          intervals: selectedWorkoutPlan.split?.intervals || selectedWorkoutPlan.intervalsCount || selectedWorkoutPlan.intervals || 0,
+          budget_id: selectedWorkoutPlan.budget_id,
+          created_at: selectedWorkoutPlan.created_at,
+        } : null}
+        leadId={leadId}
+        customerId={customerId}
+      />
+
+      <PlanDetailModal
+        isOpen={!!selectedNutritionPlan}
+        onClose={() => setSelectedNutritionPlan(null)}
+        planType="nutrition"
+        planData={selectedNutritionPlan ? {
+          id: selectedNutritionPlan.id,
+          startDate: selectedNutritionPlan.startDate,
+          endDate: selectedNutritionPlan.endDate,
+          description: selectedNutritionPlan.description,
+          targets: selectedNutritionPlan.targets,
+          budget_id: selectedNutritionPlan.budget_id,
+          created_at: selectedNutritionPlan.created_at,
+        } : null}
+        leadId={leadId}
+        customerId={customerId}
+      />
+
+      <PlanDetailModal
+        isOpen={!!selectedSupplementPlan}
+        onClose={() => setSelectedSupplementPlan(null)}
+        planType="supplements"
+        planData={selectedSupplementPlan ? {
+          id: selectedSupplementPlan.id,
+          startDate: selectedSupplementPlan.startDate,
+          endDate: selectedSupplementPlan.endDate,
+          description: selectedSupplementPlan.description,
+          supplements: selectedSupplementPlan.supplements,
+          budget_id: selectedSupplementPlan.budget_id,
+          created_at: selectedSupplementPlan.created_at,
+        } : null}
+        leadId={leadId}
+        customerId={customerId}
+      />
+
+      <DailyCheckInDetailModal
+        isOpen={!!selectedCheckIn}
+        onClose={() => setSelectedCheckIn(null)}
+        checkIn={selectedCheckIn}
+        customerId={customerId}
+      />
     </Card>
   );
 };

@@ -27,7 +27,14 @@ import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budget
 export interface BudgetColumnVisibility {
   name: boolean;
   description: boolean;
+  workout_template: boolean;
+  nutrition_template: boolean;
+  nutrition_targets: boolean;
+  supplements: boolean;
+  eating_order: boolean;
+  eating_rules: boolean;
   steps_goal: boolean;
+  steps_instructions: boolean;
   createdDate: boolean;
   actions: boolean;
 }
@@ -54,7 +61,14 @@ export const useBudgetManagement = () => {
   const [columnVisibility, setColumnVisibility] = useState<BudgetColumnVisibility>({
     name: true,
     description: true,
+    workout_template: true,
+    nutrition_template: true,
+    nutrition_targets: false,
+    supplements: false,
+    eating_order: false,
+    eating_rules: false,
     steps_goal: true,
+    steps_instructions: false,
     createdDate: true,
     actions: true,
   });

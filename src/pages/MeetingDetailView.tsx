@@ -1,7 +1,8 @@
 /**
  * MeetingDetailView Component - Redesigned
  * 
- * Modern, professional meeting details dashboard
+ * High-density, professional CRM-style dashboard matching Lead Management screen
+ * Grid-based layout with efficient use of space
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
@@ -11,7 +12,6 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useMeeting } from '@/hooks/useMeetings';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
@@ -25,35 +25,52 @@ import {
   Mail, 
   MapPin, 
   FileText,
-  ChevronDown,
-  ChevronUp,
   ExternalLink,
   Edit,
-  X,
   Video,
-  Plus
+  MessageCircle,
+  Link as LinkIcon,
+  Info,
+  Zap,
+  Send,
+  CalendarPlus,
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
+import { cn } from '@/lib/utils';
 
-// Meeting type configuration
+// Meeting type configuration with extended support
 const MEETING_TYPES = {
   'פגישת הכרות': {
     label: 'פגישת הכרות',
     english: 'Introductory Meeting',
     color: 'bg-blue-100 text-blue-800 border-blue-300',
     icon: '👋',
+    iconColor: 'bg-blue-100',
+    iconTextColor: 'text-blue-600',
   },
   'פגישת מעקב': {
     label: 'פגישת מעקב',
     english: 'Follow-up Meeting',
     color: 'bg-purple-100 text-purple-800 border-purple-300',
     icon: '📋',
+    iconColor: 'bg-purple-100',
+    iconTextColor: 'text-purple-600',
   },
   'פגישת ביקורת חודשית': {
     label: 'פגישת ביקורת חודשית',
     english: 'Monthly Review',
     color: 'bg-pink-100 text-pink-800 border-pink-300',
     icon: '📊',
+    iconColor: 'bg-pink-100',
+    iconTextColor: 'text-pink-600',
+  },
+  'פגישת תזונה': {
+    label: 'פגישת תזונה',
+    english: 'Nutrition Meeting',
+    color: 'bg-green-100 text-green-800 border-green-300',
+    icon: '🥗',
+    iconColor: 'bg-green-100',
+    iconTextColor: 'text-green-600',
   },
   // Add more meeting types here as needed
 } as const;
@@ -67,7 +84,6 @@ const MeetingDetailView = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const { data: meeting, isLoading } = useMeeting(id || null);
-  const [isTechnicalDetailsOpen, setIsTechnicalDetailsOpen] = useState(false);
 
   const handleBack = () => {
     navigate('/dashboard/meetings');
@@ -86,6 +102,24 @@ const MeetingDetailView = () => {
   const handleSaveViewClick = () => {};
   const handleEditViewClick = () => {};
 
+  const handleWhatsApp = () => {
+    const phone = meeting?.customer?.phone;
+    if (phone) {
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      window.open(`https://wa.me/${cleanPhone}`, '_blank');
+    }
+  };
+
+  const handleStartMeeting = () => {
+    // TODO: Implement meeting start logic
+    console.log('Starting meeting...');
+  };
+
+  const handleEditDetails = () => {
+    // TODO: Implement edit details logic
+    console.log('Editing meeting details...');
+  };
+
   if (isLoading) {
     return (
       <>
@@ -96,7 +130,7 @@ const MeetingDetailView = () => {
         />
         <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
           <main 
-            className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out" 
+            className="bg-gray-50 overflow-y-auto transition-all duration-300 ease-in-out" 
             style={{ 
               marginRight: `${sidebarWidth.width}px`,
               minHeight: 'calc(100vh - 88px)',
@@ -126,7 +160,7 @@ const MeetingDetailView = () => {
         />
         <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
           <main 
-            className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out" 
+            className="bg-gray-50 overflow-y-auto transition-all duration-300 ease-in-out" 
             style={{ 
               marginRight: `${sidebarWidth.width}px`,
               minHeight: 'calc(100vh - 88px)',
@@ -172,27 +206,23 @@ const MeetingDetailView = () => {
       }
     }
 
-    // Try nested structure (scheduling[0].value.*)
-    const schedulingKeys = Object.keys(meetingData).filter(key => key.startsWith('scheduling['));
-    if (schedulingKeys.length > 0) {
-      const scheduling0 = schedulingKeys.find(key => key.startsWith('scheduling[0]'));
-      if (scheduling0) {
-        const nameKey = `${scheduling0}.name`;
-        const valuePrefix = `${scheduling0}.value`;
-        
-        return {
-          name: meetingData[nameKey] || 'פגישת הכרות',
-          eventStartTime: meetingData[`${valuePrefix}.eventStartTime`],
-          eventEndTime: meetingData[`${valuePrefix}.eventEndTime`],
-          timezone: meetingData[`${valuePrefix}.timezone`],
-          scheduledUserName: meetingData[`${valuePrefix}.scheduledUserName`],
-          scheduledUserEmail: meetingData[`${valuePrefix}.scheduledUserEmail`],
-          email: meetingData[`${valuePrefix}.email`],
-          fullName: meetingData[`${valuePrefix}.fullName`],
-          calendarUrl: meetingData[`${valuePrefix}.calendarUrl`] || meetingData[`${valuePrefix}.googleCalendarUrl`],
-          rescheduleUrl: meetingData[`${valuePrefix}.rescheduleUrl`] || meetingData[`${valuePrefix}.cancelUrl`],
-        };
-      }
+    // Try direct string keys (Fillout stores as "scheduling[0].value.eventStartTime")
+    const eventStartTimeKey = 'scheduling[0].value.eventStartTime';
+    const eventEndTimeKey = 'scheduling[0].value.eventEndTime';
+    
+    if (meetingData[eventStartTimeKey] || meetingData[eventEndTimeKey]) {
+      return {
+        name: meetingData['scheduling[0].name'] || meetingData['scheduling[0].value.name'] || 'פגישת הכרות',
+        eventStartTime: meetingData[eventStartTimeKey],
+        eventEndTime: meetingData[eventEndTimeKey],
+        timezone: meetingData['scheduling[0].value.timezone'],
+        scheduledUserName: meetingData['scheduling[0].value.scheduledUserName'],
+        scheduledUserEmail: meetingData['scheduling[0].value.scheduledUserEmail'],
+        email: meetingData['scheduling[0].value.email'],
+        fullName: meetingData['scheduling[0].value.fullName'],
+        calendarUrl: meetingData['scheduling[0].value.calendarUrl'] || meetingData['scheduling[0].value.googleCalendarUrl'],
+        rescheduleUrl: meetingData['scheduling[0].value.rescheduleUrl'] || meetingData['scheduling[0].value.cancelUrl'],
+      };
     }
 
     return null;
@@ -232,23 +262,20 @@ const MeetingDetailView = () => {
     }
   }
 
-  // Fallback to old extraction logic if scheduling data not found
+  // Fallback to direct key access
   if (!meetingDate || !meetingStartTime) {
-    // Try Schedule field
-    if (meetingData.Schedule || meetingData.schedule || meetingData['Schedule'] || meetingData['פגישת הכרות']) {
-      const scheduleValue = meetingData.Schedule || meetingData.schedule || meetingData['Schedule'] || meetingData['פגישת הכרות'];
-      if (scheduleValue) {
-        try {
-          const scheduleDate = new Date(scheduleValue);
-          if (!isNaN(scheduleDate.getTime())) {
-            meetingDate = formatDate(scheduleDate.toISOString());
-            const hours = scheduleDate.getHours().toString().padStart(2, '0');
-            const minutes = scheduleDate.getMinutes().toString().padStart(2, '0');
-            meetingStartTime = `${hours}:${minutes}`;
-          }
-        } catch (e) {
-          // Ignore
+    const directStartTime = meetingData['scheduling[0].value.eventStartTime'];
+    if (directStartTime) {
+      try {
+        const startDate = new Date(directStartTime);
+        if (!isNaN(startDate.getTime())) {
+          meetingDate = formatDate(startDate.toISOString());
+          const hours = startDate.getHours().toString().padStart(2, '0');
+          const minutes = startDate.getMinutes().toString().padStart(2, '0');
+          meetingStartTime = `${hours}:${minutes}`;
         }
+      } catch (e) {
+        console.error('[MeetingDetailView] Error parsing direct start time:', e);
       }
     }
   }
@@ -260,6 +287,8 @@ const MeetingDetailView = () => {
     english: 'Meeting',
     color: 'bg-gray-100 text-gray-800 border-gray-300',
     icon: '📅',
+    iconColor: 'bg-gray-100',
+    iconTextColor: 'text-gray-600',
   };
 
   const status = meetingData.status || meetingData['סטטוס'] || 'פעיל';
@@ -276,9 +305,24 @@ const MeetingDetailView = () => {
 
   const formatTimeRange = () => {
     if (meetingStartTime && meetingEndTime) {
+      if (meetingStartTime > meetingEndTime) {
+        return `${meetingEndTime} - ${meetingStartTime}`;
+      }
       return `${meetingStartTime} - ${meetingEndTime}`;
     }
     return meetingStartTime || '-';
+  };
+
+  const handleAddToCalendar = () => {
+    if (schedulingData?.calendarUrl) {
+      window.open(schedulingData.calendarUrl, '_blank');
+    }
+  };
+
+  const handleViewClientProfile = () => {
+    if (customer?.id) {
+      navigate(`/leads/${meeting.lead?.id || customer.id}`);
+    }
   };
 
   return (
@@ -291,266 +335,379 @@ const MeetingDetailView = () => {
           
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
         <main 
-          className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out" 
+          className="bg-gray-50 overflow-y-auto transition-all duration-300 ease-in-out" 
           style={{ 
             marginRight: `${sidebarWidth.width}px`,
             minHeight: 'calc(100vh - 88px)',
           }}
         >
-          <div className="max-w-7xl mx-auto p-6">
-            {/* Header with Back Button */}
-            <div className="mb-6">
-              <Button
-                variant="ghost"
-                onClick={handleBack}
-                className="mb-4 text-gray-600 hover:text-gray-900"
-              >
-                <ArrowRight className="h-4 w-4 ml-2" />
-                חזור לרשימת פגישות
-              </Button>
-            </div>
-
-            {/* Main Header Section */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h1 className="text-3xl font-bold text-gray-900">
+          <div className="p-4 w-full min-w-0">
+            {/* Header Section - Similar to ClientHero */}
+            <div className="w-full bg-white border border-slate-200 rounded-xl shadow-sm mb-4" dir="rtl">
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  {/* Left Side: Back Button, Name, Badges */}
+                  <div className="flex items-center gap-4 flex-wrap min-w-0">
+                    <Button
+                      onClick={handleBack}
+                      variant="ghost"
+                      size="sm"
+                      className="text-gray-600 hover:text-gray-900 flex-shrink-0 h-7 px-2"
+                    >
+                      <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                      חזור
+                    </Button>
+                    
+                    <h1 className="text-base font-bold text-gray-900 flex-shrink-0">
                       {customer?.full_name || schedulingData?.fullName || 'לקוח ללא שם'}
                     </h1>
-                    <Badge variant="outline" className={getStatusColor(status)}>
+                    
+                    {customer?.phone && (
+                      <a
+                        href={`tel:${customer.phone}`}
+                        className="text-sm text-gray-600 hover:text-[#5B6FB9] flex items-center gap-1 flex-shrink-0"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        {customer.phone}
+                      </a>
+                    )}
+                    
+                    <Badge variant="outline" className={`${getStatusColor(status)} text-xs px-2 py-0.5 font-semibold flex-shrink-0`}>
                       {String(status)}
                     </Badge>
-                  </div>
-                  <div className="flex items-center gap-4">
+                    
                     <Badge 
                       variant="outline" 
-                      className={`${meetingType.color} border font-semibold text-sm px-3 py-1`}
+                      className={`${meetingType.color} border font-semibold text-xs px-2 py-0.5 flex-shrink-0`}
                     >
-                      <span className="ml-2">{meetingType.icon}</span>
+                      <span className="ml-1">{meetingType.icon}</span>
                       {meetingType.label}
                     </Badge>
-                    {meetingType.english && (
-                      <span className="text-sm text-gray-500">{meetingType.english}</span>
+                  </div>
+
+                  {/* Right Side: Action Buttons */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      size="default"
+                      className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-base font-semibold rounded-lg px-4 py-2"
+                      onClick={handleStartMeeting}
+                    >
+                      <Video className="h-5 w-5 ml-2" strokeWidth={2.5} />
+                      התחל פגישה
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="default"
+                      className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2"
+                      onClick={handleEditDetails}
+                    >
+                      <Edit className="h-5 w-5 ml-2" strokeWidth={2.5} />
+                      ערוך פרטים
+                    </Button>
+                    {customer?.phone && (
+                      <Button
+                        variant="outline"
+                        size="default"
+                        className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2"
+                        onClick={handleWhatsApp}
+                      >
+                        <MessageCircle className="h-5 w-5 ml-2" strokeWidth={2.5} />
+                        WhatsApp
+                      </Button>
+                    )}
+                    {schedulingData?.calendarUrl && (
+                      <Button
+                        variant="outline"
+                        size="default"
+                        className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2"
+                        onClick={handleAddToCalendar}
+                      >
+                        <LinkIcon className="h-5 w-5 ml-2" strokeWidth={2.5} />
+                        לוח שנה
+                        <ExternalLink className="h-3.5 w-3.5 mr-2" />
+                      </Button>
                     )}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Action Buttons Bar */}
-            <div className="flex flex-wrap gap-3 mb-6">
-              {schedulingData?.calendarUrl && (
-                <Button
-                  variant="outline"
-                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
-                  onClick={() => window.open(schedulingData.calendarUrl, '_blank')}
-                >
-                  <Calendar className="h-4 w-4 ml-2" />
-                  הוסף ללוח שנה
-                  <ExternalLink className="h-3 w-3 mr-2" />
-                </Button>
-              )}
-              {schedulingData?.rescheduleUrl && (
-                <Button
-                  variant="outline"
-                  className="border-orange-200 text-orange-700 hover:bg-orange-50"
-                  onClick={() => window.open(schedulingData.rescheduleUrl, '_blank')}
-                >
-                  <Edit className="h-4 w-4 ml-2" />
-                  שנה/בטל פגישה
-                  <ExternalLink className="h-3 w-3 mr-2" />
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                className="border-gray-200 text-gray-700 hover:bg-gray-50"
-              >
-                <Edit className="h-4 w-4 ml-2" />
-                ערוך פרטים
-              </Button>
-              <Button
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
-              >
-                <Video className="h-4 w-4 ml-2" />
-                התחל פגישה
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Main Content */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Schedule Section */}
-                <Card className="border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="pb-4 border-b border-gray-100">
-                    <CardTitle className="text-xl flex items-center gap-2 text-gray-900">
-                      <Calendar className="h-5 w-5 text-blue-600" />
-                      לוח זמנים
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-1">
-                        <label className="text-sm font-semibold text-gray-500 block">תאריך</label>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span className="text-lg font-semibold text-gray-900">
-                            {meetingDate || '-'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-sm font-semibold text-gray-500 block">שעה</label>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-gray-400" />
-                          <span className="text-lg font-semibold text-gray-900">
-                            {formatTimeRange()}
-                          </span>
-                        </div>
-                      </div>
-                      {schedulingData?.timezone && (
-                        <div className="space-y-1">
-                          <label className="text-sm font-semibold text-gray-500 block">אזור זמן</label>
-                          <span className="text-gray-700">{schedulingData.timezone}</span>
-                        </div>
-                      )}
-                      {location && (
-                        <div className="space-y-1">
-                          <label className="text-sm font-semibold text-gray-500 block">מיקום</label>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-gray-400" />
-                            <span className="text-gray-700">{String(location)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Client Profile Card */}
-                <Card className="border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="pb-4 border-b border-gray-100">
-                    <CardTitle className="text-xl flex items-center gap-2 text-gray-900">
-                      <User className="h-5 w-5 text-blue-600" />
-                      פרטי לקוח
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-1">
-                        <label className="text-sm font-semibold text-gray-500 block">שם מלא</label>
-                        <span className="text-lg font-semibold text-gray-900">
-                          {customer?.full_name || schedulingData?.fullName || '-'}
-                        </span>
-                      </div>
-                      {customer?.phone && (
-                        <div className="space-y-1">
-                          <label className="text-sm font-semibold text-gray-500 block">טלפון</label>
-                          <a 
-                            href={`tel:${customer.phone}`}
-                            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
-                          >
-                            <Phone className="h-4 w-4" />
-                            {customer.phone}
-                          </a>
-                        </div>
-                      )}
-                      {(customer?.email || schedulingData?.email) && (
-                        <div className="space-y-1">
-                          <label className="text-sm font-semibold text-gray-500 block">אימייל</label>
-                          <a 
-                            href={`mailto:${customer?.email || schedulingData?.email}`}
-                            className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
-                          >
-                            <Mail className="h-4 w-4" />
-                            {customer?.email || schedulingData?.email}
-                          </a>
-                        </div>
-                      )}
-                      {schedulingData?.scheduledUserName && (
-                        <div className="space-y-1">
-                          <label className="text-sm font-semibold text-gray-500 block">מתזמן הפגישה</label>
-                          <span className="text-gray-700">{schedulingData.scheduledUserName}</span>
-                          {schedulingData.scheduledUserEmail && (
-                            <a 
-                              href={`mailto:${schedulingData.scheduledUserEmail}`}
-                              className="text-sm text-blue-600 hover:text-blue-700 block mt-1"
-                            >
-                              {schedulingData.scheduledUserEmail}
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Notes Section */}
-                {notes && (
-                  <Card className="border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="pb-4 border-b border-gray-100">
-                      <CardTitle className="text-xl flex items-center gap-2 text-gray-900">
-                        <FileText className="h-5 w-5 text-blue-600" />
-                        הערות ותיאור
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{String(notes)}</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {/* Sidebar */}
-              <div className="space-y-6">
-                {/* Quick Info Card */}
-                <Card className="border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="pb-4 border-b border-gray-100">
-                    <CardTitle className="text-lg text-gray-900">מידע מהיר</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-4">
+            {/* Main Content - Grid Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Card 1: Meeting Identity & Type */}
+              <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
+                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", meetingType.iconColor)}>
+                    <span className="text-lg">{meetingType.icon}</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">סוג פגישה</h3>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">סוג</label>
+                    <Badge 
+                      variant="outline" 
+                      className={cn("w-full justify-center py-2 text-sm font-semibold", meetingType.color)}
+                    >
+                      <span className="ml-1">{meetingType.icon}</span>
+                      {meetingType.label}
+                    </Badge>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">סטטוס</label>
+                    <Badge 
+                      variant="outline" 
+                      className={cn("w-full justify-center py-2 text-sm font-semibold", getStatusColor(status))}
+                    >
+                      {String(status)}
+                    </Badge>
+                  </div>
+                  {meetingType.english && (
                     <div>
-                      <label className="text-sm font-semibold text-gray-500 mb-1 block">תאריך יצירה</label>
-                      <span className="text-gray-700">{formatDate(meeting.created_at)}</span>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">English</label>
+                      <p className="text-sm text-gray-700">{meetingType.english}</p>
                     </div>
-                    {meeting.fillout_submission_id && (
-                      <div>
-                        <label className="text-sm font-semibold text-gray-500 mb-1 block">ID הגשת Fillout</label>
-                        <span className="text-xs font-mono text-gray-600 break-all">{meeting.fillout_submission_id}</span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+                  )}
+                </div>
+              </Card>
 
-            {/* Technical Details (Collapsible) */}
-            <div className="mt-6">
-              <Collapsible open={isTechnicalDetailsOpen} onOpenChange={setIsTechnicalDetailsOpen}>
-                <Card className="border border-gray-200 rounded-xl shadow-sm">
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg text-gray-900">פרטים טכניים</CardTitle>
-                        {isTechnicalDetailsOpen ? (
-                          <ChevronUp className="h-5 w-5 text-gray-400" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5 text-gray-400" />
-                        )}
+              {/* Card 2: Client Profile */}
+              <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <User className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">פרטי לקוח</h3>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">שם מלא</label>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {customer?.full_name || schedulingData?.fullName || '-'}
+                      </p>
+                      {customer?.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs text-[#5B6FB9] hover:text-[#5B6FB9]/80"
+                          onClick={handleViewClientProfile}
+                        >
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                          צפה בפרופיל
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {customer?.phone && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">טלפון</label>
+                      <a 
+                        href={`tel:${customer.phone}`}
+                        className="flex items-center gap-2 text-sm text-[#5B6FB9] hover:text-[#5B6FB9]/80 font-medium"
+                      >
+                        <Phone className="h-4 w-4" />
+                        {customer.phone}
+                      </a>
+                    </div>
+                  )}
+                  {(customer?.email || schedulingData?.email) && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">אימייל</label>
+                      <a 
+                        href={`mailto:${customer?.email || schedulingData?.email}`}
+                        className="flex items-center gap-2 text-sm text-[#5B6FB9] hover:text-[#5B6FB9]/80 break-all"
+                      >
+                        <Mail className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{customer?.email || schedulingData?.email}</span>
+                      </a>
+                    </div>
+                  )}
+                  {schedulingData?.scheduledUserName && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">מתזמן הפגישה</label>
+                      <p className="text-sm text-gray-700">{schedulingData.scheduledUserName}</p>
+                      {schedulingData.scheduledUserEmail && (
+                        <a 
+                          href={`mailto:${schedulingData.scheduledUserEmail}`}
+                          className="text-xs text-[#5B6FB9] hover:text-[#5B6FB9]/80 block mt-1"
+                        >
+                          {schedulingData.scheduledUserEmail}
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Card 3: Scheduling Details */}
+              <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">לוח זמנים</h3>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך</label>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <p className="text-sm font-semibold text-gray-900">
+                        {meetingDate || <span className="text-gray-400">לא צוין</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">שעה</label>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-gray-400" />
+                      <p className="text-sm font-semibold text-gray-900">
+                        {formatTimeRange() || <span className="text-gray-400">לא צוין</span>}
+                      </p>
+                    </div>
+                  </div>
+                  {schedulingData?.timezone && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">אזור זמן</label>
+                      <p className="text-sm text-gray-700">{schedulingData.timezone}</p>
+                    </div>
+                  )}
+                  {location && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">מיקום</label>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-gray-400" />
+                        <p className="text-sm text-gray-700">{String(location)}</p>
                       </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <CardContent>
-                      <div className="bg-gray-50 rounded-lg p-4 overflow-x-auto">
-                        <pre className="text-xs text-gray-700 font-mono">
-                          {JSON.stringify(meetingData, null, 2)}
-                        </pre>
+                    </div>
+                  )}
+                  {schedulingData?.calendarUrl && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2 text-xs"
+                      onClick={handleAddToCalendar}
+                    >
+                      <CalendarPlus className="h-3.5 w-3.5 ml-1.5" />
+                      הוסף ללוח שנה
+                    </Button>
+                  )}
+                </div>
+              </Card>
+
+              {/* Card 4: Technical & Meta-Data (Low Profile) */}
+              <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+                    <Info className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">מידע טכני</h3>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">מקור</label>
+                    <p className="text-xs text-gray-600">Fillout</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך יצירה</label>
+                    <p className="text-xs text-gray-600">
+                      {meeting.created_at ? formatDate(meeting.created_at) : '-'}
+                    </p>
+                  </div>
+                  {meeting.fillout_submission_id && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">מזהה הגשה</label>
+                      <p className="text-xs text-gray-600 font-mono truncate">{meeting.fillout_submission_id}</p>
+                    </div>
+                  )}
+                  {meeting.id && (
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">מזהה פגישה</label>
+                      <p className="text-xs text-gray-600 font-mono truncate">{meeting.id}</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Card 5: Quick Actions/Automation */}
+              <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col md:col-span-2">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                    <Zap className="h-4 w-4 text-green-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">פעולות מהירות</h3>
+                </div>
+                <div className="flex-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {customer?.phone && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start h-auto py-3 px-4 border border-slate-200 hover:bg-green-50 hover:border-green-200"
+                        onClick={handleWhatsApp}
+                      >
+                        <MessageCircle className="h-4 w-4 ml-2 text-green-600" />
+                        <div className="text-right flex-1">
+                          <div className="text-sm font-semibold text-gray-900">שלח הודעת WhatsApp</div>
+                          <div className="text-xs text-gray-500">שלח הודעה מהירה ללקוח</div>
+                        </div>
+                      </Button>
+                    )}
+                    {schedulingData?.rescheduleUrl && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start h-auto py-3 px-4 border border-slate-200 hover:bg-blue-50 hover:border-blue-200"
+                        onClick={() => window.open(schedulingData.rescheduleUrl, '_blank')}
+                      >
+                        <Edit className="h-4 w-4 ml-2 text-blue-600" />
+                        <div className="text-right flex-1">
+                          <div className="text-sm font-semibold text-gray-900">שנה/בטל פגישה</div>
+                          <div className="text-xs text-gray-500">ערוך או בטל את הפגישה</div>
+                        </div>
+                      </Button>
+                    )}
+                    {customer?.id && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start h-auto py-3 px-4 border border-slate-200 hover:bg-purple-50 hover:border-purple-200"
+                        onClick={handleViewClientProfile}
+                      >
+                        <User className="h-4 w-4 ml-2 text-purple-600" />
+                        <div className="text-right flex-1">
+                          <div className="text-sm font-semibold text-gray-900">צפה בפרופיל לקוח</div>
+                          <div className="text-xs text-gray-500">עבור לדף הלקוח המלא</div>
+                        </div>
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start h-auto py-3 px-4 border border-slate-200 hover:bg-pink-50 hover:border-pink-200"
+                      onClick={handleEditDetails}
+                    >
+                      <FileText className="h-4 w-4 ml-2 text-pink-600" />
+                      <div className="text-right flex-1">
+                        <div className="text-sm font-semibold text-gray-900">ערוך פרטי פגישה</div>
+                        <div className="text-xs text-gray-500">עדכן מידע על הפגישה</div>
                       </div>
-                    </CardContent>
-                  </CollapsibleContent>
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Notes Card (if exists) */}
+              {notes && (
+                <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col md:col-span-3">
+                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                      <FileText className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900">הערות ותיאור</h3>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{String(notes)}</p>
+                  </div>
                 </Card>
-              </Collapsible>
+              )}
             </div>
           </div>
         </main>

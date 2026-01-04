@@ -298,9 +298,9 @@ export const NutritionTemplateForm = ({
   return (
     <TooltipProvider>
       <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0" dir="rtl">
-        <div className="flex-1 overflow-hidden p-4 bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 bg-slate-50/50 min-h-0">
           {/* Top Row: Name and Description */}
-          <div className="grid grid-cols-3 gap-3 mb-3">
+          <div className="grid grid-cols-3 gap-3 mb-3 flex-shrink-0">
             <div>
               <Label htmlFor="name" className="text-sm font-semibold mb-1 block text-right">
                 {mode === 'template' ? 'שם התבנית' : 'שם התוכנית'}
@@ -331,9 +331,9 @@ export const NutritionTemplateForm = ({
           </div>
 
           {/* Main 3-Column Bento Grid - Fine Grid Layout */}
-          <div className="grid grid-cols-3 gap-3 h-[calc(100vh-200px)] auto-rows-fr">
+          <div className="grid grid-cols-3 gap-3 min-h-[600px] auto-rows-fr">
             {/* Right Column: Biometrics + Chart */}
-            <div className="flex flex-col gap-3 h-full overflow-hidden">
+            <div className="flex flex-col gap-3 min-h-0">
               {/* Biometric Data Card */}
               <Card className="rounded-3xl border border-slate-200 shadow-sm flex-shrink-0">
                 <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
@@ -497,7 +497,7 @@ export const NutritionTemplateForm = ({
             </div>
 
             {/* Middle Column: Activity Level + METS Table */}
-            <div className="flex flex-col gap-3 h-full overflow-hidden">
+            <div className="flex flex-col gap-3 min-h-0">
               {/* Activity Level & Goals Card - Moved here, same level as METS */}
               <Card className="rounded-3xl border border-slate-200 shadow-sm flex-shrink-0">
                 <CardHeader className="pb-2 pt-3 px-3">
@@ -569,7 +569,7 @@ export const NutritionTemplateForm = ({
               </Card>
 
               {/* Physical Activity (METS) Table */}
-              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+              <Card className="rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0">
                 <CardHeader className="pb-2 pt-3 px-3 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-semibold flex items-center gap-1.5 text-right">
@@ -588,8 +588,8 @@ export const NutritionTemplateForm = ({
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="px-3 pb-3 flex-1 flex flex-col min-h-0">
-                  <div className="flex-1 min-h-0 -mx-1 px-1">
+                <CardContent className="px-3 pb-3 flex-1 flex flex-col min-h-0 overflow-hidden">
+                  <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
                     <Table>
                       <TableHeader className="sticky top-0 bg-white z-10">
                         <TableRow>
@@ -663,7 +663,7 @@ export const NutritionTemplateForm = ({
             </div>
 
             {/* Left Column: Output & Results (Macro Targets + Calculated Metrics) */}
-            <div className="flex flex-col gap-3 h-full overflow-hidden">
+            <div className="flex flex-col gap-3 min-h-0">
               {/* Macro Targets Card */}
               <Card className="rounded-3xl border border-slate-200 shadow-sm flex-shrink-0">
                 <CardHeader className="pb-2 pt-3 px-4 flex-shrink-0">
