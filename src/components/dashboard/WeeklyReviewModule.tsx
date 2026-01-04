@@ -476,6 +476,13 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   // Send WhatsApp mutation
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
+  // Helper function to parse number from string
+  const parseNumber = useCallback((value: string | null | undefined): number | null => {
+    if (!value || value.trim() === '') return null;
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? null : parsed;
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (!leadId && !customerId) return;
     
@@ -483,13 +490,6 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     if (saveReviewMutation.isPending) {
       return;
     }
-
-    // Helper function to parse number from string
-    const parseNumber = (value: string | null | undefined): number | null => {
-      if (!value || value.trim() === '') return null;
-      const parsed = parseFloat(value);
-      return isNaN(parsed) ? null : parsed;
-    };
 
     const reviewData: WeeklyReviewData = {
       week_start_date: weekStartStr,
@@ -527,13 +527,25 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     customerId,
     weekStartStr,
     weekEndStr,
-    targets,
-    calculatedAverages,
+    targetCalories,
+    targetProtein,
+    targetCarbs,
+    targetFat,
+    targetFiber,
+    targetSteps,
+    actualCalories,
+    actualProtein,
+    actualCarbs,
+    actualFat,
+    actualFiber,
+    actualWeight,
+    actualWaist,
     trainerSummary,
     actionPlan,
     updatedStepsGoal,
     updatedCaloriesTarget,
     saveReviewMutation,
+    parseNumber,
   ]);
 
   // Expose save handler to parent
@@ -569,19 +581,19 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     try {
       const weekLabel = `שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}`;
       
-      // Build message
+      // Build message using editable values
       let message = `📊 *סיכום שבועי - ${weekLabel}*\n\n`;
       message += `🎯 *יעדים:*\n`;
-      if (targets.calories) message += `קלוריות: ${targets.calories} קק"ל\n`;
-      if (targets.protein) message += `חלבון: ${targets.protein} גרם\n`;
-      if (targets.fiber) message += `סיבים: ${targets.fiber} גרם\n`;
-      if (targets.steps) message += `צעדים: ${targets.steps}\n`;
+      if (targetCalories) message += `קלוריות: ${Math.round(parseFloat(targetCalories))} קק"ל\n`;
+      if (targetProtein) message += `חלבון: ${Math.round(parseFloat(targetProtein))} גרם\n`;
+      if (targetFiber) message += `סיבים: ${Math.round(parseFloat(targetFiber))} גרם\n`;
+      if (targetSteps) message += `צעדים: ${Math.round(parseFloat(targetSteps))}\n`;
       
       message += `\n📈 *בפועל (ממוצע):*\n`;
-      if (calculatedAverages.calories) message += `קלוריות: ${Math.round(calculatedAverages.calories)} קק"ל\n`;
-      if (calculatedAverages.protein) message += `חלבון: ${Math.round(calculatedAverages.protein)} גרם\n`;
-      if (calculatedAverages.fiber) message += `סיבים: ${Math.round(calculatedAverages.fiber)} גרם\n`;
-      if (calculatedAverages.weight) message += `משקל ממוצע: ${calculatedAverages.weight.toFixed(1)} ק"ג\n`;
+      if (actualCalories) message += `קלוריות: ${Math.round(parseFloat(actualCalories))} קק"ל\n`;
+      if (actualProtein) message += `חלבון: ${Math.round(parseFloat(actualProtein))} גרם\n`;
+      if (actualFiber) message += `סיבים: ${Math.round(parseFloat(actualFiber))} גרם\n`;
+      if (actualWeight) message += `משקל ממוצע: ${parseFloat(actualWeight).toFixed(1)} ק"ג\n`;
       
       if (trainerSummary) {
         message += `\n💬 *סיכום ומסקנות:*\n${trainerSummary}\n`;
@@ -687,7 +699,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Comparison Table */}
+        {/* Comparison Table - All fields editable */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm" dir="rtl">
             <thead>
@@ -701,62 +713,149 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
             <tbody>
               <tr className="border-b">
                 <td className="p-2 text-gray-900">קלוריות</td>
-                <td className="p-2 text-gray-700">{targets.calories || '-'} קק"ל</td>
-                <td className="p-2 text-gray-700">
-                  {calculatedAverages.calories ? `${Math.round(calculatedAverages.calories)} קק"ל` : '-'}
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={targetCalories}
+                      onChange={(e) => setTargetCalories(e.target.value)}
+                      className="h-8 w-20 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">קק"ל</span>
+                  </div>
+                </td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={actualCalories}
+                      onChange={(e) => setActualCalories(e.target.value)}
+                      className="h-8 w-20 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">קק"ל</span>
+                  </div>
                 </td>
                 <td className={cn(
                   "p-2 font-medium",
-                  targets.calories && calculatedAverages.calories
-                    ? (calculatedAverages.calories >= targets.calories ? "text-emerald-600" : "text-amber-600")
+                  targetCalories && actualCalories
+                    ? (parseFloat(actualCalories) >= parseFloat(targetCalories) ? "text-emerald-600" : "text-amber-600")
                     : "text-gray-500"
                 )}>
-                  {calculateDelta(targets.calories, calculatedAverages.calories)}
+                  {calculateDelta(parseNumber(targetCalories), parseNumber(actualCalories))}
                 </td>
               </tr>
               <tr className="border-b">
                 <td className="p-2 text-gray-900">חלבון</td>
-                <td className="p-2 text-gray-700">{targets.protein || '-'} גרם</td>
-                <td className="p-2 text-gray-700">
-                  {calculatedAverages.protein ? `${Math.round(calculatedAverages.protein)} גרם` : '-'}
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={targetProtein}
+                      onChange={(e) => setTargetProtein(e.target.value)}
+                      className="h-8 w-20 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">גרם</span>
+                  </div>
+                </td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={actualProtein}
+                      onChange={(e) => setActualProtein(e.target.value)}
+                      className="h-8 w-20 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">גרם</span>
+                  </div>
                 </td>
                 <td className={cn(
                   "p-2 font-medium",
-                  targets.protein && calculatedAverages.protein
-                    ? (calculatedAverages.protein >= targets.protein ? "text-emerald-600" : "text-amber-600")
+                  targetProtein && actualProtein
+                    ? (parseFloat(actualProtein) >= parseFloat(targetProtein) ? "text-emerald-600" : "text-amber-600")
                     : "text-gray-500"
                 )}>
-                  {calculateDelta(targets.protein, calculatedAverages.protein)}
+                  {calculateDelta(parseNumber(targetProtein), parseNumber(actualProtein))}
                 </td>
               </tr>
               <tr className="border-b">
                 <td className="p-2 text-gray-900">סיבים</td>
-                <td className="p-2 text-gray-700">{targets.fiber || '-'} גרם</td>
-                <td className="p-2 text-gray-700">
-                  {calculatedAverages.fiber ? `${Math.round(calculatedAverages.fiber)} גרם` : '-'}
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={targetFiber}
+                      onChange={(e) => setTargetFiber(e.target.value)}
+                      className="h-8 w-20 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">גרם</span>
+                  </div>
+                </td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={actualFiber}
+                      onChange={(e) => setActualFiber(e.target.value)}
+                      className="h-8 w-20 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">גרם</span>
+                  </div>
                 </td>
                 <td className={cn(
                   "p-2 font-medium",
-                  targets.fiber && calculatedAverages.fiber
-                    ? (calculatedAverages.fiber >= targets.fiber ? "text-emerald-600" : "text-amber-600")
+                  targetFiber && actualFiber
+                    ? (parseFloat(actualFiber) >= parseFloat(targetFiber) ? "text-emerald-600" : "text-amber-600")
                     : "text-gray-500"
                 )}>
-                  {calculateDelta(targets.fiber, calculatedAverages.fiber)}
+                  {calculateDelta(parseNumber(targetFiber), parseNumber(actualFiber))}
                 </td>
               </tr>
               <tr className="border-b">
                 <td className="p-2 text-gray-900">משקל ממוצע</td>
-                <td className="p-2 text-gray-700">-</td>
-                <td className="p-2 text-gray-700">
-                  {calculatedAverages.weight ? `${calculatedAverages.weight.toFixed(1)} ק"ג` : '-'}
+                <td className="p-2 text-gray-500">-</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={actualWeight}
+                      onChange={(e) => setActualWeight(e.target.value)}
+                      className="h-8 w-20 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">ק"ג</span>
+                  </div>
                 </td>
                 <td className="p-2 text-gray-500">-</td>
               </tr>
               <tr>
                 <td className="p-2 text-gray-900">היקף מותן</td>
-                <td className="p-2 text-gray-700">-</td>
-                <td className="p-2 text-gray-700">
-                  {calculatedAverages.waist ? `${calculatedAverages.waist} ס"מ` : '-'}
+                <td className="p-2 text-gray-500">-</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={actualWaist}
+                      onChange={(e) => setActualWaist(e.target.value)}
+                      className="h-8 w-20 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">ס"מ</span>
+                  </div>
                 </td>
                 <td className="p-2 text-gray-500">-</td>
               </tr>
