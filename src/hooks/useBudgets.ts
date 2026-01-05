@@ -377,12 +377,35 @@ export const useAssignBudgetToLead = () => {
 
       return data as BudgetAssignment & { budget: Budget };
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', variables.leadId] });
-      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+    onSuccess: async (_, variables) => {
+      // Get customerId from lead for query invalidation
+      const { data: leadData } = await supabase
+        .from('leads')
+        .select('customer_id')
+        .eq('id', variables.leadId)
+        .single();
+      
+      const customerId = leadData?.customer_id || null;
+      
+      // Invalidate all relevant queries to refresh the UI
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', variables.leadId] }),
+        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
+        queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history'] }), // This invalidates all plans-history queries
+        queryClient.invalidateQueries({ queryKey: ['plans-history', customerId, variables.leadId] }),
+        queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
+      ]);
+      
+      // Force refetch to ensure UI updates immediately
+      if (customerId || variables.leadId) {
+        await queryClient.refetchQueries({ queryKey: ['plans-history', customerId, variables.leadId] });
+      }
     },
   });
 };
@@ -474,12 +497,146 @@ export const useAssignBudgetToCustomer = () => {
 
       return data as BudgetAssignment & { budget: Budget };
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', variables.customerId] });
-      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+    onSuccess: async (_, variables) => {
+      // Invalidate all relevant queries to refresh the UI
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', variables.customerId] }),
+        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
+        queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history'] }), // This invalidates all plans-history queries
+        queryClient.invalidateQueries({ queryKey: ['plans-history', variables.customerId, undefined] }),
+        queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
+      ]);
+      
+      // Force refetch to ensure UI updates immediately
+      await queryClient.refetchQueries({ queryKey: ['plans-history', variables.customerId, undefined] });
+    },
+  });
+};
+
+// Delete a budget assignment and all associated plans
+export const useDeleteBudgetAssignment = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useMutation({
+    mutationFn: async (assignmentId: string) => {
+      if (!user?.id) throw new Error('User not authenticated');
+
+      // First, get the assignment to find the budget_id
+      const { data: assignment, error: assignmentError } = await supabase
+        .from('budget_assignments')
+        .select('budget_id, lead_id, customer_id')
+        .eq('id', assignmentId)
+        .single();
+
+      if (assignmentError) throw assignmentError;
+      if (!assignment) throw new Error('Budget assignment not found');
+
+      const budgetId = assignment.budget_id;
+      const leadId = assignment.lead_id;
+      const customerId = assignment.customer_id;
+
+      // Delete all plans associated with this budget assignment
+      // Delete workout plans
+      if (leadId) {
+        await supabase
+          .from('workout_plans')
+          .delete()
+          .eq('budget_id', budgetId)
+          .eq('lead_id', leadId);
+      } else if (customerId) {
+        await supabase
+          .from('workout_plans')
+          .delete()
+          .eq('budget_id', budgetId)
+          .eq('customer_id', customerId);
+      }
+
+      // Delete nutrition plans
+      if (leadId) {
+        await supabase
+          .from('nutrition_plans')
+          .delete()
+          .eq('budget_id', budgetId)
+          .eq('lead_id', leadId);
+      } else if (customerId) {
+        await supabase
+          .from('nutrition_plans')
+          .delete()
+          .eq('budget_id', budgetId)
+          .eq('customer_id', customerId);
+      }
+
+      // Delete supplement plans
+      if (leadId) {
+        await supabase
+          .from('supplement_plans')
+          .delete()
+          .eq('budget_id', budgetId)
+          .eq('lead_id', leadId);
+      } else if (customerId) {
+        await supabase
+          .from('supplement_plans')
+          .delete()
+          .eq('budget_id', budgetId)
+          .eq('customer_id', customerId);
+      }
+
+      // Delete steps plans
+      if (leadId) {
+        await supabase
+          .from('steps_plans')
+          .delete()
+          .eq('budget_id', budgetId)
+          .eq('lead_id', leadId);
+      } else if (customerId) {
+        await supabase
+          .from('steps_plans')
+          .delete()
+          .eq('budget_id', budgetId)
+          .eq('customer_id', customerId);
+      }
+
+      // Finally, delete the budget assignment itself
+      const { error } = await supabase
+        .from('budget_assignments')
+        .delete()
+        .eq('id', assignmentId);
+
+      if (error) throw error;
+
+      return { assignmentId, budgetId, leadId, customerId };
+    },
+    onSuccess: async (data) => {
+      // Invalidate all relevant queries to refresh the UI
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
+        queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
+        queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+        queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
+      ]);
+
+      // Invalidate specific queries based on lead/customer
+      if (data.leadId) {
+        await queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', data.leadId] });
+        await queryClient.invalidateQueries({ queryKey: ['plans-history', undefined, data.leadId] });
+      }
+      if (data.customerId) {
+        await queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', data.customerId] });
+        await queryClient.invalidateQueries({ queryKey: ['plans-history', data.customerId, undefined] });
+      }
     },
   });
 };

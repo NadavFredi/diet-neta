@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Activity, CalendarDays } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Activity, CalendarDays, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DailyActivityLog } from './DailyActivityLog';
 import { WeeklyReviewModule } from './WeeklyReviewModule';
@@ -22,6 +22,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
@@ -32,6 +42,7 @@ import { StepsPlanDialog } from './dialogs/StepsPlanDialog';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDeleteBudgetAssignment } from '@/hooks/useBudgets';
 
 interface WorkoutHistoryItem {
   id?: string;
@@ -686,6 +697,7 @@ export const LeadHistoryTabs = ({
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך הקצאה</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">סטטוס</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">הערות</TableHead>
+                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3 w-20">פעולות</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -717,6 +729,20 @@ export const LeadHistoryTabs = ({
                       <TableCell className="text-xs max-w-xs truncate font-semibold text-gray-900 py-3">
                         {assignment.notes || '-'}
                       </TableCell>
+                      <TableCell className="py-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(assignment);
+                          }}
+                          disabled={deleteBudgetAssignment.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -725,6 +751,38 @@ export const LeadHistoryTabs = ({
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Delete Budget Assignment Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת הקצאת תקציב</AlertDialogTitle>
+            <AlertDialogDescription>
+              האם אתה בטוח שברצונך למחוק את הקצאת התקציב "{assignmentToDelete?.budget_name || assignmentToDelete?.budget_id}"?
+              <br /><br />
+              <strong>פעולה זו תמחק גם את כל התכניות המקושרות:</strong>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                <li>תכניות אימונים</li>
+                <li>תכניות תזונה</li>
+                <li>תכניות תוספים</li>
+                <li>תכניות צעדים</li>
+              </ul>
+              <br />
+              פעולה זו אינה ניתנת לביטול.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ביטול</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteBudgetAssignment.isPending}
+            >
+              {deleteBudgetAssignment.isPending ? 'מוחק...' : 'מחק'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modals */}
       <PlanDetailModal

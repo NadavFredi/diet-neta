@@ -1,44 +1,24 @@
 /**
- * MeetingDetailView Component - Redesigned
+ * MeetingDetailView Component
  * 
- * High-density, professional CRM-style dashboard matching Lead Management screen
- * Grid-based layout with efficient use of space
+ * Matches the design of UnifiedProfileView (customer/lead detail page)
+ * Uses the same PageLayout structure with header and sidebar
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { Button } from '@/components/ui/button';
+import { useMeeting } from '@/hooks/useMeetings';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useMeeting } from '@/hooks/useMeetings';
+import { ClientHero } from '@/components/dashboard/ClientHero';
+import { MeetingActionDashboard } from '@/components/dashboard/MeetingActionDashboard';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
-import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
-import { 
-  ArrowRight, 
-  Calendar, 
-  Clock, 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  FileText,
-  ExternalLink,
-  Edit,
-  Video,
-  MessageCircle,
-  Link as LinkIcon,
-  Info,
-  Zap,
-  Send,
-  CalendarPlus,
-} from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { cn } from '@/lib/utils';
 
-// Meeting type configuration with extended support
+// Meeting type configuration
 const MEETING_TYPES = {
   'פגישת הכרות': {
     label: 'פגישת הכרות',
@@ -72,7 +52,6 @@ const MEETING_TYPES = {
     iconColor: 'bg-green-100',
     iconTextColor: 'text-green-600',
   },
-  // Add more meeting types here as needed
 } as const;
 
 type MeetingTypeKey = keyof typeof MEETING_TYPES;
@@ -99,9 +78,6 @@ const MeetingDetailView = () => {
     }
   };
 
-  const handleSaveViewClick = () => {};
-  const handleEditViewClick = () => {};
-
   const handleWhatsApp = () => {
     const phone = meeting?.customer?.phone;
     if (phone) {
@@ -110,75 +86,41 @@ const MeetingDetailView = () => {
     }
   };
 
-  const handleStartMeeting = () => {
-    // TODO: Implement meeting start logic
-    console.log('Starting meeting...');
-  };
-
   const handleEditDetails = () => {
     // TODO: Implement edit details logic
     console.log('Editing meeting details...');
   };
 
+  const handleViewClientProfile = () => {
+    if (meeting?.customer?.id) {
+      navigate(`/leads/${meeting.lead?.id || meeting.customer.id}`);
+    }
+  };
+
+  const handleSaveViewClick = () => {};
+  const handleEditViewClick = () => {};
+
   if (isLoading) {
     return (
-      <>
-        <DashboardHeader 
-          userEmail={user?.email} 
-          onLogout={handleLogout}
-          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-        />
-        <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
-          <main 
-            className="bg-gray-50 overflow-y-auto transition-all duration-300 ease-in-out" 
-            style={{ 
-              marginRight: `${sidebarWidth.width}px`,
-              minHeight: 'calc(100vh - 88px)',
-            }}
-          >
-            <div className="p-6">
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-12">
-                <div className="text-center">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                  <p className="text-gray-600">טוען פרטי פגישה...</p>
-                </div>
-              </div>
-            </div>
-          </main>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">טוען פרטי פגישה...</p>
         </div>
-      </>
+      </div>
     );
   }
 
   if (!meeting) {
     return (
-      <>
-        <DashboardHeader 
-          userEmail={user?.email} 
-          onLogout={handleLogout}
-          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-        />
-        <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
-          <main 
-            className="bg-gray-50 overflow-y-auto transition-all duration-300 ease-in-out" 
-            style={{ 
-              marginRight: `${sidebarWidth.width}px`,
-              minHeight: 'calc(100vh - 88px)',
-            }}
-          >
-            <div className="p-6">
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-12">
-                <div className="text-center text-gray-500">
-                  <p className="text-lg font-medium mb-2">פגישה לא נמצאה</p>
-                  <Button onClick={handleBack} variant="outline" className="mt-4">
-                    חזור לרשימת פגישות
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </main>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">פגישה לא נמצאה</h2>
+          <Button onClick={handleBack} variant="outline">
+            חזור לרשימת פגישות
+          </Button>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -187,7 +129,6 @@ const MeetingDetailView = () => {
 
   // Extract scheduling data from Fillout structure
   const extractSchedulingData = () => {
-    // Try direct scheduling array
     if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
       const scheduling = meetingData.scheduling[0];
       if (scheduling.value) {
@@ -206,7 +147,6 @@ const MeetingDetailView = () => {
       }
     }
 
-    // Try direct string keys (Fillout stores as "scheduling[0].value.eventStartTime")
     const eventStartTimeKey = 'scheduling[0].value.eventStartTime';
     const eventEndTimeKey = 'scheduling[0].value.eventEndTime';
     
@@ -262,7 +202,6 @@ const MeetingDetailView = () => {
     }
   }
 
-  // Fallback to direct key access
   if (!meetingDate || !meetingStartTime) {
     const directStartTime = meetingData['scheduling[0].value.eventStartTime'];
     if (directStartTime) {
@@ -319,400 +258,112 @@ const MeetingDetailView = () => {
     }
   };
 
-  const handleViewClientProfile = () => {
-    if (customer?.id) {
-      navigate(`/leads/${meeting.lead?.id || customer.id}`);
-    }
+  // Create customer object for ClientHero
+  const customerForHero = customer ? {
+    id: customer.id,
+    full_name: customer.full_name || schedulingData?.fullName || 'לקוח ללא שם',
+    phone: customer.phone || '',
+    email: customer.email || schedulingData?.email || '',
+    created_at: (customer as any).created_at || meeting.created_at,
+    updated_at: (customer as any).updated_at || meeting.updated_at,
+  } : null;
+
+  // Create lead object for ClientHero (minimal)
+  const leadForHero = {
+    id: meeting.lead?.id || meeting.id,
+    created_at: meeting.created_at,
+    status_main: status,
+    status_sub: null,
+    customer_id: customer?.id || null,
+    birth_date: null,
+    height: null,
+    weight: null,
+    city: null,
+    gender: null,
   };
 
+  const handleUpdateLead = async () => {};
+  const handleUpdateCustomer = async () => {};
+
+  const HEADER_HEIGHT = 88;
+
   return (
-    <>
-      <DashboardHeader 
-        userEmail={user?.email} 
-        onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-      />
-          
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
+    <div 
+      className="flex flex-col overflow-hidden bg-gray-50/50" 
+      style={{ 
+        height: '100vh',
+        overflow: 'hidden'
+      }}
+      dir="rtl"
+    >
+      {/* Top Navigation Header - Fixed */}
+      <div 
+        className="fixed top-0 left-0 right-0 z-40 flex-shrink-0"
+        style={{ height: `${HEADER_HEIGHT}px` }}
+      >
+        <DashboardHeader
+          userEmail={user?.email}
+          onLogout={handleLogout}
+          sidebarContent={
+            <DashboardSidebar 
+              onSaveViewClick={handleSaveViewClick} 
+              onEditViewClick={handleEditViewClick}
+            />
+          }
+        />
+      </div>
+
+      {/* Main Content Area */}
+      <div 
+        className="flex flex-col flex-1 overflow-hidden"
+        style={{ 
+          marginTop: `${HEADER_HEIGHT}px`,
+          marginRight: `${sidebarWidth.width}px`,
+          height: `calc(100vh - ${HEADER_HEIGHT}px)`
+        }}
+      >
+        {/* Page Header (ClientHero) */}
+        {customerForHero && (
+          <div className="flex-shrink-0 w-full bg-white border-b border-gray-200">
+            <ClientHero
+              customer={customerForHero}
+              mostRecentLead={leadForHero}
+              status={status}
+              onBack={handleBack}
+              onWhatsApp={handleWhatsApp}
+              onUpdateLead={handleUpdateLead}
+              onUpdateCustomer={handleUpdateCustomer}
+              getStatusColor={getStatusColor}
+            />
+          </div>
+        )}
+
+        {/* Main Content Wrapper */}
         <main 
-          className="bg-gray-50 overflow-y-auto transition-all duration-300 ease-in-out" 
+          className="flex-1 flex flex-col bg-gray-50 overflow-y-auto overflow-x-hidden scroll-smooth"
           style={{ 
-            marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 88px)',
+            padding: '20px'
           }}
         >
-          <div className="p-4 w-full min-w-0">
-            {/* Header Section - Similar to ClientHero */}
-            <div className="w-full bg-white border border-slate-200 rounded-xl shadow-sm mb-4" dir="rtl">
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  {/* Left Side: Back Button, Name, Badges */}
-                  <div className="flex items-center gap-4 flex-wrap min-w-0">
-                    <Button
-                      onClick={handleBack}
-                      variant="ghost"
-                      size="sm"
-                      className="text-gray-600 hover:text-gray-900 flex-shrink-0 h-7 px-2"
-                    >
-                      <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                      חזור
-                    </Button>
-                    
-                    <h1 className="text-base font-bold text-gray-900 flex-shrink-0">
-                      {customer?.full_name || schedulingData?.fullName || 'לקוח ללא שם'}
-                    </h1>
-                    
-                    {customer?.phone && (
-                      <a
-                        href={`tel:${customer.phone}`}
-                        className="text-sm text-gray-600 hover:text-[#5B6FB9] flex items-center gap-1 flex-shrink-0"
-                      >
-                        <Phone className="h-3.5 w-3.5" />
-                        {customer.phone}
-                      </a>
-                    )}
-                    
-                    <Badge variant="outline" className={`${getStatusColor(status)} text-xs px-2 py-0.5 font-semibold flex-shrink-0`}>
-                      {String(status)}
-                    </Badge>
-                    
-                    <Badge 
-                      variant="outline" 
-                      className={`${meetingType.color} border font-semibold text-xs px-2 py-0.5 flex-shrink-0`}
-                    >
-                      <span className="ml-1">{meetingType.icon}</span>
-                      {meetingType.label}
-                    </Badge>
-                  </div>
-
-                  {/* Right Side: Action Buttons */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button
-                      size="default"
-                      className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-base font-semibold rounded-lg px-4 py-2"
-                      onClick={handleStartMeeting}
-                    >
-                      <Video className="h-5 w-5 ml-2" strokeWidth={2.5} />
-                      התחל פגישה
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="default"
-                      className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2"
-                      onClick={handleEditDetails}
-                    >
-                      <Edit className="h-5 w-5 ml-2" strokeWidth={2.5} />
-                      ערוך פרטים
-                    </Button>
-                    {customer?.phone && (
-                      <Button
-                        variant="outline"
-                        size="default"
-                        className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2"
-                        onClick={handleWhatsApp}
-                      >
-                        <MessageCircle className="h-5 w-5 ml-2" strokeWidth={2.5} />
-                        WhatsApp
-                      </Button>
-                    )}
-                    {schedulingData?.calendarUrl && (
-                      <Button
-                        variant="outline"
-                        size="default"
-                        className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2"
-                        onClick={handleAddToCalendar}
-                      >
-                        <LinkIcon className="h-5 w-5 ml-2" strokeWidth={2.5} />
-                        לוח שנה
-                        <ExternalLink className="h-3.5 w-3.5 mr-2" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Main Content - Grid Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Card 1: Meeting Identity & Type */}
-              <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col">
-                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", meetingType.iconColor)}>
-                    <span className="text-lg">{meetingType.icon}</span>
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-900">סוג פגישה</h3>
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">סוג</label>
-                    <Badge 
-                      variant="outline" 
-                      className={cn("w-full justify-center py-2 text-sm font-semibold", meetingType.color)}
-                    >
-                      <span className="ml-1">{meetingType.icon}</span>
-                      {meetingType.label}
-                    </Badge>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">סטטוס</label>
-                    <Badge 
-                      variant="outline" 
-                      className={cn("w-full justify-center py-2 text-sm font-semibold", getStatusColor(status))}
-                    >
-                      {String(status)}
-                    </Badge>
-                  </div>
-                  {meetingType.english && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">English</label>
-                      <p className="text-sm text-gray-700">{meetingType.english}</p>
-                    </div>
-                  )}
-                </div>
-              </Card>
-
-              {/* Card 2: Client Profile */}
-              <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col">
-                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-                  <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <User className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-900">פרטי לקוח</h3>
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">שם מלא</label>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {customer?.full_name || schedulingData?.fullName || '-'}
-                      </p>
-                      {customer?.id && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs text-[#5B6FB9] hover:text-[#5B6FB9]/80"
-                          onClick={handleViewClientProfile}
-                        >
-                          <ExternalLink className="h-3 w-3 ml-1" />
-                          צפה בפרופיל
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  {customer?.phone && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">טלפון</label>
-                      <a 
-                        href={`tel:${customer.phone}`}
-                        className="flex items-center gap-2 text-sm text-[#5B6FB9] hover:text-[#5B6FB9]/80 font-medium"
-                      >
-                        <Phone className="h-4 w-4" />
-                        {customer.phone}
-                      </a>
-                    </div>
-                  )}
-                  {(customer?.email || schedulingData?.email) && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">אימייל</label>
-                      <a 
-                        href={`mailto:${customer?.email || schedulingData?.email}`}
-                        className="flex items-center gap-2 text-sm text-[#5B6FB9] hover:text-[#5B6FB9]/80 break-all"
-                      >
-                        <Mail className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">{customer?.email || schedulingData?.email}</span>
-                      </a>
-                    </div>
-                  )}
-                  {schedulingData?.scheduledUserName && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">מתזמן הפגישה</label>
-                      <p className="text-sm text-gray-700">{schedulingData.scheduledUserName}</p>
-                      {schedulingData.scheduledUserEmail && (
-                        <a 
-                          href={`mailto:${schedulingData.scheduledUserEmail}`}
-                          className="text-xs text-[#5B6FB9] hover:text-[#5B6FB9]/80 block mt-1"
-                        >
-                          {schedulingData.scheduledUserEmail}
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </Card>
-
-              {/* Card 3: Scheduling Details */}
-              <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col">
-                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <Calendar className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-900">לוח זמנים</h3>
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך</label>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <p className="text-sm font-semibold text-gray-900">
-                        {meetingDate || <span className="text-gray-400">לא צוין</span>}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">שעה</label>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-gray-400" />
-                      <p className="text-sm font-semibold text-gray-900">
-                        {formatTimeRange() || <span className="text-gray-400">לא צוין</span>}
-                      </p>
-                    </div>
-                  </div>
-                  {schedulingData?.timezone && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">אזור זמן</label>
-                      <p className="text-sm text-gray-700">{schedulingData.timezone}</p>
-                    </div>
-                  )}
-                  {location && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">מיקום</label>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-gray-400" />
-                        <p className="text-sm text-gray-700">{String(location)}</p>
-                      </div>
-                    </div>
-                  )}
-                  {schedulingData?.calendarUrl && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full mt-2 text-xs"
-                      onClick={handleAddToCalendar}
-                    >
-                      <CalendarPlus className="h-3.5 w-3.5 ml-1.5" />
-                      הוסף ללוח שנה
-                    </Button>
-                  )}
-                </div>
-              </Card>
-
-              {/* Card 4: Technical & Meta-Data (Low Profile) */}
-              <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col">
-                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                    <Info className="h-4 w-4 text-gray-600" />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-900">מידע טכני</h3>
-                </div>
-                <div className="flex-1 space-y-2">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">מקור</label>
-                    <p className="text-xs text-gray-600">Fillout</p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך יצירה</label>
-                    <p className="text-xs text-gray-600">
-                      {meeting.created_at ? formatDate(meeting.created_at) : '-'}
-                    </p>
-                  </div>
-                  {meeting.fillout_submission_id && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">מזהה הגשה</label>
-                      <p className="text-xs text-gray-600 font-mono truncate">{meeting.fillout_submission_id}</p>
-                    </div>
-                  )}
-                  {meeting.id && (
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">מזהה פגישה</label>
-                      <p className="text-xs text-gray-600 font-mono truncate">{meeting.id}</p>
-                    </div>
-                  )}
-                </div>
-              </Card>
-
-              {/* Card 5: Quick Actions/Automation */}
-              <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col md:col-span-2">
-                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-                  <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                    <Zap className="h-4 w-4 text-green-600" />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-900">פעולות מהירות</h3>
-                </div>
-                <div className="flex-1">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {customer?.phone && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start h-auto py-3 px-4 border border-slate-200 hover:bg-green-50 hover:border-green-200"
-                        onClick={handleWhatsApp}
-                      >
-                        <MessageCircle className="h-4 w-4 ml-2 text-green-600" />
-                        <div className="text-right flex-1">
-                          <div className="text-sm font-semibold text-gray-900">שלח הודעת WhatsApp</div>
-                          <div className="text-xs text-gray-500">שלח הודעה מהירה ללקוח</div>
-                        </div>
-                      </Button>
-                    )}
-                    {schedulingData?.rescheduleUrl && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start h-auto py-3 px-4 border border-slate-200 hover:bg-blue-50 hover:border-blue-200"
-                        onClick={() => window.open(schedulingData.rescheduleUrl, '_blank')}
-                      >
-                        <Edit className="h-4 w-4 ml-2 text-blue-600" />
-                        <div className="text-right flex-1">
-                          <div className="text-sm font-semibold text-gray-900">שנה/בטל פגישה</div>
-                          <div className="text-xs text-gray-500">ערוך או בטל את הפגישה</div>
-                        </div>
-                      </Button>
-                    )}
-                    {customer?.id && (
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start h-auto py-3 px-4 border border-slate-200 hover:bg-purple-50 hover:border-purple-200"
-                        onClick={handleViewClientProfile}
-                      >
-                        <User className="h-4 w-4 ml-2 text-purple-600" />
-                        <div className="text-right flex-1">
-                          <div className="text-sm font-semibold text-gray-900">צפה בפרופיל לקוח</div>
-                          <div className="text-xs text-gray-500">עבור לדף הלקוח המלא</div>
-                        </div>
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start h-auto py-3 px-4 border border-slate-200 hover:bg-pink-50 hover:border-pink-200"
-                      onClick={handleEditDetails}
-                    >
-                      <FileText className="h-4 w-4 ml-2 text-pink-600" />
-                      <div className="text-right flex-1">
-                        <div className="text-sm font-semibold text-gray-900">ערוך פרטי פגישה</div>
-                        <div className="text-xs text-gray-500">עדכן מידע על הפגישה</div>
-                      </div>
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Notes Card (if exists) */}
-              {notes && (
-                <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col md:col-span-3">
-                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
-                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                      <FileText className="h-4 w-4 text-amber-600" />
-                    </div>
-                    <h3 className="text-sm font-bold text-gray-900">הערות ותיאור</h3>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{String(notes)}</p>
-                  </div>
-                </Card>
-              )}
-            </div>
+          <div className="w-full max-w-7xl mx-auto">
+            <MeetingActionDashboard
+              meeting={meeting}
+              customer={customer}
+              schedulingData={schedulingData}
+              meetingType={meetingType}
+              status={status}
+              meetingDate={meetingDate}
+              formatTimeRange={formatTimeRange}
+              location={location}
+              notes={notes}
+              getStatusColor={getStatusColor}
+              onAddToCalendar={handleAddToCalendar}
+              hasCalendarUrl={!!schedulingData?.calendarUrl}
+            />
           </div>
         </main>
       </div>
-    </>
+    </div>
   );
 };
 

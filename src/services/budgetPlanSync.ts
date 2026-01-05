@@ -64,16 +64,23 @@ export async function syncPlansFromBudget({
 
   // 1. Sync Workout Plan
   if (budget.workout_template_id) {
-    // Fetch the workout template
-    const { data: workoutTemplate, error: templateError } = await supabase
-      .from('workout_templates')
-      .select('*')
-      .eq('id', budget.workout_template_id)
-      .single();
+    try {
+      console.log('[syncPlansFromBudget] Creating workout plan for budget:', budget.id);
+      // Fetch the workout template
+      const { data: workoutTemplate, error: templateError } = await supabase
+        .from('workout_templates')
+        .select('*')
+        .eq('id', budget.workout_template_id)
+        .single();
 
-    if (templateError) {
-      console.error('Error fetching workout template:', templateError);
-    } else if (workoutTemplate) {
+      if (templateError) {
+        console.error('[syncPlansFromBudget] Error fetching workout template:', templateError);
+        throw templateError;
+      }
+      
+      if (!workoutTemplate) {
+        console.warn('[syncPlansFromBudget] Workout template not found:', budget.workout_template_id);
+      } else {
       // First, deactivate ALL existing active workout plans for this customer/lead
       if (finalCustomerId) {
         await supabase
@@ -134,12 +141,19 @@ export async function syncPlansFromBudget({
       }
       console.log('[syncPlansFromBudget] Workout plan created successfully:', workoutPlan.id);
 
-      result.workoutPlanId = workoutPlan.id;
+        result.workoutPlanId = workoutPlan.id;
+      }
+    } catch (error: any) {
+      console.error('[syncPlansFromBudget] Failed to create workout plan:', error);
+      // Don't throw - continue with other plans
     }
+  } else {
+    console.log('[syncPlansFromBudget] Skipping workout plan - no workout_template_id in budget');
   }
 
   // 2. Sync Nutrition Plan
   if (budget.nutrition_template_id || budget.nutrition_targets) {
+    try {
     // First, deactivate ALL existing active nutrition plans for this customer/lead
     if (finalCustomerId) {
       await supabase
@@ -217,12 +231,20 @@ export async function syncPlansFromBudget({
     }
     console.log('[syncPlansFromBudget] Nutrition plan created successfully:', nutritionPlan.id);
 
-    result.nutritionPlanId = nutritionPlan?.id;
+      result.nutritionPlanId = nutritionPlan?.id;
+    } catch (error: any) {
+      console.error('[syncPlansFromBudget] Failed to create nutrition plan:', error);
+      // Don't throw - continue with other plans
+    }
+  } else {
+    console.log('[syncPlansFromBudget] Skipping nutrition plan - no nutrition_template_id or nutrition_targets in budget');
   }
 
   // 3. Sync Steps Plan
   if (budget.steps_goal && budget.steps_goal > 0) {
-    console.log('[syncPlansFromBudget] Creating steps plan:', {
+    try {
+      console.log('[syncPlansFromBudget] Creating steps plan for budget:', budget.id);
+      console.log('[syncPlansFromBudget] Steps plan details:', {
       stepsGoal: budget.steps_goal,
       stepsInstructions: budget.steps_instructions,
       customerId: finalCustomerId,
@@ -367,14 +389,20 @@ export async function syncPlansFromBudget({
     }
     console.log('[syncPlansFromBudget] ✅ Steps plan created successfully:', stepsPlan.id);
 
-    result.stepsPlanId = stepsPlan?.id;
-    console.log('[syncPlansFromBudget] Steps plan sync completed:', result.stepsPlanId);
+      result.stepsPlanId = stepsPlan?.id;
+      console.log('[syncPlansFromBudget] Steps plan sync completed:', result.stepsPlanId);
+    } catch (error: any) {
+      console.error('[syncPlansFromBudget] Failed to create steps plan:', error);
+      // Don't throw - continue with other plans
+    }
   } else {
     console.log('[syncPlansFromBudget] Skipping steps plan - no steps_goal in budget or goal is 0');
   }
 
   // 4. Sync Supplement Plan
   if (budget.supplements && budget.supplements.length > 0) {
+    try {
+      console.log('[syncPlansFromBudget] Creating supplement plan for budget:', budget.id);
     // First, deactivate ALL existing active supplement plans for this customer/lead
     if (finalCustomerId) {
       await supabase
@@ -431,10 +459,27 @@ export async function syncPlansFromBudget({
     }
     console.log('[syncPlansFromBudget] Supplement plan created successfully:', supplementPlan.id);
 
-    result.supplementPlanId = supplementPlan?.id;
+      result.supplementPlanId = supplementPlan?.id;
+    } catch (error: any) {
+      console.error('[syncPlansFromBudget] Failed to create supplement plan:', error);
+      // Don't throw - continue with other plans
+    }
+  } else {
+    console.log('[syncPlansFromBudget] Skipping supplement plan - no supplements in budget');
   }
 
-  console.log('[syncPlansFromBudget] Sync completed:', result);
+  console.log('[syncPlansFromBudget] ✅ Sync completed:', {
+    workoutPlanId: result.workoutPlanId || 'none',
+    nutritionPlanId: result.nutritionPlanId || 'none',
+    supplementPlanId: result.supplementPlanId || 'none',
+    stepsPlanId: result.stepsPlanId || 'none',
+    totalPlansCreated: [
+      result.workoutPlanId,
+      result.nutritionPlanId,
+      result.supplementPlanId,
+      result.stepsPlanId,
+    ].filter(Boolean).length,
+  });
   return result;
 }
 

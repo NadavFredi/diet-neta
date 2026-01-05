@@ -311,12 +311,21 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           });
           
           // Invalidate all the same queries as AssignBudgetDialog to ensure consistency
-          queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', selectedLeadId] });
-          queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
-          queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
-          queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
-          queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-          queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', selectedLeadId] }),
+            queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
+            queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+            queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+            queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
+            queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+            queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
+            queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
+            queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
+            queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
+          ]);
+          
+          // Force refetch to ensure UI updates immediately
+          queryClient.refetchQueries({ queryKey: ['plans-history'] });
           
           toast({
             title: 'הצלחה',
@@ -343,12 +352,20 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
             .eq('is_active', true);
           
           // Invalidate queries to refresh data
-          queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', currentLeadAssignment] });
-          queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
-          queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
-          queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
-          queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-          queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', currentLeadAssignment] }),
+            queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
+            queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+            queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+            queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
+            queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+            queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
+            queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
+            queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
+            queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
+          ]);
+          
+          queryClient.refetchQueries({ queryKey: ['plans-history'] });
         } catch (error: any) {
           console.error('[BudgetForm] Error removing lead assignment:', error);
         }
@@ -366,12 +383,20 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           });
           
           // Invalidate all relevant queries (the hook also invalidates, but this ensures consistency)
-          queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', selectedCustomerId] });
-          queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
-          queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
-          queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
-          queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-          queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', selectedCustomerId] }),
+            queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
+            queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+            queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+            queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
+            queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+            queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
+            queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
+            queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
+            queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
+          ]);
+          
+          queryClient.refetchQueries({ queryKey: ['plans-history'] });
           
           toast({
             title: 'הצלחה',

@@ -27,6 +27,7 @@ import { useAssignBudgetToLead, useAssignBudgetToCustomer } from '@/hooks/useBud
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 
 interface AssignBudgetDialogProps {
   isOpen: boolean;
@@ -78,6 +79,25 @@ export const AssignBudgetDialog = ({
     }
 
     try {
+      // Get customerId if we only have leadId (needed for query invalidation)
+      let finalCustomerId = customerId;
+      if (leadId && !customerId) {
+        const { data: leadData } = await supabase
+          .from('leads')
+          .select('customer_id')
+          .eq('id', leadId)
+          .single();
+        finalCustomerId = leadData?.customer_id || null;
+      }
+
+      console.log('[AssignBudgetDialog] Starting budget assignment:', {
+        budgetId: selectedBudgetId,
+        leadId,
+        customerId: finalCustomerId,
+      });
+
+      // The mutation's onSuccess will handle query invalidation, but we also do it here
+      // to ensure immediate UI update after sync completes
       if (leadId) {
         await assignToLead.mutateAsync({
           budgetId: selectedBudgetId,
@@ -92,16 +112,45 @@ export const AssignBudgetDialog = ({
         });
       }
 
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
-      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      // Wait for plans to be created (sync happens inside mutation)
+      console.log('[AssignBudgetDialog] Waiting for plans to be created...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      console.log('[AssignBudgetDialog] Invalidating queries for:', { 
+        finalCustomerId, 
+        leadId,
+        queryKey: ['plans-history', finalCustomerId, leadId || undefined]
+      });
+
+      // Invalidate queries to refresh data - ensure all plan types are refreshed
+      // Use the exact query keys that usePlansHistory uses: ['plans-history', customerId, leadId]
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
+        queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history'] }), // Invalidates all plans-history queries
+        queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId, leadId || undefined] }), // Specific query
+        queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
+      ]);
+      
+      console.log('[AssignBudgetDialog] Refetching plans-history query...');
+      
+      // Force refetch the specific plans-history query with correct parameters
+      // This ensures the UI updates immediately
+      await queryClient.refetchQueries({ 
+        queryKey: ['plans-history', finalCustomerId, leadId || undefined],
+        exact: false 
+      });
+      
+      console.log('[AssignBudgetDialog] Query invalidation and refetch completed');
 
       toast({
         title: 'הצלחה',
-        description: 'התקציב הוקצה בהצלחה. תכניות אימונים, תזונה ותוספים נוצרו אוטומטית.',
+        description: 'התקציב הוקצה בהצלחה. תכניות אימונים, תזונה, תוספים וצעדים נוצרו אוטומטית.',
       });
 
       onSuccess?.();
