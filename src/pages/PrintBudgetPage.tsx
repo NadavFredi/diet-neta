@@ -7,6 +7,7 @@
 import { usePrintBudgetPage } from './PrintBudgetPage';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 import { 
   Target, 
   Pill, 
@@ -16,16 +17,22 @@ import {
   Printer,
   ArrowRight,
   Calendar,
-  User
+  User,
+  ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
 const PrintBudgetPage = () => {
+  const navigate = useNavigate();
   const { budget, nutritionTemplate, workoutTemplate, clientName, assignedDate, isLoading } = usePrintBudgetPage();
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleBack = () => {
+    navigate(-1);
   };
 
   if (isLoading) {
@@ -58,12 +65,28 @@ const PrintBudgetPage = () => {
 
   return (
     <>
+      {/* Back Button - Only visible on screen */}
+      <div className="print:hidden fixed top-6 right-6 z-50">
+        <Button
+          onClick={handleBack}
+          size="lg"
+          variant="outline"
+          className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300 shadow-lg"
+        >
+          <ArrowLeft className="h-5 w-5 ml-2" />
+          חזור
+        </Button>
+      </div>
+
       {/* Print Now Button - Only visible on screen */}
       <div className="print:hidden fixed bottom-6 left-6 z-50">
         <Button
           onClick={handlePrint}
           size="lg"
-          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
+          className="text-white shadow-lg hover:opacity-90 transition-opacity"
+          style={{
+            backgroundColor: "#5B6FB9",
+          }}
         >
           <Printer className="h-5 w-5 mr-2" />
           הדפס עכשיו

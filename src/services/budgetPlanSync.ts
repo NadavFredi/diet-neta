@@ -82,7 +82,15 @@ export async function syncPlansFromBudget({
         console.warn('[syncPlansFromBudget] Workout template not found:', budget.workout_template_id);
       } else {
       // First, deactivate ALL existing active workout plans for this customer/lead
-      if (finalCustomerId) {
+      // If both customerId and leadId are provided, deactivate plans matching both
+      if (finalCustomerId && leadId) {
+        await supabase
+          .from('workout_plans')
+          .update({ is_active: false })
+          .eq('customer_id', finalCustomerId)
+          .eq('lead_id', leadId)
+          .eq('is_active', true);
+      } else if (finalCustomerId) {
         await supabase
           .from('workout_plans')
           .update({ is_active: false })
@@ -98,7 +106,15 @@ export async function syncPlansFromBudget({
 
       // DELETE all existing workout plans for this specific budget + customer/lead combination
       // This ensures we only have one plan per budget assignment
-      if (finalCustomerId) {
+      // If both customerId and leadId are provided, delete plans matching both
+      if (finalCustomerId && leadId) {
+        await supabase
+          .from('workout_plans')
+          .delete()
+          .eq('budget_id', budget.id)
+          .eq('customer_id', finalCustomerId)
+          .eq('lead_id', leadId);
+      } else if (finalCustomerId) {
         await supabase
           .from('workout_plans')
           .delete()
@@ -155,7 +171,15 @@ export async function syncPlansFromBudget({
   if (budget.nutrition_template_id || budget.nutrition_targets) {
     try {
     // First, deactivate ALL existing active nutrition plans for this customer/lead
-    if (finalCustomerId) {
+    // If both customerId and leadId are provided, deactivate plans matching both
+    if (finalCustomerId && leadId) {
+      await supabase
+        .from('nutrition_plans')
+        .update({ is_active: false })
+        .eq('customer_id', finalCustomerId)
+        .eq('lead_id', leadId)
+        .eq('is_active', true);
+    } else if (finalCustomerId) {
       await supabase
         .from('nutrition_plans')
         .update({ is_active: false })
@@ -171,7 +195,15 @@ export async function syncPlansFromBudget({
 
     // DELETE all existing nutrition plans for this specific budget + customer/lead combination
     // This ensures we only have one plan per budget assignment
-    if (finalCustomerId) {
+    // If both customerId and leadId are provided, delete plans matching both
+    if (finalCustomerId && leadId) {
+      await supabase
+        .from('nutrition_plans')
+        .delete()
+        .eq('budget_id', budget.id)
+        .eq('customer_id', finalCustomerId)
+        .eq('lead_id', leadId);
+    } else if (finalCustomerId) {
       await supabase
         .from('nutrition_plans')
         .delete()
@@ -252,7 +284,19 @@ export async function syncPlansFromBudget({
     });
 
     // First, deactivate ALL existing active steps plans for this customer/lead
-    if (finalCustomerId) {
+    // If both customerId and leadId are provided, deactivate plans matching both
+    if (finalCustomerId && leadId) {
+      const { error: deactivateError } = await supabase
+        .from('steps_plans')
+        .update({ is_active: false })
+        .eq('customer_id', finalCustomerId)
+        .eq('lead_id', leadId)
+        .eq('is_active', true);
+      
+      if (deactivateError && !deactivateError.message?.includes('does not exist') && !deactivateError.message?.includes('relation')) {
+        console.error('[syncPlansFromBudget] Error deactivating steps plans:', deactivateError);
+      }
+    } else if (finalCustomerId) {
       const { error: deactivateError } = await supabase
         .from('steps_plans')
         .update({ is_active: false })
@@ -276,12 +320,14 @@ export async function syncPlansFromBudget({
 
     // DELETE all existing steps plans for this specific budget + customer/lead combination
     // This ensures we only have one plan per budget assignment
-    if (finalCustomerId) {
+    // If both customerId and leadId are provided, delete plans matching both
+    if (finalCustomerId && leadId) {
       const { error: deleteError } = await supabase
         .from('steps_plans')
         .delete()
         .eq('budget_id', budget.id)
-        .eq('customer_id', finalCustomerId);
+        .eq('customer_id', finalCustomerId)
+        .eq('lead_id', leadId);
       
       if (deleteError && !deleteError.message?.includes('does not exist') && !deleteError.message?.includes('relation')) {
         console.error('[syncPlansFromBudget] Error deleting steps plans:', deleteError);
@@ -310,6 +356,19 @@ export async function syncPlansFromBudget({
             console.log('[syncPlansFromBudget] Fallback: Updated daily_protocol with steps goal');
           }
         }
+        return result; // Return early if table doesn't exist
+      }
+    } else if (finalCustomerId) {
+      const { error: deleteError } = await supabase
+        .from('steps_plans')
+        .delete()
+        .eq('budget_id', budget.id)
+        .eq('customer_id', finalCustomerId);
+      
+      if (deleteError && !deleteError.message?.includes('does not exist') && !deleteError.message?.includes('relation')) {
+        console.error('[syncPlansFromBudget] Error deleting steps plans:', deleteError);
+      } else if (deleteError && (deleteError.message?.includes('does not exist') || deleteError.message?.includes('relation'))) {
+        console.error('[syncPlansFromBudget] steps_plans table does not exist! Please run migration: 20260104000007_create_steps_plans.sql');
         return result; // Return early if table doesn't exist
       }
     } else if (leadId) {
@@ -404,7 +463,15 @@ export async function syncPlansFromBudget({
     try {
       console.log('[syncPlansFromBudget] Creating supplement plan for budget:', budget.id);
     // First, deactivate ALL existing active supplement plans for this customer/lead
-    if (finalCustomerId) {
+    // If both customerId and leadId are provided, deactivate plans matching both
+    if (finalCustomerId && leadId) {
+      await supabase
+        .from('supplement_plans')
+        .update({ is_active: false })
+        .eq('customer_id', finalCustomerId)
+        .eq('lead_id', leadId)
+        .eq('is_active', true);
+    } else if (finalCustomerId) {
       await supabase
         .from('supplement_plans')
         .update({ is_active: false })
@@ -420,7 +487,15 @@ export async function syncPlansFromBudget({
 
     // DELETE all existing supplement plans for this specific budget + customer/lead combination
     // This ensures we only have one plan per budget assignment
-    if (finalCustomerId) {
+    // If both customerId and leadId are provided, delete plans matching both
+    if (finalCustomerId && leadId) {
+      await supabase
+        .from('supplement_plans')
+        .delete()
+        .eq('budget_id', budget.id)
+        .eq('customer_id', finalCustomerId)
+        .eq('lead_id', leadId);
+    } else if (finalCustomerId) {
       await supabase
         .from('supplement_plans')
         .delete()

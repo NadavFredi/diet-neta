@@ -66,6 +66,39 @@ const MeetingDetailView = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const { data: meeting, isLoading } = useMeeting(id || null);
+  
+  // Get sidebar state from Redux - MUST be called before any early returns
+  const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
+  const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
+
+  // Get Notes panel width from localStorage - MUST be called before any early returns
+  const [notesPanelWidth, setNotesPanelWidth] = useState(450);
+  useEffect(() => {
+    const savedWidth = localStorage.getItem('notesPanelWidth');
+    if (savedWidth) {
+      const parsedWidth = parseInt(savedWidth, 10);
+      if (!isNaN(parsedWidth) && parsedWidth >= 250) {
+        setNotesPanelWidth(parsedWidth);
+      }
+    }
+    // Listen for custom event from ResizableNotesPanel when it resizes
+    const handleNotesPanelResize = () => {
+      const savedWidth = localStorage.getItem('notesPanelWidth');
+      if (savedWidth) {
+        const parsedWidth = parseInt(savedWidth, 10);
+        if (!isNaN(parsedWidth) && parsedWidth >= 250) {
+          setNotesPanelWidth(parsedWidth);
+        }
+      }
+    };
+    window.addEventListener('notesPanelResize', handleNotesPanelResize);
+    // Also poll localStorage periodically for changes (in case event doesn't fire)
+    const interval = setInterval(handleNotesPanelResize, 100);
+    return () => {
+      window.removeEventListener('notesPanelResize', handleNotesPanelResize);
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleBack = () => {
     navigate('/dashboard/meetings');
@@ -287,39 +320,6 @@ const MeetingDetailView = () => {
 
   const handleUpdateLead = async () => {};
   const handleUpdateCustomer = async () => {};
-
-  // Get sidebar state from Redux
-  const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
-  const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
-
-  // Get Notes panel width from localStorage (same as PageLayout)
-  const [notesPanelWidth, setNotesPanelWidth] = useState(450);
-  useEffect(() => {
-    const savedWidth = localStorage.getItem('notesPanelWidth');
-    if (savedWidth) {
-      const parsedWidth = parseInt(savedWidth, 10);
-      if (!isNaN(parsedWidth) && parsedWidth >= 250) {
-        setNotesPanelWidth(parsedWidth);
-      }
-    }
-    // Listen for custom event from ResizableNotesPanel when it resizes
-    const handleNotesPanelResize = () => {
-      const savedWidth = localStorage.getItem('notesPanelWidth');
-      if (savedWidth) {
-        const parsedWidth = parseInt(savedWidth, 10);
-        if (!isNaN(parsedWidth) && parsedWidth >= 250) {
-          setNotesPanelWidth(parsedWidth);
-        }
-      }
-    };
-    window.addEventListener('notesPanelResize', handleNotesPanelResize);
-    // Also poll localStorage periodically for changes (in case event doesn't fire)
-    const interval = setInterval(handleNotesPanelResize, 100);
-    return () => {
-      window.removeEventListener('notesPanelResize', handleNotesPanelResize);
-      clearInterval(interval);
-    };
-  }, []);
 
   const HEADER_HEIGHT = 88;
 

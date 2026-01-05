@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Download, FileText, CreditCard } from 'lucide-react';
+import { Download, FileText, CreditCard, Receipt } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { usePaymentHistory } from '@/hooks/usePaymentHistory';
@@ -171,31 +171,32 @@ export const PaymentHistoryModal: React.FC<PaymentHistoryModalProps> = ({
                           </Badge>
                         </div>
 
-                        {/* Actions */}
-                        <div className="md:col-span-1 flex items-end justify-end">
-                          {payment.receipt_url ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    if (payment.receipt_url) {
-                                      window.open(payment.receipt_url, '_blank');
-                                    }
-                                  }}
-                                  className="h-8 w-8 p-0 text-gray-600 hover:text-[#5B6FB9] hover:bg-[#5B6FB9]/10"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="left" dir="rtl">
-                                <p>הורד קבלה</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <div className="h-8 w-8" /> // Spacer for alignment
-                          )}
+                        {/* Invoice Button - Left Side (appears on left in RTL) */}
+                        <div className="md:col-span-1 flex items-center justify-end">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  if (payment.receipt_url) {
+                                    window.open(payment.receipt_url, '_blank');
+                                  } else {
+                                    // Generate or show invoice - you can customize this behavior
+                                    // For now, we'll show an alert or you can implement invoice generation
+                                    alert('חשבונית לא זמינה. אנא פנה לתמיכה.');
+                                  }
+                                }}
+                                className="h-9 px-3 text-[#5B6FB9] border-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white transition-colors"
+                              >
+                                <FileText className="h-4 w-4 ml-1.5" />
+                                <span className="text-xs font-medium">חשבונית</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" dir="rtl">
+                              <p>צפה בחשבונית</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
 

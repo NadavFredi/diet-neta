@@ -66,9 +66,10 @@ const Login = () => {
                   onClick={() => handleMethodToggle('phone')}
                   className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all ${
                     loginMethod === 'phone'
-                      ? 'bg-white text-blue-600 shadow-sm'
+                      ? 'bg-white shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
+                  style={loginMethod === 'phone' ? { color: '#5B6FB9' } : {}}
                 >
                   טלפון
                 </button>
@@ -77,9 +78,10 @@ const Login = () => {
                   onClick={() => handleMethodToggle('email')}
                   className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all ${
                     loginMethod === 'email'
-                      ? 'bg-white text-blue-600 shadow-sm'
+                      ? 'bg-white shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
+                  style={loginMethod === 'email' ? { color: '#5B6FB9' } : {}}
                 >
                   אימייל
                 </button>
@@ -93,7 +95,10 @@ const Login = () => {
                   <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
                     מספר טלפון
                   </Label>
-                  <div className="flex rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all" dir="ltr">
+                    <div 
+                      className="flex rounded-lg border border-gray-300 overflow-hidden transition-all focus-within:border-[#5B6FB9] focus-within:ring-2 focus-within:ring-[#5B6FB9]/20" 
+                      dir="ltr"
+                    >
                     <div className="flex items-center gap-2 px-4 bg-gray-50 border-r border-gray-300 min-w-[100px]">
                       <span className="text-lg">🇮🇱</span>
                       <span className="text-sm font-medium text-gray-700">+972</span>
@@ -162,7 +167,10 @@ const Login = () => {
                 handleLogin();
               }}
               disabled={isLoading || (loginMethod === 'email' && (!email || !password)) || (loginMethod === 'phone' && !phoneNumber)}
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-11 text-white font-semibold mb-4 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+              style={{
+                backgroundColor: "#5B6FB9",
+              }}
             >
               {isLoading ? 'מתחבר...' : 'כניסה למערכת'}
             </Button>
@@ -181,7 +189,7 @@ const Login = () => {
             <div className="text-center">
               <p className="text-sm text-gray-600">
                 אין לך חשבון?{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">
+                <a href="#" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#5B6FB9' }}>
                   צור קשר עם המנהל
                 </a>
               </p>
@@ -195,7 +203,7 @@ const Login = () => {
         <div
           className="text-white"
           style={{
-            backgroundColor: "#4f60a8",
+            backgroundColor: "#5B6FB9",
           }}
         >
           <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row">

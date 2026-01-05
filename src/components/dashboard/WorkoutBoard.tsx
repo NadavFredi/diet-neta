@@ -135,6 +135,7 @@ const ManualExerciseInput = ({ onAdd }: ManualExerciseInputProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event from bubbling up to parent forms/dialogs
     if (exerciseName.trim()) {
       onAdd(exerciseName.trim());
       setExerciseName('');
@@ -170,6 +171,18 @@ const ManualExerciseInput = ({ onAdd }: ManualExerciseInputProps) => {
               id="manual-exercise-name"
               value={exerciseName}
               onChange={(e) => setExerciseName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Manually trigger submit with a synthetic event
+                  const syntheticEvent = {
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                  } as React.FormEvent;
+                  handleSubmit(syntheticEvent);
+                }
+              }}
               placeholder="הזן שם תרגיל..."
               className="w-full"
               dir="rtl"

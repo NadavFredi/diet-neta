@@ -312,6 +312,16 @@ export const useAssignBudgetToLead = () => {
       if (budgetError) throw budgetError;
       if (!budget) throw new Error('Budget not found');
 
+      // Get lead data to find customer_id
+      const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .select('customer_id')
+        .eq('id', leadId)
+        .single();
+
+      if (leadError) throw leadError;
+      const customerId = lead?.customer_id || null;
+
       // Deactivate any existing active budget for this lead
       await supabase
         .from('budget_assignments')
@@ -319,7 +329,16 @@ export const useAssignBudgetToLead = () => {
         .eq('lead_id', leadId)
         .eq('is_active', true);
 
-      // Create new assignment
+      // If lead has a customer, also deactivate any existing active budget for that customer
+      if (customerId) {
+        await supabase
+          .from('budget_assignments')
+          .update({ is_active: false })
+          .eq('customer_id', customerId)
+          .eq('is_active', true);
+      }
+
+      // Create new lead assignment
       const { data, error } = await supabase
         .from('budget_assignments')
         .insert({
@@ -337,19 +356,36 @@ export const useAssignBudgetToLead = () => {
 
       if (error) throw error;
 
+      // If lead has a customer, also create a customer assignment
+      if (customerId) {
+        const { error: customerAssignmentError } = await supabase
+          .from('budget_assignments')
+          .insert({
+            budget_id: budgetId,
+            customer_id: customerId,
+            assigned_by: userId,
+            is_active: true,
+            notes: notes ? `${notes} (הוקצה אוטומטית דרך ליד)` : 'הוקצה אוטומטית דרך ליד',
+          });
+
+        if (customerAssignmentError) {
+          console.error('[useAssignBudgetToLead] Error creating customer assignment:', customerAssignmentError);
+          // Don't throw - lead assignment succeeded, just log the error
+        } else {
+          console.log('[useAssignBudgetToLead] ✅ Customer assignment created automatically:', {
+            customerId,
+            budgetId,
+          });
+        }
+      }
+
       // Auto-sync plans from budget
       try {
-        const { data: lead } = await supabase
-          .from('leads')
-          .select('customer_id')
-          .eq('id', leadId)
-          .single();
-
         console.log('[useAssignBudgetToLead] Starting plan sync:', {
           budgetId: budget.id,
           budgetName: budget.name,
           leadId,
-          customerId: lead?.customer_id,
+          customerId: customerId,
           hasStepsGoal: !!budget.steps_goal,
           stepsGoal: budget.steps_goal,
           hasWorkoutTemplate: !!budget.workout_template_id,
@@ -359,7 +395,7 @@ export const useAssignBudgetToLead = () => {
 
         const syncResult = await syncPlansFromBudget({
           budget: budget as Budget,
-          customerId: lead?.customer_id || null,
+          customerId: customerId,
           leadId,
           userId,
         });
@@ -388,7 +424,7 @@ export const useAssignBudgetToLead = () => {
       const customerId = leadData?.customer_id || null;
       
       // Invalidate all relevant queries to refresh the UI
-      await Promise.all([
+      const invalidationPromises = [
         queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', variables.leadId] }),
         queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
         queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
@@ -400,7 +436,16 @@ export const useAssignBudgetToLead = () => {
         queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
         queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
         queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
-      ]);
+      ];
+
+      // Also invalidate customer assignment queries if customer exists
+      if (customerId) {
+        invalidationPromises.push(
+          queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', customerId] })
+        );
+      }
+
+      await Promise.all(invalidationPromises);
       
       // Force refetch to ensure UI updates immediately
       if (customerId || variables.leadId) {
@@ -529,9 +574,10 @@ export const useDeleteBudgetAssignment = () => {
       if (!user?.id) throw new Error('User not authenticated');
 
       // First, get the assignment to find the budget_id
+      // Using * to ensure RLS policies can properly evaluate (they need to check the budgets table)
       const { data: assignment, error: assignmentError } = await supabase
         .from('budget_assignments')
-        .select('budget_id, lead_id, customer_id')
+        .select('*')
         .eq('id', assignmentId)
         .single();
 
