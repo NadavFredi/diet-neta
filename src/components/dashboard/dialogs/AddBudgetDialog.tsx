@@ -29,7 +29,6 @@ export const AddBudgetDialog = ({
             mode="create"
             onSave={onSave}
             onCancel={() => onOpenChange(false)}
-            enableAssignment={true}
           />
         </div>
       </DialogContent>

@@ -314,107 +314,6 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     },
   },
   {
-    id: 'email',
-    header: 'אימייל',
-    accessorKey: 'email',
-    enableSorting: false,
-    enableResizing: true,
-    enableHiding: true,
-    size: 200,
-    meta: {
-      align: 'right',
-    },
-    cell: ({ row }) => {
-      const customer = row.original.customer;
-      const meetingData = row.original.meeting_data || {};
-      const email = customer?.email || meetingData.email || meetingData['אימייל'] || '-';
-      return (
-        <span className="text-sm text-gray-700 truncate block max-w-[200px]" title={email}>
-          {email}
-        </span>
-      );
-    },
-  },
-  {
-    id: 'meeting_type',
-    header: 'סוג פגישה',
-    accessorKey: 'meeting_type',
-    enableSorting: false,
-    enableResizing: true,
-    enableHiding: true,
-    size: 150,
-    meta: {
-      align: 'right',
-    },
-    cell: ({ row }) => {
-      const meetingData = row.original.meeting_data || {};
-      // Extract meeting type from various possible fields
-      const meetingType = meetingData['פגישת הכרות'] || 
-                        meetingData['סוג פגישה'] || 
-                        meetingData.meeting_type ||
-                        meetingData.type ||
-                        'פגישת הכרות';
-      return (
-        <span className="text-sm font-medium text-gray-900">
-          {String(meetingType)}
-        </span>
-      );
-    },
-  },
-  {
-    id: 'location',
-    header: 'מיקום',
-    accessorKey: 'location',
-    enableSorting: false,
-    enableResizing: true,
-    enableHiding: true,
-    size: 150,
-    meta: {
-      align: 'right',
-    },
-    cell: ({ row }) => {
-      const meetingData = row.original.meeting_data || {};
-      const location = meetingData.location || 
-                      meetingData['מיקום'] || 
-                      meetingData['מקום'] ||
-                      '-';
-      return (
-        <span className="text-sm text-gray-700">
-          {String(location)}
-        </span>
-      );
-    },
-  },
-  {
-    id: 'notes',
-    header: 'הערות',
-    accessorKey: 'notes',
-    enableSorting: false,
-    enableResizing: true,
-    enableHiding: true,
-    size: 250,
-    meta: {
-      align: 'right',
-    },
-    cell: ({ row }) => {
-      const meetingData = row.original.meeting_data || {};
-      const notes = meetingData.notes || 
-                   meetingData['הערות'] || 
-                   meetingData['תיאור'] ||
-                   meetingData.description ||
-                   '-';
-      const notesStr = String(notes);
-      return (
-        <span 
-          className="text-sm text-gray-700 truncate block max-w-[250px]" 
-          title={notesStr !== '-' ? notesStr : undefined}
-        >
-          {notesStr}
-        </span>
-      );
-    },
-  },
-  {
     id: 'created_at',
     header: 'תאריך יצירה',
     accessorKey: 'created_at',
@@ -440,11 +339,7 @@ export const defaultMeetingColumnVisibility = {
   meeting_date: true,
   meeting_time: true,
   phone: true,
-  email: true,
-  meeting_type: true,
   status: true,
-  location: false,
-  notes: false,
   created_at: true,
 };
 

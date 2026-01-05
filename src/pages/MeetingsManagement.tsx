@@ -14,7 +14,6 @@ import { useAppSelector } from '@/store/hooks';
 import { meetingColumns } from '@/components/dashboard/columns/meetingColumns';
 import { useMeetingsManagement } from './MeetingsManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
-import { MEETING_FILTER_FIELDS, getMeetingFilterFields } from '@/hooks/useTableFilters';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { Button } from '@/components/ui/button';
@@ -131,7 +130,6 @@ const MeetingsManagement = () => {
                   dataCount={filteredMeetings?.length || 0}
                   singularLabel="פגישה"
                   pluralLabel="פגישות"
-                  filterFields={getMeetingFilterFields(meetings || [])}
                   searchPlaceholder="חיפוש לפי שם לקוח, טלפון, תאריך פגישה..."
                   enableColumnVisibility={true}
                   enableFilters={true}
@@ -199,7 +197,6 @@ const MeetingsManagement = () => {
         onOpenChange={setIsEditViewModalOpen}
         view={viewToEdit}
         currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={getMeetingFilterFields(meetings || [])}
         onSuccess={() => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);

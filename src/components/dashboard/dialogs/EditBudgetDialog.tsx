@@ -24,11 +24,6 @@ export const EditBudgetDialog = ({
   if (!editingBudget) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange} modal={true}>
-      <DialogContent 
-        className="max-w-6xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden" 
-        dir="rtl"
-      >
         <DialogHeader className="px-4 pt-4 pb-3 border-b flex-shrink-0">
           <DialogTitle className="text-base font-bold">עריכת תקציב: {editingBudget.name}</DialogTitle>
         </DialogHeader>

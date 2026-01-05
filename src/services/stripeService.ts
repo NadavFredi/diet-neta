@@ -5,131 +5,12 @@
  * Uses Stripe REST API via backend proxy or direct API calls
  */
 
-export interface StripeProduct {
-  id: string;
-  name: string;
-  description?: string;
-  active: boolean;
-  prices: StripePrice[];
-}
-
-export interface StripePrice {
-  id: string;
-  product_id: string;
-  active: boolean;
-  currency: string;
-  unit_amount: number; // Amount in smallest currency unit (e.g., cents)
-  type: 'one_time' | 'recurring';
-  recurring?: {
-    interval: 'day' | 'week' | 'month' | 'year';
-    interval_count: number;
-  };
-}
-
-export interface StripeProductsResponse {
-  success: boolean;
-  products?: StripeProduct[];
-  error?: string;
-}
-
-/**
- * Fetch Stripe products from backend proxy
- * In production, this should go through your backend API
- */
-export const fetchStripeProducts = async (): Promise<StripeProductsResponse> => {
-  try {
-    const secretKey = getStripeSecretKey();
-    
-    if (!secretKey) {
-      return {
-        success: false,
-        error: 'Stripe configuration not found. Please check environment variables.',
-      };
-    }
-
-    // Fetch products with prices
-    const productsUrl = 'https://api.stripe.com/v1/products?active=true&limit=100';
-    const pricesUrl = 'https://api.stripe.com/v1/prices?active=true&limit=100';
-
-    // Fetch products and prices in parallel
-    const [productsResponse, pricesResponse] = await Promise.all([
-      fetch(productsUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${secretKey}`,
-        },
-      }),
-      fetch(pricesUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${secretKey}`,
-        },
-      }),
-    ]);
-
-    if (!productsResponse.ok || !pricesResponse.ok) {
-      const errorData = await productsResponse.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.error?.message || 'Failed to fetch Stripe products',
-      };
-    }
-
-    const productsData = await productsResponse.json();
-    const pricesData = await pricesResponse.json();
-
-    // Group prices by product
-    const pricesByProduct: Record<string, StripePrice[]> = {};
-    (pricesData.data || []).forEach((price: any) => {
-      const productId = price.product;
-      if (!pricesByProduct[productId]) {
-        pricesByProduct[productId] = [];
-      }
-      pricesByProduct[productId].push({
-        id: price.id,
-        product_id: productId,
-        active: price.active,
-        currency: price.currency,
-        unit_amount: price.unit_amount,
-        type: price.type,
-        recurring: price.recurring || undefined,
-      });
-    });
-
-    // Map products with their prices
-    const products: StripeProduct[] = (productsData.data || []).map((product: any) => ({
-      id: product.id,
-      name: product.name,
-      description: product.description || undefined,
-      active: product.active,
-      prices: pricesByProduct[product.id] || [],
-    })).filter((product: StripeProduct) => product.prices.length > 0); // Only include products with prices
-
-    return {
-      success: true,
-      products,
-    };
-  } catch (error: any) {
-    console.error('[Stripe] Error fetching products:', error);
-    return {
-      success: false,
-      error: error?.message || 'Failed to fetch Stripe products',
-    };
-  }
-};
-
 export interface CreatePaymentLinkParams {
   amount: number; // Amount in smallest currency unit (e.g., cents for USD, agorot for ILS)
   currency: 'ils' | 'usd' | 'eur'; // Stripe uses lowercase currency codes
   customerEmail?: string;
   customerName?: string;
   description?: string;
-  // Subscription parameters
-  billingMode?: 'one_time' | 'subscription';
-  subscriptionInterval?: 'month' | 'week';
-  billingCycles?: number | null; // null = continuous/unlimited
-  // Stripe Price ID (if using existing Stripe Price)
-  priceId?: string;
 }
 
 export interface StripePaymentLinkResponse {
@@ -144,40 +25,9 @@ export interface StripePaymentLinkResponse {
 const getStripeSecretKey = (): string | null => {
   const key = import.meta.env.VITE_STRIPE_SECRET_KEY;
   if (!key) {
-    console.error('[Stripe] Missing VITE_STRIPE_SECRET_KEY environment variable');
-    console.error('[Stripe] Please add VITE_STRIPE_SECRET_KEY to your .env.local file');
-    console.error('[Stripe] Example: VITE_STRIPE_SECRET_KEY=sk_test_51AbCdEf...');
-    console.error('[Stripe] ⚠️ IMPORTANT: After adding the key, restart your dev server (npm run dev)');
+    console.warn('[Stripe] Missing VITE_STRIPE_SECRET_KEY environment variable');
     return null;
   }
-  
-  // Check if it's a placeholder value
-  if (key.includes('...') || key.length < 20) {
-    console.error('[Stripe] Invalid or placeholder Stripe secret key detected');
-    console.error('[Stripe] The key appears to be a placeholder. Please replace it with your actual Stripe secret key from https://dashboard.stripe.com/apikeys');
-    return null;
-  }
-  
-  // Validate key format (Stripe keys start with sk_test_ or sk_live_)
-  if (!key.startsWith('sk_test_') && !key.startsWith('sk_live_')) {
-    console.error('[Stripe] ❌ Invalid Stripe secret key format detected!');
-    console.error('[Stripe] Your key starts with:', key.substring(0, 8));
-    console.error('[Stripe] Expected format: Key should start with "sk_test_" (test mode) or "sk_live_" (live mode)');
-    console.error('[Stripe]');
-    console.error('[Stripe] Common mistakes:');
-    console.error('[Stripe] - Using publishable key (pk_...) instead of secret key (sk_...)');
-    console.error('[Stripe] - Using restricted key (rk_...) instead of secret key');
-    console.error('[Stripe] - Using webhook signing secret (whsec_...) instead of secret key');
-    console.error('[Stripe]');
-    console.error('[Stripe] 📝 How to get your Stripe Secret Key:');
-    console.error('[Stripe] 1. Go to https://dashboard.stripe.com/apikeys');
-    console.error('[Stripe] 2. Click "Create secret key" or use an existing one');
-    console.error('[Stripe] 3. Copy the key that starts with "sk_test_" (for testing)');
-    console.error('[Stripe] 4. Add it to .env.local as: VITE_STRIPE_SECRET_KEY=sk_test_...');
-    console.error('[Stripe] 5. Restart your dev server');
-    return null;
-  }
-  
   return key;
 };
 
@@ -221,42 +71,10 @@ export const createStripePaymentLink = async (
 
     // Prepare request body
     const formData = new URLSearchParams();
-    
-    const isSubscription = params.billingMode === 'subscription';
-    const interval = params.subscriptionInterval || 'month';
-    
-    // If priceId is provided, use it directly (preferred method)
-    if (params.priceId) {
-      formData.append('line_items[0][price]', params.priceId);
-      formData.append('line_items[0][quantity]', '1');
-      
-      // Note: When using a price ID, Stripe automatically detects if it's a subscription or one-time payment
-      // We don't need to specify billingMode separately when using priceId
-    } else {
-      // Otherwise, create price_data dynamically
-      if (isSubscription) {
-        // Subscription mode
-        formData.append('line_items[0][price_data][currency]', params.currency);
-        formData.append('line_items[0][price_data][product_data][name]', params.description || 'Subscription');
-        formData.append('line_items[0][price_data][recurring][interval]', interval);
-        formData.append('line_items[0][price_data][unit_amount]', String(params.amount));
-        formData.append('line_items[0][quantity]', '1');
-        
-        // Set billing cycle limit if specified (otherwise continuous)
-        if (params.billingCycles !== null && params.billingCycles !== undefined && params.billingCycles > 0) {
-          formData.append('subscription_data[billing_cycle_anchor]', 'now');
-          // Note: Stripe Payment Links API doesn't directly support billing cycle limits
-          // For now, we'll create the subscription without cycle limits
-          // In production, you might want to handle this via webhooks or use Checkout Sessions
-        }
-      } else {
-        // One-time payment mode
-        formData.append('line_items[0][price_data][currency]', params.currency);
-        formData.append('line_items[0][price_data][product_data][name]', params.description || 'Payment');
-        formData.append('line_items[0][price_data][unit_amount]', String(params.amount));
-        formData.append('line_items[0][quantity]', '1');
-      }
-    }
+    formData.append('line_items[0][price_data][currency]', params.currency);
+    formData.append('line_items[0][price_data][product_data][name]', params.description || 'Payment');
+    formData.append('line_items[0][price_data][unit_amount]', String(params.amount));
+    formData.append('line_items[0][quantity]', '1');
 
     // Add customer information if provided
     if (params.customerEmail) {
@@ -273,49 +91,12 @@ export const createStripePaymentLink = async (
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      let errorData: any = {};
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { raw: errorText };
-      }
-      
-      const errorMessage = errorData.error?.message || errorData.message || errorData.raw || `HTTP error! status: ${response.status}`;
-      
-      // Enhanced error logging for 401 Unauthorized
-      if (response.status === 401) {
-        console.error('[Stripe] 401 Unauthorized Error - Possible issues:');
-        console.error('1. Check if VITE_STRIPE_SECRET_KEY is set in .env.local');
-        console.error('2. Verify the key starts with sk_test_ or sk_live_');
-        console.error('3. Ensure the dev server was restarted after adding the env variable');
-        console.error('4. Check that the key is not expired or revoked');
-        console.error('[Stripe] Current key prefix:', secretKey?.substring(0, 12) || 'NOT SET');
-        console.error('[Stripe] Full error response:', errorData);
-      }
-      
-      // Enhanced error logging for 400 Bad Request
-      if (response.status === 400) {
-        console.error('[Stripe] 400 Bad Request Error - Request validation failed:');
-        console.error('[Stripe] Request params:', {
-          amount: params.amount,
-          currency: params.currency,
-          billingMode: params.billingMode,
-          priceId: params.priceId,
-          subscriptionInterval: params.subscriptionInterval,
-          description: params.description,
-        });
-        console.error('[Stripe] Form data sent:', formData.toString());
-        console.error('[Stripe] Full error response:', errorData);
-        console.error('[Stripe] Error details:', errorData.error);
-      }
-      
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error?.message || `HTTP error! status: ${response.status}`;
       console.error('[Stripe] API Error:', errorData);
       return {
         success: false,
-        error: response.status === 401 
-          ? 'Stripe API authentication failed. Please check your VITE_STRIPE_SECRET_KEY in .env.local file and restart the dev server.'
-          : errorMessage,
+        error: errorMessage,
       };
     }
 

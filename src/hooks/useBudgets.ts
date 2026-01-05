@@ -11,26 +11,16 @@ import { useAppSelector } from '@/store/hooks';
 import type { Budget, BudgetAssignment, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
 import { syncPlansFromBudget } from '@/services/budgetPlanSync';
 
-// Note: We now use user.id from Redux auth state instead of getUserIdFromEmail
-// This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all budgets (public + user's own)
 export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['budgets', filters, user?.id],
     queryFn: async () => {
-      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = user.id; // Use user.id from Redux instead of API call
       let query = supabase
         .from('budgets')
-        .select(`
-          *,
-          workout_template:workout_templates(id, name),
-          nutrition_template:nutrition_templates(id, name)
-        `)
         .or(`is_public.eq.true,created_by.eq.${userId}`)
         .order('created_at', { ascending: false });
 
@@ -55,9 +45,6 @@ export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) =>
       }
       return data as Budget[];
     },
-    enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -66,12 +53,9 @@ export const useBudget = (budgetId: string | null) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['budget', budgetId, user?.id],
     queryFn: async () => {
       if (!budgetId) return null;
-      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { data, error } = await supabase
         .from('budgets')
@@ -83,9 +67,6 @@ export const useBudget = (budgetId: string | null) => {
       if (error) throw error;
       return data as Budget | null;
     },
-    enabled: !!budgetId && !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -168,9 +149,7 @@ export const useCreateBudget = () => {
       eating_rules?: string | null;
       is_public?: boolean;
     }) => {
-      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { data, error } = await supabase
         .from('budgets')
@@ -229,9 +208,7 @@ export const useUpdateBudget = () => {
       eating_rules?: string | null;
       is_public?: boolean;
     }) => {
-      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = user.id; // Use user.id from Redux instead of API call
 
       const updateData: Partial<Budget> = {};
       Object.keys(updates).forEach((key) => {
@@ -265,9 +242,7 @@ export const useDeleteBudget = () => {
 
   return useMutation({
     mutationFn: async (budgetId: string) => {
-      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { error } = await supabase
         .from('budgets')
@@ -298,9 +273,7 @@ export const useAssignBudgetToLead = () => {
       leadId: string;
       notes?: string;
     }) => {
-      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = user.id; // Use user.id from Redux instead of API call
 
       // Fetch the budget
       const { data: budget, error: budgetError } = await supabase
@@ -345,32 +318,10 @@ export const useAssignBudgetToLead = () => {
           .eq('id', leadId)
           .single();
 
-        console.log('[useAssignBudgetToLead] Starting plan sync:', {
-          budgetId: budget.id,
-          budgetName: budget.name,
-          leadId,
-          customerId: lead?.customer_id,
-          hasStepsGoal: !!budget.steps_goal,
-          stepsGoal: budget.steps_goal,
-          hasWorkoutTemplate: !!budget.workout_template_id,
-          hasNutritionTemplate: !!budget.nutrition_template_id,
-          hasSupplements: !!(budget.supplements && budget.supplements.length > 0),
-        });
-
-        const syncResult = await syncPlansFromBudget({
           budget: budget as Budget,
           customerId: lead?.customer_id || null,
           leadId,
           userId,
-        });
-
-        console.log('[useAssignBudgetToLead] ✅ Plan sync completed:', syncResult);
-      } catch (syncError: any) {
-        console.error('[useAssignBudgetToLead] ❌ Error syncing plans from budget:', syncError);
-        console.error('[useAssignBudgetToLead] Error details:', {
-          message: syncError?.message,
-          stack: syncError?.stack,
-          error: syncError,
         });
         // Don't throw - assignment succeeded, just log the error
       }
@@ -402,9 +353,7 @@ export const useAssignBudgetToCustomer = () => {
       customerId: string;
       notes?: string;
     }) => {
-      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = user.id; // Use user.id from Redux instead of API call
 
       // Fetch the budget
       const { data: budget, error: budgetError } = await supabase
@@ -443,31 +392,10 @@ export const useAssignBudgetToCustomer = () => {
 
       // Auto-sync plans from budget
       try {
-        console.log('[useAssignBudgetToCustomer] Starting plan sync:', {
-          budgetId: budget.id,
-          budgetName: budget.name,
-          customerId,
-          hasStepsGoal: !!budget.steps_goal,
-          stepsGoal: budget.steps_goal,
-          hasWorkoutTemplate: !!budget.workout_template_id,
-          hasNutritionTemplate: !!budget.nutrition_template_id,
-          hasSupplements: !!(budget.supplements && budget.supplements.length > 0),
-        });
-
-        const syncResult = await syncPlansFromBudget({
           budget: budget as Budget,
           customerId,
           leadId: null,
           userId,
-        });
-
-        console.log('[useAssignBudgetToCustomer] ✅ Plan sync completed:', syncResult);
-      } catch (syncError: any) {
-        console.error('[useAssignBudgetToCustomer] ❌ Error syncing plans from budget:', syncError);
-        console.error('[useAssignBudgetToCustomer] Error details:', {
-          message: syncError?.message,
-          stack: syncError?.stack,
-          error: syncError,
         });
         // Don't throw - assignment succeeded, just log the error
       }

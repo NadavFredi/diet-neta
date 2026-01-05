@@ -101,4 +101,3 @@ COMMENT ON COLUMN public.meetings.fillout_submission_id IS 'Unique identifier fr
 COMMENT ON COLUMN public.meetings.meeting_data IS 'Flexible JSONB containing all meeting data from Fillout form';
 
 
-

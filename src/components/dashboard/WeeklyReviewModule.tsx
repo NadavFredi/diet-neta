@@ -254,7 +254,6 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     enabled: !!(leadId || customerId),
   });
 
-  // Form state - All fields editable
   const [trainerSummary, setTrainerSummary] = useState(existingReview?.trainer_summary || '');
   const [actionPlan, setActionPlan] = useState(existingReview?.action_plan || '');
   const [updatedStepsGoal, setUpdatedStepsGoal] = useState<string>(
@@ -264,57 +263,13 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     existingReview?.updated_calories_target?.toString() || targets.calories?.toString() || ''
   );
   
-  // Editable target values
-  const [targetCalories, setTargetCalories] = useState<string>(
-    existingReview?.target_calories?.toString() || targets.calories?.toString() || ''
-  );
-  const [targetProtein, setTargetProtein] = useState<string>(
-    existingReview?.target_protein?.toString() || targets.protein?.toString() || ''
-  );
-  const [targetCarbs, setTargetCarbs] = useState<string>(
-    existingReview?.target_carbs?.toString() || targets.carbs?.toString() || ''
-  );
-  const [targetFat, setTargetFat] = useState<string>(
-    existingReview?.target_fat?.toString() || targets.fat?.toString() || ''
-  );
-  const [targetFiber, setTargetFiber] = useState<string>(
-    existingReview?.target_fiber?.toString() || targets.fiber?.toString() || ''
-  );
-  const [targetSteps, setTargetSteps] = useState<string>(
-    existingReview?.target_steps?.toString() || targets.steps?.toString() || ''
-  );
-  
-  // Editable actual values
-  const [actualCalories, setActualCalories] = useState<string>(
-    existingReview?.actual_calories_avg?.toString() || calculatedAverages.calories?.toString() || ''
-  );
-  const [actualProtein, setActualProtein] = useState<string>(
-    existingReview?.actual_protein_avg?.toString() || calculatedAverages.protein?.toString() || ''
-  );
-  const [actualCarbs, setActualCarbs] = useState<string>(
-    existingReview?.actual_carbs_avg?.toString() || calculatedAverages.carbs?.toString() || ''
-  );
-  const [actualFat, setActualFat] = useState<string>(
-    existingReview?.actual_fat_avg?.toString() || calculatedAverages.fat?.toString() || ''
-  );
-  const [actualFiber, setActualFiber] = useState<string>(
-    existingReview?.actual_fiber_avg?.toString() || calculatedAverages.fiber?.toString() || ''
-  );
-  const [actualWeight, setActualWeight] = useState<string>(
-    existingReview?.weekly_avg_weight?.toString() || calculatedAverages.weight?.toString() || ''
-  );
-  const [actualWaist, setActualWaist] = useState<string>(
-    existingReview?.waist_measurement?.toString() || calculatedAverages.waist?.toString() || ''
-  );
-
-  // Update form when existing review or calculated averages change
   React.useEffect(() => {
     if (existingReview) {
       setTrainerSummary(existingReview.trainer_summary || '');
       setActionPlan(existingReview.action_plan || '');
       setUpdatedStepsGoal(existingReview.updated_steps_goal?.toString() || targets.steps?.toString() || '');
       setUpdatedCaloriesTarget(existingReview.updated_calories_target?.toString() || targets.calories?.toString() || '');
-      
+
       // Update editable targets
       setTargetCalories(existingReview.target_calories?.toString() || targets.calories?.toString() || '');
       setTargetProtein(existingReview.target_protein?.toString() || targets.protein?.toString() || '');
@@ -322,7 +277,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       setTargetFat(existingReview.target_fat?.toString() || targets.fat?.toString() || '');
       setTargetFiber(existingReview.target_fiber?.toString() || targets.fiber?.toString() || '');
       setTargetSteps(existingReview.target_steps?.toString() || targets.steps?.toString() || '');
-      
+
       // Update editable actuals
       setActualCalories(existingReview.actual_calories_avg?.toString() || calculatedAverages.calories?.toString() || '');
       setActualProtein(existingReview.actual_protein_avg?.toString() || calculatedAverages.protein?.toString() || '');
@@ -336,7 +291,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       setActionPlan('');
       setUpdatedStepsGoal(targets.steps?.toString() || '');
       setUpdatedCaloriesTarget(targets.calories?.toString() || '');
-      
+
       // Initialize editable targets from budget
       setTargetCalories(targets.calories?.toString() || '');
       setTargetProtein(targets.protein?.toString() || '');
@@ -344,7 +299,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       setTargetFat(targets.fat?.toString() || '');
       setTargetFiber(targets.fiber?.toString() || '');
       setTargetSteps(targets.steps?.toString() || '');
-      
+
       // Initialize editable actuals from calculated averages
       setActualCalories(calculatedAverages.calories?.toString() || '');
       setActualProtein(calculatedAverages.protein?.toString() || '');
@@ -354,7 +309,6 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       setActualWeight(calculatedAverages.weight?.toString() || '');
       setActualWaist(calculatedAverages.waist?.toString() || '');
     }
-  }, [existingReview, targets, calculatedAverages]);
 
   // Reset saved week ref when week changes
   React.useEffect(() => {
@@ -494,24 +448,8 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     const reviewData: WeeklyReviewData = {
       week_start_date: weekStartStr,
       week_end_date: weekEndStr,
-      target_calories: parseNumber(targetCalories),
-      target_protein: parseNumber(targetProtein),
-      target_carbs: parseNumber(targetCarbs),
-      target_fat: parseNumber(targetFat),
-      target_fiber: parseNumber(targetFiber),
-      target_steps: parseNumber(targetSteps),
-      actual_calories_avg: parseNumber(actualCalories),
-      actual_protein_avg: parseNumber(actualProtein),
-      actual_carbs_avg: parseNumber(actualCarbs),
-      actual_fat_avg: parseNumber(actualFat),
-      actual_fiber_avg: parseNumber(actualFiber),
-      actual_calories_weekly_avg: parseNumber(actualCalories),
-      weekly_avg_weight: parseNumber(actualWeight),
-      waist_measurement: parseNumber(actualWaist),
       trainer_summary: trainerSummary,
       action_plan: actionPlan,
-      updated_steps_goal: parseNumber(updatedStepsGoal),
-      updated_calories_target: parseNumber(updatedCaloriesTarget),
     };
 
     if (leadId) {
@@ -527,19 +465,6 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     customerId,
     weekStartStr,
     weekEndStr,
-    targetCalories,
-    targetProtein,
-    targetCarbs,
-    targetFat,
-    targetFiber,
-    targetSteps,
-    actualCalories,
-    actualProtein,
-    actualCarbs,
-    actualFat,
-    actualFiber,
-    actualWeight,
-    actualWaist,
     trainerSummary,
     actionPlan,
     updatedStepsGoal,
@@ -581,19 +506,10 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     try {
       const weekLabel = `שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}`;
       
-      // Build message using editable values
       let message = `📊 *סיכום שבועי - ${weekLabel}*\n\n`;
       message += `🎯 *יעדים:*\n`;
-      if (targetCalories) message += `קלוריות: ${Math.round(parseFloat(targetCalories))} קק"ל\n`;
-      if (targetProtein) message += `חלבון: ${Math.round(parseFloat(targetProtein))} גרם\n`;
-      if (targetFiber) message += `סיבים: ${Math.round(parseFloat(targetFiber))} גרם\n`;
-      if (targetSteps) message += `צעדים: ${Math.round(parseFloat(targetSteps))}\n`;
       
       message += `\n📈 *בפועל (ממוצע):*\n`;
-      if (actualCalories) message += `קלוריות: ${Math.round(parseFloat(actualCalories))} קק"ל\n`;
-      if (actualProtein) message += `חלבון: ${Math.round(parseFloat(actualProtein))} גרם\n`;
-      if (actualFiber) message += `סיבים: ${Math.round(parseFloat(actualFiber))} גרם\n`;
-      if (actualWeight) message += `משקל ממוצע: ${parseFloat(actualWeight).toFixed(1)} ק"ג\n`;
       
       if (trainerSummary) {
         message += `\n💬 *סיכום ומסקנות:*\n${trainerSummary}\n`;
@@ -699,7 +615,6 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Comparison Table - All fields editable */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm" dir="rtl">
             <thead>
@@ -713,149 +628,38 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
             <tbody>
               <tr className="border-b">
                 <td className="p-2 text-gray-900">קלוריות</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={targetCalories}
-                      onChange={(e) => setTargetCalories(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">קק"ל</span>
-                  </div>
-                </td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={actualCalories}
-                      onChange={(e) => setActualCalories(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">קק"ל</span>
-                  </div>
                 </td>
                 <td className={cn(
                   "p-2 font-medium",
-                  targetCalories && actualCalories
-                    ? (parseFloat(actualCalories) >= parseFloat(targetCalories) ? "text-emerald-600" : "text-amber-600")
                     : "text-gray-500"
                 )}>
-                  {calculateDelta(parseNumber(targetCalories), parseNumber(actualCalories))}
                 </td>
               </tr>
               <tr className="border-b">
                 <td className="p-2 text-gray-900">חלבון</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={targetProtein}
-                      onChange={(e) => setTargetProtein(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">גרם</span>
-                  </div>
-                </td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={actualProtein}
-                      onChange={(e) => setActualProtein(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">גרם</span>
-                  </div>
                 </td>
                 <td className={cn(
                   "p-2 font-medium",
-                  targetProtein && actualProtein
-                    ? (parseFloat(actualProtein) >= parseFloat(targetProtein) ? "text-emerald-600" : "text-amber-600")
                     : "text-gray-500"
                 )}>
-                  {calculateDelta(parseNumber(targetProtein), parseNumber(actualProtein))}
                 </td>
               </tr>
               <tr className="border-b">
                 <td className="p-2 text-gray-900">סיבים</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={targetFiber}
-                      onChange={(e) => setTargetFiber(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">גרם</span>
-                  </div>
-                </td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={actualFiber}
-                      onChange={(e) => setActualFiber(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">גרם</span>
-                  </div>
                 </td>
                 <td className={cn(
                   "p-2 font-medium",
-                  targetFiber && actualFiber
-                    ? (parseFloat(actualFiber) >= parseFloat(targetFiber) ? "text-emerald-600" : "text-amber-600")
                     : "text-gray-500"
                 )}>
-                  {calculateDelta(parseNumber(targetFiber), parseNumber(actualFiber))}
                 </td>
               </tr>
               <tr className="border-b">
                 <td className="p-2 text-gray-900">משקל ממוצע</td>
-                <td className="p-2 text-gray-500">-</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={actualWeight}
-                      onChange={(e) => setActualWeight(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">ק"ג</span>
-                  </div>
                 </td>
                 <td className="p-2 text-gray-500">-</td>
               </tr>
               <tr>
                 <td className="p-2 text-gray-900">היקף מותן</td>
-                <td className="p-2 text-gray-500">-</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={actualWaist}
-                      onChange={(e) => setActualWaist(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">ס"מ</span>
-                  </div>
                 </td>
                 <td className="p-2 text-gray-500">-</td>
               </tr>

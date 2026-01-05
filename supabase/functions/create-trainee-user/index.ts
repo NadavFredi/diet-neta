@@ -11,15 +11,7 @@ import { successResponse, errorResponse } from '../_shared/response.ts';
 import { parseJsonBody } from '../_shared/utils.ts';
 
 serve(async (req) => {
-  // Handle CORS preflight - MUST be first
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { 
-      status: 200,
-      headers: corsHeaders 
-    });
-  }
-  
-  // Also handle CORS for other requests
+  // Handle CORS preflight
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
 

@@ -12,7 +12,6 @@
 import React, { useState } from 'react';
 import { Filter, X, Check, Calendar, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -29,8 +28,7 @@ export interface FilterField {
   id: string;
   label: string;
   type: FilterType;
-  options?: string[]; // For select/multiselect - static options
-  dynamicOptions?: string[]; // For select/multiselect - dynamically extracted from data
+  options?: string[]; // For select/multiselect
   operators?: FilterOperator[]; // Available operators for this field
 }
 
@@ -87,14 +85,12 @@ export const TableFilter: React.FC<TableFilterProps> = ({
   const [selectedOperator, setSelectedOperator] = useState<FilterOperator | null>(null);
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date; mode?: 'single' | 'range' | 'before' | 'after' } | null>(null);
-  const [valueSearchQuery, setValueSearchQuery] = useState('');
 
   const handleFieldSelect = (field: FilterField) => {
     setSelectedField(field);
     setSelectedOperator(null);
     setSelectedValues([]);
     setDateRange(null);
-    setValueSearchQuery(''); // Reset search when field changes
     
     // Set default operator
     const operators = field.operators || DEFAULT_OPERATORS[field.type];
@@ -193,10 +189,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
           <Button
             variant="outline"
             size="sm"
-            className={cn(
-              "gap-2 h-11",
-              activeFilters.length > 0 && "bg-slate-50 border-slate-300"
-            )}
+            className="h-11 gap-2 border-indigo-200/60 shadow-sm hover:shadow-md transition-all"
           >
             <Filter className="h-4 w-4" />
             <span>סינון</span>
@@ -260,12 +253,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                         variant={selectedOperator === op ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => handleOperatorSelect(op)}
-                        className={cn(
-                          "text-xs",
-                          selectedOperator === op 
-                            ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white" 
-                            : "border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white"
-                        )}
+                        className="text-xs"
                       >
                         {OPERATOR_LABELS[op]}
                       </Button>
@@ -292,72 +280,42 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                     )}
 
                     {/* Multi-Select */}
-                    {selectedField.type === 'multiselect' && (selectedField.options || selectedField.dynamicOptions) && (
-                      <div className="space-y-2">
-                        {/* Search input for values */}
-                        <Input
-                          placeholder="חפש ערך..."
-                          value={valueSearchQuery}
-                          onChange={(e) => setValueSearchQuery(e.target.value)}
-                          className="w-full h-9 text-sm bg-white text-gray-900 border border-gray-200 hover:bg-white focus:bg-white focus:border-indigo-400"
-                          dir="rtl"
-                        />
-                        <div className="max-h-48 overflow-y-auto space-y-2 border rounded-md p-2">
-                          {(selectedField.dynamicOptions || selectedField.options || [])
-                            .filter(option => {
-                              if (!valueSearchQuery.trim()) return true;
-                              return option.toLowerCase().includes(valueSearchQuery.toLowerCase());
-                            })
-                            .map((option) => (
-                              <div
-                                key={option}
-                                className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                                onClick={() => handleValueToggle(option)}
-                              >
-                                <Checkbox
-                                  checked={selectedValues.includes(option)}
-                                  onCheckedChange={() => handleValueToggle(option)}
-                                />
-                                <span className="text-sm">{option}</span>
-                              </div>
-                            ))}
-                        </div>
+                    {selectedField.type === 'multiselect' && selectedField.options && (
+                      <div className="max-h-48 overflow-y-auto space-y-2 border rounded-md p-2">
+                        {selectedField.options.map((option) => (
+                          <div
+                            key={option}
+                            className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                            onClick={() => handleValueToggle(option)}
+                          >
+                            <Checkbox
+                              checked={selectedValues.includes(option)}
+                              onCheckedChange={() => handleValueToggle(option)}
+                            />
+                            <span className="text-sm">{option}</span>
+                          </div>
+                        ))}
                       </div>
                     )}
 
                     {/* Single Select */}
-                    {selectedField.type === 'select' && (selectedField.options || selectedField.dynamicOptions) && (
-                      <div className="space-y-2">
-                        {/* Search input for values */}
-                        <Input
-                          placeholder="חפש ערך..."
-                          value={valueSearchQuery}
-                          onChange={(e) => setValueSearchQuery(e.target.value)}
-                          className="w-full h-9 text-sm bg-white text-gray-900 border border-gray-200 hover:bg-white focus:bg-white focus:border-indigo-400"
-                          dir="rtl"
-                        />
-                        <div className="max-h-48 overflow-y-auto space-y-1 border rounded-md p-2">
-                          {(selectedField.dynamicOptions || selectedField.options || [])
-                            .filter(option => {
-                              if (!valueSearchQuery.trim()) return true;
-                              return option.toLowerCase().includes(valueSearchQuery.toLowerCase());
-                            })
-                            .map((option) => (
-                              <div
-                                key={option}
-                                className={cn(
-                                  "flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded",
-                                  selectedValues.includes(option) && "bg-[#5B6FB9]/10"
-                                )}
-                                onClick={() => handleValueToggle(option)}
-                              >
-                                {selectedValues.includes(option) && (
-                                  <Check className="h-4 w-4 text-[#5B6FB9]" />
-                                )}
-                                <span className="text-sm">{option}</span>
-                              </div>
-                            ))}
-                        </div>
+                    {selectedField.type === 'select' && selectedField.options && (
+                      <div className="max-h-48 overflow-y-auto space-y-1 border rounded-md p-2">
+                        {selectedField.options.map((option) => (
+                          <div
+                            key={option}
+                            className={cn(
+                              "flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded",
+                              selectedValues.includes(option) && "bg-indigo-50"
+                            )}
+                            onClick={() => handleValueToggle(option)}
+                          >
+                            {selectedValues.includes(option) && (
+                              <Check className="h-4 w-4 text-indigo-600" />
+                            )}
+                            <span className="text-sm">{option}</span>
+                          </div>
+                        ))}
                       </div>
                     )}
 
@@ -391,7 +349,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                 <Button
                   onClick={handleApplyFilter}
                   disabled={!canApply()}
-                  className="w-full bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700"
                   size="sm"
                 >
                   הוסף סינון

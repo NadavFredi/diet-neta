@@ -56,11 +56,9 @@ smtp_port = 54325
 pop3_port = 54326
 
 [storage]
-enabled = true
+enabled = false
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
-# NOTE: Storage requires additional setup. Enable when ready to use file uploads.
-# For production, storage will work automatically.
 
 [auth]
 enabled = true
@@ -117,27 +115,7 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/get-attendance/index.ts"
 
-[functions.create-trainee-user]
-enabled = true
-verify_jwt = true
-entrypoint = "./functions/create-trainee-user/index.ts"
-
-[functions.receive-fillout-webhook]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/receive-fillout-webhook/index.ts"
-
-[functions.sync-fillout-meetings]
-enabled = true
-verify_jwt = true
-entrypoint = "./functions/sync-fillout-meetings/index.ts"
-
 [functions.send-whatsapp-message]
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/send-whatsapp-message/index.ts"
-
-[functions.receive-whatsapp-webhook]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/receive-whatsapp-webhook/index.ts"

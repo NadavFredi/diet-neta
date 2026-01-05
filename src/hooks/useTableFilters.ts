@@ -12,19 +12,13 @@ import {
   PREFERRED_TIME_OPTIONS, 
   SOURCE_OPTIONS 
 } from '@/utils/dashboard';
-import { 
-  getLeadFilterOptions,
-  extractWorkoutTemplateFilterOptions,
-  extractNutritionTemplateFilterOptions
-} from '@/utils/filterUtils';
-import type { Lead } from '@/store/slices/dashboardSlice';
 
 export interface FilterConfig {
   filters: ActiveFilter[];
 }
 
-// Base filter fields for Leads table (without dynamic options)
-export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
+// Define filter fields for Leads table
+export const LEAD_FILTER_FIELDS: FilterField[] = [
   {
     id: 'createdDate',
     label: 'תאריך יצירה',
@@ -35,7 +29,7 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     id: 'status',
     label: 'סטטוס',
     type: 'multiselect',
-    options: [...STATUS_OPTIONS], // Fallback static options
+    options: [...STATUS_OPTIONS],
     operators: ['is', 'isNot'],
   },
   {
@@ -60,60 +54,31 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     id: 'fitnessGoal',
     label: 'מטרת כושר',
     type: 'multiselect',
-    options: [...FITNESS_GOAL_OPTIONS], // Fallback static options
+    options: [...FITNESS_GOAL_OPTIONS],
     operators: ['is', 'isNot'],
   },
   {
     id: 'activityLevel',
     label: 'רמת פעילות',
     type: 'multiselect',
-    options: [...ACTIVITY_LEVEL_OPTIONS], // Fallback static options
+    options: [...ACTIVITY_LEVEL_OPTIONS],
     operators: ['is', 'isNot'],
   },
   {
     id: 'preferredTime',
     label: 'זמן מועדף',
     type: 'multiselect',
-    options: [...PREFERRED_TIME_OPTIONS], // Fallback static options
+    options: [...PREFERRED_TIME_OPTIONS],
     operators: ['is', 'isNot'],
   },
   {
     id: 'source',
     label: 'מקור',
     type: 'multiselect',
-    options: [...SOURCE_OPTIONS], // Fallback static options
+    options: [...SOURCE_OPTIONS],
     operators: ['is', 'isNot'],
   },
 ];
-
-/**
- * Get filter fields for Leads table with dynamic options from data
- */
-export function getLeadFilterFields(leads: Lead[] = []): FilterField[] {
-  const dynamicOptions = getLeadFilterOptions(leads);
-  
-  return LEAD_FILTER_FIELDS_BASE.map(field => {
-    if (field.id === 'status' && dynamicOptions.status.length > 0) {
-      return { ...field, dynamicOptions: dynamicOptions.status };
-    }
-    if (field.id === 'fitnessGoal' && dynamicOptions.fitnessGoal.length > 0) {
-      return { ...field, dynamicOptions: dynamicOptions.fitnessGoal };
-    }
-    if (field.id === 'activityLevel' && dynamicOptions.activityLevel.length > 0) {
-      return { ...field, dynamicOptions: dynamicOptions.activityLevel };
-    }
-    if (field.id === 'preferredTime' && dynamicOptions.preferredTime.length > 0) {
-      return { ...field, dynamicOptions: dynamicOptions.preferredTime };
-    }
-    if (field.id === 'source' && dynamicOptions.source.length > 0) {
-      return { ...field, dynamicOptions: dynamicOptions.source };
-    }
-    return field;
-  });
-}
-
-// For backward compatibility, export base fields
-export const LEAD_FILTER_FIELDS = LEAD_FILTER_FIELDS_BASE;
 
 // Define filter fields for Customers table
 export const CUSTOMER_FILTER_FIELDS: FilterField[] = [
@@ -131,60 +96,13 @@ export const CUSTOMER_FILTER_FIELDS: FilterField[] = [
   },
 ];
 
-/**
- * Get filter fields for Workout Templates table with dynamic options from data
- */
-export function getWorkoutTemplateFilterFields(templates: any[] = []): FilterField[] {
-  return [
-    {
-      id: 'created_at',
-      label: 'תאריך יצירה',
-      type: 'date',
-      operators: ['equals', 'before', 'after', 'between'],
-    },
-    {
-      id: 'goal_tags',
-      label: 'תגיות מטרה',
-      type: 'multiselect',
-      dynamicOptions: extractWorkoutTemplateFilterOptions(templates, 'goal_tags'),
-      operators: ['is', 'isNot'],
-    },
-    {
-      id: 'is_public',
-      label: 'תבנית ציבורית',
-      type: 'select',
-      dynamicOptions: extractWorkoutTemplateFilterOptions(templates, 'is_public'),
-      operators: ['is', 'isNot'],
-    },
-    {
-      id: 'has_leads',
-      label: 'יש לידים',
-      type: 'select',
-      options: ['כן', 'לא'],
-      operators: ['is', 'isNot'],
-    },
-  ];
-}
-
-// Base filter fields for Templates table (without dynamic options)
+// Define filter fields for Templates table
 export const TEMPLATE_FILTER_FIELDS: FilterField[] = [
   {
     id: 'created_at',
     label: 'תאריך יצירה',
     type: 'date',
     operators: ['equals', 'before', 'after', 'between'],
-  },
-  {
-    id: 'goal_tags',
-    label: 'תגיות מטרה',
-    type: 'multiselect',
-    operators: ['is', 'isNot'],
-  },
-  {
-    id: 'is_public',
-    label: 'תבנית ציבורית',
-    type: 'select',
-    operators: ['is', 'isNot'],
   },
   {
     id: 'has_leads',
@@ -195,42 +113,7 @@ export const TEMPLATE_FILTER_FIELDS: FilterField[] = [
   },
 ];
 
-/**
- * Get filter fields for Nutrition Templates table with dynamic options from data
- */
-export function getNutritionTemplateFilterFields(templates: any[] = []): FilterField[] {
-  return [
-    {
-      id: 'created_at',
-      label: 'תאריך יצירה',
-      type: 'date',
-      operators: ['equals', 'before', 'after', 'between'],
-    },
-    {
-      id: 'is_public',
-      label: 'תבנית ציבורית',
-      type: 'select',
-      dynamicOptions: extractNutritionTemplateFilterOptions(templates, 'is_public'),
-      operators: ['is', 'isNot'],
-    },
-    {
-      id: 'calories_range',
-      label: 'טווח קלוריות',
-      type: 'multiselect',
-      dynamicOptions: extractNutritionTemplateFilterOptions(templates, 'calories_range'),
-      operators: ['is', 'isNot'],
-    },
-    {
-      id: 'protein_range',
-      label: 'טווח חלבון',
-      type: 'multiselect',
-      dynamicOptions: extractNutritionTemplateFilterOptions(templates, 'protein_range'),
-      operators: ['is', 'isNot'],
-    },
-  ];
-}
-
-// Base filter fields for Nutrition Templates table (without dynamic options)
+// Define filter fields for Nutrition Templates table
 export const NUTRITION_TEMPLATE_FILTER_FIELDS: FilterField[] = [
   {
     id: 'created_at',
@@ -238,93 +121,7 @@ export const NUTRITION_TEMPLATE_FILTER_FIELDS: FilterField[] = [
     type: 'date',
     operators: ['equals', 'before', 'after', 'between'],
   },
-  {
-    id: 'is_public',
-    label: 'תבנית ציבורית',
-    type: 'select',
-    operators: ['is', 'isNot'],
-  },
-  {
-    id: 'calories_range',
-    label: 'טווח קלוריות',
-    type: 'multiselect',
-    operators: ['is', 'isNot'],
-  },
-  {
-    id: 'protein_range',
-    label: 'טווח חלבון',
-    type: 'multiselect',
-    operators: ['is', 'isNot'],
-  },
 ];
-
-// Define filter fields for Meetings table
-export const MEETING_FILTER_FIELDS: FilterField[] = [
-  {
-    id: 'created_at',
-    label: 'תאריך יצירה',
-    type: 'date',
-    operators: ['equals', 'before', 'after', 'between'],
-  },
-  {
-    id: 'meeting_date',
-    label: 'תאריך פגישה',
-    type: 'date',
-    operators: ['equals', 'before', 'after', 'between'],
-  },
-  {
-    id: 'status',
-    label: 'סטטוס',
-    type: 'select',
-    options: ['פעיל', 'בוטל', 'הושלם', 'מתוכנן'],
-    operators: ['is', 'isNot'],
-  },
-];
-
-/**
- * Get filter fields for Meetings table with dynamic options from data
- */
-export function getMeetingFilterFields(meetings: any[] = []): FilterField[] {
-  return MEETING_FILTER_FIELDS.map(field => {
-    // If we need dynamic options in the future, we can add them here
-    // For now, return the base fields
-    return field;
-  });
-}
-
-// Base filter fields for Budgets table (without dynamic options)
-export const BUDGET_FILTER_FIELDS: FilterField[] = [
-  {
-    id: 'created_at',
-    label: 'תאריך יצירה',
-    type: 'date',
-    operators: ['equals', 'before', 'after', 'between'],
-  },
-  {
-    id: 'is_public',
-    label: 'תקציב ציבורי',
-    type: 'select',
-    options: ['כן', 'לא'],
-    operators: ['is', 'isNot'],
-  },
-  {
-    id: 'steps_goal',
-    label: 'יעד צעדים',
-    type: 'number',
-    operators: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
-  },
-];
-
-/**
- * Get filter fields for Budgets table with dynamic options from data
- */
-export function getBudgetFilterFields(budgets: any[] = []): FilterField[] {
-  return BUDGET_FILTER_FIELDS.map(field => {
-    // If we need dynamic options in the future, we can add them here
-    // For now, return the base fields
-    return field;
-  });
-}
 
 export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
   const [filters, setFilters] = useState<ActiveFilter[]>(initialFilters);
@@ -401,10 +198,6 @@ export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
     toLegacyFormat,
   };
 };
-
-
-
-
 
 
 
