@@ -381,6 +381,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling to parent forms
     try {
       const data = getWorkoutData();
       if (mode === 'user') {

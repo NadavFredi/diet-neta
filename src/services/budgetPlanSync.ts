@@ -74,43 +74,38 @@ export async function syncPlansFromBudget({
     if (templateError) {
       console.error('Error fetching workout template:', templateError);
     } else if (workoutTemplate) {
-      // Check if a workout plan already exists for this budget
-      let existingWorkoutPlan = null;
-      if (finalCustomerId) {
-        const { data } = await supabase
-          .from('workout_plans')
-          .select('id')
-          .eq('budget_id', budget.id)
-          .eq('customer_id', finalCustomerId)
-          .maybeSingle();
-        existingWorkoutPlan = data;
-      } else if (leadId) {
-        const { data } = await supabase
-          .from('workout_plans')
-          .select('id')
-          .eq('budget_id', budget.id)
-          .eq('lead_id', leadId)
-          .maybeSingle();
-        existingWorkoutPlan = data;
-      }
-
-      // Deactivate existing active workout plans for this customer/lead (except the one we're updating)
+      // First, deactivate ALL existing active workout plans for this customer/lead
       if (finalCustomerId) {
         await supabase
           .from('workout_plans')
           .update({ is_active: false })
           .eq('customer_id', finalCustomerId)
-          .eq('is_active', true)
-          .neq('id', existingWorkoutPlan?.id || '00000000-0000-0000-0000-000000000000');
+          .eq('is_active', true);
       } else if (leadId) {
         await supabase
           .from('workout_plans')
           .update({ is_active: false })
           .eq('lead_id', leadId)
-          .eq('is_active', true)
-          .neq('id', existingWorkoutPlan?.id || '00000000-0000-0000-0000-000000000000');
+          .eq('is_active', true);
       }
 
+      // DELETE all existing workout plans for this specific budget + customer/lead combination
+      // This ensures we only have one plan per budget assignment
+      if (finalCustomerId) {
+        await supabase
+          .from('workout_plans')
+          .delete()
+          .eq('budget_id', budget.id)
+          .eq('customer_id', finalCustomerId);
+      } else if (leadId) {
+        await supabase
+          .from('workout_plans')
+          .delete()
+          .eq('budget_id', budget.id)
+          .eq('lead_id', leadId);
+      }
+
+      // Create new workout plan from template
       const planData = {
         user_id: userId,
         customer_id: finalCustomerId || null,
@@ -127,37 +122,17 @@ export async function syncPlansFromBudget({
         created_by: userId,
       };
 
-      let workoutPlan;
-      if (existingWorkoutPlan) {
-        // Update existing plan
-        const { data, error: workoutError } = await supabase
-          .from('workout_plans')
-          .update(planData)
-          .eq('id', existingWorkoutPlan.id)
-          .select()
-          .single();
-        
-        if (workoutError) {
-          console.error('[syncPlansFromBudget] Error updating workout plan:', workoutError);
-          throw new Error(`Failed to update workout plan: ${workoutError.message}`);
-        }
-        workoutPlan = data;
-        console.log('[syncPlansFromBudget] Workout plan updated successfully:', workoutPlan.id);
-      } else {
-        // Create new workout plan from template
-        const { data, error: workoutError } = await supabase
-          .from('workout_plans')
-          .insert(planData)
-          .select()
-          .single();
+      const { data: workoutPlan, error: workoutError } = await supabase
+        .from('workout_plans')
+        .insert(planData)
+        .select()
+        .single();
 
-        if (workoutError) {
-          console.error('[syncPlansFromBudget] Error creating workout plan:', workoutError);
-          throw new Error(`Failed to create workout plan: ${workoutError.message}`);
-        }
-        workoutPlan = data;
-        console.log('[syncPlansFromBudget] Workout plan created successfully:', workoutPlan.id);
+      if (workoutError) {
+        console.error('[syncPlansFromBudget] Error creating workout plan:', workoutError);
+        throw new Error(`Failed to create workout plan: ${workoutError.message}`);
       }
+      console.log('[syncPlansFromBudget] Workout plan created successfully:', workoutPlan.id);
 
       result.workoutPlanId = workoutPlan.id;
     }
@@ -165,7 +140,22 @@ export async function syncPlansFromBudget({
 
   // 2. Sync Nutrition Plan
   if (budget.nutrition_template_id || budget.nutrition_targets) {
-    // Check if a nutrition plan already exists for this budget
+    // First, deactivate ALL existing active nutrition plans for this customer/lead
+    if (finalCustomerId) {
+      await supabase
+        .from('nutrition_plans')
+        .update({ is_active: false })
+        .eq('customer_id', finalCustomerId)
+        .eq('is_active', true);
+    } else if (leadId) {
+      await supabase
+        .from('nutrition_plans')
+        .update({ is_active: false })
+        .eq('lead_id', leadId)
+        .eq('is_active', true);
+    }
+
+    // Check if a nutrition plan already exists for this budget (after deactivation)
     let existingNutritionPlan = null;
     if (finalCustomerId) {
       const { data } = await supabase
@@ -173,6 +163,8 @@ export async function syncPlansFromBudget({
         .select('id')
         .eq('budget_id', budget.id)
         .eq('customer_id', finalCustomerId)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       existingNutritionPlan = data;
     } else if (leadId) {
@@ -181,25 +173,10 @@ export async function syncPlansFromBudget({
         .select('id')
         .eq('budget_id', budget.id)
         .eq('lead_id', leadId)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       existingNutritionPlan = data;
-    }
-
-    // Deactivate existing active nutrition plans for this customer/lead (except the one we're updating)
-    if (finalCustomerId) {
-      await supabase
-        .from('nutrition_plans')
-        .update({ is_active: false })
-        .eq('customer_id', finalCustomerId)
-        .eq('is_active', true)
-        .neq('id', existingNutritionPlan?.id || '00000000-0000-0000-0000-000000000000');
-    } else if (leadId) {
-      await supabase
-        .from('nutrition_plans')
-        .update({ is_active: false })
-        .eq('lead_id', leadId)
-        .eq('is_active', true)
-        .neq('id', existingNutritionPlan?.id || '00000000-0000-0000-0000-000000000000');
     }
 
     let nutritionTargets = budget.nutrition_targets;
@@ -279,7 +256,30 @@ export async function syncPlansFromBudget({
       leadId,
     });
 
-    // Check if a steps plan already exists for this budget
+    // First, deactivate ALL existing active steps plans for this customer/lead
+    if (finalCustomerId) {
+      const { error: deactivateError } = await supabase
+        .from('steps_plans')
+        .update({ is_active: false })
+        .eq('customer_id', finalCustomerId)
+        .eq('is_active', true);
+      
+      if (deactivateError && !deactivateError.message?.includes('does not exist') && !deactivateError.message?.includes('relation')) {
+        console.error('[syncPlansFromBudget] Error deactivating steps plans:', deactivateError);
+      }
+    } else if (leadId) {
+      const { error: deactivateError } = await supabase
+        .from('steps_plans')
+        .update({ is_active: false })
+        .eq('lead_id', leadId)
+        .eq('is_active', true);
+      
+      if (deactivateError && !deactivateError.message?.includes('does not exist') && !deactivateError.message?.includes('relation')) {
+        console.error('[syncPlansFromBudget] Error deactivating steps plans:', deactivateError);
+      }
+    }
+
+    // Check if a steps plan already exists for this budget (after deactivation)
     let existingStepsPlan = null;
     if (finalCustomerId) {
       const { data, error: checkError } = await supabase
@@ -287,6 +287,8 @@ export async function syncPlansFromBudget({
         .select('id')
         .eq('budget_id', budget.id)
         .eq('customer_id', finalCustomerId)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       
       if (checkError) {
@@ -327,6 +329,8 @@ export async function syncPlansFromBudget({
         .select('id')
         .eq('budget_id', budget.id)
         .eq('lead_id', leadId)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       
       if (checkError) {
@@ -337,23 +341,6 @@ export async function syncPlansFromBudget({
         }
       }
       existingStepsPlan = data;
-    }
-
-    // Deactivate existing active steps plans for this customer/lead (except the one we're updating)
-    if (finalCustomerId) {
-      await supabase
-        .from('steps_plans')
-        .update({ is_active: false })
-        .eq('customer_id', finalCustomerId)
-        .eq('is_active', true)
-        .neq('id', existingStepsPlan?.id || '00000000-0000-0000-0000-000000000000');
-    } else if (leadId) {
-      await supabase
-        .from('steps_plans')
-        .update({ is_active: false })
-        .eq('lead_id', leadId)
-        .eq('is_active', true)
-        .neq('id', existingStepsPlan?.id || '00000000-0000-0000-0000-000000000000');
     }
 
     const planData = {
@@ -445,7 +432,22 @@ export async function syncPlansFromBudget({
 
   // 4. Sync Supplement Plan
   if (budget.supplements && budget.supplements.length > 0) {
-    // Check if a supplement plan already exists for this budget
+    // First, deactivate ALL existing active supplement plans for this customer/lead
+    if (finalCustomerId) {
+      await supabase
+        .from('supplement_plans')
+        .update({ is_active: false })
+        .eq('customer_id', finalCustomerId)
+        .eq('is_active', true);
+    } else if (leadId) {
+      await supabase
+        .from('supplement_plans')
+        .update({ is_active: false })
+        .eq('lead_id', leadId)
+        .eq('is_active', true);
+    }
+
+    // Check if a supplement plan already exists for this budget (after deactivation)
     let existingSupplementPlan = null;
     if (finalCustomerId) {
       const { data } = await supabase
@@ -453,6 +455,8 @@ export async function syncPlansFromBudget({
         .select('id')
         .eq('budget_id', budget.id)
         .eq('customer_id', finalCustomerId)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       existingSupplementPlan = data;
     } else if (leadId) {
@@ -461,25 +465,10 @@ export async function syncPlansFromBudget({
         .select('id')
         .eq('budget_id', budget.id)
         .eq('lead_id', leadId)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       existingSupplementPlan = data;
-    }
-
-    // Deactivate existing active supplement plans for this customer/lead (except the one we're updating)
-    if (finalCustomerId) {
-      await supabase
-        .from('supplement_plans')
-        .update({ is_active: false })
-        .eq('customer_id', finalCustomerId)
-        .eq('is_active', true)
-        .neq('id', existingSupplementPlan?.id || '00000000-0000-0000-0000-000000000000');
-    } else if (leadId) {
-      await supabase
-        .from('supplement_plans')
-        .update({ is_active: false })
-        .eq('lead_id', leadId)
-        .eq('is_active', true)
-        .neq('id', existingSupplementPlan?.id || '00000000-0000-0000-0000-000000000000');
     }
 
     const planData = {

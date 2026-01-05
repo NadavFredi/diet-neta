@@ -53,8 +53,12 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
   }, [isEditing]);
 
   useEffect(() => {
-    setEditValue(String(value));
-  }, [value]);
+    // Only update editValue if we're not currently editing or saving
+    // This prevents the value from reverting while saving
+    if (!isEditing && !isSaving) {
+      setEditValue(String(value));
+    }
+  }, [value, isEditing, isSaving]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
@@ -77,17 +81,21 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
         }
       }
       
-      // Exit editing mode immediately for better UX (optimistic update)
+      // Update local state optimistically
+      setEditValue(String(finalValue));
       setIsEditing(false);
       
-      // Save in background - optimistic updates handle the UI
-      onSave(finalValue).catch((error) => {
+      // Await the save to ensure it completes
+      try {
+        await onSave(finalValue);
+        console.log('InlineEditableField: Save successful', finalValue);
+      } catch (error) {
         console.error('InlineEditableField: Failed to save:', error);
         // On error, revert to original value
         setEditValue(String(value));
-        // Re-enter editing mode so user can retry
         setIsEditing(true);
-      });
+        throw error;
+      }
     } catch (error) {
       console.error('InlineEditableField: Validation error:', error);
       setEditValue(String(value));

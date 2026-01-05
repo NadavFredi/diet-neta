@@ -105,6 +105,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   }
 
   const subscriptionData = activeLead.subscription_data || {};
+  // Use status_sub first, then status_main, then default
+  // This matches the database structure and ensures correct display
   const displayStatus = activeLead.status_sub || activeLead.status_main || 'ללא סטטוס';
 
   // Calculate age from birth_date

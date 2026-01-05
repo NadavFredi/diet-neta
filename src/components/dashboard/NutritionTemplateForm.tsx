@@ -237,6 +237,7 @@ export const NutritionTemplateForm = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling to parent forms
     setIsSubmitting(true);
     try {
       const data = getNutritionData(mode);

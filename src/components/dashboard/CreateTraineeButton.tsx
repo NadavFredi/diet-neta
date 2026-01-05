@@ -94,7 +94,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   const [userExists, setUserExists] = useState(false);
   const [existingUserId, setExistingUserId] = useState<string | null>(null);
   const [isCheckingUser, setIsCheckingUser] = useState(true);
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>('');
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>('default');
   const [templates, setTemplates] = useState<Record<string, any>>({});
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
 
@@ -379,7 +379,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
       let templateContent = messageTemplate || DEFAULT_TRAINEE_TEMPLATE;
       let buttons: Array<{ id: string; text: string }> | undefined = undefined;
 
-      if (selectedTemplateKey && templates[selectedTemplateKey]) {
+      if (selectedTemplateKey && selectedTemplateKey !== 'default' && templates[selectedTemplateKey]) {
         const selectedTemplate = templates[selectedTemplateKey];
         templateContent = selectedTemplate.template_content || templateContent;
         buttons = selectedTemplate.buttons;
@@ -557,7 +557,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
                   <SelectValue placeholder="בחר תבנית (אופציונלי)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">תבנית ברירת מחדל (פרטי כניסה)</SelectItem>
+                  <SelectItem value="default">תבנית ברירת מחדל (פרטי כניסה)</SelectItem>
                   {Object.entries(templates).map(([key, template]) => {
                     // Get flow label from DEFAULT_FLOW_CONFIGS, custom flows, or use key
                     const allFlows = [...DEFAULT_FLOW_CONFIGS, ...loadCustomFlows()];
@@ -602,6 +602,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
               setEmail(customerEmail || '');
               setCreatedUserId(null);
               setExistingUserId(null);
+              setSelectedTemplateKey('default');
             }}
             disabled={isLoading || isSendingWhatsApp}
             className="w-full sm:w-auto"

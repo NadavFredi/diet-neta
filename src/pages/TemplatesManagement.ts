@@ -66,42 +66,77 @@ export const useTemplatesManagement = () => {
     queryKey: ['templates-with-leads-data'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch workout plans with template_id and lead_id
+        const { data: plans, error: plansError } = await supabase
           .from('workout_plans')
-          .select(`
-            template_id,
-            leads!inner (
-              id,
-              customer_id,
-              customer:customers!inner (
-                full_name,
-                phone,
-                email
-              )
-            )
-          `)
+          .select('template_id, lead_id')
           .not('template_id', 'is', null)
           .not('lead_id', 'is', null);
 
-        if (error) {
-          console.error('Error fetching templates with leads data:', error);
+        if (plansError) {
+          console.error('Error fetching workout plans:', plansError);
           return new Map<string, Array<{ name: string; phone: string; email?: string }>>();
         }
 
-        const templateLeadsMap = new Map<string, Array<{ name: string; phone: string; email?: string }>>();
-        if (data) {
-          data.forEach((plan: any) => {
-            if (plan.template_id && plan.leads) {
-              const leads = templateLeadsMap.get(plan.template_id) || [];
-              leads.push({
-                name: plan.leads.customer?.full_name || '',
-                phone: plan.leads.customer?.phone || '',
-                email: plan.leads.customer?.email || '',
-              });
-              templateLeadsMap.set(plan.template_id, leads);
-            }
-          });
+        if (!plans || plans.length === 0) {
+          return new Map<string, Array<{ name: string; phone: string; email?: string }>>();
         }
+
+        // Get unique lead IDs
+        const leadIds = [...new Set(plans.map((p: any) => p.lead_id).filter(Boolean))];
+
+        if (leadIds.length === 0) {
+          return new Map<string, Array<{ name: string; phone: string; email?: string }>>();
+        }
+
+        // Fetch leads with customer information
+        const { data: leads, error: leadsError } = await supabase
+          .from('leads')
+          .select(`
+            id,
+            customer_id,
+            customer:customers!inner (
+              full_name,
+              phone,
+              email
+            )
+          `)
+          .in('id', leadIds);
+
+        if (leadsError) {
+          console.error('Error fetching leads:', leadsError);
+          return new Map<string, Array<{ name: string; phone: string; email?: string }>>();
+        }
+
+        // Create a map of lead_id to lead data
+        const leadsMap = new Map(
+          (leads || []).map((lead: any) => [lead.id, lead])
+        );
+
+        // Build template leads map
+        const templateLeadsMap = new Map<string, Array<{ name: string; phone: string; email?: string }>>();
+        plans.forEach((plan: any) => {
+          if (plan.template_id && plan.lead_id) {
+            const lead = leadsMap.get(plan.lead_id);
+            if (lead && lead.customer) {
+              const leadInfo = {
+                name: lead.customer.full_name || 'ללא שם',
+                phone: lead.customer.phone || '',
+                email: lead.customer.email || undefined,
+              };
+
+              if (!templateLeadsMap.has(plan.template_id)) {
+                templateLeadsMap.set(plan.template_id, []);
+              }
+
+              // Avoid duplicates
+              const existing = templateLeadsMap.get(plan.template_id);
+              if (existing && !existing.some((l) => l.name === leadInfo.name && l.phone === leadInfo.phone)) {
+                existing.push(leadInfo);
+              }
+            }
+          }
+        });
 
         return templateLeadsMap;
       } catch (err) {

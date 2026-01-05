@@ -495,19 +495,6 @@ export const PersonalCheckInSettingsDialog: React.FC<PersonalCheckInSettingsDial
                 sectionIcon={Moon}
               />
             </div>
-
-            <Card className="bg-blue-50 border-blue-200" dir="rtl">
-              <CardContent className="pt-3 pb-3 px-4">
-                <div className="flex items-start gap-2">
-                  <div>
-                    <h3 className="font-semibold text-blue-900 mb-0.5" style={{ fontSize: '12px' }}>אודות הגדרות אלו</h3>
-                    <p className="text-blue-800" style={{ fontSize: '11px', lineHeight: '1.4' }}>
-                      הגדרות אלו חלות רק על לקוח זה. אם לא הוגדרו הגדרות מותאמות אישית, יופיעו ההגדרות הגלובליות.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         )}
 

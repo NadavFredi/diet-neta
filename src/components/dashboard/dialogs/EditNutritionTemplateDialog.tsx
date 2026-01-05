@@ -30,6 +30,10 @@ export const EditNutritionTemplateDialog = ({
           // Prevent closing when clicking outside - only close via explicit action
           e.preventDefault();
         }}
+        onEscapeKeyDown={(e) => {
+          // Prevent closing on escape - only close via explicit action
+          e.preventDefault();
+        }}
       >
         <DialogHeader className="px-3 pt-3 pb-2 border-b flex-shrink-0">
           <DialogTitle className="text-base">עריכת תבנית תזונה</DialogTitle>

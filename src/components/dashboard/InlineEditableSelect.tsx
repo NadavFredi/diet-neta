@@ -50,6 +50,7 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
   const [isHovered, setIsHovered] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newOptionValue, setNewOptionValue] = useState('');
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const newOptionInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,14 +67,19 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
   }, [isEditing, isAddingNew]);
 
   useEffect(() => {
-    setEditValue(value);
-  }, [value]);
+    // Only update editValue if we're not currently editing or saving
+    // This prevents the value from reverting while saving
+    if (!isEditing && !isSaving) {
+      setEditValue(value);
+    }
+  }, [value, isEditing, isSaving]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
     setEditValue(value);
     setIsAddingNew(false);
     setNewOptionValue('');
+    setIsSelectOpen(false);
   }, [value]);
 
   const handleSave = useCallback(async () => {
@@ -94,19 +100,24 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
         }
       }
       
-      // Exit editing mode immediately for better UX (optimistic update)
+      // Update local state optimistically
+      setEditValue(finalValue);
       setIsEditing(false);
       setIsAddingNew(false);
       setNewOptionValue('');
+      setIsSelectOpen(false);
       
-      // Save in background - optimistic updates handle the UI
-      onSave(finalValue).catch((error) => {
+      // Await the save to ensure it completes
+      try {
+        await onSave(finalValue);
+        console.log('InlineEditableSelect: Save successful', finalValue);
+      } catch (error) {
         console.error('InlineEditableSelect: Failed to save:', error);
         // On error, revert to original value
         setEditValue(value);
-        // Re-enter editing mode so user can retry
         setIsEditing(true);
-      });
+        throw error;
+      }
     } catch (error) {
       console.error('InlineEditableSelect: Validation error:', error);
       setEditValue(value);
@@ -152,12 +163,16 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
       if (isAddingNew) {
         handleSave();
       } else {
         handleSave();
       }
     } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
       handleCancel();
     }
   };
@@ -202,15 +217,19 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
             <div className="flex-1 min-w-0" onKeyDown={handleKeyDown}>
                 <Select 
                   value={editValue} 
+                  open={isSelectOpen}
+                  onOpenChange={(open) => {
+                    setIsSelectOpen(open);
+                  }}
                   onValueChange={(value) => {
                     if (value === '__add_new__') {
                       handleAddNew();
                       // Reset to current value to prevent "__add_new__" from being selected
                       setTimeout(() => setEditValue(editValue), 0);
                     } else {
+                      // Just update the local value, don't save yet
+                      // User will save with Enter key or save button
                       setEditValue(value);
-                      // Auto-save on selection change
-                      setTimeout(() => handleSave(), 100);
                     }
                   }}
                   disabled={isSaving || isAddingNew}
@@ -223,6 +242,18 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
                       "transition-all duration-200",
                       "bg-white"
                     )}
+                    onKeyDown={(e) => {
+                      // Handle Enter key when SelectTrigger is focused (dropdown closed)
+                      if (e.key === 'Enter' && !isSelectOpen) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSave();
+                      } else if (e.key === 'Escape' && !isSelectOpen) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleCancel();
+                      }
+                    }}
                   >
                     <SelectValue />
                   </SelectTrigger>

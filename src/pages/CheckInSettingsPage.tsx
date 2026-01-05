@@ -510,21 +510,6 @@ export const CheckInSettingsPage: React.FC = () => {
               sectionIcon={Moon}
             />
           </div>
-
-          {/* Info Card */}
-          <Card className="bg-blue-50 border-blue-200" dir="rtl">
-            <CardContent className="pt-3 pb-3 px-4">
-              <div className="flex items-start gap-2">
-                <div>
-                  <h3 className="font-semibold text-blue-900 mb-0.5" style={{ fontSize: '12px' }}>אודות הגדרות אלו</h3>
-                  <p className="text-blue-800" style={{ fontSize: '11px', lineHeight: '1.4' }}>
-                    הגדרות אלו חלות על כל הלקוחות כברירת מחדל. ניתן גם להגדיר הגדרות מותאמות אישית לכל לקוח
-                    מהדף של הלקוח. שינויים שנשמרו כאן יכנסו לתוקף מיד עבור כל הלקוחות.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

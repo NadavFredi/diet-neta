@@ -40,7 +40,6 @@ import { setSelectedDate } from '@/store/slices/clientSlice';
 import { useNavigate } from 'react-router-dom';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
-import { AddWorkoutPlanDialog } from '@/components/dashboard/dialogs/AddWorkoutPlanDialog';
 import { AddNutritionPlanDialog } from '@/components/dashboard/dialogs/AddNutritionPlanDialog';
 import { useClientRealtime } from '@/hooks/useClientRealtime';
 import { useToast } from '@/hooks/use-toast';
@@ -62,7 +61,6 @@ export const ClientDashboardView: React.FC = () => {
   const { handleLogout } = useAuth();
   const [activeTab, setActiveTab] = useState('workout');
   const [isMultiDayModalOpen, setIsMultiDayModalOpen] = useState(false);
-  const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
   const [isNutritionPlanDialogOpen, setIsNutritionPlanDialogOpen] = useState(false);
 
   // Initialize selectedDate to today on mount
@@ -74,7 +72,7 @@ export const ClientDashboardView: React.FC = () => {
   }, [selectedDate, dispatch]);
 
   // Fetch workout and nutrition plans for customer
-  const { workoutPlan, createWorkoutPlan, fetchWorkoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customer?.id || null);
+  const { workoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customer?.id || null);
   const { nutritionPlan, createNutritionPlan, fetchNutritionPlan, isLoading: isLoadingNutritionPlan } = useNutritionPlan(customer?.id || null);
 
   // Debug: Log nutrition plan data
@@ -419,16 +417,12 @@ export const ClientDashboardView: React.FC = () => {
                   <Card className="border border-slate-200 shadow-sm rounded-3xl">
                     <CardContent className="p-12 text-center">
                       <Dumbbell className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <p className="text-base font-medium text-gray-500 mb-6">
+                      <p className="text-base font-medium text-gray-500 mb-2">
                         אין תוכנית אימונים פעילה
                       </p>
-                      <Button
-                        onClick={() => setIsWorkoutPlanDialogOpen(true)}
-                        className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
-                      >
-                        <Dumbbell className="h-4 w-4 ml-2" />
-                        צור תוכנית אימונים
-                      </Button>
+                      <p className="text-sm text-gray-400">
+                        המאמן שלך יוסיף תוכנית אימונים כאן
+                      </p>
                     </CardContent>
                   </Card>
                 )}
@@ -542,39 +536,6 @@ export const ClientDashboardView: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Workout Plan Creation Dialog */}
-      {customer && (
-        <AddWorkoutPlanDialog
-          isOpen={isWorkoutPlanDialogOpen}
-          onOpenChange={setIsWorkoutPlanDialogOpen}
-          onSave={async (data) => {
-            try {
-              const leadId = activeLead?.id || undefined;
-              const planData = {
-                ...data,
-                lead_id: leadId,
-              };
-              await createWorkoutPlan(planData);
-              await fetchWorkoutPlan(); // Refetch to update UI
-              toast({
-                title: 'הצלחה',
-                description: 'תוכנית האימונים נוצרה בהצלחה',
-              });
-              setIsWorkoutPlanDialogOpen(false);
-            } catch (error: any) {
-              console.error('Failed to create workout plan:', error);
-              toast({
-                title: 'שגיאה',
-                description: error?.message || 'נכשל ביצירת תוכנית האימונים',
-                variant: 'destructive',
-              });
-            }
-          }}
-          customerId={customer.id}
-          leadId={activeLead?.id}
-        />
-      )}
 
       {/* Nutrition Plan Creation Dialog */}
       {customer && (

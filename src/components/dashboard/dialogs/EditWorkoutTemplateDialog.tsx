@@ -30,6 +30,10 @@ export const EditWorkoutTemplateDialog = ({
           // Prevent closing when clicking outside - only close via explicit action
           e.preventDefault();
         }}
+        onEscapeKeyDown={(e) => {
+          // Prevent closing on escape - only close via explicit action
+          e.preventDefault();
+        }}
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle>עריכת תוכנית אימונים</DialogTitle>

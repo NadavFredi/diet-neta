@@ -36,11 +36,12 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useAssignBudgetToCustomer, useAssignBudgetToLead } from '@/hooks/useBudgets';
 import { fetchFilteredLeads, mapLeadToUIFormat } from '@/services/leadService';
 import { supabase } from '@/lib/supabaseClient';
+import { useAppSelector } from '@/store/hooks';
 
 interface BudgetFormProps {
   mode: 'create' | 'edit';
   initialData?: Budget | null;
-  onSave: (data: any) => void;
+  onSave: (data: any) => Promise<Budget | void> | void;
   onCancel: () => void;
   enableAssignment?: boolean; // Enable customer/lead assignment
 }
@@ -101,6 +102,10 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAppSelector((state) => state.auth);
+  
+  // Only managers/admins can edit templates
+  const canEditTemplates = user?.role === 'admin' || user?.role === 'user';
   
   // Debug: Log assignment state
   useEffect(() => {
@@ -270,6 +275,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
     setIsSubmitting(true);
 
     try {
@@ -288,55 +294,97 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       
       const savedBudget = await onSave(budgetData);
       
+      // Get the budget ID - use initialData.id for edit mode, or savedBudget.id if returned
+      const budgetId = (mode === 'edit' && initialData?.id) ? initialData.id : (savedBudget as Budget | undefined)?.id;
+      
       // Handle lead assignment (works in both create and edit modes)
-      if (savedBudget?.id && selectedLeadId) {
+      if (budgetId && selectedLeadId) {
         try {
+          console.log('[BudgetForm] Assigning budget to lead:', { budgetId, leadId: selectedLeadId });
+          
+          // Use the same assignment hook that's used from the lead page
+          // This ensures the same sync logic is applied
           await assignToLead.mutateAsync({
-            budgetId: savedBudget.id,
+            budgetId: budgetId,
             leadId: selectedLeadId,
+            notes: undefined, // No notes from budget form
           });
-          queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] });
+          
+          // Invalidate all the same queries as AssignBudgetDialog to ensure consistency
+          queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', selectedLeadId] });
           queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
+          queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+          queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+          queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+          queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+          
           toast({
             title: 'הצלחה',
-            description: 'התקציב הוקצה לליד בהצלחה',
+            description: 'התקציב הוקצה לליד בהצלחה. תכניות אימונים, תזונה ותוספים נוצרו אוטומטית.',
           });
         } catch (error: any) {
-          console.error('Error assigning budget to lead:', error);
+          console.error('[BudgetForm] Error assigning budget to lead:', error);
           toast({
             title: 'שגיאה',
             description: error?.message || 'נכשל בהקצאת התקציב לליד',
             variant: 'destructive',
           });
         }
-      } else if (savedBudget?.id && !selectedLeadId && currentLeadAssignment) {
+      } else if (budgetId && !selectedLeadId && currentLeadAssignment) {
         // If lead was unselected, deactivate the assignment
         try {
+          console.log('[BudgetForm] Removing lead assignment:', { budgetId, leadId: currentLeadAssignment });
+          
           await supabase
             .from('budget_assignments')
             .update({ is_active: false })
-            .eq('budget_id', savedBudget.id)
+            .eq('budget_id', budgetId)
             .eq('lead_id', currentLeadAssignment)
             .eq('is_active', true);
           
-          queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] });
+          // Invalidate queries to refresh data
+          queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', currentLeadAssignment] });
           queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
+          queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+          queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+          queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+          queryClient.invalidateQueries({ queryKey: ['plans-history'] });
         } catch (error: any) {
-          console.error('Error removing lead assignment:', error);
+          console.error('[BudgetForm] Error removing lead assignment:', error);
         }
       }
       
       // If assignment is enabled and a customer is selected, assign the budget
-      if (enableAssignment && savedBudget?.id && selectedCustomerId) {
-        await assignToCustomer.mutateAsync({
-          budgetId: savedBudget.id,
-          customerId: selectedCustomerId,
-        });
-        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
-        toast({
-          title: 'הצלחה',
-          description: 'התקציב נוצר והוקצה ללקוח בהצלחה',
-        });
+      if (enableAssignment && budgetId && selectedCustomerId) {
+        try {
+          console.log('[BudgetForm] Assigning budget to customer:', { budgetId, customerId: selectedCustomerId });
+          
+          await assignToCustomer.mutateAsync({
+            budgetId: budgetId,
+            customerId: selectedCustomerId,
+            notes: undefined,
+          });
+          
+          // Invalidate all relevant queries (the hook also invalidates, but this ensures consistency)
+          queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', selectedCustomerId] });
+          queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
+          queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+          queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+          queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+          queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+          
+          toast({
+            title: 'הצלחה',
+            description: 'התקציב נוצר והוקצה ללקוח בהצלחה. תכניות אימונים, תזונה ותוספים נוצרו אוטומטית.',
+          });
+        } catch (error: any) {
+          console.error('[BudgetForm] Error assigning budget to customer:', error);
+          toast({
+            title: 'שגיאה',
+            description: error?.message || 'נכשל בהקצאת התקציב ללקוח',
+            variant: 'destructive',
+          });
+        }
       }
     } catch (error) {
       console.error('Error saving budget:', error);
@@ -592,6 +640,9 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
               {/* Budget Assignment - Right under eating instructions */}
               <div className="pt-2 border-t border-slate-100">
                 <div className="space-y-3">
+                  {/* Assignment Title */}
+                  <h3 className="text-base font-semibold text-slate-900 pb-1">הקצאת תקציב</h3>
+                  
                   {/* Lead Assignment */}
                   <div className="space-y-1.5">
                     <Label className="text-sm font-medium text-slate-500">הקצה תקציב לליד</Label>
@@ -678,7 +729,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                     ))}
                   </SelectContent>
                 </Select>
-                {workoutTemplateId && (
+                {workoutTemplateId && canEditTemplates && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -728,7 +779,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                     ))}
                   </SelectContent>
                 </Select>
-                {nutritionTemplateId && (
+                {nutritionTemplateId && canEditTemplates && (
                   <Button
                     type="button"
                     variant="ghost"
