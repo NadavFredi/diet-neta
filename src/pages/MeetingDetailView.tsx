@@ -13,10 +13,13 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { ClientHero } from '@/components/dashboard/ClientHero';
 import { MeetingActionDashboard } from '@/components/dashboard/MeetingActionDashboard';
+import { LeadSidebarContainer } from '@/components/dashboard/LeadSidebarContainer';
+import { ResizableNotesPanel } from '@/components/dashboard/ResizableNotesPanel';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { logoutUser } from '@/store/slices/authSlice';
 import { formatDate } from '@/utils/dashboard';
 import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
 
 // Meeting type configuration
 const MEETING_TYPES = {
@@ -285,6 +288,39 @@ const MeetingDetailView = () => {
   const handleUpdateLead = async () => {};
   const handleUpdateCustomer = async () => {};
 
+  // Get sidebar state from Redux
+  const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
+  const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
+
+  // Get Notes panel width from localStorage (same as PageLayout)
+  const [notesPanelWidth, setNotesPanelWidth] = useState(450);
+  useEffect(() => {
+    const savedWidth = localStorage.getItem('notesPanelWidth');
+    if (savedWidth) {
+      const parsedWidth = parseInt(savedWidth, 10);
+      if (!isNaN(parsedWidth) && parsedWidth >= 250) {
+        setNotesPanelWidth(parsedWidth);
+      }
+    }
+    // Listen for custom event from ResizableNotesPanel when it resizes
+    const handleNotesPanelResize = () => {
+      const savedWidth = localStorage.getItem('notesPanelWidth');
+      if (savedWidth) {
+        const parsedWidth = parseInt(savedWidth, 10);
+        if (!isNaN(parsedWidth) && parsedWidth >= 250) {
+          setNotesPanelWidth(parsedWidth);
+        }
+      }
+    };
+    window.addEventListener('notesPanelResize', handleNotesPanelResize);
+    // Also poll localStorage periodically for changes (in case event doesn't fire)
+    const interval = setInterval(handleNotesPanelResize, 100);
+    return () => {
+      window.removeEventListener('notesPanelResize', handleNotesPanelResize);
+      clearInterval(interval);
+    };
+  }, []);
+
   const HEADER_HEIGHT = 88;
 
   return (
@@ -338,30 +374,75 @@ const MeetingDetailView = () => {
           </div>
         )}
 
-        {/* Main Content Wrapper */}
-        <main 
-          className="flex-1 flex flex-col bg-gray-50 overflow-y-auto overflow-x-hidden scroll-smooth"
+        {/* Main Content Wrapper - Dual Column Layout (Body | Notes) */}
+        <div 
+          className="flex flex-1 overflow-hidden"
           style={{ 
-            padding: '20px'
+            flexDirection: 'row' // RTL row: Notes first = right, Body second = left
           }}
+          dir="rtl"
         >
-          <div className="w-full max-w-7xl mx-auto">
-            <MeetingActionDashboard
-              meeting={meeting}
-              customer={customer}
-              schedulingData={schedulingData}
-              meetingType={meetingType}
-              status={status}
-              meetingDate={meetingDate}
-              formatTimeRange={formatTimeRange}
-              location={location}
-              notes={notes}
-              getStatusColor={getStatusColor}
-              onAddToCalendar={handleAddToCalendar}
-              hasCalendarUrl={!!schedulingData?.calendarUrl}
+          {/* Notes Panel - Right Side (First in row = Right in RTL, next to nav) */}
+          {notesOpen && (
+            <ResizableNotesPanel 
+              customerId={customer?.id || null} 
+              leads={[]} // No lead history for meetings
+              activeLeadId={null}
             />
+          )}
+
+          {/* Main Content Area - Split View for History Sidebar */}
+          <div 
+            className="flex-1 flex gap-4" 
+            style={{ 
+              direction: 'ltr', 
+              overflowX: 'hidden',
+              minHeight: 'fit-content'
+            }}
+          >
+            {/* Left Side: History Sidebar */}
+            <LeadSidebarContainer
+              leads={[]} // No lead history for meetings
+              activeLeadId={null}
+              onLeadSelect={() => {}}
+              getStatusColor={getStatusColor}
+              getStatusBorderColor={(status: string) => {
+                const statusStr = String(status);
+                if (statusStr.includes('בוטל') || statusStr.includes('מבוטל')) return 'border-red-200';
+                if (statusStr.includes('הושלם')) return 'border-green-200';
+                if (statusStr.includes('מתוכנן') || statusStr.includes('תוכנן')) return 'border-blue-200';
+                return 'border-gray-200';
+              }}
+              formSubmission={null}
+            />
+
+            {/* Center: MeetingActionDashboard - Scrollable Content */}
+            <div 
+              className="flex-1 transition-all duration-200 ease-out bg-gray-50 overflow-y-auto overflow-x-hidden scroll-smooth"
+              style={{ 
+                minWidth: '400px',
+                padding: '20px'
+              }}
+            >
+              <div className="w-full max-w-7xl mx-auto">
+                <MeetingActionDashboard
+                  meeting={meeting}
+                  customer={customer}
+                  schedulingData={schedulingData}
+                  meetingType={meetingType}
+                  status={status}
+                  meetingDate={meetingDate}
+                  formatTimeRange={formatTimeRange}
+                  location={location}
+                  notes={notes}
+                  getStatusColor={getStatusColor}
+                  onAddToCalendar={handleAddToCalendar}
+                  hasCalendarUrl={!!schedulingData?.calendarUrl}
+                />
+              </div>
+            </div>
           </div>
-        </main>
+        </div>
       </div>
     </div>
   );

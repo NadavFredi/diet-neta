@@ -12,6 +12,7 @@ import {
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useAppSelector } from '@/store/hooks';
+import { useNavigate } from 'react-router-dom';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 
 interface BudgetsDataTableProps {
@@ -216,6 +217,7 @@ export const BudgetsDataTable = ({
   onSendWhatsApp,
 }: BudgetsDataTableProps) => {
   const { generatingPDF, sendingWhatsApp } = useAppSelector((state) => state.budget);
+  const navigate = useNavigate();
   
   const columns = useMemo(() => {
     return budgetColumns.map((col) => {
@@ -238,20 +240,17 @@ export const BudgetsDataTable = ({
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onExportPDF(budget);
+                              // Navigate to print page instead of generating PDF
+                              navigate(`/dashboard/print/budget/${budget.id}`);
                             }}
                             disabled={isGeneratingPDF || isSending}
                             className="hover:bg-purple-50 hover:text-purple-600"
                           >
-                            {isGeneratingPDF ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <FileText className="h-4 w-4" />
-                            )}
+                            <FileText className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>ייצא PDF</p>
+                          <p>הדפס תקציב</p>
                         </TooltipContent>
                       </Tooltip>
                     )}

@@ -146,6 +146,9 @@ export const LeadHistoryTabs = ({
   const [activeTab, setActiveTab] = useState('budgets');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const deleteBudgetAssignment = useDeleteBudgetAssignment();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<BudgetAssignmentItem | null>(null);
   
   // Dialog states
   const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
@@ -166,6 +169,32 @@ export const LeadHistoryTabs = ({
   const hasNutritionHistory = nutritionHistory && nutritionHistory.length > 0;
   const hasSupplementsHistory = supplementsHistory && supplementsHistory.length > 0;
   const hasBudgetAssignments = budgetAssignments && budgetAssignments.length > 0;
+
+  // Delete budget assignment handlers
+  const handleDeleteClick = (assignment: BudgetAssignmentItem) => {
+    setAssignmentToDelete(assignment);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!assignmentToDelete) return;
+
+    try {
+      await deleteBudgetAssignment.mutateAsync(assignmentToDelete.id);
+      toast({
+        title: 'הצלחה',
+        description: 'התקציב והתכניות המקושרות נמחקו בהצלחה',
+      });
+      setDeleteDialogOpen(false);
+      setAssignmentToDelete(null);
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת התקציב',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Handler functions
   const handleWorkoutClick = () => {

@@ -223,45 +223,6 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     <p>צפה בהיסטוריית תשלומים</p>
                   </TooltipContent>
                 </Tooltip>
-                
-                {/* Quick Test Button - Remove after testing */}
-                {(user?.role === 'admin' || user?.role === 'user') && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="default"
-                        onClick={async () => {
-                          if (!customer?.id) return;
-                          const testPayment = {
-                            customer_id: customer.id,
-                            lead_id: lead?.id || null,
-                            product_name: 'חבילת אימון אישי - 3 חודשים (בדיקה)',
-                            amount: 1299.00,
-                            currency: 'ILS',
-                            status: 'שולם' as const,
-                            stripe_payment_id: `pi_test_${Date.now()}`,
-                            transaction_id: `txn_test_${Date.now()}`,
-                            notes: 'תשלום בדיקה - נוצר אוטומטית',
-                          };
-                          const { error } = await supabase.from('payments').insert(testPayment);
-                          if (!error) {
-                            alert('✅ תשלום בדיקה נוצר! לחץ על "תשלומים" כדי לראות אותו.');
-                            window.location.reload();
-                          } else {
-                            alert('❌ שגיאה: ' + error.message);
-                          }
-                        }}
-                        variant="outline"
-                        className="bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-base font-semibold rounded-lg px-3 py-2 text-xs"
-                      >
-                        🧪 בדיקה
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" align="center" dir="rtl">
-                      <p>צור תשלום בדיקה</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
               </>
             )}
 

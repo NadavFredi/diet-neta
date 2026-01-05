@@ -23,6 +23,7 @@ import { CheckInSettingsPage } from "./pages/CheckInSettingsPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ClientDashboard from "./pages/client/ClientDashboard.tsx";
 import { InviteAccept } from "./pages/InviteAccept.tsx";
+import PrintBudgetPage from "./pages/PrintBudgetPage.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
 import { AppFooter } from "./components/layout/AppFooter";
@@ -88,6 +89,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <BudgetManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/print/budget/:id"
+            element={
+              <ProtectedRoute>
+                <PrintBudgetPage />
               </ProtectedRoute>
             }
           />

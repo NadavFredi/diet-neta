@@ -236,7 +236,7 @@ export const useUpdateBudget = () => {
       const updateData: Partial<Budget> = {};
       Object.keys(updates).forEach((key) => {
         if (key !== 'budgetId' && updates[key as keyof typeof updates] !== undefined) {
-          updateData[key as keyof Budget] = updates[key as keyof typeof updates] as any;
+          (updateData as any)[key] = updates[key as keyof typeof updates];
         }
       });
 
