@@ -236,7 +236,7 @@ export const useUpdateBudget = () => {
       const updateData: Partial<Budget> = {};
       Object.keys(updates).forEach((key) => {
         if (key !== 'budgetId' && updates[key as keyof typeof updates] !== undefined) {
-          (updateData as any)[key] = updates[key as keyof typeof updates];
+          updateData[key as keyof Budget] = updates[key as keyof typeof updates] as any;
         }
       });
 
@@ -312,16 +312,6 @@ export const useAssignBudgetToLead = () => {
       if (budgetError) throw budgetError;
       if (!budget) throw new Error('Budget not found');
 
-      // Get lead data to find customer_id
-      const { data: lead, error: leadError } = await supabase
-        .from('leads')
-        .select('customer_id')
-        .eq('id', leadId)
-        .single();
-
-      if (leadError) throw leadError;
-      const customerId = lead?.customer_id || null;
-
       // Deactivate any existing active budget for this lead
       await supabase
         .from('budget_assignments')
@@ -329,16 +319,7 @@ export const useAssignBudgetToLead = () => {
         .eq('lead_id', leadId)
         .eq('is_active', true);
 
-      // If lead has a customer, also deactivate any existing active budget for that customer
-      if (customerId) {
-        await supabase
-          .from('budget_assignments')
-          .update({ is_active: false })
-          .eq('customer_id', customerId)
-          .eq('is_active', true);
-      }
-
-      // Create new lead assignment
+      // Create new assignment
       const { data, error } = await supabase
         .from('budget_assignments')
         .insert({
@@ -356,36 +337,19 @@ export const useAssignBudgetToLead = () => {
 
       if (error) throw error;
 
-      // If lead has a customer, also create a customer assignment
-      if (customerId) {
-        const { error: customerAssignmentError } = await supabase
-          .from('budget_assignments')
-          .insert({
-            budget_id: budgetId,
-            customer_id: customerId,
-            assigned_by: userId,
-            is_active: true,
-            notes: notes ? `${notes} (הוקצה אוטומטית דרך ליד)` : 'הוקצה אוטומטית דרך ליד',
-          });
-
-        if (customerAssignmentError) {
-          console.error('[useAssignBudgetToLead] Error creating customer assignment:', customerAssignmentError);
-          // Don't throw - lead assignment succeeded, just log the error
-        } else {
-          console.log('[useAssignBudgetToLead] ✅ Customer assignment created automatically:', {
-            customerId,
-            budgetId,
-          });
-        }
-      }
-
       // Auto-sync plans from budget
       try {
+        const { data: lead } = await supabase
+          .from('leads')
+          .select('customer_id')
+          .eq('id', leadId)
+          .single();
+
         console.log('[useAssignBudgetToLead] Starting plan sync:', {
           budgetId: budget.id,
           budgetName: budget.name,
           leadId,
-          customerId: customerId,
+          customerId: lead?.customer_id,
           hasStepsGoal: !!budget.steps_goal,
           stepsGoal: budget.steps_goal,
           hasWorkoutTemplate: !!budget.workout_template_id,
@@ -395,7 +359,7 @@ export const useAssignBudgetToLead = () => {
 
         const syncResult = await syncPlansFromBudget({
           budget: budget as Budget,
-          customerId: customerId,
+          customerId: lead?.customer_id || null,
           leadId,
           userId,
         });
@@ -413,44 +377,12 @@ export const useAssignBudgetToLead = () => {
 
       return data as BudgetAssignment & { budget: Budget };
     },
-    onSuccess: async (_, variables) => {
-      // Get customerId from lead for query invalidation
-      const { data: leadData } = await supabase
-        .from('leads')
-        .select('customer_id')
-        .eq('id', variables.leadId)
-        .single();
-      
-      const customerId = leadData?.customer_id || null;
-      
-      // Invalidate all relevant queries to refresh the UI
-      const invalidationPromises = [
-        queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', variables.leadId] }),
-        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
-        queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
-        queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
-        queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
-        queryClient.invalidateQueries({ queryKey: ['plans-history'] }), // This invalidates all plans-history queries
-        queryClient.invalidateQueries({ queryKey: ['plans-history', customerId, variables.leadId] }),
-        queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
-        queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
-        queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
-        queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
-      ];
-
-      // Also invalidate customer assignment queries if customer exists
-      if (customerId) {
-        invalidationPromises.push(
-          queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', customerId] })
-        );
-      }
-
-      await Promise.all(invalidationPromises);
-      
-      // Force refetch to ensure UI updates immediately
-      if (customerId || variables.leadId) {
-        await queryClient.refetchQueries({ queryKey: ['plans-history', customerId, variables.leadId] });
-      }
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
     },
   });
 };
@@ -542,147 +474,12 @@ export const useAssignBudgetToCustomer = () => {
 
       return data as BudgetAssignment & { budget: Budget };
     },
-    onSuccess: async (_, variables) => {
-      // Invalidate all relevant queries to refresh the UI
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', variables.customerId] }),
-        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
-        queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
-        queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
-        queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
-        queryClient.invalidateQueries({ queryKey: ['plans-history'] }), // This invalidates all plans-history queries
-        queryClient.invalidateQueries({ queryKey: ['plans-history', variables.customerId, undefined] }),
-        queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
-        queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
-        queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
-        queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
-      ]);
-      
-      // Force refetch to ensure UI updates immediately
-      await queryClient.refetchQueries({ queryKey: ['plans-history', variables.customerId, undefined] });
-    },
-  });
-};
-
-// Delete a budget assignment and all associated plans
-export const useDeleteBudgetAssignment = () => {
-  const queryClient = useQueryClient();
-  const { user } = useAppSelector((state) => state.auth);
-
-  return useMutation({
-    mutationFn: async (assignmentId: string) => {
-      if (!user?.id) throw new Error('User not authenticated');
-
-      // First, get the assignment to find the budget_id
-      // Using * to ensure RLS policies can properly evaluate (they need to check the budgets table)
-      const { data: assignment, error: assignmentError } = await supabase
-        .from('budget_assignments')
-        .select('*')
-        .eq('id', assignmentId)
-        .single();
-
-      if (assignmentError) throw assignmentError;
-      if (!assignment) throw new Error('Budget assignment not found');
-
-      const budgetId = assignment.budget_id;
-      const leadId = assignment.lead_id;
-      const customerId = assignment.customer_id;
-
-      // Delete all plans associated with this budget assignment
-      // Delete workout plans
-      if (leadId) {
-        await supabase
-          .from('workout_plans')
-          .delete()
-          .eq('budget_id', budgetId)
-          .eq('lead_id', leadId);
-      } else if (customerId) {
-        await supabase
-          .from('workout_plans')
-          .delete()
-          .eq('budget_id', budgetId)
-          .eq('customer_id', customerId);
-      }
-
-      // Delete nutrition plans
-      if (leadId) {
-        await supabase
-          .from('nutrition_plans')
-          .delete()
-          .eq('budget_id', budgetId)
-          .eq('lead_id', leadId);
-      } else if (customerId) {
-        await supabase
-          .from('nutrition_plans')
-          .delete()
-          .eq('budget_id', budgetId)
-          .eq('customer_id', customerId);
-      }
-
-      // Delete supplement plans
-      if (leadId) {
-        await supabase
-          .from('supplement_plans')
-          .delete()
-          .eq('budget_id', budgetId)
-          .eq('lead_id', leadId);
-      } else if (customerId) {
-        await supabase
-          .from('supplement_plans')
-          .delete()
-          .eq('budget_id', budgetId)
-          .eq('customer_id', customerId);
-      }
-
-      // Delete steps plans
-      if (leadId) {
-        await supabase
-          .from('steps_plans')
-          .delete()
-          .eq('budget_id', budgetId)
-          .eq('lead_id', leadId);
-      } else if (customerId) {
-        await supabase
-          .from('steps_plans')
-          .delete()
-          .eq('budget_id', budgetId)
-          .eq('customer_id', customerId);
-      }
-
-      // Finally, delete the budget assignment itself
-      const { error } = await supabase
-        .from('budget_assignments')
-        .delete()
-        .eq('id', assignmentId);
-
-      if (error) throw error;
-
-      return { assignmentId, budgetId, leadId, customerId };
-    },
-    onSuccess: async (data) => {
-      // Invalidate all relevant queries to refresh the UI
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
-        queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
-        queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
-        queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
-        queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
-        queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-        queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
-        queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
-        queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
-        queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
-      ]);
-
-      // Invalidate specific queries based on lead/customer
-      if (data.leadId) {
-        await queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', data.leadId] });
-        await queryClient.invalidateQueries({ queryKey: ['plans-history', undefined, data.leadId] });
-      }
-      if (data.customerId) {
-        await queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', data.customerId] });
-        await queryClient.invalidateQueries({ queryKey: ['plans-history', data.customerId, undefined] });
-      }
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', variables.customerId] });
+      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
     },
   });
 };
