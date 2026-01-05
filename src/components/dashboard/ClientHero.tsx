@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, Settings } from 'lucide-react';
+import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { InlineEditableField } from './InlineEditableField';
@@ -25,7 +25,8 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectCustomerNotes, fetchCustomerNotes } from '@/store/slices/leadViewSlice';
 import { SmartTraineeActionButton } from './SmartTraineeActionButton';
 import { fetchInvitations } from '@/store/slices/invitationSlice';
-import { PersonalCheckInSettingsDialog } from './dialogs/PersonalCheckInSettingsDialog';
+import { PaymentHistoryModal } from './dialogs/PaymentHistoryModal';
+import { supabase } from '@/lib/supabaseClient';
 
 interface LeadData {
   id: string;
@@ -60,7 +61,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isCheckInSettingsOpen, setIsCheckInSettingsOpen] = useState(false);
+  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
   const { isHistoryOpen, isNotesOpen, toggleHistory, toggleNotes } = useLeadSidebar();
   
   // Get notes count for the customer
@@ -203,24 +204,65 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
               </TooltipContent>
             </Tooltip>
 
-            {/* Check-in Settings Button - Personal Settings */}
-            {(user?.role === 'admin' || user?.role === 'user') && customer && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="default"
-                    onClick={() => setIsCheckInSettingsOpen(true)}
-                    variant="outline"
-                    className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
-                  >
-                    <Settings className="h-5 w-5" strokeWidth={2.5} />
-                    הגדרות צ'ק-אין
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" align="center" dir="rtl">
-                  <p>הגדר הגדרות צ'ק-אין מותאמות אישית</p>
-                </TooltipContent>
-              </Tooltip>
+            {/* Payments Button */}
+            {customer && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="default"
+                      onClick={() => setIsPaymentHistoryOpen(true)}
+                      variant="outline"
+                      className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
+                    >
+                      <CreditCard className="h-5 w-5" strokeWidth={2.5} />
+                      תשלומים
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" align="center" dir="rtl">
+                    <p>צפה בהיסטוריית תשלומים</p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                {/* Quick Test Button - Remove after testing */}
+                {(user?.role === 'admin' || user?.role === 'user') && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="default"
+                        onClick={async () => {
+                          if (!customer?.id) return;
+                          const testPayment = {
+                            customer_id: customer.id,
+                            lead_id: lead?.id || null,
+                            product_name: 'חבילת אימון אישי - 3 חודשים (בדיקה)',
+                            amount: 1299.00,
+                            currency: 'ILS',
+                            status: 'שולם' as const,
+                            stripe_payment_id: `pi_test_${Date.now()}`,
+                            transaction_id: `txn_test_${Date.now()}`,
+                            notes: 'תשלום בדיקה - נוצר אוטומטית',
+                          };
+                          const { error } = await supabase.from('payments').insert(testPayment);
+                          if (!error) {
+                            alert('✅ תשלום בדיקה נוצר! לחץ על "תשלומים" כדי לראות אותו.');
+                            window.location.reload();
+                          } else {
+                            alert('❌ שגיאה: ' + error.message);
+                          }
+                        }}
+                        variant="outline"
+                        className="bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-base font-semibold rounded-lg px-3 py-2 text-xs"
+                      >
+                        🧪 בדיקה
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" align="center" dir="rtl">
+                      <p>צור תשלום בדיקה</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </>
             )}
 
             {/* Vertical Divider */}
@@ -406,13 +448,14 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
         </div>
       </div>
 
-      {/* Personal Check-in Settings Dialog */}
-      {(user?.role === 'admin' || user?.role === 'user') && customer && (
-        <PersonalCheckInSettingsDialog
-          isOpen={isCheckInSettingsOpen}
-          onClose={() => setIsCheckInSettingsOpen(false)}
+      {/* Payment History Modal */}
+      {customer && (
+        <PaymentHistoryModal
+          isOpen={isPaymentHistoryOpen}
+          onClose={() => setIsPaymentHistoryOpen(false)}
           customerId={customer.id}
           customerName={customer.full_name}
+          leadId={lead?.id || null}
         />
       )}
     </div>

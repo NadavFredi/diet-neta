@@ -12,7 +12,7 @@ import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector } from '@/store/hooks';
 import { NutritionTemplatesDataTable } from '@/components/dashboard/NutritionTemplatesDataTable';
-import { NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { NUTRITION_TEMPLATE_FILTER_FIELDS, getNutritionTemplateFilterFields } from '@/hooks/useTableFilters';
 import { useTableFilters } from '@/hooks/useTableFilters';
 import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
 import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/EditNutritionTemplateDialog';
@@ -91,7 +91,7 @@ const NutritionTemplatesManagement = () => {
                   dataCount={templates.length}
                   singularLabel="תבנית"
                   pluralLabel="תבניות"
-                  filterFields={NUTRITION_TEMPLATE_FILTER_FIELDS}
+                  filterFields={getNutritionTemplateFilterFields(templates)}
                   searchPlaceholder="חיפוש לפי שם או תיאור..."
                   addButtonLabel="הוסף תבנית"
                   onAddClick={handleAddTemplate}
@@ -157,7 +157,7 @@ const NutritionTemplatesManagement = () => {
         onOpenChange={setIsEditViewModalOpen}
         view={viewToEdit}
         currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={NUTRITION_TEMPLATE_FILTER_FIELDS}
+        filterFields={getNutritionTemplateFilterFields(templates)}
         onSuccess={() => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);

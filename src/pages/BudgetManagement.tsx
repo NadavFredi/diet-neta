@@ -18,7 +18,7 @@ import { AddBudgetDialog } from '@/components/dashboard/dialogs/AddBudgetDialog'
 import { EditBudgetDialog } from '@/components/dashboard/dialogs/EditBudgetDialog';
 import { DeleteBudgetDialog } from '@/components/dashboard/dialogs/DeleteBudgetDialog';
 import { SendBudgetModal } from '@/components/dashboard/SendBudgetModal';
-import { useTableFilters } from '@/hooks/useTableFilters';
+import { useTableFilters, getBudgetFilterFields } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
@@ -116,7 +116,7 @@ const BudgetManagement = () => {
                 dataCount={budgets.length}
                 singularLabel="תקציב"
                 pluralLabel="תקציבים"
-                filterFields={[]}
+                filterFields={getBudgetFilterFields(budgets)}
                 searchPlaceholder="חיפוש לפי שם או תיאור..."
                 addButtonLabel="הוסף תקציב"
                 onAddClick={handleAddBudget}
@@ -200,7 +200,7 @@ const BudgetManagement = () => {
         onOpenChange={setIsEditViewModalOpen}
         view={viewToEdit}
         currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={[]}
+        filterFields={getBudgetFilterFields(budgets)}
         onSuccess={() => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);

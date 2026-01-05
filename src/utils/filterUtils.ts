@@ -9,6 +9,7 @@ import type { Customer } from '@/hooks/useCustomers';
 import type { WorkoutTemplate } from '@/hooks/useWorkoutTemplates';
 import type { NutritionTemplate } from '@/hooks/useNutritionTemplates';
 import type { Budget } from '@/store/slices/budgetSlice';
+import type { Budget } from '@/store/slices/budgetSlice';
 
 /**
  * Extract unique status values from leads data
@@ -96,12 +97,10 @@ export function extractCustomerFilterOptions(customers: Customer[], fieldId: str
 export function extractWorkoutTemplateFilterOptions(templates: WorkoutTemplate[], fieldId: string): string[] {
   const valueSet = new Set<string>();
   
-  templates.forEach(template => {
-    let value: string | null | undefined;
-    
-    switch (fieldId) {
-      case 'goal_tags':
-        // Extract all goal tags from all templates
+  switch (fieldId) {
+    case 'goal_tags':
+      // Extract all goal tags from all templates
+      templates.forEach(template => {
         if (template.goal_tags && Array.isArray(template.goal_tags)) {
           template.goal_tags.forEach(tag => {
             if (tag && tag.trim()) {
@@ -109,24 +108,18 @@ export function extractWorkoutTemplateFilterOptions(templates: WorkoutTemplate[]
             }
           });
         }
-        return Array.from(valueSet).sort();
-      case 'is_public':
-        // Boolean field - return predefined options
-        return ['כן', 'לא'];
-      case 'has_leads':
-        // This would need to check if template has connected leads
-        // For now, return predefined options
-        return ['כן', 'לא'];
-      default:
-        return [];
-    }
-    
-    if (value && value.trim()) {
-      valueSet.add(value);
-    }
-  });
-  
-  return Array.from(valueSet).sort();
+      });
+      return Array.from(valueSet).sort();
+    case 'is_public':
+      // Boolean field - return predefined options
+      return ['כן', 'לא'];
+    case 'has_leads':
+      // This would need to check if template has connected leads
+      // For now, return predefined options
+      return ['כן', 'לא'];
+    default:
+      return [];
+  }
 }
 
 /**
@@ -135,15 +128,13 @@ export function extractWorkoutTemplateFilterOptions(templates: WorkoutTemplate[]
 export function extractNutritionTemplateFilterOptions(templates: NutritionTemplate[], fieldId: string): string[] {
   const valueSet = new Set<string>();
   
-  templates.forEach(template => {
-    let value: string | null | undefined;
-    
-    switch (fieldId) {
-      case 'is_public':
-        // Boolean field - return predefined options
-        return ['כן', 'לא'];
-      case 'calories_range':
-        // Extract calorie ranges from targets
+  switch (fieldId) {
+    case 'is_public':
+      // Boolean field - return predefined options
+      return ['כן', 'לא'];
+    case 'calories_range':
+      // Extract calorie ranges from targets
+      templates.forEach(template => {
         if (template.targets?.calories) {
           const calories = template.targets.calories;
           // Create ranges: 0-1000, 1000-1500, 1500-2000, 2000-2500, 2500+
@@ -153,9 +144,11 @@ export function extractNutritionTemplateFilterOptions(templates: NutritionTempla
           else if (calories < 2500) valueSet.add('2000-2500');
           else valueSet.add('2500+');
         }
-        return Array.from(valueSet).sort();
-      case 'protein_range':
-        // Extract protein ranges from targets
+      });
+      return Array.from(valueSet).sort();
+    case 'protein_range':
+      // Extract protein ranges from targets
+      templates.forEach(template => {
         if (template.targets?.protein) {
           const protein = template.targets.protein;
           // Create ranges: 0-100, 100-150, 150-200, 200+
@@ -164,17 +157,11 @@ export function extractNutritionTemplateFilterOptions(templates: NutritionTempla
           else if (protein < 200) valueSet.add('150-200');
           else valueSet.add('200+');
         }
-        return Array.from(valueSet).sort();
-      default:
-        return [];
-    }
-    
-    if (value && value.trim()) {
-      valueSet.add(value);
-    }
-  });
-  
-  return Array.from(valueSet).sort();
+      });
+      return Array.from(valueSet).sort();
+    default:
+      return [];
+  }
 }
 
 /**
@@ -183,30 +170,32 @@ export function extractNutritionTemplateFilterOptions(templates: NutritionTempla
 export function extractBudgetFilterOptions(budgets: Budget[], fieldId: string): string[] {
   const valueSet = new Set<string>();
   
-  budgets.forEach(budget => {
-    let value: string | null | undefined;
-    
-    switch (fieldId) {
-      case 'workout_template_name':
-        // Extract workout template names
+  switch (fieldId) {
+    case 'workout_template_name':
+      // Extract workout template names
+      budgets.forEach(budget => {
         if (budget.workout_template?.name) {
           valueSet.add(budget.workout_template.name);
         }
-        return Array.from(valueSet).sort();
-      case 'nutrition_template_name':
-        // Extract nutrition template names
+      });
+      return Array.from(valueSet).sort();
+    case 'nutrition_template_name':
+      // Extract nutrition template names
+      budgets.forEach(budget => {
         if (budget.nutrition_template?.name) {
           valueSet.add(budget.nutrition_template.name);
         }
-        return Array.from(valueSet).sort();
-      case 'has_workout_template':
-        // Boolean field
-        return ['כן', 'לא'];
-      case 'has_nutrition_template':
-        // Boolean field
-        return ['כן', 'לא'];
-      case 'steps_goal_range':
-        // Extract steps goal ranges
+      });
+      return Array.from(valueSet).sort();
+    case 'has_workout_template':
+      // Boolean field
+      return ['כן', 'לא'];
+    case 'has_nutrition_template':
+      // Boolean field
+      return ['כן', 'לא'];
+    case 'steps_goal_range':
+      // Extract steps goal ranges
+      budgets.forEach(budget => {
         if (budget.steps_goal) {
           const steps = budget.steps_goal;
           if (steps < 5000) valueSet.add('0-5000');
@@ -214,17 +203,11 @@ export function extractBudgetFilterOptions(budgets: Budget[], fieldId: string): 
           else if (steps < 10000) valueSet.add('7000-10000');
           else valueSet.add('10000+');
         }
-        return Array.from(valueSet).sort();
-      default:
-        return [];
-    }
-    
-    if (value && value.trim()) {
-      valueSet.add(value);
-    }
-  });
-  
-  return Array.from(valueSet).sort();
+      });
+      return Array.from(valueSet).sort();
+    default:
+      return [];
+  }
 }
 
 /**
