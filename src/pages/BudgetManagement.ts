@@ -258,6 +258,9 @@ export const useBudgetManagement = () => {
           description: 'תבנית התקציב נוצרה בהצלחה. ניתן להקצות אותה ללקוחות מהדף שלהם.',
         });
         setIsAddDialogOpen(false);
+        
+        // Return the created budget for assignment
+        return newBudget;
       }
     } catch (error: any) {
       toast({

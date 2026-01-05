@@ -189,11 +189,15 @@ export const TableActionHeader = ({
     : undefined;
 
   const handleToggleColumn = (columnId: string) => {
-    if (resourceKey === 'leads') {
-      // Legacy leads column visibility in dashboardSlice
+    // Priority: Use Redux tableStateSlice for all resources when columns are provided
+    // This ensures column visibility syncs with DataTable
+    if (columns && columns.length > 0) {
+      dispatch(toggleTableColumnVisibility({ resourceKey, columnId }));
+    } else if (resourceKey === 'leads') {
+      // Legacy leads column visibility in dashboardSlice (fallback)
       dispatch(toggleColumnVisibility(columnId as any));
     } else if (useTemplateColumnSettings && onToggleTemplateColumn) {
-      // Template column settings - use provided handler
+      // Template column settings - use provided handler (fallback)
       onToggleTemplateColumn(columnId);
     } else {
       // Use new tableStateSlice for other resources
@@ -250,7 +254,19 @@ export const TableActionHeader = ({
   };
 
   const getColumnSettingsComponent = () => {
-    // Template column settings (nutrition_templates, templates using TemplateColumnSettings)
+    // Priority 1: Generic column settings (using Redux tableStateSlice) - works for all tables
+    // This ensures column visibility syncs with DataTable which also uses Redux tableStateSlice
+    if (columns && columns.length > 0) {
+      return (
+        <GenericColumnSettings
+          resourceKey={resourceKey}
+          columns={columns}
+          columnOrder={columnOrder.length > 0 ? columnOrder : columns.map((col) => col.id)}
+        />
+      );
+    }
+    
+    // Fallback 1: Template column settings (for backward compatibility if columns not provided)
     if (useTemplateColumnSettings && templateColumnVisibility && onToggleTemplateColumn) {
       return (
         <TemplateColumnSettings
@@ -260,23 +276,12 @@ export const TableActionHeader = ({
       );
     }
     
-    // Leads: use legacy ColumnSettings component
+    // Fallback 2: Leads legacy ColumnSettings (for backward compatibility if columns not provided)
     if (resourceKey === 'leads' && leadsColumnVisibility) {
       return (
         <ColumnSettings
           columnVisibility={leadsColumnVisibility}
           onToggleColumn={handleToggleColumn as any}
-        />
-      );
-    }
-    
-    // Generic column settings for customers and other resources (using Redux)
-    if (columns && columns.length > 0) {
-      return (
-        <GenericColumnSettings
-          resourceKey={resourceKey}
-          columns={columns}
-          columnOrder={columnOrder.length > 0 ? columnOrder : columns.map((col) => col.id)}
         />
       );
     }

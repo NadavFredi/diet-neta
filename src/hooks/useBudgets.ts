@@ -57,7 +57,7 @@ export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) =>
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -85,7 +85,7 @@ export const useBudget = (budgetId: string | null) => {
     },
     enabled: !!budgetId && !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -345,14 +345,33 @@ export const useAssignBudgetToLead = () => {
           .eq('id', leadId)
           .single();
 
-        await syncPlansFromBudget({
+        console.log('[useAssignBudgetToLead] Starting plan sync:', {
+          budgetId: budget.id,
+          budgetName: budget.name,
+          leadId,
+          customerId: lead?.customer_id,
+          hasStepsGoal: !!budget.steps_goal,
+          stepsGoal: budget.steps_goal,
+          hasWorkoutTemplate: !!budget.workout_template_id,
+          hasNutritionTemplate: !!budget.nutrition_template_id,
+          hasSupplements: !!(budget.supplements && budget.supplements.length > 0),
+        });
+
+        const syncResult = await syncPlansFromBudget({
           budget: budget as Budget,
           customerId: lead?.customer_id || null,
           leadId,
           userId,
         });
-      } catch (syncError) {
-        console.error('Error syncing plans from budget:', syncError);
+
+        console.log('[useAssignBudgetToLead] ✅ Plan sync completed:', syncResult);
+      } catch (syncError: any) {
+        console.error('[useAssignBudgetToLead] ❌ Error syncing plans from budget:', syncError);
+        console.error('[useAssignBudgetToLead] Error details:', {
+          message: syncError?.message,
+          stack: syncError?.stack,
+          error: syncError,
+        });
         // Don't throw - assignment succeeded, just log the error
       }
 
@@ -424,14 +443,32 @@ export const useAssignBudgetToCustomer = () => {
 
       // Auto-sync plans from budget
       try {
-        await syncPlansFromBudget({
+        console.log('[useAssignBudgetToCustomer] Starting plan sync:', {
+          budgetId: budget.id,
+          budgetName: budget.name,
+          customerId,
+          hasStepsGoal: !!budget.steps_goal,
+          stepsGoal: budget.steps_goal,
+          hasWorkoutTemplate: !!budget.workout_template_id,
+          hasNutritionTemplate: !!budget.nutrition_template_id,
+          hasSupplements: !!(budget.supplements && budget.supplements.length > 0),
+        });
+
+        const syncResult = await syncPlansFromBudget({
           budget: budget as Budget,
           customerId,
           leadId: null,
           userId,
         });
-      } catch (syncError) {
-        console.error('Error syncing plans from budget:', syncError);
+
+        console.log('[useAssignBudgetToCustomer] ✅ Plan sync completed:', syncResult);
+      } catch (syncError: any) {
+        console.error('[useAssignBudgetToCustomer] ❌ Error syncing plans from budget:', syncError);
+        console.error('[useAssignBudgetToCustomer] Error details:', {
+          message: syncError?.message,
+          stack: syncError?.stack,
+          error: syncError,
+        });
         // Don't throw - assignment succeeded, just log the error
       }
 

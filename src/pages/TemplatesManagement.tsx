@@ -104,9 +104,6 @@ const TemplatesManagement = () => {
                   enableFilters={true}
                   enableGroupBy={true}
                   enableSearch={true}
-                  useTemplateColumnSettings={true}
-                  templateColumnVisibility={columnVisibility}
-                  onToggleTemplateColumn={handleToggleColumn}
                   columns={workoutTemplateColumns}
                 />
                 
@@ -116,7 +113,6 @@ const TemplatesManagement = () => {
                   ) : (
                     <WorkoutTemplatesDataTable
                       templates={templates || []}
-                      columnVisibility={columnVisibility}
                       onEdit={handleEditTemplate}
                       onDelete={handleDeleteClick}
                     />

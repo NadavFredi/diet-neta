@@ -22,8 +22,15 @@ export const EditWorkoutTemplateDialog = ({
   onSave,
 }: EditWorkoutTemplateDialogProps) => {
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" dir="rtl">
+    <Dialog open={isOpen} onOpenChange={onOpenChange} modal={true}>
+      <DialogContent 
+        className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" 
+        dir="rtl"
+        onInteractOutside={(e) => {
+          // Prevent closing when clicking outside - only close via explicit action
+          e.preventDefault();
+        }}
+      >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle>עריכת תוכנית אימונים</DialogTitle>
         </DialogHeader>

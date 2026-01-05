@@ -191,7 +191,7 @@ export const useDefaultView = (resourceKey: string | null) => {
     },
     enabled: !!user?.id && !!resourceKey,
     staleTime: Infinity, // Default views don't change
-    cacheTime: Infinity, // Keep in cache forever
+    gcTime: Infinity, // Keep in cache forever (renamed from cacheTime in v5)
     retry: false,
   });
 

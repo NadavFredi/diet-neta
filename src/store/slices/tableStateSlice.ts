@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction, createSelector } from '@reduxjs/toolkit';
 
-export type ResourceKey = 'leads' | 'customers' | 'templates' | 'nutrition_templates';
+export type ResourceKey = 'leads' | 'customers' | 'templates' | 'nutrition_templates' | 'budgets' | 'meetings';
 
 export interface TableState {
   columnVisibility: Record<string, boolean>;
@@ -81,6 +81,18 @@ const tableStateSlice = createSlice({
     ) => {
       const { resourceKey, columnId, visible } = action.payload;
       if (!state.tables[resourceKey]) {
+        // Initialize state if it doesn't exist (shouldn't happen, but handle gracefully)
+        state.tables[resourceKey] = {
+          columnVisibility: { [columnId]: visible },
+          columnSizing: {},
+          columnOrder: [columnId],
+          searchQuery: '',
+          activeFilters: [],
+          groupByKey: null,
+          groupByKeys: [null, null],
+          groupSorting: { level1: null, level2: null },
+          collapsedGroups: [],
+        };
         return;
       }
       state.tables[resourceKey].columnVisibility[columnId] = visible;

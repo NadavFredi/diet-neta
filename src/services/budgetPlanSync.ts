@@ -27,12 +27,14 @@ export async function syncPlansFromBudget({
   workoutPlanId?: string;
   nutritionPlanId?: string;
   supplementPlanId?: string;
+  stepsPlanId?: string;
 }> {
   console.log('[syncPlansFromBudget] Starting sync:', { budgetId: budget.id, customerId, leadId, userId });
   const result: {
     workoutPlanId?: string;
     nutritionPlanId?: string;
     supplementPlanId?: string;
+    stepsPlanId?: string;
   } = {};
 
   // Get customer_id from lead if only leadId is provided
@@ -268,27 +270,177 @@ export async function syncPlansFromBudget({
     result.nutritionPlanId = nutritionPlan.id;
   }
 
-  // 3. Update daily_protocol with steps_goal from budget
-  if (budget.steps_goal && budget.steps_goal > 0 && finalCustomerId) {
-    // Update customer's daily_protocol with steps goal
-    const { data: customer } = await supabase
-      .from('customers')
-      .select('daily_protocol')
-      .eq('id', finalCustomerId)
-      .single();
+  // 3. Sync Steps Plan
+  if (budget.steps_goal && budget.steps_goal > 0) {
+    console.log('[syncPlansFromBudget] Creating steps plan:', {
+      stepsGoal: budget.steps_goal,
+      stepsInstructions: budget.steps_instructions,
+      customerId: finalCustomerId,
+      leadId,
+    });
 
-    if (customer) {
-      const dailyProtocol = customer.daily_protocol || {};
-      const updatedProtocol = {
-        ...dailyProtocol,
-        stepsGoal: budget.steps_goal,
-      };
+    // Check if a steps plan already exists for this budget
+    let existingStepsPlan = null;
+    if (finalCustomerId) {
+      const { data, error: checkError } = await supabase
+        .from('steps_plans')
+        .select('id')
+        .eq('budget_id', budget.id)
+        .eq('customer_id', finalCustomerId)
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error('[syncPlansFromBudget] Error checking existing steps plan:', checkError);
+        // If table doesn't exist, log but continue (migration might not be applied)
+        if (checkError.message?.includes('does not exist') || checkError.message?.includes('relation')) {
+          console.error('[syncPlansFromBudget] steps_plans table does not exist! Please run migration: 20260104000007_create_steps_plans.sql');
+          // Fallback: update daily_protocol instead
+          if (finalCustomerId) {
+            const { data: customer } = await supabase
+              .from('customers')
+              .select('daily_protocol')
+              .eq('id', finalCustomerId)
+              .single();
 
-      await supabase
-        .from('customers')
-        .update({ daily_protocol: updatedProtocol })
-        .eq('id', finalCustomerId);
+            if (customer) {
+              const dailyProtocol = customer.daily_protocol || {};
+              const updatedProtocol = {
+                ...dailyProtocol,
+                stepsGoal: budget.steps_goal,
+              };
+
+              await supabase
+                .from('customers')
+                .update({ daily_protocol: updatedProtocol })
+                .eq('id', finalCustomerId);
+              
+              console.log('[syncPlansFromBudget] Fallback: Updated daily_protocol with steps goal');
+            }
+          }
+          return result; // Return early if table doesn't exist
+        }
+      }
+      existingStepsPlan = data;
+    } else if (leadId) {
+      const { data, error: checkError } = await supabase
+        .from('steps_plans')
+        .select('id')
+        .eq('budget_id', budget.id)
+        .eq('lead_id', leadId)
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error('[syncPlansFromBudget] Error checking existing steps plan:', checkError);
+        if (checkError.message?.includes('does not exist') || checkError.message?.includes('relation')) {
+          console.error('[syncPlansFromBudget] steps_plans table does not exist! Please run migration: 20260104000007_create_steps_plans.sql');
+          return result; // Return early if table doesn't exist
+        }
+      }
+      existingStepsPlan = data;
     }
+
+    // Deactivate existing active steps plans for this customer/lead (except the one we're updating)
+    if (finalCustomerId) {
+      await supabase
+        .from('steps_plans')
+        .update({ is_active: false })
+        .eq('customer_id', finalCustomerId)
+        .eq('is_active', true)
+        .neq('id', existingStepsPlan?.id || '00000000-0000-0000-0000-000000000000');
+    } else if (leadId) {
+      await supabase
+        .from('steps_plans')
+        .update({ is_active: false })
+        .eq('lead_id', leadId)
+        .eq('is_active', true)
+        .neq('id', existingStepsPlan?.id || '00000000-0000-0000-0000-000000000000');
+    }
+
+    const planData = {
+      user_id: userId,
+      customer_id: finalCustomerId || null,
+      lead_id: leadId || null,
+      budget_id: budget.id,
+      start_date: new Date().toISOString().split('T')[0],
+      description: `תוכנית צעדים מתקציב: ${budget.name}`,
+      steps_goal: budget.steps_goal,
+      steps_instructions: budget.steps_instructions || null,
+      is_active: true,
+      created_by: userId,
+    };
+
+    let stepsPlan;
+    if (existingStepsPlan) {
+      // Update existing plan
+      const { data, error: stepsError } = await supabase
+        .from('steps_plans')
+        .update(planData)
+        .eq('id', existingStepsPlan.id)
+        .select()
+        .single();
+
+      if (stepsError) {
+        console.error('[syncPlansFromBudget] Error updating steps plan:', stepsError);
+        throw new Error(`Failed to update steps plan: ${stepsError.message}`);
+      }
+      stepsPlan = data;
+      console.log('[syncPlansFromBudget] Steps plan updated successfully:', stepsPlan.id);
+    } else {
+      // Create new steps plan
+      const { data, error: stepsError } = await supabase
+        .from('steps_plans')
+        .insert(planData)
+        .select()
+        .single();
+
+      if (stepsError) {
+        console.error('[syncPlansFromBudget] Error creating steps plan:', stepsError);
+        console.error('[syncPlansFromBudget] Error details:', {
+          message: stepsError.message,
+          code: stepsError.code,
+          details: stepsError.details,
+          hint: stepsError.hint,
+        });
+        
+        // If table doesn't exist, fallback to daily_protocol
+        if (stepsError.message?.includes('does not exist') || stepsError.message?.includes('relation')) {
+          console.error('[syncPlansFromBudget] steps_plans table does not exist! Please run migration: 20260104000007_create_steps_plans.sql');
+          // Fallback: update daily_protocol instead
+          if (finalCustomerId) {
+            const { data: customer } = await supabase
+              .from('customers')
+              .select('daily_protocol')
+              .eq('id', finalCustomerId)
+              .single();
+
+            if (customer) {
+              const dailyProtocol = customer.daily_protocol || {};
+              const updatedProtocol = {
+                ...dailyProtocol,
+                stepsGoal: budget.steps_goal,
+              };
+
+              await supabase
+                .from('customers')
+                .update({ daily_protocol: updatedProtocol })
+                .eq('id', finalCustomerId);
+              
+              console.log('[syncPlansFromBudget] Fallback: Updated daily_protocol with steps goal');
+            }
+          }
+          return result; // Don't throw, just return
+        }
+        
+        throw new Error(`Failed to create steps plan: ${stepsError.message}`);
+      }
+      stepsPlan = data;
+      console.log('[syncPlansFromBudget] ✅ Steps plan created successfully:', stepsPlan.id);
+    }
+
+    result.stepsPlanId = stepsPlan.id;
+    console.log('[syncPlansFromBudget] Steps plan sync completed:', result.stepsPlanId);
+  } else {
+    console.log('[syncPlansFromBudget] Skipping steps plan - no steps_goal in budget or goal is 0');
   }
 
   // 4. Sync Supplement Plan
@@ -388,8 +540,9 @@ export async function getAssociatedPlans(budgetId: string): Promise<{
   workoutPlans: any[];
   nutritionPlans: any[];
   supplementPlans: any[];
+  stepsPlans: any[];
 }> {
-  const [workoutResult, nutritionResult, supplementResult] = await Promise.all([
+  const [workoutResult, nutritionResult, supplementResult, stepsResult] = await Promise.all([
     supabase
       .from('workout_plans')
       .select('id, start_date, is_active')
@@ -402,12 +555,17 @@ export async function getAssociatedPlans(budgetId: string): Promise<{
       .from('supplement_plans')
       .select('id, start_date, is_active')
       .eq('budget_id', budgetId),
+    supabase
+      .from('steps_plans')
+      .select('id, start_date, is_active')
+      .eq('budget_id', budgetId),
   ]);
 
   return {
     workoutPlans: workoutResult.data || [],
     nutritionPlans: nutritionResult.data || [],
     supplementPlans: supplementResult.data || [],
+    stepsPlans: stepsResult.data || [],
   };
 }
 
@@ -433,6 +591,10 @@ export async function deleteAssociatedPlans(
         .from('supplement_plans')
         .update({ budget_id: null })
         .eq('budget_id', budgetId),
+      supabase
+        .from('steps_plans')
+        .update({ budget_id: null })
+        .eq('budget_id', budgetId),
     ]);
   } else {
     // Delete the plans
@@ -447,6 +609,10 @@ export async function deleteAssociatedPlans(
         .eq('budget_id', budgetId),
       supabase
         .from('supplement_plans')
+        .delete()
+        .eq('budget_id', budgetId),
+      supabase
+        .from('steps_plans')
         .delete()
         .eq('budget_id', budgetId),
     ]);

@@ -9,7 +9,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { BudgetColumnVisibility } from '@/pages/BudgetManagement';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useAppSelector } from '@/store/hooks';
@@ -17,7 +16,6 @@ import type { DataTableColumn } from '@/components/ui/DataTable';
 
 interface BudgetsDataTableProps {
   budgets: Budget[];
-  columnVisibility: BudgetColumnVisibility;
   onEdit: (budget: Budget) => void;
   onDelete: (budget: Budget) => void;
   onExportPDF?: (budget: Budget) => void;
@@ -212,7 +210,6 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
 
 export const BudgetsDataTable = ({
   budgets,
-  columnVisibility,
   onEdit,
   onDelete,
   onExportPDF,
@@ -221,12 +218,7 @@ export const BudgetsDataTable = ({
   const { generatingPDF, sendingWhatsApp } = useAppSelector((state) => state.budget);
   
   const columns = useMemo(() => {
-    return budgetColumns
-      .filter((col) => {
-        if (col.id === 'actions') return true;
-        return columnVisibility[col.id as keyof BudgetColumnVisibility];
-      })
-      .map((col) => {
+    return budgetColumns.map((col) => {
         if (col.id === 'actions') {
           return {
             ...col,
@@ -334,7 +326,7 @@ export const BudgetsDataTable = ({
         }
         return col;
       });
-  }, [onEdit, onDelete, onExportPDF, onSendWhatsApp, columnVisibility, generatingPDF, sendingWhatsApp]);
+  }, [onEdit, onDelete, onExportPDF, onSendWhatsApp, generatingPDF, sendingWhatsApp]);
 
   const handleRowClick = (budget: Budget) => {
     onEdit(budget);
@@ -351,6 +343,9 @@ export const BudgetsDataTable = ({
           ? 'אין תקציבים. צור תקציב חדש כדי להתחיל'
           : 'לא נמצאו תקציבים התואמים לחיפוש'
       }
+      enableColumnVisibility={false}
+      enableColumnReordering={true}
+      resourceKey="budgets"
     />
   );
 };

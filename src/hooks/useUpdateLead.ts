@@ -25,31 +25,33 @@ export const useUpdateLead = () => {
         throw new Error('No valid updates provided');
       }
       
-      // Perform the update - fast path, no select needed
-      // Optimistic updates already handle the UI immediately
-      const { error: updateError } = await supabase
+      // Perform the update and fetch the updated data to ensure consistency
+      const { data: updatedLead, error: updateError } = await supabase
         .from('leads')
         .update(cleanUpdates)
-        .eq('id', leadId);
+        .eq('id', leadId)
+        .select()
+        .single();
 
       if (updateError) {
         console.error('useUpdateLead: Database error:', updateError);
         throw new Error(`Failed to update lead: ${updateError.message}`);
       }
       
-      // Return the updates - optimistic update already updated the UI
-      // We'll fetch fresh data in onSuccess if needed, but don't block here
-      console.log('useUpdateLead: Update successful');
-      return cleanUpdates;
+      // Return the updated lead data
+      console.log('useUpdateLead: Update successful', updatedLead);
+      return updatedLead;
     },
     onMutate: async ({ leadId, updates }) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ['lead', leadId] });
+      await queryClient.cancelQueries({ queryKey: ['lead-for-customer'] });
       await queryClient.cancelQueries({ queryKey: ['customer'] });
       
       // Snapshot the previous value for rollback
       const previousLead = queryClient.getQueryData(['lead', leadId]);
       const previousCustomers = queryClient.getQueriesData({ queryKey: ['customer'] });
+      const previousLeadForCustomer = queryClient.getQueriesData({ queryKey: ['lead-for-customer'] });
       
       // Optimistically update the lead query
       queryClient.setQueryData(['lead', leadId], (old: any) => {
@@ -59,7 +61,7 @@ export const useUpdateLead = () => {
       
       // Optimistically update customer queries that contain this lead
       previousCustomers.forEach(([queryKey, customerData]: [any, any]) => {
-        if (customerData?.leads) {
+        if (customerData?.leads && Array.isArray(customerData.leads)) {
           queryClient.setQueryData(queryKey, {
             ...customerData,
             leads: customerData.leads.map((lead: any) =>
@@ -69,7 +71,7 @@ export const useUpdateLead = () => {
         }
       });
       
-      return { previousLead, previousCustomers };
+      return { previousLead, previousCustomers, previousLeadForCustomer };
     },
     onError: (error: any, variables, context) => {
       // Rollback optimistic updates on error
@@ -81,6 +83,11 @@ export const useUpdateLead = () => {
           queryClient.setQueryData(queryKey, data);
         });
       }
+      if (context?.previousLeadForCustomer) {
+        context.previousLeadForCustomer.forEach(([queryKey, data]: [any, any]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
       
       console.error('useUpdateLead: Error updating lead:', error);
       toast({
@@ -89,17 +96,34 @@ export const useUpdateLead = () => {
         variant: 'destructive',
       });
     },
-    onSuccess: (data, variables) => {
-      // Optimistic update already updated the UI, so we're done
-      // Just invalidate queries in the background for eventual consistency
-      // This is non-blocking and won't delay the user experience
+    onSuccess: (updatedLead, variables) => {
+      // Update the query cache with the fresh data from the database
+      // This ensures the UI shows the correct data immediately
+      if (updatedLead) {
+        queryClient.setQueryData(['lead', variables.leadId], updatedLead);
+        
+        // Also update customer queries that contain this lead
+        const customerQueries = queryClient.getQueriesData({ queryKey: ['customer'] });
+        customerQueries.forEach(([queryKey, customerData]: [any, any]) => {
+          if (customerData?.leads && Array.isArray(customerData.leads)) {
+            queryClient.setQueryData(queryKey, {
+              ...customerData,
+              leads: customerData.leads.map((lead: any) =>
+                lead.id === variables.leadId ? updatedLead : lead
+              ),
+            });
+          }
+        });
+      }
+      
+      // Invalidate queries in the background for eventual consistency
       queryClient.invalidateQueries({ queryKey: ['lead', variables.leadId] });
       queryClient.invalidateQueries({ queryKey: ['customer'] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['lead-for-customer'] });
       queryClient.invalidateQueries({ queryKey: ['filtered-leads'] });
       
-      console.log('Lead update successful:', { leadId: variables.leadId, updates: variables.updates });
+      console.log('Lead update successful:', { leadId: variables.leadId, updates: variables.updates, updatedLead });
       
       toast({
         title: 'הצלחה',

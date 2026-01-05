@@ -27,6 +27,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-600">{formatDate(value)}</span>;
     },
   },
@@ -43,6 +44,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return (
         <span className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
           {value}
@@ -98,6 +100,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as number;
+      if (!value || value === 0) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-900">{value} שנים</span>;
     },
   },
@@ -114,6 +117,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-600">{formatDate(value)}</span>;
     },
   },
@@ -130,6 +134,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-medium border border-green-100">
           {value}
@@ -150,6 +155,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-orange-50 text-orange-700 text-xs font-medium border border-orange-100">
           {value}
@@ -170,6 +176,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-100">
           {value}
@@ -190,6 +197,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-600 font-mono text-sm">{value}</span>;
     },
   },
@@ -206,6 +214,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-purple-50 text-purple-700 text-xs font-medium border border-purple-100">
           {value}
@@ -268,6 +277,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return (
         <span className="text-gray-900 hover:text-blue-600 transition-colors text-sm">
           {value}
@@ -289,6 +299,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as number;
+      if (!value || value === 0) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-900">{value} ס"מ</span>;
     },
   },
@@ -306,6 +317,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as number;
+      if (!value || value === 0) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-900 font-semibold">{value} ק"ג</span>;
     },
   },

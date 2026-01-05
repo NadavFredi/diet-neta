@@ -106,7 +106,7 @@ export const useSavedViews = (resourceKey: string | null) => {
     enabled: !!user?.email && !!resourceKey,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -143,7 +143,7 @@ export const useSavedView = (viewId: string | null) => {
     enabled: !!viewId && !!user?.id,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 

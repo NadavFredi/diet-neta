@@ -57,7 +57,7 @@ export const useUserId = () => {
     },
     enabled: !!user?.email,
     staleTime: Infinity, // User ID never changes for a session
-    cacheTime: Infinity, // Keep in cache forever
+    gcTime: Infinity, // Keep in cache forever (renamed from cacheTime in v5)
     retry: false,
   });
 };

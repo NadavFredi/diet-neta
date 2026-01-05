@@ -12,13 +12,15 @@ import {
   PREFERRED_TIME_OPTIONS, 
   SOURCE_OPTIONS 
 } from '@/utils/dashboard';
+import { getLeadFilterOptions } from '@/utils/filterUtils';
+import type { Lead } from '@/store/slices/dashboardSlice';
 
 export interface FilterConfig {
   filters: ActiveFilter[];
 }
 
-// Define filter fields for Leads table
-export const LEAD_FILTER_FIELDS: FilterField[] = [
+// Base filter fields for Leads table (without dynamic options)
+export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
   {
     id: 'createdDate',
     label: 'תאריך יצירה',
@@ -29,7 +31,7 @@ export const LEAD_FILTER_FIELDS: FilterField[] = [
     id: 'status',
     label: 'סטטוס',
     type: 'multiselect',
-    options: [...STATUS_OPTIONS],
+    options: [...STATUS_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
   },
   {
@@ -54,31 +56,60 @@ export const LEAD_FILTER_FIELDS: FilterField[] = [
     id: 'fitnessGoal',
     label: 'מטרת כושר',
     type: 'multiselect',
-    options: [...FITNESS_GOAL_OPTIONS],
+    options: [...FITNESS_GOAL_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
   },
   {
     id: 'activityLevel',
     label: 'רמת פעילות',
     type: 'multiselect',
-    options: [...ACTIVITY_LEVEL_OPTIONS],
+    options: [...ACTIVITY_LEVEL_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
   },
   {
     id: 'preferredTime',
     label: 'זמן מועדף',
     type: 'multiselect',
-    options: [...PREFERRED_TIME_OPTIONS],
+    options: [...PREFERRED_TIME_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
   },
   {
     id: 'source',
     label: 'מקור',
     type: 'multiselect',
-    options: [...SOURCE_OPTIONS],
+    options: [...SOURCE_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
   },
 ];
+
+/**
+ * Get filter fields for Leads table with dynamic options from data
+ */
+export function getLeadFilterFields(leads: Lead[] = []): FilterField[] {
+  const dynamicOptions = getLeadFilterOptions(leads);
+  
+  return LEAD_FILTER_FIELDS_BASE.map(field => {
+    if (field.id === 'status' && dynamicOptions.status.length > 0) {
+      return { ...field, dynamicOptions: dynamicOptions.status };
+    }
+    if (field.id === 'fitnessGoal' && dynamicOptions.fitnessGoal.length > 0) {
+      return { ...field, dynamicOptions: dynamicOptions.fitnessGoal };
+    }
+    if (field.id === 'activityLevel' && dynamicOptions.activityLevel.length > 0) {
+      return { ...field, dynamicOptions: dynamicOptions.activityLevel };
+    }
+    if (field.id === 'preferredTime' && dynamicOptions.preferredTime.length > 0) {
+      return { ...field, dynamicOptions: dynamicOptions.preferredTime };
+    }
+    if (field.id === 'source' && dynamicOptions.source.length > 0) {
+      return { ...field, dynamicOptions: dynamicOptions.source };
+    }
+    return field;
+  });
+}
+
+// For backward compatibility, export base fields
+export const LEAD_FILTER_FIELDS = LEAD_FILTER_FIELDS_BASE;
 
 // Define filter fields for Customers table
 export const CUSTOMER_FILTER_FIELDS: FilterField[] = [

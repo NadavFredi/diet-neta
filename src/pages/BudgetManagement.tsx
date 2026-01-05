@@ -138,7 +138,6 @@ const BudgetManagement = () => {
                 ) : budgets && budgets.length > 0 ? (
                   <BudgetsDataTable
                     budgets={budgets}
-                    columnVisibility={columnVisibility}
                     onEdit={handleEditBudget}
                     onDelete={handleDeleteClick}
                     onExportPDF={handleExportPDF}

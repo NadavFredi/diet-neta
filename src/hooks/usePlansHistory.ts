@@ -5,6 +5,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
+import { formatDate } from '@/utils/dashboard';
 
 interface PlansHistory {
   workoutHistory: any[];
@@ -24,7 +25,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
       const stepsHistory: any[] = [];
 
       // Fetch all plans in parallel using Promise.all for better performance
-      const [workoutResult, nutritionResult, supplementResult, customerResult] = await Promise.all([
+      const [workoutResult, nutritionResult, supplementResult, stepsResult] = await Promise.all([
         // Fetch workout plans
         (customerId || leadId) ? (() => {
           let workoutQuery = supabase
@@ -79,18 +80,29 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
           return supplementQuery;
         })() : Promise.resolve({ data: null, error: null }),
 
-        // Customer data for steps
-        customerId ? supabase
-          .from('customers')
-          .select('daily_protocol')
-          .eq('id', customerId)
-          .single() : Promise.resolve({ data: null, error: null }),
+        // Steps plans
+        (customerId || leadId) ? (() => {
+          let stepsQuery = supabase
+            .from('steps_plans')
+            .select('*, budget_id')
+            .order('created_at', { ascending: false });
+
+          if (customerId && leadId) {
+            stepsQuery = stepsQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
+          } else if (customerId) {
+            stepsQuery = stepsQuery.eq('customer_id', customerId);
+          } else if (leadId) {
+            stepsQuery = stepsQuery.eq('lead_id', leadId);
+          }
+
+          return stepsQuery;
+        })() : Promise.resolve({ data: null, error: null }),
       ]);
 
       const { data: workoutPlans, error: workoutError } = workoutResult;
       const { data: nutritionPlans, error: nutritionError } = nutritionResult;
       const { data: supplementPlans, error: supplementError } = supplementResult;
-      const { data: customer, error: customerError } = customerResult;
+      const { data: stepsPlans, error: stepsError } = stepsResult;
 
       if (workoutError) {
         console.error('Error fetching workout plans:', workoutError);
@@ -101,11 +113,19 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
       if (supplementError) {
         console.error('Error fetching supplement plans:', supplementError);
       }
+      if (stepsError) {
+        console.error('[usePlansHistory] Error fetching steps plans:', stepsError);
+        // If table doesn't exist, log but don't fail
+        if (stepsError.message?.includes('does not exist') || stepsError.message?.includes('relation')) {
+          console.warn('[usePlansHistory] steps_plans table does not exist. Please run migration: 20260104000007_create_steps_plans.sql');
+        }
+      }
 
       console.log('[usePlansHistory] Plans fetched:', {
         workout: workoutPlans?.length || 0,
         nutrition: nutritionPlans?.length || 0,
         supplements: supplementPlans?.length || 0,
+        steps: stepsPlans?.length || 0,
       });
 
       if (workoutPlans && workoutPlans.length > 0) {
@@ -187,13 +207,67 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
           }));
       }
 
-      // Use customer data from parallel fetch
-      if (customer?.daily_protocol?.stepsGoal) {
-        stepsHistory.push({
-          weekNumber: 'נוכחי',
-          target: customer.daily_protocol.stepsGoal,
-          startDate: new Date().toISOString().split('T')[0],
-        });
+      // Fetch steps plans from steps_plans table
+      if (stepsPlans && stepsPlans.length > 0) {
+        // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
+        const uniquePlans = Array.from(
+          new Map(stepsPlans.map((plan: any) => [plan.id, plan])).values()
+        );
+        
+        stepsHistory.push(...uniquePlans.map((plan: any) => ({
+          id: plan.id,
+          weekNumber: plan.is_active ? 'נוכחי' : `תוכנית ${plan.id.substring(0, 8)}`,
+          target: plan.steps_goal || 0,
+          startDate: plan.start_date,
+          endDate: plan.end_date || null,
+          dates: plan.start_date ? formatDate(plan.start_date) : '',
+          description: plan.description || 'תוכנית צעדים',
+          budget_id: plan.budget_id,
+          created_at: plan.created_at,
+          is_active: plan.is_active,
+        })));
+      } else {
+        // Fallback: Check if there's a steps goal in daily_protocol or from active budget
+        // This is a temporary workaround until steps_plans table is created
+        if (customerId) {
+          const { data: customer } = await supabase
+            .from('customers')
+            .select('daily_protocol')
+            .eq('id', customerId)
+            .single();
+          
+          if (customer?.daily_protocol?.stepsGoal) {
+            // Also check for active budget assignment to get steps_instructions
+            const { data: activeBudget } = await supabase
+              .from('budget_assignments')
+              .select(`
+                budget:budgets(steps_goal, steps_instructions, name)
+              `)
+              .eq('customer_id', customerId)
+              .eq('is_active', true)
+              .maybeSingle();
+            
+            if (activeBudget?.budget) {
+              const budget = activeBudget.budget as any;
+              stepsHistory.push({
+                weekNumber: 'נוכחי',
+                target: budget.steps_goal || customer.daily_protocol.stepsGoal || 0,
+                startDate: new Date().toISOString().split('T')[0],
+                description: `תוכנית צעדים מתקציב: ${budget.name || 'תקציב פעיל'}`,
+                budget_id: activeBudget.budget_id,
+                is_active: true,
+              });
+            } else if (customer.daily_protocol.stepsGoal) {
+              stepsHistory.push({
+                weekNumber: 'נוכחי',
+                target: customer.daily_protocol.stepsGoal,
+                startDate: new Date().toISOString().split('T')[0],
+                description: 'תוכנית צעדים',
+                is_active: true,
+              });
+            }
+          }
+        }
       }
 
       const result = {
@@ -212,7 +286,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
     },
     enabled: !!(customerId || leadId),
     staleTime: 2 * 60 * 1000, // 2 minutes
-    cacheTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes (renamed from cacheTime in v5)
   });
 };
 

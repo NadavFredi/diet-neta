@@ -5,7 +5,7 @@
  * Bento-style layout with world-class UI/UX
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints } from 'lucide-react';
+import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints, Edit2 } from 'lucide-react';
 import { useNutritionTemplates } from '@/hooks/useNutritionTemplates';
 import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates';
 import { useNavigate } from 'react-router-dom';
@@ -26,16 +26,23 @@ import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budget
 import { cn } from '@/lib/utils';
 import { AddWorkoutTemplateDialog } from '@/components/dashboard/dialogs/AddWorkoutTemplateDialog';
 import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCreateWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
-import { useCreateNutritionTemplate } from '@/hooks/useNutritionTemplates';
+import { EditWorkoutTemplateDialog } from '@/components/dashboard/dialogs/EditWorkoutTemplateDialog';
+import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/EditNutritionTemplateDialog';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useCreateWorkoutTemplate, useUpdateWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
+import { useCreateNutritionTemplate, useUpdateNutritionTemplate } from '@/hooks/useNutritionTemplates';
 import { useToast } from '@/hooks/use-toast';
+import { useCustomers } from '@/hooks/useCustomers';
+import { useAssignBudgetToCustomer, useAssignBudgetToLead } from '@/hooks/useBudgets';
+import { fetchFilteredLeads, mapLeadToUIFormat } from '@/services/leadService';
+import { supabase } from '@/lib/supabaseClient';
 
 interface BudgetFormProps {
   mode: 'create' | 'edit';
   initialData?: Budget | null;
   onSave: (data: any) => void;
   onCancel: () => void;
+  enableAssignment?: boolean; // Enable customer/lead assignment
 }
 
 // Macro Split Bar Component
@@ -90,18 +97,72 @@ const MacroSplitBar = ({ protein, carbs, fat }: { protein: number; carbs: number
   );
 };
 
-export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormProps) => {
+export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignment = false }: BudgetFormProps) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  
+  // Debug: Log assignment state
+  useEffect(() => {
+    if (enableAssignment && mode === 'create') {
+      console.log('[BudgetForm] Assignment section should be visible', { enableAssignment, mode });
+    }
+  }, [enableAssignment, mode]);
   const { data: nutritionTemplates = [] } = useNutritionTemplates();
   const { data: workoutTemplates = [] } = useWorkoutTemplates();
+  const { data: customers = [] } = useCustomers();
   const createWorkoutTemplate = useCreateWorkoutTemplate();
   const createNutritionTemplate = useCreateNutritionTemplate();
+  const updateWorkoutTemplate = useUpdateWorkoutTemplate();
+  const updateNutritionTemplate = useUpdateNutritionTemplate();
+  const assignToCustomer = useAssignBudgetToCustomer();
+  const assignToLead = useAssignBudgetToLead();
   
-  // Template creation dialog states
+  // Fetch all leads for assignment dropdown
+  const { data: leads = [] } = useQuery({
+    queryKey: ['allLeadsForAssignment'],
+    queryFn: async () => {
+      const dbLeads = await fetchFilteredLeads({
+        limit: 1000,
+        offset: 0,
+      });
+      return dbLeads.map(mapLeadToUIFormat);
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+  
+  // Fetch current lead assignment for this budget (if editing)
+  const { data: currentLeadAssignment } = useQuery({
+    queryKey: ['budgetLeadAssignment', initialData?.id],
+    queryFn: async () => {
+      if (!initialData?.id) return null;
+      const { data, error } = await supabase
+        .from('budget_assignments')
+        .select('lead_id')
+        .eq('budget_id', initialData.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching lead assignment:', error);
+        return null;
+      }
+      return data?.lead_id || null;
+    },
+    enabled: !!initialData?.id && mode === 'edit',
+  });
+  
+  // Template creation/editing dialog states
   const [isWorkoutTemplateDialogOpen, setIsWorkoutTemplateDialogOpen] = useState(false);
   const [isNutritionTemplateDialogOpen, setIsNutritionTemplateDialogOpen] = useState(false);
+  const [isEditWorkoutTemplateDialogOpen, setIsEditWorkoutTemplateDialogOpen] = useState(false);
+  const [isEditNutritionTemplateDialogOpen, setIsEditNutritionTemplateDialogOpen] = useState(false);
+  const [editingWorkoutTemplate, setEditingWorkoutTemplate] = useState<any>(null);
+  const [editingNutritionTemplate, setEditingNutritionTemplate] = useState<any>(null);
+  
+  // Assignment states
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   
   // Basic info
   const [name, setName] = useState('');
@@ -156,6 +217,13 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
       setEatingRules(initialData.eating_rules || '');
     }
   }, [initialData]);
+  
+  // Initialize lead assignment from current assignment
+  useEffect(() => {
+    if (currentLeadAssignment) {
+      setSelectedLeadId(currentLeadAssignment);
+    }
+  }, [currentLeadAssignment]);
 
   // Handle nutrition template selection
   const handleNutritionTemplateChange = (templateId: string) => {
@@ -205,7 +273,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
     setIsSubmitting(true);
 
     try {
-      await onSave({
+      const budgetData = {
         name,
         description: description || null,
         nutrition_template_id: nutritionTemplateId || null,
@@ -216,7 +284,60 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
         supplements: supplements.filter((s) => s.name.trim() !== ''),
         eating_order: eatingOrder || null,
         eating_rules: eatingRules || null,
-      });
+      };
+      
+      const savedBudget = await onSave(budgetData);
+      
+      // Handle lead assignment (works in both create and edit modes)
+      if (savedBudget?.id && selectedLeadId) {
+        try {
+          await assignToLead.mutateAsync({
+            budgetId: savedBudget.id,
+            leadId: selectedLeadId,
+          });
+          queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] });
+          queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
+          toast({
+            title: 'הצלחה',
+            description: 'התקציב הוקצה לליד בהצלחה',
+          });
+        } catch (error: any) {
+          console.error('Error assigning budget to lead:', error);
+          toast({
+            title: 'שגיאה',
+            description: error?.message || 'נכשל בהקצאת התקציב לליד',
+            variant: 'destructive',
+          });
+        }
+      } else if (savedBudget?.id && !selectedLeadId && currentLeadAssignment) {
+        // If lead was unselected, deactivate the assignment
+        try {
+          await supabase
+            .from('budget_assignments')
+            .update({ is_active: false })
+            .eq('budget_id', savedBudget.id)
+            .eq('lead_id', currentLeadAssignment)
+            .eq('is_active', true);
+          
+          queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] });
+          queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
+        } catch (error: any) {
+          console.error('Error removing lead assignment:', error);
+        }
+      }
+      
+      // If assignment is enabled and a customer is selected, assign the budget
+      if (enableAssignment && savedBudget?.id && selectedCustomerId) {
+        await assignToCustomer.mutateAsync({
+          budgetId: savedBudget.id,
+          customerId: selectedCustomerId,
+        });
+        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
+        toast({
+          title: 'הצלחה',
+          description: 'התקציב נוצר והוקצה ללקוח בהצלחה',
+        });
+      }
     } catch (error) {
       console.error('Error saving budget:', error);
     } finally {
@@ -288,6 +409,105 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
       });
     }
   };
+  
+  // Handle editing workout template
+  const handleEditWorkoutTemplate = () => {
+    if (!workoutTemplateId) return;
+    const template = workoutTemplates.find((t) => t.id === workoutTemplateId);
+    if (template) {
+      setEditingWorkoutTemplate(template);
+      setIsEditWorkoutTemplateDialogOpen(true);
+    }
+  };
+  
+  // Handle saving edited workout template
+  const handleUpdateWorkoutTemplate = async (data: any) => {
+    if (!editingWorkoutTemplate) return;
+    try {
+      const updated = await updateWorkoutTemplate.mutateAsync({
+        templateId: editingWorkoutTemplate.id,
+        ...data,
+      });
+      
+      // Close only the edit template dialog first, keep budget dialog open
+      setIsEditWorkoutTemplateDialogOpen(false);
+      setEditingWorkoutTemplate(null);
+      
+      // Refresh templates list without closing parent dialog
+      // Use refetchQueries instead of invalidateQueries to avoid triggering unnecessary re-renders
+      await queryClient.refetchQueries({ queryKey: ['workoutTemplates'] });
+      
+      // The template list will refresh automatically, and the Select will show updated name
+      // The pencil button will show the updated template data
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תבנית האימונים עודכנה בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון תבנית האימונים',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Handle editing nutrition template
+  const handleEditNutritionTemplate = () => {
+    if (!nutritionTemplateId) return;
+    const template = nutritionTemplates.find((t) => t.id === nutritionTemplateId);
+    if (template) {
+      setEditingNutritionTemplate(template);
+      setIsEditNutritionTemplateDialogOpen(true);
+    }
+  };
+  
+  // Handle saving edited nutrition template
+  const handleUpdateNutritionTemplate = async (data: any) => {
+    if (!editingNutritionTemplate) return;
+    try {
+      const updated = await updateNutritionTemplate.mutateAsync({
+        templateId: editingNutritionTemplate.id,
+        ...data,
+      });
+      
+      // Close only the edit template dialog first, keep budget dialog open
+      setIsEditNutritionTemplateDialogOpen(false);
+      setEditingNutritionTemplate(null);
+      
+      // Update nutrition targets if they changed
+      if (updated?.targets) {
+        setNutritionTargets({
+          calories: updated.targets.calories || 0,
+          protein: updated.targets.protein || 0,
+          carbs: updated.targets.carbs || 0,
+          fat: updated.targets.fat || 0,
+          fiber_min: updated.targets.fiber || 20,
+          water_min: nutritionTargets.water_min || 2.5,
+        });
+      }
+      
+      // Refresh templates list without closing parent dialog
+      // Use refetchQueries instead of invalidateQueries to avoid triggering unnecessary re-renders
+      await queryClient.refetchQueries({ queryKey: ['nutritionTemplates'] });
+      
+      // The template list will refresh automatically, and the Select will show updated name
+      // The pencil button will show the updated template data
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תבנית התזונה עודכנה בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון תבנית התזונה',
+        variant: 'destructive',
+      });
+    }
+  };
+  
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2.5" dir="rtl" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
@@ -368,6 +588,61 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                   dir="rtl"
                 />
               </div>
+              
+              {/* Budget Assignment - Right under eating instructions */}
+              <div className="pt-2 border-t border-slate-100">
+                <div className="space-y-3">
+                  {/* Lead Assignment */}
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-slate-500">הקצה תקציב לליד</Label>
+                    <Select
+                      value={selectedLeadId || 'none'}
+                      onValueChange={(value) => setSelectedLeadId(value === 'none' ? '' : value)}
+                    >
+                      <SelectTrigger className={cn(
+                        "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                        "text-slate-900 font-medium text-sm"
+                      )} dir="rtl">
+                        <SelectValue placeholder="בחר ליד" />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl" className="max-h-[300px]">
+                        <SelectItem value="none">ללא הקצאה</SelectItem>
+                        {leads.map((lead) => (
+                          <SelectItem key={lead.id} value={lead.id}>
+                            {lead.name} {lead.phone && `- ${lead.phone}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Customer Assignment - Only show in create mode with enableAssignment */}
+                  {enableAssignment && mode === 'create' && (
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-slate-500">הקצה תקציב ללקוח</Label>
+                      <Select
+                        value={selectedCustomerId || 'none'}
+                        onValueChange={(value) => setSelectedCustomerId(value === 'none' ? '' : value)}
+                      >
+                        <SelectTrigger className={cn(
+                          "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                          "text-slate-900 font-medium text-sm"
+                        )} dir="rtl">
+                          <SelectValue placeholder="בחר לקוח" />
+                        </SelectTrigger>
+                        <SelectContent dir="rtl">
+                          <SelectItem value="none">ללא הקצאה</SelectItem>
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.full_name} {customer.phone && `- ${customer.phone}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -403,6 +678,18 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                     ))}
                   </SelectContent>
                 </Select>
+                {workoutTemplateId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleEditWorkoutTemplate}
+                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                    title="ערוך תבנית אימונים"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -441,6 +728,18 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
                     ))}
                   </SelectContent>
                 </Select>
+                {nutritionTemplateId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleEditNutritionTemplate}
+                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                    title="ערוך תבנית תזונה"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -563,8 +862,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
         </Card>
       </div>
 
-
-
       {/* Footer Actions - Bottom Left (RTL) */}
       <div className="flex flex-row-reverse justify-start gap-2 pt-2.5 pb-1 border-t border-slate-100">
         <Button 
@@ -600,6 +897,21 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel }: BudgetFormPr
         isOpen={isNutritionTemplateDialogOpen}
         onOpenChange={setIsNutritionTemplateDialogOpen}
         onSave={handleCreateNutritionTemplate}
+      />
+      
+      {/* Template Edit Dialogs */}
+      <EditWorkoutTemplateDialog
+        isOpen={isEditWorkoutTemplateDialogOpen}
+        onOpenChange={setIsEditWorkoutTemplateDialogOpen}
+        editingTemplate={editingWorkoutTemplate}
+        onSave={handleUpdateWorkoutTemplate}
+      />
+      
+      <EditNutritionTemplateDialog
+        isOpen={isEditNutritionTemplateDialogOpen}
+        onOpenChange={setIsEditNutritionTemplateDialogOpen}
+        editingTemplate={editingNutritionTemplate}
+        onSave={handleUpdateNutritionTemplate}
       />
     </form>
   );

@@ -8,15 +8,12 @@ import { workoutTemplateColumns } from './columns/templateColumns';
 
 interface WorkoutTemplatesDataTableProps {
   templates: WorkoutTemplate[];
-  columnVisibility: TemplateColumnVisibility;
   onEdit: (template: WorkoutTemplate) => void;
   onDelete: (template: WorkoutTemplate) => void;
 }
 
 export const WorkoutTemplatesDataTable = ({
-  enableColumnVisibility = true,
   templates,
-  columnVisibility,
   onEdit,
   onDelete,
 }: WorkoutTemplatesDataTableProps) => {

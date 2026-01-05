@@ -63,7 +63,7 @@ export const useNutritionTemplates = (filters?: { search?: string; isPublic?: bo
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change often
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -91,7 +91,7 @@ export const useNutritionTemplate = (templateId: string | null) => {
     },
     enabled: !!templateId && !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 

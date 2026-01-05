@@ -62,7 +62,7 @@ export const useWorkoutTemplates = (filters?: { search?: string; goalTags?: stri
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change often
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -90,7 +90,7 @@ export const useWorkoutTemplate = (templateId: string | null) => {
     },
     enabled: !!templateId && !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 

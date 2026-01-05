@@ -28,6 +28,39 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { sendWhatsAppMessage, replacePlaceholders } from '@/services/greenApiService';
 import { TemplateEditorModal } from './TemplateEditorModal';
+import { fetchTemplates } from '@/store/slices/automationSlice';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+// Flow configs for template labels (same as LeadAutomationCard)
+const DEFAULT_FLOW_CONFIGS = [
+  {
+    key: 'customer_journey_start',
+    label: 'תחילת מסע לקוח ותיאום פגישה',
+  },
+  {
+    key: 'intro_questionnaire',
+    label: 'שליחת שאלון הכרות לאחר קביעת שיחה',
+  },
+];
+
+// Load custom flows from localStorage
+const loadCustomFlows = (): Array<{ key: string; label: string }> => {
+  try {
+    const stored = localStorage.getItem('custom_automation_flows');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('[CreateTraineeButton] Error loading custom flows:', error);
+  }
+  return [];
+};
 
 interface CreateTraineeButtonProps {
   customerId: string;
@@ -61,6 +94,9 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   const [userExists, setUserExists] = useState(false);
   const [existingUserId, setExistingUserId] = useState<string | null>(null);
   const [isCheckingUser, setIsCheckingUser] = useState(true);
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>('');
+  const [templates, setTemplates] = useState<Record<string, any>>({});
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
 
   // Default template for trainee user credentials
   const DEFAULT_TRAINEE_TEMPLATE = `שלום {{name}},
@@ -93,6 +129,24 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
       localStorage.setItem('traineeUserMessageTemplate', messageTemplate);
     }
   }, [messageTemplate]);
+
+  // Load WhatsApp templates from automation flows
+  useEffect(() => {
+    const loadTemplates = async () => {
+      setIsLoadingTemplates(true);
+      try {
+        const result = await dispatch(fetchTemplates()).unwrap();
+        setTemplates(result);
+      } catch (error) {
+        console.error('[CreateTraineeButton] Error loading templates:', error);
+      } finally {
+        setIsLoadingTemplates(false);
+      }
+    };
+    if (isDialogOpen) {
+      loadTemplates();
+    }
+  }, [dispatch, isDialogOpen]);
 
   // Check if customer already has a user account
   useEffect(() => {
@@ -321,7 +375,15 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
 
     setIsSendingWhatsApp(true);
     try {
-      const template = messageTemplate || DEFAULT_TRAINEE_TEMPLATE;
+      // If a template is selected, use it; otherwise use the default trainee template
+      let templateContent = messageTemplate || DEFAULT_TRAINEE_TEMPLATE;
+      let buttons: Array<{ id: string; text: string }> | undefined = undefined;
+
+      if (selectedTemplateKey && templates[selectedTemplateKey]) {
+        const selectedTemplate = templates[selectedTemplateKey];
+        templateContent = selectedTemplate.template_content || templateContent;
+        buttons = selectedTemplate.buttons;
+      }
 
       const placeholders = {
         name: customerName || 'לקוח',
@@ -330,17 +392,24 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         login_url: `${window.location.origin}/login`,
       };
 
-      const message = replacePlaceholders(template, placeholders);
+      const message = replacePlaceholders(templateContent, placeholders);
+
+      // Process buttons if they exist
+      const processedButtons = buttons?.map(btn => ({
+        id: btn.id,
+        text: replacePlaceholders(btn.text, placeholders),
+      }));
 
       const result = await sendWhatsAppMessage({
         phoneNumber: customerPhone,
         message,
+        buttons: processedButtons,
       });
 
       if (result.success) {
         toast({
           title: 'הצלחה',
-          description: 'פרטי הכניסה נשלחו בהצלחה ב-WhatsApp!',
+          description: 'ההודעה נשלחה בהצלחה ב-WhatsApp!',
         });
       } else {
         throw new Error(result.error || 'Failed to send WhatsApp message');
@@ -394,9 +463,8 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]" dir="rtl">
         <DialogHeader>
-          <DialogTitle>צור משתמש מתאמן</DialogTitle>
-          <DialogDescription className="flex items-center justify-between">
-            <span>צור משתמש עם סיסמה ושלוח את פרטי הכניסה דרך WhatsApp</span>
+          <DialogTitle className="flex items-center justify-between">
+            <span>צור משתמש מתאמן</span>
             <Button
               variant="ghost"
               size="sm"
@@ -407,7 +475,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
               <Settings className="h-3 w-3 ml-1" />
               ערוך טמפלייט
             </Button>
-          </DialogDescription>
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
@@ -475,6 +543,53 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
               <strong>לקוח:</strong> {customerName}
             </div>
           )}
+
+          {/* WhatsApp Template Selection */}
+          {customerPhone && (userCreated || userExists) && (
+            <div className="space-y-2 pt-2 border-t">
+              <Label htmlFor="whatsapp-template">שלח תבנית WhatsApp</Label>
+              <Select
+                value={selectedTemplateKey}
+                onValueChange={setSelectedTemplateKey}
+                disabled={isSendingWhatsApp || isLoadingTemplates}
+              >
+                <SelectTrigger id="whatsapp-template" className="w-full">
+                  <SelectValue placeholder="בחר תבנית (אופציונלי)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">תבנית ברירת מחדל (פרטי כניסה)</SelectItem>
+                  {Object.entries(templates).map(([key, template]) => {
+                    // Get flow label from DEFAULT_FLOW_CONFIGS, custom flows, or use key
+                    const allFlows = [...DEFAULT_FLOW_CONFIGS, ...loadCustomFlows()];
+                    const flowConfig = allFlows.find(f => f.key === key);
+                    const label = flowConfig?.label || key;
+                    return (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleSendWhatsApp}
+                disabled={isSendingWhatsApp || !customerPhone}
+                className="w-full bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+              >
+                {isSendingWhatsApp ? (
+                  <>
+                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                    שולח...
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="h-4 w-4 ml-2" />
+                    שלח תבנית WhatsApp
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button
@@ -508,27 +623,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
                 'צור משתמש'
               )}
             </Button>
-          ) : (
-            customerPhone && (
-              <Button
-                onClick={handleSendWhatsApp}
-                disabled={isSendingWhatsApp}
-                className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-              >
-                {isSendingWhatsApp ? (
-                  <>
-                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                    שולח...
-                  </>
-                ) : (
-                  <>
-                    <MessageCircle className="h-4 w-4 ml-2" />
-                    שלח פרטי כניסה ב-WhatsApp
-                  </>
-                )}
-              </Button>
-            )
-          )}
+          ) : null}
         </DialogFooter>
       </DialogContent>
 
