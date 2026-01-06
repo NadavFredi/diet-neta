@@ -236,7 +236,7 @@ export const useUpdateBudget = () => {
       const updateData: Partial<Budget> = {};
       Object.keys(updates).forEach((key) => {
         if (key !== 'budgetId' && updates[key as keyof typeof updates] !== undefined) {
-          updateData[key as keyof Budget] = updates[key as keyof typeof updates] as any;
+          (updateData as any)[key] = updates[key as keyof typeof updates];
         }
       });
 
@@ -480,6 +480,115 @@ export const useAssignBudgetToCustomer = () => {
       queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
       queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
       queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+    },
+  });
+};
+
+// Delete a budget assignment
+export const useDeleteBudgetAssignment = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useMutation({
+    mutationFn: async (assignmentId: string) => {
+      if (!user?.id) throw new Error('User not authenticated');
+
+      // First, get the assignment to find associated lead/customer
+      const { data: assignment, error: fetchError } = await supabase
+        .from('budget_assignments')
+        .select('lead_id, customer_id, budget_id')
+        .eq('id', assignmentId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!assignment) throw new Error('Budget assignment not found');
+
+      // Delete the assignment
+      const { error } = await supabase
+        .from('budget_assignments')
+        .delete()
+        .eq('id', assignmentId);
+
+      if (error) throw error;
+
+      // Also delete associated plans if they exist
+      // Delete workout plans
+      if (assignment.lead_id) {
+        await supabase
+          .from('workout_plans')
+          .delete()
+          .eq('lead_id', assignment.lead_id)
+          .eq('budget_id', assignment.budget_id);
+      }
+      if (assignment.customer_id) {
+        await supabase
+          .from('workout_plans')
+          .delete()
+          .eq('customer_id', assignment.customer_id)
+          .eq('budget_id', assignment.budget_id);
+      }
+
+      // Delete nutrition plans
+      if (assignment.lead_id) {
+        await supabase
+          .from('nutrition_plans')
+          .delete()
+          .eq('lead_id', assignment.lead_id)
+          .eq('budget_id', assignment.budget_id);
+      }
+      if (assignment.customer_id) {
+        await supabase
+          .from('nutrition_plans')
+          .delete()
+          .eq('customer_id', assignment.customer_id)
+          .eq('budget_id', assignment.budget_id);
+      }
+
+      // Delete supplement plans
+      if (assignment.lead_id) {
+        await supabase
+          .from('supplement_plans')
+          .delete()
+          .eq('lead_id', assignment.lead_id)
+          .eq('budget_id', assignment.budget_id);
+      }
+      if (assignment.customer_id) {
+        await supabase
+          .from('supplement_plans')
+          .delete()
+          .eq('customer_id', assignment.customer_id)
+          .eq('budget_id', assignment.budget_id);
+      }
+
+      // Delete steps plans
+      if (assignment.lead_id) {
+        await supabase
+          .from('steps_plans')
+          .delete()
+          .eq('lead_id', assignment.lead_id)
+          .eq('budget_id', assignment.budget_id);
+      }
+      if (assignment.customer_id) {
+        await supabase
+          .from('steps_plans')
+          .delete()
+          .eq('customer_id', assignment.customer_id)
+          .eq('budget_id', assignment.budget_id);
+      }
+
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] });
+      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      queryClient.invalidateQueries({ queryKey: ['workout-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['supplement-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['steps-plans'] });
     },
   });
 };

@@ -49,3 +49,4 @@ Check browser console for:
 - The sync logs showing what happened
 - Whether the table exists error appears
 
+

@@ -35,3 +35,4 @@ After logging back in, check the browser console - you should see:
 
 And when creating a trainee user, the JWT should be valid.
 
+

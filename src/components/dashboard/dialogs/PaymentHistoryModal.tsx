@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Download, FileText, Calendar, CreditCard, Package } from 'lucide-react';
+import { Download, FileText, Calendar, CreditCard, Package, Receipt } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { usePaymentHistory } from '@/hooks/usePaymentHistory';
@@ -133,78 +133,106 @@ export const PaymentHistoryModal: React.FC<PaymentHistoryModalProps> = ({
                     className="bg-white border border-slate-200 shadow-sm rounded-xl hover:shadow-md transition-shadow"
                   >
                     <CardContent className="p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                        {/* Date & Time */}
-                        <div className="md:col-span-3 flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-xs text-gray-500 font-medium mb-0.5">תאריך ושעה</p>
-                            <p className="text-sm font-semibold text-slate-900">
-                              {formatDate(payment.date)}
-                            </p>
+                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        {/* Rest of the content */}
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-11 gap-4 items-center">
+                          {/* Date & Time */}
+                          <div className="md:col-span-3 flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs text-gray-500 font-medium mb-0.5">תאריך ושעה</p>
+                              <p className="text-sm font-semibold text-slate-900">
+                                {formatDate(payment.date)}
+                              </p>
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Product Name */}
-                        <div className="md:col-span-4 flex items-center gap-2">
-                          <Package className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-xs text-gray-500 font-medium mb-0.5">מוצר</p>
-                            <p className="text-sm font-semibold text-slate-900 truncate">
-                              {payment.product_name || 'ללא שם מוצר'}
-                            </p>
+                          {/* Product Name */}
+                          <div className="md:col-span-3 flex items-center gap-2">
+                            <Package className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs text-gray-500 font-medium mb-0.5">מוצר</p>
+                              <p className="text-sm font-semibold text-slate-900 truncate">
+                                {payment.product_name || 'ללא שם מוצר'}
+                              </p>
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Amount */}
-                        <div className="md:col-span-2 flex items-center gap-2">
-                          <CreditCard className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-xs text-gray-500 font-medium mb-0.5">סכום</p>
-                            <p className="text-sm font-bold text-slate-900">
-                              {formatCurrency(payment.amount, payment.currency)}
-                            </p>
+                          {/* Amount */}
+                          <div className="md:col-span-2 flex items-center gap-2">
+                            <CreditCard className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs text-gray-500 font-medium mb-0.5">סכום</p>
+                              <p className="text-sm font-bold text-slate-900">
+                                {formatCurrency(payment.amount, payment.currency)}
+                              </p>
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Status */}
-                        <div className="md:col-span-2">
-                          <p className="text-xs text-gray-500 font-medium mb-1.5">סטטוס</p>
-                          <Badge
-                            className={cn(
-                              'text-xs font-semibold px-2.5 py-1 border',
-                              statusConfig.className
+                          {/* Status */}
+                          <div className="md:col-span-2">
+                            <p className="text-xs text-gray-500 font-medium mb-1.5">סטטוס</p>
+                            <Badge
+                              className={cn(
+                                'text-xs font-semibold px-2.5 py-1 border',
+                                statusConfig.className
+                              )}
+                            >
+                              {statusConfig.label}
+                            </Badge>
+                          </div>
+
+                          {/* Actions - Download Receipt */}
+                          <div className="md:col-span-1 flex items-end justify-end">
+                            {payment.receipt_url ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (payment.receipt_url) {
+                                        window.open(payment.receipt_url, '_blank');
+                                      }
+                                    }}
+                                    className="h-8 w-8 p-0 text-gray-600 hover:text-[#5B6FB9] hover:bg-[#5B6FB9]/10"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="left" dir="rtl">
+                                  <p>הורד קבלה</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <div className="h-8 w-8" /> // Spacer for alignment
                             )}
-                          >
-                            {statusConfig.label}
-                          </Badge>
+                          </div>
                         </div>
 
-                        {/* Actions */}
-                        <div className="md:col-span-1 flex items-end justify-end">
-                          {payment.receipt_url ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    if (payment.receipt_url) {
-                                      window.open(payment.receipt_url, '_blank');
-                                    }
-                                  }}
-                                  className="h-8 w-8 p-0 text-gray-600 hover:text-[#5B6FB9] hover:bg-[#5B6FB9]/10"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="left" dir="rtl">
-                                <p>הורד קבלה</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <div className="h-8 w-8" /> // Spacer for alignment
-                          )}
+                        {/* Invoice Button - Left Side (appears last in RTL, so on the left) */}
+                        <div className="flex items-center justify-start md:w-auto">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  if (payment.receipt_url) {
+                                    window.open(payment.receipt_url, '_blank');
+                                  }
+                                }}
+                                disabled={!payment.receipt_url}
+                                className="h-9 px-3 text-[#5B6FB9] border-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                              >
+                                <Receipt className="h-4 w-4 ml-2" />
+                                <span className="text-xs font-medium">חשבונית</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" dir="rtl">
+                              <p>{payment.receipt_url ? 'צפה בחשבונית' : 'חשבונית לא זמינה'}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
 

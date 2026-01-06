@@ -47,6 +47,7 @@ interface ClientHeroProps {
   onUpdateLead?: (updates: any) => Promise<void>;
   onUpdateCustomer?: (updates: any) => Promise<void>;
   getStatusColor: (status: string) => string;
+  onViewCustomerProfile?: () => void;
 }
 
 export const ClientHero: React.FC<ClientHeroProps> = ({
@@ -58,6 +59,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   onUpdateLead,
   onUpdateCustomer,
   getStatusColor,
+  onViewCustomerProfile,
 }) => {
   const dispatch = useAppDispatch();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -144,8 +146,17 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
             חזור
           </Button>
 
-            {/* Name - Page Title */}
-            <h1 className="text-base font-bold text-gray-900 flex-shrink-0">{customer.full_name}</h1>
+            {/* Name - Page Title - Clickable to navigate to customer page */}
+            {onViewCustomerProfile ? (
+              <button
+                onClick={onViewCustomerProfile}
+                className="text-base font-bold text-gray-900 flex-shrink-0 hover:text-[#5B6FB9] transition-colors cursor-pointer"
+              >
+                {customer.full_name}
+              </button>
+            ) : (
+              <h1 className="text-base font-bold text-gray-900 flex-shrink-0">{customer.full_name}</h1>
+            )}
 
             {/* Phone - On same line */}
             {onUpdateCustomer && customer && customer.phone && (
