@@ -596,15 +596,17 @@ export const NutritionTemplateForm = ({
                             {calculatorInputs.caloricDeficitPercent}%
                           </span>
                         </div>
-                        <Slider
-                          value={[calculatorInputs.caloricDeficitPercent]}
-                          onValueChange={([value]) => setCalculatorInput('caloricDeficitPercent', value)}
-                          min={-20}
-                          max={20}
-                          step={1}
-                          className="w-full"
-                        />
-                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <div dir="ltr" className="w-full">
+                          <Slider
+                            value={[calculatorInputs.caloricDeficitPercent]}
+                            onValueChange={([value]) => setCalculatorInput('caloricDeficitPercent', value)}
+                            min={-20}
+                            max={20}
+                            step={1}
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground mt-1" dir="ltr">
                           <span>-20%</span>
                           <span>0%</span>
                           <span>+20%</span>
