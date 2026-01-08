@@ -28,6 +28,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import {
@@ -540,31 +541,100 @@ export const NutritionTemplateForm = ({
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-1.5">
-                        <Label className="text-sm font-semibold text-right">גרעון/עודף קלורי (%)</Label>
+                        <Label className="text-sm font-semibold text-right">
+                          {calculatorInputs.caloricDeficitMode === 'percent' 
+                            ? 'גרעון/עודף קלורי (%)' 
+                            : 'גרעון/עודף קלורי (קק"ל)'}
+                        </Label>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Info className="h-3 w-3 text-muted-foreground cursor-help flex-shrink-0" />
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs" side="left">
-                            <p className="text-sm">אחוז גרעון או עודף קלורי</p>
+                            <p className="text-sm">
+                              {calculatorInputs.caloricDeficitMode === 'percent'
+                                ? 'אחוז גרעון או עודף קלורי'
+                                : 'כמות קלוריות להוספה או הפחתה'}
+                            </p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
-                      <span className="text-sm font-bold">{calculatorInputs.caloricDeficitPercent > 0 ? '-' : '+'}{Math.abs(calculatorInputs.caloricDeficitPercent)}%</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "text-xs font-medium transition-colors",
+                          calculatorInputs.caloricDeficitMode === 'percent' 
+                            ? "text-foreground font-semibold" 
+                            : "text-muted-foreground"
+                        )}>
+                          אחוז
+                        </span>
+                        <div dir="ltr" className="inline-block">
+                          <Switch
+                            checked={calculatorInputs.caloricDeficitMode === 'calories'}
+                            onCheckedChange={(checked) => {
+                              setCalculatorInput('caloricDeficitMode', checked ? 'calories' : 'percent');
+                            }}
+                            className="data-[state=checked]:bg-primary"
+                          />
+                        </div>
+                        <span className={cn(
+                          "text-xs font-medium transition-colors",
+                          calculatorInputs.caloricDeficitMode === 'calories' 
+                            ? "text-foreground font-semibold" 
+                            : "text-muted-foreground"
+                        )}>
+                          קלוריות
+                        </span>
+                      </div>
                     </div>
-                    <Slider
-                      value={[calculatorInputs.caloricDeficitPercent]}
-                      onValueChange={([value]) => setCalculatorInput('caloricDeficitPercent', value)}
-                      min={-20}
-                      max={20}
-                      step={1}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>+20%</span>
-                      <span>0%</span>
-                      <span>-20%</span>
-                    </div>
+                    
+                    {calculatorInputs.caloricDeficitMode === 'percent' ? (
+                      <>
+                        <div className="mb-2">
+                          <span className="text-sm font-bold">
+                            {calculatorInputs.caloricDeficitPercent > 0 ? '+' : ''}
+                            {calculatorInputs.caloricDeficitPercent}%
+                          </span>
+                        </div>
+                        <Slider
+                          value={[calculatorInputs.caloricDeficitPercent]}
+                          onValueChange={([value]) => setCalculatorInput('caloricDeficitPercent', value)}
+                          min={-20}
+                          max={20}
+                          step={1}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                          <span>-20%</span>
+                          <span>0%</span>
+                          <span>+20%</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={calculatorInputs.caloricDeficitCalories || ''}
+                            onChange={(e) => setCalculatorInput('caloricDeficitCalories', parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            dir="ltr"
+                            className="h-9 text-sm"
+                            min="-2000"
+                            max="2000"
+                            step="10"
+                          />
+                          <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">קק"ל</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {calculatorInputs.caloricDeficitCalories > 0 
+                            ? `+${calculatorInputs.caloricDeficitCalories} קק"ל (עודף)` 
+                            : calculatorInputs.caloricDeficitCalories < 0
+                            ? `${calculatorInputs.caloricDeficitCalories} קק"ל (גרעון)`
+                            : '0 קק"ל (ללא שינוי)'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

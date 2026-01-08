@@ -43,3 +43,5 @@ When you assign a budget with `steps_goal > 0`:
 If the table doesn't exist, the code falls back to updating `daily_protocol.stepsGoal` in the `customers` table, but this won't create a visible row in the Steps Log tab.
 
 
+
+

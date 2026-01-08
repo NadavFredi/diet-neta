@@ -27,7 +27,9 @@ export interface NutritionBuilderState {
     // PAL (Physical Activity Level)
     pal: number; // 1.1 to 1.7+
     // Goal setting
+    caloricDeficitMode: 'percent' | 'calories'; // Mode for caloric adjustment
     caloricDeficitPercent: number; // -20 to +20 (negative = deficit, positive = surplus)
+    caloricDeficitCalories: number; // Manual calorie adjustment (negative = deficit, positive = surplus)
     // Macro targets (grams per kg)
     proteinPerKg: number; // 2.0-2.5
     fatPerKg: number; // 0.8-1.0
@@ -294,7 +296,9 @@ export const useNutritionBuilder = (
     hip: 95,
     neck: 35,
     pal: 1.4, // Moderately active
+    caloricDeficitMode: 'percent' as 'percent' | 'calories',
     caloricDeficitPercent: 0, // No deficit/surplus by default
+    caloricDeficitCalories: 0, // No deficit/surplus by default
     proteinPerKg: 2.0,
     fatPerKg: 1.0,
     carbsPerKg: 2.0,
@@ -411,8 +415,15 @@ export const useNutritionBuilder = (
   const calculateMacros = useCallback(() => {
     const tdee = calculateTDEE();
     // Apply caloric deficit/surplus
-    const deficitMultiplier = 1 - (calculatorInputs.caloricDeficitPercent / 100);
-    const targetCalories = Math.round(tdee * deficitMultiplier);
+    let targetCalories: number;
+    if (calculatorInputs.caloricDeficitMode === 'percent') {
+      // Percentage mode: apply percentage to TDEE
+      const deficitMultiplier = 1 + (calculatorInputs.caloricDeficitPercent / 100);
+      targetCalories = Math.round(tdee * deficitMultiplier);
+    } else {
+      // Manual calories mode: add/subtract absolute calories
+      targetCalories = Math.round(tdee + calculatorInputs.caloricDeficitCalories);
+    }
     
     return calculateMacrosValue(
       targetCalories,
@@ -457,7 +468,9 @@ export const useNutritionBuilder = (
       hip: 95,
       neck: 35,
       pal: 1.4,
+      caloricDeficitMode: 'percent' as 'percent' | 'calories',
       caloricDeficitPercent: 0,
+      caloricDeficitCalories: 0,
       proteinPerKg: 2.0,
       fatPerKg: 1.0,
       carbsPerKg: 2.0,

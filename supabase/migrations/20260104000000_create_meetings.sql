@@ -103,3 +103,5 @@ COMMENT ON COLUMN public.meetings.meeting_data IS 'Flexible JSONB containing all
 
 
 
+
+
