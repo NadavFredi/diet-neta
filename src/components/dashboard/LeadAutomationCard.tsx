@@ -231,10 +231,17 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
         text: replacePlaceholders(btn.text, placeholders), // Replace placeholders in button text
       }));
 
+      // Process media if it exists
+      const media = template.media ? {
+        type: template.media.type as 'image' | 'video' | 'gif',
+        url: template.media.url,
+      } : undefined;
+
       const result = await sendWhatsAppMessage({
         phoneNumber: customer.phone,
         message,
         buttons: processedButtons,
+        media,
       });
 
       if (result.success) {

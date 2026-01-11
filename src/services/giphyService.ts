@@ -7,6 +7,7 @@
 
 // Giphy Public Beta Key (for development/testing)
 // For production, get your own key from https://developers.giphy.com/
+// You can set VITE_GIPHY_API_KEY in your .env file
 const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY || '3gIdMl6kw5qOwjkq6m6vNVgqTZ5HNL5N';
 
 const GIPHY_API_BASE = 'https://api.giphy.com/v1/gifs';

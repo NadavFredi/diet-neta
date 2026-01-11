@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Smile, Bold, Italic, Underline, Strikethrough, List, ListOrdered, AlignRight, AlignLeft, AlignCenter, Plus, Trash2, HelpCircle, Smartphone, Image, Video, X } from 'lucide-react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
@@ -27,6 +28,7 @@ import ReactQuill, { Quill } from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { AVAILABLE_PLACEHOLDERS, getPlaceholdersByCategory, getCategoryLabel, type Placeholder } from '@/utils/whatsappPlaceholders';
 import { cn } from '@/lib/utils';
+import { GifPicker } from './GifPicker';
 
 export interface WhatsAppButton {
   id: string;
@@ -121,8 +123,9 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const [media, setMedia] = useState<MediaData | null>(initialMedia || null);
   const [isSaving, setIsSaving] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
-  const [isGifPopoverOpen, setIsGifPopoverOpen] = useState(false);
+  const [isGifPickerOpen, setIsGifPickerOpen] = useState(false);
   const [gifUrl, setGifUrl] = useState('');
+  const [gifPickerMode, setGifPickerMode] = useState<'picker' | 'url'>('picker');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const quillRef = useRef<ReactQuill>(null);
@@ -136,6 +139,8 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
         const validButtons = getValidButtons(initialButtons);
         setButtons(validButtons);
         setMedia(initialMedia || null);
+        setGifUrl('');
+        setGifPickerMode('picker');
       } catch (error) {
         console.error('[TemplateEditorModal] Error resetting state:', error);
         setTemplate('');
@@ -322,6 +327,15 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     }
   };
 
+  const handleGifSelect = (gifUrl: string) => {
+    setMedia({
+      type: 'gif',
+      url: gifUrl,
+      previewUrl: gifUrl,
+    });
+    setIsGifPickerOpen(false);
+  };
+
   const handleGifUrlSubmit = () => {
     if (gifUrl.trim()) {
       setMedia({
@@ -330,7 +344,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
         previewUrl: gifUrl.trim(),
       });
       setGifUrl('');
-      setIsGifPopoverOpen(false);
+      setIsGifPickerOpen(false);
     }
   };
 
@@ -661,8 +675,8 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                         <Video className="h-4 w-4 text-slate-400 hover:text-slate-600" />
                       </label>
 
-                      {/* GIF URL Input Popover */}
-                      <Popover open={isGifPopoverOpen} onOpenChange={setIsGifPopoverOpen}>
+                      {/* GIF Picker Popover */}
+                      <Popover open={isGifPickerOpen} onOpenChange={setIsGifPickerOpen}>
                         <PopoverTrigger asChild>
                           <button
                             type="button"
@@ -678,37 +692,54 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                             <Image className="h-4 w-4 text-slate-400 hover:text-slate-600" />
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-80 p-4" dir="rtl" sideOffset={8}>
-                          <div className="space-y-3">
-                            <div>
-                              <Label className="text-sm font-semibold text-slate-900 mb-2 block">
-                                הוסף קישור GIF
-                              </Label>
-                              <Input
-                                type="url"
-                                value={gifUrl}
-                                onChange={(e) => setGifUrl(e.target.value)}
-                                placeholder="https://example.com/image.gif"
-                                className="text-sm"
-                                dir="ltr"
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleGifUrlSubmit();
-                                  }
-                                }}
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              onClick={handleGifUrlSubmit}
-                              disabled={!gifUrl.trim()}
-                              className="w-full bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
-                              size="sm"
-                            >
-                              הוסף
-                            </Button>
-                          </div>
+                        <PopoverContent 
+                          className="w-auto p-0 border border-slate-200 shadow-xl" 
+                          align="start" 
+                          side="top" 
+                          dir="rtl" 
+                          sideOffset={8}
+                        >
+                          <Tabs value={gifPickerMode} onValueChange={(v) => setGifPickerMode(v as 'picker' | 'url')} dir="rtl">
+                            <TabsList className="w-full rounded-b-none border-b border-slate-200 bg-slate-50">
+                              <TabsTrigger value="picker" className="flex-1 text-xs">חיפוש GIF</TabsTrigger>
+                              <TabsTrigger value="url" className="flex-1 text-xs">קישור ידני</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="picker" className="mt-0">
+                              <GifPicker onSelect={handleGifSelect} onClose={() => setIsGifPickerOpen(false)} />
+                            </TabsContent>
+                            <TabsContent value="url" className="mt-0 p-4">
+                              <div className="space-y-3 w-[400px]">
+                                <div>
+                                  <Label className="text-sm font-semibold text-slate-900 mb-2 block">
+                                    הוסף קישור GIF
+                                  </Label>
+                                  <Input
+                                    type="url"
+                                    value={gifUrl}
+                                    onChange={(e) => setGifUrl(e.target.value)}
+                                    placeholder="https://example.com/image.gif"
+                                    className="text-sm"
+                                    dir="ltr"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleGifUrlSubmit();
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  onClick={handleGifUrlSubmit}
+                                  disabled={!gifUrl.trim()}
+                                  className="w-full bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+                                  size="sm"
+                                >
+                                  הוסף
+                                </Button>
+                              </div>
+                            </TabsContent>
+                          </Tabs>
                         </PopoverContent>
                       </Popover>
                     </div>

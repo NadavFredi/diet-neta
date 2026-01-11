@@ -11,11 +11,17 @@ export interface GreenApiConfig {
   apiTokenInstance: string;
 }
 
+export interface MediaData {
+  type: 'image' | 'video' | 'gif';
+  url: string;
+}
+
 export interface SendMessageParams {
   phoneNumber: string; // Format: 972XXXXXXXXX (country code + number without + or 0)
   message: string;
   buttons?: Array<{ id: string; text: string }>; // Optional interactive buttons (max 3)
   footer?: string; // Optional footer text for button messages
+  media?: MediaData; // Optional media attachment (image, video, or GIF)
 }
 
 export interface GreenApiResponse {
@@ -165,6 +171,8 @@ export const sendWhatsAppMessage = async (
     phoneNumber: params.phoneNumber,
     messageLength: params.message?.length,
     hasButtons: !!params.buttons,
+    hasMedia: !!params.media,
+    mediaType: params.media?.type,
   });
   
   try {
@@ -200,6 +208,12 @@ export const sendWhatsAppMessage = async (
     // Format phone number
     let formattedPhone = formatPhoneNumber(params.phoneNumber);
     const chatId = `${formattedPhone}@c.us`;
+
+    // If media is provided, send file first, then send text message separately if needed
+    // GreenAPI sendFileByUrl supports caption, so we can send media with caption
+    if (params.media?.url) {
+      return await sendMediaMessage(config, chatId, params);
+    }
 
     // Clean the message to remove HTML tags and format for WhatsApp
     const cleanedMessage = cleanWhatsAppMessage(params.message);
@@ -539,6 +553,254 @@ export const sendWhatsAppMessage = async (
     return {
       success: false,
       error: error?.message || error?.toString() || 'Failed to send WhatsApp message',
+    };
+  }
+};
+
+/**
+ * Send media file (image/video/GIF) via GreenAPI sendFileByUrl endpoint
+ */
+const sendMediaMessage = async (
+  config: GreenApiConfig,
+  chatId: string,
+  params: SendMessageParams
+): Promise<GreenApiResponse> => {
+  try {
+    if (!params.media?.url) {
+      return {
+        success: false,
+        error: 'Media URL is required',
+      };
+    }
+
+    const mediaUrl = params.media.url;
+    const mediaType = params.media.type;
+
+    // Determine file extension from URL or type
+    let fileExtension = '';
+    let fileName = '';
+    
+    if (mediaType === 'image') {
+      // Try to extract extension from URL
+      const match = mediaUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+      fileExtension = match ? match[1].toLowerCase() : 'jpg';
+      fileName = `image.${fileExtension}`;
+    } else if (mediaType === 'video') {
+      const match = mediaUrl.match(/\.(mp4|3gpp|avi|mov)(\?|$)/i);
+      fileExtension = match ? match[1].toLowerCase() : 'mp4';
+      fileName = `video.${fileExtension}`;
+    } else if (mediaType === 'gif') {
+      // GIFs can be .gif or .mp4 (animated GIFs)
+      const match = mediaUrl.match(/\.(gif|mp4)(\?|$)/i);
+      fileExtension = match ? match[1].toLowerCase() : 'gif';
+      fileName = `animation.${fileExtension}`;
+    }
+
+    // Clean the message to use as caption
+    const caption = cleanWhatsAppMessage(params.message || '');
+
+    // Use sendFileByUrl endpoint
+    const url = `https://api.green-api.com/waInstance${config.idInstance}/sendFileByUrl/${config.apiTokenInstance}`;
+
+    const requestBody: any = {
+      chatId,
+      urlFile: mediaUrl,
+      fileName,
+    };
+
+    // Add caption if message exists
+    if (caption.trim()) {
+      requestBody.caption = caption;
+    }
+
+    console.log('[GreenAPI] Sending media message:', {
+      url,
+      chatId,
+      mediaType,
+      fileName,
+      hasCaption: !!caption.trim(),
+      captionLength: caption.length,
+    });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseText = await response.text();
+    let responseData: any;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      responseData = { raw: responseText };
+    }
+
+    console.log('[GreenAPI] sendFileByUrl response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      data: responseData,
+      idMessage: responseData.idMessage,
+    });
+
+    if (!response.ok) {
+      console.error('[GreenAPI] sendFileByUrl error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: responseData,
+      });
+
+      return {
+        success: false,
+        error: responseData.error || responseData.message || responseText || `HTTP error! status: ${response.status}`,
+      };
+    }
+
+    // Check for errors in response body
+    if (responseData.error || responseData.errorMessage) {
+      const errorMsg = responseData.error || responseData.errorMessage || 'Unknown error';
+      console.error('[GreenAPI] Media send failed despite 200 status:', errorMsg);
+      return {
+        success: false,
+        error: errorMsg,
+      };
+    }
+
+    // Verify message was queued
+    if (responseData.idMessage === null || responseData.idMessage === undefined) {
+      console.error('[GreenAPI] Media send failed - missing idMessage:', responseData);
+      return {
+        success: false,
+        error: 'Media failed to send: Response missing idMessage',
+      };
+    }
+
+    // If buttons are provided, we need to send them separately after the media
+    // WhatsApp/GreenAPI doesn't support buttons directly with media in sendFileByUrl
+    // So we send buttons as a separate message if needed
+    if (params.buttons && params.buttons.length > 0) {
+      console.log('[GreenAPI] Media sent successfully. Sending buttons as separate message...');
+      
+      // Wait a bit for media to process, then send buttons
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Send buttons as a separate message
+      const buttonsResult = await sendButtonsMessage(config, chatId, params);
+      
+      if (!buttonsResult.success) {
+        return {
+          success: true,
+          data: responseData,
+          warning: `Media sent successfully, but buttons failed: ${buttonsResult.error}`,
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          mediaMessage: responseData,
+          buttonsMessage: buttonsResult.data,
+        },
+      };
+    }
+
+    console.log('[GreenAPI] Media message successfully queued:', {
+      idMessage: responseData.idMessage,
+      chatId,
+      mediaType,
+    });
+
+    return {
+      success: true,
+      data: responseData,
+    };
+  } catch (error: any) {
+    console.error('[GreenAPI] Error sending media:', error);
+    return {
+      success: false,
+      error: error?.message || error?.toString() || 'Failed to send media message',
+    };
+  }
+};
+
+/**
+ * Send buttons as a separate message (used after sending media)
+ */
+const sendButtonsMessage = async (
+  config: GreenApiConfig,
+  chatId: string,
+  params: SendMessageParams
+): Promise<GreenApiResponse> => {
+  try {
+    // Clean and validate buttons
+    const cleanedButtons = params.buttons
+      ?.map(btn => ({
+        id: btn.id,
+        text: cleanWhatsAppMessage(btn.text),
+      }))
+      .filter(btn => btn.text && btn.text.trim().length > 0) || [];
+
+    if (cleanedButtons.length === 0) {
+      return {
+        success: false,
+        error: 'No valid buttons to send',
+      };
+    }
+
+    // Use SendButtons endpoint
+    const baseUrl = import.meta.env.DEV 
+      ? '/api/green-api'
+      : 'https://api.green-api.com';
+    
+    const url = `${baseUrl}/waInstance${config.idInstance}/SendButtons/${config.apiTokenInstance}`;
+
+    const requestBody: any = {
+      chatId,
+      message: '', // Empty message for buttons-only
+      buttons: cleanedButtons.map((btn, index) => ({
+        buttonId: String(index + 1),
+        buttonText: btn.text.trim(),
+      })),
+    };
+
+    if (params.footer) {
+      requestBody.footer = cleanWhatsAppMessage(params.footer);
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseText = await response.text();
+    let responseData: any;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      responseData = { raw: responseText };
+    }
+
+    if (!response.ok || responseData.error || responseData.errorMessage) {
+      return {
+        success: false,
+        error: responseData.error || responseData.message || 'Failed to send buttons',
+      };
+    }
+
+    return {
+      success: true,
+      data: responseData,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error?.message || 'Failed to send buttons message',
     };
   }
 };
