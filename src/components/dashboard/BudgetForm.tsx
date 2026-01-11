@@ -32,8 +32,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useCreateWorkoutTemplate, useUpdateWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
 import { useCreateNutritionTemplate, useUpdateNutritionTemplate } from '@/hooks/useNutritionTemplates';
 import { useToast } from '@/hooks/use-toast';
-import { useCustomers } from '@/hooks/useCustomers';
-import { useAssignBudgetToCustomer, useAssignBudgetToLead } from '@/hooks/useBudgets';
+import { useAssignBudgetToLead } from '@/hooks/useBudgets';
 import { fetchFilteredLeads, mapLeadToUIFormat } from '@/services/leadService';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
@@ -43,7 +42,7 @@ interface BudgetFormProps {
   initialData?: Budget | null;
   onSave: (data: any) => Promise<Budget | void> | void;
   onCancel: () => void;
-  enableAssignment?: boolean; // Enable customer/lead assignment
+  enableAssignment?: boolean; // Deprecated: kept for backwards compatibility, always allows lead assignment
 }
 
 // Macro Split Bar Component
@@ -115,12 +114,10 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   }, [enableAssignment, mode]);
   const { data: nutritionTemplates = [] } = useNutritionTemplates();
   const { data: workoutTemplates = [] } = useWorkoutTemplates();
-  const { data: customers = [] } = useCustomers();
   const createWorkoutTemplate = useCreateWorkoutTemplate();
   const createNutritionTemplate = useCreateNutritionTemplate();
   const updateWorkoutTemplate = useUpdateWorkoutTemplate();
   const updateNutritionTemplate = useUpdateNutritionTemplate();
-  const assignToCustomer = useAssignBudgetToCustomer();
   const assignToLead = useAssignBudgetToLead();
   
   // Fetch all leads for assignment dropdown
@@ -165,8 +162,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const [editingWorkoutTemplate, setEditingWorkoutTemplate] = useState<any>(null);
   const [editingNutritionTemplate, setEditingNutritionTemplate] = useState<any>(null);
   
-  // Assignment states
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  // Assignment state
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   
   // Basic info
@@ -371,46 +367,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         }
       }
       
-      // If assignment is enabled and a customer is selected, assign the budget
-      if (enableAssignment && budgetId && selectedCustomerId) {
-        try {
-          console.log('[BudgetForm] Assigning budget to customer:', { budgetId, customerId: selectedCustomerId });
-          
-          await assignToCustomer.mutateAsync({
-            budgetId: budgetId,
-            customerId: selectedCustomerId,
-            notes: undefined,
-          });
-          
-          // Invalidate all relevant queries (the hook also invalidates, but this ensures consistency)
-          await Promise.all([
-            queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', selectedCustomerId] }),
-            queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
-            queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
-            queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
-            queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
-            queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-            queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
-            queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
-            queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
-            queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
-          ]);
-          
-          queryClient.refetchQueries({ queryKey: ['plans-history'] });
-          
-          toast({
-            title: 'הצלחה',
-            description: 'התקציב נוצר והוקצה ללקוח בהצלחה. תכניות אימונים, תזונה ותוספים נוצרו אוטומטית.',
-          });
-        } catch (error: any) {
-          console.error('[BudgetForm] Error assigning budget to customer:', error);
-          toast({
-            title: 'שגיאה',
-            description: error?.message || 'נכשל בהקצאת התקציב ללקוח',
-            variant: 'destructive',
-          });
-        }
-      }
     } catch (error) {
       console.error('Error saving budget:', error);
     } finally {
@@ -692,31 +648,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                     </Select>
                   </div>
                   
-                  {/* Customer Assignment - Only show in create mode with enableAssignment */}
-                  {enableAssignment && mode === 'create' && (
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-medium text-slate-500">הקצה תקציב ללקוח</Label>
-                      <Select
-                        value={selectedCustomerId || 'none'}
-                        onValueChange={(value) => setSelectedCustomerId(value === 'none' ? '' : value)}
-                      >
-                        <SelectTrigger className={cn(
-                          "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                          "text-slate-900 font-medium text-sm"
-                        )} dir="rtl">
-                          <SelectValue placeholder="בחר לקוח" />
-                        </SelectTrigger>
-                        <SelectContent dir="rtl">
-                          <SelectItem value="none">ללא הקצאה</SelectItem>
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.full_name} {customer.phone && `- ${customer.phone}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                 </div>
               </div>
             </CardContent>

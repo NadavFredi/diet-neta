@@ -32,6 +32,8 @@ export interface Exercise {
   sets: number;
   reps: number;
   notes?: string;
+  image_url?: string;
+  video_url?: string;
 }
 
 export interface DayWorkout {
