@@ -29,6 +29,7 @@ const BudgetManagement = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
+  const budgetId = searchParams.get('budget_id');
   const { defaultView } = useDefaultView('budgets');
   const { data: savedView } = useSavedView(viewId);
   const { user } = useAppSelector((state) => state.auth);
@@ -80,6 +81,15 @@ const BudgetManagement = () => {
   const [viewToEdit, setViewToEdit] = useState<any>(null);
   const [viewingBudgetId, setViewingBudgetId] = useState<string | null>(null);
 
+  // Open modal when budget_id is in URL
+  useEffect(() => {
+    if (budgetId) {
+      setViewingBudgetId(budgetId);
+    } else {
+      setViewingBudgetId(null);
+    }
+  }, [budgetId]);
+
   // Filter system for modals
   const {
     filters: activeFilters,
@@ -110,57 +120,64 @@ const BudgetManagement = () => {
             minHeight: 'calc(100vh - 88px)',
           }}
         >
-          <div className="p-6">
+          <div className="p-6 w-full">
+            {/* Show budgets table */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              <TableActionHeader
-                resourceKey="budgets"
-                title={pageTitle}
-                dataCount={budgets.length}
-                singularLabel="תקציב"
-                pluralLabel="תקציבים"
-                filterFields={getBudgetFilterFields(budgets)}
-                searchPlaceholder="חיפוש לפי שם או תיאור..."
-                addButtonLabel="הוסף תקציב"
-                onAddClick={handleAddBudget}
-                enableColumnVisibility={true}
-                enableFilters={true}
-                enableGroupBy={true}
-                enableSearch={true}
-                legacySearchQuery={searchQuery}
-                legacyOnSearchChange={setSearchQuery}
-                columns={budgetColumns}
-              />
-              
-              <div className="bg-white">
-                {isLoading ? (
-                  <div className="p-8 text-center text-gray-500">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <p>טוען נתונים...</p>
-                  </div>
-                ) : budgets && budgets.length > 0 ? (
-                  <BudgetsDataTable
-                    budgets={budgets}
-                    onEdit={handleEditBudget}
-                    onDelete={handleDeleteClick}
-                    onExportPDF={handleExportPDF}
-                    onSendWhatsApp={handleSendWhatsApp}
-                    onViewDetails={(budget) => setViewingBudgetId(budget.id)}
-                  />
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
-                    <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-                    {!isLoading && (
-                      <p className="text-xs text-gray-400 mt-2">
-                        {budgets && budgets.length > 0 
-                          ? `מספר תקציבים: ${budgets.length}` 
-                          : 'אין נתונים זמינים'}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <TableActionHeader
+                  resourceKey="budgets"
+                  title={pageTitle}
+                  dataCount={budgets.length}
+                  singularLabel="תקציב"
+                  pluralLabel="תקציבים"
+                  filterFields={getBudgetFilterFields(budgets)}
+                  searchPlaceholder="חיפוש לפי שם או תיאור..."
+                  addButtonLabel="הוסף תקציב"
+                  onAddClick={handleAddBudget}
+                  enableColumnVisibility={true}
+                  enableFilters={true}
+                  enableGroupBy={true}
+                  enableSearch={true}
+                  legacySearchQuery={searchQuery}
+                  legacyOnSearchChange={setSearchQuery}
+                  columns={budgetColumns}
+                />
+                
+                <div className="bg-white">
+                  {isLoading ? (
+                    <div className="p-8 text-center text-gray-500">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                      <p>טוען נתונים...</p>
+                    </div>
+                  ) : budgets && budgets.length > 0 ? (
+                    <BudgetsDataTable
+                      budgets={budgets}
+                      onEdit={handleEditBudget}
+                      onDelete={handleDeleteClick}
+                      onExportPDF={handleExportPDF}
+                      onSendWhatsApp={handleSendWhatsApp}
+                      onViewDetails={(budget) => {
+                        setViewingBudgetId(budget.id);
+                        // Update URL to include budget_id for shareable link
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.set('budget_id', budget.id);
+                        navigate(`/dashboard/budgets?${newParams.toString()}`, { replace: true });
+                      }}
+                    />
+                  ) : (
+                    <div className="p-8 text-center text-gray-500">
+                      <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
+                      <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+                      {!isLoading && (
+                        <p className="text-xs text-gray-400 mt-2">
+                          {budgets && budgets.length > 0 
+                            ? `מספר תקציבים: ${budgets.length}` 
+                            : 'אין נתונים זמינים'}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
           </div>
         </main>
       </div>
@@ -227,6 +244,10 @@ const BudgetManagement = () => {
         onOpenChange={(open) => {
           if (!open) {
             setViewingBudgetId(null);
+            // Remove budget_id from URL when closing modal
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete('budget_id');
+            navigate(`/dashboard/budgets?${newParams.toString()}`, { replace: true });
           }
         }}
         budgetId={viewingBudgetId}

@@ -26,7 +26,9 @@ import { selectCustomerNotes, fetchCustomerNotes } from '@/store/slices/leadView
 import { SmartTraineeActionButton } from './SmartTraineeActionButton';
 import { fetchInvitations } from '@/store/slices/invitationSlice';
 import { PaymentHistoryModal } from './dialogs/PaymentHistoryModal';
+import { TraineeSettingsModal } from './dialogs/TraineeSettingsModal';
 import { supabase } from '@/lib/supabaseClient';
+import { Settings } from 'lucide-react';
 
 interface LeadData {
   id: string;
@@ -64,6 +66,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   const dispatch = useAppDispatch();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
+  const [isTraineeSettingsOpen, setIsTraineeSettingsOpen] = useState(false);
   const { isHistoryOpen, isNotesOpen, toggleHistory, toggleNotes } = useLeadSidebar();
   
   // Get notes count for the customer
@@ -232,6 +235,28 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                   </TooltipTrigger>
                   <TooltipContent side="left" align="center" dir="rtl">
                     <p>צפה בהיסטוריית תשלומים</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )}
+
+            {/* Trainee Settings Button - Only show if user has a trainee account */}
+            {customer && customer.user_id && (user?.role === 'admin' || user?.role === 'user') && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="default"
+                      onClick={() => setIsTraineeSettingsOpen(true)}
+                      variant="outline"
+                      className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
+                    >
+                      <Settings className="h-5 w-5" strokeWidth={2.5} />
+                      הגדרות מתאמן
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" align="center" dir="rtl">
+                    <p>הגדרות משתמש מתאמן - סיסמה ומחיקה</p>
                   </TooltipContent>
                 </Tooltip>
               </>
@@ -428,6 +453,19 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
           customerId={customer.id}
           customerName={customer.full_name}
           leadId={lead?.id || null}
+        />
+      )}
+
+      {/* Trainee Settings Modal */}
+      {customer && customer.user_id && (
+        <TraineeSettingsModal
+          isOpen={isTraineeSettingsOpen}
+          onClose={() => setIsTraineeSettingsOpen(false)}
+          traineeUserId={customer.user_id}
+          traineeEmail={customer.email}
+          traineeName={customer.full_name}
+          customerPhone={customer.phone}
+          customerId={customer.id}
         />
       )}
     </div>

@@ -5,6 +5,7 @@
  * Fetches credentials from PostgreSQL and makes direct API calls
  */
 import { supabase } from '@/lib/supabaseClient';
+import { formatPhoneNumberForGreenAPI } from '@/components/ui/phone-input';
 
 export interface GreenApiConfig {
   idInstance: string;
@@ -135,28 +136,13 @@ export const getGreenApiConfig = async (): Promise<GreenApiConfig | null> => {
 
 /**
  * Format phone number for Green API (remove +, 0, spaces, hyphens)
- * Expected format: 972XXXXXXXXX (country code + number)
+ * Expected format: 972XXXXXXXXX or 1XXXXXXXXXX (country code + number)
+ * Supports USA (+1), Israel (+972), and all other countries
+ * 
+ * Uses centralized phone formatting utility from phone-input.tsx
  */
 export const formatPhoneNumber = (phone: string): string => {
-  // Remove all non-digit characters except leading +
-  let cleaned = phone.replace(/[\s\-\(\)]/g, '');
-  
-  // Remove leading + if present
-  if (cleaned.startsWith('+')) {
-    cleaned = cleaned.substring(1);
-  }
-  
-  // Handle Israeli numbers (if starts with 0, replace with 972)
-  if (cleaned.startsWith('0')) {
-    cleaned = '972' + cleaned.substring(1);
-  }
-  
-  // If doesn't start with country code, assume it's Israeli and add 972
-  if (!cleaned.startsWith('972') && cleaned.length === 9) {
-    cleaned = '972' + cleaned;
-  }
-  
-  return cleaned;
+  return formatPhoneNumberForGreenAPI(phone);
 };
 
 /**

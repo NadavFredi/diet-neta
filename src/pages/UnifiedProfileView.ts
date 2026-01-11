@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useCustomer } from '@/hooks/useCustomers';
 import { useUpdateLead } from '@/hooks/useUpdateLead';
 import { useLeadStatus } from '@/hooks/useLeadStatus';
+import { formatPhoneNumberForWhatsApp } from '@/components/ui/phone-input';
 
 export interface LeadData {
   id: string;
@@ -149,7 +150,7 @@ export const useUnifiedProfileView = () => {
 
   const handleWhatsApp = () => {
     if (customer?.phone) {
-      const phoneNumber = customer.phone.replace(/-/g, '').replace(/^0/, '972');
+      const phoneNumber = formatPhoneNumberForWhatsApp(customer.phone);
       window.open(`https://wa.me/${phoneNumber}`, '_blank');
     }
   };

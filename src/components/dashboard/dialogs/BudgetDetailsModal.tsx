@@ -47,8 +47,8 @@ export const BudgetDetailsModal = ({
     icon?: React.ElementType;
     iconColor?: string;
   }) => (
-    <div className="flex flex-col items-end">
-      <div className="flex items-center gap-1.5 mb-1">
+    <div className="flex flex-col items-center text-center">
+      <div className="flex items-center gap-1.5 mb-1 justify-center">
         {Icon && <Icon className={cn("h-3 w-3", iconColor)} />}
         <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wide">{label}</span>
       </div>
@@ -58,7 +58,7 @@ export const BudgetDetailsModal = ({
 
   // Helper component for compact field display
   const CompactField = ({ label, value }: { label: string; value: string | number | null }) => (
-    <div className="flex flex-col items-end">
+    <div className="flex flex-col items-start text-right">
       <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wide mb-0.5">{label}</span>
       <span className="text-sm font-semibold text-slate-900">{value !== null && value !== undefined ? value : '—'}</span>
     </div>
@@ -67,7 +67,7 @@ export const BudgetDetailsModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange} modal={true}>
       <DialogContent 
-        className="max-w-6xl w-[95vw] max-h-[80vh] flex flex-col p-0 overflow-hidden" 
+        className="max-w-5xl w-[95vw] max-h-[80vh] flex flex-col p-0 overflow-hidden" 
         dir="rtl"
       >
         <DialogHeader className="px-4 py-3 border-b border-slate-200 flex-shrink-0 bg-slate-50">
@@ -84,32 +84,8 @@ export const BudgetDetailsModal = ({
           </div>
         </DialogHeader>
 
-        {/* Compact Header Bar - 3 columns */}
-        {!isLoading && budget && (
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex-shrink-0">
-            <div className="grid grid-cols-3 gap-4">
-              <CompactField 
-                label="תאריך יצירה" 
-                value={budget.created_at 
-                  ? format(new Date(budget.created_at), 'dd/MM/yyyy', { locale: he })
-                  : null}
-              />
-              <CompactField 
-                label="שם תכנית" 
-                value={budget.name}
-              />
-              <div className="flex flex-col items-end">
-                <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wide mb-0.5">סטטוס</span>
-                <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold">
-                  פעיל
-                </Badge>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Main Content - Fixed height with custom scrollbar */}
-        <div className="flex-1 overflow-y-auto px-4 py-3" style={{ maxHeight: 'calc(80vh - 120px)' }}>
+        <div className="flex-1 overflow-y-auto px-6 py-4" style={{ maxHeight: 'calc(80vh - 80px)' }}>
           <style>{`
             div::-webkit-scrollbar {
               width: 6px;
@@ -141,12 +117,13 @@ export const BudgetDetailsModal = ({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="w-full max-w-full mx-auto">
+              <div className="grid grid-cols-2 gap-4">
               {/* Left Column */}
-              <div className="space-y-3">
+              <div className="space-y-3 w-full">
                 {/* Section 1: Nutritional Summary - Macros in Horizontal Row */}
-                <Card className="border border-slate-200 rounded-lg shadow-sm">
-                  <CardContent className="p-3">
+                <Card className="border border-slate-200 rounded-lg shadow-sm w-full">
+                  <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                       <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-blue-100">
                         <UtensilsCrossed className="h-3 w-3 text-blue-600" />
@@ -154,21 +131,11 @@ export const BudgetDetailsModal = ({
                       <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">יעדי מקרו-נוטריאנטים</h3>
                     </div>
                     
-                    {/* Macros in Single Horizontal Row */}
-                    <div className="flex items-center justify-between gap-2">
+                    {/* Macros in Single Horizontal Row - Centered */}
+                    <div className="flex items-center justify-center gap-3 flex-wrap">
                       <MetricCard 
-                        label="סיבים (גרם)" 
-                        value={budget.nutrition_targets?.fiber_min || nutritionTemplate?.targets?.fiber || null}
-                      />
-                      <Separator orientation="vertical" className="h-8" />
-                      <MetricCard 
-                        label="שומן (גרם)" 
-                        value={budget.nutrition_targets?.fat || nutritionTemplate?.targets?.fat || null}
-                      />
-                      <Separator orientation="vertical" className="h-8" />
-                      <MetricCard 
-                        label="פחמימות (גרם)" 
-                        value={budget.nutrition_targets?.carbs || nutritionTemplate?.targets?.carbs || null}
+                        label="קלוריות" 
+                        value={budget.nutrition_targets?.calories || nutritionTemplate?.targets?.calories || null}
                       />
                       <Separator orientation="vertical" className="h-8" />
                       <MetricCard 
@@ -177,8 +144,18 @@ export const BudgetDetailsModal = ({
                       />
                       <Separator orientation="vertical" className="h-8" />
                       <MetricCard 
-                        label="קלוריות" 
-                        value={budget.nutrition_targets?.calories || nutritionTemplate?.targets?.calories || null}
+                        label="פחמימות (גרם)" 
+                        value={budget.nutrition_targets?.carbs || nutritionTemplate?.targets?.carbs || null}
+                      />
+                      <Separator orientation="vertical" className="h-8" />
+                      <MetricCard 
+                        label="שומן (גרם)" 
+                        value={budget.nutrition_targets?.fat || nutritionTemplate?.targets?.fat || null}
+                      />
+                      <Separator orientation="vertical" className="h-8" />
+                      <MetricCard 
+                        label="סיבים (גרם)" 
+                        value={budget.nutrition_targets?.fiber_min || nutritionTemplate?.targets?.fiber || null}
                       />
                     </div>
 
@@ -227,8 +204,8 @@ export const BudgetDetailsModal = ({
 
                 {/* Section 2: Detailed Nutrition Plan */}
                 {nutritionTemplate ? (
-                  <Card className="border border-slate-200 rounded-lg shadow-sm">
-                    <CardContent className="p-3">
+                  <Card className="border border-slate-200 rounded-lg shadow-sm w-full">
+                    <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                         <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-blue-100">
                           <UtensilsCrossed className="h-3 w-3 text-blue-600" />
@@ -255,8 +232,8 @@ export const BudgetDetailsModal = ({
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card className="border border-slate-200 rounded-lg shadow-sm">
-                    <CardContent className="p-3">
+                  <Card className="border border-slate-200 rounded-lg shadow-sm w-full">
+                    <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                         <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-slate-100">
                           <UtensilsCrossed className="h-3 w-3 text-slate-600" />
@@ -272,8 +249,8 @@ export const BudgetDetailsModal = ({
 
                 {/* Section 3: Detailed Workout Plan */}
                 {workoutTemplate ? (
-                  <Card className="border border-slate-200 rounded-lg shadow-sm">
-                    <CardContent className="p-3">
+                  <Card className="border border-slate-200 rounded-lg shadow-sm w-full">
+                    <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                         <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-green-100">
                           <Dumbbell className="h-3 w-3 text-green-600" />
@@ -305,17 +282,17 @@ export const BudgetDetailsModal = ({
                         )}
                       </div>
 
-                      {/* Weekly Schedule - 7-Day Grid */}
+                      {/* Weekly Schedule - 7-Day Grid - Centered */}
                       {workoutTemplate.routine_data?.weeklyWorkout ? (
-                        <div className="mt-3 pt-3 border-t border-slate-100">
-                          <h4 className="text-[11px] uppercase font-bold text-slate-500 tracking-wide mb-2">לוח זמנים שבועי</h4>
+                        <div className="mt-3 pt-3 border-t border-slate-100 w-full">
+                          <h4 className="text-[11px] uppercase font-bold text-slate-500 tracking-wide mb-2 text-right">לוח זמנים שבועי</h4>
                           {workoutTemplate.routine_data.weeklyWorkout.generalGoals && (
                             <div className="mb-2 p-2 bg-slate-50 rounded-md border border-slate-200">
                               <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wide block mb-0.5">מטרות כלליות</span>
                               <p className="text-xs font-semibold text-slate-900">{workoutTemplate.routine_data.weeklyWorkout.generalGoals}</p>
                             </div>
                           )}
-                          <div className="grid grid-cols-7 gap-1.5">
+                          <div className="grid grid-cols-7 gap-2 justify-items-center w-full">
                             {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((dayKey) => {
                               const dayData = workoutTemplate.routine_data?.weeklyWorkout?.days?.[dayKey];
                               const dayLabels: Record<string, string> = {
@@ -333,7 +310,7 @@ export const BudgetDetailsModal = ({
                                 <div
                                   key={dayKey}
                                   className={cn(
-                                    "rounded-md p-1.5 border text-center cursor-pointer transition-colors",
+                                    "rounded-md p-2 border text-center cursor-pointer transition-colors w-full",
                                     isActive
                                       ? "bg-green-50 border-green-200 hover:bg-green-100"
                                       : "bg-slate-50 border-slate-200"
@@ -361,8 +338,8 @@ export const BudgetDetailsModal = ({
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card className="border border-slate-200 rounded-lg shadow-sm">
-                    <CardContent className="p-3">
+                  <Card className="border border-slate-200 rounded-lg shadow-sm w-full">
+                    <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                         <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-slate-100">
                           <Dumbbell className="h-3 w-3 text-slate-600" />
@@ -378,12 +355,12 @@ export const BudgetDetailsModal = ({
               </div>
 
               {/* Right Column */}
-              <div className="space-y-3">
+              <div className="space-y-3 w-full">
 
                 {/* Section 4: Instructions - Compact Scrollable */}
                 {(budget.eating_order || budget.eating_rules) && (
-                  <Card className="border border-slate-200 rounded-lg shadow-sm">
-                    <CardContent className="p-3">
+                  <Card className="border border-slate-200 rounded-lg shadow-sm w-full">
+                    <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                         <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-slate-100">
                           <FileText className="h-3 w-3 text-slate-600" />
@@ -414,8 +391,8 @@ export const BudgetDetailsModal = ({
 
                 {/* Additional Info Section */}
                 {budget.description && (
-                  <Card className="border border-slate-200 rounded-lg shadow-sm">
-                    <CardContent className="p-3">
+                  <Card className="border border-slate-200 rounded-lg shadow-sm w-full">
+                    <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                         <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-slate-100">
                           <FileText className="h-3 w-3 text-slate-600" />
@@ -431,8 +408,8 @@ export const BudgetDetailsModal = ({
 
                 {/* Assigned Date if available */}
                 {assignedDate && (
-                  <Card className="border border-slate-200 rounded-lg shadow-sm">
-                    <CardContent className="p-3">
+                  <Card className="border border-slate-200 rounded-lg shadow-sm w-full">
+                    <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Clock className="h-3 w-3 text-slate-600" />
                         <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wide">תאריך הקצאה</span>
@@ -443,6 +420,7 @@ export const BudgetDetailsModal = ({
                     </CardContent>
                   </Card>
                 )}
+              </div>
               </div>
             </div>
           )}
