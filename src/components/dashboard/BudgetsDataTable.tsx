@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { DataTable } from '@/components/ui/DataTable';
 import type { Budget } from '@/store/slices/budgetSlice';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, FileText, Send, Loader2 } from 'lucide-react';
+import { Edit, Trash2, FileText, Send, Loader2, Eye } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -21,6 +21,7 @@ interface BudgetsDataTableProps {
   onDelete: (budget: Budget) => void;
   onExportPDF?: (budget: Budget) => void;
   onSendWhatsApp?: (budget: Budget) => void;
+  onViewDetails?: (budget: Budget) => void;
 }
 
 export const budgetColumns: DataTableColumn<Budget>[] = [
@@ -215,6 +216,7 @@ export const BudgetsDataTable = ({
   onDelete,
   onExportPDF,
   onSendWhatsApp,
+  onViewDetails,
 }: BudgetsDataTableProps) => {
   const { generatingPDF, sendingWhatsApp } = useAppSelector((state) => state.budget);
   const navigate = useNavigate();
@@ -232,6 +234,27 @@ export const BudgetsDataTable = ({
               return (
                 <TooltipProvider>
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                    {onViewDetails && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onViewDetails(budget);
+                            }}
+                            disabled={isGeneratingPDF || isSending}
+                            className="hover:bg-blue-50 hover:text-blue-600"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>תצוגה מהירה</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                     {onExportPDF && (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -325,7 +348,7 @@ export const BudgetsDataTable = ({
         }
         return col;
       });
-  }, [onEdit, onDelete, onExportPDF, onSendWhatsApp, generatingPDF, sendingWhatsApp]);
+  }, [onEdit, onDelete, onExportPDF, onSendWhatsApp, onViewDetails, generatingPDF, sendingWhatsApp, navigate]);
 
   const handleRowClick = (budget: Budget) => {
     onEdit(budget);

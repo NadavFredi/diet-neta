@@ -28,6 +28,7 @@ import ReactQuill, { Quill } from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { AVAILABLE_PLACEHOLDERS, getPlaceholdersByCategory, getCategoryLabel, type Placeholder } from '@/utils/whatsappPlaceholders';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabaseClient';
 import { GifPicker } from './GifPicker';
 
 export interface WhatsAppButton {
@@ -121,6 +122,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     }
   });
   const [media, setMedia] = useState<MediaData | null>(initialMedia || null);
+  const [mediaLoadError, setMediaLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isGifPickerOpen, setIsGifPickerOpen] = useState(false);
@@ -131,6 +133,48 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const quillRef = useRef<ReactQuill>(null);
   const prevIsOpen = React.useRef(isOpen);
   
+  // Helper function to convert public URL to signed URL
+  const convertToSignedUrl = async (url: string): Promise<string> => {
+    // If it's already a signed URL (has token) or external URL, return as-is
+    if (url.includes('?token=') || (!url.includes('127.0.0.1:54321') && !url.includes('supabase.co'))) {
+      return url;
+    }
+    
+    // Extract path from public URL format: http://127.0.0.1:54321/storage/v1/object/public/client-assets/templates/...
+    let filePath = '';
+    if (url.includes('/storage/v1/object/public/')) {
+      const publicIndex = url.indexOf('/storage/v1/object/public/');
+      if (publicIndex !== -1) {
+        const pathStart = publicIndex + '/storage/v1/object/public/'.length;
+        const pathEnd = url.indexOf('?', pathStart);
+        filePath = pathEnd !== -1 ? url.substring(pathStart, pathEnd) : url.substring(pathStart);
+      }
+    } else {
+      return url; // Not a public URL format, return as-is
+    }
+    
+    if (!filePath) {
+      return url;
+    }
+    
+    try {
+      // Generate signed URL (valid for 1 year)
+      const { data, error } = await supabase.storage
+        .from('client-assets')
+        .createSignedUrl(filePath, 31536000);
+      
+      if (error || !data?.signedUrl) {
+        console.warn('[TemplateEditorModal] Failed to create signed URL, using original:', error);
+        return url;
+      }
+      
+      return data.signedUrl;
+    } catch (error) {
+      console.warn('[TemplateEditorModal] Error creating signed URL:', error);
+      return url;
+    }
+  };
+
   useEffect(() => {
     if (isOpen && !prevIsOpen.current) {
       try {
@@ -138,7 +182,45 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
         // Always reset buttons from initialButtons, even if empty array
         const validButtons = getValidButtons(initialButtons);
         setButtons(validButtons);
-        setMedia(initialMedia || null);
+        // Ensure media has both url and previewUrl when loading from database
+        if (initialMedia) {
+          // Safely extract URL - handle cases where url/previewUrl might be an object
+          let mediaUrl: string | undefined;
+          if (initialMedia.url) {
+            mediaUrl = typeof initialMedia.url === 'string' ? initialMedia.url : (initialMedia.url as any)?.url || String(initialMedia.url);
+          } else if (initialMedia.previewUrl) {
+            mediaUrl = typeof initialMedia.previewUrl === 'string' ? initialMedia.previewUrl : (initialMedia.previewUrl as any)?.url || String(initialMedia.previewUrl);
+          }
+          
+          // Convert URL if needed
+          if (mediaUrl) {
+            convertToSignedUrl(mediaUrl).then((signedUrl) => {
+              const mediaWithPreview = {
+                ...initialMedia,
+                previewUrl: signedUrl,
+                url: signedUrl,
+              };
+              console.log('[TemplateEditorModal] Initializing media on modal open:', mediaWithPreview);
+              setMedia(mediaWithPreview);
+              setMediaLoadError(null);
+            }).catch((error) => {
+              console.error('[TemplateEditorModal] Error converting URL:', error);
+              // Fallback to original URL
+              const mediaWithPreview = {
+                ...initialMedia,
+                previewUrl: mediaUrl,
+                url: mediaUrl,
+              };
+              setMedia(mediaWithPreview);
+            });
+          } else {
+            setMedia(null);
+            setMediaLoadError(null);
+          }
+        } else {
+          setMedia(null);
+          setMediaLoadError(null);
+        }
         setGifUrl('');
         setGifPickerMode('picker');
       } catch (error) {
@@ -150,6 +232,42 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     }
     prevIsOpen.current = isOpen;
   }, [isOpen, initialTemplate, initialButtons, initialMedia]);
+  
+  // Also update media when initialMedia changes while modal is open
+  useEffect(() => {
+    const updateMedia = async () => {
+      if (isOpen && initialMedia) {
+        // Safely extract URL - handle cases where url/previewUrl might be an object
+        let mediaUrl: string | undefined;
+        if (initialMedia.url) {
+          mediaUrl = typeof initialMedia.url === 'string' ? initialMedia.url : (initialMedia.url as any)?.url || String(initialMedia.url);
+        } else if (initialMedia.previewUrl) {
+          mediaUrl = typeof initialMedia.previewUrl === 'string' ? initialMedia.previewUrl : (initialMedia.previewUrl as any)?.url || String(initialMedia.previewUrl);
+        }
+        
+        if (mediaUrl) {
+          // Convert public URL to signed URL if needed
+          const signedUrl = await convertToSignedUrl(mediaUrl);
+          const mediaWithPreview = {
+            ...initialMedia,
+            previewUrl: signedUrl,
+            url: signedUrl,
+          };
+          console.log('[TemplateEditorModal] Updating media from initialMedia:', mediaWithPreview);
+          setMedia(mediaWithPreview);
+          setMediaLoadError(null);
+        } else {
+          setMedia(null);
+          setMediaLoadError(null);
+        }
+      } else if (isOpen && !initialMedia) {
+        setMedia(null);
+        setMediaLoadError(null);
+      }
+    };
+
+    updateMedia();
+  }, [initialMedia, isOpen]);
 
   // Clean up preview URLs when component unmounts or media changes
   useEffect(() => {
@@ -331,7 +449,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     setMedia({
       type: 'gif',
       url: gifUrl,
-      previewUrl: gifUrl,
+      previewUrl: gifUrl, // Ensure previewUrl is set for immediate preview
     });
     setIsGifPickerOpen(false);
   };
@@ -341,7 +459,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
       setMedia({
         type: 'gif',
         url: gifUrl.trim(),
-        previewUrl: gifUrl.trim(),
+        previewUrl: gifUrl.trim(), // Ensure previewUrl is set for immediate preview
       });
       setGifUrl('');
       setIsGifPickerOpen(false);
@@ -910,38 +1028,119 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
               <div className="p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white min-h-[500px]">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                   {/* Media Preview */}
-                  {media && media.previewUrl && (
-                    <div className="relative w-full">
-                      {media.type === 'image' || media.type === 'gif' ? (
-                        <img
-                          src={media.previewUrl}
-                          alt="Preview"
-                          className="w-full h-auto max-h-[300px] object-cover"
-                        />
-                      ) : media.type === 'video' ? (
-                        <video
-                          src={media.previewUrl}
-                          controls
-                          className="w-full h-auto max-h-[300px]"
-                        >
-                          הדפדפן שלך אינו תומך בתג וידאו.
-                        </video>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={handleRemoveMedia}
-                        className={cn(
-                          "absolute top-2 right-2 h-7 w-7 rounded-full",
-                          "bg-red-500 hover:bg-red-600 text-white",
-                          "flex items-center justify-center",
-                          "transition-colors duration-200 shadow-lg z-10"
+                  {media && (media.previewUrl || media.url) && (() => {
+                    // Safely extract URL string - handle cases where it might be an object
+                    let mediaSrc: string = '';
+                    const rawUrl = media.previewUrl || media.url;
+                    if (rawUrl) {
+                      if (typeof rawUrl === 'string') {
+                        mediaSrc = rawUrl;
+                      } else if (typeof rawUrl === 'object' && rawUrl !== null) {
+                        // Handle object case - try to extract URL from common structures
+                        mediaSrc = (rawUrl as any)?.url || (rawUrl as any)?.src || (rawUrl as any)?.publicUrl || String(rawUrl);
+                      } else {
+                        mediaSrc = String(rawUrl);
+                      }
+                    }
+                    
+                    // Validate that we have a valid URL string
+                    if (!mediaSrc || (typeof mediaSrc !== 'string') || mediaSrc.trim() === '') {
+                      console.error('[TemplateEditorModal] Invalid media source:', { mediaSrc, type: typeof mediaSrc, media });
+                      return (
+                        <div className="p-4 text-center text-red-500 text-sm bg-red-50 rounded border border-red-200">
+                          שגיאה בטעינת המדיה: מקור לא תקין
+                        </div>
+                      );
+                    }
+                    
+                    // Validate URL format
+                    try {
+                      new URL(mediaSrc);
+                    } catch (e) {
+                      console.error('[TemplateEditorModal] Invalid URL format:', mediaSrc);
+                      return (
+                        <div className="p-4 text-center text-red-500 text-sm bg-red-50 rounded border border-red-200">
+                          שגיאה בטעינת המדיה: כתובת לא תקינה
+                        </div>
+                      );
+                    }
+                    
+                    console.log('[TemplateEditorModal] Rendering media preview:', {
+                      type: media.type,
+                      src: mediaSrc,
+                      hasPreviewUrl: !!media.previewUrl,
+                      hasUrl: !!media.url
+                    });
+                    return (
+                      <div className="relative w-full">
+                        {mediaLoadError ? (
+                          <div className="p-4 text-center text-red-500 text-sm bg-red-50 rounded border border-red-200">
+                            <p className="mb-2">{mediaLoadError}</p>
+                            <p className="text-xs text-red-400 break-all">{mediaSrc}</p>
+                          </div>
+                        ) : (
+                          <>
+                            {media.type === 'image' || media.type === 'gif' ? (
+                              <img
+                                src={mediaSrc}
+                                alt="Preview"
+                                className="w-full h-auto max-h-[300px] object-cover rounded-t-lg"
+                                onLoad={() => {
+                                  console.log('[TemplateEditorModal] Media loaded successfully:', mediaSrc);
+                                  setMediaLoadError(null);
+                                }}
+                                onError={(e) => {
+                                  const errorMsg = 'שגיאה בטעינת המדיה - ייתכן שהקובץ לא קיים או שאין גישה אליו';
+                                  console.error('[TemplateEditorModal] Error loading media preview:', {
+                                    src: mediaSrc,
+                                    type: media.type,
+                                    error: e
+                                  });
+                                  setMediaLoadError(errorMsg);
+                                }}
+                              />
+                            ) : media.type === 'video' ? (
+                              <video
+                                src={mediaSrc}
+                                controls
+                                className="w-full h-auto max-h-[300px] rounded-t-lg"
+                                onLoadedData={() => {
+                                  console.log('[TemplateEditorModal] Video loaded successfully:', mediaSrc);
+                                  setMediaLoadError(null);
+                                }}
+                                onError={(e) => {
+                                  const errorMsg = 'שגיאה בטעינת הווידאו - ייתכן שהקובץ לא קיים או שאין גישה אליו';
+                                  console.error('[TemplateEditorModal] Error loading video preview:', {
+                                    src: mediaSrc,
+                                    type: media.type,
+                                    error: e
+                                  });
+                                  setMediaLoadError(errorMsg);
+                                }}
+                              >
+                                הדפדפן שלך אינו תומך בתג וידאו.
+                              </video>
+                            ) : null}
+                          </>
                         )}
-                        title="הסר מדיה"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
+                        {!mediaLoadError && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveMedia}
+                            className={cn(
+                              "absolute top-2 right-2 h-7 w-7 rounded-full",
+                              "bg-red-500 hover:bg-red-600 text-white",
+                              "flex items-center justify-center",
+                              "transition-colors duration-200 shadow-lg z-10"
+                            )}
+                            title="הסר מדיה"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {/* Message Text */}
                   <div className="p-4">
                     <p className="text-sm text-slate-900 whitespace-pre-wrap leading-relaxed" dir="rtl">

@@ -120,10 +120,17 @@ export const fetchTemplates = createAsyncThunk(
                 mediaData = JSON.parse(mediaData);
               }
               if (typeof mediaData === 'object' && mediaData !== null && typeof mediaData.type === 'string' && typeof mediaData.url === 'string') {
+                const mediaUrl = String(mediaData.url);
+                console.log('[fetchTemplates] Parsed media for template:', template.flow_key, {
+                  type: mediaData.type,
+                  url: mediaUrl
+                });
                 parsedMedia = {
                   type: mediaData.type as 'image' | 'video' | 'gif',
-                  url: String(mediaData.url)
+                  url: mediaUrl
                 };
+              } else {
+                console.warn('[fetchTemplates] Invalid media data structure:', mediaData);
               }
             } catch (error) {
               console.warn('[fetchTemplates] Error parsing media:', error, template.media);
@@ -211,14 +218,23 @@ export const saveTemplate = createAsyncThunk(
             throw new Error(errorMessage);
           }
 
-          // Get public URL
-          const { data: urlData } = supabase.storage
+          // Get signed URL (valid for 1 year) since bucket is private
+          const { data: urlData, error: urlError } = await supabase.storage
             .from(bucketName)
-            .getPublicUrl(`templates/${fileName}`);
+            .createSignedUrl(`templates/${fileName}`, 31536000); // 1 year expiration
+
+          if (urlError) {
+            console.error('[saveTemplate] Error creating signed URL:', urlError);
+            throw new Error(`נכשל ביצירת קישור לקובץ: ${urlError.message}`);
+          }
+
+          if (!urlData?.signedUrl) {
+            throw new Error('לא ניתן לקבל קישור לקובץ');
+          }
 
           mediaData = {
             type: media.type,
-            url: urlData.publicUrl
+            url: urlData.signedUrl
           };
         } else if (media.url) {
           // GIF or existing URL - store directly

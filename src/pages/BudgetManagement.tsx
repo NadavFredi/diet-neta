@@ -17,6 +17,7 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { AddBudgetDialog } from '@/components/dashboard/dialogs/AddBudgetDialog';
 import { EditBudgetDialog } from '@/components/dashboard/dialogs/EditBudgetDialog';
 import { DeleteBudgetDialog } from '@/components/dashboard/dialogs/DeleteBudgetDialog';
+import { BudgetDetailsModal } from '@/components/dashboard/dialogs/BudgetDetailsModal';
 import { SendBudgetModal } from '@/components/dashboard/SendBudgetModal';
 import { useTableFilters, getBudgetFilterFields } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -77,6 +78,7 @@ const BudgetManagement = () => {
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
+  const [viewingBudgetId, setViewingBudgetId] = useState<string | null>(null);
 
   // Filter system for modals
   const {
@@ -142,6 +144,7 @@ const BudgetManagement = () => {
                     onDelete={handleDeleteClick}
                     onExportPDF={handleExportPDF}
                     onSendWhatsApp={handleSendWhatsApp}
+                    onViewDetails={(budget) => setViewingBudgetId(budget.id)}
                   />
                 ) : (
                   <div className="p-8 text-center text-gray-500">
@@ -216,6 +219,17 @@ const BudgetManagement = () => {
           }
         }}
         budget={sendingBudget}
+      />
+
+      {/* Budget Details Modal */}
+      <BudgetDetailsModal
+        isOpen={!!viewingBudgetId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewingBudgetId(null);
+          }
+        }}
+        budgetId={viewingBudgetId}
       />
     </>
   );

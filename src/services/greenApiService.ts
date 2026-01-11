@@ -573,8 +573,67 @@ const sendMediaMessage = async (
       };
     }
 
-    const mediaUrl = params.media.url;
+    let mediaUrl = params.media.url;
     const mediaType = params.media.type;
+
+    // Check if URL is a signed URL or localhost URL that GreenAPI can't access
+    const isSignedUrl = mediaUrl.includes('?token=') || mediaUrl.includes('/storage/v1/object/sign/');
+    const isLocalhost = mediaUrl.includes('127.0.0.1') || mediaUrl.includes('localhost');
+    
+    if (isSignedUrl || isLocalhost) {
+      // Try to convert signed URL to public URL for templates folder
+      // Extract the file path from signed URL
+      let filePath = '';
+      
+      if (mediaUrl.includes('/storage/v1/object/sign/')) {
+        // Extract path from signed URL: /storage/v1/object/sign/client-assets/templates/...
+        const signIndex = mediaUrl.indexOf('/storage/v1/object/sign/');
+        if (signIndex !== -1) {
+          const pathStart = signIndex + '/storage/v1/object/sign/'.length;
+          const pathEnd = mediaUrl.indexOf('?', pathStart);
+          filePath = pathEnd !== -1 ? mediaUrl.substring(pathStart, pathEnd) : mediaUrl.substring(pathStart);
+        }
+      } else if (mediaUrl.includes('/storage/v1/object/public/')) {
+        // Already a public URL format, extract path
+        const publicIndex = mediaUrl.indexOf('/storage/v1/object/public/');
+        if (publicIndex !== -1) {
+          const pathStart = publicIndex + '/storage/v1/object/public/'.length;
+          const pathEnd = mediaUrl.indexOf('?', pathStart);
+          filePath = pathEnd !== -1 ? mediaUrl.substring(pathStart, pathEnd) : mediaUrl.substring(pathStart);
+        }
+      }
+      
+      // If we're in development with localhost, we can't send media
+      if (isLocalhost) {
+        return {
+          success: false,
+          error: 'לא ניתן לשלוח מדיה בפיתוח מקומי. GreenAPI לא יכול לגשת לקבצים ב-localhost. אנא השתמש בסביבת ייצור או העלה את המדיה למיקום ציבורי.',
+        };
+      }
+      
+      // For production, try to use public URL if the bucket allows it
+      // Note: This only works if the templates folder is public
+      if (filePath && filePath.startsWith('templates/')) {
+        // Try to construct public URL (only works if bucket/folder is public)
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+        if (supabaseUrl) {
+          // Remove trailing slash if present
+          const baseUrl = supabaseUrl.replace(/\/$/, '');
+          mediaUrl = `${baseUrl}/storage/v1/object/public/client-assets/${filePath}`;
+          console.log('[GreenAPI] Converted signed URL to public URL for media:', mediaUrl);
+        } else {
+          return {
+            success: false,
+            error: 'לא ניתן לשלוח מדיה עם קישור פרטי. אנא ודא שהמדיה נגישה באופן ציבורי או השתמש בקישור חיצוני.',
+          };
+        }
+      } else {
+        return {
+          success: false,
+          error: 'לא ניתן לשלוח מדיה עם קישור פרטי. GreenAPI דורש קישור ציבורי. אנא העלה את המדיה למיקום ציבורי או השתמש בקישור חיצוני (YouTube, Vimeo, וכו\').',
+        };
+      }
+    }
 
     // Determine file extension from URL or type
     let fileExtension = '';
@@ -644,6 +703,9 @@ const sendMediaMessage = async (
       ok: response.ok,
       data: responseData,
       idMessage: responseData.idMessage,
+      error: responseData.error,
+      errorMessage: responseData.errorMessage,
+      fullResponse: JSON.stringify(responseData, null, 2),
     });
 
     if (!response.ok) {
@@ -651,18 +713,43 @@ const sendMediaMessage = async (
         status: response.status,
         statusText: response.statusText,
         error: responseData,
+        mediaUrl: mediaUrl.substring(0, 100) + '...', // Log partial URL for debugging
       });
+
+      // Check for specific error messages
+      const errorMsg = responseData.error || responseData.message || responseData.errorMessage || responseText || `HTTP error! status: ${response.status}`;
+      
+      // Check if it's a URL access error
+      if (errorMsg.toLowerCase().includes('url') || errorMsg.toLowerCase().includes('download') || errorMsg.toLowerCase().includes('access')) {
+        return {
+          success: false,
+          error: `לא ניתן לגשת לקישור המדיה: ${errorMsg}. ודא שהקישור נגיש באופן ציבורי ושאינו דורש אימות.`,
+        };
+      }
 
       return {
         success: false,
-        error: responseData.error || responseData.message || responseText || `HTTP error! status: ${response.status}`,
+        error: errorMsg,
       };
     }
 
-    // Check for errors in response body
+    // Check for errors in response body (even with 200 status)
     if (responseData.error || responseData.errorMessage) {
       const errorMsg = responseData.error || responseData.errorMessage || 'Unknown error';
-      console.error('[GreenAPI] Media send failed despite 200 status:', errorMsg);
+      console.error('[GreenAPI] Media send failed despite 200 status:', {
+        error: errorMsg,
+        fullResponse: responseData,
+        mediaUrl: mediaUrl.substring(0, 100) + '...',
+      });
+      
+      // Check if it's a URL access error
+      if (errorMsg.toLowerCase().includes('url') || errorMsg.toLowerCase().includes('download') || errorMsg.toLowerCase().includes('access') || errorMsg.toLowerCase().includes('unable')) {
+        return {
+          success: false,
+          error: `GreenAPI לא יכול לגשת לקישור המדיה: ${errorMsg}. ודא שהקישור נגיש באופן ציבורי (לא localhost ולא קישור פרטי).`,
+        };
+      }
+      
       return {
         success: false,
         error: errorMsg,
@@ -671,10 +758,23 @@ const sendMediaMessage = async (
 
     // Verify message was queued
     if (responseData.idMessage === null || responseData.idMessage === undefined) {
-      console.error('[GreenAPI] Media send failed - missing idMessage:', responseData);
+      console.error('[GreenAPI] Media send failed - missing idMessage:', {
+        responseData,
+        mediaUrl: mediaUrl.substring(0, 100) + '...',
+        chatId,
+      });
+      
+      // Check if there's a specific reason in the response
+      if (responseData.errorCode || responseData.errorDescription) {
+        return {
+          success: false,
+          error: `Media failed to send: ${responseData.errorDescription || responseData.errorCode || 'Response missing idMessage'}`,
+        };
+      }
+      
       return {
         success: false,
-        error: 'Media failed to send: Response missing idMessage',
+        error: 'Media failed to send: Response missing idMessage. This usually means GreenAPI could not download the media file from the provided URL. Ensure the URL is publicly accessible and not a localhost or signed URL.',
       };
     }
 

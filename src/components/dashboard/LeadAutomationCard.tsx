@@ -402,11 +402,19 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
     : [];
   // Get media from template
   const editingMedia = editingFlowKey && templates[editingFlowKey]?.media 
-    ? {
-        type: templates[editingFlowKey].media!.type,
-        url: templates[editingFlowKey].media!.url,
-        previewUrl: templates[editingFlowKey].media!.url
-      }
+    ? (() => {
+        const media = templates[editingFlowKey].media!;
+        const mediaUrl = media.url;
+        console.log('[LeadAutomationCard] Setting editingMedia for flow:', editingFlowKey, {
+          type: media.type,
+          url: mediaUrl
+        });
+        return {
+          type: media.type,
+          url: mediaUrl,
+          previewUrl: mediaUrl // Use the same URL for preview
+        };
+      })()
     : null;
 
   return (
