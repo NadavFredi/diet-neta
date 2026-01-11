@@ -220,7 +220,7 @@ export const LeadHistoryTabs = ({
           size="sm" 
           onClick={onAddWeeklyCheckIn}
           type="button"
-          className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
+          className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
         >
           <Plus className="h-4 w-4" />
           הוסף דיווח שבועי
@@ -310,7 +310,7 @@ export const LeadHistoryTabs = ({
                 variant="outline"
                 onClick={onAssignBudget}
                 type="button"
-                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
+                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white border-[#5B6FB9]"
               >
                 <Plus className="h-4 w-4" />
                 הקצה תקציב
@@ -414,7 +414,7 @@ export const LeadHistoryTabs = ({
                 variant="outline"
                 onClick={onAssignBudget}
                 type="button"
-                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
+                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white border-[#5B6FB9]"
               >
                 <Plus className="h-4 w-4" />
                 הקצה תקציב
@@ -506,7 +506,7 @@ export const LeadHistoryTabs = ({
                 variant="outline"
                 onClick={onAssignBudget}
                 type="button"
-                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
+                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white border-[#5B6FB9]"
               >
                 <Plus className="h-4 w-4" />
                 הקצה תקציב
@@ -614,7 +614,7 @@ export const LeadHistoryTabs = ({
                 variant="outline"
                 onClick={onAssignBudget}
                 type="button"
-                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
+                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white border-[#5B6FB9]"
               >
                 <Plus className="h-4 w-4" />
                 הקצה תקציב
@@ -711,7 +711,7 @@ export const LeadHistoryTabs = ({
                 variant="outline"
                 onClick={onAssignBudget}
                 type="button"
-                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-[#5B6FB9]"
+                className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white border-[#5B6FB9]"
               >
                 <Plus className="h-4 w-4" />
                 הקצה תקציב

@@ -435,7 +435,7 @@ export const WeeklyWorkoutBuilder = ({
       <div className="flex-shrink-0 border-t border-slate-200 bg-white p-4 flex gap-3" style={{ flexShrink: 0 }} dir="rtl">
         <Button
           type="submit"
-          className="flex-1 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
+          className="flex-1 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
         >
           <Save className="h-4 w-4 ml-2" />
           שמור תוכנית

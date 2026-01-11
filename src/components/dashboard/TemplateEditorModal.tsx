@@ -57,7 +57,7 @@ interface TemplateEditorModalProps {
   initialTemplate: string;
   initialButtons?: WhatsAppButton[];
   initialMedia?: MediaData | null;
-  onSave: (template: string, buttons?: WhatsAppButton[], media?: MediaData | null) => Promise<void>;
+  onSave: (template: string, buttons?: WhatsAppButton[], media?: MediaData | null, label?: string) => Promise<void>;
 }
 
 export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
@@ -113,6 +113,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   };
 
   const [template, setTemplate] = useState(initialTemplate || '');
+  const [templateLabel, setTemplateLabel] = useState(flowLabel || '');
   const [buttons, setButtons] = useState<WhatsAppButton[]>(() => {
     try {
       return getValidButtons(initialButtons);
@@ -179,6 +180,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     if (isOpen && !prevIsOpen.current) {
       try {
         setTemplate(String(initialTemplate || ''));
+        setTemplateLabel(flowLabel || '');
         // Always reset buttons from initialButtons, even if empty array
         const validButtons = getValidButtons(initialButtons);
         setButtons(validButtons);
@@ -231,7 +233,14 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
       }
     }
     prevIsOpen.current = isOpen;
-  }, [isOpen, initialTemplate, initialButtons, initialMedia]);
+  }, [isOpen, initialTemplate, initialButtons, initialMedia, flowLabel]);
+  
+  // Update label when flowLabel prop changes while modal is open
+  useEffect(() => {
+    if (isOpen && flowLabel) {
+      setTemplateLabel(flowLabel);
+    }
+  }, [flowLabel, isOpen]);
   
   // Also update media when initialMedia changes while modal is open
   useEffect(() => {
@@ -404,7 +413,8 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     setIsSaving(true);
     try {
       // Always pass buttons array (empty array if no buttons) to ensure deletion is saved
-      await onSave(template, safeButtons, media);
+      // Pass the edited label if it changed
+      await onSave(template, safeButtons, media, templateLabel.trim() || flowLabel);
       onOpenChange(false);
     } catch (error) {
       console.error('[TemplateEditorModal] Error saving template:', error);
@@ -608,8 +618,16 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[95vw] lg:max-w-[1400px] max-h-[95vh] flex flex-col p-0 bg-slate-50" dir="rtl">
         <DialogHeader className="px-6 pt-6 pb-4 border-b bg-white rounded-t-lg">
-          <DialogTitle className="text-xl font-semibold text-slate-900">ערוך תבנית: {flowLabel}</DialogTitle>
-          <DialogDescription className="text-sm text-slate-500">
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-slate-600">ערוך תבנית:</Label>
+            <Input
+              value={templateLabel}
+              onChange={(e) => setTemplateLabel(e.target.value)}
+              placeholder="שם התבנית"
+              className="text-xl font-semibold text-slate-900 h-auto py-2 border-slate-300 focus:border-[#5B6FB9] focus:ring-[#5B6FB9]"
+            />
+          </div>
+          <DialogDescription className="text-sm text-slate-500 pt-2">
             ערוך את תבנית ההודעה. השתמש בערכי מקום (Placeholders) כדי להוסיף מידע דינמי.
           </DialogDescription>
         </DialogHeader>

@@ -273,10 +273,49 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
     flowKey: string, 
     templateContent: string, 
     buttons?: Array<{ id: string; text: string }>,
-    media?: { type: 'image' | 'video' | 'gif'; file?: File; url?: string; previewUrl?: string } | null
+    media?: { type: 'image' | 'video' | 'gif'; file?: File; url?: string; previewUrl?: string } | null,
+    label?: string
   ) => {
     try {
       await dispatch(saveTemplate({ flowKey, templateContent, buttons, media })).unwrap();
+      
+      // Update flow label if provided
+      if (label && label.trim()) {
+        const isDefaultFlow = DEFAULT_FLOW_CONFIGS.some(f => f.key === flowKey);
+        const defaultFlowLabel = DEFAULT_FLOW_CONFIGS.find(f => f.key === flowKey)?.label;
+        const customFlow = customFlows.find(f => f.key === flowKey);
+        
+        // Get current label (custom overrides default)
+        const currentLabel = customFlow?.label || defaultFlowLabel || '';
+        
+        // Only update if label actually changed
+        if (currentLabel !== label.trim()) {
+          let updatedCustomFlows: FlowConfig[];
+          
+          if (isDefaultFlow) {
+            // For default flows, add/update in custom flows to override default label
+            const existingCustomIndex = customFlows.findIndex(f => f.key === flowKey);
+            if (existingCustomIndex >= 0) {
+              // Update existing custom flow
+              updatedCustomFlows = customFlows.map((flow, idx) => 
+                idx === existingCustomIndex ? { ...flow, label: label.trim() } : flow
+              );
+            } else {
+              // Add new custom flow to override default
+              updatedCustomFlows = [...customFlows, { key: flowKey, label: label.trim() }];
+            }
+          } else {
+            // For custom flows, just update in place
+            updatedCustomFlows = customFlows.map(flow => 
+              flow.key === flowKey ? { ...flow, label: label.trim() } : flow
+            );
+          }
+          
+          setCustomFlows(updatedCustomFlows);
+          saveCustomFlows(updatedCustomFlows);
+        }
+      }
+      
       toast({
         title: 'הצלחה',
         description: 'התבנית נשמרה בהצלחה',
@@ -541,7 +580,7 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
           initialTemplate={editingTemplate}
           initialButtons={editingButtons}
           initialMedia={editingMedia}
-          onSave={(template, buttons, media) => handleSaveTemplate(editingFlowKey, template, buttons, media)}
+          onSave={(template, buttons, media, label) => handleSaveTemplate(editingFlowKey, template, buttons, media, label)}
         />
       )}
 

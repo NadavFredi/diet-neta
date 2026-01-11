@@ -286,6 +286,100 @@ export const TraineeSettingsModal = ({
         </DialogContent>
       </Dialog>
 
+      {/* Password Reset Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="max-w-md w-[95vw] p-0" dir="rtl">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-200">
+            <DialogTitle className="text-lg font-bold text-gray-900">צור סיסמה חדשה</DialogTitle>
+          </DialogHeader>
+
+          <div className="px-6 py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword" className="text-sm font-semibold text-gray-700">
+                סיסמה חדשה
+              </Label>
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="הכנס סיסמה חדשה"
+                  className="pr-10"
+                  minLength={6}
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-500" />
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute left-12 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                  onClick={() => setNewPassword(generateRandomPassword())}
+                  title="צור סיסמה אקראית"
+                >
+                  <RefreshCw className="h-4 w-4 text-gray-500" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                הסיסמה חייבת להכיל לפחות 6 תווים. הסיסמה הישנה לא תהיה תקינה יותר לאחר השמירה.
+              </p>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-800">
+                <strong>שימו לב:</strong> הסיסמה החדשה תישלח אוטומטית ללקוח ב-WhatsApp לאחר השמירה.
+              </p>
+            </div>
+          </div>
+
+          <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowPasswordDialog(false);
+                setNewPassword('');
+                setShowPassword(false);
+              }}
+              disabled={isResettingPassword}
+            >
+              ביטול
+            </Button>
+            <Button
+              type="button"
+              onClick={handleResetPassword}
+              disabled={isResettingPassword || !newPassword || newPassword.length < 6}
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+            >
+              {isResettingPassword ? (
+                <>
+                  <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                  שומר ושולח...
+                </>
+              ) : (
+                <>
+                  <Key className="h-4 w-4 ml-2" />
+                  שמור ושלוח ב-WhatsApp
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent dir="rtl">

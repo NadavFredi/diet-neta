@@ -1078,7 +1078,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
       <div className="flex-shrink-0 border-t border-slate-200 bg-white p-3 flex gap-3" dir="rtl">
         <Button
           type="submit"
-          className="flex-1 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
+          className="flex-1 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
         >
           שמור {mode === 'user' ? 'תוכנית' : 'תבנית'}
         </Button>

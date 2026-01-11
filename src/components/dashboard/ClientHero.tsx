@@ -207,7 +207,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                   size="default"
                   onClick={onWhatsApp}
                   variant="outline"
-                  className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
+                  className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
                 >
                   <MessageCircle className="h-5 w-5" strokeWidth={2.5} />
                   WhatsApp
@@ -227,7 +227,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                       size="default"
                       onClick={() => setIsPaymentHistoryOpen(true)}
                       variant="outline"
-                      className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
+                      className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
                     >
                       <CreditCard className="h-5 w-5" strokeWidth={2.5} />
                       תשלומים
@@ -249,7 +249,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                       size="default"
                       onClick={() => setIsTraineeSettingsOpen(true)}
                       variant="outline"
-                      className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
+                      className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
                     >
                       <Settings className="h-5 w-5" strokeWidth={2.5} />
                       הגדרות מתאמן
@@ -291,7 +291,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     size="default"
                     onClick={toggleHistory}
                     className={cn(
-                      "bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2",
+                      "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2",
                       !isHistoryOpen && "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                     )}
                   >
@@ -311,7 +311,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     size="default"
                     onClick={toggleNotes}
                     className={cn(
-                      "bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 relative",
+                      "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 relative",
                       !isNotesOpen && "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                     )}
                   >

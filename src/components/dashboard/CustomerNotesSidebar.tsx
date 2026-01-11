@@ -104,11 +104,17 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [editingAttachmentFile, setEditingAttachmentFile] = useState<File | null>(null);
+  const [editingAttachmentPreview, setEditingAttachmentPreview] = useState<string | null>(null);
+  const [editingExistingAttachmentUrl, setEditingExistingAttachmentUrl] = useState<string | null>(null);
+  const [originalAttachmentUrl, setOriginalAttachmentUrl] = useState<string | null>(null);
+  const [isUploadingEditAttachment, setIsUploadingEditAttachment] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch notes when customerId changes
   useEffect(() => {
@@ -327,25 +333,119 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
   const handleStartEdit = (note: CustomerNote) => {
     setEditingNoteId(note.id);
     setEditingContent(note.content);
+    setEditingAttachmentFile(null);
+    setEditingAttachmentPreview(null);
+    setEditingExistingAttachmentUrl(note.attachment_url || null);
+    setOriginalAttachmentUrl(note.attachment_url || null);
   };
 
   const handleCancelEdit = () => {
     setEditingNoteId(null);
     setEditingContent('');
+    setEditingAttachmentFile(null);
+    setEditingAttachmentPreview(null);
+    setEditingExistingAttachmentUrl(null);
+    setOriginalAttachmentUrl(null);
+    if (editFileInputRef.current) {
+      editFileInputRef.current.value = '';
+    }
+  };
+
+  const handleEditFileSelect = async (file: File) => {
+    // Validate file type
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const validDocTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    
+    if (!validImageTypes.includes(file.type) && !validDocTypes.includes(file.type)) {
+      toast({
+        title: 'סוג קובץ לא נתמך',
+        description: 'אנא העלה תמונה או מסמך (PDF, Word)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'קובץ גדול מדי',
+        description: 'גודל הקובץ לא יכול לעלות על 10MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setEditingAttachmentFile(file);
+
+    // Create preview for images
+    if (validImageTypes.includes(file.type)) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setEditingAttachmentPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setEditingAttachmentPreview(null);
+    }
   };
 
   const handleSaveEdit = async (noteId: string) => {
-    if (!editingContent.trim()) {
+    if (!editingContent.trim() && !editingAttachmentFile && !editingExistingAttachmentUrl) {
       handleCancelEdit();
       return;
     }
 
     try {
+      setIsUploadingEditAttachment(true);
+      
+      // Handle attachment: upload new file, keep existing, or remove
+      let attachmentUrl: string | null = null;
+      
+      if (editingAttachmentFile) {
+        // New file selected - upload it
+        attachmentUrl = await uploadAttachment(editingAttachmentFile);
+        if (!attachmentUrl && editingAttachmentFile) {
+          // If upload failed, don't update the note
+          setIsUploadingEditAttachment(false);
+          return;
+        }
+        
+        // Delete old attachment if it existed originally
+        if (originalAttachmentUrl) {
+          await deleteAttachment(originalAttachmentUrl);
+        }
+      } else if (editingExistingAttachmentUrl) {
+        // Keep existing attachment
+        attachmentUrl = editingExistingAttachmentUrl;
+      } else {
+        // No attachment - explicitly set to null to remove if it existed
+        attachmentUrl = null;
+        
+        // Delete old attachment if it existed originally
+        if (originalAttachmentUrl) {
+          await deleteAttachment(originalAttachmentUrl);
+        }
+      }
+
       await dispatch(
-        updateCustomerNote({ noteId, content: editingContent.trim() })
+        updateCustomerNote({ 
+          noteId, 
+          content: editingContent.trim() || '', 
+          attachmentUrl 
+        })
       ).unwrap();
+      
       setEditingNoteId(null);
       setEditingContent('');
+      setEditingAttachmentFile(null);
+      setEditingAttachmentPreview(null);
+      setEditingExistingAttachmentUrl(null);
+      setOriginalAttachmentUrl(null);
+      
+      if (editFileInputRef.current) {
+        editFileInputRef.current.value = '';
+      }
+      
       toast({
         title: 'ההערה עודכנה בהצלחה',
       });
@@ -355,6 +455,8 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
         description: 'לא ניתן היה לעדכן את ההערה',
         variant: 'destructive',
       });
+    } finally {
+      setIsUploadingEditAttachment(false);
     }
   };
 
@@ -460,7 +562,7 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
             {/* Right side: Document icon + Title */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <FileText className="h-5 w-5 text-gray-700 flex-shrink-0" />
-              <h2 className="text-base font-semibold text-gray-900">הערות ללקוח</h2>
+              <h2 className="text-base font-semibold text-gray-900">הערות לקוח</h2>
             </div>
 
             {/* Left side: Notes count badge + Close button */}
@@ -646,7 +748,7 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
               size="sm"
               onClick={(e) => handleAddNote(e)}
               disabled={(!newNoteContent.trim() && !attachmentFile) || isLoading || isSubmitting || isUploadingAttachment}
-              className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white border-0 rounded-md h-8 px-4 text-xs font-medium w-full flex items-center justify-center gap-1.5"
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white border-0 rounded-md h-8 px-4 text-xs font-medium w-full flex items-center justify-center gap-1.5"
             >
               {isSubmitting || isUploadingAttachment ? (
                 <>
@@ -698,22 +800,112 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                   {editingNoteId === note.id ? (
                     // Edit Mode
                     <div className="space-y-2">
-                      <Textarea
-                        ref={editTextareaRef}
-                        value={editingContent}
-                        onChange={(e) => setEditingContent(e.target.value)}
-                        className="min-h-[80px] text-sm resize-none bg-white border border-gray-300 focus:border-gray-300 focus:ring-0 rounded-md"
-                        dir="rtl"
-                        style={{ borderColor: '#E5E7EB' }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') {
-                            handleCancelEdit();
-                          } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                            e.preventDefault();
-                            handleSaveEdit(note.id);
-                          }
-                        }}
-                      />
+                      <div className="relative">
+                        <Textarea
+                          ref={editTextareaRef}
+                          value={editingContent}
+                          onChange={(e) => setEditingContent(e.target.value)}
+                          className="min-h-[80px] text-sm resize-none bg-white border border-gray-300 focus:border-gray-300 focus:ring-0 rounded-md pr-10"
+                          dir="rtl"
+                          style={{ borderColor: '#E5E7EB' }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              handleCancelEdit();
+                            } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                              e.preventDefault();
+                              handleSaveEdit(note.id);
+                            }
+                          }}
+                        />
+                        <input
+                          ref={editFileInputRef}
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleEditFileSelect(file);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => editFileInputRef.current?.click()}
+                          className="absolute top-2 left-2 h-7 w-7 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                          title="צרף קובץ"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* Existing Attachment Display in Edit Mode */}
+                      {editingExistingAttachmentUrl && !editingAttachmentFile && (
+                        <div className="relative">
+                          <AttachmentDisplay
+                            attachmentUrl={editingExistingAttachmentUrl}
+                            onDelete={() => {
+                              setEditingExistingAttachmentUrl(null);
+                            }}
+                            onViewImage={(url) => {
+                              setLightboxImage(url);
+                              setLightboxOpen(true);
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* New Attachment Preview in Edit Mode */}
+                      {editingAttachmentPreview && (
+                        <div className="relative inline-block rounded-md border border-gray-200 p-2">
+                          <img
+                            src={editingAttachmentPreview}
+                            alt="Preview"
+                            className="h-20 w-20 object-cover rounded"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingAttachmentFile(null);
+                              setEditingAttachmentPreview(null);
+                              if (editFileInputRef.current) {
+                                editFileInputRef.current.value = '';
+                              }
+                            }}
+                            className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 hover:bg-red-600 text-white rounded-full"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+
+                      {editingAttachmentFile && !editingAttachmentPreview && (
+                        <div className="relative inline-flex items-center gap-2 rounded-md border border-gray-200 p-2">
+                          <File className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm text-gray-700 truncate max-w-[200px]">
+                            {editingAttachmentFile.name}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingAttachmentFile(null);
+                              if (editFileInputRef.current) {
+                                editFileInputRef.current.value = '';
+                              }
+                            }}
+                            className="h-6 w-6 text-red-500 hover:text-red-600"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           size="sm"
@@ -727,10 +919,17 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                         <Button
                           size="sm"
                           onClick={() => handleSaveEdit(note.id)}
-                          disabled={!editingContent.trim()}
-                          className="h-7 px-3 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white text-xs"
+                          disabled={(!editingContent.trim() && !editingAttachmentFile && !editingExistingAttachmentUrl) || isUploadingEditAttachment}
+                          className="h-7 px-3 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-xs"
                         >
-                          שמור
+                          {isUploadingEditAttachment ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin ml-1" />
+                              מעלה...
+                            </>
+                          ) : (
+                            'שמור'
+                          )}
                         </Button>
                       </div>
                     </div>

@@ -207,7 +207,7 @@ export const TablePageHeader = ({
           {addButtonLabel && onAddClick && (
             <Button
               onClick={onAddClick}
-              className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white rounded-lg flex items-center gap-2 flex-shrink-0"
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-2 flex-shrink-0"
               size="sm"
             >
               <Plus className="h-4 w-4" />
