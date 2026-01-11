@@ -62,8 +62,8 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
       <Tabs value={activeHistoryTab} onValueChange={setActiveHistoryTab} dir="rtl" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-6 h-12 bg-gray-100 rounded-xl p-1">
           <TabsTrigger value="leads" className="text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all">היסטוריית לידים</TabsTrigger>
-          <TabsTrigger value="workouts" className="text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all">יומן אימונים</TabsTrigger>
-          <TabsTrigger value="steps" className="text-sm font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all">יומן צעדים</TabsTrigger>
+          <TabsTrigger value="workouts" className="text-sm font-semibold rounded-lg data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-md transition-all">יומן אימונים</TabsTrigger>
+          <TabsTrigger value="steps" className="text-sm font-semibold rounded-lg data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-md transition-all">יומן צעדים</TabsTrigger>
         </TabsList>
 
         {/* Leads History Tab */}
@@ -127,8 +127,8 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
         <TabsContent value="workouts" className="mt-0">
           {workoutPlanHistory.length === 0 ? (
             <div className="text-center py-16">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
-                <Dumbbell className="h-8 w-8 text-gray-400" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#E8EDF7] flex items-center justify-center">
+                <Dumbbell className="h-8 w-8 text-[#5B6FB9]" />
               </div>
               <p className="text-gray-500 text-sm font-medium">אין היסטוריה של תוכניות אימון</p>
             </div>

@@ -251,57 +251,59 @@ export const LeadHistoryTabs = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="w-full">
-        <TabsList className="grid w-full grid-cols-7 mb-4 h-10 bg-gray-100 rounded-lg p-1">
-          <TabsTrigger 
-            value="budgets" 
-            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
-          >
-            תקציבים
-          </TabsTrigger>
-          <TabsTrigger 
-            value="workouts" 
-            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
-          >
-            יומן אימונים
-          </TabsTrigger>
-          <TabsTrigger 
-            value="steps" 
-            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
-          >
-            יומן צעדים
-          </TabsTrigger>
-          <TabsTrigger 
-            value="nutrition" 
-            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
-          >
-            תכניות תזונה
-          </TabsTrigger>
-          <TabsTrigger 
-            value="supplements" 
-            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
-          >
-            תכניות תוספים
-          </TabsTrigger>
-          <TabsTrigger 
-            value="daily-activity" 
-            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
-          >
-            יומן פעילות יומי
-          </TabsTrigger>
-          <TabsTrigger 
-            value="weekly-checkin" 
-            className="text-sm font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
-          >
-            דיווח שבועי
-          </TabsTrigger>
-        </TabsList>
+        <div className="relative mb-4">
+          <TabsList className="grid w-full grid-cols-7 h-10 bg-gray-100 rounded-lg p-1">
+            <TabsTrigger 
+              value="budgets" 
+              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
+            >
+              תקציבים
+            </TabsTrigger>
+            <TabsTrigger 
+              value="workouts" 
+              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
+            >
+              יומן אימונים
+            </TabsTrigger>
+            <TabsTrigger 
+              value="steps" 
+              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
+            >
+              יומן צעדים
+            </TabsTrigger>
+            <TabsTrigger 
+              value="nutrition" 
+              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
+            >
+              תכניות תזונה
+            </TabsTrigger>
+            <TabsTrigger 
+              value="supplements" 
+              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all border-l-2 border-gray-300"
+            >
+              תכניות תוספים
+            </TabsTrigger>
+            <TabsTrigger 
+              value="daily-activity" 
+              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all"
+            >
+              יומן פעילות יומי
+            </TabsTrigger>
+            <TabsTrigger 
+              value="weekly-checkin" 
+              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all"
+            >
+              דיווח שבועי
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Workout History Tab */}
         <TabsContent value="workouts" className="mt-0">
           {!hasWorkoutHistory ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
-                <Dumbbell className="h-6 w-6 text-gray-400" />
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[#E8EDF7] flex items-center justify-center">
+                <Dumbbell className="h-6 w-6 text-[#5B6FB9]" />
               </div>
               <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תוכניות אימון</p>
               <p className="text-gray-400 text-xs mb-3">תכניות אימונים נוצרות אוטומטית מהתקציב</p>
@@ -496,8 +498,8 @@ export const LeadHistoryTabs = ({
         <TabsContent value="nutrition" className="mt-0">
           {!hasNutritionHistory ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-orange-100 flex items-center justify-center">
-                <UtensilsCrossed className="h-6 w-6 text-orange-400" />
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[#E8EDF7] flex items-center justify-center">
+                <UtensilsCrossed className="h-6 w-6 text-[#5B6FB9]" />
               </div>
               <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תכניות תזונה</p>
               <p className="text-gray-400 text-xs mb-3">תכניות תזונה נוצרות אוטומטית מהתקציב</p>
@@ -604,8 +606,8 @@ export const LeadHistoryTabs = ({
         <TabsContent value="supplements" className="mt-0">
           {!hasSupplementsHistory ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-green-100 flex items-center justify-center">
-                <Pill className="h-6 w-6 text-green-400" />
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[#E8EDF7] flex items-center justify-center">
+                <Pill className="h-6 w-6 text-[#5B6FB9]" />
               </div>
               <p className="text-gray-500 text-sm font-medium mb-3">אין היסטוריה של תכניות תוספים</p>
               <p className="text-gray-400 text-xs mb-3">תכניות תוספים נוצרות אוטומטית מהתקציב</p>
@@ -702,8 +704,8 @@ export const LeadHistoryTabs = ({
         <TabsContent value="budgets" className="mt-0">
           {!hasBudgetAssignments ? (
             <div className="text-center py-12">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-purple-100 flex items-center justify-center">
-                <Wallet className="h-6 w-6 text-purple-400" />
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[#E8EDF7] flex items-center justify-center">
+                <Wallet className="h-6 w-6 text-[#5B6FB9]" />
               </div>
               <p className="text-gray-500 text-sm font-medium mb-3">אין תקציבים מוקצים</p>
               <Button 

@@ -40,6 +40,7 @@ const AVAILABLE_UNITS = [
   'אינטרוולים',
   'שעות',
   '1-10',
+  'טקסט',
 ];
 
 interface FieldRowProps {

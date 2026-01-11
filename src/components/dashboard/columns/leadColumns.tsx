@@ -2,6 +2,7 @@ import { type ColumnDef } from '@tanstack/react-table';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { formatDate } from '@/utils/dashboard';
 import type { DataTableColumn } from '@/components/ui/DataTable';
+import { DevModeId } from '@/components/ui/DevModeId';
 
 /**
  * Strict column definitions for Leads table.
@@ -257,11 +258,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
-      return (
-        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs">
-          {value}
-        </span>
-      );
+      return <DevModeId id={value} />;
     },
   },
   {
@@ -328,7 +325,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
  * Only includes columns that exist in leadColumns.
  */
 export const defaultLeadColumnVisibility: Record<string, boolean> = {
-  id: true,
+  id: false, // Hidden by default - only visible in dev mode (press D+E+V)
   name: true,
   status: true,
   phone: true,

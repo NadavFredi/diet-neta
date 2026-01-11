@@ -30,6 +30,7 @@ import { AVAILABLE_PLACEHOLDERS, getPlaceholdersByCategory, getCategoryLabel, ty
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
 import { GifPicker } from './GifPicker';
+import { DevModeId } from '@/components/ui/DevModeId';
 
 export interface WhatsAppButton {
   id: string;
@@ -1007,7 +1008,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-400">
                               <span>מזהה:</span>
-                              <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-mono">{button.id}</code>
+                              <DevModeId id={button.id} className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-mono" />
                             </div>
                           </div>
                           <Button
