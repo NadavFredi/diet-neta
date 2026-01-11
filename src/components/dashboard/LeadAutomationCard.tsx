@@ -265,10 +265,11 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
   const handleSaveTemplate = async (
     flowKey: string, 
     templateContent: string, 
-    buttons?: Array<{ id: string; text: string }>
+    buttons?: Array<{ id: string; text: string }>,
+    media?: { type: 'image' | 'video' | 'gif'; file?: File; url?: string; previewUrl?: string } | null
   ) => {
     try {
-      await dispatch(saveTemplate({ flowKey, templateContent, buttons })).unwrap();
+      await dispatch(saveTemplate({ flowKey, templateContent, buttons, media })).unwrap();
       toast({
         title: 'הצלחה',
         description: 'התבנית נשמרה בהצלחה',
@@ -392,6 +393,14 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
         btn && typeof btn === 'object' && typeof btn.id === 'string' && typeof btn.text === 'string'
       )
     : [];
+  // Get media from template
+  const editingMedia = editingFlowKey && templates[editingFlowKey]?.media 
+    ? {
+        type: templates[editingFlowKey].media!.type,
+        url: templates[editingFlowKey].media!.url,
+        previewUrl: templates[editingFlowKey].media!.url
+      }
+    : null;
 
   return (
     <>
@@ -516,7 +525,8 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
           flowLabel={flowConfig.label}
           initialTemplate={editingTemplate}
           initialButtons={editingButtons}
-          onSave={(template, buttons) => handleSaveTemplate(editingFlowKey, template, buttons)}
+          initialMedia={editingMedia}
+          onSave={(template, buttons, media) => handleSaveTemplate(editingFlowKey, template, buttons, media)}
         />
       )}
 

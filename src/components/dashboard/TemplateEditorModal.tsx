@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Smile, Bold, Italic, Underline, Strikethrough, List, ListOrdered, AlignRight, AlignLeft, AlignCenter, Plus, Trash2, HelpCircle, Smartphone } from 'lucide-react';
+import { Loader2, Smile, Bold, Italic, Underline, Strikethrough, List, ListOrdered, AlignRight, AlignLeft, AlignCenter, Plus, Trash2, HelpCircle, Smartphone, Image, Video, X } from 'lucide-react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import ReactQuill, { Quill } from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -39,6 +39,13 @@ export interface WhatsAppButton {
   };
 }
 
+export interface MediaData {
+  type: 'image' | 'video' | 'gif';
+  file?: File;
+  url?: string;
+  previewUrl?: string;
+}
+
 interface TemplateEditorModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -46,7 +53,8 @@ interface TemplateEditorModalProps {
   flowLabel: string;
   initialTemplate: string;
   initialButtons?: WhatsAppButton[];
-  onSave: (template: string, buttons?: WhatsAppButton[]) => Promise<void>;
+  initialMedia?: MediaData | null;
+  onSave: (template: string, buttons?: WhatsAppButton[], media?: MediaData | null) => Promise<void>;
 }
 
 export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
@@ -56,6 +64,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   flowLabel,
   initialTemplate,
   initialButtons = [],
+  initialMedia = null,
   onSave,
 }) => {
   const getValidButtons = (buttonsInput?: WhatsAppButton[] | any): WhatsAppButton[] => {
@@ -109,8 +118,13 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
       return [];
     }
   });
+  const [media, setMedia] = useState<MediaData | null>(initialMedia || null);
   const [isSaving, setIsSaving] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [isGifPopoverOpen, setIsGifPopoverOpen] = useState(false);
+  const [gifUrl, setGifUrl] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const quillRef = useRef<ReactQuill>(null);
   const prevIsOpen = React.useRef(isOpen);
   
@@ -121,14 +135,25 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
         // Always reset buttons from initialButtons, even if empty array
         const validButtons = getValidButtons(initialButtons);
         setButtons(validButtons);
+        setMedia(initialMedia || null);
       } catch (error) {
         console.error('[TemplateEditorModal] Error resetting state:', error);
         setTemplate('');
         setButtons([]);
+        setMedia(null);
       }
     }
     prevIsOpen.current = isOpen;
-  }, [isOpen, initialTemplate, initialButtons]);
+  }, [isOpen, initialTemplate, initialButtons, initialMedia]);
+
+  // Clean up preview URLs when component unmounts or media changes
+  useEffect(() => {
+    return () => {
+      if (media?.previewUrl && media.previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(media.previewUrl);
+      }
+    };
+  }, [media]);
 
   const toolbarOptions = useMemo(() => [
     [{ 'header': [1, 2, 3, false] }],
@@ -256,13 +281,64 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     setIsSaving(true);
     try {
       // Always pass buttons array (empty array if no buttons) to ensure deletion is saved
-      await onSave(template, safeButtons);
+      await onSave(template, safeButtons, media);
       onOpenChange(false);
     } catch (error) {
       console.error('[TemplateEditorModal] Error saving template:', error);
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const previewUrl = URL.createObjectURL(file);
+      setMedia({
+        type: 'image',
+        file,
+        previewUrl,
+      });
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('video/')) {
+      const previewUrl = URL.createObjectURL(file);
+      setMedia({
+        type: 'video',
+        file,
+        previewUrl,
+      });
+    }
+    // Reset input so same file can be selected again
+    if (videoInputRef.current) {
+      videoInputRef.current.value = '';
+    }
+  };
+
+  const handleGifUrlSubmit = () => {
+    if (gifUrl.trim()) {
+      setMedia({
+        type: 'gif',
+        url: gifUrl.trim(),
+        previewUrl: gifUrl.trim(),
+      });
+      setGifUrl('');
+      setIsGifPopoverOpen(false);
+    }
+  };
+
+  const handleRemoveMedia = () => {
+    if (media?.previewUrl && media.previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(media.previewUrl);
+    }
+    setMedia(null);
   };
 
   const handleAddButton = () => {
@@ -508,34 +584,134 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                       theme="snow"
                     />
                     
-                    <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className={cn(
-                            "absolute bottom-2 left-2 h-8 w-8 p-0",
-                            "bg-white border border-slate-300 rounded-lg",
-                            "hover:bg-slate-50 hover:border-[#5B6FB9] hover:shadow-sm",
-                            "transition-all duration-200 shadow-sm z-10",
-                            "flex items-center justify-center cursor-pointer"
-                          )}
-                          title="הוסף אימוג'י"
-                        >
-                          <Smile className="h-4 w-4 text-slate-600" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 border border-slate-200 shadow-xl" align="start" side="top" dir="ltr" sideOffset={8}>
-                        <EmojiPicker
-                          onEmojiClick={handleEmojiClick}
-                          width={350}
-                          height={400}
-                          previewConfig={{ showPreview: false }}
-                          skinTonesDisabled
-                          searchDisabled={false}
-                          lazyLoadEmojis={true}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <div className="absolute bottom-2 left-2 flex items-center gap-1 z-10">
+                      {/* Emoji Picker */}
+                      <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              "h-8 w-8 p-0",
+                              "bg-white border border-slate-300 rounded-lg",
+                              "hover:bg-slate-50 hover:border-[#5B6FB9] hover:shadow-sm",
+                              "transition-all duration-200 shadow-sm",
+                              "flex items-center justify-center cursor-pointer"
+                            )}
+                            title="הוסף אימוג'י"
+                          >
+                            <Smile className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 border border-slate-200 shadow-xl" align="start" side="top" dir="ltr" sideOffset={8}>
+                          <EmojiPicker
+                            onEmojiClick={handleEmojiClick}
+                            width={350}
+                            height={400}
+                            previewConfig={{ showPreview: false }}
+                            skinTonesDisabled
+                            searchDisabled={false}
+                            lazyLoadEmojis={true}
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      {/* Image Upload Button */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        id="image-upload-input"
+                      />
+                      <label
+                        htmlFor="image-upload-input"
+                        className={cn(
+                          "h-8 w-8 p-0 cursor-pointer",
+                          "bg-white border border-slate-300 rounded-lg",
+                          "hover:bg-slate-50 hover:border-[#5B6FB9] hover:shadow-sm",
+                          "transition-all duration-200 shadow-sm",
+                          "flex items-center justify-center"
+                        )}
+                        title="הוסף תמונה"
+                      >
+                        <Image className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+                      </label>
+
+                      {/* Video Upload Button */}
+                      <input
+                        ref={videoInputRef}
+                        type="file"
+                        accept="video/*"
+                        onChange={handleVideoUpload}
+                        className="hidden"
+                        id="video-upload-input"
+                      />
+                      <label
+                        htmlFor="video-upload-input"
+                        className={cn(
+                          "h-8 w-8 p-0 cursor-pointer",
+                          "bg-white border border-slate-300 rounded-lg",
+                          "hover:bg-slate-50 hover:border-[#5B6FB9] hover:shadow-sm",
+                          "transition-all duration-200 shadow-sm",
+                          "flex items-center justify-center"
+                        )}
+                        title="הוסף וידאו"
+                      >
+                        <Video className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+                      </label>
+
+                      {/* GIF URL Input Popover */}
+                      <Popover open={isGifPopoverOpen} onOpenChange={setIsGifPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              "h-8 w-8 p-0",
+                              "bg-white border border-slate-300 rounded-lg",
+                              "hover:bg-slate-50 hover:border-[#5B6FB9] hover:shadow-sm",
+                              "transition-all duration-200 shadow-sm",
+                              "flex items-center justify-center cursor-pointer"
+                            )}
+                            title="הוסף GIF"
+                          >
+                            <Image className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-4" dir="rtl" sideOffset={8}>
+                          <div className="space-y-3">
+                            <div>
+                              <Label className="text-sm font-semibold text-slate-900 mb-2 block">
+                                הוסף קישור GIF
+                              </Label>
+                              <Input
+                                type="url"
+                                value={gifUrl}
+                                onChange={(e) => setGifUrl(e.target.value)}
+                                placeholder="https://example.com/image.gif"
+                                className="text-sm"
+                                dir="ltr"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleGifUrlSubmit();
+                                  }
+                                }}
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={handleGifUrlSubmit}
+                              disabled={!gifUrl.trim()}
+                              className="w-full bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+                              size="sm"
+                            >
+                              הוסף
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -701,10 +877,46 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                 </div>
               </div>
               <div className="p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white min-h-[500px]">
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
-                  <p className="text-sm text-slate-900 whitespace-pre-wrap leading-relaxed" dir="rtl">
-                    {previewMessage || 'ההודעה תופיע כאן...'}
-                  </p>
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                  {/* Media Preview */}
+                  {media && media.previewUrl && (
+                    <div className="relative w-full">
+                      {media.type === 'image' || media.type === 'gif' ? (
+                        <img
+                          src={media.previewUrl}
+                          alt="Preview"
+                          className="w-full h-auto max-h-[300px] object-cover"
+                        />
+                      ) : media.type === 'video' ? (
+                        <video
+                          src={media.previewUrl}
+                          controls
+                          className="w-full h-auto max-h-[300px]"
+                        >
+                          הדפדפן שלך אינו תומך בתג וידאו.
+                        </video>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={handleRemoveMedia}
+                        className={cn(
+                          "absolute top-2 right-2 h-7 w-7 rounded-full",
+                          "bg-red-500 hover:bg-red-600 text-white",
+                          "flex items-center justify-center",
+                          "transition-colors duration-200 shadow-lg z-10"
+                        )}
+                        title="הסר מדיה"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                  {/* Message Text */}
+                  <div className="p-4">
+                    <p className="text-sm text-slate-900 whitespace-pre-wrap leading-relaxed" dir="rtl">
+                      {previewMessage || (!media && 'ההודעה תופיע כאן...')}
+                    </p>
+                  </div>
                 </div>
                 {safeButtons.length > 0 && (
                   <div className="space-y-2">

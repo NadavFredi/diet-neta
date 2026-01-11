@@ -181,7 +181,7 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
     dispatch(setError(null));
   };
 
-  const handleSaveTemplate = async (template: string, buttons?: Array<{ id: string; text: string }>) => {
+  const handleSaveTemplate = async (template: string, buttons?: Array<{ id: string; text: string }>, media?: any) => {
     dispatch(setPaymentMessageTemplate(template));
     localStorage.setItem('paymentMessageTemplate', template);
   };

@@ -635,7 +635,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         flowKey="trainee_user_credentials"
         flowLabel="פרטי כניסה למתאמן"
         initialTemplate={messageTemplate || DEFAULT_TRAINEE_TEMPLATE}
-        onSave={async (template) => {
+        onSave={async (template, buttons, media) => {
           setMessageTemplate(template);
           localStorage.setItem('traineeUserMessageTemplate', template);
         }}

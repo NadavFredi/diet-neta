@@ -176,7 +176,7 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
     }
   };
 
-  const handleTemplateSave = async (newTemplate: string) => {
+  const handleTemplateSave = async (newTemplate: string, buttons?: any, media?: any) => {
     setTemplate(newTemplate);
     localStorage.setItem('budgetMessageTemplate', newTemplate);
     setIsTemplateEditorOpen(false);
