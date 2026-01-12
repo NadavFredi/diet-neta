@@ -20,6 +20,18 @@ export default defineConfig(({ mode }) => ({
           });
         },
       },
+      // Proxy Supabase requests when accessed from network IP
+      // This allows local Supabase (127.0.0.1:54321) to work when app is accessed via network IP
+      '/supabase-proxy': {
+        target: 'http://127.0.0.1:54321',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/supabase-proxy/, ''),
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, res) => {
+            console.log('Supabase proxy error', err);
+          });
+        },
+      },
     },
   },
   plugins: [
