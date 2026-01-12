@@ -13,6 +13,7 @@ import automationReducer from './slices/automationSlice';
 import formsReducer from './slices/formsSlice';
 import paymentReducer from './slices/paymentSlice';
 import budgetReducer from './slices/budgetSlice';
+import subscriptionTypesReducer from './slices/subscriptionTypesSlice';
 
 export const store = configureStore({
   reducer: {
@@ -29,6 +30,7 @@ export const store = configureStore({
     forms: formsReducer,
     payment: paymentReducer,
     budget: budgetReducer,
+    subscriptionTypes: subscriptionTypesReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => {

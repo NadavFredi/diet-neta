@@ -144,7 +144,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   const currentWeekRef = useRef<InlineEditableFieldRef>(null);
   const monthsRef = useRef<InlineEditableFieldRef>(null);
   const initialPriceRef = useRef<InlineEditableFieldRef>(null);
-  const renewalPriceRef = useRef<InlineEditableFieldRef>(null);
+  const expirationDateRef = useRef<InlineEditableFieldRef>(null);
+  const subscriptionStatusRef = useRef<InlineEditableSelectRef>(null);
 
   // Refs for CRM card editable fields
   const statusRef = useRef<InlineEditableSelectRef>(null);
@@ -206,7 +207,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       currentWeekRef,
       monthsRef,
       initialPriceRef,
-      renewalPriceRef,
+      expirationDateRef,
+      subscriptionStatusRef,
     ];
 
     const savePromises = refs
@@ -222,7 +224,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       currentWeekRef,
       monthsRef,
       initialPriceRef,
-      renewalPriceRef,
+      expirationDateRef,
+      subscriptionStatusRef,
     ];
 
     refs.forEach(ref => {
@@ -453,20 +456,36 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('initial_price', isEditing)}
               />
               <InlineEditableField
-                ref={renewalPriceRef}
-                label="מחיר חידוש חודשי"
-                value={subscriptionData.renewalPrice || 0}
+                ref={expirationDateRef}
+                label="תאריך תפוגה"
+                value={subscriptionData.expirationDate || ''}
                 onSave={async (newValue) => {
                   const updatedSubscription = {
                     ...subscriptionData,
-                    renewalPrice: Number(newValue),
+                    expirationDate: String(newValue),
                   };
                   await onUpdateLead({ subscription_data: updatedSubscription });
                 }}
-                type="number"
-                formatValue={(val) => `₪${val}`}
+                type="date"
+                formatValue={(val) => formatDate(String(val))}
                 className="border-0 p-0"
-                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('renewal_price', isEditing)}
+                valueClassName="text-sm font-semibold text-slate-900"
+                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('expiration_date', isEditing)}
+              />
+              <InlineEditableSelect
+                ref={subscriptionStatusRef}
+                label="סטטוס מנוי"
+                value={subscriptionData.status || 'פעיל'}
+                options={['פעיל', 'לא פעיל']}
+                onSave={async (newValue) => {
+                  const updatedSubscription = {
+                    ...subscriptionData,
+                    status: newValue,
+                  };
+                  await onUpdateLead({ subscription_data: updatedSubscription });
+                }}
+                className="border-0 p-0"
+                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('subscription_status', isEditing)}
               />
             </div>
           </Card>
@@ -724,16 +743,35 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         onOpenChange={setIsCreateSubscriptionModalOpen}
         onConfirm={async (subscriptionType) => {
           try {
-            const today = new Date().toISOString().split('T')[0];
+            console.log('Creating subscription with type:', subscriptionType);
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
+            // Calculate expiration date: add months to join date
+            const expirationDate = new Date(today);
+            expirationDate.setMonth(expirationDate.getMonth() + subscriptionType.duration);
+            const expirationDateStr = expirationDate.toISOString().split('T')[0];
+            
+            console.log('Subscription data being set:', {
+              duration: subscriptionType.duration,
+              price: subscriptionType.price,
+              expirationDate: expirationDateStr,
+            });
+            
             // Create a NEW subscription_data object (copy values, not reference)
             // This ensures one-way relationship - template changes don't affect leads
             const updatedSubscription = {
               ...subscriptionData,
               months: subscriptionType.duration, // Copy duration value
               initialPrice: subscriptionType.price, // Copy price value
+              expirationDate: expirationDateStr, // Calculate expiration date
+              status: 'פעיל', // Set status to Active by default
             };
+            
+            console.log('Updated subscription_data:', updatedSubscription);
+            
             await onUpdateLead({
-              join_date: today,
+              join_date: todayStr,
               subscription_data: updatedSubscription,
             });
           } catch (error: any) {

@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useSubscriptionTypes } from '@/hooks/useSubscriptionTypes';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchSubscriptionTypes } from '@/store/slices/subscriptionTypesSlice';
 import { useToast } from '@/hooks/use-toast';
 
 interface CreateSubscriptionModalProps {
@@ -24,8 +25,16 @@ export const CreateSubscriptionModal = ({
   onConfirm,
 }: CreateSubscriptionModalProps) => {
   const { toast } = useToast();
-  const { data: subscriptionTypes = [], isLoading } = useSubscriptionTypes();
+  const dispatch = useAppDispatch();
+  const { subscriptionTypes, isLoading } = useAppSelector((state) => state.subscriptionTypes);
   const [selectedSubscriptionTypeId, setSelectedSubscriptionTypeId] = useState<string>('');
+
+  // Fetch subscription types when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      dispatch(fetchSubscriptionTypes());
+    }
+  }, [isOpen, dispatch]);
 
   const selectedSubscriptionType = subscriptionTypes.find(
     (st) => st.id === selectedSubscriptionTypeId
