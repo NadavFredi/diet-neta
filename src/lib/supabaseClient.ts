@@ -9,25 +9,30 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// If accessing from a network IP (not localhost), use Vite proxy for Supabase requests
-// This fixes the issue where the app is accessed via network IP but Supabase URL is localhost
+// Auto-detect and fix network access for local Supabase
+// When app is accessed via network IP (e.g., 172.20.10.10:8080) but Supabase URL is localhost,
+// use Vite proxy to route requests to local Supabase
 if (typeof window !== 'undefined') {
   const currentHost = window.location.hostname;
   const currentPort = window.location.port || '8080';
   const isNetworkAccess = currentHost !== 'localhost' && currentHost !== '127.0.0.1';
   const isLocalSupabase = supabaseUrl.includes('127.0.0.1') || supabaseUrl.includes('localhost');
+  const isProductionSupabase = supabaseUrl.includes('supabase.co');
   
-  if (isNetworkAccess && isLocalSupabase) {
-    // Use Vite proxy instead of direct localhost connection
-    // The proxy will forward requests to localhost Supabase
+  // Only auto-fix for local Supabase when accessed from network
+  // Don't modify production Supabase URLs
+  if (isNetworkAccess && isLocalSupabase && !isProductionSupabase) {
+    // Use Vite proxy to route Supabase requests through the dev server
+    // This allows local Supabase to work when app is accessed via network IP
     const protocol = window.location.protocol;
-    supabaseUrl = `${protocol}//${currentHost}:${currentPort}/supabase`;
+    supabaseUrl = `${protocol}//${currentHost}:${currentPort}/supabase-proxy`;
+    console.log('[Supabase Client] Auto-detected network access, using proxy:', supabaseUrl);
   }
 }
 
-// Debug: Log which Supabase instance we're using (only in development)
+// Debug logging (only in development)
 if (import.meta.env.DEV) {
-  console.log('[Supabase Client] Using:', {
+  console.log('[Supabase Client] Configuration:', {
     url: supabaseUrl,
     isLocal: supabaseUrl.includes('127.0.0.1') || supabaseUrl.includes('localhost'),
     isCloud: supabaseUrl.includes('supabase.co'),
