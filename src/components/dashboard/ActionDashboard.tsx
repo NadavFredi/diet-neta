@@ -41,6 +41,7 @@ import { ReadOnlyField } from './ReadOnlyField';
 import { LeadPaymentCard } from './LeadPaymentCard';
 import { usePlansHistory } from '@/hooks/usePlansHistory';
 import { ProgressGalleryCard } from './ProgressGalleryCard';
+import { BloodTestsGalleryCard } from './BloodTestsGalleryCard.tsx';
 import { CreateSubscriptionModal } from './dialogs/CreateSubscriptionModal';
 
 interface LeadData {
@@ -86,58 +87,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   budgetAssignments,
   getStatusColor,
 }) => {
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [isCreateSubscriptionModalOpen, setIsCreateSubscriptionModalOpen] = useState(false);
-  if (isLoading) {
-    return (
-      <Card className="p-8 border border-gray-200 rounded-xl shadow-sm">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
-          <p className="text-sm text-gray-600">טוען פרטי התעניינות...</p>
-        </div>
-      </Card>
-    );
-  }
-
-  if (!activeLead) {
-    return (
-      <Card className="p-12 border border-gray-200 rounded-xl shadow-sm">
-        <div className="text-center text-gray-500">
-          <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-          <p className="text-base font-medium">בחר התעניינות מהיסטוריה כדי לצפות בפרטים</p>
-        </div>
-      </Card>
-    );
-  }
-
-  const subscriptionData = activeLead.subscription_data || {};
-  // Use status_sub first, then status_main, then default
-  // This matches the database structure and ensures correct display
-  const displayStatus = activeLead.status_sub || activeLead.status_main || 'ללא סטטוס';
-
-  // Calculate age from birth_date
-  const calculateAge = (birthDate: string | null): number | null => {
-    if (!birthDate) return null;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
-  const age = calculateAge(activeLead.birth_date);
-  
-  // Calculate BMI if height and weight are available
-  const calculateBMI = (height: number | null, weight: number | null): number | null => {
-    if (!height || !weight || height === 0) return null;
-    const heightInMeters = height / 100;
-    const bmi = weight / (heightInMeters * heightInMeters);
-    return Math.round(bmi * 10) / 10;
-  };
-
-  const bmi = calculateBMI(activeLead.height, activeLead.weight);
 
   // Refs for Subscription card editable fields
   const joinDateRef = useRef<InlineEditableFieldRef>(null);
@@ -165,6 +116,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   const [crmEditingFields, setCrmEditingFields] = useState<Set<string>>(new Set());
   const [personalEditingFields, setPersonalEditingFields] = useState<Set<string>>(new Set());
 
+  // Fetch plans history from plan tables (must be called before early returns)
+  const leadId = activeLead?.id;
+  const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
+
+  // Callback hooks (must be called before early returns)
   const handleSubscriptionFieldEditingChange = useCallback((fieldId: string, isEditing: boolean) => {
     setSubscriptionEditingFields(prev => {
       const next = new Set(prev);
@@ -297,43 +253,87 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     });
   }, []);
 
-  const isSubscriptionEditing = subscriptionEditingFields.size > 0;
-  const isCrmEditing = crmEditingFields.size > 0;
-  const isPersonalEditing = personalEditingFields.size > 0;
-
-  // Fetch plans history from plan tables
-  const leadId = activeLead?.id;
-  const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
-
-  // Merge plans from database with JSONB history (plans take precedence)
+  // Memoized values (must be called before early returns)
   const mergedWorkoutHistory = useMemo(() => {
     const plans = plansHistory?.workoutHistory || [];
     const jsonbHistory = activeLead?.workout_history || [];
-    
-    // Combine: plans first (newer), then JSONB history (legacy)
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.workoutHistory, activeLead?.workout_history]);
 
   const mergedNutritionHistory = useMemo(() => {
     const plans = plansHistory?.nutritionHistory || [];
     const jsonbHistory = activeLead?.nutrition_history || [];
-    
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.nutritionHistory, activeLead?.nutrition_history]);
 
   const mergedSupplementsHistory = useMemo(() => {
     const plans = plansHistory?.supplementsHistory || [];
     const jsonbHistory = activeLead?.supplements_history || [];
-    
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.supplementsHistory, activeLead?.supplements_history]);
 
   const mergedStepsHistory = useMemo(() => {
     const plans = plansHistory?.stepsHistory || [];
     const jsonbHistory = activeLead?.steps_history || [];
-    
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.stepsHistory, activeLead?.steps_history]);
+
+  // NOW we can do early returns after all hooks are called
+  if (isLoading) {
+    return (
+      <Card className="p-8 border border-gray-200 rounded-xl shadow-sm">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
+          <p className="text-sm text-gray-600">טוען פרטי התעניינות...</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (!activeLead) {
+    return (
+      <Card className="p-12 border border-gray-200 rounded-xl shadow-sm">
+        <div className="text-center text-gray-500">
+          <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+          <p className="text-base font-medium">בחר התעניינות מהיסטוריה כדי לצפות בפרטים</p>
+        </div>
+      </Card>
+    );
+  }
+
+  const subscriptionData = activeLead.subscription_data || {};
+  // Use status_sub first, then status_main, then default
+  // This matches the database structure and ensures correct display
+  const displayStatus = activeLead.status_sub || activeLead.status_main || 'ללא סטטוס';
+
+  // Calculate age from birth_date
+  const calculateAge = (birthDate: string | null): number | null => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const age = calculateAge(activeLead.birth_date);
+  
+  // Calculate BMI if height and weight are available
+  const calculateBMI = (height: number | null, weight: number | null): number | null => {
+    if (!height || !weight || height === 0) return null;
+    const heightInMeters = height / 100;
+    const bmi = weight / (heightInMeters * heightInMeters);
+    return Math.round(bmi * 10) / 10;
+  };
+
+  const bmi = calculateBMI(activeLead.height, activeLead.weight);
+
+  const isSubscriptionEditing = subscriptionEditingFields.size > 0;
+  const isCrmEditing = crmEditingFields.size > 0;
+  const isPersonalEditing = personalEditingFields.size > 0;
 
   // Helper to get badge color
   const getFitnessBadgeColor = (type: string) => {
@@ -707,10 +707,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           />
         </div>
 
-        {/* Row 3: Progress Gallery - Full Width */}
+        {/* Row 3: Progress Gallery & Blood Tests - Full Width Grid */}
         {customer?.id && (
-          <div className="mb-4">
+          <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ProgressGalleryCard customerId={customer.id} />
+            <BloodTestsGalleryCard leadId={activeLead.id} />
           </div>
         )}
 

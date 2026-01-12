@@ -32,6 +32,7 @@ import { CheckInCalendarSidebar } from '@/components/client/CheckInCalendarSideb
 import { MultiDayReportModal } from '@/components/client/MultiDayReportModal';
 import { BudgetView } from '@/components/client/BudgetView';
 import { VisualProgressCard } from '@/components/client/VisualProgressCard';
+import { BloodTestsCard } from '@/components/client/BloodTestsCard.tsx';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
@@ -197,7 +198,7 @@ export const ClientDashboardView: React.FC = () => {
   const dailyProtocol = activeLead?.daily_protocol || {};
 
   return (
-    <div className="bg-[#F8FAFC] flex flex-col h-full" dir="rtl" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="bg-[#F8FAFC] flex flex-col h-full" dir="rtl" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {/* Fixed Header */}
       <div className="bg-white border-b border-[#E2E8F0] flex-shrink-0 z-20 shadow-sm">
         <div className="w-full px-8 xl:px-12 py-4">
@@ -248,7 +249,7 @@ export const ClientDashboardView: React.FC = () => {
       </div>
 
       {/* Main Layout: Sidebar + Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Left Vertical Navigation Sidebar */}
         <div className="w-64 bg-white border-l border-[#E2E8F0] flex-shrink-0 flex flex-col">
           <nav className="flex-1 p-3 pt-4 overflow-y-auto">
@@ -323,6 +324,18 @@ export const ClientDashboardView: React.FC = () => {
             >
               <ImageIcon className="h-5 w-5 flex-shrink-0" />
               <span className="text-sm">התקדמות ויזואלית</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('bloodtests')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                activeTab === 'bloodtests'
+                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
+                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+              )}
+            >
+              <Activity className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm">בדיקות דם</span>
             </button>
           </nav>
         </div>
@@ -523,6 +536,13 @@ export const ClientDashboardView: React.FC = () => {
               </div>
             )}
 
+            {/* Blood Tests Tab */}
+            {activeTab === 'bloodtests' && customer?.id && activeLead?.id && (
+              <div className="space-y-6">
+                <BloodTestsCard leadId={activeLead.id} customerId={customer.id} />
+              </div>
+            )}
+
             {/* Multi-Day Report Modal */}
             {customer && activeTab === 'checkin' && (
               <MultiDayReportModal
@@ -534,6 +554,16 @@ export const ClientDashboardView: React.FC = () => {
               />
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Disclaimer - Positioned at bottom, minimal gap before footer */}
+      <div className="w-full px-6 xl:px-8 py-3 pb-2 flex-shrink-0">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
+          <p className="font-medium mb-1">שימו לב:</p>
+          <p>
+            ההמלצות במסמך זה אינן מהוות ייעוץ רפואי. המלווה אינה רופאה או תזונאית קלינית, וכל שינוי תזונתי, תוספים או פעילות גופנית יש לבצע באחריות אישית ובהתייעצות עם רופא מוסמך.
+          </p>
         </div>
       </div>
 

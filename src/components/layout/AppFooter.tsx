@@ -1,8 +1,13 @@
 import React from "react"
+import { cn } from "@/lib/utils"
 
-export function AppFooter() {
+interface AppFooterProps {
+    className?: string;
+}
+
+export function AppFooter({ className }: AppFooterProps = {}) {
     return (
-        <footer className="mt-10" dir="rtl">
+        <footer className={cn("mt-10", className)} dir="rtl">
             <div
                 className="text-white"
                 style={{
