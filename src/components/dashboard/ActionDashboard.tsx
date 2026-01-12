@@ -24,7 +24,9 @@ import {
   FileText,
   Calendar as CalendarIcon,
   Apple,
-  Weight
+  Weight,
+  Save,
+  X
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { 
@@ -346,23 +348,46 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Card 1: Subscription Details */}
           <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
-            <CardHeaderWithActions
-              icon={Wallet}
-              iconBgColor="bg-green-100"
-              iconColor="text-green-600"
-              title="פרטי מנוי"
-              isEditing={isSubscriptionEditing}
-              onSave={handleSubscriptionSave}
-              onCancel={handleSubscriptionCancel}
-            />
-            <div className="mb-4">
-              <Button
-                onClick={() => setIsCreateSubscriptionModalOpen(true)}
-                size="sm"
-                variant="default"
-              >
-                צור מנוי
-              </Button>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-100">
+                  <Wallet className="h-4 w-4 text-green-600" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-900">פרטי מנוי</h3>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start">
+                {isSubscriptionEditing && (
+                  <>
+                    <Button
+                      onClick={handleSubscriptionSave}
+                      size="sm"
+                      className="h-9 sm:h-8 px-4 sm:px-3 text-xs sm:text-xs touch-manipulation"
+                    >
+                      <Save className="h-3.5 w-3.5 sm:h-3 sm:w-3 ml-1.5 sm:ml-1" />
+                      שמור
+                    </Button>
+                    <Button
+                      onClick={handleSubscriptionCancel}
+                      size="sm"
+                      variant="outline"
+                      className="h-9 sm:h-8 px-4 sm:px-3 text-xs sm:text-xs border-primary text-primary hover:bg-primary hover:text-primary-foreground touch-manipulation"
+                    >
+                      <X className="h-3.5 w-3.5 sm:h-3 sm:w-3 ml-1.5 sm:ml-1" />
+                      ביטול
+                    </Button>
+                  </>
+                )}
+                {!isSubscriptionEditing && (
+                  <Button
+                    onClick={() => setIsCreateSubscriptionModalOpen(true)}
+                    size="sm"
+                    variant="default"
+                    className="h-9 sm:h-8 px-4 sm:px-3 text-xs sm:text-xs"
+                  >
+                    צור מנוי
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <InlineEditableField
