@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { CheckCircle2, XCircle, Loader2, Eye, EyeOff, Home } from 'lucide-react';
 import { StyledActionButton } from "@/components/ui/StyledActionButton";
 import { supabase } from '@/lib/supabaseClient';
-import { supabaseAdmin } from '@/lib/supabaseAdminClient';
+import { createUser, getUserByEmail, updateUser } from '@/services/adminUserService';
 import { verifyToken } from '@/utils/crypto';
 
 export const InviteAccept = () => {
@@ -101,24 +101,35 @@ export const InviteAccept = () => {
         
         if (!userId) {
           // Create user account (without password - they'll set it)
-          const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-            email: invitation.email,
-            email_confirm: true, // Auto-confirm email since they're using invitation
-            user_metadata: {
-              role: 'trainee',
-              invitation_id: invitationId,
-            },
-          });
+          try {
+            const newUser = await createUser({
+              email: invitation.email,
+              email_confirm: true, // Auto-confirm email since they're using invitation
+              user_metadata: {
+                role: 'trainee',
+                invitation_id: invitationId,
+              },
+              invitationToken: token, // Pass token for verification
+              invitationId: invitationId,
+            });
 
-          if (createError) {
+            if (newUser?.user) {
+              userId = newUser.user.id;
+            }
+          } catch (createError: any) {
             console.error('[InviteAccept] Error creating user:', createError);
             // If user already exists, try to get their ID
-            if (createError.message.includes('already registered')) {
-              const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
-              const existingUser = users?.find(u => u.email === invitation.email);
-              if (existingUser) {
-                userId = existingUser.id;
-              } else {
+            if (createError.message?.includes('already registered') || createError.message?.includes('already exists')) {
+              try {
+                const { user: existingUser } = await getUserByEmail({ email: invitation.email });
+                if (existingUser) {
+                  userId = existingUser.id;
+                } else {
+                  setStatus('error');
+                  setErrorMessage('שגיאה ביצירת משתמש. המשתמש כבר קיים.');
+                  return;
+                }
+              } catch (lookupError) {
                 setStatus('error');
                 setErrorMessage('שגיאה ביצירת משתמש. המשתמש כבר קיים.');
                 return;
@@ -128,9 +139,10 @@ export const InviteAccept = () => {
               setErrorMessage('שגיאה ביצירת משתמש');
               return;
             }
-          } else if (newUser?.user) {
-            userId = newUser.user.id;
-            
+          }
+
+          // Update invitation with user_id if user was created/found
+          if (userId) {
             // Update invitation with user_id
             await supabase
               .from('user_invitations')
@@ -205,62 +217,64 @@ export const InviteAccept = () => {
 
       // If user doesn't exist yet, create it first
       if (!userId) {
-        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email: invitation.email,
-          password: password, // Set password directly
-          email_confirm: true,
-          user_metadata: {
-            role: 'trainee',
-            invitation_id: invitationId,
-          },
-        });
+        try {
+          const newUser = await createUser({
+            email: invitation.email,
+            password: password, // Set password directly
+            email_confirm: true,
+            user_metadata: {
+              role: 'trainee',
+              invitation_id: invitationId,
+            },
+            invitationToken: token, // Pass token for verification
+            invitationId: invitationId,
+          });
 
-        if (createError) {
+          if (newUser?.user) {
+            userId = newUser.user.id;
+            
+            // Update invitation with user_id
+            await supabase
+              .from('user_invitations')
+              .update({ user_id: userId })
+              .eq('id', invitationId);
+
+            // Link customer to user_id if customer_id exists in invitation
+            if (invitation.customer_id) {
+              await supabase
+                .from('customers')
+                .update({ user_id: userId })
+                .eq('id', invitation.customer_id);
+            }
+
+            // Create profile with trainee role and customer_id
+            await supabase
+              .from('profiles')
+              .upsert({
+                id: userId,
+                email: invitation.email,
+                role: 'trainee',
+                full_name: invitation.email.split('@')[0],
+              }, {
+                onConflict: 'id',
+              });
+          }
+        } catch (createError: any) {
           console.error('[InviteAccept] Error creating user:', createError);
           setErrorMessage('שגיאה ביצירת משתמש');
           setIsSettingPassword(false);
           return;
         }
-
-        if (newUser?.user) {
-          userId = newUser.user.id;
-          
-          // Update invitation with user_id
-          await supabase
-            .from('user_invitations')
-            .update({ user_id: userId })
-            .eq('id', invitationId);
-
-          // Link customer to user_id if customer_id exists in invitation
-          if (invitation.customer_id) {
-            await supabase
-              .from('customers')
-              .update({ user_id: userId })
-              .eq('id', invitation.customer_id);
-          }
-
-          // Create profile with trainee role and customer_id
-          await supabase
-            .from('profiles')
-            .upsert({
-              id: userId,
-              email: invitation.email,
-              role: 'trainee',
-              full_name: invitation.email.split('@')[0],
-            }, {
-              onConflict: 'id',
-            });
-        }
       } else {
         // User exists, update their password
-        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-          userId,
-          {
-            password: password,
-          }
-        );
-
-        if (updateError) {
+        try {
+          await updateUser({
+            userId,
+            updates: {
+              password: password,
+            },
+          });
+        } catch (updateError: any) {
           console.error('[InviteAccept] Error setting password:', updateError);
           setErrorMessage('שגיאה בהגדרת הסיסמה');
           setIsSettingPassword(false);
