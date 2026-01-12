@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Key, Trash2, Loader2, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { supabaseAdmin } from '@/lib/supabaseAdminClient';
+import { updateUser, deleteUser } from '@/services/adminUserService';
 import { useToast } from '@/hooks/use-toast';
 import { sendWhatsAppMessage, replacePlaceholders } from '@/services/greenApiService';
 
@@ -102,14 +102,12 @@ export const TraineeSettingsModal = ({
 
     setIsResettingPassword(true);
     try {
-      // Update password using Supabase Admin API (uses user ID, not email)
+      // Update password using Edge Function (uses user ID, not email)
       // This will automatically invalidate the old password
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-        traineeUserId,
-        { password: newPassword }
-      );
-
-      if (updateError) throw updateError;
+      await updateUser({
+        userId: traineeUserId,
+        updates: { password: newPassword },
+      });
 
       // Send password via WhatsApp (same logic as CreateTraineeButton)
       // Email is optional - use placeholder if not available
@@ -180,9 +178,7 @@ export const TraineeSettingsModal = ({
     setIsDeleting(true);
     try {
       // Delete user from auth
-      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(traineeUserId);
-
-      if (authError) throw authError;
+      await deleteUser({ userId: traineeUserId });
 
       // Also delete from profiles table if exists
       const { error: profileError } = await supabase
