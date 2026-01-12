@@ -73,6 +73,7 @@ function getFunctionsList() {
     try {
         const functions = readdirSync(functionsDir, { withFileTypes: true })
             .filter(dirent => dirent.isDirectory())
+            .filter(dirent => !dirent.name.startsWith('_')) // Skip shared/utility directories (e.g., _shared)
             .map(dirent => dirent.name);
 
         log(`${colors.green}Found ${functions.length} functions: ${functions.join(', ')}${colors.reset}`);

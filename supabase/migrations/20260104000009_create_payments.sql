@@ -8,7 +8,7 @@
 
 -- Create payments table
 CREATE TABLE IF NOT EXISTS public.payments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
     lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
     product_name TEXT NOT NULL,
