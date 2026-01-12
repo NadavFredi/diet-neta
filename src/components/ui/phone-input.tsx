@@ -192,25 +192,96 @@ export const validatePhoneNumberFormat = (
     return { isValid: false, error: 'מספר טלפון נדרש' };
   }
   
-  try {
-    const country = (countryCode || 'il') as CountryCode;
-    const isValid = isValidPhoneNumber(phone, country);
-    
-    if (!isValid) {
-      // Try without country code constraint
-      const isValidAny = isValidPhoneNumber(phone);
-      if (!isValidAny) {
+  // Remove all non-digit characters except leading +
+  let cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  
+  // Must start with +
+  if (!cleaned.startsWith('+')) {
+    return { isValid: false, error: 'מספר טלפון חייב להתחיל עם קוד מדינה' };
+  }
+  
+  // Remove the + for length checking
+  const digitsOnly = cleaned.substring(1);
+  
+  // Basic length check - international numbers should be at least 7 digits
+  if (digitsOnly.length < 7) {
+    return { isValid: false, error: 'מספר טלפון קצר מדי' };
+  }
+  
+  // For Israeli numbers specifically, check format
+  if (cleaned.startsWith('+972')) {
+    const israeliNumber = digitsOnly.substring(3); // Remove 972
+    // Israeli mobile numbers: 9 digits starting with 5
+    // Israeli landline: 8-9 digits starting with 0, 2, 3, 4, 7, 8, 9
+    if (israeliNumber.length === 9) {
+      // Mobile number (starts with 5)
+      if (israeliNumber.startsWith('5')) {
+        // Valid Israeli mobile
+      } else if (israeliNumber.startsWith('0') && ['2', '3', '4', '7', '8', '9'].includes(israeliNumber[1])) {
+        // Valid Israeli landline with leading 0
+      } else {
+        // Might be valid, let libphonenumber-js decide
+      }
+    } else if (israeliNumber.length === 8) {
+      // Landline without leading 0
+      if (!['2', '3', '4', '7', '8', '9'].includes(israeliNumber[0])) {
         return { isValid: false, error: 'מספר טלפון לא תקין' };
       }
+    } else if (israeliNumber.length < 8) {
+      return { isValid: false, error: 'מספר טלפון קצר מדי' };
+    }
+  }
+  
+  try {
+    const country = (countryCode || 'il') as CountryCode;
+    
+    // Try to validate with the country code
+    let isValid = isValidPhoneNumber(cleaned, country);
+    
+    if (!isValid) {
+      // Try without country code constraint (for international numbers)
+      isValid = isValidPhoneNumber(cleaned);
+    }
+    
+    if (!isValid) {
+      // For Israeli numbers, be more lenient during typing
+      if (cleaned.startsWith('+972')) {
+        const israeliNumber = digitsOnly.substring(3);
+        // If it's 8-9 digits, it might be valid (user might still be typing)
+        if (israeliNumber.length >= 8 && israeliNumber.length <= 9) {
+          // Check if it looks like a valid Israeli number
+          const firstDigit = israeliNumber[0];
+          if (firstDigit === '5' || firstDigit === '0' || ['2', '3', '4', '7', '8', '9'].includes(firstDigit)) {
+            // Looks valid, try parsing
+            try {
+              const parsed = parsePhoneNumber(cleaned, country);
+              if (parsed.isValid()) {
+                return {
+                  isValid: true,
+                  formatted: parsed.number
+                };
+              }
+            } catch {
+              // Continue to error
+            }
+          }
+        }
+      }
+      return { isValid: false, error: 'מספר טלפון לא תקין' };
     }
     
     // Get formatted version
-    const parsed = parsePhoneNumber(phone, country);
+    const parsed = parsePhoneNumber(cleaned, country);
     return {
       isValid: true,
       formatted: parsed.number
     };
   } catch (error) {
+    // If parsing fails, check if it's a valid length for the country
+    if (cleaned.startsWith('+972') && digitsOnly.length >= 11 && digitsOnly.length <= 12) {
+      // Israeli number with reasonable length, might be valid
+      return { isValid: true, formatted: cleaned };
+    }
     return { isValid: false, error: 'מספר טלפון לא תקין' };
   }
 };
