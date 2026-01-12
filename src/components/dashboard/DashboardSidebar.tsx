@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, Apple, Calculator, Settings, Calendar } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection } from '@/store/slices/sidebarSlice';
@@ -61,6 +61,13 @@ const navigationItems: NavItem[] = [
     label: 'תקציבים',
     icon: Calculator,
     path: '/dashboard/budgets',
+  },
+  {
+    id: 'subscription-types',
+    resourceKey: 'subscription_types',
+    label: 'סוגי מנויים',
+    icon: CreditCard,
+    path: '/dashboard/subscription-types',
   },
   {
     id: 'check-in-settings',
@@ -148,6 +155,10 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
       // Active for meetings list and meeting detail routes
       return location.pathname === '/dashboard/meetings' || 
              location.pathname.startsWith('/dashboard/meetings/');
+    }
+    if (path === '/dashboard/subscription-types') {
+      // Active for subscription types list
+      return location.pathname === '/dashboard/subscription-types';
     }
     return location.pathname === path || location.pathname.startsWith(path);
   };

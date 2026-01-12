@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import TemplatesManagement from "./pages/TemplatesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
 import BudgetManagement from "./pages/BudgetManagement.tsx";
+import SubscriptionTypesManagement from "./pages/SubscriptionTypesManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
 import MeetingsManagement from "./pages/MeetingsManagement.tsx";
 import MeetingDetailView from "./pages/MeetingDetailView.tsx";
@@ -50,8 +51,8 @@ const AppContent = () => {
   const isClientDashboard = location.pathname === '/client/dashboard';
   
   return (
-    <div className="min-h-screen flex flex-col">
-      <main className="flex-1">
+    <div className={isClientDashboard ? "h-screen flex flex-col overflow-hidden" : "min-h-screen flex flex-col"}>
+      <main className={isClientDashboard ? "flex-1 overflow-hidden" : "flex-1"}>
         <Routes>
           <Route path="/" element={<AuthRedirect />} />
           <Route path="/old" element={<Index />} />
@@ -89,6 +90,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <BudgetManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/subscription-types"
+            element={
+              <ProtectedRoute>
+                <SubscriptionTypesManagement />
               </ProtectedRoute>
             }
           />
@@ -181,7 +190,11 @@ const AppContent = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      {!isLoginPage && <AppFooter />}
+      {!isLoginPage && (
+        <AppFooter 
+          className={isClientDashboard ? "mt-0 flex-shrink-0" : undefined} 
+        />
+      )}
     </div>
   );
 };

@@ -5,10 +5,15 @@
  * To use your own API key, replace GIPHY_API_KEY below or set it via environment variable
  */
 
-// Giphy Public Beta Key (for development/testing)
-// For production, get your own key from https://developers.giphy.com/
-// You can set VITE_GIPHY_API_KEY in your .env file
-const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY || '3gIdMl6kw5qOwjkq6m6vNVgqTZ5HNL5N';
+// Giphy API Key - MUST be set via environment variable
+// Get your own key from https://developers.giphy.com/
+// Set VITE_GIPHY_API_KEY in your .env.local file
+const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY;
+
+if (!GIPHY_API_KEY) {
+  console.warn('[GiphyService] VITE_GIPHY_API_KEY not set. Giphy features will be disabled.');
+  console.warn('[GiphyService] To enable: Get a key from https://developers.giphy.com/ and add VITE_GIPHY_API_KEY to .env.local');
+}
 
 const GIPHY_API_BASE = 'https://api.giphy.com/v1/gifs';
 
@@ -51,6 +56,10 @@ export interface GiphyResponse {
  * Fetch trending GIFs
  */
 export async function fetchTrendingGifs(limit: number = 20, offset: number = 0): Promise<GiphyGif[]> {
+  if (!GIPHY_API_KEY) {
+    throw new Error('Giphy API key not configured. Please set VITE_GIPHY_API_KEY in your .env.local file.');
+  }
+  
   try {
     const url = `${GIPHY_API_BASE}/trending?api_key=${GIPHY_API_KEY}&limit=${limit}&offset=${offset}&rating=g`;
     const response = await fetch(url);
@@ -71,6 +80,10 @@ export async function fetchTrendingGifs(limit: number = 20, offset: number = 0):
  * Search GIFs by query
  */
 export async function searchGifs(query: string, limit: number = 20, offset: number = 0): Promise<GiphyGif[]> {
+  if (!GIPHY_API_KEY) {
+    throw new Error('Giphy API key not configured. Please set VITE_GIPHY_API_KEY in your .env.local file.');
+  }
+  
   if (!query.trim()) {
     return fetchTrendingGifs(limit, offset);
   }

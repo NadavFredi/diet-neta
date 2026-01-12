@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { fetchLeads } from '@/store/slices/dashboardSlice';
 import { STATUS_CATEGORIES } from './useLeadStatus';
 import { toast } from '@/hooks/use-toast';
+import { validatePhoneNumberFormat, formatPhoneNumberForGreenAPI } from '@/components/ui/phone-input';
 
 export interface AddLeadFormData {
   full_name: string;
@@ -103,13 +104,12 @@ export const useAddLead = () => {
       return false;
     }
 
-    // Basic phone validation (Israeli format)
-    const phoneRegex = /^0[2-9]\d{7,8}$/;
-    const cleanPhone = formData.phone.replace(/-/g, '');
-    if (!phoneRegex.test(cleanPhone)) {
+    // Validate phone number using international format
+    const phoneValidation = validatePhoneNumberFormat(formData.phone);
+    if (!phoneValidation.isValid) {
       toast({
         title: 'שגיאה',
-        description: 'מספר טלפון לא תקין',
+        description: phoneValidation.error || 'מספר טלפון לא תקין',
         variant: 'destructive',
       });
       return false;
@@ -136,7 +136,8 @@ export const useAddLead = () => {
     setIsSubmitting(true);
 
     try {
-      const cleanPhone = formData.phone.replace(/-/g, '').trim();
+      // Format phone number for storage (removes +, spaces, etc., keeps country code)
+      const cleanPhone = formatPhoneNumberForGreenAPI(formData.phone);
       const cleanEmail = formData.email.trim() || null;
       const cleanName = formData.full_name.trim();
 

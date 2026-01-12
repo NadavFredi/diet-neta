@@ -596,11 +596,11 @@ export const BudgetDetailsModal = ({
           <div className="flex-1 flex items-center justify-center p-6 overflow-hidden">
             {selectedMediaUrl?.type === 'image' ? (
               <img
-                src={selectedMediaUrl.url}
+                src={selectedMediaUrl?.url || ''}
                 alt="תמונה"
                 className="max-w-full max-h-[calc(90vh-120px)] object-contain rounded-lg"
               />
-            ) : (
+            ) : selectedMediaUrl ? (
               <video
                 src={selectedMediaUrl.url}
                 controls
@@ -608,7 +608,7 @@ export const BudgetDetailsModal = ({
               >
                 הדפדפן שלך לא תומך בתגית וידאו.
               </video>
-            )}
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

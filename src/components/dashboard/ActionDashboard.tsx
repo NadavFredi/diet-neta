@@ -9,6 +9,7 @@
 import React, { useMemo, useState, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { InlineEditableField, type InlineEditableFieldRef } from './InlineEditableField';
 import { InlineEditableSelect, type InlineEditableSelectRef } from './InlineEditableSelect';
 import { CardHeaderWithActions } from './CardHeaderWithActions';
@@ -23,7 +24,9 @@ import {
   FileText,
   Calendar as CalendarIcon,
   Apple,
-  Weight
+  Weight,
+  Save,
+  X
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { 
@@ -38,6 +41,8 @@ import { ReadOnlyField } from './ReadOnlyField';
 import { LeadPaymentCard } from './LeadPaymentCard';
 import { usePlansHistory } from '@/hooks/usePlansHistory';
 import { ProgressGalleryCard } from './ProgressGalleryCard';
+import { BloodTestsGalleryCard } from './BloodTestsGalleryCard.tsx';
+import { CreateSubscriptionModal } from './dialogs/CreateSubscriptionModal';
 
 interface LeadData {
   id: string;
@@ -82,64 +87,16 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   budgetAssignments,
   getStatusColor,
 }) => {
-  if (isLoading) {
-    return (
-      <Card className="p-8 border border-gray-200 rounded-xl shadow-sm">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
-          <p className="text-sm text-gray-600">טוען פרטי התעניינות...</p>
-        </div>
-      </Card>
-    );
-  }
-
-  if (!activeLead) {
-    return (
-      <Card className="p-12 border border-gray-200 rounded-xl shadow-sm">
-        <div className="text-center text-gray-500">
-          <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-          <p className="text-base font-medium">בחר התעניינות מהיסטוריה כדי לצפות בפרטים</p>
-        </div>
-      </Card>
-    );
-  }
-
-  const subscriptionData = activeLead.subscription_data || {};
-  // Use status_sub first, then status_main, then default
-  // This matches the database structure and ensures correct display
-  const displayStatus = activeLead.status_sub || activeLead.status_main || 'ללא סטטוס';
-
-  // Calculate age from birth_date
-  const calculateAge = (birthDate: string | null): number | null => {
-    if (!birthDate) return null;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
-  const age = calculateAge(activeLead.birth_date);
-  
-  // Calculate BMI if height and weight are available
-  const calculateBMI = (height: number | null, weight: number | null): number | null => {
-    if (!height || !weight || height === 0) return null;
-    const heightInMeters = height / 100;
-    const bmi = weight / (heightInMeters * heightInMeters);
-    return Math.round(bmi * 10) / 10;
-  };
-
-  const bmi = calculateBMI(activeLead.height, activeLead.weight);
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  const [isCreateSubscriptionModalOpen, setIsCreateSubscriptionModalOpen] = useState(false);
 
   // Refs for Subscription card editable fields
   const joinDateRef = useRef<InlineEditableFieldRef>(null);
   const currentWeekRef = useRef<InlineEditableFieldRef>(null);
   const monthsRef = useRef<InlineEditableFieldRef>(null);
   const initialPriceRef = useRef<InlineEditableFieldRef>(null);
-  const renewalPriceRef = useRef<InlineEditableFieldRef>(null);
+  const expirationDateRef = useRef<InlineEditableFieldRef>(null);
+  const subscriptionStatusRef = useRef<InlineEditableSelectRef>(null);
 
   // Refs for CRM card editable fields
   const statusRef = useRef<InlineEditableSelectRef>(null);
@@ -159,6 +116,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   const [crmEditingFields, setCrmEditingFields] = useState<Set<string>>(new Set());
   const [personalEditingFields, setPersonalEditingFields] = useState<Set<string>>(new Set());
 
+  // Fetch plans history from plan tables (must be called before early returns)
+  const leadId = activeLead?.id;
+  const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
+
+  // Callback hooks (must be called before early returns)
   const handleSubscriptionFieldEditingChange = useCallback((fieldId: string, isEditing: boolean) => {
     setSubscriptionEditingFields(prev => {
       const next = new Set(prev);
@@ -201,7 +163,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       currentWeekRef,
       monthsRef,
       initialPriceRef,
-      renewalPriceRef,
+      expirationDateRef,
+      subscriptionStatusRef,
     ];
 
     const savePromises = refs
@@ -217,7 +180,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       currentWeekRef,
       monthsRef,
       initialPriceRef,
-      renewalPriceRef,
+      expirationDateRef,
+      subscriptionStatusRef,
     ];
 
     refs.forEach(ref => {
@@ -289,43 +253,87 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     });
   }, []);
 
-  const isSubscriptionEditing = subscriptionEditingFields.size > 0;
-  const isCrmEditing = crmEditingFields.size > 0;
-  const isPersonalEditing = personalEditingFields.size > 0;
-
-  // Fetch plans history from plan tables
-  const leadId = activeLead?.id;
-  const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
-
-  // Merge plans from database with JSONB history (plans take precedence)
+  // Memoized values (must be called before early returns)
   const mergedWorkoutHistory = useMemo(() => {
     const plans = plansHistory?.workoutHistory || [];
     const jsonbHistory = activeLead?.workout_history || [];
-    
-    // Combine: plans first (newer), then JSONB history (legacy)
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.workoutHistory, activeLead?.workout_history]);
 
   const mergedNutritionHistory = useMemo(() => {
     const plans = plansHistory?.nutritionHistory || [];
     const jsonbHistory = activeLead?.nutrition_history || [];
-    
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.nutritionHistory, activeLead?.nutrition_history]);
 
   const mergedSupplementsHistory = useMemo(() => {
     const plans = plansHistory?.supplementsHistory || [];
     const jsonbHistory = activeLead?.supplements_history || [];
-    
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.supplementsHistory, activeLead?.supplements_history]);
 
   const mergedStepsHistory = useMemo(() => {
     const plans = plansHistory?.stepsHistory || [];
     const jsonbHistory = activeLead?.steps_history || [];
-    
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.stepsHistory, activeLead?.steps_history]);
+
+  // NOW we can do early returns after all hooks are called
+  if (isLoading) {
+    return (
+      <Card className="p-8 border border-gray-200 rounded-xl shadow-sm">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
+          <p className="text-sm text-gray-600">טוען פרטי התעניינות...</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (!activeLead) {
+    return (
+      <Card className="p-12 border border-gray-200 rounded-xl shadow-sm">
+        <div className="text-center text-gray-500">
+          <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+          <p className="text-base font-medium">בחר התעניינות מהיסטוריה כדי לצפות בפרטים</p>
+        </div>
+      </Card>
+    );
+  }
+
+  const subscriptionData = activeLead.subscription_data || {};
+  // Use status_sub first, then status_main, then default
+  // This matches the database structure and ensures correct display
+  const displayStatus = activeLead.status_sub || activeLead.status_main || 'ללא סטטוס';
+
+  // Calculate age from birth_date
+  const calculateAge = (birthDate: string | null): number | null => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const age = calculateAge(activeLead.birth_date);
+  
+  // Calculate BMI if height and weight are available
+  const calculateBMI = (height: number | null, weight: number | null): number | null => {
+    if (!height || !weight || height === 0) return null;
+    const heightInMeters = height / 100;
+    const bmi = weight / (heightInMeters * heightInMeters);
+    return Math.round(bmi * 10) / 10;
+  };
+
+  const bmi = calculateBMI(activeLead.height, activeLead.weight);
+
+  const isSubscriptionEditing = subscriptionEditingFields.size > 0;
+  const isCrmEditing = crmEditingFields.size > 0;
+  const isPersonalEditing = personalEditingFields.size > 0;
 
   // Helper to get badge color
   const getFitnessBadgeColor = (type: string) => {
@@ -343,15 +351,47 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Card 1: Subscription Details */}
           <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
-            <CardHeaderWithActions
-              icon={Wallet}
-              iconBgColor="bg-green-100"
-              iconColor="text-green-600"
-              title="פרטי מנוי"
-              isEditing={isSubscriptionEditing}
-              onSave={handleSubscriptionSave}
-              onCancel={handleSubscriptionCancel}
-            />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-100">
+                  <Wallet className="h-4 w-4 text-green-600" />
+                </div>
+                <h3 className="text-sm font-bold text-gray-900">פרטי מנוי</h3>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start">
+                {isSubscriptionEditing && (
+                  <>
+                    <Button
+                      onClick={handleSubscriptionSave}
+                      size="sm"
+                      className="h-9 sm:h-8 px-4 sm:px-3 text-xs sm:text-xs touch-manipulation"
+                    >
+                      <Save className="h-3.5 w-3.5 sm:h-3 sm:w-3 ml-1.5 sm:ml-1" />
+                      שמור
+                    </Button>
+                    <Button
+                      onClick={handleSubscriptionCancel}
+                      size="sm"
+                      variant="outline"
+                      className="h-9 sm:h-8 px-4 sm:px-3 text-xs sm:text-xs border-primary text-primary hover:bg-primary hover:text-primary-foreground touch-manipulation"
+                    >
+                      <X className="h-3.5 w-3.5 sm:h-3 sm:w-3 ml-1.5 sm:ml-1" />
+                      ביטול
+                    </Button>
+                  </>
+                )}
+                {!isSubscriptionEditing && (
+                  <Button
+                    onClick={() => setIsCreateSubscriptionModalOpen(true)}
+                    size="sm"
+                    variant="default"
+                    className="h-9 sm:h-8 px-4 sm:px-3 text-xs sm:text-xs"
+                  >
+                    צור מנוי
+                  </Button>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <InlineEditableField
                 ref={joinDateRef}
@@ -416,20 +456,36 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('initial_price', isEditing)}
               />
               <InlineEditableField
-                ref={renewalPriceRef}
-                label="מחיר חידוש חודשי"
-                value={subscriptionData.renewalPrice || 0}
+                ref={expirationDateRef}
+                label="תאריך תפוגה"
+                value={subscriptionData.expirationDate || ''}
                 onSave={async (newValue) => {
                   const updatedSubscription = {
                     ...subscriptionData,
-                    renewalPrice: Number(newValue),
+                    expirationDate: String(newValue),
                   };
                   await onUpdateLead({ subscription_data: updatedSubscription });
                 }}
-                type="number"
-                formatValue={(val) => `₪${val}`}
+                type="date"
+                formatValue={(val) => formatDate(String(val))}
                 className="border-0 p-0"
-                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('renewal_price', isEditing)}
+                valueClassName="text-sm font-semibold text-slate-900"
+                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('expiration_date', isEditing)}
+              />
+              <InlineEditableSelect
+                ref={subscriptionStatusRef}
+                label="סטטוס מנוי"
+                value={subscriptionData.status || 'פעיל'}
+                options={['פעיל', 'לא פעיל']}
+                onSave={async (newValue) => {
+                  const updatedSubscription = {
+                    ...subscriptionData,
+                    status: newValue,
+                  };
+                  await onUpdateLead({ subscription_data: updatedSubscription });
+                }}
+                className="border-0 p-0"
+                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('subscription_status', isEditing)}
               />
             </div>
           </Card>
@@ -651,10 +707,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           />
         </div>
 
-        {/* Row 3: Progress Gallery - Full Width */}
+        {/* Row 3: Progress Gallery & Blood Tests - Full Width Grid */}
         {customer?.id && (
-          <div className="mb-4">
+          <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ProgressGalleryCard customerId={customer.id} />
+            <BloodTestsGalleryCard leadId={activeLead.id} />
           </div>
         )}
 
@@ -681,6 +738,48 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         </div>
       </div>
 
+      {/* Create Subscription Modal */}
+      <CreateSubscriptionModal
+        isOpen={isCreateSubscriptionModalOpen}
+        onOpenChange={setIsCreateSubscriptionModalOpen}
+        onConfirm={async (subscriptionType) => {
+          try {
+            console.log('Creating subscription with type:', subscriptionType);
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
+            // Calculate expiration date: add months to join date
+            const expirationDate = new Date(today);
+            expirationDate.setMonth(expirationDate.getMonth() + subscriptionType.duration);
+            const expirationDateStr = expirationDate.toISOString().split('T')[0];
+            
+            console.log('Subscription data being set:', {
+              duration: subscriptionType.duration,
+              price: subscriptionType.price,
+              expirationDate: expirationDateStr,
+            });
+            
+            // Create a NEW subscription_data object (copy values, not reference)
+            // This ensures one-way relationship - template changes don't affect leads
+            const updatedSubscription = {
+              ...subscriptionData,
+              months: subscriptionType.duration, // Copy duration value
+              initialPrice: subscriptionType.price, // Copy price value
+              expirationDate: expirationDateStr, // Calculate expiration date
+              status: 'פעיל', // Set status to Active by default
+            };
+            
+            console.log('Updated subscription_data:', updatedSubscription);
+            
+            await onUpdateLead({
+              join_date: todayStr,
+              subscription_data: updatedSubscription,
+            });
+          } catch (error: any) {
+            console.error('Error creating subscription:', error);
+          }
+        }}
+      />
     </div>
   );
 };

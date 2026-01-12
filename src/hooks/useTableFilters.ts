@@ -326,6 +326,27 @@ export function getBudgetFilterFields(budgets: any[] = []): FilterField[] {
   });
 }
 
+// Define filter fields for Subscription Types table
+export const SUBSCRIPTION_TYPE_FILTER_FIELDS: FilterField[] = [
+  {
+    id: 'created_at',
+    label: 'תאריך יצירה',
+    type: 'date',
+    operators: ['equals', 'before', 'after', 'between'],
+  },
+];
+
+/**
+ * Get filter fields for Subscription Types table with dynamic options from data
+ */
+export function getSubscriptionTypeFilterFields(subscriptionTypes: any[] = []): FilterField[] {
+  return SUBSCRIPTION_TYPE_FILTER_FIELDS.map(field => {
+    // If we need dynamic options in the future, we can add them here
+    // For now, return the base fields
+    return field;
+  });
+}
+
 export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
   const [filters, setFilters] = useState<ActiveFilter[]>(initialFilters);
 

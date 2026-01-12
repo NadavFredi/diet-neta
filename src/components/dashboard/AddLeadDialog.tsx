@@ -29,6 +29,7 @@ import {
   PREFERRED_TIME_OPTIONS,
   SOURCE_OPTIONS,
 } from '@/utils/dashboard';
+import { PhoneInput } from '@/components/ui/phone-input';
 
 interface AddLeadDialogProps {
   isOpen: boolean;
@@ -104,13 +105,14 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
               <Label htmlFor="phone" className="text-right">
                 מספר טלפון <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <PhoneInput
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="050-1234567"
-                className="text-right dir-ltr"
-                dir="ltr"
+                onChange={(value) => handleInputChange('phone', value)}
+                placeholder="מספר טלפון"
+                defaultCountry="il"
+                showValidation={true}
+                className="w-full"
               />
             </div>
 

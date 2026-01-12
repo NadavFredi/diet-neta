@@ -309,8 +309,12 @@ export const sendWhatsAppMessage = async (
           const buttonsText = cleanedButtons.map((btn, idx) => `${idx + 1}. ${btn.text}`).join('\n');
           const messageWithButtons = `${cleanedMessage}\n\n${buttonsText}`;
           
-          // Use direct URL for fallback (not proxy, since sendMessage works directly)
-          const fallbackUrl = `https://api.green-api.com/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
+          // Use proxy in development to avoid CORS issues
+          const fallbackBaseUrl = import.meta.env.DEV 
+            ? '/api/green-api'  // Use Vite proxy in development
+            : 'https://api.green-api.com';  // Direct call in production
+          
+          const fallbackUrl = `${fallbackBaseUrl}/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
           
           const fallbackResponse = await fetch(fallbackUrl, {
             method: 'POST',
@@ -348,34 +352,100 @@ export const sendWhatsAppMessage = async (
 
       // Check if response indicates failure even with 200 status
       // GreenAPI sometimes returns 200 with error in body
-      if (responseData.error || responseData.errorMessage || (responseData.idMessage === null && responseData.idMessage !== undefined)) {
-        const errorMsg = responseData.error || responseData.errorMessage || 'Message failed to send (idMessage is null)';
-        console.error('[GreenAPI] Message send failed despite 200 status:', errorMsg);
+      // Also check for common error patterns
+      const hasError = responseData.error || responseData.errorMessage || responseData.errorCode;
+      const hasErrorCode = responseData.errorCode;
+      
+      // Check for common error patterns in response
+      const responseString = JSON.stringify(responseData).toLowerCase();
+      const commonErrors = ['unauthorized', 'forbidden', 'not found', 'invalid', 'failed', 'error'];
+      const hasCommonError = commonErrors.some(err => responseString.includes(err));
+      
+      if (hasError || hasErrorCode || (hasCommonError && !responseData.idMessage)) {
+        const errorMsg = responseData.error || responseData.errorMessage || responseData.message || 
+                        (responseData.errorCode ? `Error code: ${responseData.errorCode}` : 'Message failed to send');
+        console.error('[GreenAPI] SendButtons failed despite 200 status:', {
+          error: errorMsg,
+          errorCode: responseData.errorCode,
+          hasCommonError,
+          fullResponse: responseData,
+        });
         return {
           success: false,
           error: errorMsg,
         };
       }
 
-      // Verify message was actually queued/sent
-      if (!responseData.idMessage) {
-        console.warn('[GreenAPI] Response missing idMessage, message may not have been sent:', responseData);
+      // Verify message was actually queued/sent - idMessage MUST be present
+      if (responseData.idMessage === null || responseData.idMessage === undefined) {
+        console.error('[GreenAPI] SendButtons response missing idMessage - message was NOT sent:', {
+          responseData,
+          chatId,
+          buttonCount: cleanedButtons.length,
+          status: response.status,
+          statusText: response.statusText,
+          fullResponse: JSON.stringify(responseData, null, 2),
+        });
+        
+        // Check if response is empty or malformed
+        if (!responseData || Object.keys(responseData).length === 0) {
+          console.error('[GreenAPI] Empty or malformed SendButtons response');
+          return {
+            success: false,
+            error: 'Message failed to send: Empty response from Green API. Check your API credentials and network connection.',
+          };
+        }
+        
+        return {
+          success: false,
+          error: 'Message failed to send: Response missing idMessage. HTTP status was 200, but the message was not queued by WhatsApp. This usually means: 1) The phone number is invalid or not registered on WhatsApp, 2) The WhatsApp account is not properly connected, or 3) There was an issue with the Green API service.',
+        };
       }
+
+      // Additional validation: idMessage should be a valid string
+      let idMessage = responseData.idMessage;
+      if (typeof idMessage === 'number') {
+        idMessage = String(idMessage);
+      }
+      
+      if (typeof idMessage !== 'string' || idMessage.trim() === '') {
+        console.error('[GreenAPI] Invalid idMessage format in SendButtons response:', {
+          idMessage: responseData.idMessage,
+          type: typeof responseData.idMessage,
+          responseData,
+        });
+        return {
+          success: false,
+          error: 'Message failed to send: Invalid idMessage format in response.',
+        };
+      }
+
+      console.log('[GreenAPI] SendButtons message successfully queued:', {
+        idMessage: idMessage,
+        chatId,
+        buttonCount: cleanedButtons.length,
+      });
 
       return {
         success: true,
-        data: responseData,
+        data: { ...responseData, idMessage },
       };
     }
     
     // If we reach here, either no buttons were provided OR all buttons were invalid
     // Use standard sendMessage endpoint for regular messages
-    url = `https://api.green-api.com/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
+    // Use Vite proxy in development to avoid CORS issues
+    const baseUrl = import.meta.env.DEV 
+      ? '/api/green-api'  // Use Vite proxy in development
+      : 'https://api.green-api.com';  // Direct call in production
+    
+    url = `${baseUrl}/waInstance${config.idInstance}/sendMessage/${config.apiTokenInstance}`;
 
     console.log('[GreenAPI] Sending regular message:', {
       url,
       chatId,
       messageLength: cleanedMessage.length,
+      usingProxy: import.meta.env.DEV,
     });
 
     response = await fetch(url, {
@@ -426,10 +496,23 @@ export const sendWhatsAppMessage = async (
 
     // Check if response indicates failure even with 200 status
     // GreenAPI sometimes returns 200 with error in body
-    if (responseData.error || responseData.errorMessage) {
-      const errorMsg = responseData.error || responseData.errorMessage || 'Unknown error in response';
+    // Also check for common error patterns
+    const hasError = responseData.error || responseData.errorMessage || responseData.errorCode;
+    const hasErrorMessage = responseData.errorMessage || responseData.message;
+    const hasErrorCode = responseData.errorCode;
+    
+    // Check for common error patterns in response
+    const responseString = JSON.stringify(responseData).toLowerCase();
+    const commonErrors = ['unauthorized', 'forbidden', 'not found', 'invalid', 'failed', 'error'];
+    const hasCommonError = commonErrors.some(err => responseString.includes(err));
+    
+    if (hasError || hasErrorCode || (hasCommonError && !responseData.idMessage)) {
+      const errorMsg = responseData.error || responseData.errorMessage || responseData.message || 
+                      (responseData.errorCode ? `Error code: ${responseData.errorCode}` : 'Unknown error in response');
       console.error('[GreenAPI] Message send failed despite 200 status:', {
         error: errorMsg,
+        errorCode: responseData.errorCode,
+        hasCommonError,
         fullResponse: responseData,
       });
       return {
@@ -439,48 +522,44 @@ export const sendWhatsAppMessage = async (
     }
 
     // Verify message was actually queued/sent
-    // idMessage should be present and not null for successful sends
-    // Note: Some GreenAPI responses might not include idMessage but still succeed
+    // idMessage MUST be present and valid for successful sends
+    // Without idMessage, we cannot confirm the message was queued
     if (responseData.idMessage === null || responseData.idMessage === undefined) {
-      // Check if there's a success indicator in the response
-      if (responseData.sentMessageId || responseData.messageId) {
-        console.warn('[GreenAPI] Response missing idMessage but has other success indicators:', {
-          responseData,
-          sentMessageId: responseData.sentMessageId,
-          messageId: responseData.messageId,
-        });
-        // Consider it successful if we have other indicators
-        return {
-          success: true,
-          data: responseData,
-          warning: 'Response missing idMessage but message appears to have been sent',
-        };
-      }
-      
-      // If response is 200 OK with no error, consider it successful even without idMessage
-      // Some GreenAPI versions or configurations might not return idMessage
-      if (response.ok && !responseData.error && !responseData.errorMessage) {
-        console.warn('[GreenAPI] Response is 200 OK with no errors but missing idMessage. Assuming success:', {
-          responseData,
-          chatId,
-        });
-        return {
-          success: true,
-          data: responseData,
-          warning: 'Response missing idMessage but HTTP status indicates success',
-        };
-      }
-      
       console.error('[GreenAPI] Response missing idMessage - message was NOT sent:', {
         responseData,
         chatId,
         messageLength: cleanedMessage.length,
         formattedPhone: formattedPhone,
+        status: response.status,
+        statusText: response.statusText,
+        hasError: !!responseData.error,
+        hasErrorMessage: !!responseData.errorMessage,
         fullResponse: JSON.stringify(responseData, null, 2),
       });
+      
+      // Check for specific error messages in response
+      const errorMsg = responseData.error || responseData.errorMessage || responseData.message;
+      if (errorMsg) {
+        console.error('[GreenAPI] Error message found in response:', errorMsg);
+        return {
+          success: false,
+          error: `Message failed to send: ${errorMsg}`,
+        };
+      }
+      
+      // Check if response is empty or malformed
+      if (!responseData || Object.keys(responseData).length === 0) {
+        console.error('[GreenAPI] Empty or malformed response');
+        return {
+          success: false,
+          error: 'Message failed to send: Empty response from Green API. Check your API credentials and network connection.',
+        };
+      }
+      
+      console.error('[GreenAPI] HTTP 200 but no idMessage - message was NOT queued');
       return {
         success: false,
-        error: 'Message failed to send: Response missing idMessage. This usually means the message was not queued by WhatsApp. Check if the phone number is valid and the WhatsApp account is properly connected.',
+        error: 'Message failed to send: Response missing idMessage. HTTP status was 200, but the message was not queued by WhatsApp. This usually means: 1) The phone number is invalid or not registered on WhatsApp, 2) The WhatsApp account is not properly connected, or 3) There was an issue with the Green API service.',
       };
     }
 
@@ -645,7 +724,12 @@ const sendMediaMessage = async (
     const caption = cleanWhatsAppMessage(params.message || '');
 
     // Use sendFileByUrl endpoint
-    const url = `https://api.green-api.com/waInstance${config.idInstance}/sendFileByUrl/${config.apiTokenInstance}`;
+    // Use Vite proxy in development to avoid CORS issues
+    const baseUrl = import.meta.env.DEV 
+      ? '/api/green-api'  // Use Vite proxy in development
+      : 'https://api.green-api.com';  // Direct call in production
+    
+    const url = `${baseUrl}/waInstance${config.idInstance}/sendFileByUrl/${config.apiTokenInstance}`;
 
     const requestBody: any = {
       chatId,
