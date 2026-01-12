@@ -63,9 +63,25 @@ export const EditViewModal = ({
   // Convert columnVisibility to ColumnVisibility type
   const columnVisibility: ColumnVisibility = useMemo(() => {
     const visibility: any = {};
-    COLUMN_ORDER.forEach((key) => {
-      visibility[key] = filterConfig.columnVisibility?.[key] !== false;
-    });
+    // Only process columns that exist in COLUMN_ORDER (for leads)
+    // For other resources like budgets, use the columnVisibility as-is if it exists
+    if (filterConfig.columnVisibility && Object.keys(filterConfig.columnVisibility).length > 0) {
+      // Check if this is a lead-style columnVisibility or a custom one
+      const hasLeadColumns = COLUMN_ORDER.some(key => key in filterConfig.columnVisibility);
+      if (hasLeadColumns) {
+        COLUMN_ORDER.forEach((key) => {
+          visibility[key] = filterConfig.columnVisibility?.[key] !== false;
+        });
+      } else {
+        // For custom resources (like budgets), use the columnVisibility as-is
+        Object.assign(visibility, filterConfig.columnVisibility);
+      }
+    } else {
+      // Default: all columns visible for leads
+      COLUMN_ORDER.forEach((key) => {
+        visibility[key] = true;
+      });
+    }
     return visibility as ColumnVisibility;
   }, [filterConfig.columnVisibility]);
 
@@ -324,14 +340,14 @@ export const EditViewModal = ({
                 <div className="grid gap-2">
                   <Label htmlFor="sort-by">מיין לפי</Label>
                   <Select
-                    value={filterConfig.sortBy || ''}
-                    onValueChange={(value) => handleSortChange(value, filterConfig.sortOrder || 'asc')}
+                    value={filterConfig.sortBy || 'none'}
+                    onValueChange={(value) => handleSortChange(value === 'none' ? '' : value, filterConfig.sortOrder || 'asc')}
                   >
                     <SelectTrigger id="sort-by" dir="rtl">
                       <SelectValue placeholder="בחר עמודה למיון" />
                     </SelectTrigger>
                     <SelectContent dir="rtl">
-                      <SelectItem value="">ללא מיון</SelectItem>
+                      <SelectItem value="none">ללא מיון</SelectItem>
                       {sortableColumns.map((key) => (
                         <SelectItem key={key} value={key}>
                           {getColumnLabel(key)}
@@ -341,7 +357,7 @@ export const EditViewModal = ({
                   </Select>
                 </div>
 
-                {filterConfig.sortBy && (
+                {filterConfig.sortBy && filterConfig.sortBy !== 'none' && (
                   <div className="grid gap-2">
                     <Label htmlFor="sort-order">כיוון מיון</Label>
                     <Select

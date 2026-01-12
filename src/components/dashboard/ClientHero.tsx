@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare } from 'lucide-react';
+import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { InlineEditableField } from './InlineEditableField';
@@ -25,6 +25,10 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectCustomerNotes, fetchCustomerNotes } from '@/store/slices/leadViewSlice';
 import { SmartTraineeActionButton } from './SmartTraineeActionButton';
 import { fetchInvitations } from '@/store/slices/invitationSlice';
+import { PaymentHistoryModal } from './dialogs/PaymentHistoryModal';
+import { TraineeSettingsModal } from './dialogs/TraineeSettingsModal';
+import { supabase } from '@/lib/supabaseClient';
+import { Settings } from 'lucide-react';
 
 interface LeadData {
   id: string;
@@ -45,6 +49,7 @@ interface ClientHeroProps {
   onUpdateLead?: (updates: any) => Promise<void>;
   onUpdateCustomer?: (updates: any) => Promise<void>;
   getStatusColor: (status: string) => string;
+  onViewCustomerProfile?: () => void;
 }
 
 export const ClientHero: React.FC<ClientHeroProps> = ({
@@ -56,9 +61,12 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   onUpdateLead,
   onUpdateCustomer,
   getStatusColor,
+  onViewCustomerProfile,
 }) => {
   const dispatch = useAppDispatch();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
+  const [isTraineeSettingsOpen, setIsTraineeSettingsOpen] = useState(false);
   const { isHistoryOpen, isNotesOpen, toggleHistory, toggleNotes } = useLeadSidebar();
   
   // Get notes count for the customer
@@ -141,8 +149,17 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
             חזור
           </Button>
 
-            {/* Name - Page Title */}
-            <h1 className="text-base font-bold text-gray-900 flex-shrink-0">{customer.full_name}</h1>
+            {/* Name - Page Title - Clickable to navigate to customer page */}
+            {onViewCustomerProfile ? (
+              <button
+                onClick={onViewCustomerProfile}
+                className="text-base font-bold text-gray-900 flex-shrink-0 hover:text-[#5B6FB9] transition-colors cursor-pointer"
+              >
+                {customer.full_name}
+              </button>
+            ) : (
+              <h1 className="text-base font-bold text-gray-900 flex-shrink-0">{customer.full_name}</h1>
+            )}
 
             {/* Phone - On same line */}
             {onUpdateCustomer && customer && customer.phone && (
@@ -190,7 +207,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                   size="default"
                   onClick={onWhatsApp}
                   variant="outline"
-                  className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
+                  className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
                 >
                   <MessageCircle className="h-5 w-5" strokeWidth={2.5} />
                   WhatsApp
@@ -200,6 +217,50 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                 <p>שלח וואטסאפ</p>
               </TooltipContent>
             </Tooltip>
+
+            {/* Payments Button */}
+            {customer && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="default"
+                      onClick={() => setIsPaymentHistoryOpen(true)}
+                      variant="outline"
+                      className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
+                    >
+                      <CreditCard className="h-5 w-5" strokeWidth={2.5} />
+                      תשלומים
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" align="center" dir="rtl">
+                    <p>צפה בהיסטוריית תשלומים</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )}
+
+            {/* Trainee Settings Button - Only show if user has a trainee account */}
+            {customer && customer.user_id && (user?.role === 'admin' || user?.role === 'user') && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="default"
+                      onClick={() => setIsTraineeSettingsOpen(true)}
+                      variant="outline"
+                      className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
+                    >
+                      <Settings className="h-5 w-5" strokeWidth={2.5} />
+                      הגדרות מתאמן
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" align="center" dir="rtl">
+                    <p>הגדרות משתמש מתאמן - סיסמה ומחיקה</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )}
 
             {/* Vertical Divider */}
             <div className="h-6 w-px bg-gray-200" />
@@ -214,6 +275,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     leadId={lead?.id || null}
                     customerEmail={customer.email || null}
                     customerName={customer.full_name || null}
+                    customerPhone={customer.phone || null}
                     customerUserId={customer.user_id || null}
                     customerInvitationUserId={customerInvitation?.user_id || null}
                   />
@@ -229,7 +291,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     size="default"
                     onClick={toggleHistory}
                     className={cn(
-                      "bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2",
+                      "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2",
                       !isHistoryOpen && "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                     )}
                   >
@@ -249,7 +311,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
                     size="default"
                     onClick={toggleNotes}
                     className={cn(
-                      "bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 relative",
+                      "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 relative",
                       !isNotesOpen && "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                     )}
                   >
@@ -285,103 +347,127 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
           isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
         )}
       >
-        <div className="px-4 pb-3 pt-0 border-t border-slate-100">
+        <div className="pr-4 pl-8 pb-3 pt-0 border-t border-slate-100">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-3">
-            {/* City - Lead Level */}
-            {onUpdateLead && lead && (
-              <InlineEditableField
-                label="עיר"
-                value={lead.city || ''}
-                onSave={async (newValue) => {
-                  if (lead.id) {
-                    await onUpdateLead({ city: String(newValue) });
-                  }
-                }}
-                type="text"
-                className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-gray-900"
-              />
-            )}
+              {/* City - Lead Level */}
+              {onUpdateLead && lead && (
+                <InlineEditableField
+                  label="עיר"
+                  value={lead.city || ''}
+                  onSave={async (newValue) => {
+                    if (lead.id) {
+                      await onUpdateLead({ city: String(newValue) });
+                    }
+                  }}
+                  type="text"
+                  className="border-0 p-0"
+                  valueClassName="text-sm font-semibold text-gray-900"
+                />
+              )}
 
-            {/* Birth Date - Lead Level */}
-            {onUpdateLead && lead && (
-              <InlineEditableField
-                label="תאריך לידה"
-                value={lead.birth_date || ''}
-                onSave={async (newValue) => {
-                  if (lead.id) {
-                    await onUpdateLead({ birth_date: String(newValue) });
-                  }
-                }}
-                type="date"
-                formatValue={(val) => formatDate(String(val))}
-                className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-gray-900"
-              />
-            )}
+              {/* Birth Date - Lead Level */}
+              {onUpdateLead && lead && (
+                <InlineEditableField
+                  label="תאריך לידה"
+                  value={lead.birth_date || ''}
+                  onSave={async (newValue) => {
+                    if (lead.id) {
+                      await onUpdateLead({ birth_date: String(newValue) });
+                    }
+                  }}
+                  type="date"
+                  formatValue={(val) => formatDate(String(val))}
+                  className="border-0 p-0"
+                  valueClassName="text-sm font-semibold text-gray-900"
+                />
+              )}
 
-            {/* Age - Calculated, Read Only */}
-            {age !== null && (
-              <div className="flex items-center gap-2 py-0.5">
-                <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
-                <span className="text-sm font-semibold text-slate-900">{age} שנים</span>
-              </div>
-            )}
+              {/* Age - Calculated, Read Only */}
+              {age !== null && (
+                <div className="flex items-center gap-2 py-0.5">
+                  <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
+                  <span className="text-sm font-semibold text-slate-900">{age} שנים</span>
+                </div>
+              )}
 
-            {/* Gender - Lead Level */}
-            {onUpdateLead && lead && (
-              <InlineEditableSelect
-                label="מגדר"
-                value={lead.gender || ''}
-                options={['male', 'female', 'other']}
-                onSave={async (newValue) => {
-                  if (lead.id) {
-                    await onUpdateLead({ gender: newValue });
-                  }
-                }}
-                formatValue={(val) => getGenderLabel(val)}
-                className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-gray-900"
-                badgeClassName="bg-gray-50 text-gray-700 border-gray-200"
-              />
-            )}
+              {/* Gender - Lead Level */}
+              {onUpdateLead && lead && (
+                <InlineEditableSelect
+                  label="מגדר"
+                  value={lead.gender || ''}
+                  options={['male', 'female', 'other']}
+                  onSave={async (newValue) => {
+                    if (lead.id) {
+                      await onUpdateLead({ gender: newValue });
+                    }
+                  }}
+                  formatValue={(val) => getGenderLabel(val)}
+                  className="border-0 p-0"
+                  valueClassName="text-sm font-semibold text-gray-900"
+                  badgeClassName="bg-gray-50 text-gray-700 border-gray-200"
+                />
+              )}
 
-            {/* Height - Lead Level */}
-            {onUpdateLead && lead && (
-              <InlineEditableField
-                label="גובה"
-                value={lead.height || 0}
-                onSave={async (newValue) => {
-                  if (lead.id) {
-                    await onUpdateLead({ height: Number(newValue) });
-                  }
-                }}
-                type="number"
-                formatValue={(val) => `${val} ס"מ`}
-                className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-gray-900"
-              />
-            )}
+              {/* Height - Lead Level */}
+              {onUpdateLead && lead && (
+                <InlineEditableField
+                  label="גובה"
+                  value={lead.height || 0}
+                  onSave={async (newValue) => {
+                    if (lead.id) {
+                      await onUpdateLead({ height: Number(newValue) });
+                    }
+                  }}
+                  type="number"
+                  formatValue={(val) => `${val} ס"מ`}
+                  className="border-0 p-0"
+                  valueClassName="text-sm font-semibold text-gray-900"
+                />
+              )}
 
-            {/* Weight - Lead Level */}
-            {onUpdateLead && lead && (
-              <InlineEditableField
-                label="משקל"
-                value={lead.weight || 0}
-                onSave={async (newValue) => {
-                  if (lead.id) {
-                    await onUpdateLead({ weight: Number(newValue) });
-                  }
-                }}
-                type="number"
-                formatValue={(val) => `${val} ק"ג`}
-                className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-gray-900"
-              />
-            )}
+              {/* Weight - Lead Level */}
+              {onUpdateLead && lead && (
+                <InlineEditableField
+                  label="משקל"
+                  value={lead.weight || 0}
+                  onSave={async (newValue) => {
+                    if (lead.id) {
+                      await onUpdateLead({ weight: Number(newValue) });
+                    }
+                  }}
+                  type="number"
+                  formatValue={(val) => `${val} ק"ג`}
+                  className="border-0 p-0"
+                  valueClassName="text-sm font-semibold text-gray-900"
+                />
+              )}
           </div>
         </div>
       </div>
+
+      {/* Payment History Modal */}
+      {customer && (
+        <PaymentHistoryModal
+          isOpen={isPaymentHistoryOpen}
+          onClose={() => setIsPaymentHistoryOpen(false)}
+          customerId={customer.id}
+          customerName={customer.full_name}
+          leadId={lead?.id || null}
+        />
+      )}
+
+      {/* Trainee Settings Modal */}
+      {customer && customer.user_id && (
+        <TraineeSettingsModal
+          isOpen={isTraineeSettingsOpen}
+          onClose={() => setIsTraineeSettingsOpen(false)}
+          traineeUserId={customer.user_id}
+          traineeEmail={customer.email}
+          traineeName={customer.full_name}
+          customerPhone={customer.phone}
+          customerId={customer.id}
+        />
+      )}
     </div>
   );
 };

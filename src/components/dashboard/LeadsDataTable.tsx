@@ -1,17 +1,15 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataTable } from '@/components/ui/DataTable';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { leadColumns } from './columns/leadColumns';
-import type { ColumnVisibility } from '@/utils/dashboard';
 
 interface LeadsDataTableProps {
   leads: Lead[];
-  columnVisibility: ColumnVisibility;
   enableColumnVisibility?: boolean;
 }
 
-export const LeadsDataTable = ({ leads, columnVisibility, enableColumnVisibility = true }: LeadsDataTableProps) => {
+export const LeadsDataTable = ({ leads, enableColumnVisibility = true }: LeadsDataTableProps) => {
   const navigate = useNavigate();
 
   // CRITICAL: Pass ALL columns from schema to DataTable
@@ -20,16 +18,16 @@ export const LeadsDataTable = ({ leads, columnVisibility, enableColumnVisibility
     return leadColumns;
   }, []);
 
-  // Convert Redux ColumnVisibility to DataTable's VisibilityState format
-  // This syncs Redux state with DataTable's internal state
+  // Default column visibility - DataTable will read from Redux tableStateSlice after initialization
+  // This is only used for initial setup if Redux state doesn't exist yet
   const initialVisibility = useMemo(() => {
     const visibility: Record<string, boolean> = {};
     leadColumns.forEach((col) => {
-      // Map Redux columnVisibility to DataTable visibility state
-      visibility[col.id] = columnVisibility[col.id] !== false;
+      // Default: all columns visible except hidden ones
+      visibility[col.id] = col.enableHiding !== false;
     });
     return visibility;
-  }, [columnVisibility]);
+  }, []);
 
   // Default column order matching the image (from right to left in RTL)
   // Order: createdDate, name, status, age, birthDate, fitnessGoal, activityLevel, preferredTime, phone, source, notes

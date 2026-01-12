@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Star, Users, Zap } from "lucide-react";
 import { useIndexPage } from './Index';
+import { StyledActionButton } from "@/components/ui/StyledActionButton";
 
 const Index = () => {
   useIndexPage(); // For consistency with pattern
@@ -15,6 +16,18 @@ const Index = () => {
       {/* Hero Section */}
       <section className="pt-24 pb-16 px-6">
         <div className="container mx-auto max-w-4xl text-center">
+          {/* Styled Action Button */}
+          <div className="mb-8 flex justify-center">
+            <div className="w-full max-w-md">
+              <StyledActionButton
+                onClick={() => window.location.href = '/contact'}
+                icon={Zap}
+                label="התחל עכשיו"
+                variant="default"
+                active={false}
+              />
+            </div>
+          </div>
           <div className="animate-fade-up">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
               ברוכים הבאים ל-SimpleWeb

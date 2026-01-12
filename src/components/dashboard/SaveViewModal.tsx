@@ -73,9 +73,21 @@ export const SaveViewModal = ({
       onSuccess?.();
     } catch (error: any) {
       console.error('Failed to save view:', error);
+      
+      // Handle duplicate view name error
+      let errorMessage = 'נכשל בשמירת התצוגה. אנא נסה שוב.';
+      if (error?.message?.includes('unique_view_name_per_resource_user') || 
+          error?.message?.includes('duplicate key')) {
+        errorMessage = 'תצוגה בשם זה כבר קיימת עבור משאב זה. אנא בחר שם אחר.';
+      } else if (error?.message?.includes('saved_views_resource_key_check')) {
+        errorMessage = 'סוג המשאב לא נתמך. אנא פנה למנהל המערכת.';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל בשמירת התצוגה. אנא נסה שוב.',
+        description: errorMessage,
         variant: 'destructive',
       });
     }

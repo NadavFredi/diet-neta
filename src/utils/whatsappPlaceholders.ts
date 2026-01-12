@@ -16,6 +16,8 @@ export const AVAILABLE_PLACEHOLDERS: Placeholder[] = [
   { key: 'name', label: 'שם מלא', description: 'שם הלקוח', category: 'customer' },
   { key: 'phone', label: 'טלפון', description: 'מספר טלפון', category: 'customer' },
   { key: 'email', label: 'אימייל', description: 'כתובת אימייל', category: 'customer' },
+  { key: 'password', label: 'סיסמה', description: 'סיסמת המשתמש', category: 'customer' },
+  { key: 'login_url', label: 'קישור התחברות', description: 'קישור לדף ההתחברות', category: 'customer' },
   { key: 'city', label: 'עיר', description: 'עיר מגורים', category: 'customer' },
   { key: 'gender', label: 'מגדר', description: 'מגדר הלקוח', category: 'customer' },
   
@@ -36,6 +38,8 @@ export const AVAILABLE_PLACEHOLDERS: Placeholder[] = [
   // Plans (if available)
   { key: 'workout_plan_name', label: 'שם תוכנית אימונים', description: 'שם תוכנית האימונים הפעילה', category: 'plans' },
   { key: 'nutrition_plan_name', label: 'שם תוכנית תזונה', description: 'שם תוכנית התזונה הפעילה', category: 'plans' },
+  { key: 'budget_link', label: 'קישור תקציב', description: 'קישור לתקציב (Taktziv)', category: 'plans' },
+  { key: 'budget_name', label: 'שם תקציב', description: 'שם התקציב', category: 'plans' },
   
   // Payment
   { key: 'payment_link', label: 'קישור תשלום', description: 'קישור לתשלום Stripe', category: 'customer' },

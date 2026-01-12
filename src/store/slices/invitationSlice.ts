@@ -316,6 +316,180 @@ export const fetchInvitations = createAsyncThunk(
   }
 );
 
+// Create trainee user with password directly (no email link)
+export const createTraineeUserWithPassword = createAsyncThunk(
+  'invitation/createWithPassword',
+  async (
+    {
+      email,
+      password,
+      customerId,
+      leadId,
+    }: {
+      email: string;
+      password: string;
+      customerId: string;
+      leadId?: string | null;
+    },
+    { rejectWithValue, getState }
+  ) => {
+    try {
+      // Get current user for audit
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      // Check if user is admin/manager
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, email')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('[createTraineeUserWithPassword] Profile fetch error:', profileError);
+        throw new Error(`Failed to verify permissions: ${profileError.message}`);
+      }
+
+      if (!profile || !['admin', 'user'].includes(profile.role)) {
+        throw new Error('Unauthorized: Only admins and managers can create trainee users');
+      }
+
+      // Check if user already exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id, role, email')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existingProfile) {
+        if (existingProfile.role === 'trainee') {
+          throw new Error('User already exists as a trainee');
+        }
+        // Update existing user to trainee role
+        await supabase
+          .from('profiles')
+          .update({ role: 'trainee' })
+          .eq('id', existingProfile.id);
+        
+        return {
+          userId: existingProfile.id,
+          email,
+          isNewUser: false,
+        };
+      }
+
+      // Create user via edge function (uses admin API)
+      console.log('[createTraineeUserWithPassword] Calling edge function with:', {
+        email,
+        customerId,
+        leadId: leadId || null,
+        invitedBy: user.id,
+        passwordLength: password?.length,
+      });
+      
+      // Use fetch directly to get the actual error message from response body
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      // Get and refresh session to ensure we have a valid token
+      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      // If no session or session is expired, try to refresh
+      if (!session || sessionError) {
+        console.log('[createTraineeUserWithPassword] No session or error, attempting refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession) {
+          throw new Error('Not authenticated. Please log in again.');
+        }
+        session = refreshedSession;
+      }
+      
+      if (!session || !session.access_token) {
+        throw new Error('Not authenticated. Please log out and log back in.');
+      }
+      
+      console.log('[createTraineeUserWithPassword] Using session token (first 20 chars):', session.access_token.substring(0, 20));
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/create-trainee-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          customerId,
+          leadId: leadId || null,
+          invitedBy: user.id,
+        }),
+      });
+      
+      const responseData = await response.json();
+      console.log('[createTraineeUserWithPassword] Function response:', { status: response.status, data: responseData });
+      
+      if (!response.ok) {
+        const errorMsg = responseData?.error || responseData?.message || `HTTP ${response.status}: ${response.statusText}`;
+        console.error('[createTraineeUserWithPassword] Edge function error:', errorMsg);
+        
+        // Check if it's a JWT/authentication issue
+        if (response.status === 401 && (errorMsg.includes('JWT') || errorMsg.includes('Invalid') || errorMsg.includes('token'))) {
+          // Check if we're using production URL but have a local session
+          const currentUrl = import.meta.env.VITE_SUPABASE_URL;
+          const isProduction = currentUrl.includes('supabase.co');
+          
+          if (isProduction) {
+            // Clear the invalid session
+            console.log('[createTraineeUserWithPassword] Clearing invalid session...');
+            await supabase.auth.signOut();
+            
+            throw new Error('SESSION_MISMATCH: Your session is from a different Supabase instance. Please refresh the page and log in again.');
+          }
+        }
+        
+        throw new Error(errorMsg);
+      }
+      
+      if (!responseData.success) {
+        const errorMsg = responseData.error || 'Failed to create user';
+        console.error('[createTraineeUserWithPassword] Function returned failure:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      // The successResponse wraps data in a 'data' property
+      const functionData = responseData.data || responseData;
+
+      if (!functionData || !functionData.userId) {
+        console.error('[createTraineeUserWithPassword] Invalid response structure:', {
+          responseData,
+          hasData: !!responseData.data,
+          hasUserId: !!functionData?.userId,
+        });
+        throw new Error('Failed to create user: No user ID returned');
+      }
+
+      // Log audit event
+      await supabase.from('invitation_audit_log').insert({
+        invitation_id: null, // No invitation for direct creation
+        action: 'created_with_password',
+        performed_by: user.id,
+        metadata: { email, customerId, leadId, method: 'direct_password' },
+      });
+
+      return {
+        userId: functionData.userId,
+        email: functionData.email || email,
+        isNewUser: functionData.isNewUser !== undefined ? functionData.isNewUser : true,
+      };
+    } catch (error: any) {
+      console.error('[createTraineeUserWithPassword] Error:', error);
+      return rejectWithValue(error?.message || 'Failed to create trainee user');
+    }
+  }
+);
+
 // Revoke invitation
 export const revokeInvitation = createAsyncThunk(
   'invitation/revoke',
@@ -391,6 +565,17 @@ const invitationSlice = createSlice({
         if (invitation) {
           invitation.status = 'revoked';
         }
+      })
+      .addCase(createTraineeUserWithPassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(createTraineeUserWithPassword.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(createTraineeUserWithPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
       });
   },
 });

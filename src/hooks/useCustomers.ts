@@ -118,6 +118,7 @@ export const useCustomers = () => {
           full_name: customer.full_name,
           phone: customer.phone,
           email: customer.email,
+          user_id: customer.user_id || null, // Include user_id for trainee account link
           created_at: customer.created_at,
           updated_at: customer.updated_at,
           total_leads: leadCounts[customer.id] || 0,
@@ -131,8 +132,8 @@ export const useCustomers = () => {
       }
     },
     enabled: !!user?.email,
-    retry: 1,
-    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -161,6 +162,7 @@ export const useCustomer = (customerId: string | undefined) => {
         full_name: data.full_name,
         phone: data.phone,
         email: data.email,
+        user_id: data.user_id || null, // Include user_id for trainee account link
         created_at: data.created_at,
         updated_at: data.updated_at,
         daily_protocol: data.daily_protocol || {},
@@ -186,5 +188,7 @@ export const useCustomer = (customerId: string | undefined) => {
       } as CustomerWithLeads;
     },
     enabled: !!customerId && !!user?.email,
+    staleTime: 2 * 60 * 1000, // 2 minutes - customer data changes more frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes (renamed from cacheTime in v5)
   });
 };

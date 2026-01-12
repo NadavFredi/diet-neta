@@ -30,7 +30,7 @@ export const useWorkoutPlan = (customerId?: string) => {
 
       const { data, error: fetchError } = await supabase
         .from('workout_plans')
-        .select('*')
+        .select('*, budget_id')
         .eq('customer_id', customerId)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
@@ -47,6 +47,7 @@ export const useWorkoutPlan = (customerId?: string) => {
           user_id: data.user_id,
           lead_id: data.lead_id,
           template_id: data.template_id,
+          budget_id: data.budget_id,
           start_date: data.start_date,
           description: data.description || '',
           strength: data.strength || 0,
@@ -83,7 +84,9 @@ export const useWorkoutPlan = (customerId?: string) => {
         .insert({
           user_id: user.id,
           customer_id: customerId,
+          lead_id: planData.lead_id,
           template_id: planData.template_id,
+          budget_id: planData.budget_id,
           start_date: planData.start_date,
           description: planData.description,
           strength: planData.strength,
@@ -103,6 +106,7 @@ export const useWorkoutPlan = (customerId?: string) => {
           user_id: data.user_id,
           lead_id: data.lead_id,
           template_id: data.template_id,
+          budget_id: data.budget_id,
           start_date: data.start_date,
           description: data.description || '',
           strength: data.strength || 0,

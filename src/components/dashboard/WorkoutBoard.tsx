@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { DndContext, DragOverlay, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -21,12 +21,19 @@ import {
   Zap,
   Dumbbell,
   Edit,
+  Footprints,
+  Image,
+  Video,
+  PlayCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
-import { useWorkoutBoard, DAYS, type Exercise } from '@/hooks/useWorkoutBoard';
+import { useWorkoutBoard, DAYS } from '@/hooks/useWorkoutBoard';
+import type { Exercise } from '@/components/dashboard/WeeklyWorkoutBuilder';
 import { QuickAddExercise } from './QuickAddExercise';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { supabase } from '@/lib/supabaseClient';
 
 interface WorkoutBoardProps {
   mode: 'user' | 'template';
@@ -57,70 +64,519 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
     id: `${dayKey}-${exercise.id}`,
   });
 
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [videoUrlInput, setVideoUrlInput] = useState('');
+  const [isImageUrlDialogOpen, setIsImageUrlDialogOpen] = useState(false);
+  const [isVideoUrlDialogOpen, setIsVideoUrlDialogOpen] = useState(false);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isSortableDragging ? 0.5 : 1,
   };
 
+  const handleImageFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${exercise.id}-${Date.now()}.${fileExt}`;
+      const filePath = `workout-exercises/${exercise.id}/images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('client-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('Upload error details:', uploadError);
+        throw new Error(uploadError.message || 'שגיאה בהעלאת התמונה');
+      }
+
+      // Generate signed URL (valid for 1 year) since bucket is private
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from('client-assets')
+        .createSignedUrl(filePath, 31536000); // 1 year expiration
+
+      if (urlError) {
+        console.error('Error creating signed URL:', urlError);
+        throw new Error(urlError.message || 'לא ניתן לקבל קישור לתמונה');
+      }
+
+      if (urlData?.signedUrl) {
+        onUpdate({ image_url: urlData.signedUrl });
+      } else {
+        throw new Error('לא ניתן לקבל קישור לתמונה');
+      }
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      const errorMessage = error?.message || error?.error?.message || 'שגיאה בהעלאת התמונה';
+      alert(`שגיאה בהעלאת התמונה: ${errorMessage}`);
+    } finally {
+      setIsUploading(false);
+      if (imageFileInputRef.current) {
+        imageFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleVideoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !file.type.startsWith('video/')) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${exercise.id}-${Date.now()}.${fileExt}`;
+      const filePath = `workout-exercises/${exercise.id}/videos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('client-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('Upload error details:', uploadError);
+        throw new Error(uploadError.message || 'שגיאה בהעלאת הווידאו');
+      }
+
+      // Generate signed URL (valid for 1 year) since bucket is private
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from('client-assets')
+        .createSignedUrl(filePath, 31536000); // 1 year expiration
+
+      if (urlError) {
+        console.error('Error creating signed URL:', urlError);
+        throw new Error(urlError.message || 'לא ניתן לקבל קישור לווידאו');
+      }
+
+      if (urlData?.signedUrl) {
+        onUpdate({ video_url: urlData.signedUrl });
+      } else {
+        throw new Error('לא ניתן לקבל קישור לווידאו');
+      }
+    } catch (error: any) {
+      console.error('Error uploading video:', error);
+      const errorMessage = error?.message || error?.error?.message || 'שגיאה בהעלאת הווידאו';
+      alert(`שגיאה בהעלאת הווידאו: ${errorMessage}`);
+    } finally {
+      setIsUploading(false);
+      if (videoFileInputRef.current) {
+        videoFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleImageUrlSubmit = () => {
+    if (imageUrlInput.trim()) {
+      onUpdate({ image_url: imageUrlInput.trim() });
+      setImageUrlInput('');
+      setIsImageUrlDialogOpen(false);
+    }
+  };
+
+  const handleVideoUrlSubmit = () => {
+    if (videoUrlInput.trim()) {
+      onUpdate({ video_url: videoUrlInput.trim() });
+      setVideoUrlInput('');
+      setIsVideoUrlDialogOpen(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    onUpdate({ image_url: undefined });
+  };
+
+  const handleRemoveVideo = () => {
+    onUpdate({ video_url: undefined });
+  };
+
   return (
-    <Card
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        'p-2 mb-1.5 bg-white border border-gray-200 hover:border-blue-300 cursor-grab active:cursor-grabbing',
-        isDragging && 'opacity-50'
-      )}
-      dir="rtl"
-    >
-      <div className="flex items-start gap-1.5">
-        <div
-          {...attributes}
-          {...listeners}
-          className="mt-0.5 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
-        >
-          <GripVertical className="h-3.5 w-3.5" />
+    <>
+      <Card
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          'p-2 mb-1.5 bg-white border border-gray-200 hover:border-blue-300 cursor-grab active:cursor-grabbing',
+          isDragging && 'opacity-50'
+        )}
+        dir="rtl"
+      >
+        <div className="flex items-start gap-1.5">
+          <div
+            {...attributes}
+            {...listeners}
+            className="mt-0.5 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1.5">
+              <Input
+                value={exercise.name}
+                onChange={(e) => onUpdate({ name: e.target.value })}
+                className="h-6 text-xs font-medium border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                placeholder="שם התרגיל"
+                dir="rtl"
+              />
+              <div className="flex items-center gap-1">
+                {/* Image Upload Button */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 text-gray-400 hover:text-blue-600"
+                      onClick={(e) => e.stopPropagation()}
+                      disabled={isUploading}
+                    >
+                      <Image className={cn('h-3 w-3', exercise.image_url && 'text-blue-600')} />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-3" dir="rtl" onClick={(e) => e.stopPropagation()}>
+                    <div className="space-y-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => {
+                          imageFileInputRef.current?.click();
+                        }}
+                        disabled={isUploading}
+                      >
+                        <Image className="h-3 w-3 ml-1" />
+                        העלה תמונה
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => setIsImageUrlDialogOpen(true)}
+                        disabled={isUploading}
+                      >
+                        <Image className="h-3 w-3 ml-1" />
+                        הוסף קישור תמונה
+                      </Button>
+                      {exercise.image_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-xs text-red-600 hover:text-red-700"
+                          onClick={handleRemoveImage}
+                        >
+                          <X className="h-3 w-3 ml-1" />
+                          הסר תמונה
+                        </Button>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                {/* Video Upload Button */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 text-gray-400 hover:text-blue-600"
+                      onClick={(e) => e.stopPropagation()}
+                      disabled={isUploading}
+                    >
+                      <Video className={cn('h-3 w-3', exercise.video_url && 'text-blue-600')} />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-3" dir="rtl" onClick={(e) => e.stopPropagation()}>
+                    <div className="space-y-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => {
+                          videoFileInputRef.current?.click();
+                        }}
+                        disabled={isUploading}
+                      >
+                        <Video className="h-3 w-3 ml-1" />
+                        העלה וידאו
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => setIsVideoUrlDialogOpen(true)}
+                        disabled={isUploading}
+                      >
+                        <PlayCircle className="h-3 w-3 ml-1" />
+                        הוסף קישור וידאו
+                      </Button>
+                      {exercise.video_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-xs text-red-600 hover:text-red-700"
+                          onClick={handleRemoveVideo}
+                        >
+                          <X className="h-3 w-3 ml-1" />
+                          הסר וידאו
+                        </Button>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 text-gray-400 hover:text-red-600"
+                  onClick={onRemove}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <Input
+                type="number"
+                value={exercise.sets}
+                onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 0 })}
+                className="h-5 w-10 text-center border-gray-200 text-xs px-1"
+                dir="ltr"
+              />
+              <span className="text-xs">סטים</span>
+              <span className="text-gray-300 text-xs">×</span>
+              <Input
+                type="number"
+                value={exercise.reps}
+                onChange={(e) => onUpdate({ reps: parseInt(e.target.value) || 0 })}
+                className="h-5 w-10 text-center border-gray-200 text-xs px-1"
+                dir="ltr"
+              />
+              <span className="text-xs">חזרות</span>
+            </div>
+            
+            {/* Media Thumbnails */}
+            {(exercise.image_url || exercise.video_url) && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                {exercise.image_url && (
+                  <div className="relative group">
+                    <img
+                      src={exercise.image_url}
+                      alt={exercise.name}
+                      className="h-12 w-12 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setIsImageModalOpen(true)}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute -top-1 -right-1 h-4 w-4 p-0 bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveImage();
+                      }}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </Button>
+                  </div>
+                )}
+                {exercise.video_url && (
+                  <div className="relative group">
+                    <div
+                      className="h-12 w-12 rounded border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 flex items-center justify-center"
+                      onClick={() => setIsVideoModalOpen(true)}
+                    >
+                      <PlayCircle className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute -top-1 -right-1 h-4 w-4 p-0 bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveVideo();
+                      }}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1.5">
-            <Input
-              value={exercise.name}
-              onChange={(e) => onUpdate({ name: e.target.value })}
-              className="h-6 text-xs font-medium border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-              placeholder="שם התרגיל"
-              dir="rtl"
+
+        {/* Hidden file inputs */}
+        <input
+          ref={imageFileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageFileUpload}
+        />
+        <input
+          ref={videoFileInputRef}
+          type="file"
+          accept="video/*"
+          className="hidden"
+          onChange={handleVideoFileUpload}
+        />
+      </Card>
+
+      {/* Image URL Input Dialog */}
+      <Dialog open={isImageUrlDialogOpen} onOpenChange={setIsImageUrlDialogOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="image-url" className="text-sm font-medium mb-2 block">
+                קישור תמונה
+              </Label>
+              <Input
+                id="image-url"
+                value={imageUrlInput}
+                onChange={(e) => setImageUrlInput(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className="w-full"
+                dir="ltr"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleImageUrlSubmit();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleImageUrlSubmit} className="flex-1" disabled={!imageUrlInput.trim()}>
+                שמור
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsImageUrlDialogOpen(false);
+                  setImageUrlInput('');
+                }}
+                className="flex-1"
+              >
+                ביטול
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Video URL Input Dialog */}
+      <Dialog open={isVideoUrlDialogOpen} onOpenChange={setIsVideoUrlDialogOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="video-url" className="text-sm font-medium mb-2 block">
+                קישור וידאו (YouTube/Vimeo/כל קישור)
+              </Label>
+              <Input
+                id="video-url"
+                value={videoUrlInput}
+                onChange={(e) => setVideoUrlInput(e.target.value)}
+                placeholder="https://youtube.com/watch?v=..."
+                className="w-full"
+                dir="ltr"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleVideoUrlSubmit();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleVideoUrlSubmit} className="flex-1" disabled={!videoUrlInput.trim()}>
+                שמור
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsVideoUrlDialogOpen(false);
+                  setVideoUrlInput('');
+                }}
+                className="flex-1"
+              >
+                ביטול
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Lightbox Modal */}
+      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0" dir="rtl">
+          <div className="relative w-full h-full flex items-center justify-center bg-black/90">
+            <img
+              src={exercise.image_url}
+              alt={exercise.name}
+              className="max-w-full max-h-[95vh] object-contain"
             />
             <Button
               variant="ghost"
               size="sm"
-              className="h-5 w-5 p-0 text-gray-400 hover:text-red-600"
-              onClick={onRemove}
+              className="absolute top-2 left-2 text-white hover:bg-white/20"
+              onClick={() => setIsImageModalOpen(false)}
             >
-              <X className="h-3 w-3" />
+              <X className="h-5 w-5" />
             </Button>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-600">
-            <Input
-              type="number"
-              value={exercise.sets}
-              onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 0 })}
-              className="h-5 w-10 text-center border-gray-200 text-xs px-1"
-              dir="ltr"
-            />
-            <span className="text-xs">סטים</span>
-            <span className="text-gray-300 text-xs">×</span>
-            <Input
-              type="number"
-              value={exercise.reps}
-              onChange={(e) => onUpdate({ reps: parseInt(e.target.value) || 0 })}
-              className="h-5 w-10 text-center border-gray-200 text-xs px-1"
-              dir="ltr"
-            />
-            <span className="text-xs">חזרות</span>
+        </DialogContent>
+      </Dialog>
+
+      {/* Video Lightbox Modal */}
+      <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0" dir="rtl">
+          <div className="relative w-full h-full flex items-center justify-center bg-black/90">
+            <div className="w-full max-w-4xl aspect-video">
+              {exercise.video_url?.includes('youtube.com') || exercise.video_url?.includes('youtu.be') ? (
+                <iframe
+                  src={exercise.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : exercise.video_url?.includes('vimeo.com') ? (
+                <iframe
+                  src={exercise.video_url.replace('vimeo.com/', 'player.vimeo.com/video/')}
+                  className="w-full h-full"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  src={exercise.video_url}
+                  controls
+                  className="w-full h-full"
+                  autoPlay
+                />
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 left-2 text-white hover:bg-white/20"
+              onClick={() => setIsVideoModalOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
-        </div>
-      </div>
-    </Card>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
@@ -134,6 +590,7 @@ const ManualExerciseInput = ({ onAdd }: ManualExerciseInputProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event from bubbling up to parent forms/dialogs
     if (exerciseName.trim()) {
       onAdd(exerciseName.trim());
       setExerciseName('');
@@ -147,7 +604,7 @@ const ManualExerciseInput = ({ onAdd }: ManualExerciseInputProps) => {
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen} dir="rtl">
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -169,6 +626,18 @@ const ManualExerciseInput = ({ onAdd }: ManualExerciseInputProps) => {
               id="manual-exercise-name"
               value={exerciseName}
               onChange={(e) => setExerciseName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Manually trigger submit with a synthetic event
+                  const syntheticEvent = {
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                  } as React.FormEvent;
+                  handleSubmit(syntheticEvent);
+                }
+              }}
               placeholder="הזן שם תרגיל..."
               className="w-full"
               dir="rtl"
@@ -348,12 +817,14 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
     startDate,
     description,
     generalGoals,
+    stepsGoal,
     goalTags,
     weeklyWorkout,
     activeId,
     setStartDate,
     setDescription,
     setGeneralGoals,
+    setStepsGoal,
     setGoalTags,
     addExercise,
     updateExercise,
@@ -378,6 +849,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling to parent forms
     try {
       const data = getWorkoutData();
       if (mode === 'user') {
@@ -463,6 +935,23 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
               />
             </div>
           </div>
+          {mode === 'user' && (
+            <div>
+              <Label htmlFor="stepsGoal" className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2">
+                <Footprints className="h-4 w-4" />
+                יעד צעדים יומי
+              </Label>
+              <Input
+                id="stepsGoal"
+                type="number"
+                value={stepsGoal || ''}
+                onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
+                placeholder="לדוגמה: 7000"
+                className="max-w-xs"
+                dir="ltr"
+              />
+            </div>
+          )}
           {mode === 'template' && (
             <div>
               <Label htmlFor="goalTags" className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2">
@@ -589,7 +1078,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
       <div className="flex-shrink-0 border-t border-slate-200 bg-white p-3 flex gap-3" dir="rtl">
         <Button
           type="submit"
-          className="flex-1 bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white"
+          className="flex-1 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
         >
           שמור {mode === 'user' ? 'תוכנית' : 'תבנית'}
         </Button>

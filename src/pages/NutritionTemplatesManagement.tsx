@@ -12,13 +12,14 @@ import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector } from '@/store/hooks';
 import { NutritionTemplatesDataTable } from '@/components/dashboard/NutritionTemplatesDataTable';
-import { NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { NUTRITION_TEMPLATE_FILTER_FIELDS, getNutritionTemplateFilterFields } from '@/hooks/useTableFilters';
 import { useTableFilters } from '@/hooks/useTableFilters';
 import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
 import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/EditNutritionTemplateDialog';
 import { DeleteNutritionTemplateDialog } from '@/components/dashboard/dialogs/DeleteNutritionTemplateDialog';
 import { useNutritionTemplatesManagement } from './NutritionTemplatesManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { nutritionTemplateColumns } from '@/components/dashboard/columns/templateColumns';
 
 const NutritionTemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -90,16 +91,15 @@ const NutritionTemplatesManagement = () => {
                   dataCount={templates.length}
                   singularLabel="תבנית"
                   pluralLabel="תבניות"
-                  filterFields={NUTRITION_TEMPLATE_FILTER_FIELDS}
+                  filterFields={getNutritionTemplateFilterFields(templates)}
                   searchPlaceholder="חיפוש לפי שם או תיאור..."
                   addButtonLabel="הוסף תבנית"
                   onAddClick={handleAddTemplate}
                   enableColumnVisibility={true}
                   enableFilters={true}
+                  enableGroupBy={true}
                   enableSearch={true}
-                  useTemplateColumnSettings={true}
-                  templateColumnVisibility={columnVisibility}
-                  onToggleTemplateColumn={handleToggleColumn}
+                  columns={nutritionTemplateColumns}
                 />
                 
                 <div className="bg-white">
@@ -108,7 +108,6 @@ const NutritionTemplatesManagement = () => {
                   ) : (
                     <NutritionTemplatesDataTable
                       templates={templates}
-                      columnVisibility={columnVisibility}
                       onEdit={handleEditTemplate}
                       onDelete={handleDeleteClick}
                     />
@@ -158,7 +157,7 @@ const NutritionTemplatesManagement = () => {
         onOpenChange={setIsEditViewModalOpen}
         view={viewToEdit}
         currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={NUTRITION_TEMPLATE_FILTER_FIELDS}
+        filterFields={getNutritionTemplateFilterFields(templates)}
         onSuccess={() => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);

@@ -230,20 +230,12 @@ export const getFormSubmissionById = async (
 
 /**
  * Normalize phone number for comparison (remove spaces, dashes, parentheses, country codes)
+ * Uses centralized phone normalization utility
  */
+import { normalizePhoneNumber as normalizePhoneFromUtils } from '@/components/ui/phone-input';
+
 const normalizePhoneNumber = (phone: string): string => {
-  if (!phone) return '';
-  // Remove all non-digit characters
-  let cleaned = phone.replace(/\D/g, '');
-  // Remove leading country code if present (972 for Israel)
-  if (cleaned.startsWith('972') && cleaned.length > 9) {
-    cleaned = cleaned.substring(3);
-  }
-  // Remove leading 0 if present
-  if (cleaned.startsWith('0')) {
-    cleaned = cleaned.substring(1);
-  }
-  return cleaned;
+  return normalizePhoneFromUtils(phone);
 };
 
 /**

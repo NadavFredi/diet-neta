@@ -9,17 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NetaLogo } from '@/components/ui/NetaLogo';
 import { MessageCircle } from 'lucide-react';
-import { useLogin, type LoginMethod } from './Login';
+import { useLogin } from './Login';
 
 const Login = () => {
   const {
-    loginMethod,
-    phoneNumber,
     email,
     password,
     isLoading,
-    handleMethodToggle,
-    handlePhoneChange,
     handleEmailChange,
     handlePasswordChange,
     handleLogin,
@@ -47,7 +43,6 @@ const Login = () => {
                   className="h-12 w-auto object-contain max-h-12"
                 />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">נטע הירש- דיאטה</h1>
             </div>
 
             {/* Welcome Text */}
@@ -58,99 +53,48 @@ const Login = () => {
               </p>
             </div>
 
-            {/* Method Toggle */}
-            <div className="mb-6">
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  type="button"
-                  onClick={() => handleMethodToggle('phone')}
-                  className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all ${
-                    loginMethod === 'phone'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  טלפון
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleMethodToggle('email')}
-                  className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all ${
-                    loginMethod === 'email'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  אימייל
-                </button>
-              </div>
-            </div>
-
             {/* Input Field */}
             <div className="mb-6">
-              {loginMethod === 'phone' ? (
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
-                    מספר טלפון
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                    אימייל
                   </Label>
-                  <div className="flex rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all" dir="ltr">
-                    <div className="flex items-center gap-2 px-4 bg-gray-50 border-r border-gray-300 min-w-[100px]">
-                      <span className="text-lg">🇮🇱</span>
-                      <span className="text-sm font-medium text-gray-700">+972</span>
-                    </div>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="הכנס את מספר הטלפון שלך"
-                      value={phoneNumber}
-                      onChange={(e) => handlePhoneChange(e.target.value)}
-                      className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-11 text-left"
-                      dir="ltr"
-                    />
-                  </div>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="הכנס את כתובת האימייל שלך"
+                    value={email}
+                    onChange={(e) => handleEmailChange(e.target.value)}
+                    className="h-11"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && email && password) {
+                        e.preventDefault();
+                        handleLogin();
+                      }
+                    }}
+                  />
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                      אימייל
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="הכנס את כתובת האימייל שלך"
-                      value={email}
-                      onChange={(e) => handleEmailChange(e.target.value)}
-                      className="h-11"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && email && password) {
-                          e.preventDefault();
-                          handleLogin();
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                      סיסמה
-                    </Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="הכנס את הסיסמה שלך"
-                      value={password}
-                      onChange={(e) => handlePasswordChange(e.target.value)}
-                      className="h-11"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && email && password) {
-                          e.preventDefault();
-                          handleLogin();
-                        }
-                      }}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                    סיסמה
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="הכנס את הסיסמה שלך"
+                    value={password}
+                    onChange={(e) => handlePasswordChange(e.target.value)}
+                    className="h-11"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && email && password) {
+                        e.preventDefault();
+                        handleLogin();
+                      }
+                    }}
+                  />
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Login Button */}
@@ -161,8 +105,11 @@ const Login = () => {
                 e.stopPropagation();
                 handleLogin();
               }}
-              disabled={isLoading || (loginMethod === 'email' && (!email || !password)) || (loginMethod === 'phone' && !phoneNumber)}
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading || !email || !password}
+              className="w-full h-11 text-white font-semibold mb-4 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+              style={{
+                backgroundColor: "#5B6FB9",
+              }}
             >
               {isLoading ? 'מתחבר...' : 'כניסה למערכת'}
             </Button>
@@ -181,7 +128,7 @@ const Login = () => {
             <div className="text-center">
               <p className="text-sm text-gray-600">
                 אין לך חשבון?{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">
+                <a href="#" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#5B6FB9' }}>
                   צור קשר עם המנהל
                 </a>
               </p>
@@ -195,7 +142,7 @@ const Login = () => {
         <div
           className="text-white"
           style={{
-            backgroundColor: "#4f60a8",
+            backgroundColor: "#5B6FB9",
           }}
         >
           <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row">

@@ -12,12 +12,18 @@ export interface WhatsAppButton {
   text: string;
 }
 
+export interface MediaData {
+  type: 'image' | 'video' | 'gif';
+  url: string;
+}
+
 export interface WhatsAppFlowTemplate {
   id: string;
   user_id: string;
   flow_key: string;
   template_content: string;
   buttons?: WhatsAppButton[]; // Optional array of interactive buttons (max 3)
+  media?: MediaData | null; // Optional media attachment (image, video, or GIF)
   created_at: string;
   updated_at: string;
 }
@@ -105,9 +111,36 @@ export const fetchTemplates = createAsyncThunk(
             }
           }
           
+          // Parse media from JSONB if it exists
+          let parsedMedia: MediaData | null = null;
+          if (template.media !== null && template.media !== undefined) {
+            try {
+              let mediaData = template.media;
+              if (typeof mediaData === 'string') {
+                mediaData = JSON.parse(mediaData);
+              }
+              if (typeof mediaData === 'object' && mediaData !== null && typeof mediaData.type === 'string' && typeof mediaData.url === 'string') {
+                const mediaUrl = String(mediaData.url);
+                console.log('[fetchTemplates] Parsed media for template:', template.flow_key, {
+                  type: mediaData.type,
+                  url: mediaUrl
+                });
+                parsedMedia = {
+                  type: mediaData.type as 'image' | 'video' | 'gif',
+                  url: mediaUrl
+                };
+              } else {
+                console.warn('[fetchTemplates] Invalid media data structure:', mediaData);
+              }
+            } catch (error) {
+              console.warn('[fetchTemplates] Error parsing media:', error, template.media);
+            }
+          }
+
           const parsedTemplate: WhatsAppFlowTemplate = {
             ...template,
             buttons: parsedButtons,
+            media: parsedMedia,
           } as WhatsAppFlowTemplate;
           templatesMap[template.flow_key] = parsedTemplate;
         });
@@ -128,11 +161,13 @@ export const saveTemplate = createAsyncThunk(
     { 
       flowKey, 
       templateContent, 
-      buttons 
+      buttons,
+      media
     }: { 
       flowKey: string; 
       templateContent: string; 
-      buttons?: WhatsAppButton[] 
+      buttons?: WhatsAppButton[];
+      media?: { type: 'image' | 'video' | 'gif'; file?: File; url?: string; previewUrl?: string } | null;
     },
     { rejectWithValue, getState }
   ) => {
@@ -151,15 +186,75 @@ export const saveTemplate = createAsyncThunk(
       const state = getState() as { automation: AutomationState };
       const existingTemplate = state.automation.templates[flowKey];
 
+      // Handle media upload (if file needs to be uploaded to storage)
+      let mediaData: MediaData | null = null;
+      if (media) {
+        if (media.file) {
+          // Upload file to storage
+          const fileExt = media.file.name.split('.').pop();
+          const fileName = `${user.id}/${flowKey}/${Date.now()}.${fileExt}`;
+          const bucketName = 'client-assets'; // Using existing bucket
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from(bucketName)
+            .upload(`templates/${fileName}`, media.file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error('[saveTemplate] Error uploading file:', uploadError);
+            
+            // Provide user-friendly error messages based on error type
+            let errorMessage = 'נכשל בהעלאת הקובץ';
+            if (uploadError.message.includes('name resolution failed') || uploadError.message.includes('503')) {
+              errorMessage = 'שירות האחסון לא זמין כרגע. אנא ודא שהשירות פועל או נסה שוב מאוחר יותר.';
+            } else if (uploadError.message.includes('Bucket not found')) {
+              errorMessage = 'תיקיית האחסון לא נמצאה. אנא ודא שהשירות מוגדר כהלכה.';
+            } else {
+              errorMessage = `נכשל בהעלאת הקובץ: ${uploadError.message}`;
+            }
+            
+            throw new Error(errorMessage);
+          }
+
+          // Get signed URL (valid for 1 year) since bucket is private
+          const { data: urlData, error: urlError } = await supabase.storage
+            .from(bucketName)
+            .createSignedUrl(`templates/${fileName}`, 31536000); // 1 year expiration
+
+          if (urlError) {
+            console.error('[saveTemplate] Error creating signed URL:', urlError);
+            throw new Error(`נכשל ביצירת קישור לקובץ: ${urlError.message}`);
+          }
+
+          if (!urlData?.signedUrl) {
+            throw new Error('לא ניתן לקבל קישור לקובץ');
+          }
+
+          mediaData = {
+            type: media.type,
+            url: urlData.signedUrl
+          };
+        } else if (media.url) {
+          // GIF or existing URL - store directly
+          mediaData = {
+            type: media.type,
+            url: media.url
+          };
+        }
+      }
+
       const updateData: any = { 
         template_content: templateContent,
       };
       
-      // Only include buttons if provided (to allow clearing buttons)
+      // Always update buttons - use empty array if undefined or empty to clear buttons
       // Supabase will automatically handle JSONB conversion
-      if (buttons !== undefined) {
-        updateData.buttons = buttons.length > 0 ? buttons : [];
-      }
+      updateData.buttons = (buttons && buttons.length > 0) ? buttons : [];
+      
+      // Update media (can be null to clear)
+      updateData.media = mediaData;
 
       if (existingTemplate) {
         // Update existing template
@@ -181,6 +276,7 @@ export const saveTemplate = createAsyncThunk(
             flow_key: flowKey,
             template_content: templateContent,
             buttons: buttons || [],
+            media: mediaData,
           })
           .select()
           .single();

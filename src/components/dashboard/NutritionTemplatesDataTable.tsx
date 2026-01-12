@@ -3,22 +3,18 @@ import { DataTable } from '@/components/ui/DataTable';
 import type { NutritionTemplate } from '@/hooks/useNutritionTemplates';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
-import type { TemplateColumnVisibility } from './TemplateColumnSettings';
 import { nutritionTemplateColumns } from './columns/templateColumns';
 
 interface NutritionTemplatesDataTableProps {
   templates: NutritionTemplate[];
-  columnVisibility: TemplateColumnVisibility;
   onEdit: (template: NutritionTemplate) => void;
   onDelete: (template: NutritionTemplate) => void;
 }
 
 export const NutritionTemplatesDataTable = ({
   templates,
-  columnVisibility,
   onEdit,
   onDelete,
-  enableColumnVisibility = true,
 }: NutritionTemplatesDataTableProps) => {
   // CRITICAL: Pass ALL columns from schema to DataTable
   // This ensures the column visibility popover shows ALL available Nutrition Template columns

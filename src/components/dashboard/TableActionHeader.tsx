@@ -59,6 +59,7 @@ interface TableActionHeaderProps {
   onAddClick?: () => void;
   enableColumnVisibility?: boolean;
   enableFilters?: boolean;
+  enableGroupBy?: boolean;
   enableSearch?: boolean;
   enableSettings?: boolean;
   onSettingsClick?: () => void;
@@ -71,6 +72,9 @@ interface TableActionHeaderProps {
   
   // For generic column settings (when not using template column settings)
   columns?: DataTableColumn<any>[];
+  
+  // Custom actions to add to the header (e.g., sync button for meetings)
+  customActions?: React.ReactNode;
   
   // Legacy support: For leads, we still use dashboardSlice for search/filters
   // If these are provided, they override Redux state
@@ -95,7 +99,9 @@ export const TableActionHeader = ({
   onAddClick,
   enableColumnVisibility = true,
   enableFilters = true,
+  enableGroupBy = true,
   enableSearch = true,
+  customActions,
   enableSettings = false,
   onSettingsClick,
   className,
@@ -183,11 +189,15 @@ export const TableActionHeader = ({
     : undefined;
 
   const handleToggleColumn = (columnId: string) => {
-    if (resourceKey === 'leads') {
-      // Legacy leads column visibility in dashboardSlice
+    // Priority: Use Redux tableStateSlice for all resources when columns are provided
+    // This ensures column visibility syncs with DataTable
+    if (columns && columns.length > 0) {
+      dispatch(toggleTableColumnVisibility({ resourceKey, columnId }));
+    } else if (resourceKey === 'leads') {
+      // Legacy leads column visibility in dashboardSlice (fallback)
       dispatch(toggleColumnVisibility(columnId as any));
     } else if (useTemplateColumnSettings && onToggleTemplateColumn) {
-      // Template column settings - use provided handler
+      // Template column settings - use provided handler (fallback)
       onToggleTemplateColumn(columnId);
     } else {
       // Use new tableStateSlice for other resources
@@ -244,7 +254,19 @@ export const TableActionHeader = ({
   };
 
   const getColumnSettingsComponent = () => {
-    // Template column settings (nutrition_templates, templates using TemplateColumnSettings)
+    // Priority 1: Generic column settings (using Redux tableStateSlice) - works for all tables
+    // This ensures column visibility syncs with DataTable which also uses Redux tableStateSlice
+    if (columns && columns.length > 0) {
+      return (
+        <GenericColumnSettings
+          resourceKey={resourceKey}
+          columns={columns}
+          columnOrder={columnOrder.length > 0 ? columnOrder : columns.map((col) => col.id)}
+        />
+      );
+    }
+    
+    // Fallback 1: Template column settings (for backward compatibility if columns not provided)
     if (useTemplateColumnSettings && templateColumnVisibility && onToggleTemplateColumn) {
       return (
         <TemplateColumnSettings
@@ -254,23 +276,12 @@ export const TableActionHeader = ({
       );
     }
     
-    // Leads: use legacy ColumnSettings component
+    // Fallback 2: Leads legacy ColumnSettings (for backward compatibility if columns not provided)
     if (resourceKey === 'leads' && leadsColumnVisibility) {
       return (
         <ColumnSettings
           columnVisibility={leadsColumnVisibility}
           onToggleColumn={handleToggleColumn as any}
-        />
-      );
-    }
-    
-    // Generic column settings for customers and other resources (using Redux)
-    if (columns && columns.length > 0) {
-      return (
-        <GenericColumnSettings
-          resourceKey={resourceKey}
-          columns={columns}
-          columnOrder={columnOrder.length > 0 ? columnOrder : columns.map((col) => col.id)}
         />
       );
     }
@@ -317,7 +328,7 @@ export const TableActionHeader = ({
           )}
 
           {/* Group By Button */}
-          {enableColumnVisibility && columns && columns.length > 0 && (
+          {enableGroupBy && columns && columns.length > 0 && (
             <Popover open={isGroupByOpen} onOpenChange={setIsGroupByOpen}>
               <PopoverTrigger asChild>
                 <Button 
@@ -356,17 +367,20 @@ export const TableActionHeader = ({
             />
           )}
 
-          {/* Add Button - Leftmost (last in RTL flex) */}
+          {/* Add Button */}
           {addButtonLabel && onAddClick && (
             <Button
               onClick={onAddClick}
-              className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white rounded-lg flex items-center gap-2 flex-shrink-0"
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-2 flex-shrink-0"
               size="sm"
             >
               <Plus className="h-4 w-4" />
               <span>{addButtonLabel}</span>
             </Button>
           )}
+
+          {/* Custom actions slot - Leftmost (last in RTL flex) */}
+          {customActions}
 
           {/* Settings Button (Optional) - Not used in current design */}
           {enableSettings && onSettingsClick && (

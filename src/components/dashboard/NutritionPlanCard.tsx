@@ -13,6 +13,7 @@ import {
   Target,
   Trash2
 } from 'lucide-react';
+import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { format, differenceInDays, differenceInWeeks, differenceInMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -101,7 +102,7 @@ export const NutritionPlanCard = ({
               <Flame className="h-6 w-6 text-orange-600" />
               תוכנית תזונה
             </CardTitle>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               <Badge 
                 variant="outline" 
                 className="bg-orange-50 text-orange-700 border-orange-200 font-semibold px-3 py-1"
@@ -116,6 +117,7 @@ export const NutritionPlanCard = ({
                 <Calendar className="h-3 w-3 mr-1" />
                 התחלה: {format(startDate, 'dd/MM/yyyy', { locale: he })}
               </Badge>
+              <BudgetLinkBadge budgetId={nutritionPlan.budget_id} />
             </div>
           </div>
           {isEditable && (

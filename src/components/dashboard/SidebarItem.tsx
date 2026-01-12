@@ -5,7 +5,7 @@
  * and popover for sub-menus in collapsed state.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
@@ -23,6 +23,7 @@ import { useSavedViews, type SavedView } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useToast } from '@/hooks/use-toast';
 import { DeleteViewDialog } from './DeleteViewDialog';
+import { getResourceKeyFromPath } from '@/utils/resourceUtils';
 
 interface NavItem {
   id: string;
@@ -67,14 +68,36 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const [lastClickTime, setLastClickTime] = useState(0);
 
   const location = useLocation();
+  const currentResourceKey = getResourceKeyFromPath(location.pathname);
+  
   const supportsViews = item.resourceKey === 'leads' || 
     item.resourceKey === 'customers' || 
     item.resourceKey === 'templates' || 
-    item.resourceKey === 'nutrition_templates';
+    item.resourceKey === 'nutrition_templates' ||
+    item.resourceKey === 'budgets' ||
+    item.resourceKey === 'meetings';
   
-  const { defaultView } = useDefaultView(item.resourceKey);
-  const savedViewsQuery = useSavedViews(item.resourceKey);
-  const savedViews = supportsViews ? (savedViewsQuery?.data || []) : [];
+  // Only fetch saved views and default view for:
+  // 1. The current resource (when on that page) - always fetch
+  // 2. The expanded item (when sidebar section is expanded) - fetch to show sub-views
+  // This prevents fetching saved views for all 7 resources when only on "leads" page
+  const shouldFetchData = supportsViews && (
+    item.resourceKey === currentResourceKey || 
+    (isExpanded && item.resourceKey !== currentResourceKey)
+  );
+  
+  const { defaultView } = useDefaultView(shouldFetchData ? item.resourceKey : null);
+  const savedViewsQuery = useSavedViews(shouldFetchData ? item.resourceKey : null);
+  // Combine saved views with default view if it exists and isn't already in the list
+  const allSavedViews = supportsViews ? (savedViewsQuery?.data || []) : [];
+  const savedViews = useMemo(() => {
+    if (!supportsViews || !defaultView) return allSavedViews;
+    // Check if default view is already in the list
+    const hasDefaultView = allSavedViews.some(view => view.id === defaultView.id);
+    if (hasDefaultView) return allSavedViews;
+    // Add default view at the beginning if it's not in the list yet
+    return [defaultView, ...allSavedViews];
+  }, [allSavedViews, defaultView, supportsViews]);
   const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [viewToDelete, setViewToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -95,6 +118,11 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     // Route: /dashboard/customers/:id (not /profile routes which are for leads)
     isProfileRoute = location.pathname.startsWith('/dashboard/customers/') && 
                      location.pathname.split('/').length === 4; // /dashboard/customers/:id
+  } else if (item.resourceKey === 'meetings') {
+    // For meetings: check if we're on a meeting detail route
+    // Route: /dashboard/meetings/:id
+    isProfileRoute = location.pathname.startsWith('/dashboard/meetings/') && 
+                     location.pathname.split('/').length === 4; // /dashboard/meetings/:id
   }
   
   // If on profile route for THIS resource and no view_id, consider default view as active
@@ -127,7 +155,12 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       // In collapsed mode, open popover for resources with views
       setPopoverOpen(true);
     } else {
-      onToggle();
+      // If we have a default view but section is not expanded, expand it
+      if (defaultView && !isExpanded) {
+        onToggle();
+      } else {
+        onToggle();
+      }
     }
   };
 
@@ -240,10 +273,28 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     </div>
   );
 
-  // Sub-views list
-  const subViewsList = supportsViews && savedViews.length > 0 && (
+  // Sub-views list - show if we have any views (from savedViews or defaultView)
+  const hasViews = supportsViews && (savedViews.length > 0 || defaultView);
+  // Ensure defaultView is always included in the list to display
+  const viewsToDisplay = useMemo(() => {
+    if (!supportsViews) return [];
+    
+    // Always include defaultView if it exists and isn't already in savedViews
+    if (defaultView) {
+      const hasDefaultInList = savedViews.some(view => view.id === defaultView.id);
+      if (!hasDefaultInList) {
+        // Default view not in list yet, add it at the beginning
+        return [defaultView, ...savedViews];
+      }
+    }
+    
+    // Return savedViews (which should already include defaultView if it was fetched)
+    return savedViews;
+  }, [savedViews, defaultView, supportsViews]);
+  
+  const subViewsList = hasViews && (
     <div className="space-y-1 mt-2">
-      {savedViews.map((view) => {
+      {viewsToDisplay.map((view) => {
         // View is active if: it matches activeViewId OR it's the default view and we're on a profile route
         const isViewActive = activeViewId === view.id || 
                             (shouldHighlightDefaultView && view.id === defaultView?.id);
@@ -259,6 +310,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           >
             <button
               onClick={() => {
+                // Always use the base resource path, not the current location
+                // This ensures clicking a view from a detail page navigates to the list with that view
                 onViewClick(view, item.path);
                 setPopoverOpen(false);
               }}
@@ -326,7 +379,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
 
   // Wrapper with tooltip for collapsed mode
   if (isCollapsed) {
-    if (supportsViews && savedViews.length > 0) {
+    if (hasViews) {
       // Use Popover for resources with views in collapsed mode
       return (
         <>
@@ -389,9 +442,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     <>
       <li className="w-full group">
         {buttonContent}
-        {supportsViews && isExpanded && savedViews.length > 0 && (
+        {supportsViews && isExpanded && hasViews && (
           <div className="mt-1 space-y-1">
-            {savedViews.map((view) => {
+            {viewsToDisplay.map((view) => {
               // View is active if: it matches activeViewId OR it's the default view and we're on a profile route
               const isViewActive = activeViewId === view.id || 
                                   (shouldHighlightDefaultView && view.id === defaultView?.id);

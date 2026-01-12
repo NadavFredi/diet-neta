@@ -14,26 +14,43 @@ import Register from "./pages/Register.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import TemplatesManagement from "./pages/TemplatesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
+import BudgetManagement from "./pages/BudgetManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
+import MeetingsManagement from "./pages/MeetingsManagement.tsx";
+import MeetingDetailView from "./pages/MeetingDetailView.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
+import { CheckInSettingsPage } from "./pages/CheckInSettingsPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ClientDashboard from "./pages/client/ClientDashboard.tsx";
 import { InviteAccept } from "./pages/InviteAccept.tsx";
+import PrintBudgetPage from "./pages/PrintBudgetPage.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthRedirect from "./components/AuthRedirect";
 import { AppFooter } from "./components/layout/AppFooter";
 import { DevModeProvider } from "./hooks/useDevMode";
 import { AuthInitializer } from "./components/AuthInitializer";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes - data is fresh for 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes - keep unused data in cache (renamed from cacheTime in v5)
+      refetchOnWindowFocus: false, // Don't refetch when window regains focus
+      refetchOnMount: false, // Don't refetch on component mount if data exists in cache
+      refetchOnReconnect: false, // Don't refetch on reconnect (data is still fresh)
+      retry: 1, // Only retry once on failure
+    },
+  },
+});
 
 const AppContent = () => {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
   const isDashboardPage = location.pathname === '/dashboard' || location.pathname.startsWith('/leads');
+  const isClientDashboard = location.pathname === '/client/dashboard';
   
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="min-h-screen flex flex-col">
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<AuthRedirect />} />
@@ -68,10 +85,50 @@ const AppContent = () => {
             }
           />
           <Route
+            path="/dashboard/budgets"
+            element={
+              <ProtectedRoute>
+                <BudgetManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/print/budget/:id"
+            element={
+              <ProtectedRoute>
+                <PrintBudgetPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/check-in-settings"
+            element={
+              <ProtectedRoute>
+                <CheckInSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/dashboard/customers"
             element={
               <ProtectedRoute>
                 <CustomersManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/meetings"
+            element={
+              <ProtectedRoute>
+                <MeetingsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/meetings/:id"
+            element={
+              <ProtectedRoute>
+                <MeetingDetailView />
               </ProtectedRoute>
             }
           />

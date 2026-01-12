@@ -3,6 +3,8 @@
  * 
  * Redux slice for managing Stripe payment state:
  * - Current amount and currency
+ * - Payment type (one-time or subscription)
+ * - Subscription settings (interval, billing cycles)
  * - Payment link generation status
  * - Payment message template
  * - Last generated payment link
@@ -11,10 +13,15 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export type Currency = 'ILS' | 'USD' | 'EUR';
+export type BillingMode = 'one_time' | 'subscription';
+export type SubscriptionInterval = 'month' | 'week';
 
 interface PaymentState {
   currentAmount: string;
   selectedCurrency: Currency;
+  billingMode: BillingMode;
+  subscriptionInterval: SubscriptionInterval;
+  billingCycles: number | null; // null = continuous/unlimited
   isGeneratingLink: boolean;
   lastGeneratedLink: string | null;
   paymentMessageTemplate: string;
@@ -32,6 +39,9 @@ const DEFAULT_PAYMENT_TEMPLATE = `שלום {{name}},
 const initialState: PaymentState = {
   currentAmount: '',
   selectedCurrency: 'ILS',
+  billingMode: 'one_time',
+  subscriptionInterval: 'month',
+  billingCycles: null, // null = continuous/unlimited
   isGeneratingLink: false,
   lastGeneratedLink: null,
   paymentMessageTemplate: DEFAULT_PAYMENT_TEMPLATE,
@@ -50,6 +60,18 @@ const paymentSlice = createSlice({
       state.selectedCurrency = action.payload;
       state.error = null;
     },
+    setBillingMode: (state, action: PayloadAction<BillingMode>) => {
+      state.billingMode = action.payload;
+      state.error = null;
+    },
+    setSubscriptionInterval: (state, action: PayloadAction<SubscriptionInterval>) => {
+      state.subscriptionInterval = action.payload;
+      state.error = null;
+    },
+    setBillingCycles: (state, action: PayloadAction<number | null>) => {
+      state.billingCycles = action.payload;
+      state.error = null;
+    },
     setGeneratingLink: (state, action: PayloadAction<boolean>) => {
       state.isGeneratingLink = action.payload;
     },
@@ -64,6 +86,9 @@ const paymentSlice = createSlice({
     },
     resetPaymentState: (state) => {
       state.currentAmount = '';
+      state.billingMode = 'one_time';
+      state.subscriptionInterval = 'month';
+      state.billingCycles = null;
       state.isGeneratingLink = false;
       state.lastGeneratedLink = null;
       state.error = null;
@@ -74,6 +99,9 @@ const paymentSlice = createSlice({
 export const {
   setAmount,
   setCurrency,
+  setBillingMode,
+  setSubscriptionInterval,
+  setBillingCycles,
   setGeneratingLink,
   setLastGeneratedLink,
   setPaymentMessageTemplate,

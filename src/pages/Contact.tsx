@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { useContactPage } from './Contact';
+import { StyledActionButton } from "@/components/ui/StyledActionButton";
 
 const Contact = () => {
   const { formData, handleSubmit, handleChange } = useContactPage();
@@ -16,6 +17,16 @@ const Contact = () => {
       
       <div className="pt-24 pb-16 px-6">
         <div className="container mx-auto max-w-6xl">
+          {/* Styled Action Button */}
+          <div className="mb-8">
+            <StyledActionButton
+              onClick={() => window.location.href = '/about'}
+              icon={Mail}
+              label="אודות"
+              variant="default"
+              active={false}
+            />
+          </div>
           {/* Header */}
           <div className="text-center mb-16 animate-fade-up">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">צור קשר</h1>

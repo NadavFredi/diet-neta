@@ -12,6 +12,7 @@ import {
   Target,
   Trash2
 } from 'lucide-react';
+import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { format, differenceInDays, differenceInWeeks, differenceInMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ export interface WorkoutPlan {
   lead_id?: string; // DEPRECATED: Use customer_id instead
   customer_id?: string;
   template_id?: string;
+  budget_id?: string | null;
   start_date: string;
   description?: string;
   strength: number;
@@ -113,7 +115,7 @@ export const WorkoutPlanCard = ({
               <Dumbbell className="h-6 w-6 text-blue-600" />
               תוכנית אימונים
             </CardTitle>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               <Badge 
                 variant="outline" 
                 className="bg-blue-50 text-blue-700 border-blue-200 font-semibold px-3 py-1"
@@ -128,6 +130,7 @@ export const WorkoutPlanCard = ({
                 <Calendar className="h-3 w-3 mr-1" />
                 התחלה: {format(startDate, 'dd/MM/yyyy', { locale: he })}
               </Badge>
+              <BudgetLinkBadge budgetId={workoutPlan.budget_id} />
             </div>
           </div>
           {isEditable && (
@@ -209,47 +212,49 @@ export const WorkoutPlanCard = ({
           </div>
         )}
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-red-50 rounded-xl p-5 border-2 border-red-200">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-red-200 rounded-lg">
-                <Dumbbell className="h-5 w-5 text-red-700" />
+        {/* Metrics Grid - Hidden in view-only mode (client portal) */}
+        {isEditable && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-red-50 rounded-xl p-5 border-2 border-red-200">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-red-200 rounded-lg">
+                  <Dumbbell className="h-5 w-5 text-red-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-red-600">כוח</p>
+                  <p className="text-2xl font-bold text-red-900">{workoutPlan.strength}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-red-600">כוח</p>
-                <p className="text-2xl font-bold text-red-900">{workoutPlan.strength}</p>
-              </div>
+              <p className="text-xs text-red-600 mt-2">אימונים בשבוע</p>
             </div>
-            <p className="text-xs text-red-600 mt-2">אימונים בשבוע</p>
-          </div>
 
-          <div className="bg-green-50 rounded-xl p-5 border-2 border-green-200">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-green-200 rounded-lg">
-                <Heart className="h-5 w-5 text-green-700" />
+            <div className="bg-green-50 rounded-xl p-5 border-2 border-green-200">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-green-200 rounded-lg">
+                  <Heart className="h-5 w-5 text-green-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-green-600">קרדיו</p>
+                  <p className="text-2xl font-bold text-green-900">{workoutPlan.cardio}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-green-600">קרדיו</p>
-                <p className="text-2xl font-bold text-green-900">{workoutPlan.cardio}</p>
-              </div>
+              <p className="text-xs text-green-600 mt-2">אימונים בשבוע</p>
             </div>
-            <p className="text-xs text-green-600 mt-2">אימונים בשבוע</p>
-          </div>
 
-          <div className="bg-purple-50 rounded-xl p-5 border-2 border-purple-200">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-purple-200 rounded-lg">
-                <Zap className="h-5 w-5 text-purple-700" />
+            <div className="bg-purple-50 rounded-xl p-5 border-2 border-purple-200">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-purple-200 rounded-lg">
+                  <Zap className="h-5 w-5 text-purple-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-purple-600">אינטרוולים</p>
+                  <p className="text-2xl font-bold text-purple-900">{workoutPlan.intervals}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-purple-600">אינטרוולים</p>
-                <p className="text-2xl font-bold text-purple-900">{workoutPlan.intervals}</p>
-              </div>
+              <p className="text-xs text-purple-600 mt-2">אימונים בשבוע</p>
             </div>
-            <p className="text-xs text-purple-600 mt-2">אימונים בשבוע</p>
           </div>
-        </div>
+        )}
 
         {/* Weekly Workout Schedule */}
         {workoutPlan.custom_attributes?.data?.weeklyWorkout && (

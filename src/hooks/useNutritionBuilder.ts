@@ -3,20 +3,48 @@ import type { NutritionTargets, NutritionTemplate } from './useNutritionTemplate
 
 export type NutritionBuilderMode = 'template' | 'user';
 
+export interface ActivityEntry {
+  id: string;
+  activityType: string;
+  mets: number;
+  minutesPerWeek: number;
+}
+
 export interface NutritionBuilderState {
   name: string;
   description: string;
   targets: NutritionTargets;
-  // Calculator inputs
+  // Enhanced calculator inputs
   calculatorInputs: {
     weight: number;
     height: number;
     age: number;
     gender: 'male' | 'female';
-    activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
-    goal: 'cut' | 'maintain' | 'bulk';
+    // Navy Method body fat inputs
+    waist: number;
+    hip: number;
+    neck: number;
+    // PAL (Physical Activity Level)
+    pal: number; // 1.1 to 1.7+
+    // Goal setting
+    caloricDeficitMode: 'percent' | 'calories'; // Mode for caloric adjustment
+    caloricDeficitPercent: number; // -20 to +20 (negative = deficit, positive = surplus)
+    caloricDeficitCalories: number; // Manual calorie adjustment (negative = deficit, positive = surplus)
+    // Macro targets (grams per kg)
+    proteinPerKg: number; // 2.0-2.5
+    fatPerKg: number; // 0.8-1.0
+    carbsPerKg: number; // 1.0-3.0
   };
+  // Activity table for METS-based EE
+  activityEntries: ActivityEntry[];
   calculatorOpen: boolean;
+}
+
+export interface BMRResults {
+  mifflinStJeor: number;
+  harrisBenedict: number;
+  katchMcArdle: number;
+  average: number;
 }
 
 export interface NutritionBuilderActions {
@@ -29,7 +57,15 @@ export interface NutritionBuilderActions {
     value: NutritionBuilderState['calculatorInputs'][K]
   ) => void;
   setCalculatorOpen: (open: boolean) => void;
-  calculateBMR: () => number;
+  // Activity table actions
+  addActivityEntry: () => void;
+  updateActivityEntry: (id: string, updates: Partial<ActivityEntry>) => void;
+  removeActivityEntry: (id: string) => void;
+  // Calculations
+  calculateBodyFat: () => number | null;
+  calculateLBM: () => number | null; // Lean Body Mass
+  calculateBMR: () => BMRResults;
+  calculateExerciseEE: () => number; // Exercise Energy Expenditure (daily average)
   calculateTDEE: () => number;
   calculateMacros: () => NutritionTargets;
   applyCalculatedValues: () => void;
@@ -49,41 +85,6 @@ export interface NutritionBuilderActions {
   };
 }
 
-// Activity level multipliers for TDEE calculation
-const ACTIVITY_MULTIPLIERS = {
-  sedentary: 1.2,      // Little or no exercise
-  light: 1.375,         // Light exercise 1-3 days/week
-  moderate: 1.55,       // Moderate exercise 3-5 days/week
-  active: 1.725,         // Hard exercise 6-7 days/week
-  very_active: 1.9,     // Very hard exercise, physical job
-};
-
-// Goal adjustments (calorie surplus/deficit)
-const GOAL_ADJUSTMENTS = {
-  cut: -500,      // 500 calorie deficit for cutting
-  maintain: 0,    // Maintenance
-  bulk: 500,      // 500 calorie surplus for bulking
-};
-
-// Macro distribution by goal (percentage of calories)
-const MACRO_DISTRIBUTIONS = {
-  cut: {
-    protein: 0.35,  // 35% protein
-    carbs: 0.35,    // 35% carbs
-    fat: 0.30,      // 30% fat
-  },
-  maintain: {
-    protein: 0.30,  // 30% protein
-    carbs: 0.40,    // 40% carbs
-    fat: 0.30,      // 30% fat
-  },
-  bulk: {
-    protein: 0.30,  // 30% protein
-    carbs: 0.45,    // 45% carbs
-    fat: 0.25,      // 25% fat
-  },
-};
-
 // Calories per gram
 const CALORIES_PER_GRAM = {
   protein: 4,
@@ -92,66 +93,170 @@ const CALORIES_PER_GRAM = {
 };
 
 /**
+ * Calculate body fat percentage using Navy Method
+ * Formula differs for men and women
+ */
+const calculateBodyFatPercentage = (
+  waist: number,
+  neck: number,
+  height: number,
+  gender: 'male' | 'female',
+  hip?: number
+): number | null => {
+  if (!waist || !neck || !height) return null;
+  
+  if (gender === 'male') {
+    // Male formula: %BF = 495 / (1.0324 - 0.19077 * log10(waist - neck) + 0.15456 * log10(height)) - 450
+    const logWaistNeck = Math.log10(Math.max(0.1, waist - neck));
+    const logHeight = Math.log10(height);
+    const bodyFat = 495 / (1.0324 - 0.19077 * logWaistNeck + 0.15456 * logHeight) - 450;
+    return Math.max(0, Math.min(100, bodyFat));
+  } else {
+    // Female formula requires hip measurement
+    if (!hip) return null;
+    // %BF = 495 / (1.29579 - 0.35004 * log10(waist + hip - neck) + 0.22100 * log10(height)) - 450
+    const logWaistHipNeck = Math.log10(Math.max(0.1, waist + hip - neck));
+    const logHeight = Math.log10(height);
+    const bodyFat = 495 / (1.29579 - 0.35004 * logWaistHipNeck + 0.22100 * logHeight) - 450;
+    return Math.max(0, Math.min(100, bodyFat));
+  }
+};
+
+/**
+ * Calculate Lean Body Mass (LBM)
+ * LBM = Weight × (1 - BodyFat% / 100)
+ */
+const calculateLBMValue = (weight: number, bodyFatPercent: number | null): number | null => {
+  if (!bodyFatPercent || bodyFatPercent === null) return null;
+  return weight * (1 - bodyFatPercent / 100);
+};
+
+/**
  * Calculate BMR using Mifflin-St Jeor equation
  * BMR = (10 × weight in kg) + (6.25 × height in cm) - (5 × age in years) + s
  * where s = +5 for males, -161 for females
  */
-const calculateBMRValue = (weight: number, height: number, age: number, gender: 'male' | 'female'): number => {
+const calculateMifflinStJeorBMR = (
+  weight: number,
+  height: number,
+  age: number,
+  gender: 'male' | 'female'
+): number => {
   const baseBMR = (10 * weight) + (6.25 * height) - (5 * age);
   const genderAdjustment = gender === 'male' ? 5 : -161;
   return Math.round(baseBMR + genderAdjustment);
 };
 
 /**
- * Calculate TDEE (Total Daily Energy Expenditure)
- * TDEE = BMR × Activity Multiplier
+ * Calculate BMR using Harris-Benedict equation (Revised)
+ * Men: BMR = 88.362 + (13.397 × weight in kg) + (4.799 × height in cm) - (5.677 × age in years)
+ * Women: BMR = 447.593 + (9.247 × weight in kg) + (3.098 × height in cm) - (4.330 × age in years)
  */
-const calculateTDEEValue = (bmr: number, activityLevel: keyof typeof ACTIVITY_MULTIPLIERS): number => {
-  return Math.round(bmr * ACTIVITY_MULTIPLIERS[activityLevel]);
+const calculateHarrisBenedictBMR = (
+  weight: number,
+  height: number,
+  age: number,
+  gender: 'male' | 'female'
+): number => {
+  if (gender === 'male') {
+    return Math.round(88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age));
+  } else {
+    return Math.round(447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age));
+  }
 };
 
 /**
- * Calculate macro targets based on TDEE and goal
+ * Calculate BMR using Katch-McArdle equation
+ * BMR = 370 + (21.6 × LBM in kg)
+ * Requires Lean Body Mass
+ */
+const calculateKatchMcArdleBMR = (lbm: number | null): number => {
+  if (!lbm || lbm <= 0) return 0;
+  return Math.round(370 + (21.6 * lbm));
+};
+
+/**
+ * Calculate Exercise Energy Expenditure (EE) from activity table
+ * EE = Σ(METS × weight × minutes_per_week / 7) / 1440
+ * Returns daily average in calories
+ */
+const calculateExerciseEEValue = (
+  activities: ActivityEntry[],
+  weight: number
+): number => {
+  if (!weight || activities.length === 0) return 0;
+  
+  const weeklyEE = activities.reduce((sum, activity) => {
+    if (!activity.mets || !activity.minutesPerWeek) return sum;
+    // METS × weight (kg) × hours = kcal
+    // Convert minutes to hours: minutes / 60
+    const hoursPerWeek = activity.minutesPerWeek / 60;
+    const weeklyCalories = activity.mets * weight * hoursPerWeek;
+    return sum + weeklyCalories;
+  }, 0);
+  
+  // Return daily average
+  return Math.round(weeklyEE / 7);
+};
+
+/**
+ * Calculate TDEE (Total Daily Energy Expenditure)
+ * TDEE = (BMR × PAL) + Exercise EE
+ */
+const calculateTDEEValue = (
+  bmr: number,
+  pal: number,
+  exerciseEE: number
+): number => {
+  return Math.round((bmr * pal) + exerciseEE);
+};
+
+/**
+ * Calculate macro targets based on grams per kg bodyweight and caloric target
  */
 const calculateMacrosValue = (
-  tdee: number,
-  goal: 'cut' | 'maintain' | 'bulk',
-  weight: number
+  targetCalories: number,
+  weight: number,
+  proteinPerKg: number,
+  fatPerKg: number,
+  carbsPerKg: number
 ): NutritionTargets => {
-  // Adjust calories based on goal
-  const targetCalories = tdee + GOAL_ADJUSTMENTS[goal];
+  // Calculate macros in grams based on g/kg
+  const protein = Math.round(weight * proteinPerKg);
+  const fat = Math.round(weight * fatPerKg);
+  const carbs = Math.round(weight * carbsPerKg);
   
-  // Get macro distribution for goal
-  const distribution = MACRO_DISTRIBUTIONS[goal];
+  // Calculate calories from macros
+  const proteinCalories = protein * CALORIES_PER_GRAM.protein;
+  const fatCalories = fat * CALORIES_PER_GRAM.fat;
+  const carbsCalories = carbs * CALORIES_PER_GRAM.carbs;
+  const totalMacroCalories = proteinCalories + fatCalories + carbsCalories;
   
-  // Calculate macros in grams
-  const proteinCalories = targetCalories * distribution.protein;
-  const carbsCalories = targetCalories * distribution.carbs;
-  const fatCalories = targetCalories * distribution.fat;
+  // If macros exceed target calories, scale them down proportionally
+  let finalProtein = protein;
+  let finalCarbs = carbs;
+  let finalFat = fat;
   
-  // Convert to grams
-  const protein = Math.round(proteinCalories / CALORIES_PER_GRAM.protein);
-  const carbs = Math.round(carbsCalories / CALORIES_PER_GRAM.carbs);
-  const fat = Math.round(fatCalories / CALORIES_PER_GRAM.fat);
+  if (totalMacroCalories > targetCalories && targetCalories > 0) {
+    const scaleFactor = targetCalories / totalMacroCalories;
+    finalProtein = Math.round(protein * scaleFactor);
+    finalCarbs = Math.round(carbs * scaleFactor);
+    finalFat = Math.round(fat * scaleFactor);
+  }
   
-  // Protein recommendation: at least 1.6g per kg bodyweight for active individuals
-  const minProtein = Math.round(weight * 1.6);
-  const adjustedProtein = Math.max(protein, minProtein);
+  // Fiber recommendation: 20-35g (default 25g, scale with calories)
+  const fiber = Math.max(20, Math.min(35, Math.round(targetCalories / 1000 * 14)));
   
-  // Recalculate if protein was adjusted
-  const adjustedProteinCalories = adjustedProtein * CALORIES_PER_GRAM.protein;
-  const remainingCalories = targetCalories - adjustedProteinCalories;
-  const adjustedCarbs = Math.round((remainingCalories * (distribution.carbs / (distribution.carbs + distribution.fat))) / CALORIES_PER_GRAM.carbs);
-  const adjustedFat = Math.round((remainingCalories * (distribution.fat / (distribution.carbs + distribution.fat))) / CALORIES_PER_GRAM.fat);
-  
-  // Fiber recommendation: 14g per 1000 calories (minimum 25g)
-  const fiber = Math.max(25, Math.round(targetCalories / 1000 * 14));
+  // Recalculate final calories from adjusted macros
+  const finalCalories = (finalProtein * CALORIES_PER_GRAM.protein) +
+                       (finalCarbs * CALORIES_PER_GRAM.carbs) +
+                       (finalFat * CALORIES_PER_GRAM.fat);
   
   return {
-    calories: targetCalories,
-    protein: adjustedProtein,
-    carbs: adjustedCarbs,
-    fat: adjustedFat,
+    calories: Math.round(finalCalories),
+    protein: finalProtein,
+    carbs: finalCarbs,
+    fat: finalFat,
     fiber,
   };
 };
@@ -187,11 +292,27 @@ export const useNutritionBuilder = (
     height: 170,
     age: 30,
     gender: 'male',
-    activityLevel: 'moderate',
-    goal: 'maintain',
+    waist: 80,
+    hip: 95,
+    neck: 35,
+    pal: 1.4, // Moderately active
+    caloricDeficitMode: 'percent' as 'percent' | 'calories',
+    caloricDeficitPercent: 0, // No deficit/surplus by default
+    caloricDeficitCalories: 0, // No deficit/surplus by default
+    proteinPerKg: 2.0,
+    fatPerKg: 1.0,
+    carbsPerKg: 2.0,
   });
   
-  const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([
+    { id: '1', activityType: 'הליכה איטית/יוגה/פילאטיס', mets: 3.5, minutesPerWeek: 0 },
+    { id: '2', activityType: 'אימון משקולות כבד', mets: 5.5, minutesPerWeek: 0 },
+    { id: '3', activityType: 'סטודיו/פונקציונלי/איר', mets: 6.0, minutesPerWeek: 0 },
+    { id: '4', activityType: 'ריצה קלה/ג\'וגינג', mets: 7.5, minutesPerWeek: 0 },
+    { id: '5', activityType: 'ריצה מהירה/שחייה מהירה/ספינינג', mets: 10.0, minutesPerWeek: 0 },
+  ]);
+  
+  const [calculatorOpen, setCalculatorOpen] = useState(true); // Open by default in diagnostic mode
 
   const setTarget = useCallback(<K extends keyof NutritionTargets>(key: K, value: number) => {
     setTargetsState((prev) => ({
@@ -217,26 +338,99 @@ export const useNutritionBuilder = (
     }));
   }, []);
 
-  const calculateBMR = useCallback(() => {
-    return calculateBMRValue(
+  const addActivityEntry = useCallback(() => {
+    const newId = String(Date.now());
+    setActivityEntries((prev) => [
+      ...prev,
+      { id: newId, activityType: '', mets: 3.5, minutesPerWeek: 0 },
+    ]);
+  }, []);
+
+  const updateActivityEntry = useCallback((id: string, updates: Partial<ActivityEntry>) => {
+    setActivityEntries((prev) =>
+      prev.map((entry) => (entry.id === id ? { ...entry, ...updates } : entry))
+    );
+  }, []);
+
+  const removeActivityEntry = useCallback((id: string) => {
+    setActivityEntries((prev) => prev.filter((entry) => entry.id !== id));
+  }, []);
+
+  const calculateBodyFat = useCallback((): number | null => {
+    return calculateBodyFatPercentage(
+      calculatorInputs.waist,
+      calculatorInputs.neck,
+      calculatorInputs.height,
+      calculatorInputs.gender,
+      calculatorInputs.gender === 'female' ? calculatorInputs.hip : undefined
+    );
+  }, [calculatorInputs]);
+
+  const calculateLBM = useCallback((): number | null => {
+    const bodyFat = calculateBodyFat();
+    return calculateLBMValue(calculatorInputs.weight, bodyFat);
+  }, [calculatorInputs, calculateBodyFat]);
+
+  const calculateBMR = useCallback((): BMRResults => {
+    const mifflin = calculateMifflinStJeorBMR(
       calculatorInputs.weight,
       calculatorInputs.height,
       calculatorInputs.age,
       calculatorInputs.gender
     );
-  }, [calculatorInputs]);
+    
+    const harris = calculateHarrisBenedictBMR(
+      calculatorInputs.weight,
+      calculatorInputs.height,
+      calculatorInputs.age,
+      calculatorInputs.gender
+    );
+    
+    const lbm = calculateLBM();
+    const katch = calculateKatchMcArdleBMR(lbm);
+    
+    // Average of available formulas
+    const formulas = [mifflin, harris];
+    if (katch > 0) formulas.push(katch);
+    const average = Math.round(formulas.reduce((sum, val) => sum + val, 0) / formulas.length);
+    
+    return {
+      mifflinStJeor: mifflin,
+      harrisBenedict: harris,
+      katchMcArdle: katch,
+      average,
+    };
+  }, [calculatorInputs, calculateLBM]);
+
+  const calculateExerciseEE = useCallback((): number => {
+    return calculateExerciseEEValue(activityEntries, calculatorInputs.weight);
+  }, [activityEntries, calculatorInputs.weight]);
 
   const calculateTDEE = useCallback(() => {
-    const bmr = calculateBMR();
-    return calculateTDEEValue(bmr, calculatorInputs.activityLevel);
-  }, [calculatorInputs, calculateBMR]);
+    const bmrResults = calculateBMR();
+    const exerciseEE = calculateExerciseEE();
+    return calculateTDEEValue(bmrResults.average, calculatorInputs.pal, exerciseEE);
+  }, [calculatorInputs.pal, calculateBMR, calculateExerciseEE]);
 
   const calculateMacros = useCallback(() => {
     const tdee = calculateTDEE();
+    // Apply caloric deficit/surplus
+    let targetCalories: number;
+    if (calculatorInputs.caloricDeficitMode === 'percent') {
+      // Percentage mode: apply percentage to TDEE
+      const deficitMultiplier = 1 + (calculatorInputs.caloricDeficitPercent / 100);
+      targetCalories = Math.round(tdee * deficitMultiplier);
+    } else {
+      // Manual calories mode: add/subtract absolute calories
+      targetCalories = Math.round(tdee + calculatorInputs.caloricDeficitCalories);
+    }
+    
     return calculateMacrosValue(
-      tdee,
-      calculatorInputs.goal,
-      calculatorInputs.weight
+      targetCalories,
+      calculatorInputs.weight,
+      calculatorInputs.proteinPerKg,
+      calculatorInputs.fatPerKg,
+      calculatorInputs.carbsPerKg
     );
   }, [calculatorInputs, calculateTDEE]);
 
@@ -270,10 +464,25 @@ export const useNutritionBuilder = (
       height: 170,
       age: 30,
       gender: 'male',
-      activityLevel: 'moderate',
-      goal: 'maintain',
+      waist: 80,
+      hip: 95,
+      neck: 35,
+      pal: 1.4,
+      caloricDeficitMode: 'percent' as 'percent' | 'calories',
+      caloricDeficitPercent: 0,
+      caloricDeficitCalories: 0,
+      proteinPerKg: 2.0,
+      fatPerKg: 1.0,
+      carbsPerKg: 2.0,
     });
-    setCalculatorOpen(false);
+    setActivityEntries([
+      { id: '1', activityType: 'הליכה איטית/יוגה/פילאטיס', mets: 3.5, minutesPerWeek: 0 },
+      { id: '2', activityType: 'אימון משקולות כבד', mets: 5.5, minutesPerWeek: 0 },
+      { id: '3', activityType: 'סטודיו/פונקציונלי/איר', mets: 6.0, minutesPerWeek: 0 },
+      { id: '4', activityType: 'ריצה קלה/ג\'וגינג', mets: 7.5, minutesPerWeek: 0 },
+      { id: '5', activityType: 'ריצה מהירה/שחייה מהירה/ספינינג', mets: 10.0, minutesPerWeek: 0 },
+    ]);
+    setCalculatorOpen(true);
   }, []);
 
   // Calculate macro percentages for display
@@ -299,6 +508,7 @@ export const useNutritionBuilder = (
     description,
     targets,
     calculatorInputs,
+    activityEntries,
     calculatorOpen,
     setName,
     setDescription,
@@ -306,15 +516,18 @@ export const useNutritionBuilder = (
     setTargets,
     setCalculatorInput,
     setCalculatorOpen,
+    addActivityEntry,
+    updateActivityEntry,
+    removeActivityEntry,
+    calculateBodyFat,
+    calculateLBM,
     calculateBMR,
+    calculateExerciseEE,
     calculateTDEE,
     calculateMacros,
     applyCalculatedValues,
     getNutritionData,
     reset,
-    macroPercentages, // Expose for UI
+    macroPercentages,
   };
 };
-
-
-

@@ -5,27 +5,8 @@ import { useAppSelector } from '@/store/hooks';
 import { useSavedViews, useCreateSavedView } from './useSavedViews';
 import type { FilterConfig } from './useSavedViews';
 
-// Helper function to get user ID from email
-const getUserIdFromEmail = async (email: string): Promise<string> => {
-  try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (user && !authError) return user.id;
-  } catch (e) {
-    // Auth session not available, continue to profile lookup
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle();
-
-  if (profile?.id) {
-    return profile.id;
-  }
-
-  throw new Error(`Unable to find user account for email: ${email}`);
-};
+// Note: We now use user.id from Redux auth state instead of getUserIdFromEmail
+// This eliminates redundant API calls to getUser() and profiles table
 
 // Get default filter config for each resource type
 const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
@@ -93,6 +74,38 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
           actions: true,
         },
       };
+    case 'budgets':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+        columnVisibility: {
+          name: true,
+          description: true,
+          workout_template: true,
+          nutrition_template: true,
+          nutrition_targets: false,
+          supplements: false,
+          eating_order: false,
+          eating_rules: false,
+          steps_goal: true,
+          steps_instructions: false,
+          createdDate: true,
+          actions: true,
+        },
+      };
+    case 'meetings':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+        columnVisibility: {
+          customer_name: true,
+          meeting_date: true,
+          meeting_time: true,
+          phone: true,
+          status: true,
+          created_at: true,
+        },
+      };
     default:
       return {
         searchQuery: '',
@@ -101,23 +114,23 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
   }
 };
 
-export const useDefaultView = (resourceKey: string) => {
+export const useDefaultView = (resourceKey: string | null) => {
   const { user } = useAppSelector((state) => state.auth);
   const queryClient = useQueryClient();
 
   // Find or create default view
   const { data: defaultView, isLoading } = useQuery({
-    queryKey: ['defaultView', resourceKey, user?.email],
+    queryKey: ['defaultView', resourceKey, user?.id],
     queryFn: async () => {
-      if (!user?.email || !resourceKey) return null;
+      if (!user?.id || !resourceKey) return null;
 
       try {
-        const userId = await getUserIdFromEmail(user.email);
+        const userId = user.id; // Use user.id from Redux instead of API call
 
         // Check if default view exists
         const { data: existingDefault, error: fetchError } = await supabase
           .from('saved_views')
-          .select('*')
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
           .eq('resource_key', resourceKey)
           .eq('created_by', userId)
           .eq('is_default', true)
@@ -140,6 +153,12 @@ export const useDefaultView = (resourceKey: string) => {
           ? 'כל הלקוחות'
           : resourceKey === 'templates'
           ? 'כל התכניות'
+          : resourceKey === 'nutrition_templates'
+          ? 'כל תבניות התזונה'
+          : resourceKey === 'budgets'
+          ? 'כל התקציבים'
+          : resourceKey === 'meetings'
+          ? 'כל הפגישות'
           : 'כל התכניות';
 
         const { data: newView, error } = await supabase
@@ -151,7 +170,7 @@ export const useDefaultView = (resourceKey: string) => {
             is_default: true,
             created_by: userId,
           })
-          .select()
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
           .single();
 
         if (error) {
@@ -170,8 +189,9 @@ export const useDefaultView = (resourceKey: string) => {
         return null;
       }
     },
-    enabled: !!user?.email && !!resourceKey,
+    enabled: !!user?.id && !!resourceKey,
     staleTime: Infinity, // Default views don't change
+    gcTime: Infinity, // Keep in cache forever (renamed from cacheTime in v5)
     retry: false,
   });
 

@@ -388,7 +388,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
           <Button
             onClick={handleFormSubmit}
             disabled={isSubmitting}
-            className="bg-[#5B6FB9] hover:bg-[#5B6FB9] text-white min-w-[100px]"
+            className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white min-w-[100px]"
           >
             {isSubmitting ? 'שומר...' : 'שמור'}
           </Button>

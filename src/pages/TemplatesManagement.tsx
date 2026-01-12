@@ -12,13 +12,14 @@ import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector } from '@/store/hooks';
 import { WorkoutTemplatesDataTable } from '@/components/dashboard/WorkoutTemplatesDataTable';
-import { TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { TEMPLATE_FILTER_FIELDS, getWorkoutTemplateFilterFields } from '@/hooks/useTableFilters';
 import { useTableFilters } from '@/hooks/useTableFilters';
 import { AddWorkoutTemplateDialog } from '@/components/dashboard/dialogs/AddWorkoutTemplateDialog';
 import { EditWorkoutTemplateDialog } from '@/components/dashboard/dialogs/EditWorkoutTemplateDialog';
 import { DeleteWorkoutTemplateDialog } from '@/components/dashboard/dialogs/DeleteWorkoutTemplateDialog';
 import { useTemplatesManagement } from './TemplatesManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { workoutTemplateColumns } from '@/components/dashboard/columns/templateColumns';
 
 const TemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -95,16 +96,15 @@ const TemplatesManagement = () => {
                   dataCount={templates?.length || 0}
                   singularLabel="תוכנית"
                   pluralLabel="תוכניות"
-                  filterFields={TEMPLATE_FILTER_FIELDS}
+                  filterFields={getWorkoutTemplateFilterFields(templates || [])}
                   searchPlaceholder="חיפוש לפי שם, תיאור, שם ליד, טלפון או אימייל..."
                   addButtonLabel="הוסף תוכנית"
                   onAddClick={handleAddTemplate}
                   enableColumnVisibility={true}
                   enableFilters={true}
+                  enableGroupBy={true}
                   enableSearch={true}
-                  useTemplateColumnSettings={true}
-                  templateColumnVisibility={columnVisibility}
-                  onToggleTemplateColumn={handleToggleColumn}
+                  columns={workoutTemplateColumns}
                 />
                 
                 <div className="bg-white">
@@ -113,7 +113,6 @@ const TemplatesManagement = () => {
                   ) : (
                     <WorkoutTemplatesDataTable
                       templates={templates || []}
-                      columnVisibility={columnVisibility}
                       onEdit={handleEditTemplate}
                       onDelete={handleDeleteClick}
                     />
@@ -166,7 +165,7 @@ const TemplatesManagement = () => {
           onOpenChange={setIsEditViewModalOpen}
           view={viewToEdit}
           currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-          filterFields={TEMPLATE_FILTER_FIELDS}
+          filterFields={getWorkoutTemplateFilterFields(templates || [])}
           onSuccess={() => {
             setIsEditViewModalOpen(false);
             setViewToEdit(null);

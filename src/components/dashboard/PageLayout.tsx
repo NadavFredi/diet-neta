@@ -32,6 +32,8 @@ interface PageLayoutProps {
   onUpdateCustomer?: (updates: any) => Promise<void>;
   onAddWorkoutPlan: () => void;
   onAddDietPlan: () => void;
+  onAssignBudget?: () => void;
+  budgetAssignments?: any[] | null;
   getInitials: (name: string) => string;
   getStatusColor: (status: string) => string;
   getStatusBorderColor: (status: string) => string;
@@ -55,6 +57,8 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   onUpdateCustomer,
   onAddWorkoutPlan,
   onAddDietPlan,
+  onAssignBudget,
+  budgetAssignments,
   getInitials,
   getStatusColor,
   getStatusBorderColor,
@@ -235,6 +239,8 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
                   onUpdateLead={onUpdateLead}
                   onAddWorkoutPlan={onAddWorkoutPlan}
                   onAddDietPlan={onAddDietPlan}
+                  onAssignBudget={onAssignBudget}
+                  budgetAssignments={budgetAssignments}
                   getStatusColor={getStatusColor}
                 />
               </div>

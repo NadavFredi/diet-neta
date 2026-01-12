@@ -20,6 +20,17 @@ export default defineConfig(({ mode }) => ({
           });
         },
       },
+      // Proxy Supabase requests when using localhost Supabase from network IP
+      '/supabase': {
+        target: 'http://127.0.0.1:54321',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/supabase/, ''),
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, res) => {
+            console.log('Supabase proxy error', err);
+          });
+        },
+      },
     },
   },
   plugins: [

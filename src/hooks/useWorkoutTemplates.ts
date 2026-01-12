@@ -14,43 +14,19 @@ export interface WorkoutTemplate {
   created_by: string | null;
 }
 
-// Helper function to get user ID from email
-const getUserIdFromEmail = async (email: string): Promise<string> => {
-  try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (user && !authError) return user.id;
-  } catch (e) {
-    // Auth session not available, continue to profile lookup
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle();
-
-  if (profile && profile.id) {
-    return profile.id;
-  }
-
-  // SECURITY: Do not create users with temporary passwords
-  // Users must be created through the secure invitation system
-  throw new Error(
-    `User profile not found for email: ${email}. ` +
-    `Please contact an administrator to create your account via the secure invitation system.`
-  );
-};
+// Note: We now use user.id from Redux auth state instead of getUserIdFromEmail
+// This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all templates (public + user's own)
 export const useWorkoutTemplates = (filters?: { search?: string; goalTags?: string[]; isPublic?: boolean }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['workoutTemplates', filters, user?.email],
+    queryKey: ['workoutTemplates', filters, user?.id],
     queryFn: async () => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
       let query = supabase
         .from('workout_templates')
         .select('*')
@@ -84,7 +60,9 @@ export const useWorkoutTemplates = (filters?: { search?: string; goalTags?: stri
       }
       return data as WorkoutTemplate[];
     },
-    enabled: !!user?.email,
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change often
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -93,12 +71,12 @@ export const useWorkoutTemplate = (templateId: string | null) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['workoutTemplate', templateId, user?.email],
+    queryKey: ['workoutTemplate', templateId, user?.id],
     queryFn: async () => {
       if (!templateId) return null;
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { data, error } = await supabase
         .from('workout_templates')
@@ -110,7 +88,9 @@ export const useWorkoutTemplate = (templateId: string | null) => {
       if (error) throw error;
       return data as WorkoutTemplate | null;
     },
-    enabled: !!templateId && !!user?.email,
+    enabled: !!templateId && !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -133,9 +113,9 @@ export const useCreateWorkoutTemplate = () => {
       routine_data: any;
       is_public?: boolean;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { data, error } = await supabase
         .from('workout_templates')
@@ -186,9 +166,9 @@ export const useUpdateWorkoutTemplate = () => {
       routine_data?: any;
       is_public?: boolean;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const updateData: Partial<WorkoutTemplate> = {};
       if (name !== undefined) updateData.name = name;
@@ -222,9 +202,9 @@ export const useDeleteWorkoutTemplate = () => {
 
   return useMutation({
     mutationFn: async (templateId: string) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { error } = await supabase
         .from('workout_templates')

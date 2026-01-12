@@ -68,7 +68,7 @@ export const SidebarToggleButton: React.FC = () => {
                 'h-10 w-10 rounded-xl transition-all duration-200 ease-in-out relative',
                 'hover:bg-white/60 backdrop-blur-sm',
                 isHistoryOpen 
-                  ? 'bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]' 
+                  ? 'bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]/90' 
                   : 'text-gray-600 hover:text-gray-900 hover:bg-white/40'
               )}
             >
@@ -98,7 +98,7 @@ export const SidebarToggleButton: React.FC = () => {
                 'h-10 w-10 rounded-xl transition-all duration-200 ease-in-out relative',
                 'hover:bg-white/60 backdrop-blur-sm',
                 isNotesOpen 
-                  ? 'bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]' 
+                  ? 'bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]/90' 
                   : 'text-gray-600 hover:text-gray-900 hover:bg-white/40'
               )}
             >

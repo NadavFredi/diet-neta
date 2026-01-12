@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
 import type { Lead, SubscriptionInfo, WorkoutProgram, StepsHistory } from '@/store/slices/dashboardSlice';
+import { formatPhoneNumberForWhatsApp } from '@/components/ui/phone-input';
 
 // Helper functions (duplicated from dashboardSlice since they're not exported)
 function formatDateString(date: string | null): string {
@@ -103,6 +104,8 @@ export const useLeadDetails = () => {
       } as Lead;
     },
     enabled: !!id && !!user?.email,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes (renamed from cacheTime in v5)
   });
 
   const handleBack = () => {
@@ -117,7 +120,7 @@ export const useLeadDetails = () => {
 
   const handleWhatsApp = () => {
     if (lead?.phone) {
-      const phoneNumber = lead.phone.replace(/-/g, '').replace(/^0/, '972');
+      const phoneNumber = formatPhoneNumberForWhatsApp(lead.phone);
       window.open(`https://wa.me/${phoneNumber}`, '_blank');
     }
   };

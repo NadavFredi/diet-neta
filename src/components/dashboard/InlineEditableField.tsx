@@ -5,10 +5,16 @@
  * Shows edit icon on hover, click to edit, with save/cancel buttons.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
 import { Edit } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+
+export interface InlineEditableFieldRef {
+  save: () => Promise<void>;
+  cancel: () => void;
+  isEditing: boolean;
+}
 
 interface InlineEditableFieldProps {
   label: string;
@@ -19,9 +25,10 @@ interface InlineEditableFieldProps {
   className?: string;
   valueClassName?: string;
   disabled?: boolean;
+  onEditingChange?: (isEditing: boolean) => void;
 }
 
-export const InlineEditableField = ({
+export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEditableFieldProps>(({
   label,
   value,
   onSave,
@@ -30,7 +37,8 @@ export const InlineEditableField = ({
   className,
   valueClassName,
   disabled = false,
-}: InlineEditableFieldProps) => {
+  onEditingChange,
+}, ref) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState<string>(String(value));
   const [isSaving, setIsSaving] = useState(false);
@@ -45,21 +53,19 @@ export const InlineEditableField = ({
   }, [isEditing]);
 
   useEffect(() => {
+    // Only update editValue if we're not currently editing or saving
+    // This prevents the value from reverting while saving
+    if (!isEditing && !isSaving) {
+      setEditValue(String(value));
+    }
+  }, [value, isEditing, isSaving]);
+
+  const handleCancel = useCallback(() => {
+    setIsEditing(false);
     setEditValue(String(value));
   }, [value]);
 
-  const handleEdit = () => {
-    if (disabled) return;
-    setIsEditing(true);
-    setEditValue(String(value));
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setEditValue(String(value));
-  };
-
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (editValue === String(value)) {
       setIsEditing(false);
       return;
@@ -75,17 +81,21 @@ export const InlineEditableField = ({
         }
       }
       
-      // Exit editing mode immediately for better UX (optimistic update)
+      // Update local state optimistically
+      setEditValue(String(finalValue));
       setIsEditing(false);
       
-      // Save in background - optimistic updates handle the UI
-      onSave(finalValue).catch((error) => {
+      // Await the save to ensure it completes
+      try {
+        await onSave(finalValue);
+        console.log('InlineEditableField: Save successful', finalValue);
+      } catch (error) {
         console.error('InlineEditableField: Failed to save:', error);
         // On error, revert to original value
         setEditValue(String(value));
-        // Re-enter editing mode so user can retry
         setIsEditing(true);
-      });
+        throw error;
+      }
     } catch (error) {
       console.error('InlineEditableField: Validation error:', error);
       setEditValue(String(value));
@@ -94,6 +104,38 @@ export const InlineEditableField = ({
     } finally {
       setIsSaving(false);
     }
+  }, [editValue, value, type, onSave]);
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    save: handleSave,
+    cancel: handleCancel,
+    isEditing,
+  }), [handleSave, handleCancel, isEditing]);
+
+  // Store callback in ref to avoid dependency issues
+  const onEditingChangeRef = useRef(onEditingChange);
+  
+  // Update ref when callback changes
+  useEffect(() => {
+    onEditingChangeRef.current = onEditingChange;
+  }, [onEditingChange]);
+  
+  // Track previous editing state to avoid unnecessary calls
+  const prevIsEditingRef = useRef(isEditing);
+  
+  // Notify parent of editing state changes (only when state actually changes)
+  useEffect(() => {
+    if (prevIsEditingRef.current !== isEditing) {
+      prevIsEditingRef.current = isEditing;
+      onEditingChangeRef.current?.(isEditing);
+    }
+  }, [isEditing]);
+
+  const handleEdit = () => {
+    if (disabled) return;
+    setIsEditing(true);
+    setEditValue(String(value));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -178,4 +220,6 @@ export const InlineEditableField = ({
       </div>
     </div>
   );
-};
+});
+
+InlineEditableField.displayName = 'InlineEditableField';

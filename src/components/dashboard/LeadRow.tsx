@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { formatDate, COLUMN_ORDER } from '@/utils/dashboard';
 import type { ColumnVisibility } from '@/utils/dashboard';
+import { DevModeId } from '@/components/ui/DevModeId';
 
 interface LeadRowProps {
   lead: Lead;
@@ -46,9 +47,7 @@ export const LeadRow = ({ lead, columnVisibility }: LeadRowProps) => {
           return (
             <div key={col} className="text-sm text-gray-700 text-right">
               {col === 'id' && (
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs">
-                  {lead.id}
-                </span>
+                <DevModeId id={lead.id} />
               )}
               {col === 'name' && (
                 <span className="font-semibold text-gray-800 hover:text-blue-600 transition-colors">

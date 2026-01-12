@@ -14,6 +14,7 @@ interface SmartTraineeActionButtonProps {
   leadId?: string | null;
   customerEmail?: string | null;
   customerName?: string | null;
+  customerPhone?: string | null;
   customerUserId?: string | null; // Customer's user_id if exists
   customerInvitationUserId?: string | null; // User_id from invitation if exists
 }
@@ -23,6 +24,7 @@ export const SmartTraineeActionButton: React.FC<SmartTraineeActionButtonProps> =
   leadId,
   customerEmail,
   customerName,
+  customerPhone,
   customerUserId,
   customerInvitationUserId,
 }) => {
@@ -47,6 +49,7 @@ export const SmartTraineeActionButton: React.FC<SmartTraineeActionButtonProps> =
         leadId={leadId || null}
         customerEmail={customerEmail || null}
         customerName={customerName || null}
+        customerPhone={customerPhone || null}
       />
     );
   }

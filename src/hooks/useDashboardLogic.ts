@@ -137,17 +137,24 @@ export const useDashboardLogic = () => {
   ]);
 
   // Fetch leads on mount and when filters change
+  // Single useEffect to prevent duplicate calls
   useEffect(() => {
     console.log('useDashboardLogic: useEffect triggered, calling refreshLeads');
     refreshLeads();
-  }, [refreshLeads]);
-  
-  // Also fetch on initial mount regardless of refreshLeads dependency
-  useEffect(() => {
-    console.log('useDashboardLogic: Initial mount, fetching leads');
-    refreshLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, [
+    // Only include filter dependencies, not refreshLeads itself
+    searchQuery,
+    selectedDate,
+    selectedStatus,
+    selectedAge,
+    selectedHeight,
+    selectedWeight,
+    selectedFitnessGoal,
+    selectedActivityLevel,
+    selectedPreferredTime,
+    selectedSource,
+  ]);
 
   // =====================================================
   // Filter Handlers (update Redux state, triggers refresh)
@@ -294,8 +301,16 @@ export const useDashboardLogic = () => {
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
 
   const handleLogout = useCallback(async () => {
-    await dispatch(logoutUser());
-    navigate('/login');
+    try {
+      console.log('[useDashboardLogic] Logout initiated');
+      await dispatch(logoutUser()).unwrap();
+      console.log('[useDashboardLogic] Logout successful, navigating to login');
+      navigate('/login');
+    } catch (error) {
+      console.error('[useDashboardLogic] Logout error:', error);
+      // Navigate to login even if logout fails
+      navigate('/login');
+    }
   }, [dispatch, navigate]);
 
   const handleAddLead = useCallback(() => {
@@ -331,6 +346,7 @@ export const useDashboardLogic = () => {
     user,
     isLoading: isLoading || isRefreshing,
     error,
+    savedView, // Expose savedView to avoid duplicate calls
 
     // UI State
     isSettingsOpen,

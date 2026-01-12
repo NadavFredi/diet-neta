@@ -16,7 +16,7 @@ export const useUpdateLead = () => {
     mutationFn: async ({ leadId, updates }: { leadId: string; updates: Record<string, any> }) => {
       console.log('useUpdateLead: Updating lead:', { leadId, updates });
       
-      // Filter out undefined values
+      // Filter out undefined values and null values that shouldn't be updated
       const cleanUpdates = Object.fromEntries(
         Object.entries(updates).filter(([_, v]) => v !== undefined)
       );
@@ -25,51 +25,87 @@ export const useUpdateLead = () => {
         throw new Error('No valid updates provided');
       }
       
-      // Perform the update - fast path, no select needed
-      // Optimistic updates already handle the UI immediately
-      const { error: updateError } = await supabase
+      // Add updated_at timestamp
+      cleanUpdates.updated_at = new Date().toISOString();
+      
+      // Perform the update and fetch the updated data to ensure consistency
+      const { data: updatedLead, error: updateError } = await supabase
         .from('leads')
         .update(cleanUpdates)
-        .eq('id', leadId);
+        .eq('id', leadId)
+        .select('*, workout_history, steps_history, nutrition_history, supplements_history')
+        .single();
 
       if (updateError) {
         console.error('useUpdateLead: Database error:', updateError);
+        console.error('useUpdateLead: Update details:', { leadId, cleanUpdates });
         throw new Error(`Failed to update lead: ${updateError.message}`);
       }
       
-      // Return the updates - optimistic update already updated the UI
-      // We'll fetch fresh data in onSuccess if needed, but don't block here
-      console.log('useUpdateLead: Update successful');
-      return cleanUpdates;
+      if (!updatedLead) {
+        throw new Error('Update succeeded but no data returned');
+      }
+      
+      // Return the updated lead data
+      console.log('useUpdateLead: Update successful', { leadId, updates: cleanUpdates, updatedLead });
+      return updatedLead;
     },
     onMutate: async ({ leadId, updates }) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ['lead', leadId] });
+      await queryClient.cancelQueries({ queryKey: ['lead-for-customer'] });
       await queryClient.cancelQueries({ queryKey: ['customer'] });
       
       // Snapshot the previous value for rollback
       const previousLead = queryClient.getQueryData(['lead', leadId]);
       const previousCustomers = queryClient.getQueriesData({ queryKey: ['customer'] });
+      const previousLeadForCustomer = queryClient.getQueriesData({ queryKey: ['lead-for-customer'] });
       
-      // Optimistically update the lead query
+      // Optimistically update the lead query - merge updates properly
       queryClient.setQueryData(['lead', leadId], (old: any) => {
-        if (!old) return old;
-        return { ...old, ...updates };
+        if (!old) {
+          console.warn('useUpdateLead: No existing lead data found for optimistic update', leadId);
+          return old;
+        }
+        // Deep merge to handle nested objects like subscription_data
+        const merged = { ...old };
+        Object.keys(updates).forEach(key => {
+          if (key === 'subscription_data' && typeof updates[key] === 'object' && typeof old[key] === 'object') {
+            merged[key] = { ...old[key], ...updates[key] };
+          } else {
+            merged[key] = updates[key];
+          }
+        });
+        console.log('useUpdateLead: Optimistic update applied', { leadId, updates, merged });
+        return merged;
       });
       
       // Optimistically update customer queries that contain this lead
       previousCustomers.forEach(([queryKey, customerData]: [any, any]) => {
-        if (customerData?.leads) {
+        if (customerData?.leads && Array.isArray(customerData.leads)) {
+          const updatedLeads = customerData.leads.map((lead: any) => {
+            if (lead.id === leadId) {
+              // Deep merge for nested objects
+              const merged = { ...lead };
+              Object.keys(updates).forEach(key => {
+                if (key === 'subscription_data' && typeof updates[key] === 'object' && typeof lead[key] === 'object') {
+                  merged[key] = { ...lead[key], ...updates[key] };
+                } else {
+                  merged[key] = updates[key];
+                }
+              });
+              return merged;
+            }
+            return lead;
+          });
           queryClient.setQueryData(queryKey, {
             ...customerData,
-            leads: customerData.leads.map((lead: any) =>
-              lead.id === leadId ? { ...lead, ...updates } : lead
-            ),
+            leads: updatedLeads,
           });
         }
       });
       
-      return { previousLead, previousCustomers };
+      return { previousLead, previousCustomers, previousLeadForCustomer };
     },
     onError: (error: any, variables, context) => {
       // Rollback optimistic updates on error
@@ -81,6 +117,11 @@ export const useUpdateLead = () => {
           queryClient.setQueryData(queryKey, data);
         });
       }
+      if (context?.previousLeadForCustomer) {
+        context.previousLeadForCustomer.forEach(([queryKey, data]: [any, any]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
       
       console.error('useUpdateLead: Error updating lead:', error);
       toast({
@@ -89,17 +130,50 @@ export const useUpdateLead = () => {
         variant: 'destructive',
       });
     },
-    onSuccess: (data, variables) => {
-      // Optimistic update already updated the UI, so we're done
-      // Just invalidate queries in the background for eventual consistency
-      // This is non-blocking and won't delay the user experience
+    onSuccess: async (updatedLead, variables) => {
+      console.log('useUpdateLead: onSuccess called', { updatedLead, variables });
+      
+      // Update the query cache with the fresh data from the database
+      // This ensures the UI shows the correct data immediately
+      if (updatedLead) {
+        // Update the main lead query
+        queryClient.setQueryData(['lead', variables.leadId], updatedLead);
+        console.log('useUpdateLead: Updated lead query cache', ['lead', variables.leadId]);
+        
+        // Also update customer queries that contain this lead
+        const customerQueries = queryClient.getQueriesData({ queryKey: ['customer'] });
+        customerQueries.forEach(([queryKey, customerData]: [any, any]) => {
+          if (customerData?.leads && Array.isArray(customerData.leads)) {
+            const updatedLeads = customerData.leads.map((lead: any) =>
+              lead.id === variables.leadId ? updatedLead : lead
+            );
+            queryClient.setQueryData(queryKey, {
+              ...customerData,
+              leads: updatedLeads,
+            });
+            console.log('useUpdateLead: Updated customer query cache', queryKey);
+          }
+        });
+        
+        // Also update lead-for-customer queries
+        const leadForCustomerQueries = queryClient.getQueriesData({ queryKey: ['lead-for-customer'] });
+        leadForCustomerQueries.forEach(([queryKey, data]: [any, any]) => {
+          if (data?.id === variables.leadId) {
+            queryClient.setQueryData(queryKey, { ...data, ...updatedLead });
+            console.log('useUpdateLead: Updated lead-for-customer query cache', queryKey);
+          }
+        });
+      }
+      
+      // Invalidate queries to trigger refetch in the background
+      // Don't await - let it happen in the background
       queryClient.invalidateQueries({ queryKey: ['lead', variables.leadId] });
       queryClient.invalidateQueries({ queryKey: ['customer'] });
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['lead-for-customer'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['filtered-leads'] });
       
-      console.log('Lead update successful:', { leadId: variables.leadId, updates: variables.updates });
+      console.log('Lead update successful:', { leadId: variables.leadId, updates: variables.updates, updatedLead });
       
       toast({
         title: 'הצלחה',

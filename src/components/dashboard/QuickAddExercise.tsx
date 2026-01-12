@@ -60,7 +60,6 @@ const EXERCISE_CATEGORIES = {
       'פטישים',
       'טריצפס כבל',
       'ביצפס כבל',
-      'פטישים',
     ],
   },
   core: {
@@ -115,8 +114,8 @@ export const QuickAddExercise = ({ onSelect }: QuickAddExerciseProps) => {
             <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 sticky top-0 text-right">
               {category.label}
             </div>
-            {category.exercises.map((exercise) => (
-              <SelectItem key={exercise} value={exercise} dir="rtl">
+            {category.exercises.map((exercise, index) => (
+              <SelectItem key={`${categoryKey}-${exercise}-${index}`} value={exercise} dir="rtl">
                 {exercise}
               </SelectItem>
             ))}

@@ -10,18 +10,29 @@ import { leadColumns } from '@/components/dashboard/columns/leadColumns';
 import { useDashboardLogic } from '@/hooks/useDashboardLogic';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
-import { useTableFilters, LEAD_FILTER_FIELDS, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { useTableFilters, getLeadFilterFields, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
-import { useAppSelector } from '@/store/hooks';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import {
+  setSelectedStatus,
+  setSelectedFitnessGoal,
+  setSelectedActivityLevel,
+  setSelectedPreferredTime,
+  setSelectedSource,
+  setSelectedAge,
+  setSelectedHeight,
+  setSelectedWeight,
+  setSelectedDate,
+} from '@/store/slices/dashboardSlice';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
-  const { defaultView } = useDefaultView('leads');
-  const { data: savedView } = useSavedView(viewId);
+  // Removed duplicate useDefaultView and useSavedView - they're already called in useDashboardLogic
   const sidebarWidth = useSidebarWidth();
   const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
 
@@ -42,12 +53,7 @@ const Dashboard = () => {
     }
   }, [authUser, isAuthenticated, authIsLoading]);
 
-  // Auto-navigate to default view if no view_id is present
-  useEffect(() => {
-    if (!viewId && defaultView) {
-      navigate(`/dashboard?view_id=${defaultView.id}`, { replace: true });
-    }
-  }, [viewId, defaultView, navigate]);
+  // Auto-navigate to default view is handled in useDashboardLogic
 
   const {
     filteredLeads,
@@ -61,6 +67,7 @@ const Dashboard = () => {
     setIsAddLeadDialogOpen,
     getCurrentFilterConfig,
     isLoading,
+    savedView, // Get savedView from useDashboardLogic instead of duplicate call
   } = useDashboardLogic();
   
   // Debug: Log filteredLeads when it changes
@@ -73,13 +80,97 @@ const Dashboard = () => {
     });
   }, [filteredLeads, isLoading]);
 
-  // Filter system for modals
+  // Filter system - connect to Redux for leads
   const {
     filters: activeFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
+    addFilter: addFilterLocal,
+    removeFilter: removeFilterLocal,
+    clearFilters: clearFiltersLocal,
   } = useTableFilters([]);
+
+  // Get filter fields with dynamic options from data
+  const leadFilterFields = useMemo(() => {
+    return getLeadFilterFields(filteredLeads || []);
+  }, [filteredLeads]);
+
+  // Convert ActiveFilter to Redux actions for leads
+  const addFilter = useCallback((filter: ActiveFilter) => {
+    // Add to local state for UI
+    addFilterLocal(filter);
+    
+    // Also update Redux state for data fetching
+    const { fieldId, operator, values } = filter;
+    
+    if (fieldId === 'status' && operator === 'is' && values.length > 0) {
+      // For multiselect, take first value for now (can be enhanced later)
+      // The Redux state currently supports single value
+      // TODO: Enhance to support multiple values
+      dispatch(setSelectedStatus(values[0]));
+    } else if (fieldId === 'fitnessGoal' && operator === 'is' && values.length > 0) {
+      dispatch(setSelectedFitnessGoal(values[0]));
+    } else if (fieldId === 'activityLevel' && operator === 'is' && values.length > 0) {
+      dispatch(setSelectedActivityLevel(values[0]));
+    } else if (fieldId === 'preferredTime' && operator === 'is' && values.length > 0) {
+      dispatch(setSelectedPreferredTime(values[0]));
+    } else if (fieldId === 'source' && operator === 'is' && values.length > 0) {
+      dispatch(setSelectedSource(values[0]));
+    } else if (fieldId === 'age' && operator === 'equals' && values[0]) {
+      dispatch(setSelectedAge(values[0]));
+    } else if (fieldId === 'height' && operator === 'equals' && values[0]) {
+      dispatch(setSelectedHeight(values[0]));
+    } else if (fieldId === 'weight' && operator === 'equals' && values[0]) {
+      dispatch(setSelectedWeight(values[0]));
+    } else if (fieldId === 'createdDate' && operator === 'equals' && values[0]) {
+      dispatch(setSelectedDate(values[0]));
+    }
+  }, [addFilterLocal, dispatch]);
+
+  const removeFilter = useCallback((filterId: string) => {
+    // Remove from local state
+    removeFilterLocal(filterId);
+    
+    // Find the filter to determine which Redux state to clear
+    const filter = activeFilters.find(f => f.id === filterId);
+    if (filter) {
+      const { fieldId } = filter;
+      
+      if (fieldId === 'status') {
+        dispatch(setSelectedStatus(null));
+      } else if (fieldId === 'fitnessGoal') {
+        dispatch(setSelectedFitnessGoal(null));
+      } else if (fieldId === 'activityLevel') {
+        dispatch(setSelectedActivityLevel(null));
+      } else if (fieldId === 'preferredTime') {
+        dispatch(setSelectedPreferredTime(null));
+      } else if (fieldId === 'source') {
+        dispatch(setSelectedSource(null));
+      } else if (fieldId === 'age') {
+        dispatch(setSelectedAge(null));
+      } else if (fieldId === 'height') {
+        dispatch(setSelectedHeight(null));
+      } else if (fieldId === 'weight') {
+        dispatch(setSelectedWeight(null));
+      } else if (fieldId === 'createdDate') {
+        dispatch(setSelectedDate(null));
+      }
+    }
+  }, [removeFilterLocal, activeFilters, dispatch]);
+
+  const clearFilters = useCallback(() => {
+    // Clear local state
+    clearFiltersLocal();
+    
+    // Clear all Redux filter state
+    dispatch(setSelectedStatus(null));
+    dispatch(setSelectedFitnessGoal(null));
+    dispatch(setSelectedActivityLevel(null));
+    dispatch(setSelectedPreferredTime(null));
+    dispatch(setSelectedSource(null));
+    dispatch(setSelectedAge(null));
+    dispatch(setSelectedHeight(null));
+    dispatch(setSelectedWeight(null));
+    dispatch(setSelectedDate(null));
+  }, [clearFiltersLocal, dispatch]);
 
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
@@ -125,12 +216,13 @@ const Dashboard = () => {
                 dataCount={filteredLeads?.length || 0}
                 singularLabel="ליד"
                 pluralLabel="לידים"
-                filterFields={LEAD_FILTER_FIELDS}
+                filterFields={leadFilterFields}
                 searchPlaceholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
                 addButtonLabel="הוסף ליד"
                 onAddClick={handleAddLead}
                 enableColumnVisibility={true}
                 enableFilters={true}
+                enableGroupBy={true}
                 enableSearch={true}
                 columns={leadColumns}
                 legacySearchQuery={searchQuery}
@@ -149,7 +241,7 @@ const Dashboard = () => {
                     <p>טוען נתונים...</p>
                   </div>
                 ) : filteredLeads && Array.isArray(filteredLeads) && filteredLeads.length > 0 ? (
-                  <LeadsDataTable leads={filteredLeads} columnVisibility={columnVisibility} enableColumnVisibility={false} />
+                  <LeadsDataTable leads={filteredLeads} enableColumnVisibility={false} />
                 ) : (
                   <div className="p-8 text-center text-gray-500">
                     <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
@@ -193,7 +285,7 @@ const Dashboard = () => {
         viewToEdit?.resource_key === 'customers' ? CUSTOMER_FILTER_FIELDS :
         viewToEdit?.resource_key === 'templates' ? TEMPLATE_FILTER_FIELDS :
         viewToEdit?.resource_key === 'nutrition_templates' ? NUTRITION_TEMPLATE_FILTER_FIELDS :
-        LEAD_FILTER_FIELDS
+        leadFilterFields
       }
       onSuccess={() => {
         setIsEditViewModalOpen(false);

@@ -5,11 +5,17 @@
  * Supports double-click to edit and Enter to save.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
 import { Edit, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+
+export interface InlineEditableSelectRef {
+  save: () => Promise<void>;
+  cancel: () => void;
+  isEditing: boolean;
+}
 
 interface InlineEditableSelectProps {
   label: string;
@@ -22,9 +28,10 @@ interface InlineEditableSelectProps {
   valueClassName?: string;
   disabled?: boolean;
   badgeClassName?: string;
+  onEditingChange?: (isEditing: boolean) => void;
 }
 
-export const InlineEditableSelect = ({
+export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEditableSelectProps>(({
   label,
   value,
   options,
@@ -35,13 +42,15 @@ export const InlineEditableSelect = ({
   valueClassName,
   disabled = false,
   badgeClassName,
-}: InlineEditableSelectProps) => {
+  onEditingChange,
+}, ref) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const [isSaving, setIsSaving] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newOptionValue, setNewOptionValue] = useState('');
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const newOptionInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,24 +67,22 @@ export const InlineEditableSelect = ({
   }, [isEditing, isAddingNew]);
 
   useEffect(() => {
-    setEditValue(value);
-  }, [value]);
+    // Only update editValue if we're not currently editing or saving
+    // This prevents the value from reverting while saving
+    if (!isEditing && !isSaving) {
+      setEditValue(value);
+    }
+  }, [value, isEditing, isSaving]);
 
-  const handleEdit = () => {
-    if (disabled) return;
-    setIsEditing(true);
-    setEditValue(value);
-    setIsAddingNew(false);
-  };
-
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setIsEditing(false);
     setEditValue(value);
     setIsAddingNew(false);
     setNewOptionValue('');
-  };
+    setIsSelectOpen(false);
+  }, [value]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (editValue === value && !isAddingNew) {
       setIsEditing(false);
       return;
@@ -93,19 +100,24 @@ export const InlineEditableSelect = ({
         }
       }
       
-      // Exit editing mode immediately for better UX (optimistic update)
+      // Update local state optimistically
+      setEditValue(finalValue);
       setIsEditing(false);
       setIsAddingNew(false);
       setNewOptionValue('');
+      setIsSelectOpen(false);
       
-      // Save in background - optimistic updates handle the UI
-      onSave(finalValue).catch((error) => {
+      // Await the save to ensure it completes
+      try {
+        await onSave(finalValue);
+        console.log('InlineEditableSelect: Save successful', finalValue);
+      } catch (error) {
         console.error('InlineEditableSelect: Failed to save:', error);
         // On error, revert to original value
         setEditValue(value);
-        // Re-enter editing mode so user can retry
         setIsEditing(true);
-      });
+        throw error;
+      }
     } catch (error) {
       console.error('InlineEditableSelect: Validation error:', error);
       setEditValue(value);
@@ -114,16 +126,53 @@ export const InlineEditableSelect = ({
     } finally {
       setIsSaving(false);
     }
+  }, [editValue, value, isAddingNew, newOptionValue, onAddOption, onSave]);
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    save: handleSave,
+    cancel: handleCancel,
+    isEditing,
+  }), [handleSave, handleCancel, isEditing]);
+
+  // Store callback in ref to avoid dependency issues
+  const onEditingChangeRef = useRef(onEditingChange);
+  
+  // Update ref when callback changes
+  useEffect(() => {
+    onEditingChangeRef.current = onEditingChange;
+  }, [onEditingChange]);
+  
+  // Track previous editing state to avoid unnecessary calls
+  const prevIsEditingRef = useRef(isEditing);
+  
+  // Notify parent of editing state changes (only when state actually changes)
+  useEffect(() => {
+    if (prevIsEditingRef.current !== isEditing) {
+      prevIsEditingRef.current = isEditing;
+      onEditingChangeRef.current?.(isEditing);
+    }
+  }, [isEditing]);
+
+  const handleEdit = () => {
+    if (disabled) return;
+    setIsEditing(true);
+    setEditValue(value);
+    setIsAddingNew(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
       if (isAddingNew) {
         handleSave();
       } else {
         handleSave();
       }
     } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
       handleCancel();
     }
   };
@@ -168,15 +217,19 @@ export const InlineEditableSelect = ({
             <div className="flex-1 min-w-0" onKeyDown={handleKeyDown}>
                 <Select 
                   value={editValue} 
+                  open={isSelectOpen}
+                  onOpenChange={(open) => {
+                    setIsSelectOpen(open);
+                  }}
                   onValueChange={(value) => {
                     if (value === '__add_new__') {
                       handleAddNew();
                       // Reset to current value to prevent "__add_new__" from being selected
                       setTimeout(() => setEditValue(editValue), 0);
                     } else {
+                      // Just update the local value, don't save yet
+                      // User will save with Enter key or save button
                       setEditValue(value);
-                      // Auto-save on selection change
-                      setTimeout(() => handleSave(), 100);
                     }
                   }}
                   disabled={isSaving || isAddingNew}
@@ -189,6 +242,18 @@ export const InlineEditableSelect = ({
                       "transition-all duration-200",
                       "bg-white"
                     )}
+                    onKeyDown={(e) => {
+                      // Handle Enter key when SelectTrigger is focused (dropdown closed)
+                      if (e.key === 'Enter' && !isSelectOpen) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSave();
+                      } else if (e.key === 'Escape' && !isSelectOpen) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleCancel();
+                      }
+                    }}
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -256,7 +321,9 @@ export const InlineEditableSelect = ({
       </div>
     </div>
   );
-};
+});
+
+InlineEditableSelect.displayName = 'InlineEditableSelect';
 
 
 

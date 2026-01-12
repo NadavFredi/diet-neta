@@ -6,12 +6,36 @@ export interface DailyCheckIn {
   customer_id: string;
   lead_id: string | null;
   check_in_date: string;
+  // Legacy fields (still supported)
   workout_completed: boolean;
   steps_goal_met: boolean;
   steps_actual: number | null;
   nutrition_goal_met: boolean;
   supplements_taken: string[];
   notes: string | null;
+  // Physical measurements (6 fields)
+  weight: number | null; // kg
+  belly_circumference: number | null; // cm - היקף בטן
+  waist_circumference: number | null; // cm - היקף מותן
+  thigh_circumference: number | null; // cm - היקף ירכיים
+  arm_circumference: number | null; // cm - היקף יד
+  neck_circumference: number | null; // cm - היקף צוואר
+  // Activity metrics (4 fields)
+  exercises_count: number | null; // כמה תרגילים עשית
+  cardio_amount: number | null; // minutes - כמה אירובי עשית
+  intervals_count: number | null; // כמה אינטרוולים
+  // Nutrition and Hydration (4 fields)
+  calories_daily: number | null; // קלוריות יומי
+  protein_daily: number | null; // grams - חלבון יומי
+  fiber_daily: number | null; // grams - סיבים יומי
+  water_amount: number | null; // liters - כמה מים שתית
+  // Well-being scales 1-10 (3 fields)
+  stress_level: number | null; // 1-10 - רמת הלחץ היומי
+  hunger_level: number | null; // 1-10 - רמת הרעב שלך
+  energy_level: number | null; // 1-10 - רמת האנרגיה שלך
+  // Rest (1 field)
+  sleep_hours: number | null; // hours - כמה שעות ישנת
+  // Metadata
   created_at: string;
   updated_at: string;
 }
@@ -52,6 +76,7 @@ interface ClientState {
   isLoading: boolean;
   isLoadingCheckIns: boolean;
   error: string | null;
+  selectedDate: string | null; // ISO date string (YYYY-MM-DD)
 }
 
 const initialState: ClientState = {
@@ -62,6 +87,7 @@ const initialState: ClientState = {
   isLoading: false,
   isLoadingCheckIns: false,
   error: null,
+  selectedDate: null, // Will default to today
 };
 
 // Fetch client's customer data and leads by customer_id
@@ -219,6 +245,25 @@ export const upsertCheckIn = createAsyncThunk(
   }
 );
 
+// Batch create or update multiple daily check-ins
+export const batchUpsertCheckIns = createAsyncThunk(
+  'client/batchUpsertCheckIns',
+  async (checkIns: Array<Partial<DailyCheckIn> & { customer_id: string; check_in_date: string }>) => {
+    const { data, error } = await supabase
+      .from('daily_check_ins')
+      .upsert(
+        checkIns,
+        {
+          onConflict: 'customer_id,check_in_date',
+        }
+      )
+      .select();
+
+    if (error) throw error;
+    return (data || []) as DailyCheckIn[];
+  }
+);
+
 // Update lead (for weight, height, etc.)
 export const updateClientLead = createAsyncThunk(
   'client/updateLead',
@@ -257,6 +302,9 @@ const clientSlice = createSlice({
   reducers: {
     setActiveLead: (state, action: PayloadAction<ClientLead | null>) => {
       state.activeLead = action.payload;
+    },
+    setSelectedDate: (state, action: PayloadAction<string | null>) => {
+      state.selectedDate = action.payload;
     },
     clearError: (state) => {
       state.error = null;
@@ -321,6 +369,21 @@ const clientSlice = createSlice({
           state.checkIns.unshift(action.payload);
         }
       })
+      // Batch upsert check-ins
+      .addCase(batchUpsertCheckIns.fulfilled, (state, action) => {
+        action.payload.forEach((checkIn) => {
+          const index = state.checkIns.findIndex((ci) => ci.id === checkIn.id);
+          if (index >= 0) {
+            state.checkIns[index] = checkIn;
+          } else {
+            state.checkIns.unshift(checkIn);
+          }
+        });
+        // Sort by date descending
+        state.checkIns.sort((a, b) => 
+          new Date(b.check_in_date).getTime() - new Date(a.check_in_date).getTime()
+        );
+      })
       // Update lead
       .addCase(updateClientLead.fulfilled, (state, action) => {
         const index = state.leads.findIndex((l) => l.id === action.payload.id);
@@ -338,6 +401,6 @@ const clientSlice = createSlice({
   },
 });
 
-export const { setActiveLead, clearError } = clientSlice.actions;
+export const { setActiveLead, setSelectedDate, clearError } = clientSlice.actions;
 export default clientSlice.reducer;
 

@@ -21,43 +21,19 @@ export interface NutritionTemplate {
   created_by: string | null;
 }
 
-// Helper function to get user ID from email
-const getUserIdFromEmail = async (email: string): Promise<string> => {
-  try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (user && !authError) return user.id;
-  } catch (e) {
-    // Auth session not available, continue to profile lookup
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle();
-
-  if (profile && profile.id) {
-    return profile.id;
-  }
-
-  // SECURITY: Do not create users with temporary passwords
-  // Users must be created through the secure invitation system
-  throw new Error(
-    `User profile not found for email: ${email}. ` +
-    `Please contact an administrator to create your account via the secure invitation system.`
-  );
-};
+// Note: We now use user.id from Redux auth state instead of getUserIdFromEmail
+// This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all templates (public + user's own)
 export const useNutritionTemplates = (filters?: { search?: string; isPublic?: boolean }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['nutritionTemplates', filters, user?.email],
+    queryKey: ['nutritionTemplates', filters, user?.id],
     queryFn: async () => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
       let query = supabase
         .from('nutrition_templates')
         .select('*')
@@ -85,7 +61,9 @@ export const useNutritionTemplates = (filters?: { search?: string; isPublic?: bo
       }
       return data as NutritionTemplate[];
     },
-    enabled: !!user?.email,
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change often
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -94,12 +72,12 @@ export const useNutritionTemplate = (templateId: string | null) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['nutritionTemplate', templateId, user?.email],
+    queryKey: ['nutritionTemplate', templateId, user?.id],
     queryFn: async () => {
       if (!templateId) return null;
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { data, error } = await supabase
         .from('nutrition_templates')
@@ -111,7 +89,9 @@ export const useNutritionTemplate = (templateId: string | null) => {
       if (error) throw error;
       return data as NutritionTemplate | null;
     },
-    enabled: !!templateId && !!user?.email,
+    enabled: !!templateId && !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime in v5)
   });
 };
 
@@ -132,9 +112,9 @@ export const useCreateNutritionTemplate = () => {
       targets: NutritionTargets;
       is_public?: boolean;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { data, error } = await supabase
         .from('nutrition_templates')
@@ -182,9 +162,9 @@ export const useUpdateNutritionTemplate = () => {
       targets?: NutritionTargets;
       is_public?: boolean;
     }) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const updateData: Partial<NutritionTemplate> = {};
       if (name !== undefined) updateData.name = name;
@@ -217,9 +197,9 @@ export const useDeleteNutritionTemplate = () => {
 
   return useMutation({
     mutationFn: async (templateId: string) => {
-      if (!user?.email) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('User not authenticated');
 
-      const userId = await getUserIdFromEmail(user.email);
+      const userId = user.id; // Use user.id from Redux instead of API call
 
       const { error } = await supabase
         .from('nutrition_templates')

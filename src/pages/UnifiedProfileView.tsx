@@ -9,7 +9,7 @@
  * - PageLayout: Main wrapper
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,12 @@ import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
 import { AddWorkoutPlanDialog } from '@/components/dashboard/dialogs/AddWorkoutPlanDialog';
 import { AddNutritionPlanDialog } from '@/components/dashboard/dialogs/AddNutritionPlanDialog';
+import { AssignBudgetDialog } from '@/components/dashboard/dialogs/AssignBudgetDialog';
 import { useToast } from '@/hooks/use-toast';
+import { useActiveBudgetForLead, useActiveBudgetForCustomer } from '@/hooks/useBudgets';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabaseClient';
+import { usePlansHistory } from '@/hooks/usePlansHistory';
 
 const UnifiedProfileView = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -53,10 +58,122 @@ const UnifiedProfileView = () => {
   // Dialog state management
   const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
   const [isNutritionPlanDialogOpen, setIsNutritionPlanDialogOpen] = useState(false);
+  const [isAssignBudgetDialogOpen, setIsAssignBudgetDialogOpen] = useState(false);
 
   // Hooks for creating plans
   const { createWorkoutPlan } = useWorkoutPlan(customer?.id);
   const { createNutritionPlan } = useNutritionPlan(customer?.id);
+
+  // Fetch plans history from plan tables
+  const leadId = activeLead?.id || mostRecentLead?.id;
+  const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
+
+  // Merge plans from database with JSONB history (plans take precedence)
+  const mergedWorkoutHistory = useMemo(() => {
+    const plans = plansHistory?.workoutHistory || [];
+    const jsonbHistory = activeLead?.workout_history || [];
+    
+    // Combine: plans first (newer), then JSONB history (legacy)
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.workoutHistory, activeLead?.workout_history]);
+
+  const mergedNutritionHistory = useMemo(() => {
+    const plans = plansHistory?.nutritionHistory || [];
+    const jsonbHistory = activeLead?.nutrition_history || [];
+    
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.nutritionHistory, activeLead?.nutrition_history]);
+
+  const mergedSupplementsHistory = useMemo(() => {
+    const plans = plansHistory?.supplementsHistory || [];
+    const jsonbHistory = activeLead?.supplements_history || [];
+    
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.supplementsHistory, activeLead?.supplements_history]);
+
+  const mergedStepsHistory = useMemo(() => {
+    const plans = plansHistory?.stepsHistory || [];
+    const jsonbHistory = activeLead?.steps_history || [];
+    
+    return [...plans, ...jsonbHistory];
+  }, [plansHistory?.stepsHistory, activeLead?.steps_history]);
+
+  // Create merged activeLead with plans history
+  const activeLeadWithPlans = useMemo(() => {
+    if (!activeLead) return null;
+    return {
+      ...activeLead,
+      workout_history: mergedWorkoutHistory,
+      nutrition_history: mergedNutritionHistory,
+      supplements_history: mergedSupplementsHistory,
+      steps_history: mergedStepsHistory,
+    };
+  }, [activeLead, mergedWorkoutHistory, mergedNutritionHistory, mergedSupplementsHistory, mergedStepsHistory]);
+
+  // Fetch budget assignments for the lead
+  const { data: budgetAssignments } = useQuery({
+    queryKey: ['budget-assignments', leadId, customer?.id],
+    queryFn: async () => {
+      const assignments: any[] = [];
+      
+      // Fetch assignments for lead
+      if (leadId) {
+        const { data: leadAssignments } = await supabase
+          .from('budget_assignments')
+          .select(`
+            id,
+            budget_id,
+            assigned_at,
+            is_active,
+            notes,
+            budget:budgets(name)
+          `)
+          .eq('lead_id', leadId)
+          .order('assigned_at', { ascending: false });
+        
+        if (leadAssignments) {
+          assignments.push(...leadAssignments.map((a: any) => ({
+            id: a.id,
+            budget_id: a.budget_id,
+            budget_name: a.budget?.name,
+            assigned_at: a.assigned_at,
+            is_active: a.is_active,
+            notes: a.notes,
+          })));
+        }
+      }
+      
+      // Fetch assignments for customer
+      if (customer?.id) {
+        const { data: customerAssignments } = await supabase
+          .from('budget_assignments')
+          .select(`
+            id,
+            budget_id,
+            assigned_at,
+            is_active,
+            notes,
+            budget:budgets(name)
+          `)
+          .eq('customer_id', customer.id)
+          .order('assigned_at', { ascending: false });
+        
+        if (customerAssignments) {
+          assignments.push(...customerAssignments.map((a: any) => ({
+            id: a.id,
+            budget_id: a.budget_id,
+            budget_name: a.budget?.name,
+            assigned_at: a.assigned_at,
+            is_active: a.is_active,
+            notes: a.notes,
+          })));
+        }
+      }
+      
+      return assignments;
+    },
+    enabled: !!(leadId || customer?.id),
+  });
 
   if (isLoadingCustomer) {
     return (
@@ -112,6 +229,10 @@ const UnifiedProfileView = () => {
     if (customer?.id) {
       setIsNutritionPlanDialogOpen(true);
     }
+  };
+
+  const handleAssignBudget = () => {
+    setIsAssignBudgetDialogOpen(true);
   };
 
   // Handle workout plan save
@@ -199,7 +320,7 @@ const UnifiedProfileView = () => {
         customer={customer}
         mostRecentLead={mostRecentLead}
         sortedLeads={sortedLeads || []}
-        activeLead={activeLead}
+        activeLead={activeLeadWithPlans || activeLead}
         activeLeadId={selectedInterestId}
         status={mostRecentLeadStatus || 'ללא סטטוס'}
         isLoadingLead={isLoadingLead}
@@ -210,6 +331,8 @@ const UnifiedProfileView = () => {
         onUpdateCustomer={handleUpdateCustomer}
         onAddWorkoutPlan={handleAddWorkoutPlan}
         onAddDietPlan={handleAddDietPlan}
+        onAssignBudget={handleAssignBudget}
+        budgetAssignments={budgetAssignments}
         getInitials={getInitials}
         getStatusColor={getStatusColor}
         getStatusBorderColor={getStatusBorderColor}
@@ -232,6 +355,18 @@ const UnifiedProfileView = () => {
         onSave={handleNutritionPlanSave}
         customerId={customer?.id}
         leadId={activeLead?.id || mostRecentLead?.id}
+      />
+
+      {/* Budget Assignment Dialog */}
+      <AssignBudgetDialog
+        isOpen={isAssignBudgetDialogOpen}
+        onOpenChange={setIsAssignBudgetDialogOpen}
+        leadId={activeLead?.id || mostRecentLead?.id}
+        customerId={customer?.id}
+        onSuccess={() => {
+          // Invalidate queries to refresh budget assignments
+          // The query will automatically refetch
+        }}
       />
     </>
   );

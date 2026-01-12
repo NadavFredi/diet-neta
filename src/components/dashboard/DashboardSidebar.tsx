@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Settings, LayoutDashboard, Dumbbell, Apple, Link2, FileText } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Apple, Calculator, Settings, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection } from '@/store/slices/sidebarSlice';
@@ -35,6 +35,13 @@ const navigationItems: NavItem[] = [
     path: '/dashboard/customers',
   },
   {
+    id: 'meetings',
+    resourceKey: 'meetings',
+    label: 'פגישות',
+    icon: Calendar,
+    path: '/dashboard/meetings',
+  },
+  {
     id: 'templates',
     resourceKey: 'templates',
     label: 'תכניות אימונים',
@@ -49,25 +56,18 @@ const navigationItems: NavItem[] = [
     path: '/dashboard/nutrition-templates',
   },
   {
-    id: 'interfaces',
-    resourceKey: 'interfaces',
-    label: 'ממשקים',
-    icon: Link2,
-    path: '/interfaces',
+    id: 'budgets',
+    resourceKey: 'budgets',
+    label: 'תקציבים',
+    icon: Calculator,
+    path: '/dashboard/budgets',
   },
   {
-    id: 'pages',
-    resourceKey: 'pages',
-    label: 'דפים',
-    icon: FileText,
-    path: '/pages',
-  },
-  {
-    id: 'settings',
-    resourceKey: 'settings',
-    label: 'הגדרות',
+    id: 'check-in-settings',
+    resourceKey: 'check_in_settings',
+    label: 'הגדרות צ\'ק-אין',
     icon: Settings,
-    path: '/settings',
+    path: '/dashboard/check-in-settings',
   },
 ];
 
@@ -143,6 +143,11 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
              (location.pathname.startsWith('/dashboard/customers/') && 
               !location.pathname.startsWith('/profile/lead/') &&
               !location.pathname.startsWith('/leads/'));
+    }
+    if (path === '/dashboard/meetings') {
+      // Active for meetings list and meeting detail routes
+      return location.pathname === '/dashboard/meetings' || 
+             location.pathname.startsWith('/dashboard/meetings/');
     }
     return location.pathname === path || location.pathname.startsWith(path);
   };

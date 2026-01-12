@@ -278,9 +278,24 @@ export const loginUser = createAsyncThunk(
 // Async thunk for logout
 export const logoutUser = createAsyncThunk(
   'auth/logout',
-  async () => {
+  async (_, { rejectWithValue }) => {
+    try {
+      console.log('[logoutUser] Starting logout...');
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+      if (error) {
+        console.error('[logoutUser] Sign out error:', error);
+        // Even if there's an error, we should still clear the local state
+        // Return success so state gets cleared
+        return;
+      }
+      console.log('[logoutUser] Sign out successful');
+      return;
+    } catch (error: any) {
+      console.error('[logoutUser] Logout exception:', error);
+      // Even on error, we want to clear local state
+      // Return success so state gets cleared
+      return;
+    }
   }
 );
 
@@ -333,10 +348,23 @@ const authSlice = createSlice({
         state.supabaseUser = null;
         state.isLoading = false;
       })
+      .addCase(logoutUser.pending, (state) => {
+        console.log('[authSlice] Logout pending...');
+      })
       .addCase(logoutUser.fulfilled, (state) => {
+        console.log('[authSlice] Logout fulfilled, clearing state');
         state.isAuthenticated = false;
         state.user = null;
         state.supabaseUser = null;
+        state.isLoading = false;
+      })
+      .addCase(logoutUser.rejected, (state) => {
+        console.log('[authSlice] Logout rejected, clearing state anyway');
+        // Clear state even if logout failed
+        state.isAuthenticated = false;
+        state.user = null;
+        state.supabaseUser = null;
+        state.isLoading = false;
       });
   },
 });
