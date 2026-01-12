@@ -9,6 +9,7 @@
 import React, { useMemo, useState, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { InlineEditableField, type InlineEditableFieldRef } from './InlineEditableField';
 import { InlineEditableSelect, type InlineEditableSelectRef } from './InlineEditableSelect';
 import { CardHeaderWithActions } from './CardHeaderWithActions';
@@ -38,6 +39,7 @@ import { ReadOnlyField } from './ReadOnlyField';
 import { LeadPaymentCard } from './LeadPaymentCard';
 import { usePlansHistory } from '@/hooks/usePlansHistory';
 import { ProgressGalleryCard } from './ProgressGalleryCard';
+import { CreateSubscriptionModal } from './dialogs/CreateSubscriptionModal';
 
 interface LeadData {
   id: string;
@@ -82,6 +84,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   budgetAssignments,
   getStatusColor,
 }) => {
+  const [isCreateSubscriptionModalOpen, setIsCreateSubscriptionModalOpen] = useState(false);
   if (isLoading) {
     return (
       <Card className="p-8 border border-gray-200 rounded-xl shadow-sm">
@@ -352,6 +355,15 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               onSave={handleSubscriptionSave}
               onCancel={handleSubscriptionCancel}
             />
+            <div className="mb-4">
+              <Button
+                onClick={() => setIsCreateSubscriptionModalOpen(true)}
+                size="sm"
+                variant="default"
+              >
+                צור מנוי
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
               <InlineEditableField
                 ref={joinDateRef}
@@ -681,6 +693,29 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         </div>
       </div>
 
+      {/* Create Subscription Modal */}
+      <CreateSubscriptionModal
+        isOpen={isCreateSubscriptionModalOpen}
+        onOpenChange={setIsCreateSubscriptionModalOpen}
+        onConfirm={async (subscriptionType) => {
+          try {
+            const today = new Date().toISOString().split('T')[0];
+            // Create a NEW subscription_data object (copy values, not reference)
+            // This ensures one-way relationship - template changes don't affect leads
+            const updatedSubscription = {
+              ...subscriptionData,
+              months: subscriptionType.duration, // Copy duration value
+              initialPrice: subscriptionType.price, // Copy price value
+            };
+            await onUpdateLead({
+              join_date: today,
+              subscription_data: updatedSubscription,
+            });
+          } catch (error: any) {
+            console.error('Error creating subscription:', error);
+          }
+        }}
+      />
     </div>
   );
 };
