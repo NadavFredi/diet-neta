@@ -9,7 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Loader2, Plus, Video, Clock, Tag, ExternalLink, Search, X } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Loader2, Plus, Video, Clock, Tag, ExternalLink, Search, X, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useKnowledgeBase } from '@/hooks/useKnowledgeBase';
 import { KnowledgeBaseItemDialog } from './KnowledgeBaseItemDialog';
@@ -22,6 +24,8 @@ export const InternalKnowledgeBase: React.FC = () => {
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'create'>('view');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [tagsPopoverOpen, setTagsPopoverOpen] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
 
   // Helper to convert seconds to MM:SS format
   const secondsToMMSS = (seconds: number): string => {
@@ -90,6 +94,15 @@ export const InternalKnowledgeBase: React.FC = () => {
     setSelectedTags(newSelectedTags);
   };
 
+  // Filter tags based on search query
+  const filteredTags = useMemo(() => {
+    if (!tagSearchQuery.trim()) {
+      return allTags;
+    }
+    const query = tagSearchQuery.toLowerCase();
+    return allTags.filter(tag => tag.toLowerCase().includes(query));
+  }, [allTags, tagSearchQuery]);
+
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedTags(new Set());
@@ -113,54 +126,120 @@ export const InternalKnowledgeBase: React.FC = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0 space-y-3">
-        {/* Search Input */}
-        <div className="relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="חיפוש בכותרת, תיאור או תגיות..."
-            className="pr-9 h-9 text-sm bg-gray-50 border-gray-200 focus:bg-white"
-            dir="rtl"
-          />
-        </div>
-
-        {/* Tags Filter */}
-        {allTags.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-gray-500 font-medium">סינון לפי תגיות:</span>
-            {allTags.map(tag => (
-              <Badge
-                key={tag}
-                variant={selectedTags.has(tag) ? "default" : "outline"}
-                className={cn(
-                  "cursor-pointer text-xs transition-colors",
-                  selectedTags.has(tag) 
-                    ? "bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]/90" 
-                    : "hover:bg-gray-100"
-                )}
-                onClick={() => toggleTag(tag)}
-              >
-                {tag}
-              </Badge>
-            ))}
+      <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="חיפוש בכותרת, תיאור או תגיות..."
+              className="pr-9 h-9 text-sm bg-gray-50 border-gray-200 focus:bg-white"
+              dir="rtl"
+            />
           </div>
-        )}
 
-        {/* Clear Filters */}
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
-          >
-            <X className="h-3 w-3 ml-1" />
-            נקה סינונים
-          </Button>
-        )}
+          {/* Tags Filter - Autocomplete Select */}
+          {allTags.length > 0 && (
+            <Popover open={tagsPopoverOpen} onOpenChange={setTagsPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={tagsPopoverOpen}
+                  className={cn(
+                    "h-9 justify-between min-w-[180px] text-sm",
+                    selectedTags.size > 0 && "bg-[#5B6FB9]/10 border-[#5B6FB9]"
+                  )}
+                  dir="rtl"
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Tag className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">
+                      {selectedTags.size === 0
+                        ? 'סינון לפי תגיות'
+                        : selectedTags.size === 1
+                        ? Array.from(selectedTags)[0]
+                        : `${selectedTags.size} תגיות נבחרו`}
+                    </span>
+                  </div>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" dir="rtl" side="bottom">
+                <Command>
+                  <CommandInput
+                    placeholder="חפש תגיות..."
+                    value={tagSearchQuery}
+                    onValueChange={setTagSearchQuery}
+                    dir="rtl"
+                  />
+                  <CommandList>
+                    <CommandEmpty>לא נמצאו תגיות</CommandEmpty>
+                    <CommandGroup>
+                      {filteredTags.map((tag) => (
+                        <CommandItem
+                          key={tag}
+                          onSelect={() => {
+                            toggleTag(tag);
+                          }}
+                          className="cursor-pointer"
+                        >
+                          <Check
+                            className={cn(
+                              "ml-2 h-4 w-4",
+                              selectedTags.has(tag) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {tag}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {/* Selected Tags Badges */}
+          {selectedTags.size > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {Array.from(selectedTags).map(tag => (
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="text-xs bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]/90 px-2 py-0.5"
+                >
+                  {tag}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleTag(tag);
+                    }}
+                    className="mr-1 hover:bg-[#5B6FB9]/20 rounded-full p-0.5 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {/* Clear Filters */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-9 px-2 text-xs text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-3 w-3 ml-1" />
+              נקה
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Content Area */}

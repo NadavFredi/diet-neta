@@ -155,7 +155,7 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
 
   const handleDelete = async () => {
     if (!entry) return;
-    
+
     if (window.confirm('האם אתה בטוח שברצונך למחוק רשומה זו?')) {
       try {
         await deleteMutation.mutateAsync(entry.id);
@@ -335,21 +335,7 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
             )}
           </div>
 
-          {/* View Mode: Video Link */}
-          {!isEditing && entry && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-slate-700">צפייה בוידאו</Label>
-              <a
-                href={entry.video_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                <ExternalLink className="h-4 w-4" />
-                פתח קישור
-              </a>
-            </div>
-          )}
+
         </div>
 
         <div className="flex flex-row-reverse justify-between gap-2 pt-4 border-t">
