@@ -105,10 +105,12 @@ export const fetchFormSubmission = createAsyncThunk(
       console.log('[formsSlice] Fetching submission:', {
         formType,
         formId: formTypeConfig.formId,
-        leadId,
-        phoneNumber,
+        leadId: leadId || 'NOT PROVIDED',
+        leadIdType: typeof leadId,
+        leadIdLength: leadId?.length,
+        phoneNumber: phoneNumber || 'NOT PROVIDED',
         email: email ? 'provided but not used for matching' : 'not provided',
-        matchingPriority: 'leadId > phone (email matching disabled)',
+        matchingPriority: 'leadId (exact match) > phone (normalized match)',
         envVars: {
           DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS,
           INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO,

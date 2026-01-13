@@ -25,6 +25,15 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
 
   // Fetch all form submissions when component mounts or leadId/email/phone changes
   useEffect(() => {
+    console.log('[LeadFormsCard] useEffect triggered:', {
+      leadId: leadId || 'NULL/UNDEFINED',
+      leadIdType: typeof leadId,
+      leadIdTruthy: !!leadId,
+      leadEmail: leadEmail || 'NULL/UNDEFINED',
+      leadPhone: leadPhone || 'NULL/UNDEFINED',
+      hasAnyIdentifier: !!(leadId || leadEmail || leadPhone),
+    });
+    
     if (leadId || leadEmail || leadPhone) {
       const formTypes = getFormTypes();
       
@@ -37,9 +46,13 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
       });
       
       console.log('[LeadFormsCard] Fetching form submissions:', {
-        leadId,
-        leadEmail,
-        leadPhone,
+        leadId: leadId || 'NULL/UNDEFINED',
+        leadIdType: typeof leadId,
+        leadIdLength: leadId?.length,
+        leadEmail: leadEmail || 'NULL/UNDEFINED',
+        leadPhone: leadPhone || 'NULL/UNDEFINED',
+        leadPhoneType: typeof leadPhone,
+        leadPhoneLength: leadPhone?.length,
         formTypes: formTypes.map(f => ({ key: f.key, formId: f.formId, label: f.label })),
       });
       

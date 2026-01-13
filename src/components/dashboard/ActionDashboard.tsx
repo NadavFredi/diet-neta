@@ -698,6 +698,16 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             leadEmail={customer?.email || activeLead?.email || null} 
             leadPhone={activeLead?.phone || customer?.phone || null}
           />
+          {/* Debug: Log what we're passing to LeadFormsCard */}
+          {console.log('[ActionDashboard] Passing to LeadFormsCard:', {
+            activeLeadId: activeLead?.id || 'NULL',
+            activeLeadIdType: typeof activeLead?.id,
+            customerEmail: customer?.email || 'NULL',
+            activeLeadPhone: activeLead?.phone || 'NULL',
+            customerPhone: customer?.phone || 'NULL',
+            finalLeadId: activeLead?.id || null,
+            finalPhone: activeLead?.phone || customer?.phone || null,
+          }) || null}
 
           {/* Card 6: Stripe Payment Center */}
           <LeadPaymentCard
