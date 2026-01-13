@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { KnowledgeBasePanel } from './KnowledgeBasePanel';
+import { CustomerNotesSidebar } from './CustomerNotesSidebar';
 import { cn } from '@/lib/utils';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 
@@ -174,9 +174,9 @@ export const ResizableNotesPanel: React.FC<ResizableNotesPanelProps> = ({
         </div>
       </div>
 
-      {/* Knowledge Base Panel Content - Scrollable, starts at top */}
-      <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
-        <KnowledgeBasePanel 
+      {/* Notes Panel Content - Scrollable, starts at top */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ minHeight: 0 }}>
+        <CustomerNotesSidebar 
           customerId={customerId} 
           leads={leads} 
           activeLeadId={activeLeadId}

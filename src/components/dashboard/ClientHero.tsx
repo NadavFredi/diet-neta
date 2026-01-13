@@ -198,7 +198,8 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
       <div
         className={cn(
           "overflow-hidden transition-all duration-300 ease-in-out",
-          hideMainBar && isExpanded && "fixed top-[60px] left-0 z-30 bg-white border-b border-slate-100 shadow-sm",
+          hideMainBar && isExpanded && "fixed top-[60px] left-0 z-30 bg-[#5B6FB9]/5 border-b border-slate-100 shadow-sm",
+          !hideMainBar && isExpanded && "bg-[#5B6FB9]/5",
           isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
         )}
         style={hideMainBar && isExpanded ? {

@@ -16,6 +16,7 @@ import TemplatesManagement from "./pages/TemplatesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
 import BudgetManagement from "./pages/BudgetManagement.tsx";
 import SubscriptionTypesManagement from "./pages/SubscriptionTypesManagement.tsx";
+import KnowledgeBaseManagement from "./pages/KnowledgeBaseManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
 import MeetingsManagement from "./pages/MeetingsManagement.tsx";
 import MeetingDetailView from "./pages/MeetingDetailView.tsx";
@@ -30,6 +31,7 @@ import AuthRedirect from "./components/AuthRedirect";
 import { AppFooter } from "./components/layout/AppFooter";
 import { DevModeProvider } from "./hooks/useDevMode";
 import { AuthInitializer } from "./components/AuthInitializer";
+import { useAppSelector } from "./store/hooks";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,6 +51,18 @@ const AppContent = () => {
   const isLoginPage = location.pathname === '/login';
   const isDashboardPage = location.pathname === '/dashboard' || location.pathname.startsWith('/leads');
   const isClientDashboard = location.pathname === '/client/dashboard';
+  
+  // Check if we're on a route that uses PageLayout (UnifiedProfileView)
+  const isPageLayoutRoute =
+    location.pathname.startsWith('/leads/') ||
+    location.pathname.startsWith('/dashboard/customers/') ||
+    location.pathname.startsWith('/profile/');
+  
+  // Get notesOpen state from Redux
+  const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
+  
+  // Hide footer when on PageLayout route and right panel (notes panel) is visible
+  const shouldShowFooter = !isLoginPage && (!isPageLayoutRoute || !notesOpen);
   
   return (
     <div className={isClientDashboard ? "h-screen flex flex-col overflow-hidden" : "min-h-screen flex flex-col"}>
@@ -98,6 +112,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <SubscriptionTypesManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/knowledge-base"
+            element={
+              <ProtectedRoute>
+                <KnowledgeBaseManagement />
               </ProtectedRoute>
             }
           />
@@ -190,12 +212,13 @@ const AppContent = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      {!isLoginPage && (
+      {shouldShowFooter && (
         <AppFooter 
           className={isClientDashboard ? "mt-0 flex-shrink-0" : undefined} 
         />
       )}
       {/* Login page handles its own footer via AppFooter component */}
+      {/* Footer is hidden when right panel (notes panel) is visible on PageLayout routes */}
     </div>
   );
 };
