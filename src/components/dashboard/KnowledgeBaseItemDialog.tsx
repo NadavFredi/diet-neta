@@ -109,10 +109,10 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
   };
 
   const handleSave = async () => {
-    if (!formData.title.trim() || !formData.video_url.trim()) {
+    if (!formData.title.trim()) {
       toast({
         title: 'שגיאה',
-        description: 'כותרת וקישור וידאו הם שדות חובה',
+        description: 'כותרת היא שדה חובה',
         variant: 'destructive',
       });
       return;
@@ -130,7 +130,7 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
         await createMutation.mutateAsync({
           title: formData.title.trim(),
           description: formData.description.trim() || null,
-          video_url: formData.video_url.trim(),
+          video_url: formData.video_url.trim() || null,
           tags,
           duration: durationSeconds,
           additional_info: {},
@@ -141,7 +141,7 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
           updates: {
             title: formData.title.trim(),
             description: formData.description.trim() || null,
-            video_url: formData.video_url.trim(),
+            video_url: formData.video_url.trim() || null,
             tags,
             duration: durationSeconds,
           },
@@ -202,7 +202,7 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
           {/* Video URL */}
           <div className="space-y-2">
             <Label htmlFor="video_url" className="text-sm font-medium text-slate-700">
-              קישור וידאו *
+              קישור וידאו
             </Label>
             {isEditing ? (
               <Input
@@ -216,15 +216,19 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
               />
             ) : (
               <div className="flex items-center gap-2">
-                <a
-                  href={entry?.video_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
-                >
-                  {entry?.video_url}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                {entry?.video_url ? (
+                  <a
+                    href={entry.video_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                  >
+                    {entry.video_url}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <span className="text-sm text-gray-400">אין קישור וידאו</span>
+                )}
               </div>
             )}
           </div>

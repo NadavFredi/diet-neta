@@ -13,7 +13,7 @@ export interface KnowledgeBaseEntry {
   id: string;
   title: string;
   description: string | null;
-  video_url: string;
+  video_url: string | null;
   tags: string[];
   duration: number | null;
   additional_info: Record<string, any>;
@@ -59,7 +59,7 @@ export const useCreateKnowledgeBaseEntry = () => {
     mutationFn: async (entry: {
       title: string;
       description?: string | null;
-      video_url: string;
+      video_url?: string | null;
       tags?: string[];
       duration?: number | null;
       additional_info?: Record<string, any>;

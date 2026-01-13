@@ -58,12 +58,19 @@ const AppContent = () => {
     location.pathname.startsWith('/dashboard/customers/') ||
     location.pathname.startsWith('/profile/') ||
     location.pathname.startsWith('/dashboard/meetings/');
+
+  // Hide footer when the dashboard sidebar panel is visible
+  const isDashboardSidebarRoute =
+    (location.pathname.startsWith('/dashboard') && !location.pathname.startsWith('/dashboard/print/')) ||
+    location.pathname.startsWith('/leads/') ||
+    location.pathname.startsWith('/profile/');
   
   // Get notesOpen state from Redux
   const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
   
-  // Hide footer when on right panel route and right panel (notes panel) is visible
-  const shouldShowFooter = !isLoginPage && (!isRightPanelRoute || !notesOpen);
+  // Hide footer when dashboard sidebar is visible, or when notes panel is open on right panel routes
+  const shouldShowFooter =
+    !isLoginPage && !isDashboardSidebarRoute && (!isRightPanelRoute || !notesOpen);
   
   return (
     <div className={isClientDashboard ? "h-screen flex flex-col overflow-hidden" : "min-h-screen flex flex-col"}>
