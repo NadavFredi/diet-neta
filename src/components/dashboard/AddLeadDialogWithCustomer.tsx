@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useAddLead } from '@/hooks/useAddLead';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
+import { PhoneInput, formatPhoneNumberForGreenAPI } from '@/components/ui/phone-input';
 import {
   FITNESS_GOAL_OPTIONS,
   ACTIVITY_LEVEL_OPTIONS,
@@ -60,7 +61,12 @@ export const AddLeadDialogWithCustomer = ({
   useEffect(() => {
     if (customer && isOpen) {
       handleInputChange('full_name', customer.full_name);
-      handleInputChange('phone', customer.phone);
+      const normalizedPhone = customer.phone
+        ? (customer.phone.startsWith('+')
+          ? customer.phone
+          : `+${formatPhoneNumberForGreenAPI(customer.phone)}`)
+        : '';
+      handleInputChange('phone', normalizedPhone);
       if (customer.email) {
         handleInputChange('email', customer.email);
       }
@@ -131,13 +137,14 @@ export const AddLeadDialogWithCustomer = ({
               <Label htmlFor="phone" className="text-right">
                 מספר טלפון <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <PhoneInput
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="050-1234567"
-                className="text-right dir-ltr"
-                dir="ltr"
+                onChange={(value) => handleInputChange('phone', value)}
+                placeholder="מספר טלפון"
+                defaultCountry="il"
+                showValidation={true}
+                className="w-full"
                 disabled={!!customer} // Disable if customer is provided
               />
             </div>
