@@ -5,8 +5,8 @@
  * Can be used in the header navbar to save vertical space.
  */
 
-import React from 'react';
-import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard, Settings } from 'lucide-react';
+import React, { useState } from 'react';
+import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard, Settings, MoreVertical, Trash2, Plus } from 'lucide-react';
 
 // WhatsApp Icon Component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -29,12 +29,34 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAppSelector } from '@/store/hooks';
 import { SmartTraineeActionButton } from './SmartTraineeActionButton';
 import { fetchInvitations } from '@/store/slices/invitationSlice';
 import { useAppDispatch } from '@/store/hooks';
 import { useEffect } from 'react';
 import type { Customer } from '@/hooks/useCustomers';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { AddLeadDialogWithCustomer } from './AddLeadDialogWithCustomer';
 
 interface LeadData {
   id: string;
@@ -77,6 +99,14 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   const { isHistoryOpen, isNotesOpen, toggleHistory, toggleNotes } = useLeadSidebar();
   const { user } = useAppSelector((state) => state.auth);
   const { invitations } = useAppSelector((state) => state.invitation);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteType, setDeleteType] = useState<'lead' | 'customer' | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
 
   // Fetch invitations for this customer
   useEffect(() => {
@@ -93,6 +123,84 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   const customerInvitation = invitations.find(
     (inv) => inv.customer_id === customer?.id && inv.lead_id === lead?.id
   ) || invitations.find((inv) => inv.customer_id === customer?.id);
+
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+    setDeleteType(null);
+  };
+
+  const handleDeleteLeadOnly = async () => {
+    if (!lead?.id) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', lead.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'הצלחה',
+        description: 'הליד נמחק בהצלחה',
+      });
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customer', customer.id] });
+
+      setIsDeleteDialogOpen(false);
+      // Navigate back after deletion
+      onBack();
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת הליד',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCustomer = async () => {
+    if (!customer?.id) return;
+
+    setIsDeleting(true);
+    try {
+      // Delete customer (leads will be cascade deleted due to ON DELETE CASCADE)
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customer.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'הצלחה',
+        description: 'הלקוח וכל הלידים שלו נמחקו בהצלחה',
+      });
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customer', customer.id] });
+
+      setIsDeleteDialogOpen(false);
+      // Navigate back after deletion
+      onBack();
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת הלקוח',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="flex items-center justify-between gap-4 flex-wrap w-full">
@@ -247,6 +355,9 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </Tooltip>
         )}
 
+
+
+
         {/* Utility Group: Smart Trainee Action (Create/View), History & Notes */}
         <div className="flex items-center gap-2 flex-shrink-0 pl-8">
           {/* Smart Trainee Action Button - Only for admins/managers */}
@@ -261,11 +372,49 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 customerUserId={customer.user_id || null}
                 customerInvitationUserId={customerInvitation?.user_id || null}
               />
-              {/* Vertical Divider */}
-              <div className="h-6 w-[1.5px] bg-gray-400" />
+
             </>
           )}
 
+          {/* Actions Menu (3 dots) */}
+          <DropdownMenu>
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-9 w-9 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 rounded-lg transition-colors"
+                  >
+                    <MoreVertical className="h-5 w-5" strokeWidth={2.5} />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="center" dir="rtl">
+                <p>פעולות נוספות</p>
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem
+                onClick={() => setIsAddLeadDialogOpen(true)}
+                className="cursor-pointer flex items-center gap-2 flex-row-reverse"
+              >
+                <Plus className="h-4 w-4 flex-shrink-0" />
+                <span>צור ליד חדש ללקוח</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleDeleteClick}
+                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 flex items-center gap-2 flex-row-reverse"
+              >
+                <Trash2 className="h-4 w-4 flex-shrink-0" />
+                <span>מחק</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Vertical Divider */}
+          <div className="h-6 w-[1.5px] bg-gray-400" />
           {/* History Toggle Button */}
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
@@ -286,6 +435,8 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
               <p>היסטוריה</p>
             </TooltipContent>
           </Tooltip>
+
+
 
           {/* Notes Toggle Button */}
           <Tooltip delayDuration={0}>
@@ -321,6 +472,59 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </Tooltip>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקה</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>מה תרצה למחוק?</p>
+              <div className="flex flex-col gap-2 mt-4">
+                <Button
+                  variant={deleteType === 'lead' ? 'default' : 'outline'}
+                  onClick={() => setDeleteType('lead')}
+                  className="justify-start"
+                  disabled={isDeleting || !lead?.id}
+                >
+                  מחק רק את הליד הזה
+                </Button>
+                <Button
+                  variant={deleteType === 'customer' ? 'default' : 'outline'}
+                  onClick={() => setDeleteType('customer')}
+                  className="justify-start"
+                  disabled={isDeleting}
+                >
+                  מחק את הלקוח (כולל כל הלידים)
+                </Button>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>ביטול</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteType === 'lead') {
+                  handleDeleteLeadOnly();
+                } else if (deleteType === 'customer') {
+                  handleDeleteCustomer();
+                }
+              }}
+              disabled={isDeleting || !deleteType}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? 'מוחק...' : 'מחק'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add Lead Dialog */}
+      <AddLeadDialogWithCustomer
+        isOpen={isAddLeadDialogOpen}
+        onOpenChange={setIsAddLeadDialogOpen}
+        customer={customer}
+      />
     </div>
   );
 };

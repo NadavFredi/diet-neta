@@ -63,7 +63,8 @@ const AppContent = () => {
   const isDashboardSidebarRoute =
     (location.pathname.startsWith('/dashboard') && !location.pathname.startsWith('/dashboard/print/')) ||
     location.pathname.startsWith('/leads/') ||
-    location.pathname.startsWith('/profile/');
+    location.pathname.startsWith('/profile/') ||
+    location.pathname.startsWith('/client/dashboard');
   
   // Get notesOpen state from Redux
   const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
