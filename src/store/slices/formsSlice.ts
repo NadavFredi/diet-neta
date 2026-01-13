@@ -76,6 +76,7 @@ export const fetchFormSubmission = createAsyncThunk(
       const formTypeConfig = formTypes.find((f) => f.key === formType);
       
       const envValues = {
+        // Form IDs are not sensitive - these are public form identifiers
         VITE_FILLOUT_FORM_ID_DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS,
         VITE_FILLOUT_FORM_ID_INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO,
         VITE_FILLOUT_FORM_ID_CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION,

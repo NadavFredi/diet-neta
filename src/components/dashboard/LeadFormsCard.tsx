@@ -28,12 +28,12 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
     if (leadId || leadEmail || leadPhone) {
       const formTypes = getFormTypes();
       
-      // Debug: Log environment variables
-      console.log('[LeadFormsCard] Environment check:', {
-        VITE_FILLOUT_API_KEY: import.meta.env.VITE_FILLOUT_API_KEY ? '✅ Set' : '❌ Missing',
+      // Debug: Log form IDs (not sensitive - these are public form identifiers)
+      console.log('[LeadFormsCard] Form IDs check:', {
         VITE_FILLOUT_FORM_ID_DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || '❌ Missing',
         VITE_FILLOUT_FORM_ID_INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || '❌ Missing',
         VITE_FILLOUT_FORM_ID_CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '❌ Missing',
+        note: 'API keys are secured via Edge Functions',
       });
       
       console.log('[LeadFormsCard] Fetching form submissions:', {
