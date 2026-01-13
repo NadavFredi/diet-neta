@@ -4,9 +4,11 @@ import { cn } from "@/lib/utils"
 interface FooterContentProps {
     className?: string;
     compact?: boolean;
+    hideLink?: boolean;
+    smallImage?: boolean;
 }
 
-export function FooterContent({ className, compact = false }: FooterContentProps = {}) {
+export function FooterContent({ className, compact = false, hideLink = false, smallImage = false }: FooterContentProps = {}) {
     return (
         <div
             className={cn("text-white", className)}
@@ -20,34 +22,39 @@ export function FooterContent({ className, compact = false }: FooterContentProps
                 compact ? "px-4 py-4" : "mx-auto max-w-5xl px-6 py-6",
                 compact ? "" : "md:flex-row"
             )}>
-                <div className="flex items-center gap-3 md:flex-row">
+                <div className={cn(
+                    "flex items-center gap-3",
+                    compact ? "gap-3" : "md:flex-row"
+                )}>
                     <a
                         href="https://easyflow.co.il"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="cursor-pointer"
+                        className="cursor-pointer flex-shrink-0"
                     >
                         <img
                             src="/easyflow-logo.png"
                             alt="Easyflow logo"
-                            className="h-10 w-auto"
+                            className={smallImage ? "h-16 w-16 object-contain" : "h-10 w-auto"}
                         />
                     </a>
                     <div className="text-right text-sm md:text-base">
                         <p className="font-semibold">Easy Flow</p>
-                        <p className="text-xs opacity-90 md:text-sm">
+                        <p className="text-[11px] opacity-90 leading-tight">
                             פתרונות טכנולוגיים, אוטומציה, וCRM לעסקים חכמים
                         </p>
                     </div>
                 </div>
-                <a
-                    href="https://easyflow.co.il"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium underline-offset-4 hover:underline md:text-base"
-                >
-                    Easyflow.co.il
-                </a>
+                {!hideLink && (
+                    <a
+                        href="https://easyflow.co.il"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium underline-offset-4 hover:underline md:text-base"
+                    >
+                        Easyflow.co.il
+                    </a>
+                )}
             </div>
         </div>
     )

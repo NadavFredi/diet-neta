@@ -10,6 +10,7 @@ import { useInterfaceIconPreferences } from '@/hooks/useInterfaceIconPreferences
 import { selectInterfaceIconPreferences } from '@/store/slices/interfaceIconPreferencesSlice';
 import { getIconByName } from '@/utils/iconUtils';
 import { EditInterfaceIconDialog } from './EditInterfaceIconDialog';
+import { FooterContent } from '@/components/layout/AppFooter';
 
 interface NavItem {
   id: string;
@@ -243,6 +244,11 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
           ))}
         </ul>
       </nav>
+
+      {/* Footer - At the bottom of the sidebar */}
+      <div className="flex-shrink-0 border-t border-white/10">
+        <FooterContent compact hideLink smallImage />
+      </div>
 
       </div>
 

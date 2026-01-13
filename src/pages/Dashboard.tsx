@@ -38,14 +38,14 @@ const Dashboard = () => {
 
   // Safety check: Redirect trainees immediately
   useEffect(() => {
-    console.log('[Dashboard] Auth state:', { 
-      isAuthenticated, 
-      authIsLoading, 
-      user: authUser, 
+    console.log('[Dashboard] Auth state:', {
+      isAuthenticated,
+      authIsLoading,
+      user: authUser,
       role: authUser?.role,
-      email: authUser?.email 
+      email: authUser?.email
     });
-    
+
     if (authUser?.role === 'trainee') {
       console.log('[Dashboard] Trainee detected, redirecting to /client/dashboard');
       window.location.href = '/client/dashboard';
@@ -69,7 +69,7 @@ const Dashboard = () => {
     isLoading,
     savedView, // Get savedView from useDashboardLogic instead of duplicate call
   } = useDashboardLogic();
-  
+
   // Debug: Log filteredLeads when it changes
   useEffect(() => {
     console.log('Dashboard: filteredLeads changed:', {
@@ -97,10 +97,10 @@ const Dashboard = () => {
   const addFilter = useCallback((filter: ActiveFilter) => {
     // Add to local state for UI
     addFilterLocal(filter);
-    
+
     // Also update Redux state for data fetching
     const { fieldId, operator, values } = filter;
-    
+
     if (fieldId === 'status' && operator === 'is' && values.length > 0) {
       // For multiselect, take first value for now (can be enhanced later)
       // The Redux state currently supports single value
@@ -128,12 +128,12 @@ const Dashboard = () => {
   const removeFilter = useCallback((filterId: string) => {
     // Remove from local state
     removeFilterLocal(filterId);
-    
+
     // Find the filter to determine which Redux state to clear
     const filter = activeFilters.find(f => f.id === filterId);
     if (filter) {
       const { fieldId } = filter;
-      
+
       if (fieldId === 'status') {
         dispatch(setSelectedStatus(null));
       } else if (fieldId === 'fitnessGoal') {
@@ -159,7 +159,7 @@ const Dashboard = () => {
   const clearFilters = useCallback(() => {
     // Clear local state
     clearFiltersLocal();
-    
+
     // Clear all Redux filter state
     dispatch(setSelectedStatus(null));
     dispatch(setSelectedFitnessGoal(null));
@@ -197,13 +197,13 @@ const Dashboard = () => {
         sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
       />
 
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
+      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
         {/* Main content */}
-        <main 
-          className="bg-gray-50 overflow-y-auto" 
-          style={{ 
+        <main
+          className="bg-gray-50 overflow-y-auto"
+          style={{
             marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 88px)',
+            minHeight: 'calc(100vh - 60px)',
           }}
         >
           <div className="p-6">
@@ -232,7 +232,7 @@ const Dashboard = () => {
                 legacyOnFilterRemove={removeFilter}
                 legacyOnFilterClear={clearFilters}
               />
-              
+
               {/* Table Section - Data Area */}
               <div className="bg-white">
                 {isLoading ? (
@@ -248,8 +248,8 @@ const Dashboard = () => {
                     <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
                     {!isLoading && (
                       <p className="text-xs text-gray-400 mt-2">
-                        {filteredLeads && Array.isArray(filteredLeads) 
-                          ? `מספר לידים: ${filteredLeads.length}` 
+                        {filteredLeads && Array.isArray(filteredLeads)
+                          ? `מספר לידים: ${filteredLeads.length}`
                           : 'אין נתונים זמינים'}
                       </p>
                     )}
@@ -262,36 +262,36 @@ const Dashboard = () => {
       </div>
 
       {/* Add Lead Dialog */}
-    <AddLeadDialog
-      isOpen={isAddLeadDialogOpen}
-      onOpenChange={setIsAddLeadDialogOpen}
-    />
+      <AddLeadDialog
+        isOpen={isAddLeadDialogOpen}
+        onOpenChange={setIsAddLeadDialogOpen}
+      />
 
-    {/* Save View Modal */}
-    <SaveViewModal
-      isOpen={isSaveViewModalOpen}
-      onOpenChange={setIsSaveViewModalOpen}
-      resourceKey={saveViewResourceKey}
-      filterConfig={getCurrentFilterConfig(activeFilters)}
-    />
+      {/* Save View Modal */}
+      <SaveViewModal
+        isOpen={isSaveViewModalOpen}
+        onOpenChange={setIsSaveViewModalOpen}
+        resourceKey={saveViewResourceKey}
+        filterConfig={getCurrentFilterConfig(activeFilters)}
+      />
 
-    {/* Edit View Modal */}
-    <EditViewModal
-      isOpen={isEditViewModalOpen}
-      onOpenChange={setIsEditViewModalOpen}
-      view={viewToEdit}
-      currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-      filterFields={
-        viewToEdit?.resource_key === 'customers' ? CUSTOMER_FILTER_FIELDS :
-        viewToEdit?.resource_key === 'templates' ? TEMPLATE_FILTER_FIELDS :
-        viewToEdit?.resource_key === 'nutrition_templates' ? NUTRITION_TEMPLATE_FILTER_FIELDS :
-        leadFilterFields
-      }
-      onSuccess={() => {
-        setIsEditViewModalOpen(false);
-        setViewToEdit(null);
-      }}
-    />
+      {/* Edit View Modal */}
+      <EditViewModal
+        isOpen={isEditViewModalOpen}
+        onOpenChange={setIsEditViewModalOpen}
+        view={viewToEdit}
+        currentFilterConfig={getCurrentFilterConfig(activeFilters)}
+        filterFields={
+          viewToEdit?.resource_key === 'customers' ? CUSTOMER_FILTER_FIELDS :
+            viewToEdit?.resource_key === 'templates' ? TEMPLATE_FILTER_FIELDS :
+              viewToEdit?.resource_key === 'nutrition_templates' ? NUTRITION_TEMPLATE_FILTER_FIELDS :
+                leadFilterFields
+        }
+        onSuccess={() => {
+          setIsEditViewModalOpen(false);
+          setViewToEdit(null);
+        }}
+      />
     </>
   );
 };

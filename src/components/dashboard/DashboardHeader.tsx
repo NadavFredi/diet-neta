@@ -110,15 +110,15 @@ export const DashboardHeader = ({
         }}
       >
         <div className="flex-1 flex items-center justify-between px-6 py-5 h-full">
-          {/* Client Hero Content - Left side (appears on left in RTL) */}
+          {/* Client Hero Content - Right side (if present) */}
           {clientHeroContent && (
             <div className="flex-1 flex items-center min-w-0 mr-4">
               {clientHeroContent}
             </div>
           )}
 
-          {/* User info and logout - ALWAYS positioned on left side (appears on left in RTL) */}
-          <div className="flex items-center mr-2 gap-4 flex-shrink-0">
+          {/* User info and logout - ALWAYS positioned on left side */}
+          <div className="flex items-center gap-4 flex-shrink-0">
             {/* Impersonation Mode Indicator */}
             {isImpersonating && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200">

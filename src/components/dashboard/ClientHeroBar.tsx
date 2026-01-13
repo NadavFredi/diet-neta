@@ -248,7 +248,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
         )}
 
         {/* Utility Group: Smart Trainee Action (Create/View), History & Notes */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 pl-8">
           {/* Smart Trainee Action Button - Only for admins/managers */}
           {(user?.role === 'admin' || user?.role === 'user') && customer && (
             <>
@@ -274,8 +274,8 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 onClick={toggleHistory}
                 className={cn(
                   "h-9 w-9 rounded-lg transition-colors",
-                  isHistoryOpen 
-                    ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white" 
+                  isHistoryOpen
+                    ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
                     : "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                 )}
               >
@@ -295,8 +295,8 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 onClick={toggleNotes}
                 className={cn(
                   "h-9 w-9 rounded-lg transition-colors relative",
-                  isNotesOpen 
-                    ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white" 
+                  isNotesOpen
+                    ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
                     : "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                 )}
               >
