@@ -174,20 +174,20 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       <button
         onClick={handleResourceClick}
         className={cn(
-          'flex items-center gap-3 py-3.5 transition-all duration-300 relative',
-          'text-base font-semibold',
+          'flex items-center gap-2.5 py-2.5 transition-all duration-300 relative',
+          'text-sm font-medium',
           // Parent (Level 0) - Full-width rectangular
           isParent && [
-            'w-full px-4 rounded-lg',
+            'w-full px-3 rounded-lg',
             isMainInterfaceActive
-              ? 'text-gray-800 bg-white shadow-sm font-bold'
+              ? 'text-gray-800 bg-white shadow-sm font-semibold'
               : 'text-white hover:bg-white/10',
           ],
           // Child (Level 1+) - Same rectangular style as parent but with margins (shorter width to show nesting)
           isChild && [
-            'mx-5 px-4 rounded-lg',
+            'mx-5 px-3 rounded-lg',
             isMainInterfaceActive
-              ? 'text-gray-800 bg-white shadow-sm font-bold'
+              ? 'text-gray-800 bg-white shadow-sm font-semibold'
               : 'text-white hover:bg-white/10',
           ],
           isCollapsed && 'justify-center px-2 w-full mx-0'
@@ -222,7 +222,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         >
           <Icon
             className={cn(
-              'h-6 w-6 flex-shrink-0 transition-colors',
+              'h-4 w-4 flex-shrink-0 transition-colors',
               isMainInterfaceActive ? 'text-gray-800' : 'text-white',
               'group-hover/icon:opacity-80'
             )}
@@ -234,7 +234,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
             {supportsViews && onSaveViewClick && (
               <div
                 className={cn(
-                  'p-1.5 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
+                  'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
                   'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
                   isMainInterfaceActive
                     ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
@@ -255,13 +255,13 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                 role="button"
                 tabIndex={0}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
               </div>
             )}
             {supportsViews && (
               <ChevronDown
                 className={cn(
-                  'h-5 w-5 flex-shrink-0 transition-transform duration-200',
+                  'h-4 w-4 flex-shrink-0 transition-transform duration-200',
                   isExpanded ? 'rotate-0' : '-rotate-90',
                   isMainInterfaceActive ? 'text-gray-700' : 'text-white/60'
                 )}
@@ -316,12 +316,12 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                 setPopoverOpen(false);
               }}
               className={cn(
-                'flex items-center gap-2 px-4 py-2.5 text-sm transition-all duration-300 ease-in-out',
+                'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
                 'text-right w-full',
                 // Child (Level 1+) - Same rectangular style as parent but with margins
                 'rounded-lg',
                 isViewActive
-                  ? 'text-gray-800 bg-white shadow-sm font-bold'
+                  ? 'text-gray-800 bg-white shadow-sm font-semibold'
                   : 'text-gray-700 hover:bg-white/10'
               )}
             >
@@ -461,12 +461,12 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                   <button
                     onClick={() => onViewClick(view, item.path)}
                     className={cn(
-                      'flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-300 ease-in-out',
+                      'flex items-center gap-2.5 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
                       'relative w-full',
                       // Child (Level 1+) - Same rectangular style as parent but with margins
                       'rounded-lg',
                       isViewActive
-                        ? 'text-gray-800 bg-white shadow-sm font-bold'
+                        ? 'text-gray-800 bg-white shadow-sm font-semibold'
                         : 'text-white/80 hover:bg-white/10'
                     )}
                   >
@@ -486,7 +486,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                             }
                           }}
                           className={cn(
-                            'p-1.5 rounded-md transition-colors cursor-pointer',
+                            'p-1 rounded-md transition-colors cursor-pointer',
                             isViewActive
                               ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
                               : 'text-white/60 hover:text-white hover:bg-white/20'
@@ -495,7 +495,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                           role="button"
                           tabIndex={0}
                         >
-                          <Edit2 className="h-4 w-4" />
+                          <Edit2 className="h-3.5 w-3.5" />
                         </div>
                       )}
                       {!isDefaultView && (
@@ -512,7 +512,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                             }
                           }}
                           className={cn(
-                            'p-1.5 rounded-md transition-colors cursor-pointer',
+                            'p-1 rounded-md transition-colors cursor-pointer',
                             isViewActive
                               ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
                               : 'text-white/60 hover:text-white hover:bg-white/20'
@@ -521,7 +521,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                           role="button"
                           tabIndex={0}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3.5 w-3.5" />
                         </div>
                       )}
                     </div>

@@ -30,6 +30,7 @@ import { TraineeSettingsModal } from './dialogs/TraineeSettingsModal';
 import { supabase } from '@/lib/supabaseClient';
 import { Settings } from 'lucide-react';
 import { ClientHeroBar } from './ClientHeroBar';
+import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 
 interface LeadData {
   id: string;
@@ -79,20 +80,21 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   onToggleExpand: externalOnToggleExpand,
 }) => {
   const dispatch = useAppDispatch();
+  const sidebarWidth = useSidebarWidth();
   const [internalIsExpanded, setInternalIsExpanded] = useState(false);
   const [internalIsPaymentHistoryOpen, setInternalIsPaymentHistoryOpen] = useState(false);
   const [internalIsTraineeSettingsOpen, setInternalIsTraineeSettingsOpen] = useState(false);
-  
+
   // Use external state if provided, otherwise use internal state
   const isExpanded = externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
   const isPaymentHistoryOpen = externalIsPaymentHistoryOpen !== undefined ? externalIsPaymentHistoryOpen : internalIsPaymentHistoryOpen;
   const isTraineeSettingsOpen = externalIsTraineeSettingsOpen !== undefined ? externalIsTraineeSettingsOpen : internalIsTraineeSettingsOpen;
-  
+
   const handleToggleExpand = externalOnToggleExpand || (() => setInternalIsExpanded(!internalIsExpanded));
   const handlePaymentHistoryClose = externalOnPaymentHistoryClose || (() => setInternalIsPaymentHistoryOpen(false));
   const handleTraineeSettingsClose = externalOnTraineeSettingsClose || (() => setInternalIsTraineeSettingsOpen(false));
   const { isHistoryOpen, isNotesOpen, toggleHistory, toggleNotes } = useLeadSidebar();
-  
+
   // Get notes count for the customer
   const notes = useAppSelector(selectCustomerNotes(customer?.id));
   const notesCount = notes?.length || 0;
@@ -196,103 +198,107 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
       <div
         className={cn(
           "overflow-hidden transition-all duration-300 ease-in-out",
+          hideMainBar && isExpanded && "fixed top-[88px] left-0 z-30 bg-white border-b border-slate-100 shadow-sm",
           isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
         )}
+        style={hideMainBar && isExpanded ? {
+          right: `${sidebarWidth.width}px`,
+        } : undefined}
       >
         <div className="pr-4 pl-8 pb-3 pt-0 border-t border-slate-100">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-3">
-              {/* City - Lead Level */}
-              {onUpdateLead && lead && (
-                <InlineEditableField
-                  label="עיר"
-                  value={lead.city || ''}
-                  onSave={async (newValue) => {
-                    if (lead.id) {
-                      await onUpdateLead({ city: String(newValue) });
-                    }
-                  }}
-                  type="text"
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-gray-900"
-                />
-              )}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-3 pr-10">
+            {/* City - Lead Level */}
+            {onUpdateLead && lead && (
+              <InlineEditableField
+                label="עיר"
+                value={lead.city || ''}
+                onSave={async (newValue) => {
+                  if (lead.id) {
+                    await onUpdateLead({ city: String(newValue) });
+                  }
+                }}
+                type="text"
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-gray-900"
+              />
+            )}
 
-              {/* Birth Date - Lead Level */}
-              {onUpdateLead && lead && (
-                <InlineEditableField
-                  label="תאריך לידה"
-                  value={lead.birth_date || ''}
-                  onSave={async (newValue) => {
-                    if (lead.id) {
-                      await onUpdateLead({ birth_date: String(newValue) });
-                    }
-                  }}
-                  type="date"
-                  formatValue={(val) => formatDate(String(val))}
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-gray-900"
-                />
-              )}
+            {/* Birth Date - Lead Level */}
+            {onUpdateLead && lead && (
+              <InlineEditableField
+                label="תאריך לידה"
+                value={lead.birth_date || ''}
+                onSave={async (newValue) => {
+                  if (lead.id) {
+                    await onUpdateLead({ birth_date: String(newValue) });
+                  }
+                }}
+                type="date"
+                formatValue={(val) => formatDate(String(val))}
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-gray-900"
+              />
+            )}
 
-              {/* Age - Calculated, Read Only */}
-              {age !== null && (
-                <div className="flex items-center gap-2 py-0.5">
-                  <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
-                  <span className="text-sm font-semibold text-slate-900">{age} שנים</span>
-                </div>
-              )}
+            {/* Age - Calculated, Read Only */}
+            {age !== null && (
+              <div className="flex items-center gap-2 py-0.5">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
+                <span className="text-sm font-semibold text-slate-900">{age} שנים</span>
+              </div>
+            )}
 
-              {/* Gender - Lead Level */}
-              {onUpdateLead && lead && (
-                <InlineEditableSelect
-                  label="מגדר"
-                  value={lead.gender || ''}
-                  options={['male', 'female', 'other']}
-                  onSave={async (newValue) => {
-                    if (lead.id) {
-                      await onUpdateLead({ gender: newValue });
-                    }
-                  }}
-                  formatValue={(val) => getGenderLabel(val)}
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-gray-900"
-                  badgeClassName="bg-gray-50 text-gray-700 border-gray-200"
-                />
-              )}
+            {/* Gender - Lead Level */}
+            {onUpdateLead && lead && (
+              <InlineEditableSelect
+                label="מגדר"
+                value={lead.gender || ''}
+                options={['male', 'female', 'other']}
+                onSave={async (newValue) => {
+                  if (lead.id) {
+                    await onUpdateLead({ gender: newValue });
+                  }
+                }}
+                formatValue={(val) => getGenderLabel(val)}
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-gray-900"
+                badgeClassName="bg-gray-50 text-gray-700 border-gray-200"
+              />
+            )}
 
-              {/* Height - Lead Level */}
-              {onUpdateLead && lead && (
-                <InlineEditableField
-                  label="גובה"
-                  value={lead.height || 0}
-                  onSave={async (newValue) => {
-                    if (lead.id) {
-                      await onUpdateLead({ height: Number(newValue) });
-                    }
-                  }}
-                  type="number"
-                  formatValue={(val) => `${val} ס"מ`}
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-gray-900"
-                />
-              )}
+            {/* Height - Lead Level */}
+            {onUpdateLead && lead && (
+              <InlineEditableField
+                label="גובה"
+                value={lead.height || 0}
+                onSave={async (newValue) => {
+                  if (lead.id) {
+                    await onUpdateLead({ height: Number(newValue) });
+                  }
+                }}
+                type="number"
+                formatValue={(val) => `${val} ס"מ`}
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-gray-900"
+              />
+            )}
 
-              {/* Weight - Lead Level */}
-              {onUpdateLead && lead && (
-                <InlineEditableField
-                  label="משקל"
-                  value={lead.weight || 0}
-                  onSave={async (newValue) => {
-                    if (lead.id) {
-                      await onUpdateLead({ weight: Number(newValue) });
-                    }
-                  }}
-                  type="number"
-                  formatValue={(val) => `${val} ק"ג`}
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-gray-900"
-                />
-              )}
+            {/* Weight - Lead Level */}
+            {onUpdateLead && lead && (
+              <InlineEditableField
+                label="משקל"
+                value={lead.weight || 0}
+                onSave={async (newValue) => {
+                  if (lead.id) {
+                    await onUpdateLead({ weight: Number(newValue) });
+                  }
+                }}
+                type="number"
+                formatValue={(val) => `${val} ק"ג`}
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-gray-900"
+              />
+            )}
           </div>
         </div>
       </div>

@@ -72,27 +72,27 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
   const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
   const location = useLocation();
-  
+
   // Modal state management
   const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = React.useState(false);
   const [isTraineeSettingsOpen, setIsTraineeSettingsOpen] = React.useState(false);
   const [isExpanded, setIsExpanded] = React.useState(false);
-  
+
   // Check if we're on a leads/customers route
-  const isLeadOrCustomerRoute = 
+  const isLeadOrCustomerRoute =
     location.pathname.startsWith('/leads/') ||
     location.pathname.startsWith('/dashboard/customers/') ||
     location.pathname.startsWith('/profile/');
-  
+
   // Get notes count for the customer
   const notes = useAppSelector(selectCustomerNotes(customer?.id));
   const notesCount = notes?.length || 0;
-  
+
   // Get form submission state for sidebar
   const formsState = useAppSelector((state) => state.forms);
   const selectedFormType = useAppSelector((state) => state.leadView.selectedFormType);
   const formTypes = getFormTypes();
-  
+
   // Find the selected form based on selectedFormType from Redux
   const selectedForm = React.useMemo(() => {
     if (selectedFormType) {
@@ -100,11 +100,11 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
     }
     return formTypes[0];
   }, [formTypes, selectedFormType]);
-  
+
   // Prepare form submission data for sidebar
   const formSubmissionData = React.useMemo(() => {
     if (leftSidebar !== 'submission' || !selectedForm) return null;
-    
+
     return {
       formType: selectedForm,
       submission: formsState.submissions[selectedForm.key] || null,
@@ -115,7 +115,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
       error: formsState.error,
     };
   }, [leftSidebar, selectedForm, formsState, activeLead, customer]);
-  
+
   // Get Notes panel width from localStorage (same key as ResizableNotesPanel)
   const [notesPanelWidth, setNotesPanelWidth] = React.useState(450);
   React.useEffect(() => {
@@ -144,29 +144,29 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
       clearInterval(interval);
     };
   }, []);
-  
-  const HEADER_HEIGHT = 88;
+
+  const HEADER_HEIGHT = 60;
 
   return (
-    <div 
-      className="flex flex-col overflow-hidden bg-gray-50/50" 
-      style={{ 
+    <div
+      className="flex flex-col overflow-hidden bg-gray-50/50"
+      style={{
         height: '100vh',
         overflow: 'hidden'
       }}
       dir="rtl"
     >
       {/* Top Navigation Header - Fixed (spans full width) */}
-      <div 
+      <div
         className="fixed top-0 left-0 right-0 z-40 flex-shrink-0"
         style={{ height: `${HEADER_HEIGHT}px` }}
       >
         <DashboardHeader
           userEmail={userEmail}
-          onLogout={() => {}}
+          onLogout={() => { }}
           sidebarContent={
-            <DashboardSidebar 
-              onSaveViewClick={onSaveViewClick || (() => {})} 
+            <DashboardSidebar
+              onSaveViewClick={onSaveViewClick || (() => { })}
               onEditViewClick={onEditViewClick}
             />
           }
@@ -190,9 +190,9 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
       </div>
 
       {/* Main Content Area - Below Navigation Header */}
-      <div 
+      <div
         className="flex flex-col flex-1 overflow-hidden"
-        style={{ 
+        style={{
           marginTop: `${HEADER_HEIGHT}px`,
           marginRight: `${sidebarWidth.width}px`, // Account for navigation sidebar
           height: `calc(100vh - ${HEADER_HEIGHT}px)`
@@ -200,7 +200,12 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
       >
         {/* Page Header (ClientHero) - Full Width, Fixed at Top - Only show expandable section when main bar is in header */}
         {isLeadOrCustomerRoute && (
-          <div className="flex-shrink-0 w-full bg-white border-b border-gray-200">
+          <div
+            className="flex-shrink-0 w-full bg-white border-b border-gray-200"
+            style={{
+              marginTop: isExpanded ? 'var(--expandable-height, 0px)' : '0px'
+            }}
+          >
             <ClientHero
               customer={customer}
               mostRecentLead={mostRecentLead}
@@ -222,17 +227,17 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
         )}
 
         {/* Main Content Wrapper - Dual Column Layout (Body | Notes) */}
-        <div 
+        <div
           className="flex flex-1 overflow-hidden"
-          style={{ 
+          style={{
             flexDirection: 'row' // RTL row: Notes first = right, Body second = left
           }}
           dir="rtl"
         >
           {/* Notes Panel - Right Side (First in row = Right in RTL, next to nav) - Independent from left sidebar */}
           {notesOpen && (
-            <ResizableNotesPanel 
-              customerId={customer?.id || null} 
+            <ResizableNotesPanel
+              customerId={customer?.id || null}
               leads={sortedLeads.map(lead => ({
                 id: lead.id,
                 created_at: lead.created_at,
@@ -244,17 +249,17 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           )}
 
           {/* Dashboard Body - Left Side (Second in row = Left in RTL) */}
-          <main 
+          <main
             className="flex-1 flex flex-col bg-gray-50 overflow-y-auto overflow-x-hidden scroll-smooth custom-scrollbar"
-            style={{ 
+            style={{
               padding: '20px'
             }}
           >
             {/* Content Area - Split View for History/Submission Sidebar */}
-            <div 
-              className="flex-1 flex gap-4" 
-              style={{ 
-                direction: 'ltr', 
+            <div
+              className="flex-1 flex gap-4"
+              style={{
+                direction: 'ltr',
                 overflowX: 'hidden',
                 minHeight: 'fit-content'
               }}
@@ -270,9 +275,9 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               />
 
               {/* Center: ActionDashboard - Scrollable Content */}
-              <div 
+              <div
                 className="flex-1 transition-all duration-200 ease-out"
-                style={{ 
+                style={{
                   minWidth: '400px'
                 }}
               >
@@ -288,8 +293,8 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
                   getStatusColor={getStatusColor}
                 />
               </div>
-          </div>
-        </main>
+            </div>
+          </main>
         </div>
       </div>
     </div>
