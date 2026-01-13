@@ -6,9 +6,36 @@ interface FooterContentProps {
     compact?: boolean;
     hideLink?: boolean;
     smallImage?: boolean;
+    isCollapsed?: boolean;
 }
 
-export function FooterContent({ className, compact = false, hideLink = false, smallImage = false }: FooterContentProps = {}) {
+export function FooterContent({ className, compact = false, hideLink = false, smallImage = false, isCollapsed = false }: FooterContentProps = {}) {
+    // When collapsed, show only the image with no padding
+    if (isCollapsed) {
+        return (
+            <div
+                className={cn("text-white flex items-center justify-center", className)}
+                style={{
+                    backgroundColor: "#5B6FB9",
+                }}
+                dir="rtl"
+            >
+                <a
+                    href="https://easyflow.co.il"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="cursor-pointer flex-shrink-0"
+                >
+                    <img
+                        src="/easyflow-logo.png"
+                        alt="Easyflow logo"
+                        className="h-16 w-16 object-contain"
+                    />
+                </a>
+            </div>
+        );
+    }
+
     return (
         <div
             className={cn("text-white", className)}

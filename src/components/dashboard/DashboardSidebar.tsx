@@ -246,8 +246,8 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
       </nav>
 
       {/* Footer - At the bottom of the sidebar */}
-      <div className="flex-shrink-0 border-t border-white/10">
-        <FooterContent compact hideLink smallImage />
+      <div className={cn("flex-shrink-0", !isCollapsed && "border-t border-white/10", isCollapsed && "p-0")}>
+        <FooterContent compact hideLink smallImage isCollapsed={isCollapsed} />
       </div>
 
       </div>
