@@ -198,15 +198,15 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
       <div
         className={cn(
           "overflow-hidden transition-all duration-300 ease-in-out",
-          hideMainBar && isExpanded && "fixed top-[88px] left-0 z-30 bg-white border-b border-slate-100 shadow-sm",
+          hideMainBar && isExpanded && "fixed top-[60px] left-0 z-30 bg-white border-b border-slate-100 shadow-sm",
           isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
         )}
         style={hideMainBar && isExpanded ? {
           right: `${sidebarWidth.width}px`,
         } : undefined}
       >
-        <div className="pr-4 pl-8 pb-3 pt-0 border-t border-slate-100">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-3 pr-10">
+        <div className="pr-4 pl-8 pb-2 pt-2 pt-0">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-0 pr-10">
             {/* City - Lead Level */}
             {onUpdateLead && lead && (
               <InlineEditableField

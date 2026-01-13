@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard } from 'lucide-react';
+import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection } from '@/store/slices/sidebarSlice';
@@ -24,14 +24,14 @@ const navigationItems: NavItem[] = [
     id: 'leads',
     resourceKey: 'leads',
     label: 'ניהול לידים',
-    icon: LayoutDashboard,
+    icon: UserPlus,
     path: '/dashboard',
   },
   {
     id: 'customers',
     resourceKey: 'customers',
     label: 'ניהול לקוחות',
-    icon: LayoutDashboard,
+    icon: Users,
     path: '/dashboard/customers',
   },
   {
