@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch } from '@/store/hooks';
 import { supabase } from '@/lib/supabaseClient';
 import { fetchLeads } from '@/store/slices/dashboardSlice';
@@ -44,6 +45,7 @@ const initialFormData: AddLeadFormData = {
 
 export const useAddLead = () => {
   const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState<AddLeadFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -272,6 +274,7 @@ export const useAddLead = () => {
 
       // Refresh leads list
       await dispatch(fetchLeads());
+      await queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
 
       // Reset form (dialog will be closed by parent component)
       resetForm();
@@ -305,4 +308,3 @@ export const useAddLead = () => {
     resetForm,
   };
 };
-

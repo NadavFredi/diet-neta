@@ -10,7 +10,7 @@ import { Calendar, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatDate } from '@/utils/dashboard';
+import { formatDateTime } from '@/utils/dashboard';
 import { useLeadSidebar } from '@/hooks/useLeadSidebar';
 
 interface Lead {
@@ -92,7 +92,7 @@ export const LeadHistorySidebar: React.FC<LeadHistorySidebarProps> = ({
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-gray-700">
-                        {formatDate(lead.created_at)}
+                        {formatDateTime(lead.created_at)}
                       </span>
                       {isActive && (
                         <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs px-2 py-0.5">
