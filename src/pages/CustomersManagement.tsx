@@ -11,6 +11,7 @@ import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
+import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { useAppSelector } from '@/store/hooks';
 import { CUSTOMER_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { useTableFilters } from '@/hooks/useTableFilters';
@@ -42,10 +43,15 @@ const CustomersManagement = () => {
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
+  const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
 
   const handleEditViewClick = useCallback((view: any) => {
     setViewToEdit(view);
     setIsEditViewModalOpen(true);
+  }, []);
+
+  const handleAddLead = useCallback(() => {
+    setIsAddLeadDialogOpen(true);
   }, []);
 
   const filteredCustomers = customers; // For now, filtering happens in the hook
@@ -76,6 +82,8 @@ const CustomersManagement = () => {
                 pluralLabel="לקוחות"
                 filterFields={CUSTOMER_FILTER_FIELDS}
                 searchPlaceholder="חיפוש לפי שם, טלפון או אימייל..."
+                addButtonLabel="הוסף ליד"
+                onAddClick={handleAddLead}
                 enableColumnVisibility={true}
                 enableFilters={true}
                 enableGroupBy={true}
@@ -109,6 +117,12 @@ const CustomersManagement = () => {
           </div>
         </main>
       </div>
+
+      {/* Add Lead Dialog */}
+      <AddLeadDialog
+        isOpen={isAddLeadDialogOpen}
+        onOpenChange={setIsAddLeadDialogOpen}
+      />
 
       <SaveViewModal
         isOpen={isSaveViewModalOpen}
