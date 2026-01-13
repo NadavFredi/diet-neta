@@ -25,21 +25,34 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
 
   // Fetch all form submissions when component mounts or leadId/email/phone changes
   useEffect(() => {
+    console.log('[LeadFormsCard] useEffect triggered:', {
+      leadId: leadId || 'NULL/UNDEFINED',
+      leadIdType: typeof leadId,
+      leadIdTruthy: !!leadId,
+      leadEmail: leadEmail || 'NULL/UNDEFINED',
+      leadPhone: leadPhone || 'NULL/UNDEFINED',
+      hasAnyIdentifier: !!(leadId || leadEmail || leadPhone),
+    });
+    
     if (leadId || leadEmail || leadPhone) {
       const formTypes = getFormTypes();
       
-      // Debug: Log environment variables
-      console.log('[LeadFormsCard] Environment check:', {
-        VITE_FILLOUT_API_KEY: import.meta.env.VITE_FILLOUT_API_KEY ? '✅ Set' : '❌ Missing',
+      // Debug: Log form IDs (not sensitive - these are public form identifiers)
+      console.log('[LeadFormsCard] Form IDs check:', {
         VITE_FILLOUT_FORM_ID_DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || '❌ Missing',
         VITE_FILLOUT_FORM_ID_INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || '❌ Missing',
         VITE_FILLOUT_FORM_ID_CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '❌ Missing',
+        note: 'API keys are secured via Edge Functions',
       });
       
       console.log('[LeadFormsCard] Fetching form submissions:', {
-        leadId,
-        leadEmail,
-        leadPhone,
+        leadId: leadId || 'NULL/UNDEFINED',
+        leadIdType: typeof leadId,
+        leadIdLength: leadId?.length,
+        leadEmail: leadEmail || 'NULL/UNDEFINED',
+        leadPhone: leadPhone || 'NULL/UNDEFINED',
+        leadPhoneType: typeof leadPhone,
+        leadPhoneLength: leadPhone?.length,
         formTypes: formTypes.map(f => ({ key: f.key, formId: f.formId, label: f.label })),
       });
       

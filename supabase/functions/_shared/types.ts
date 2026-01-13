@@ -33,5 +33,9 @@ export interface SendMessageRequest {
   message: string;
   buttons?: Array<{ id: string; text: string }>;
   footer?: string;
+  media?: {
+    type: 'image' | 'video' | 'gif';
+    url: string;
+  };
 }
 

@@ -153,7 +153,7 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
                     <p>VITE_FILLOUT_FORM_ID_DETAILS: <code className="bg-white px-1 rounded">{import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || 'לא הוגדר'}</code></p>
                     <p>VITE_FILLOUT_FORM_ID_INTRO: <code className="bg-white px-1 rounded">{import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || 'לא הוגדר'}</code></p>
                     <p>VITE_FILLOUT_FORM_ID_CHARACTERIZATION: <code className="bg-white px-1 rounded">{import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || 'לא הוגדר'}</code></p>
-                    <p>VITE_FILLOUT_API_KEY: <code className="bg-white px-1 rounded">{import.meta.env.VITE_FILLOUT_API_KEY ? '✅ קיים (' + import.meta.env.VITE_FILLOUT_API_KEY.substring(0, 8) + '...)' : '❌ לא הוגדר'}</code></p>
+                    <p className="text-xs text-gray-500">API keys are secured via Edge Functions (not exposed to frontend)</p>
                   </div>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-200">

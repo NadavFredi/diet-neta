@@ -116,6 +116,12 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   // Auto-populate when product/price is selected
   useEffect(() => {
     if (selectedPrice && entryMode === 'product') {
+      // Safety check: ensure unit_amount exists and is valid
+      if (selectedPrice.unit_amount === null || selectedPrice.unit_amount === undefined || isNaN(selectedPrice.unit_amount)) {
+        console.warn('[LeadPaymentCard] Selected price has invalid unit_amount:', selectedPrice);
+        return;
+      }
+      
       // Convert unit_amount to regular amount (divide by 100)
       const amount = selectedPrice.unit_amount / 100;
       dispatch(setAmount(amount.toFixed(2)));
@@ -215,7 +221,7 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       // Convert amount to smallest currency unit
       const amountInSmallestUnit = convertToSmallestUnit(
         parseFloat(currentAmount),
-        selectedCurrency
+        selectedCurrency.toLowerCase() as 'ils' | 'usd' | 'eur'
       );
 
       const description = billingMode === 'subscription'
@@ -226,14 +232,16 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       const stripeResponse = await createStripePaymentLink({
         amount: amountInSmallestUnit,
         currency: normalizeCurrency(selectedCurrency),
-        customerEmail: customerEmail || undefined,
-        customerName: customerName || undefined,
-        description: selectedProduct?.name || description,
-        billingMode,
-        subscriptionInterval: billingMode === 'subscription' ? subscriptionInterval : undefined,
-        billingCycles: billingMode === 'subscription' ? billingCycles : undefined,
-        // Use Stripe Price ID if available
-        priceId: selectedPrice?.id,
+        productName: selectedProduct?.name,
+        description: description,
+        priceId: selectedPrice?.id, // Use Stripe Price ID if available
+        metadata: {
+          ...(customerEmail && { customerEmail }),
+          ...(customerName && { customerName }),
+          ...(billingMode && { billingMode }),
+          ...(billingMode === 'subscription' && subscriptionInterval && { subscriptionInterval }),
+          ...(billingMode === 'subscription' && billingCycles && { billingCycles: String(billingCycles) }),
+        },
       });
 
       if (!stripeResponse.success || !stripeResponse.paymentUrl) {
@@ -380,6 +388,12 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
 
   // Format price for display
   const formatPrice = (price: StripePrice): string => {
+    // Safety check: handle null/undefined unit_amount (shouldn't happen, but just in case)
+    if (price.unit_amount === null || price.unit_amount === undefined || isNaN(price.unit_amount)) {
+      console.warn('[LeadPaymentCard] Invalid unit_amount for price:', price.id, price.unit_amount);
+      return 'מחיר לא זמין';
+    }
+    
     const amount = price.unit_amount / 100;
     const symbol = getCurrencySymbol(price.currency.toUpperCase() as Currency);
     if (price.type === 'recurring' && price.recurring) {

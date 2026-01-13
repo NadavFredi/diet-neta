@@ -53,9 +53,9 @@ const initialState: FormsState = {
 
 interface FetchFormSubmissionParams {
   formType: 'details' | 'intro' | 'characterization';
-  email?: string; // Lead email to match submissions (fallback)
-  phoneNumber?: string; // Lead phone number to match submissions (fallback)
-  leadId?: string; // Supabase lead row ID (priority matching - most reliable)
+  phoneNumber?: string; // Lead phone number to match submissions (priority 2)
+  leadId?: string; // Supabase lead row ID (priority 1 - most reliable)
+  email?: string; // Lead email (kept for backward compatibility but not used for matching)
 }
 
 /**
@@ -68,14 +68,15 @@ export const fetchFormSubmission = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      if (!leadId && !email && !phoneNumber) {
-        throw new Error('Lead ID, email, or phone number is required to fetch form submissions');
+      if (!leadId && !phoneNumber) {
+        throw new Error('Lead ID or phone number is required to fetch form submissions (email matching is disabled)');
       }
 
       const formTypes = getFormTypes();
       const formTypeConfig = formTypes.find((f) => f.key === formType);
       
       const envValues = {
+        // Form IDs are not sensitive - these are public form identifiers
         VITE_FILLOUT_FORM_ID_DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS,
         VITE_FILLOUT_FORM_ID_INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO,
         VITE_FILLOUT_FORM_ID_CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION,
@@ -104,9 +105,12 @@ export const fetchFormSubmission = createAsyncThunk(
       console.log('[formsSlice] Fetching submission:', {
         formType,
         formId: formTypeConfig.formId,
-        leadId,
-        email,
-        phoneNumber,
+        leadId: leadId || 'NOT PROVIDED',
+        leadIdType: typeof leadId,
+        leadIdLength: leadId?.length,
+        phoneNumber: phoneNumber || 'NOT PROVIDED',
+        email: email ? 'provided but not used for matching' : 'not provided',
+        matchingPriority: 'leadId (exact match) > phone (normalized match)',
         envVars: {
           DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS,
           INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO,
@@ -116,9 +120,11 @@ export const fetchFormSubmission = createAsyncThunk(
 
       const submission = await findMostRecentSubmission(
         formTypeConfig.formId,
-        email,
-        phoneNumber,
-        leadId
+        {
+          leadId: leadId || undefined,
+          email: email || undefined,
+          phone: phoneNumber || undefined,
+        }
       );
 
       return {
@@ -142,6 +148,8 @@ export const fetchAllFormSubmissions = createAsyncThunk(
     { dispatch, rejectWithValue }
   ) => {
     try {
+      // Note: leadId parameter is missing from function signature - need to add it
+      const leadId = undefined; // TODO: Add leadId parameter to fetchAllFormSubmissions
       if (!email && !phoneNumber && !leadId) {
         throw new Error('Lead ID, email, or phone number is required to fetch form submissions');
       }

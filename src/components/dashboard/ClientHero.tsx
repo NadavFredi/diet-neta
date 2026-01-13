@@ -161,14 +161,44 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
               <h1 className="text-base font-bold text-gray-900 flex-shrink-0">{customer.full_name}</h1>
             )}
 
-            {/* Phone - On same line */}
-            {onUpdateCustomer && customer && customer.phone && (
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Phone - On same line - Editable */}
+            {onUpdateCustomer && customer && (
+              <div className="flex items-center gap-1.5 flex-shrink-0 group/phone">
                 <Phone className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                <span className="text-sm font-semibold text-gray-900 font-mono">
-                  {customer.phone}
-                </span>
-          </div>
+                <div className="relative">
+                  {customer.phone ? (
+                    <InlineEditableField
+                      label=""
+                      value={customer.phone}
+                      onSave={async (newValue) => {
+                        if (customer.id) {
+                          await onUpdateCustomer({ phone: String(newValue) });
+                        }
+                      }}
+                      type="tel"
+                      className="border-0 p-0 m-0 [&>span:first-child]:hidden"
+                      valueClassName="text-sm font-semibold text-gray-900 font-mono cursor-pointer hover:text-blue-600 transition-colors"
+                    />
+                  ) : (
+                    <InlineEditableField
+                      label=""
+                      value=""
+                      onSave={async (newValue) => {
+                        if (customer.id) {
+                          await onUpdateCustomer({ phone: String(newValue) });
+                        }
+                      }}
+                      type="tel"
+                      className="border-0 p-0 m-0 [&>span:first-child]:hidden"
+                      valueClassName="text-sm font-semibold text-gray-500 font-mono cursor-pointer hover:text-blue-600 transition-colors italic"
+                      formatValue={(val) => {
+                        const str = String(val);
+                        return str || 'לחץ להוספת טלפון';
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
             )}
 
             {/* Email - On same line (optional, can be hidden on smaller screens) */}
