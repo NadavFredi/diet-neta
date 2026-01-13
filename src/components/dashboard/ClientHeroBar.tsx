@@ -394,7 +394,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 <p>פעולות נוספות</p>
               </TooltipContent>
             </Tooltip>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem
                 onClick={() => setIsAddLeadDialogOpen(true)}
                 className="cursor-pointer flex items-center gap-2 flex-row-reverse"
