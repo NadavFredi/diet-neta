@@ -129,56 +129,100 @@ export const getFormSubmission = async (
  * Find most recent submission matching criteria
  * Note: This function fetches all submissions and filters client-side
  * For better performance, consider implementing server-side filtering in the Edge Function
+ * 
+ * Matching priority:
+ * 1. lead_id in URL parameters (most reliable)
+ * 2. phone number in form questions
+ * Email matching is disabled - only lead_id and phone are used
  */
 export const findMostRecentSubmission = async (
   formId: string,
   criteria: {
     leadId?: string;
-    email?: string;
     phone?: string;
+    // email parameter kept for backward compatibility but not used for matching
+    email?: string;
   }
 ): Promise<FilloutSubmission | null> => {
   try {
     // Get all submissions and filter client-side
+    console.log('[findMostRecentSubmission] Starting search:', { formId, criteria });
     const response = await getFormSubmissions(formId, { limit: 100 });
+    console.log('[findMostRecentSubmission] Received submissions:', {
+      totalResponses: response.totalResponses,
+      responsesCount: response.responses?.length || 0,
+      firstSubmission: response.responses?.[0] ? {
+        submissionId: response.responses[0].submissionId,
+        urlParameters: response.responses[0].urlParameters,
+        questionCount: response.responses[0].questions?.length || 0,
+      } : null,
+    });
     
     // Filter submissions based on criteria
+    // Priority: leadId (most reliable) > phone (email matching removed)
+    console.log('[findMostRecentSubmission] Searching for submission:', {
+      formId,
+      criteria: {
+        leadId: criteria.leadId ? 'provided' : 'not provided',
+        phone: criteria.phone ? 'provided' : 'not provided',
+        email: 'ignored (matching disabled)',
+      },
+      totalSubmissions: response.responses.length,
+    });
+
     for (const submission of response.responses) {
-      // Check lead_id in urlParameters
+      // Priority 1: Check lead_id in urlParameters (most reliable)
       if (criteria.leadId) {
-        const leadIdParam = submission.urlParameters?.find(p => p.name === 'lead_id' || p.name === 'leadId');
-        if (leadIdParam && leadIdParam.value === criteria.leadId) {
-          return submission;
-        }
-      }
-
-      // Check email in questions
-      if (criteria.email) {
-        const normalizedEmail = criteria.email.toLowerCase().trim();
-        const emailQuestion = submission.questions.find(q => 
-          q.name?.toLowerCase().includes('email') || 
-          q.type === 'EmailInput'
+        const leadIdParam = submission.urlParameters?.find(
+          p => p.name === 'lead_id' || p.name === 'leadId' || p.name === 'lead-id'
         );
-        if (emailQuestion?.value && String(emailQuestion.value).toLowerCase().trim() === normalizedEmail) {
+        if (leadIdParam && leadIdParam.value === criteria.leadId) {
+          console.log('[findMostRecentSubmission] ✅ Found match by leadId:', {
+            submissionId: submission.submissionId,
+            leadId: criteria.leadId,
+            matchedParam: leadIdParam.name,
+          });
           return submission;
         }
       }
 
-      // Check phone in questions
+      // Priority 2: Check phone in questions (email matching removed)
       if (criteria.phone) {
         const normalizedPhone = criteria.phone.replace(/\D/g, '');
         const phoneQuestion = submission.questions.find(q => 
           q.name?.toLowerCase().includes('phone') || 
-          q.type === 'PhoneNumberInput'
+          q.name?.toLowerCase().includes('טלפון') ||
+          q.name?.toLowerCase().includes('נייד') ||
+          q.type === 'PhoneNumberInput' ||
+          q.id?.toLowerCase().includes('phone') ||
+          q.id?.toLowerCase().includes('tel')
         );
         if (phoneQuestion?.value) {
           const submissionPhone = String(phoneQuestion.value).replace(/\D/g, '');
-          if (submissionPhone === normalizedPhone || submissionPhone.endsWith(normalizedPhone)) {
+          // Match if exact match, or one ends with the other (handles country code variations)
+          if (submissionPhone === normalizedPhone || 
+              submissionPhone.endsWith(normalizedPhone) || 
+              normalizedPhone.endsWith(submissionPhone) ||
+              // Also check if last 9 digits match (Israeli phone numbers)
+              (submissionPhone.length >= 9 && normalizedPhone.length >= 9 && 
+               submissionPhone.slice(-9) === normalizedPhone.slice(-9))) {
+            console.log('[findMostRecentSubmission] ✅ Found match by phone:', {
+              submissionId: submission.submissionId,
+              phone: criteria.phone,
+              normalizedPhone,
+              submissionPhone,
+            });
             return submission;
           }
         }
       }
     }
+
+    console.log('[findMostRecentSubmission] ❌ No matching submission found:', {
+      formId,
+      criteria,
+      checkedSubmissions: response.responses.length,
+    });
 
     return null;
   } catch (error: any) {

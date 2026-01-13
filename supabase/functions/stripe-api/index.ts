@@ -104,6 +104,10 @@ serve(async (req) => {
         const productsData = await productsResponse.json();
         const pricesData = await pricesResponse.json();
 
+        // Debug: Log raw data structure
+        console.log('[stripe-api] Products count:', productsData.data?.length || 0);
+        console.log('[stripe-api] Prices count:', pricesData.data?.length || 0);
+
         // Group prices by product
         const pricesByProduct: Record<string, any[]> = {};
         (pricesData.data || []).forEach((price: any) => {
@@ -111,13 +115,28 @@ serve(async (req) => {
           if (!pricesByProduct[productId]) {
             pricesByProduct[productId] = [];
           }
-          pricesByProduct[productId].push({
+          
+          // Skip prices without unit_amount (tiered/volume pricing not supported yet)
+          if (price.unit_amount === null || price.unit_amount === undefined) {
+            console.warn('[stripe-api] Skipping price with null unit_amount:', price.id, price.billing_scheme);
+            return;
+          }
+          
+          // Map Stripe price to our interface format
+          const mappedPrice = {
             id: price.id,
-            amount: price.unit_amount,
-            currency: price.currency,
-            type: price.type,
-            recurring: price.recurring,
-          });
+            product_id: productId,
+            active: price.active !== false, // Default to true if not specified
+            unit_amount: price.unit_amount, // Use unit_amount (not amount) to match interface
+            currency: price.currency || 'ils',
+            type: price.type === 'recurring' ? 'recurring' : 'one_time',
+            recurring: price.recurring ? {
+              interval: price.recurring.interval || 'month',
+              interval_count: price.recurring.interval_count || 1,
+            } : undefined,
+          };
+          
+          pricesByProduct[productId].push(mappedPrice);
         });
 
         // Map products with their prices
@@ -126,10 +145,12 @@ serve(async (req) => {
             id: product.id,
             name: product.name,
             description: product.description,
+            active: product.active !== false,
             prices: pricesByProduct[product.id] || [],
           }))
-          .filter((product: any) => product.prices.length > 0);
+          .filter((product: any) => product.prices.length > 0); // Only include products with valid prices
 
+        console.log('[stripe-api] Returning products:', products.length);
         return successResponse({ products });
       }
 

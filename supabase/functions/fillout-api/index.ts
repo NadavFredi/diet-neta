@@ -101,6 +101,20 @@ serve(async (req) => {
         }
 
         const data = await response.json();
+        
+        // Debug: Log response structure for getFormSubmissions
+        console.log('[fillout-api] getFormSubmissions response:', {
+          totalResponses: data.responses?.length || 0,
+          pageCount: data.pageCount,
+          totalResponsesCount: data.totalResponses,
+          sampleSubmission: data.responses?.[0] ? {
+            submissionId: data.responses[0].submissionId,
+            submissionTime: data.responses[0].submissionTime,
+            urlParameters: data.responses[0].urlParameters,
+            questionCount: data.responses[0].questions?.length || 0,
+          } : null,
+        });
+        
         return successResponse(data);
       }
 
