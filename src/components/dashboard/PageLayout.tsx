@@ -9,12 +9,15 @@ import React from 'react';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardSidebar } from './DashboardSidebar';
 import { ClientHero } from './ClientHero';
+import { ClientHeroBar } from './ClientHeroBar';
 import { LeadSidebarContainer } from './LeadSidebarContainer';
 import { ResizableNotesPanel } from './ResizableNotesPanel';
 import { ActionDashboard } from './ActionDashboard';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector } from '@/store/hooks';
 import { getFormTypes } from '@/store/slices/formsSlice';
+import { useLocation } from 'react-router-dom';
+import { selectCustomerNotes } from '@/store/slices/leadViewSlice';
 
 interface PageLayoutProps {
   userEmail?: string;
@@ -68,6 +71,22 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   const sidebarWidth = useSidebarWidth();
   const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
   const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
+  const location = useLocation();
+  
+  // Modal state management
+  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = React.useState(false);
+  const [isTraineeSettingsOpen, setIsTraineeSettingsOpen] = React.useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  
+  // Check if we're on a leads/customers route
+  const isLeadOrCustomerRoute = 
+    location.pathname.startsWith('/leads/') ||
+    location.pathname.startsWith('/dashboard/customers/') ||
+    location.pathname.startsWith('/profile/');
+  
+  // Get notes count for the customer
+  const notes = useAppSelector(selectCustomerNotes(customer?.id));
+  const notesCount = notes?.length || 0;
   
   // Get form submission state for sidebar
   const formsState = useAppSelector((state) => state.forms);
@@ -151,6 +170,22 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               onEditViewClick={onEditViewClick}
             />
           }
+          clientHeroContent={
+            isLeadOrCustomerRoute && customer ? (
+              <ClientHeroBar
+                customer={customer}
+                mostRecentLead={mostRecentLead}
+                onBack={onBack}
+                onWhatsApp={onWhatsApp}
+                onUpdateCustomer={onUpdateCustomer}
+                onPaymentHistoryClick={() => setIsPaymentHistoryOpen(true)}
+                onTraineeSettingsClick={() => setIsTraineeSettingsOpen(true)}
+                onToggleExpand={() => setIsExpanded(!isExpanded)}
+                isExpanded={isExpanded}
+                notesCount={notesCount}
+              />
+            ) : undefined
+          }
         />
       </div>
 
@@ -163,19 +198,28 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           height: `calc(100vh - ${HEADER_HEIGHT}px)`
         }}
       >
-        {/* Page Header (ClientHero) - Full Width, Fixed at Top */}
-        <div className="flex-shrink-0 w-full bg-white border-b border-gray-200">
-          <ClientHero
-            customer={customer}
-            mostRecentLead={mostRecentLead}
-            status={status}
-            onBack={onBack}
-            onWhatsApp={onWhatsApp}
-            onUpdateLead={onUpdateLead}
-            onUpdateCustomer={onUpdateCustomer}
-            getStatusColor={getStatusColor}
-          />
-        </div>
+        {/* Page Header (ClientHero) - Full Width, Fixed at Top - Only show expandable section when main bar is in header */}
+        {isLeadOrCustomerRoute && (
+          <div className="flex-shrink-0 w-full bg-white border-b border-gray-200">
+            <ClientHero
+              customer={customer}
+              mostRecentLead={mostRecentLead}
+              status={status}
+              onBack={onBack}
+              onWhatsApp={onWhatsApp}
+              onUpdateLead={onUpdateLead}
+              onUpdateCustomer={onUpdateCustomer}
+              getStatusColor={getStatusColor}
+              hideMainBar={true}
+              isPaymentHistoryOpen={isPaymentHistoryOpen}
+              onPaymentHistoryClose={() => setIsPaymentHistoryOpen(false)}
+              isTraineeSettingsOpen={isTraineeSettingsOpen}
+              onTraineeSettingsClose={() => setIsTraineeSettingsOpen(false)}
+              isExpanded={isExpanded}
+              onToggleExpand={() => setIsExpanded(!isExpanded)}
+            />
+          </div>
+        )}
 
         {/* Main Content Wrapper - Dual Column Layout (Body | Notes) */}
         <div 

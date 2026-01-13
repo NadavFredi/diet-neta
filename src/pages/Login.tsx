@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NetaLogo } from '@/components/ui/NetaLogo';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
 import { useLogin } from './Login';
 import { AppFooter } from '@/components/layout/AppFooter';
 
@@ -21,6 +22,7 @@ const Login = () => {
     handlePasswordChange,
     handleLogin,
   } = useLogin();
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50" dir="rtl">
@@ -67,7 +69,8 @@ const Login = () => {
                     placeholder="הכנס את כתובת האימייל שלך"
                     value={email}
                     onChange={(e) => handleEmailChange(e.target.value)}
-                    className="h-11"
+                    className="h-11 text-left"
+                    dir="ltr"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && email && password) {
                         e.preventDefault();
@@ -80,20 +83,35 @@ const Login = () => {
                   <Label htmlFor="password" className="text-sm font-medium text-gray-700">
                     סיסמה
                   </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="הכנס את הסיסמה שלך"
-                    value={password}
-                    onChange={(e) => handlePasswordChange(e.target.value)}
-                    className="h-11"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && email && password) {
-                        e.preventDefault();
-                        handleLogin();
-                      }
-                    }}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="הכנס את הסיסמה שלך"
+                      value={password}
+                      onChange={(e) => handlePasswordChange(e.target.value)}
+                      className="h-11 text-left pr-10"
+                      dir="ltr"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && email && password) {
+                          e.preventDefault();
+                          handleLogin();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
