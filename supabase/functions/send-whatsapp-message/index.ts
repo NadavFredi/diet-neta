@@ -125,30 +125,44 @@ serve(async (req) => {
 
   try {
     // Get environment variables from server-side only (NO VITE_ prefix)
-    // These should be set via Supabase secrets: supabase secrets set GREEN_API_ID_INSTANCE=xxx
+    // Priority 1: Try Supabase secrets (production) or env vars (local dev with --env-file)
     const idInstance = Deno.env.get('GREEN_API_ID_INSTANCE');
     const apiTokenInstance = Deno.env.get('GREEN_API_TOKEN_INSTANCE');
     
-    // Fallback: Try to get from database (for backward compatibility)
+    // Priority 2: Try to get from database (for local development)
+    // This allows local dev without needing to set Supabase secrets
     let configFromDb = null;
     if (!idInstance || !apiTokenInstance) {
       try {
         const supabaseAdmin = createSupabaseAdmin();
-        const { data } = await supabaseAdmin
+        const { data, error: dbError } = await supabaseAdmin
           .from('green_api_settings')
           .select('id_instance, api_token_instance')
+          .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
         
-        if (data && data.id_instance && data.api_token_instance) {
-          configFromDb = {
-            idInstance: data.id_instance,
-            apiTokenInstance: data.api_token_instance,
-          };
+        if (dbError) {
+          console.warn('[send-whatsapp-message] Database query error:', dbError.message, dbError);
+        } else if (data && data.id_instance && data.api_token_instance) {
+          // Validate the credentials aren't placeholders
+          if (data.id_instance !== 'your_instance_id' && data.api_token_instance !== 'your_token') {
+            configFromDb = {
+              idInstance: data.id_instance,
+              apiTokenInstance: data.api_token_instance,
+            };
+            console.log('[send-whatsapp-message] ✅ Found credentials in database');
+          } else {
+            console.warn('[send-whatsapp-message] Database has placeholder values, ignoring');
+          }
+        } else {
+          console.log('[send-whatsapp-message] No credentials found in database');
         }
-      } catch (dbError) {
-        console.warn('[send-whatsapp-message] Could not fetch from database:', dbError);
+      } catch (dbError: any) {
+        console.warn('[send-whatsapp-message] Could not fetch from database:', dbError?.message || dbError);
       }
+    } else {
+      console.log('[send-whatsapp-message] ✅ Found credentials in environment variables');
     }
     
     const finalIdInstance = idInstance || configFromDb?.idInstance;
@@ -165,7 +179,13 @@ serve(async (req) => {
     });
 
     if (!finalIdInstance || !finalApiTokenInstance) {
-      const errorMsg = `Green API configuration not found. Missing: ${!finalIdInstance ? 'GREEN_API_ID_INSTANCE' : ''} ${!finalApiTokenInstance ? 'GREEN_API_TOKEN_INSTANCE' : ''}. Please set these as Supabase secrets: supabase secrets set GREEN_API_ID_INSTANCE=xxx GREEN_API_TOKEN_INSTANCE=xxx`;
+      const missing = [];
+      if (!finalIdInstance) missing.push('GREEN_API_ID_INSTANCE');
+      if (!finalApiTokenInstance) missing.push('GREEN_API_TOKEN_INSTANCE');
+      
+      const errorMsg = `Green API configuration not found. Missing: ${missing.join(', ')}. ` +
+        `For local development: Insert credentials into green_api_settings table OR run Edge Functions with --env-file .env.local. ` +
+        `For production: Set as Supabase secrets: supabase secrets set ${missing.join('=xxx ')}`;
       console.error('[send-whatsapp-message]', errorMsg);
       return errorResponse(errorMsg, 500);
     }

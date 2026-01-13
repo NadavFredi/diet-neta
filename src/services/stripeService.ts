@@ -54,6 +54,23 @@ export interface StripePaymentLinkResponse {
 }
 
 /**
+ * Convert currency amount to smallest unit (e.g., ILS to agorot, USD to cents)
+ * @param amount - The amount in regular currency units (e.g., 100.50)
+ * @param currency - The currency code ('ils', 'usd', 'eur')
+ * @returns The amount in smallest currency unit (e.g., 10050 for 100.50 ILS)
+ */
+export const convertToSmallestUnit = (
+  amount: number,
+  currency: 'ils' | 'usd' | 'eur'
+): number => {
+  // All currencies use 100 as the smallest unit divisor
+  // ILS: 1 shekel = 100 agorot
+  // USD: 1 dollar = 100 cents
+  // EUR: 1 euro = 100 cents
+  return Math.round(amount * 100);
+};
+
+/**
  * Fetch Stripe products via Edge Function
  */
 export const fetchStripeProducts = async (): Promise<StripeProductsResponse> => {

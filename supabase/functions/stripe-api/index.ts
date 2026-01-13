@@ -37,10 +37,19 @@ serve(async (req) => {
     }
 
     // Get Stripe secret key from server-side environment (NO VITE_ prefix)
-    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+    // Priority 1: Try Supabase secrets (production) or env vars (local dev with --env-file)
+    let stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
+    
+    // Priority 2: For local development, could fallback to database if needed
+    // (Currently not implemented - use --env-file .env.local when running functions locally)
     
     if (!stripeSecretKey) {
-      return errorResponse('Stripe secret key not configured. Please set STRIPE_SECRET_KEY as Supabase secret.', 500);
+      return errorResponse(
+        'Stripe secret key not configured. ' +
+        'For local development: Run Edge Functions with --env-file .env.local OR set as Supabase secret. ' +
+        'For production: Set STRIPE_SECRET_KEY as Supabase secret.',
+        500
+      );
     }
 
     // Validate key format
