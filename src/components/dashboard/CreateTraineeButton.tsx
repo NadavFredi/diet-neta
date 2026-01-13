@@ -7,6 +7,11 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserPlus, Loader2, MessageCircle, Settings, Eye } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { createTraineeUserWithPassword } from '@/store/slices/invitationSlice';
 import { startImpersonation } from '@/store/slices/impersonationSlice';
@@ -442,25 +447,26 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size="default"
-          className="bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
-          disabled={isCheckingUser}
-        >
-          {isCheckingUser ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.5} />
-              <span>בודק...</span>
-            </>
-          ) : (
-            <>
-              <UserPlus className="h-5 w-5" strokeWidth={2.5} />
-              <span>צור משתמש מתאמן</span>
-            </>
-          )}
-        </Button>
-      </DialogTrigger>
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+            <Button
+              size="icon"
+              className="h-9 w-9 bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200 rounded-lg"
+              disabled={isCheckingUser}
+            >
+              {isCheckingUser ? (
+                <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.5} />
+              ) : (
+                <UserPlus className="h-5 w-5" strokeWidth={2.5} />
+              )}
+            </Button>
+          </DialogTrigger>
+        </TooltipTrigger>
+          <TooltipContent side="bottom" align="center" dir="rtl">
+            <p>{isCheckingUser ? 'בודק...' : 'צור משתמש מתאמן'}</p>
+          </TooltipContent>
+      </Tooltip>
       <DialogContent className="sm:max-w-[500px]" dir="rtl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">

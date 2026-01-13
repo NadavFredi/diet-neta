@@ -36,12 +36,12 @@ export const DashboardHeader = ({
   return (
     <>
       {/* Sidebar Section - Fixed on right side (RTL) */}
-      <div 
+      <div
         className={cn(
           'fixed right-0 top-0 flex flex-col bg-[#5B6FB9] transition-all duration-300 ease-in-out',
           'border-l border-white/10 shadow-lg'
         )}
-        style={{ 
+        style={{
           width: `${sidebarWidth.width}px`,
           height: '100vh',
           zIndex: 50,
@@ -49,24 +49,24 @@ export const DashboardHeader = ({
         dir="rtl"
       >
         {/* Logo Section - Top of sidebar */}
-        <div 
+        <div
           className={cn(
             'border-b border-white/10 flex items-center justify-center transition-all duration-300 relative',
             sidebarWidth.isCollapsed ? 'px-2 py-4' : 'px-4 py-5'
           )}
-          style={{ 
+          style={{
             height: '88px',
           }}
         >
           {/* Logo */}
           {!sidebarWidth.isCollapsed && (
-            <NetaLogo 
-              size="default" 
+            <NetaLogo
+              size="default"
               variant="default"
             />
           )}
         </div>
-        
+
         {/* Toggle Button - On the edge between sidebar and content, aligned with border */}
         <button
           onClick={handleToggleSidebar}
@@ -101,24 +101,24 @@ export const DashboardHeader = ({
       </div>
 
       {/* Main Header Bar - Fixed at top */}
-      <header 
+      <header
         className="fixed top-0 left-0 right-0 bg-white text-gray-900 flex items-center shadow-sm border-b border-gray-200 z-40"
         dir="rtl"
-        style={{ 
-          height: '88px',
+        style={{
+          height: '60px',
           marginRight: `${sidebarWidth.width}px`,
         }}
       >
         <div className="flex-1 flex items-center justify-between px-6 py-5 h-full">
           {/* Client Hero Content - Left side (appears on left in RTL) */}
           {clientHeroContent && (
-            <div className="flex-1 flex items-center min-w-0">
+            <div className="flex-1 flex items-center min-w-0 mr-4">
               {clientHeroContent}
             </div>
           )}
-          
-          {/* User info and logout - positioned on right side (appears on right in RTL) */}
-          <div className="flex items-center gap-4 flex-shrink-0">
+
+          {/* User info and logout - ALWAYS positioned on left side (appears on left in RTL) */}
+          <div className="flex items-center mr-2 gap-4 flex-shrink-0">
             {/* Impersonation Mode Indicator */}
             {isImpersonating && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200">
@@ -139,7 +139,7 @@ export const DashboardHeader = ({
                 </Button>
               </div>
             )}
-            
+
             {/* Avatar with Popover */}
             <Popover>
               <PopoverTrigger asChild>
@@ -158,10 +158,10 @@ export const DashboardHeader = ({
                     <span className="text-base font-semibold text-gray-900">{userEmail}</span>
                   </div>
                   <div className="h-px bg-gray-200" />
-                  <Button 
+                  <Button
                     type="button"
                     variant="outline"
-                    size="default" 
+                    size="default"
                     onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();

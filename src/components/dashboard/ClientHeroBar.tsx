@@ -181,38 +181,36 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
       {/* Right Side (RTL): Action Bar - WhatsApp + Divider + Utility Buttons */}
       <div className="flex items-center gap-2 flex-shrink-0">
         {/* WhatsApp Button - External Communication */}
-        <Tooltip>
+        <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <Button
-              size="default"
+              size="icon"
               onClick={onWhatsApp}
               variant="outline"
-              className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
+              className="h-9 w-9 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors"
             >
               <MessageCircle className="h-5 w-5" strokeWidth={2.5} />
-              WhatsApp
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="left" align="center" dir="rtl">
+          <TooltipContent side="bottom" align="center" dir="rtl">
             <p>שלח וואטסאפ</p>
           </TooltipContent>
         </Tooltip>
 
         {/* Payments Button */}
         {customer && onPaymentHistoryClick && (
-          <Tooltip>
+          <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <Button
-                size="default"
+                size="icon"
                 onClick={onPaymentHistoryClick}
                 variant="outline"
-                className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
+                className="h-9 w-9 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors"
               >
                 <CreditCard className="h-5 w-5" strokeWidth={2.5} />
-                תשלומים
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="left" align="center" dir="rtl">
+            <TooltipContent side="bottom" align="center" dir="rtl">
               <p>צפה בהיסטוריית תשלומים</p>
             </TooltipContent>
           </Tooltip>
@@ -220,19 +218,18 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
 
         {/* Trainee Settings Button - Only show if user has a trainee account */}
         {customer && customer.user_id && (user?.role === 'admin' || user?.role === 'user') && onTraineeSettingsClick && (
-          <Tooltip>
+          <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <Button
-                size="default"
+                size="icon"
                 onClick={onTraineeSettingsClick}
                 variant="outline"
-                className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
+                className="h-9 w-9 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors"
               >
                 <Settings className="h-5 w-5" strokeWidth={2.5} />
-                הגדרות מתאמן
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="left" align="center" dir="rtl">
+            <TooltipContent side="bottom" align="center" dir="rtl">
               <p>הגדרות משתמש מתאמן - סיסמה ומחיקה</p>
             </TooltipContent>
           </Tooltip>
@@ -261,42 +258,44 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           )}
 
           {/* History Toggle Button */}
-          <Tooltip>
+          <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <Button
-                size="default"
+                size="icon"
                 onClick={toggleHistory}
                 className={cn(
-                  "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2",
-                  !isHistoryOpen && "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
+                  "h-9 w-9 rounded-lg transition-colors",
+                  isHistoryOpen 
+                    ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white" 
+                    : "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                 )}
               >
                 <History className="h-5 w-5" strokeWidth={2.5} />
-                <span>היסטוריה</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="left" align="center" dir="rtl">
+            <TooltipContent side="bottom" align="center" dir="rtl">
               <p>היסטוריה</p>
             </TooltipContent>
           </Tooltip>
 
           {/* Notes Toggle Button */}
-          <Tooltip>
+          <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <Button
-                size="default"
+                size="icon"
                 onClick={toggleNotes}
                 className={cn(
-                  "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 relative",
-                  !isNotesOpen && "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
+                  "h-9 w-9 rounded-lg transition-colors relative",
+                  isNotesOpen 
+                    ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white" 
+                    : "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                 )}
               >
                 <MessageSquare className="h-5 w-5" strokeWidth={2.5} />
-                <span>הערות</span>
                 {notesCount > 0 && (
                   <Badge
                     className={cn(
-                      "h-5 min-w-5 px-1.5 flex items-center justify-center text-xs font-semibold rounded-full border-2",
+                      "absolute -top-1 -right-1 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs font-semibold rounded-full border-2",
                       isNotesOpen
                         ? "bg-white text-[#5B6FB9] border-[#5B6FB9]"
                         : "bg-[#5B6FB9] text-white border-white"
@@ -307,7 +306,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="left" align="center" dir="rtl">
+            <TooltipContent side="bottom" align="center" dir="rtl">
               <p>הערות {notesCount > 0 && `(${notesCount})`}</p>
             </TooltipContent>
           </Tooltip>

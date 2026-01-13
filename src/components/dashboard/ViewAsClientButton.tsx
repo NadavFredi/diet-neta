@@ -11,6 +11,11 @@ import { startImpersonation, stopImpersonation } from '@/store/slices/impersonat
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface ViewAsClientButtonProps {
   customerId: string;
@@ -36,24 +41,30 @@ export const ViewAsClientButton: React.FC<ViewAsClientButtonProps> = ({
   // If already impersonating this user, show exit button
   if (isImpersonating && userId) {
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          dispatch(stopImpersonation());
-          // Navigate back to previous location or default to dashboard
-          const returnPath = previousLocation || '/dashboard';
-          navigate(returnPath);
-          toast({
-            title: 'יציאה ממצב תצוגה',
-            description: 'חזרת למצב מנהל',
-          });
-        }}
-        className="border-orange-500 text-orange-600 hover:bg-orange-50"
-      >
-        <X className="h-4 w-4 ml-2" />
-        יציאה ממצב תצוגה
-      </Button>
+      <Tooltip delayDuration={0}>
+        <TooltipTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              dispatch(stopImpersonation());
+              // Navigate back to previous location or default to dashboard
+              const returnPath = previousLocation || '/dashboard';
+              navigate(returnPath);
+              toast({
+                title: 'יציאה ממצב תצוגה',
+                description: 'חזרת למצב מנהל',
+              });
+            }}
+            className="h-9 w-9 border-orange-500 text-orange-600 hover:bg-orange-50"
+          >
+            <X className="h-5 w-5" strokeWidth={2.5} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="center" dir="rtl">
+          <p>יציאה ממצב תצוגה</p>
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -103,14 +114,20 @@ export const ViewAsClientButton: React.FC<ViewAsClientButtonProps> = ({
   };
 
   return (
-    <Button
-      size="default"
-      onClick={handleViewAsClient}
-      disabled={!userId || !customerId}
-      className="bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
-    >
-      <Eye className="h-5 w-5" strokeWidth={2.5} />
-      <span>צפה כמתאמן</span>
-    </Button>
+    <Tooltip delayDuration={0}>
+      <TooltipTrigger asChild>
+        <Button
+          size="icon"
+          onClick={handleViewAsClient}
+          disabled={!userId || !customerId}
+          className="h-9 w-9 bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200 rounded-lg"
+        >
+          <Eye className="h-5 w-5" strokeWidth={2.5} />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="center" dir="rtl">
+        <p>צפה כמתאמן</p>
+      </TooltipContent>
+    </Tooltip>
   );
 };
