@@ -49,6 +49,31 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
   const deleteMutation = useDeleteKnowledgeBaseEntry();
   const { toast } = useToast();
 
+  // Helper to convert seconds to MM:SS format
+  const secondsToMMSS = (seconds: number | null): string => {
+    if (!seconds) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Helper to convert MM:SS format to seconds
+  const mmssToSeconds = (mmss: string): number | null => {
+    if (!mmss.trim()) return null;
+    // Support MM:SS format
+    const mmssMatch = mmss.match(/^(\d{1,2}):(\d{1,2})$/);
+    if (mmssMatch) {
+      const mins = parseInt(mmssMatch[1], 10);
+      const secs = parseInt(mmssMatch[2], 10);
+      if (isNaN(mins) || isNaN(secs) || secs >= 60) return null;
+      return mins * 60 + secs;
+    }
+    // Support just a number (treat as seconds)
+    const num = parseInt(mmss, 10);
+    if (!isNaN(num) && num >= 0) return num;
+    return null;
+  };
+
   // Initialize form data when entry changes
   useEffect(() => {
     if (entry) {
@@ -57,7 +82,7 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
         description: entry.description || '',
         video_url: entry.video_url || '',
         tags: entry.tags || [],
-        duration: entry.duration?.toString() || '',
+        duration: entry.duration ? secondsToMMSS(entry.duration) : '',
         tagsInput: entry.tags?.join(', ') || '',
       });
     } else if (mode === 'create') {
@@ -99,13 +124,15 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
 
+      const durationSeconds = mmssToSeconds(formData.duration);
+
       if (mode === 'create') {
         await createMutation.mutateAsync({
           title: formData.title.trim(),
           description: formData.description.trim() || null,
           video_url: formData.video_url.trim(),
           tags,
-          duration: formData.duration ? parseInt(formData.duration) : null,
+          duration: durationSeconds,
           additional_info: {},
         });
       } else if (entry) {
@@ -116,7 +143,7 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
             description: formData.description.trim() || null,
             video_url: formData.video_url.trim(),
             tags,
-            duration: formData.duration ? parseInt(formData.duration) : null,
+            duration: durationSeconds,
           },
         });
       }
@@ -227,21 +254,32 @@ export const KnowledgeBaseItemDialog: React.FC<KnowledgeBaseItemDialogProps> = (
           <div className="space-y-2">
             <Label htmlFor="duration" className="text-sm font-medium text-slate-700 flex items-center gap-2">
               <Clock className="h-4 w-4 text-slate-400" />
-              משך זמן (דקות)
+              משך זמן (דקות:שניות)
             </Label>
             {isEditing ? (
               <Input
                 id="duration"
-                type="number"
+                type="text"
                 value={formData.duration}
-                onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                placeholder="לדוגמה: 30"
-                className="bg-slate-50"
+                onChange={(e) => {
+                  let value = e.target.value;
+                  // Allow only digits and colon
+                  value = value.replace(/[^\d:]/g, '');
+                  // Only allow one colon
+                  const colonCount = (value.match(/:/g) || []).length;
+                  if (colonCount > 1) {
+                    value = value.substring(0, value.lastIndexOf(':'));
+                  }
+                  setFormData({ ...formData, duration: value });
+                }}
+                placeholder="לדוגמה: 03:45"
+                className="bg-slate-50 font-mono"
                 dir="ltr"
+                maxLength={5}
               />
             ) : (
               <div className="text-sm text-slate-600 p-2 bg-slate-50 rounded-md">
-                {entry?.duration ? `${entry.duration} דקות` : '-'}
+                {entry?.duration ? secondsToMMSS(entry.duration) : '-'}
               </div>
             )}
           </div>

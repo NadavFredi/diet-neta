@@ -20,6 +20,13 @@ export const InternalKnowledgeBase: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'create'>('view');
 
+  // Helper to convert seconds to MM:SS format
+  const secondsToMMSS = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleCardClick = (entry: KnowledgeBaseEntry) => {
     setSelectedEntry(entry);
     setDialogMode('view');
@@ -125,9 +132,9 @@ export const InternalKnowledgeBase: React.FC = () => {
                     {/* Duration and Link Icon */}
                     <div className="flex items-center gap-3">
                       {entry.duration && (
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-1 text-xs text-gray-500 font-mono">
                           <Clock className="h-3 w-3" />
-                          <span>{entry.duration} דק'</span>
+                          <span>{secondsToMMSS(entry.duration)}</span>
                         </div>
                       )}
                       <ExternalLink className="h-4 w-4 text-gray-400" />

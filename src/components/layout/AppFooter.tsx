@@ -67,7 +67,10 @@ export function FooterContent({ className, compact = false, hideLink = false, sm
                     </a>
                     <div className="text-right text-sm md:text-base">
                         <p className="font-semibold">Easy Flow</p>
-                        <p className="text-[11px] opacity-90 leading-tight">
+                        <p className={cn(
+                            "opacity-90",
+                            smallImage ? "text-[11px] leading-tight" : "text-xs md:text-sm"
+                        )}>
                             פתרונות טכנולוגיים, אוטומציה, וCRM לעסקים חכמים
                         </p>
                     </div>

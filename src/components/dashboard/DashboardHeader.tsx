@@ -111,10 +111,12 @@ export const DashboardHeader = ({
       >
         <div className="flex-1 flex items-center justify-between px-6 py-5 h-full">
           {/* Client Hero Content - Right side (if present) */}
-          {clientHeroContent && (
+          {clientHeroContent ? (
             <div className="flex-1 flex items-center min-w-0 mr-4">
               {clientHeroContent}
             </div>
+          ) : (
+            <div className="flex-1" />
           )}
 
           {/* User info and logout - ALWAYS positioned on left side */}

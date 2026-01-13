@@ -7,12 +7,12 @@
 
 -- Create internal_knowledge_base table
 CREATE TABLE IF NOT EXISTS public.internal_knowledge_base (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     description TEXT,
     video_url TEXT NOT NULL, -- Video link (URL only, no storage)
     tags TEXT[] DEFAULT '{}', -- Array of tags for categorization
-    duration INTEGER, -- Duration in minutes (optional)
+    duration INTEGER, -- Duration in seconds (optional)
     additional_info JSONB DEFAULT '{}'::jsonb, -- Flexible additional metadata
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
@@ -64,5 +64,5 @@ CREATE POLICY "Authenticated users can delete knowledge base"
 COMMENT ON TABLE public.internal_knowledge_base IS 'Internal knowledge base for storing video links and resources for staff/managers (NOT customer-related)';
 COMMENT ON COLUMN public.internal_knowledge_base.video_url IS 'Video link URL (external link, no storage)';
 COMMENT ON COLUMN public.internal_knowledge_base.tags IS 'Array of tags for categorization and filtering';
-COMMENT ON COLUMN public.internal_knowledge_base.duration IS 'Duration in minutes (optional)';
+COMMENT ON COLUMN public.internal_knowledge_base.duration IS 'Duration in seconds (optional)';
 COMMENT ON COLUMN public.internal_knowledge_base.additional_info IS 'Flexible JSONB field for additional metadata';

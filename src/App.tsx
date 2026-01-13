@@ -52,17 +52,18 @@ const AppContent = () => {
   const isDashboardPage = location.pathname === '/dashboard' || location.pathname.startsWith('/leads');
   const isClientDashboard = location.pathname === '/client/dashboard';
   
-  // Check if we're on a route that uses PageLayout (UnifiedProfileView)
-  const isPageLayoutRoute =
+  // Check if we're on a route that uses the right panel (notes panel)
+  const isRightPanelRoute =
     location.pathname.startsWith('/leads/') ||
     location.pathname.startsWith('/dashboard/customers/') ||
-    location.pathname.startsWith('/profile/');
+    location.pathname.startsWith('/profile/') ||
+    location.pathname.startsWith('/dashboard/meetings/');
   
   // Get notesOpen state from Redux
   const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
   
-  // Hide footer when on PageLayout route and right panel (notes panel) is visible
-  const shouldShowFooter = !isLoginPage && (!isPageLayoutRoute || !notesOpen);
+  // Hide footer when on right panel route and right panel (notes panel) is visible
+  const shouldShowFooter = !isLoginPage && (!isRightPanelRoute || !notesOpen);
   
   return (
     <div className={isClientDashboard ? "h-screen flex flex-col overflow-hidden" : "min-h-screen flex flex-col"}>
