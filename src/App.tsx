@@ -195,6 +195,7 @@ const AppContent = () => {
           className={isClientDashboard ? "mt-0 flex-shrink-0" : undefined} 
         />
       )}
+      {/* Login page handles its own footer via AppFooter component */}
     </div>
   );
 };

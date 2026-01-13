@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { NetaLogo } from '@/components/ui/NetaLogo';
 import { MessageCircle } from 'lucide-react';
 import { useLogin } from './Login';
+import { AppFooter } from '@/components/layout/AppFooter';
 
 const Login = () => {
   const {
@@ -31,15 +32,15 @@ const Login = () => {
             {/* Logo Area */}
             <div className="text-center mb-6">
               <div className="flex flex-row items-center justify-center gap-6 mb-3">
-                <img 
-                  src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg" 
-                  alt="Diet Neta Logo" 
+                <img
+                  src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg"
+                  alt="Diet Neta Logo"
                   className="h-12 w-auto object-contain max-h-12"
                 />
                 <div className="h-8 w-px bg-gray-200"></div>
-                <img 
-                  src="/logo.svg" 
-                  alt="Easy Flow Logo" 
+                <img
+                  src="/logo.svg"
+                  alt="Easy Flow Logo"
                   className="h-12 w-auto object-contain max-h-12"
                 />
               </div>
@@ -138,38 +139,7 @@ const Login = () => {
       </div>
 
       {/* Footer */}
-      <footer className="mt-auto" dir="rtl">
-        <div
-          className="text-white"
-          style={{
-            backgroundColor: "#5B6FB9",
-          }}
-        >
-          <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row">
-            <div className="flex items-center gap-3 md:flex-row">
-              <img
-                src="/logo.svg"
-                alt="Easy Flow logo"
-                className="h-10 w-auto"
-              />
-              <div className="text-right text-sm md:text-base">
-                <p className="font-semibold">Easy Flow</p>
-                <p className="text-xs opacity-90 md:text-sm">
-                  פתרונות טכנולוגיים, אוטומציה, וCRM לעסקים חכמים
-                </p>
-              </div>
-            </div>
-            <a
-              href="https://easyflow.co.il"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium underline-offset-4 hover:underline md:text-base"
-            >
-              Easyflow.co.il
-            </a>
-          </div>
-        </div>
-      </footer>
+      <AppFooter className="mt-auto" />
 
       {/* WhatsApp Floating Button */}
       <a
