@@ -29,6 +29,8 @@ import { PaymentHistoryModal } from './dialogs/PaymentHistoryModal';
 import { TraineeSettingsModal } from './dialogs/TraineeSettingsModal';
 import { supabase } from '@/lib/supabaseClient';
 import { Settings } from 'lucide-react';
+import { ClientHeroBar } from './ClientHeroBar';
+import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 
 interface LeadData {
   id: string;
@@ -50,6 +52,13 @@ interface ClientHeroProps {
   onUpdateCustomer?: (updates: any) => Promise<void>;
   getStatusColor: (status: string) => string;
   onViewCustomerProfile?: () => void;
+  hideMainBar?: boolean;
+  isPaymentHistoryOpen?: boolean;
+  onPaymentHistoryClose?: () => void;
+  isTraineeSettingsOpen?: boolean;
+  onTraineeSettingsClose?: () => void;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 export const ClientHero: React.FC<ClientHeroProps> = ({
@@ -62,13 +71,30 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   onUpdateCustomer,
   getStatusColor,
   onViewCustomerProfile,
+  hideMainBar = false,
+  isPaymentHistoryOpen: externalIsPaymentHistoryOpen,
+  onPaymentHistoryClose: externalOnPaymentHistoryClose,
+  isTraineeSettingsOpen: externalIsTraineeSettingsOpen,
+  onTraineeSettingsClose: externalOnTraineeSettingsClose,
+  isExpanded: externalIsExpanded,
+  onToggleExpand: externalOnToggleExpand,
 }) => {
   const dispatch = useAppDispatch();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
-  const [isTraineeSettingsOpen, setIsTraineeSettingsOpen] = useState(false);
+  const sidebarWidth = useSidebarWidth();
+  const [internalIsExpanded, setInternalIsExpanded] = useState(false);
+  const [internalIsPaymentHistoryOpen, setInternalIsPaymentHistoryOpen] = useState(false);
+  const [internalIsTraineeSettingsOpen, setInternalIsTraineeSettingsOpen] = useState(false);
+
+  // Use external state if provided, otherwise use internal state
+  const isExpanded = externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
+  const isPaymentHistoryOpen = externalIsPaymentHistoryOpen !== undefined ? externalIsPaymentHistoryOpen : internalIsPaymentHistoryOpen;
+  const isTraineeSettingsOpen = externalIsTraineeSettingsOpen !== undefined ? externalIsTraineeSettingsOpen : internalIsTraineeSettingsOpen;
+
+  const handleToggleExpand = externalOnToggleExpand || (() => setInternalIsExpanded(!internalIsExpanded));
+  const handlePaymentHistoryClose = externalOnPaymentHistoryClose || (() => setInternalIsPaymentHistoryOpen(false));
+  const handleTraineeSettingsClose = externalOnTraineeSettingsClose || (() => setInternalIsTraineeSettingsOpen(false));
   const { isHistoryOpen, isNotesOpen, toggleHistory, toggleNotes } = useLeadSidebar();
-  
+
   // Get notes count for the customer
   const notes = useAppSelector(selectCustomerNotes(customer?.id));
   const notesCount = notes?.length || 0;
@@ -133,344 +159,147 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
 
   return (
     <div className="w-full bg-white border-b border-slate-100 flex-shrink-0" dir="rtl">
-      {/* Primary Row - Always Visible */}
-      <div className="px-4 py-3">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          {/* Left Side (RTL): Back Button, Name, Phone, Email */}
-          <div className="flex items-center gap-4 flex-wrap min-w-0">
-            {/* Return Button */}
-          <Button
-            onClick={onBack}
-            variant="ghost"
-            size="sm"
-              className="text-gray-600 hover:text-gray-900 flex-shrink-0 h-7 px-2"
-          >
-              <ArrowRight className="h-3.5 w-3.5 ml-1" />
-            חזור
-          </Button>
-
-            {/* Name - Page Title - Clickable to navigate to customer page */}
-            {onViewCustomerProfile ? (
-              <button
-                onClick={onViewCustomerProfile}
-                className="text-base font-bold text-gray-900 flex-shrink-0 hover:text-[#5B6FB9] transition-colors cursor-pointer"
-              >
-                {customer.full_name}
-              </button>
-            ) : (
-              <h1 className="text-base font-bold text-gray-900 flex-shrink-0">{customer.full_name}</h1>
-            )}
-
-            {/* Phone - On same line - Editable */}
-            {onUpdateCustomer && customer && (
-              <div className="flex items-center gap-1.5 flex-shrink-0 group/phone">
-                <Phone className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                <div className="relative">
-                  {customer.phone ? (
-                    <InlineEditableField
-                      label=""
-                      value={customer.phone}
-                      onSave={async (newValue) => {
-                        if (customer.id) {
-                          await onUpdateCustomer({ phone: String(newValue) });
-                        }
-                      }}
-                      type="tel"
-                      className="border-0 p-0 m-0 [&>span:first-child]:hidden"
-                      valueClassName="text-sm font-semibold text-gray-900 font-mono cursor-pointer hover:text-blue-600 transition-colors"
-                    />
-                  ) : (
-                    <InlineEditableField
-                      label=""
-                      value=""
-                      onSave={async (newValue) => {
-                        if (customer.id) {
-                          await onUpdateCustomer({ phone: String(newValue) });
-                        }
-                      }}
-                      type="tel"
-                      className="border-0 p-0 m-0 [&>span:first-child]:hidden"
-                      valueClassName="text-sm font-semibold text-gray-500 font-mono cursor-pointer hover:text-blue-600 transition-colors italic"
-                      formatValue={(val) => {
-                        const str = String(val);
-                        return str || 'לחץ להוספת טלפון';
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Email - On same line (optional, can be hidden on smaller screens) */}
-            {onUpdateCustomer && customer && customer.email && (
-              <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
-                <Mail className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                <span className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
-                  {customer.email}
-                </span>
-              </div>
-            )}
-
-            {/* Toggle Button for Additional Details */}
-            <Button
-              onClick={() => setIsExpanded(!isExpanded)}
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 flex items-center gap-1 flex-shrink-0"
-            >
-              <span className="text-xs">פרטים נוספים</span>
-              <ChevronDown
-                className={cn(
-                  "h-3.5 w-3.5 transition-transform duration-300",
-                  isExpanded && "transform rotate-180"
-                )}
-              />
-            </Button>
-          </div>
-
-          {/* Right Side (RTL): Action Bar - WhatsApp + Divider + Utility Buttons */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* WhatsApp Button - External Communication */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="default"
-                  onClick={onWhatsApp}
-                  variant="outline"
-                  className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
-                >
-                  <MessageCircle className="h-5 w-5" strokeWidth={2.5} />
-                  WhatsApp
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" align="center" dir="rtl">
-                <p>שלח וואטסאפ</p>
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Payments Button */}
-            {customer && (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="default"
-                      onClick={() => setIsPaymentHistoryOpen(true)}
-                      variant="outline"
-                      className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
-                    >
-                      <CreditCard className="h-5 w-5" strokeWidth={2.5} />
-                      תשלומים
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" align="center" dir="rtl">
-                    <p>צפה בהיסטוריית תשלומים</p>
-                  </TooltipContent>
-                </Tooltip>
-              </>
-            )}
-
-            {/* Trainee Settings Button - Only show if user has a trainee account */}
-            {customer && customer.user_id && (user?.role === 'admin' || user?.role === 'user') && (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="default"
-                      onClick={() => setIsTraineeSettingsOpen(true)}
-                      variant="outline"
-                      className="bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 transition-colors"
-                    >
-                      <Settings className="h-5 w-5" strokeWidth={2.5} />
-                      הגדרות מתאמן
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" align="center" dir="rtl">
-                    <p>הגדרות משתמש מתאמן - סיסמה ומחיקה</p>
-                  </TooltipContent>
-                </Tooltip>
-              </>
-            )}
-
-            {/* Vertical Divider */}
-            <div className="h-6 w-px bg-gray-200" />
-
-            {/* Utility Group: Smart Trainee Action (Create/View), History & Notes */}
-            <div className="flex items-center gap-2">
-              {/* Smart Trainee Action Button - Only for admins/managers */}
-              {(user?.role === 'admin' || user?.role === 'user') && customer && (
-                <>
-                  <SmartTraineeActionButton
-                    customerId={customer.id}
-                    leadId={lead?.id || null}
-                    customerEmail={customer.email || null}
-                    customerName={customer.full_name || null}
-                    customerPhone={customer.phone || null}
-                    customerUserId={customer.user_id || null}
-                    customerInvitationUserId={customerInvitation?.user_id || null}
-                  />
-                  {/* Vertical Divider */}
-                  <div className="h-6 w-px bg-gray-200" />
-                </>
-              )}
-
-              {/* History Toggle Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="default"
-                    onClick={toggleHistory}
-                    className={cn(
-                      "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2",
-                      !isHistoryOpen && "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
-                    )}
-                  >
-                    <History className="h-5 w-5" strokeWidth={2.5} />
-                    <span>היסטוריה</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" align="center" dir="rtl">
-                  <p>היסטוריה</p>
-                </TooltipContent>
-              </Tooltip>
-
-              {/* Notes Toggle Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="default"
-                    onClick={toggleNotes}
-                    className={cn(
-                      "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2 relative",
-                      !isNotesOpen && "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
-                    )}
-                  >
-                    <MessageSquare className="h-5 w-5" strokeWidth={2.5} />
-                    <span>הערות</span>
-                    {notesCount > 0 && (
-                      <Badge
-                        className={cn(
-                          "h-5 min-w-5 px-1.5 flex items-center justify-center text-xs font-semibold rounded-full border-2",
-                          isNotesOpen
-                            ? "bg-white text-[#5B6FB9] border-[#5B6FB9]"
-                            : "bg-[#5B6FB9] text-white border-white"
-                        )}
-                      >
-                        {notesCount > 99 ? '99+' : notesCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="left" align="center" dir="rtl">
-                  <p>הערות {notesCount > 0 && `(${notesCount})`}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
+      {/* Primary Row - Only show if not hidden */}
+      {!hideMainBar && (
+        <div className="px-4 py-3">
+          <ClientHeroBar
+            customer={customer}
+            mostRecentLead={mostRecentLead}
+            onBack={onBack}
+            onWhatsApp={onWhatsApp}
+            onUpdateCustomer={onUpdateCustomer}
+            onViewCustomerProfile={onViewCustomerProfile}
+            onPaymentHistoryClick={() => {
+              if (externalOnPaymentHistoryClose) {
+                // When using external state, the handler is passed from PageLayout to ClientHeroBar in the header
+                // This ClientHeroBar instance (when hideMainBar is false) should use internal state
+                setInternalIsPaymentHistoryOpen(true);
+              } else {
+                setInternalIsPaymentHistoryOpen(true);
+              }
+            }}
+            onTraineeSettingsClick={() => {
+              if (externalOnTraineeSettingsClose) {
+                // When using external state, the handler is passed from PageLayout to ClientHeroBar in the header
+                // This ClientHeroBar instance (when hideMainBar is false) should use internal state
+                setInternalIsTraineeSettingsOpen(true);
+              } else {
+                setInternalIsTraineeSettingsOpen(true);
+              }
+            }}
+            onToggleExpand={handleToggleExpand}
+            isExpanded={isExpanded}
+            notesCount={notesCount}
+          />
         </div>
-      </div>
+      )}
 
       {/* Expandable Secondary Info Section */}
       <div
         className={cn(
           "overflow-hidden transition-all duration-300 ease-in-out",
+          hideMainBar && isExpanded && "fixed top-[60px] left-0 z-30 bg-[#E8EBF5] border-b-2 border-[#5B6FB9]/20 shadow-md",
+          !hideMainBar && isExpanded && "bg-[#E8EBF5] border-b-2 border-[#5B6FB9]/20 shadow-md",
           isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
         )}
+        style={hideMainBar && isExpanded ? {
+          right: `${sidebarWidth.width}px`,
+        } : undefined}
       >
-        <div className="pr-4 pl-8 pb-3 pt-0 border-t border-slate-100">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-3">
-              {/* City - Lead Level */}
-              {onUpdateLead && lead && (
-                <InlineEditableField
-                  label="עיר"
-                  value={lead.city || ''}
-                  onSave={async (newValue) => {
-                    if (lead.id) {
-                      await onUpdateLead({ city: String(newValue) });
-                    }
-                  }}
-                  type="text"
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-gray-900"
-                />
-              )}
+        <div className="pr-4 pl-8 pb-2 pt-2 pt-0">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-0 pr-10">
+            {/* City - Lead Level */}
+            {onUpdateLead && lead && (
+              <InlineEditableField
+                label="עיר"
+                value={lead.city || ''}
+                onSave={async (newValue) => {
+                  if (lead.id) {
+                    await onUpdateLead({ city: String(newValue) });
+                  }
+                }}
+                type="text"
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-gray-900"
+              />
+            )}
 
-              {/* Birth Date - Lead Level */}
-              {onUpdateLead && lead && (
-                <InlineEditableField
-                  label="תאריך לידה"
-                  value={lead.birth_date || ''}
-                  onSave={async (newValue) => {
-                    if (lead.id) {
-                      await onUpdateLead({ birth_date: String(newValue) });
-                    }
-                  }}
-                  type="date"
-                  formatValue={(val) => formatDate(String(val))}
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-gray-900"
-                />
-              )}
+            {/* Birth Date - Lead Level */}
+            {onUpdateLead && lead && (
+              <InlineEditableField
+                label="תאריך לידה"
+                value={lead.birth_date || ''}
+                onSave={async (newValue) => {
+                  if (lead.id) {
+                    await onUpdateLead({ birth_date: String(newValue) });
+                  }
+                }}
+                type="date"
+                formatValue={(val) => formatDate(String(val))}
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-gray-900"
+              />
+            )}
 
-              {/* Age - Calculated, Read Only */}
-              {age !== null && (
-                <div className="flex items-center gap-2 py-0.5">
-                  <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
-                  <span className="text-sm font-semibold text-slate-900">{age} שנים</span>
-                </div>
-              )}
+            {/* Age - Calculated, Read Only */}
+            {age !== null && (
+              <div className="flex items-center gap-2 py-0.5">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0">גיל:</span>
+                <span className="text-sm font-semibold text-slate-900">{age} שנים</span>
+              </div>
+            )}
 
-              {/* Gender - Lead Level */}
-              {onUpdateLead && lead && (
-                <InlineEditableSelect
-                  label="מגדר"
-                  value={lead.gender || ''}
-                  options={['male', 'female', 'other']}
-                  onSave={async (newValue) => {
-                    if (lead.id) {
-                      await onUpdateLead({ gender: newValue });
-                    }
-                  }}
-                  formatValue={(val) => getGenderLabel(val)}
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-gray-900"
-                  badgeClassName="bg-gray-50 text-gray-700 border-gray-200"
-                />
-              )}
+            {/* Gender - Lead Level */}
+            {onUpdateLead && lead && (
+              <InlineEditableSelect
+                label="מגדר"
+                value={lead.gender || ''}
+                options={['male', 'female', 'other']}
+                onSave={async (newValue) => {
+                  if (lead.id) {
+                    await onUpdateLead({ gender: newValue });
+                  }
+                }}
+                formatValue={(val) => getGenderLabel(val)}
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-gray-900"
+                badgeClassName="bg-gray-50 text-gray-700 border-gray-200"
+              />
+            )}
 
-              {/* Height - Lead Level */}
-              {onUpdateLead && lead && (
-                <InlineEditableField
-                  label="גובה"
-                  value={lead.height || 0}
-                  onSave={async (newValue) => {
-                    if (lead.id) {
-                      await onUpdateLead({ height: Number(newValue) });
-                    }
-                  }}
-                  type="number"
-                  formatValue={(val) => `${val} ס"מ`}
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-gray-900"
-                />
-              )}
+            {/* Height - Lead Level */}
+            {onUpdateLead && lead && (
+              <InlineEditableField
+                label="גובה"
+                value={lead.height || 0}
+                onSave={async (newValue) => {
+                  if (lead.id) {
+                    await onUpdateLead({ height: Number(newValue) });
+                  }
+                }}
+                type="number"
+                formatValue={(val) => `${val} ס"מ`}
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-gray-900"
+              />
+            )}
 
-              {/* Weight - Lead Level */}
-              {onUpdateLead && lead && (
-                <InlineEditableField
-                  label="משקל"
-                  value={lead.weight || 0}
-                  onSave={async (newValue) => {
-                    if (lead.id) {
-                      await onUpdateLead({ weight: Number(newValue) });
-                    }
-                  }}
-                  type="number"
-                  formatValue={(val) => `${val} ק"ג`}
-                  className="border-0 p-0"
-                  valueClassName="text-sm font-semibold text-gray-900"
-                />
-              )}
+            {/* Weight - Lead Level */}
+            {onUpdateLead && lead && (
+              <InlineEditableField
+                label="משקל"
+                value={lead.weight || 0}
+                onSave={async (newValue) => {
+                  if (lead.id) {
+                    await onUpdateLead({ weight: Number(newValue) });
+                  }
+                }}
+                type="number"
+                formatValue={(val) => `${val} ק"ג`}
+                className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-gray-900"
+              />
+            )}
           </div>
         </div>
       </div>
@@ -479,7 +308,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
       {customer && (
         <PaymentHistoryModal
           isOpen={isPaymentHistoryOpen}
-          onClose={() => setIsPaymentHistoryOpen(false)}
+          onClose={handlePaymentHistoryClose}
           customerId={customer.id}
           customerName={customer.full_name}
           leadId={lead?.id || null}
@@ -490,7 +319,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
       {customer && customer.user_id && (
         <TraineeSettingsModal
           isOpen={isTraineeSettingsOpen}
-          onClose={() => setIsTraineeSettingsOpen(false)}
+          onClose={handleTraineeSettingsClose}
           traineeUserId={customer.user_id}
           traineeEmail={customer.email}
           traineeName={customer.full_name}

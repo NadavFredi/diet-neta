@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard } from 'lucide-react';
+import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection } from '@/store/slices/sidebarSlice';
@@ -10,6 +10,7 @@ import { useInterfaceIconPreferences } from '@/hooks/useInterfaceIconPreferences
 import { selectInterfaceIconPreferences } from '@/store/slices/interfaceIconPreferencesSlice';
 import { getIconByName } from '@/utils/iconUtils';
 import { EditInterfaceIconDialog } from './EditInterfaceIconDialog';
+import { FooterContent } from '@/components/layout/AppFooter';
 
 interface NavItem {
   id: string;
@@ -24,14 +25,14 @@ const navigationItems: NavItem[] = [
     id: 'leads',
     resourceKey: 'leads',
     label: 'ניהול לידים',
-    icon: LayoutDashboard,
+    icon: UserPlus,
     path: '/dashboard',
   },
   {
     id: 'customers',
     resourceKey: 'customers',
     label: 'ניהול לקוחות',
-    icon: LayoutDashboard,
+    icon: Users,
     path: '/dashboard/customers',
   },
   {
@@ -68,6 +69,13 @@ const navigationItems: NavItem[] = [
     label: 'סוגי מנויים',
     icon: CreditCard,
     path: '/dashboard/subscription-types',
+  },
+  {
+    id: 'knowledge-base',
+    resourceKey: 'knowledge_base',
+    label: 'מאגר ידע',
+    icon: Book,
+    path: '/dashboard/knowledge-base',
   },
   {
     id: 'check-in-settings',
@@ -236,6 +244,11 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
           ))}
         </ul>
       </nav>
+
+      {/* Footer - At the bottom of the sidebar */}
+      <div className={cn("flex-shrink-0", !isCollapsed && "border-t border-white/10", isCollapsed && "p-0")}>
+        <FooterContent compact hideLink smallImage isCollapsed={isCollapsed} />
+      </div>
 
       </div>
 

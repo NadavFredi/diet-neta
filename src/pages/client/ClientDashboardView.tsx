@@ -50,6 +50,7 @@ import { NetaLogo } from '@/components/ui/NetaLogo';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { FooterContent } from '@/components/layout/AppFooter';
 
 export const ClientDashboardView: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -199,67 +200,21 @@ export const ClientDashboardView: React.FC = () => {
 
   return (
     <div className="bg-[#F8FAFC] flex flex-col h-full" dir="rtl" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      {/* Fixed Header */}
-      <div className="bg-white border-b border-[#E2E8F0] flex-shrink-0 z-20 shadow-sm">
-        <div className="w-full px-8 xl:px-12 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <NetaLogo 
-                size="default" 
-                variant="default"
-                className="rounded-none border-0 p-0"
-              />
-              <h1 className="text-2xl font-bold text-[#334155]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
-                {greeting}
-              </h1>
-            </div>
-            {/* Show Exit Impersonation button if admin is impersonating, otherwise show Logout */}
-            {isImpersonating ? (
-              <Button 
-                variant="outline"
-                size="default" 
-                onClick={() => {
-                  dispatch(stopImpersonation());
-                  // Navigate back to previous location or default to dashboard
-                  const returnPath = previousLocation || '/dashboard';
-                  navigate(returnPath);
-                  toast({
-                    title: 'יציאה ממצב תצוגה',
-                    description: 'חזרת למצב מנהל',
-                  });
-                }}
-                className="border-[#5B6FB9] bg-[#5B6FB9]/10 text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
-              >
-                <X className="h-4 w-4 ml-2" />
-                צא ממצב צפייה
-              </Button>
-            ) : (
-              <Button 
-                variant="outline"
-                size="default" 
-                onClick={handleLogout} 
-                className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
-              >
-                <LogOut className="h-4 w-4 ml-2" />
-                התנתק
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Main Layout: Sidebar + Content */}
       <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Left Vertical Navigation Sidebar */}
-        <div className="w-64 bg-white border-l border-[#E2E8F0] flex-shrink-0 flex flex-col">
+        <div className="w-64 bg-[#5B6FB9] border-l border-white/10 flex-shrink-0 flex flex-col">
+          <div className="border-b border-white/10 flex items-center justify-center px-4 py-5">
+            <NetaLogo size="default" variant="default" />
+          </div>
           <nav className="flex-1 p-3 pt-4 overflow-y-auto">
             <button
               onClick={() => setActiveTab('workout')}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'workout'
-                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+                  ? "bg-white text-gray-800 shadow-sm font-semibold"
+                  : "text-white hover:bg-white/10"
               )}
             >
               <Dumbbell className="h-5 w-5 flex-shrink-0" />
@@ -270,8 +225,8 @@ export const ClientDashboardView: React.FC = () => {
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'nutrition'
-                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+                  ? "bg-white text-gray-800 shadow-sm font-semibold"
+                  : "text-white hover:bg-white/10"
               )}
             >
               <Flame className="h-5 w-5 flex-shrink-0" />
@@ -282,8 +237,8 @@ export const ClientDashboardView: React.FC = () => {
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'checkin'
-                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+                  ? "bg-white text-gray-800 shadow-sm font-semibold"
+                  : "text-white hover:bg-white/10"
               )}
             >
               <Calendar className="h-5 w-5 flex-shrink-0" />
@@ -294,8 +249,8 @@ export const ClientDashboardView: React.FC = () => {
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'summaries'
-                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+                  ? "bg-white text-gray-800 shadow-sm font-semibold"
+                  : "text-white hover:bg-white/10"
               )}
             >
               <Target className="h-5 w-5 flex-shrink-0" />
@@ -306,8 +261,8 @@ export const ClientDashboardView: React.FC = () => {
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'budget'
-                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+                  ? "bg-white text-gray-800 shadow-sm font-semibold"
+                  : "text-white hover:bg-white/10"
               )}
             >
               <Wallet className="h-5 w-5 flex-shrink-0" />
@@ -318,8 +273,8 @@ export const ClientDashboardView: React.FC = () => {
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'progress'
-                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+                  ? "bg-white text-gray-800 shadow-sm font-semibold"
+                  : "text-white hover:bg-white/10"
               )}
             >
               <ImageIcon className="h-5 w-5 flex-shrink-0" />
@@ -330,19 +285,57 @@ export const ClientDashboardView: React.FC = () => {
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'bloodtests'
-                  ? "bg-[#5B6FB9]/10 text-[#5B6FB9] border-r-4 border-[#5B6FB9] font-semibold"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-[#5B6FB9]"
+                  ? "bg-white text-gray-800 shadow-sm font-semibold"
+                  : "text-white hover:bg-white/10"
               )}
             >
               <Activity className="h-5 w-5 flex-shrink-0" />
               <span className="text-sm">בדיקות דם</span>
             </button>
           </nav>
+          <div className="flex-shrink-0 border-t border-white/10">
+            <FooterContent compact hideLink smallImage />
+          </div>
         </div>
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, flex: '1 1 auto' }}>
           <div className="w-full px-6 xl:px-8 py-2 pb-4">
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="text-2xl font-bold text-[#334155]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+                {greeting}
+              </h1>
+              {isImpersonating ? (
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={() => {
+                    dispatch(stopImpersonation());
+                    // Navigate back to previous location or default to dashboard
+                    const returnPath = previousLocation || '/dashboard';
+                    navigate(returnPath);
+                    toast({
+                      title: 'יציאה ממצב תצוגה',
+                      description: 'חזרת למצב מנהל',
+                    });
+                  }}
+                  className="border-[#5B6FB9] bg-[#5B6FB9]/10 text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
+                >
+                  <X className="h-4 w-4 ml-2" />
+                  צא ממצב צפייה
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={handleLogout}
+                  className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
+                >
+                  <LogOut className="h-4 w-4 ml-2" />
+                  התנתק
+                </Button>
+              )}
+            </div>
             {/* 7-Day Averages Header - Larger Cards */}
             <div className="grid grid-cols-3 gap-3 mb-4">
               <Card className="p-4 border border-slate-200 bg-white shadow-sm rounded-lg">
@@ -543,6 +536,16 @@ export const ClientDashboardView: React.FC = () => {
               </div>
             )}
 
+            {/* Disclaimer - Positioned within content */}
+            <div className="w-full py-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
+                <p className="font-medium mb-1">שימו לב:</p>
+                <p>
+                  ההמלצות במסמך זה אינן מהוות ייעוץ רפואי. המלווה אינה רופאה או תזונאית קלינית, וכל שינוי תזונתי, תוספים או פעילות גופנית יש לבצע באחריות אישית ובהתייעצות עם רופא מוסמך.
+                </p>
+              </div>
+            </div>
+
             {/* Multi-Day Report Modal */}
             {customer && activeTab === 'checkin' && (
               <MultiDayReportModal
@@ -554,16 +557,6 @@ export const ClientDashboardView: React.FC = () => {
               />
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Disclaimer - Positioned at bottom, minimal gap before footer */}
-      <div className="w-full px-6 xl:px-8 py-3 pb-2 flex-shrink-0">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
-          <p className="font-medium mb-1">שימו לב:</p>
-          <p>
-            ההמלצות במסמך זה אינן מהוות ייעוץ רפואי. המלווה אינה רופאה או תזונאית קלינית, וכל שינוי תזונתי, תוספים או פעילות גופנית יש לבצע באחריות אישית ובהתייעצות עם רופא מוסמך.
-          </p>
         </div>
       </div>
 
@@ -610,4 +603,3 @@ export const ClientDashboardView: React.FC = () => {
     </div>
   );
 };
-

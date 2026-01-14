@@ -7,17 +7,21 @@ import { toggleSidebar } from '@/store/slices/sidebarSlice';
 import { ChevronRight, ChevronLeft, LogOut, Eye } from 'lucide-react';
 import { stopImpersonation } from '@/store/slices/impersonationSlice';
 import { useNavigate } from 'react-router-dom';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface DashboardHeaderProps {
   userEmail: string | undefined;
   onLogout: () => void;
   sidebarContent?: React.ReactNode;
+  clientHeroContent?: React.ReactNode;
 }
 
 export const DashboardHeader = ({
   userEmail,
   onLogout,
   sidebarContent,
+  clientHeroContent,
 }: DashboardHeaderProps) => {
   const sidebarWidth = useSidebarWidth();
   const dispatch = useAppDispatch();
@@ -32,12 +36,12 @@ export const DashboardHeader = ({
   return (
     <>
       {/* Sidebar Section - Fixed on right side (RTL) */}
-      <div 
+      <div
         className={cn(
           'fixed right-0 top-0 flex flex-col bg-[#5B6FB9] transition-all duration-300 ease-in-out',
           'border-l border-white/10 shadow-lg'
         )}
-        style={{ 
+        style={{
           width: `${sidebarWidth.width}px`,
           height: '100vh',
           zIndex: 50,
@@ -45,24 +49,24 @@ export const DashboardHeader = ({
         dir="rtl"
       >
         {/* Logo Section - Top of sidebar */}
-        <div 
+        <div
           className={cn(
             'border-b border-white/10 flex items-center justify-center transition-all duration-300 relative',
             sidebarWidth.isCollapsed ? 'px-2 py-4' : 'px-4 py-5'
           )}
-          style={{ 
+          style={{
             height: '88px',
           }}
         >
           {/* Logo */}
           {!sidebarWidth.isCollapsed && (
-            <NetaLogo 
-              size="default" 
+            <NetaLogo
+              size="default"
               variant="default"
             />
           )}
         </div>
-        
+
         {/* Toggle Button - On the edge between sidebar and content, aligned with border */}
         <button
           onClick={handleToggleSidebar}
@@ -97,17 +101,26 @@ export const DashboardHeader = ({
       </div>
 
       {/* Main Header Bar - Fixed at top */}
-      <header 
+      <header
         className="fixed top-0 left-0 right-0 bg-white text-gray-900 flex items-center shadow-sm border-b border-gray-200 z-40"
         dir="rtl"
-        style={{ 
-          height: '88px',
+        style={{
+          height: '60px',
           marginRight: `${sidebarWidth.width}px`,
         }}
       >
-        {/* User info and logout - positioned on left side (appears on left in RTL) */}
-        <div className="flex-1 flex items-center justify-end px-6 py-5">
-          <div className="flex items-center gap-4">
+        <div className="flex-1 flex items-center justify-between px-6 py-5 h-full">
+          {/* Client Hero Content - Right side (if present) */}
+          {clientHeroContent ? (
+            <div className="flex-1 flex items-center min-w-0 mr-4">
+              {clientHeroContent}
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+
+          {/* User info and logout - ALWAYS positioned on left side */}
+          <div className="flex items-center gap-4 flex-shrink-0">
             {/* Impersonation Mode Indicator */}
             {isImpersonating && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200">
@@ -128,31 +141,49 @@ export const DashboardHeader = ({
                 </Button>
               </div>
             )}
-            
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200">
-              <span className="text-base font-semibold text-gray-700">{userEmail}</span>
-            </div>
-            <Button 
-              type="button"
-              variant="outline"
-              size="default" 
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('[DashboardHeader] Logout button clicked');
-                try {
-                  await onLogout();
-                } catch (error) {
-                  console.error('[DashboardHeader] Logout error:', error);
-                  // Force navigation to login even if logout fails
-                  navigate('/login');
-                }
-              }}
-              className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
-            >
-              <LogOut className="h-4 w-4 ml-2" />
-              התנתק
-            </Button>
+
+            {/* Avatar with Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex items-center justify-center rounded-full border-2 border-[#5B6FB9] hover:border-[#5B6FB9]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] focus:ring-offset-2">
+                  <Avatar className="h-10 w-10 cursor-pointer">
+                    <AvatarFallback className="bg-[#5B6FB9] text-white font-semibold text-sm">
+                      {userEmail ? userEmail.substring(0, 2).toUpperCase() : 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-4" align="end" side="bottom" dir="rtl">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-gray-500 font-medium">משתמש מחובר</span>
+                    <span className="text-base font-semibold text-gray-900">{userEmail}</span>
+                  </div>
+                  <div className="h-px bg-gray-200" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="default"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('[DashboardHeader] Logout button clicked');
+                      try {
+                        await onLogout();
+                      } catch (error) {
+                        console.error('[DashboardHeader] Logout error:', error);
+                        // Force navigation to login even if logout fails
+                        navigate('/login');
+                      }
+                    }}
+                    className="w-full border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200 justify-start"
+                  >
+                    <LogOut className="h-4 w-4 ml-2" />
+                    התנתק
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </header>
