@@ -14,6 +14,7 @@
     "linkProject": "supabase link --project-ref uklxejsaenqoxujcjkba",
     "db:reset": "supabase db reset --local",
     "create-users": "node scripts/create_test_users.js",
+    "create-test-user": "node scripts/create_test_user_from_env.js",
     "create-trainee-prod": "node scripts/create_trainee_user_production.js",
     "reset-manager-password": "node scripts/reset_manager_password.js",
     "deploy:functions": "node scripts/deploy-functions.js",
