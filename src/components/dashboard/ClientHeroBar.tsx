@@ -6,7 +6,7 @@
  */
 
 import React, { useState } from 'react';
-import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard, Settings, MoreVertical, Trash2, Plus } from 'lucide-react';
+import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard, Settings, MoreVertical, Trash2, Plus, UserCheck, UserX } from 'lucide-react';
 
 // WhatsApp Icon Component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -107,6 +107,9 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   const [deleteType, setDeleteType] = useState<'lead' | 'customer' | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
+  const [traineeProfileId, setTraineeProfileId] = useState<string | null>(null);
+  const [traineeIsActive, setTraineeIsActive] = useState<boolean | null>(null);
+  const [isUpdatingTraineeStatus, setIsUpdatingTraineeStatus] = useState(false);
 
   // Fetch invitations for this customer
   useEffect(() => {
@@ -123,6 +126,82 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   const customerInvitation = invitations.find(
     (inv) => inv.customer_id === customer?.id && inv.lead_id === lead?.id
   ) || invitations.find((inv) => inv.customer_id === customer?.id);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchTraineeStatus = async () => {
+      const traineeUserId = customer?.user_id || customerInvitation?.user_id;
+      const traineeEmail = customer?.email;
+
+      if (!traineeUserId && !traineeEmail) {
+        if (isMounted) {
+          setTraineeProfileId(null);
+          setTraineeIsActive(null);
+        }
+        return;
+      }
+
+      let query = supabase
+        .from('profiles')
+        .select('id, role, is_active, email');
+
+      if (traineeUserId) {
+        query = query.eq('id', traineeUserId);
+      } else if (traineeEmail) {
+        query = query.eq('email', traineeEmail);
+      }
+
+      const { data, error } = await query.maybeSingle();
+      if (!isMounted) return;
+
+      if (error || !data || data.role !== 'trainee') {
+        setTraineeProfileId(null);
+        setTraineeIsActive(null);
+        return;
+      }
+
+      setTraineeProfileId(data.id);
+      setTraineeIsActive(data.is_active ?? true);
+    };
+
+    fetchTraineeStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [customer?.user_id, customer?.email, customerInvitation?.user_id]);
+
+  const handleUpdateTraineeStatus = async (nextActive: boolean) => {
+    if (!traineeProfileId) return;
+
+    setIsUpdatingTraineeStatus(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: nextActive })
+        .eq('id', traineeProfileId);
+
+      if (error) {
+        throw error;
+      }
+
+      setTraineeIsActive(nextActive);
+      toast({
+        title: 'עודכן',
+        description: nextActive ? 'משתמש המתאמן הופעל.' : 'משתמש המתאמן הושבת.',
+      });
+    } catch (error: any) {
+      console.error('[ClientHeroBar] Error updating trainee status:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון סטטוס מתאמן',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdatingTraineeStatus(false);
+    }
+  };
 
   const handleDeleteClick = () => {
     setIsDeleteDialogOpen(true);
@@ -402,6 +481,30 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 <Plus className="h-4 w-4 flex-shrink-0" />
                 <span>צור ליד חדש ללקוח</span>
               </DropdownMenuItem>
+              {traineeProfileId && traineeIsActive !== null && (
+                <>
+                  <DropdownMenuSeparator />
+                  {traineeIsActive ? (
+                    <DropdownMenuItem
+                      onClick={() => handleUpdateTraineeStatus(false)}
+                      disabled={isUpdatingTraineeStatus}
+                      className="cursor-pointer text-amber-700 focus:text-amber-700 focus:bg-amber-50 flex items-center gap-2 flex-row-reverse"
+                    >
+                      <UserX className="h-4 w-4 flex-shrink-0" />
+                      <span>השבת משתמש מתאמן</span>
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={() => handleUpdateTraineeStatus(true)}
+                      disabled={isUpdatingTraineeStatus}
+                      className="cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 flex items-center gap-2 flex-row-reverse"
+                    >
+                      <UserCheck className="h-4 w-4 flex-shrink-0" />
+                      <span>הפעל משתמש מתאמן</span>
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleDeleteClick}

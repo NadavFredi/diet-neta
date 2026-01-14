@@ -98,6 +98,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   const [messageTemplate, setMessageTemplate] = useState('');
   const [userExists, setUserExists] = useState(false);
   const [existingUserId, setExistingUserId] = useState<string | null>(null);
+  const [existingUserIsActive, setExistingUserIsActive] = useState<boolean | null>(null);
   const [isCheckingUser, setIsCheckingUser] = useState(true);
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>('default');
   const [templates, setTemplates] = useState<Record<string, any>>({});
@@ -163,6 +164,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
       }
 
       try {
+        setExistingUserIsActive(null);
         // Check if customer has a user_id
         const { data: customer, error } = await supabase
           .from('customers')
@@ -180,13 +182,14 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
           // Customer has a user account - check if it's a trainee
           const { data: profile } = await supabase
             .from('profiles')
-            .select('id, role')
+            .select('id, role, is_active')
             .eq('id', customer.user_id)
             .maybeSingle();
 
           if (profile && profile.role === 'trainee') {
             setExistingUserId(customer.user_id);
             setUserExists(true);
+            setExistingUserIsActive(profile.is_active ?? true);
             // Update email if customer has email but we don't have it
             if (customer.email && !email) {
               setEmail(customer.email);
@@ -196,13 +199,14 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
           // Check if a user exists with this email
           const { data: profile } = await supabase
             .from('profiles')
-            .select('id, role')
+            .select('id, role, is_active')
             .eq('email', customerEmail)
             .maybeSingle();
 
           if (profile && profile.role === 'trainee') {
             setExistingUserId(profile.id);
             setUserExists(true);
+            setExistingUserIsActive(profile.is_active ?? true);
           }
         }
       } catch (error) {
@@ -442,14 +446,16 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
 
   // If user exists, show "Watch as User" button that directly triggers impersonation
   if (userExists && existingUserId && !isCheckingUser) {
+    const isInactive = existingUserIsActive === false;
     return (
       <Button
         size="default"
         onClick={handleWatchAsUser}
+        disabled={isInactive}
         className="bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200 text-base font-semibold rounded-lg px-4 py-2 flex items-center gap-2"
       >
         <Eye className="h-5 w-5" strokeWidth={2.5} />
-        <span>צפה כמתאמן</span>
+        <span>{isInactive ? 'משתמש מושבת' : 'צפה כמתאמן'}</span>
       </Button>
     );
   }

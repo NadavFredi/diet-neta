@@ -11,6 +11,7 @@ export interface AuthUser {
   role: UserRole | null;
   full_name?: string | null;
   customer_id?: string | null; // For trainees, link to their customer record
+  is_active?: boolean | null;
 }
 
 interface AuthState {
@@ -53,7 +54,7 @@ export const initializeAuth = createAsyncThunk(
       // Fetch user profile with role
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, role')
+        .select('id, email, full_name, role, is_active')
         .eq('id', session.user.id)
         .single();
       
@@ -66,6 +67,12 @@ export const initializeAuth = createAsyncThunk(
       
       if (!profile) {
         console.warn('[Auth] Profile not found for user:', session.user.id);
+        return null;
+      }
+
+      if (profile.role === 'trainee' && profile.is_active === false) {
+        console.warn('[Auth] Trainee account is inactive:', profile.email);
+        await supabase.auth.signOut();
         return null;
       }
       
@@ -102,6 +109,7 @@ export const initializeAuth = createAsyncThunk(
           role: profile.role as UserRole,
           full_name: profile.full_name,
           customer_id,
+          is_active: profile.is_active ?? true,
         },
       };
       
@@ -142,7 +150,7 @@ export const loginUser = createAsyncThunk(
       // Fetch user profile with timeout protection
       const profilePromise = supabase
         .from('profiles')
-        .select('id, email, full_name, role')
+        .select('id, email, full_name, role, is_active')
         .eq('id', data.user.id)
         .single();
       
@@ -189,6 +197,7 @@ export const loginUser = createAsyncThunk(
               role: newProfile.role as UserRole,
               full_name: newProfile.full_name,
               customer_id: null,
+              is_active: true,
             },
           };
         }
@@ -198,6 +207,11 @@ export const loginUser = createAsyncThunk(
       if (!profile) {
         console.error('[loginUser] Profile is null');
         throw new Error('User profile not found');
+      }
+
+      if (profile.role === 'trainee' && profile.is_active === false) {
+        await supabase.auth.signOut();
+        throw new Error('החשבון שלך הושבת. אנא פנה למנהל.');
       }
       
       console.log('[loginUser] Profile found:', { 
@@ -263,6 +277,7 @@ export const loginUser = createAsyncThunk(
           role: userRole,
           full_name: profile.full_name,
           customer_id,
+          is_active: profile.is_active ?? true,
         },
       };
       
@@ -371,10 +386,6 @@ const authSlice = createSlice({
 
 export const { setUser, forceLoadingComplete } = authSlice.actions;
 export default authSlice.reducer;
-
-
-
-
 
 
 
