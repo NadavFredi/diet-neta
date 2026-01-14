@@ -365,7 +365,20 @@ export const createTraineeUserWithPassword = createAsyncThunk(
 
       if (existingProfile) {
         if (existingProfile.role === 'trainee') {
-          throw new Error('User already exists as a trainee');
+          if (customerId) {
+            const { error: updateCustomerError } = await supabase
+              .from('customers')
+              .update({ user_id: existingProfile.id })
+              .eq('id', customerId);
+            if (updateCustomerError) {
+              throw new Error(`Failed to link existing trainee to customer: ${updateCustomerError.message}`);
+            }
+          }
+          return {
+            userId: existingProfile.id,
+            email,
+            isNewUser: false,
+          };
         }
         // Update existing user to trainee role
         await supabase

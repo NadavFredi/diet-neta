@@ -252,13 +252,21 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         })
       ).unwrap();
 
-      setUserCreated(true);
-      setCreatedUserId(result.userId);
-
-      toast({
-        title: 'הצלחה',
-        description: 'משתמש מתאמן נוצר בהצלחה!',
-      });
+      if (result?.isNewUser === false) {
+        setUserExists(true);
+        setExistingUserId(result.userId);
+        toast({
+          title: 'עודכן',
+          description: 'משתמש מתאמן קיים קושר ללקוח בהצלחה.',
+        });
+      } else {
+        setUserCreated(true);
+        setCreatedUserId(result.userId);
+        toast({
+          title: 'הצלחה',
+          description: 'משתמש מתאמן נוצר בהצלחה!',
+        });
+      }
     } catch (error: any) {
       console.error('[CreateTraineeButton] Error:', error);
       
