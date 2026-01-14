@@ -29,6 +29,10 @@ serve(async (req) => {
     if (!authHeader) {
       return errorResponse('Missing authorization header', 401);
     }
+    console.log('[create-trainee-user] Incoming request:', {
+      hasAuthHeader: !!authHeader,
+      supabaseUrlSet: !!Deno.env.get('SUPABASE_URL'),
+    });
 
     // Verify the requesting user is authenticated
     const user = await verifyUser(authHeader);

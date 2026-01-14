@@ -20,7 +20,7 @@ port = 54322
 shadow_port = 54320
 # The database major version to use. This has to be the same as your remote database's major version.
 # Options: 15, 14, 13, 12, 11
-major_version = 15
+major_version = 17
 
 [db.pooler]
 enabled = false
@@ -119,7 +119,7 @@ entrypoint = "./functions/get-attendance/index.ts"
 
 [functions.create-trainee-user]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 entrypoint = "./functions/create-trainee-user/index.ts"
 
 [functions.receive-fillout-webhook]

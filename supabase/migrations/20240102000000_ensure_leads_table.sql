@@ -15,7 +15,7 @@ SET search_path TO public;
 -- Create the leads table if it doesn't exist
 CREATE TABLE IF NOT EXISTS public.leads (
     -- Meta Data
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL,

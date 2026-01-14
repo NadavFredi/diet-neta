@@ -9,7 +9,7 @@
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS nutrition_plans (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
     template_id UUID REFERENCES nutrition_templates(id) ON DELETE SET NULL,
