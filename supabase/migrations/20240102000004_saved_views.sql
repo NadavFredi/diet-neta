@@ -9,7 +9,7 @@
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS saved_views (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     resource_key TEXT NOT NULL CHECK (resource_key IN ('leads', 'workouts', 'customers')),
     view_name TEXT NOT NULL,
     filter_config JSONB NOT NULL DEFAULT '{}'::JSONB,

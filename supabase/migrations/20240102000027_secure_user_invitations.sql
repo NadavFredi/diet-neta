@@ -7,7 +7,7 @@
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS public.user_invitations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- User identification
     email TEXT NOT NULL,
@@ -55,7 +55,7 @@ CREATE TRIGGER update_user_invitations_updated_at
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS public.invitation_audit_log (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     invitation_id UUID REFERENCES user_invitations(id) ON DELETE CASCADE,
     action TEXT NOT NULL CHECK (action IN ('created', 'sent', 'resent', 'accepted', 'expired', 'revoked', 'viewed')),
     performed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,

@@ -40,7 +40,7 @@ COMMENT ON COLUMN customers.user_id IS 'Link to auth.users - allows clients to l
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS daily_check_ins (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
   check_in_date DATE NOT NULL DEFAULT CURRENT_DATE,

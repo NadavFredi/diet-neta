@@ -11,7 +11,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "linkProject": "supabase link --project-ref xghoqeayrtwgymfafrdm",
+    "linkProject": "supabase link --project-ref uklxejsaenqoxujcjkba",
     "db:reset": "supabase db reset --local",
     "create-users": "node scripts/create_test_users.js",
     "create-trainee-prod": "node scripts/create_trainee_user_production.js",
