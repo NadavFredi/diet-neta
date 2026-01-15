@@ -117,26 +117,7 @@ export const parsePhoneNumberParts = (phone: string): {
     cleaned = cleaned.substring(1);
   }
   
-  // Try to detect country code
-  // Israel: 972
-  if (cleaned.startsWith('972') && cleaned.length >= 12) {
-    return {
-      countryCode: '972',
-      localNumber: cleaned.substring(3),
-      fullNumber: hasPlus ? `+${cleaned}` : cleaned
-    };
-  }
-  
-  // USA/Canada: 1
-  if (cleaned.startsWith('1') && cleaned.length === 11) {
-    return {
-      countryCode: '1',
-      localNumber: cleaned.substring(1),
-      fullNumber: hasPlus ? `+${cleaned}` : cleaned
-    };
-  }
-  
-  // Try to parse with libphonenumber-js for other countries
+  // Try to parse with libphonenumber-js first (most reliable)
   try {
     const parsed = parsePhoneNumber(phone);
     return {
@@ -145,13 +126,34 @@ export const parsePhoneNumberParts = (phone: string): {
       fullNumber: parsed.number || phone
     };
   } catch {
-    // Fallback: treat as local number
+    // If parsing fails, try manual detection
+  }
+  
+  // Manual detection for common countries
+  // Israel: 972
+  if (cleaned.startsWith('972') && cleaned.length >= 11) {
     return {
-      countryCode: null,
-      localNumber: cleaned,
+      countryCode: '972',
+      localNumber: cleaned.substring(3),
       fullNumber: hasPlus ? `+${cleaned}` : cleaned
     };
   }
+  
+  // USA/Canada: 1 (10 digits after country code)
+  if (cleaned.startsWith('1') && cleaned.length >= 11 && cleaned.length <= 12) {
+    return {
+      countryCode: '1',
+      localNumber: cleaned.substring(1),
+      fullNumber: hasPlus ? `+${cleaned}` : cleaned
+    };
+  }
+  
+  // Fallback: treat as local number
+  return {
+    countryCode: null,
+    localNumber: cleaned,
+    fullNumber: hasPlus ? `+${cleaned}` : cleaned
+  };
 };
 
 /**
@@ -233,7 +235,41 @@ export const validatePhoneNumberFormat = (
   }
   
   try {
-    const country = (countryCode || 'il') as CountryCode;
+    // First, try to parse the number to detect the country automatically
+    let parsed: any = null;
+    let detectedCountry: string | undefined = undefined;
+    
+    try {
+      // Try parsing without country code first - libphonenumber-js can detect it
+      parsed = parsePhoneNumber(cleaned);
+      detectedCountry = parsed.country;
+    } catch {
+      // If parsing fails, try with provided country code
+      if (countryCode) {
+        try {
+          parsed = parsePhoneNumber(cleaned, countryCode as CountryCode);
+          detectedCountry = countryCode;
+        } catch {
+          // Continue to fallback
+        }
+      }
+    }
+    
+    // If we successfully parsed, validate it
+    if (parsed) {
+      if (parsed.isValid()) {
+        return {
+          isValid: true,
+          formatted: parsed.number
+        };
+      } else {
+        // Number is parsed but invalid
+        return { isValid: false, error: 'מספר טלפון לא תקין' };
+      }
+    }
+    
+    // Fallback: Try validation with detected or provided country
+    const country = (detectedCountry || countryCode || 'il') as CountryCode;
     
     // Try to validate with the country code
     let isValid = isValidPhoneNumber(cleaned, country);
@@ -254,7 +290,7 @@ export const validatePhoneNumberFormat = (
           if (firstDigit === '5' || firstDigit === '0' || ['2', '3', '4', '7', '8', '9'].includes(firstDigit)) {
             // Looks valid, try parsing
             try {
-              const parsed = parsePhoneNumber(cleaned, country);
+              const parsed = parsePhoneNumber(cleaned, 'il');
               if (parsed.isValid()) {
                 return {
                   isValid: true,
@@ -271,16 +307,39 @@ export const validatePhoneNumberFormat = (
     }
     
     // Get formatted version
-    const parsed = parsePhoneNumber(cleaned, country);
-    return {
-      isValid: true,
-      formatted: parsed.number
-    };
+    try {
+      const parsed = parsePhoneNumber(cleaned, country);
+      return {
+        isValid: true,
+        formatted: parsed.number
+      };
+    } catch {
+      // If parsing fails but validation passed, return the cleaned number
+      return {
+        isValid: true,
+        formatted: cleaned
+      };
+    }
   } catch (error) {
     // If parsing fails, check if it's a valid length for the country
     if (cleaned.startsWith('+972') && digitsOnly.length >= 11 && digitsOnly.length <= 12) {
       // Israeli number with reasonable length, might be valid
       return { isValid: true, formatted: cleaned };
+    }
+    // For other countries, if it has reasonable length (10-15 digits), might be valid
+    if (digitsOnly.length >= 10 && digitsOnly.length <= 15) {
+      // Try one more time without country code
+      try {
+        const parsed = parsePhoneNumber(cleaned);
+        if (parsed.isValid()) {
+          return {
+            isValid: true,
+            formatted: parsed.number
+          };
+        }
+      } catch {
+        // Continue to error
+      }
     }
     return { isValid: false, error: 'מספר טלפון לא תקין' };
   }
@@ -428,9 +487,12 @@ export const PhoneInput = ({
       normalizedNumber = `+972${fullNumber.substring(5)}`;
     }
 
+    // Use the provided countryCode, or try to detect from selectedCountry, or let validation auto-detect
+    const validationCountryCode = countryCode || selectedCountry?.countryCode;
+    
     const validation = validatePhoneNumberFormat(
       normalizedNumber, 
-      countryCode || selectedCountry?.countryCode || defaultCountry
+      validationCountryCode
     );
     
     return {
