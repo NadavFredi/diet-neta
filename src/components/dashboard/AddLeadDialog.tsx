@@ -30,6 +30,9 @@ import {
   SOURCE_OPTIONS,
 } from '@/utils/dashboard';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchSubscriptionTypes } from '@/store/slices/subscriptionTypesSlice';
+import { useEffect } from 'react';
 
 interface AddLeadDialogProps {
   isOpen: boolean;
@@ -37,6 +40,11 @@ interface AddLeadDialogProps {
 }
 
 export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
+  const dispatch = useAppDispatch();
+  const { subscriptionTypes, isLoading: isLoadingSubscriptionTypes } = useAppSelector(
+    (state) => state.subscriptionTypes
+  );
+  
   const {
     formData,
     isSubmitting,
@@ -49,6 +57,13 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
     handleSubmit,
     resetForm,
   } = useAddLead();
+
+  // Fetch subscription types when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      dispatch(fetchSubscriptionTypes());
+    }
+  }, [isOpen, dispatch]);
 
   const handleClose = () => {
     if (isSubmitting) return; // Prevent closing while submitting
@@ -362,6 +377,44 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
                 className="text-right dir-ltr"
                 dir="ltr"
               />
+            </div>
+          </div>
+
+          {/* Subscription Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">מנוי</h3>
+
+            <div className="space-y-2">
+              <Label htmlFor="subscription_type_id" className="text-right">
+                סוג מנוי (אופציונלי)
+              </Label>
+              <Select
+                value={formData.subscription_type_id || undefined}
+                onValueChange={(value) => handleInputChange('subscription_type_id', value)}
+                disabled={isLoadingSubscriptionTypes}
+              >
+                <SelectTrigger className="text-right">
+                  <SelectValue placeholder={isLoadingSubscriptionTypes ? 'טוען...' : 'בחר סוג מנוי (אופציונלי)'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {subscriptionTypes.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-gray-500 text-center">
+                      אין סוגי מנויים זמינים
+                    </div>
+                  ) : (
+                    subscriptionTypes.map((subscriptionType) => (
+                      <SelectItem key={subscriptionType.id} value={subscriptionType.id}>
+                        {subscriptionType.name} - {subscriptionType.duration} חודשים - ₪{subscriptionType.price.toLocaleString('he-IL')}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {formData.subscription_type_id && (
+                <p className="text-sm text-gray-600 text-right">
+                  המנוי יווצר אוטומטית עם הליד
+                </p>
+              )}
             </div>
           </div>
 

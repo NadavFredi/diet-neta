@@ -23,6 +23,7 @@ export interface AddLeadFormData {
   activity_level: string;
   preferred_time: string;
   notes: string;
+  subscription_type_id: string;
 }
 
 const initialFormData: AddLeadFormData = {
@@ -41,6 +42,7 @@ const initialFormData: AddLeadFormData = {
   activity_level: '',
   preferred_time: '',
   notes: '',
+  subscription_type_id: '',
 };
 
 export const useAddLead = () => {
@@ -220,7 +222,42 @@ export const useAddLead = () => {
         }
       }
 
-      // Step 3: Create Lead (wrapped in transaction via RPC or sequential with error handling)
+      // Step 3: Prepare subscription data if subscription type is selected
+      let subscriptionData: any = {};
+      let joinDate: string | null = null;
+      
+      if (formData.subscription_type_id) {
+        // Fetch subscription type details
+        const { data: subscriptionType, error: subTypeError } = await supabase
+          .from('subscription_types')
+          .select('*')
+          .eq('id', formData.subscription_type_id)
+          .single();
+
+        if (subTypeError) {
+          console.error('Error fetching subscription type:', subTypeError);
+          toast({
+            title: 'אזהרה',
+            description: 'שגיאה בטעינת סוג המנוי. הליד יווצר ללא מנוי.',
+            variant: 'destructive',
+          });
+        } else if (subscriptionType) {
+          // Populate subscription_data with subscription type details
+          const today = new Date();
+          joinDate = today.toISOString().split('T')[0];
+          
+          subscriptionData = {
+            months: subscriptionType.duration,
+            initialPrice: subscriptionType.price,
+            renewalPrice: 0, // Can be set later
+            subscription_status: 'active',
+            subscription_type_id: subscriptionType.id,
+            subscription_type_name: subscriptionType.name,
+          };
+        }
+      }
+
+      // Step 4: Create Lead (wrapped in transaction via RPC or sequential with error handling)
       const leadData: any = {
         customer_id: customerId,
         city: formData.city.trim() || null,
@@ -235,11 +272,12 @@ export const useAddLead = () => {
         activity_level: formData.activity_level || null,
         preferred_time: formData.preferred_time || null,
         notes: formData.notes.trim() || null,
+        join_date: joinDate,
         // Set default JSONB values
         daily_protocol: {},
         workout_history: [],
         steps_history: [],
-        subscription_data: {},
+        subscription_data: subscriptionData,
       };
 
       const { data: newLead, error: leadError } = await supabase
