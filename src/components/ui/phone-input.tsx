@@ -420,8 +420,16 @@ export const PhoneInput = ({
       return { isValid: false, error: "מספר טלפון לא תקין" }
     }
 
+    // For Israeli numbers, handle leading 0 after country code
+    // Convert +9720526861485 to +972526861485
+    let normalizedNumber = fullNumber;
+    if (fullNumber.startsWith("+9720") && fullNumber.length === 14) {
+      // Remove the extra 0 after 972
+      normalizedNumber = `+972${fullNumber.substring(5)}`;
+    }
+
     const validation = validatePhoneNumberFormat(
-      fullNumber, 
+      normalizedNumber, 
       countryCode || selectedCountry?.countryCode || defaultCountry
     );
     
@@ -437,6 +445,7 @@ export const PhoneInput = ({
       // Use centralized parsing utility
       const parts = parsePhoneNumberParts(value);
       let countryFound = false;
+      let localNumber = parts.localNumber;
 
       // Try to find country by country code
       if (parts.countryCode) {
@@ -447,14 +456,22 @@ export const PhoneInput = ({
         
         if (country) {
           setSelectedCountry(country);
-          setPhoneNumber(parts.localNumber);
+          // For Israeli numbers, remove leading 0 if present
+          if (country.dialCode === "972" && localNumber.startsWith("0") && localNumber.length === 10) {
+            localNumber = localNumber.substring(1);
+          }
+          setPhoneNumber(localNumber);
           countryFound = true;
         } else {
           // Try to match by dial code
           for (const country of allCountries) {
             if (parts.countryCode === country.dialCode) {
               setSelectedCountry(country);
-              setPhoneNumber(parts.localNumber);
+              // For Israeli numbers, remove leading 0 if present
+              if (country.dialCode === "972" && localNumber.startsWith("0") && localNumber.length === 10) {
+                localNumber = localNumber.substring(1);
+              }
+              setPhoneNumber(localNumber);
               countryFound = true;
               break;
             }
@@ -473,7 +490,11 @@ export const PhoneInput = ({
           if (cleanValue.startsWith(country.dialCode)) {
             setSelectedCountry(country);
             // Extract phone number
-            const phone = cleanValue.substring(country.dialCode.length);
+            let phone = cleanValue.substring(country.dialCode.length);
+            // For Israeli numbers, remove leading 0 if present
+            if (country.dialCode === "972" && phone.startsWith("0") && phone.length === 10) {
+              phone = phone.substring(1);
+            }
             setPhoneNumber(phone);
             countryFound = true;
             break;
@@ -487,7 +508,11 @@ export const PhoneInput = ({
         if (defaultCountryData) {
           setSelectedCountry(defaultCountryData);
           // Treat the entire value as the local phone number (remove + if present)
-          const cleanValue = value.replace(/^\+/, "");
+          let cleanValue = value.replace(/^\+/, "");
+          // For Israeli numbers, remove leading 0 if present
+          if (defaultCountryData.dialCode === "972" && cleanValue.startsWith("0") && cleanValue.length === 10) {
+            cleanValue = cleanValue.substring(1);
+          }
           setPhoneNumber(cleanValue);
         }
       }
@@ -510,7 +535,14 @@ export const PhoneInput = ({
   // Separate effect to validate after phoneNumber and selectedCountry are set
   React.useEffect(() => {
     if (value && phoneNumber && selectedCountry && showValidation) {
-      const fullNumber = value.startsWith('+') ? value : `+${selectedCountry.dialCode}${phoneNumber}`;
+      // Use the value directly if it's already in the correct format, otherwise construct it
+      let fullNumber = value.startsWith('+') ? value : `+${selectedCountry.dialCode}${phoneNumber}`;
+      
+      // For Israeli numbers, ensure no extra 0 after country code
+      if (fullNumber.startsWith("+9720") && fullNumber.length === 14) {
+        fullNumber = `+972${fullNumber.substring(5)}`;
+      }
+      
       const validation = validatePhoneNumber(fullNumber, selectedCountry.countryCode);
       setIsValid(validation.isValid);
       setValidationError(validation.error || "");
@@ -611,12 +643,20 @@ export const PhoneInput = ({
 
   // Handle phone number change
   const handlePhoneChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newPhoneNumber = e.target.value.replace(/\D/g, "") // Only digits
+    let newPhoneNumber = e.target.value.replace(/\D/g, "") // Only digits
+    
+    // For Israeli numbers (972), automatically remove leading 0
+    // This allows users to type "0526861485" which becomes "526861485"
+    if (selectedCountry?.dialCode === "972" && newPhoneNumber.startsWith("0") && newPhoneNumber.length === 10) {
+      newPhoneNumber = newPhoneNumber.substring(1) // Remove leading 0
+    }
+    
     setPhoneNumber(newPhoneNumber)
 
     // Combine with country code
     if (selectedCountry && newPhoneNumber) {
       const fullNumber = `+${selectedCountry.dialCode}${newPhoneNumber}`
+      // Ensure we pass the normalized number (without extra 0) to onChange
       onChange?.(fullNumber)
 
       // Validate if showValidation is enabled
