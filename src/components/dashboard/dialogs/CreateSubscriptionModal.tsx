@@ -98,11 +98,15 @@ export const CreateSubscriptionModal = ({
                     אין סוגי מנויים זמינים
                   </SelectItem>
                 ) : (
-                  subscriptionTypes.map((st) => (
-                    <SelectItem key={st.id} value={st.id}>
-                      {st.name} - {st.duration} חודשים - ₪{st.price.toLocaleString('he-IL')}
-                    </SelectItem>
-                  ))
+                  subscriptionTypes.map((st) => {
+                    const currencySymbol = st.currency === 'USD' ? '$' : 
+                                          st.currency === 'EUR' ? '€' : '₪';
+                    return (
+                      <SelectItem key={st.id} value={st.id}>
+                        {st.name} - {st.duration} חודשים - {currencySymbol}{st.price.toLocaleString('he-IL')}
+                      </SelectItem>
+                    );
+                  })
                 )}
               </SelectContent>
             </Select>
@@ -113,7 +117,10 @@ export const CreateSubscriptionModal = ({
               <div className="text-sm text-gray-600 space-y-1">
                 <p>שם: {selectedSubscriptionType.name}</p>
                 <p>תוקף: {selectedSubscriptionType.duration} חודשים</p>
-                <p>מחיר: ₪{selectedSubscriptionType.price.toLocaleString('he-IL')}</p>
+                <p>מחיר: {
+                  selectedSubscriptionType.currency === 'USD' ? '$' : 
+                  selectedSubscriptionType.currency === 'EUR' ? '€' : '₪'
+                }{selectedSubscriptionType.price.toLocaleString('he-IL')}</p>
               </div>
             </div>
           )}

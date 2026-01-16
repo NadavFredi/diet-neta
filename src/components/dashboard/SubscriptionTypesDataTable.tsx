@@ -49,7 +49,9 @@ export const subscriptionTypeColumns: DataTableColumn<SubscriptionType>[] = [
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
       const price = row.original.price;
-      return <span className="text-sm font-medium">₪{price.toLocaleString('he-IL')}</span>;
+      const currency = row.original.currency || 'ILS';
+      const currencySymbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '₪';
+      return <span className="text-sm font-medium">{currencySymbol}{price.toLocaleString('he-IL')}</span>;
     },
   },
   {

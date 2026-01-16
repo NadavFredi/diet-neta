@@ -13,11 +13,14 @@ import { useAppSelector } from '@/store/hooks';
 // Types
 // =====================================================
 
+import type { Currency } from '@/store/slices/subscriptionTypesSlice';
+
 export interface SubscriptionType {
   id: string;
   name: string;
   duration: number; // Duration in months
-  price: number; // Price in NIS
+  price: number; // Price amount
+  currency: Currency; // Currency code: ILS, USD, or EUR
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -98,10 +101,12 @@ export const useCreateSubscriptionType = () => {
       name,
       duration,
       price,
+      currency = 'ILS',
     }: {
       name: string;
       duration: number;
       price: number;
+      currency?: Currency;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
 
@@ -113,6 +118,7 @@ export const useCreateSubscriptionType = () => {
           name,
           duration,
           price,
+          currency,
           created_by: userId,
         })
         .select()
@@ -147,6 +153,7 @@ export const useUpdateSubscriptionType = () => {
       name?: string;
       duration?: number;
       price?: number;
+      currency?: Currency;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
 

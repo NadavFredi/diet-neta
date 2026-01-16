@@ -412,11 +412,15 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                       אין סוגי מנויים זמינים
                     </div>
                   ) : (
-                    subscriptionTypes.map((subscriptionType) => (
-                      <SelectItem key={subscriptionType.id} value={subscriptionType.id}>
-                        {subscriptionType.name} - {subscriptionType.duration} חודשים - ₪{subscriptionType.price.toLocaleString('he-IL')}
-                      </SelectItem>
-                    ))
+                    subscriptionTypes.map((subscriptionType) => {
+                      const currencySymbol = subscriptionType.currency === 'USD' ? '$' : 
+                                            subscriptionType.currency === 'EUR' ? '€' : '₪';
+                      return (
+                        <SelectItem key={subscriptionType.id} value={subscriptionType.id}>
+                          {subscriptionType.name} - {subscriptionType.duration} חודשים - {currencySymbol}{subscriptionType.price.toLocaleString('he-IL')}
+                        </SelectItem>
+                      );
+                    })
                   )}
                 </SelectContent>
               </Select>

@@ -149,7 +149,7 @@ export const useSubscriptionTypesManagement = () => {
   };
 
   const handleSaveSubscriptionType = async (
-    data: { subscriptionTypeId?: string; name: string; duration: number; price: number }
+    data: { subscriptionTypeId?: string; name: string; duration: number; price: number; currency?: string }
   ) => {
     try {
       if (editingSubscriptionType) {
@@ -158,6 +158,7 @@ export const useSubscriptionTypesManagement = () => {
           name: data.name,
           duration: data.duration,
           price: data.price,
+          currency: data.currency as any,
         });
         
         toast({
@@ -171,6 +172,7 @@ export const useSubscriptionTypesManagement = () => {
           name: data.name,
           duration: data.duration,
           price: data.price,
+          currency: (data.currency || 'ILS') as any,
         });
         
         toast({

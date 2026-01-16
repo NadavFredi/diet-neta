@@ -11,11 +11,14 @@ import { supabase } from '@/lib/supabaseClient';
 // Types
 // =====================================================
 
+export type Currency = 'ILS' | 'USD' | 'EUR';
+
 export interface SubscriptionType {
   id: string;
   name: string;
   duration: number; // Duration in months
-  price: number; // Price in NIS
+  price: number; // Price amount
+  currency: Currency; // Currency code: ILS, USD, or EUR
   created_at: string;
   updated_at: string;
   created_by: string | null;
