@@ -100,18 +100,31 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   useEffect(() => {
     const loadProducts = async () => {
       setIsLoadingProducts(true);
-      const response = await fetchStripeProducts();
-      if (response.success && response.products) {
-        setProducts(response.products);
-      } else {
-        console.error('[LeadPaymentCard] Failed to load products:', response.error);
-        // Fallback to manual mode if products can't be loaded
+      try {
+        const response = await fetchStripeProducts();
+        if (response.success && response.products) {
+          console.log('[LeadPaymentCard] Loaded products:', response.products.length);
+          setProducts(response.products);
+          if (response.products.length === 0) {
+            console.warn('[LeadPaymentCard] No products found in Stripe account');
+            // Don't switch to manual mode automatically - let user see the empty state
+          }
+        } else {
+          console.error('[LeadPaymentCard] Failed to load products:', response.error);
+          dispatch(setError(response.error || 'שגיאה בטעינת מוצרים מ-Stripe'));
+          // Fallback to manual mode if products can't be loaded
+          setEntryMode('manual');
+        }
+      } catch (error: any) {
+        console.error('[LeadPaymentCard] Exception loading products:', error);
+        dispatch(setError('שגיאה בטעינת מוצרים מ-Stripe: ' + (error?.message || 'שגיאה לא צפויה')));
         setEntryMode('manual');
+      } finally {
+        setIsLoadingProducts(false);
       }
-      setIsLoadingProducts(false);
     };
     loadProducts();
-  }, []);
+  }, [dispatch]);
 
   // Auto-populate when product/price is selected
   useEffect(() => {
