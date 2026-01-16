@@ -12,7 +12,7 @@ export interface AddLeadFormData {
   phone: string;
   email: string;
   city: string;
-  birth_date: string;
+  age: number | null;
   gender: 'male' | 'female' | 'other' | '';
   status_main: string;
   status_sub: string;
@@ -31,7 +31,7 @@ const initialFormData: AddLeadFormData = {
   phone: '',
   email: '',
   city: '',
-  birth_date: '',
+  age: null,
   gender: '',
   status_main: '',
   status_sub: '',
@@ -261,7 +261,7 @@ export const useAddLead = () => {
       const leadData: any = {
         customer_id: customerId,
         city: formData.city.trim() || null,
-        birth_date: formData.birth_date || null,
+        age: formData.age || null,
         gender: formData.gender || null,
         status_main: formData.status_main || null,
         status_sub: formData.status_sub || null,
@@ -310,9 +310,10 @@ export const useAddLead = () => {
         description: 'הליד נוסף בהצלחה',
       });
 
-      // Refresh leads list
-      await dispatch(fetchLeads());
+      // Invalidate customer query
       await queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+      
+      // Note: Leads list refresh is handled by parent component via onLeadCreated callback
 
       // Reset form (dialog will be closed by parent component)
       resetForm();

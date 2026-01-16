@@ -117,8 +117,8 @@ export const useDashboardLogic = () => {
       console.error('Error fetching leads:', err);
       dispatch(setError(err.message || 'Failed to fetch leads'));
       dispatch(setLoading(false));
-      // Set empty array on error to prevent blank page
-      dispatch(setLeads([]));
+      // Don't clear leads on error - keep existing data to prevent blank page
+      // This prevents the issue where leads disappear when returning to the page
     } finally {
       setIsRefreshing(false);
     }
@@ -140,6 +140,7 @@ export const useDashboardLogic = () => {
   // Single useEffect to prevent duplicate calls
   useEffect(() => {
     console.log('useDashboardLogic: useEffect triggered, calling refreshLeads');
+    // Always refresh leads when filters change or on mount
     refreshLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -155,6 +156,7 @@ export const useDashboardLogic = () => {
     selectedPreferredTime,
     selectedSource,
   ]);
+
 
   // =====================================================
   // Filter Handlers (update Redux state, triggers refresh)

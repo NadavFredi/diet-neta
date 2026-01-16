@@ -68,6 +68,7 @@ const Dashboard = () => {
     getCurrentFilterConfig,
     isLoading,
     savedView, // Get savedView from useDashboardLogic instead of duplicate call
+    refreshLeads,
   } = useDashboardLogic();
 
   // Debug: Log filteredLeads when it changes
@@ -265,6 +266,7 @@ const Dashboard = () => {
       <AddLeadDialog
         isOpen={isAddLeadDialogOpen}
         onOpenChange={setIsAddLeadDialogOpen}
+        onLeadCreated={refreshLeads}
       />
 
       {/* Save View Modal */}

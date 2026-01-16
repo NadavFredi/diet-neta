@@ -16,11 +16,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { he } from 'date-fns/locale';
 import { useAddLead } from '@/hooks/useAddLead';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 import {
@@ -37,9 +32,10 @@ import { useEffect } from 'react';
 interface AddLeadDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  onLeadCreated?: () => void | Promise<void>;
 }
 
-export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
+export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDialogProps) => {
   const dispatch = useAppDispatch();
   const { subscriptionTypes, isLoading: isLoadingSubscriptionTypes } = useAppSelector(
     (state) => state.subscriptionTypes
@@ -82,11 +78,13 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
     const success = await handleSubmit();
     // Close dialog after successful submission
     if (success) {
+      // Refresh leads list if callback provided
+      if (onLeadCreated) {
+        await onLeadCreated();
+      }
       onOpenChange(false);
     }
   };
-
-  const birthDate = formData.birth_date ? new Date(formData.birth_date) : undefined;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
@@ -160,31 +158,22 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="birth_date" className="text-right">
-                תאריך לידה
+              <Label htmlFor="age" className="text-right">
+                גיל
               </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-right font-normal bg-gray-50 hover:bg-white"
-                  >
-                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    {birthDate ? format(birthDate, 'dd/MM/yyyy', { locale: he }) : 'בחר תאריך'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    mode="single"
-                    selected={birthDate}
-                    onSelect={(date) =>
-                      handleInputChange('birth_date', date ? format(date, 'yyyy-MM-dd') : '')
-                    }
-                    locale={he}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                id="age"
+                type="number"
+                value={formData.age || ''}
+                onChange={(e) =>
+                  handleInputChange('age', e.target.value ? parseInt(e.target.value, 10) : null)
+                }
+                placeholder="הכנס גיל"
+                min="0"
+                max="150"
+                className="text-right dir-ltr"
+                dir="ltr"
+              />
             </div>
 
             <div className="space-y-2">
