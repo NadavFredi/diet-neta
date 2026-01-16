@@ -227,3 +227,7 @@ COMMENT ON COLUMN public.leads.birth_date IS 'Birth date. Can be entered manuall
 COMMENT ON VIEW public.v_leads_with_customer IS 'Pre-joined view of leads with customer data and calculated fields. Includes both birth_date and age columns.';
 COMMENT ON FUNCTION public.get_filtered_leads(INTEGER, INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) IS 'RPC function for complex lead filtering. All filtering happens in PostgreSQL. Includes both birth_date and age columns.';
 COMMENT ON FUNCTION public.get_lead_filter_options() IS 'Returns distinct filter values for dropdowns. Uses age column directly.';
+
+
+
+
