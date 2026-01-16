@@ -110,6 +110,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   const heightRef = useRef<InlineEditableFieldRef>(null);
   const weightRef = useRef<InlineEditableFieldRef>(null);
   const ageRef = useRef<InlineEditableFieldRef>(null);
+  const periodRef = useRef<InlineEditableSelectRef>(null);
 
   // Track editing state for all cards
   const [subscriptionEditingFields, setSubscriptionEditingFields] = useState<Set<string>>(new Set());
@@ -230,6 +231,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       heightRef,
       weightRef,
       ageRef,
+      periodRef,
     ];
 
     const savePromises = refs
@@ -244,6 +246,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       heightRef,
       weightRef,
       ageRef,
+      periodRef,
     ];
 
     refs.forEach(ref => {
@@ -681,6 +684,20 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                   {bmi !== null ? bmi : '-'}
                 </span>
               </div>
+              <InlineEditableSelect
+                ref={periodRef}
+                label="מקבלת מחזור"
+                value={activeLead.period === true ? 'כן' : activeLead.period === false ? 'לא' : ''}
+                options={['כן', 'לא']}
+                onSave={async (newValue) => {
+                  const boolValue = newValue === 'כן' ? true : newValue === 'לא' ? false : null;
+                  await onUpdateLead({ period: boolValue });
+                }}
+                formatValue={(val) => val || '-'}
+                badgeClassName="bg-pink-50 text-pink-700 border-pink-200"
+                className="border-0 p-0"
+                onEditingChange={(isEditing) => handlePersonalFieldEditingChange('period', isEditing)}
+              />
               {activeLead.target_weight && (
                 <ReadOnlyField
                   label="משקל יעד"

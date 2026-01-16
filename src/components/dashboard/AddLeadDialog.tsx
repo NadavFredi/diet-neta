@@ -194,6 +194,27 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="period" className="text-right">
+                מקבלת מחזור
+              </Label>
+              <Select
+                value={formData.period === true ? 'yes' : formData.period === false ? 'no' : ''}
+                onValueChange={(value) => {
+                  const boolValue = value === 'yes' ? true : value === 'no' ? false : null;
+                  handleInputChange('period', boolValue);
+                }}
+              >
+                <SelectTrigger className="text-right">
+                  <SelectValue placeholder="בחר" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">כן</SelectItem>
+                  <SelectItem value="no">לא</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Status & Fitness Information Section */}

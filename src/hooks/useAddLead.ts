@@ -14,6 +14,7 @@ export interface AddLeadFormData {
   city: string;
   age: number | null;
   gender: 'male' | 'female' | 'other' | '';
+  period: boolean | null;
   status_main: string;
   status_sub: string;
   height: number | null;
@@ -33,6 +34,7 @@ const initialFormData: AddLeadFormData = {
   city: '',
   age: null,
   gender: 'female',
+  period: null,
   status_main: '',
   status_sub: '',
   height: null,
@@ -57,7 +59,7 @@ export const useAddLead = () => {
     setSelectedCategory('');
   };
 
-  const handleInputChange = (field: keyof AddLeadFormData, value: string | number | null) => {
+  const handleInputChange = (field: keyof AddLeadFormData, value: string | number | boolean | null) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -263,6 +265,7 @@ export const useAddLead = () => {
         city: formData.city.trim() || null,
         age: formData.age || null,
         gender: formData.gender || null,
+        period: formData.period !== null && formData.period !== undefined ? formData.period : null,
         status_main: formData.status_main || null,
         status_sub: formData.status_sub || null,
         height: formData.height || null,
