@@ -32,7 +32,7 @@ const initialFormData: AddLeadFormData = {
   email: '',
   city: '',
   age: null,
-  gender: '',
+  gender: 'female',
   status_main: '',
   status_sub: '',
   height: null,
