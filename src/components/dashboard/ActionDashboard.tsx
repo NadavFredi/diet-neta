@@ -731,7 +731,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         {customer?.id && (
           <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ProgressGalleryCard customerId={customer.id} />
-            <BloodTestsGalleryCard leadId={activeLead.id} />
+            <BloodTestsGalleryCard leadId={activeLead.id} customerId={customer.id} />
           </div>
         )}
 

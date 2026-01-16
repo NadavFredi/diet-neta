@@ -82,7 +82,7 @@ export async function fetchFilteredLeads(
   try {
     const { data, error } = await supabase.rpc('get_filtered_leads', {
       p_search_query: filters.searchQuery || null,
-      p_created_date: filters.createdDate || null,
+      p_date: filters.createdDate || null,
       p_status_main: filters.statusMain || null,
       p_status_sub: filters.statusSub || null,
       p_age: filters.age || null,
