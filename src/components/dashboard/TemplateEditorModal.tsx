@@ -689,11 +689,13 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                 )}>
                   <CustomToolbar />
                   
-                  <div className="relative" style={{ height: 'calc(100% - 48px)' }}>
+                  <div className="relative flex-1 overflow-hidden" style={{ height: 'calc(100% - 48px)' }}>
                     <style>{`
                       .quill-editor-rtl .ql-editor {
                         color: #000000 !important;
                         color: rgb(15 23 42) !important;
+                        overflow-y: auto !important;
+                        max-height: 100% !important;
                       }
                       .quill-editor-rtl .ql-editor * {
                         color: #000000 !important;
@@ -708,6 +710,16 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                         color: #000000 !important;
                         color: rgb(15 23 42) !important;
                       }
+                      .quill-editor-rtl .ql-container {
+                        height: 100% !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                      }
+                      .quill-editor-rtl .ql-editor {
+                        flex: 1 !important;
+                        overflow-y: auto !important;
+                        overflow-x: hidden !important;
+                      }
                     `}</style>
                     <ReactQuill
                       ref={quillRef}
@@ -721,15 +733,17 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                       placeholder="הקלד את ההודעה כאן... ניתן להשתמש בערכי מקום כמו {{name}}, {{phone}} וכו'"
                       style={{
                         height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
                       }}
                       className={cn(
                         "quill-editor-rtl",
                         "[&_.ql-editor]:text-right [&_.ql-editor]:font-heebo [&_.ql-editor]:text-sm [&_.ql-editor]:leading-relaxed",
-                        "[&_.ql-editor]:min-h-[350px] [&_.ql-editor]:bg-white",
+                        "[&_.ql-editor]:min-h-[200px] [&_.ql-editor]:max-h-full [&_.ql-editor]:bg-white",
                         "[&_.ql-editor]:text-slate-900 [&_.ql-editor]:text-black",
                         "[&_.ql-editor_*]:text-slate-900 [&_.ql-editor_*]:text-black",
                         "[&_.ql-editor]:placeholder:text-slate-400",
-                        "[&_.ql-container]:border-0 [&_.ql-container]:rounded-b-2xl",
+                        "[&_.ql-container]:border-0 [&_.ql-container]:rounded-b-2xl [&_.ql-container]:flex [&_.ql-container]:flex-col [&_.ql-container]:h-full",
                         "[&_.ql-toolbar]:hidden"
                       )}
                       theme="snow"
