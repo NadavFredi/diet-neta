@@ -30,7 +30,7 @@ export const LeadsDataTable = ({ leads, enableColumnVisibility = true }: LeadsDa
   }, []);
 
   // Default column order matching the image (from right to left in RTL)
-  // Order: createdDate, name, status, age, birthDate, fitnessGoal, activityLevel, preferredTime, phone, source, notes
+  // Order: createdDate, name, status, age, fitnessGoal, activityLevel, preferredTime, phone, source, notes
   // Hidden columns (id, email, height, weight) are placed at the end
   const initialColumnOrder = useMemo(() => {
     return [
@@ -38,7 +38,6 @@ export const LeadsDataTable = ({ leads, enableColumnVisibility = true }: LeadsDa
       'name',         // שם
       'status',       // סטטוס
       'age',          // גיל
-      'birthDate',    // תאריך לידה
       'fitnessGoal',  // מטרת כושר
       'activityLevel', // רמת פעילות
       'preferredTime', // זמן מועדף

@@ -15,7 +15,11 @@ export const LeadRow = ({ lead, columnVisibility }: LeadRowProps) => {
   const handleRowClick = () => {
     navigate(`/leads/${lead.id}`);
   };
-  const visibleColumns = COLUMN_ORDER.filter((col) => columnVisibility[col]);
+  const visibleColumns = COLUMN_ORDER.filter((col) => {
+    // Safeguard: skip birthDate if it somehow still exists in columnVisibility
+    if (col === 'birthDate') return false;
+    return columnVisibility[col] !== false;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -75,9 +79,6 @@ export const LeadRow = ({ lead, columnVisibility }: LeadRowProps) => {
               )}
               {col === 'age' && (
                 <span className="text-gray-700">{lead.age} שנים</span>
-              )}
-              {col === 'birthDate' && (
-                <span className="text-gray-700">{formatDate(lead.birthDate)}</span>
               )}
               {col === 'height' && (
                 <span className="text-gray-700">{lead.height} ס"מ</span>

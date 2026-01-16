@@ -78,7 +78,11 @@ const Dashboard = () => {
       isArray: Array.isArray(filteredLeads),
       isLoading,
       data: filteredLeads?.slice(0, 2), // First 2 items for debugging
+      fullData: filteredLeads, // Full data for debugging
     });
+    if (filteredLeads && filteredLeads.length > 0) {
+      console.log('Dashboard: First lead sample:', filteredLeads[0]);
+    }
   }, [filteredLeads, isLoading]);
 
   // Filter system - connect to Redux for leads

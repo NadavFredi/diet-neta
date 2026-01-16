@@ -52,8 +52,14 @@ SELECT
     TO_CHAR(l.birth_date, 'YYYY-MM-DD') as birth_date_formatted,
     -- Extract JSONB fields (PostgreSQL parses JSON)
     (l.daily_protocol->>'stepsGoal')::INTEGER as daily_steps_goal,
-    (l.daily_protocol->>'workoutGoal')::INTEGER as weekly_workouts_goal,
-    (l.daily_protocol->>'supplements')::JSONB as daily_supplements,
+    (l.daily_protocol->>'workoutGoal')::INTEGER as weekly_workouts,
+    -- Extract supplements array from JSONB (handle both array and null)
+    CASE 
+        WHEN l.daily_protocol->'supplements' IS NULL THEN ARRAY[]::TEXT[]
+        WHEN jsonb_typeof(l.daily_protocol->'supplements') = 'array' 
+        THEN ARRAY(SELECT jsonb_array_elements_text(l.daily_protocol->'supplements'))
+        ELSE ARRAY[]::TEXT[]
+    END as daily_supplements,
     (l.subscription_data->>'months')::INTEGER as subscription_months,
     (l.subscription_data->>'initialPrice')::DECIMAL as subscription_initial_price,
     (l.subscription_data->>'renewalPrice')::DECIMAL as subscription_renewal_price
@@ -107,8 +113,8 @@ RETURNS TABLE (
     created_date_formatted TEXT,
     birth_date_formatted TEXT,
     daily_steps_goal INTEGER,
-    weekly_workouts_goal INTEGER,
-    daily_supplements JSONB,
+    weekly_workouts INTEGER,
+    daily_supplements TEXT[],
     subscription_months INTEGER,
     subscription_initial_price DECIMAL,
     subscription_renewal_price DECIMAL
@@ -150,7 +156,7 @@ BEGIN
         v.created_date_formatted,
         v.birth_date_formatted,
         v.daily_steps_goal,
-        v.weekly_workouts_goal,
+        v.weekly_workouts,
         v.daily_supplements,
         v.subscription_months,
         v.subscription_initial_price,

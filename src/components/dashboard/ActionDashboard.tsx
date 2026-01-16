@@ -109,7 +109,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   // Refs for Personal Details card editable fields
   const heightRef = useRef<InlineEditableFieldRef>(null);
   const weightRef = useRef<InlineEditableFieldRef>(null);
-  const birthDateRef = useRef<InlineEditableFieldRef>(null);
+  const ageRef = useRef<InlineEditableFieldRef>(null);
 
   // Track editing state for all cards
   const [subscriptionEditingFields, setSubscriptionEditingFields] = useState<Set<string>>(new Set());
@@ -229,7 +229,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     const refs = [
       heightRef,
       weightRef,
-      birthDateRef,
+      ageRef,
     ];
 
     const savePromises = refs
@@ -243,7 +243,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     const refs = [
       heightRef,
       weightRef,
-      birthDateRef,
+      ageRef,
     ];
 
     refs.forEach(ref => {
@@ -306,20 +306,35 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   // This matches the database structure and ensures correct display
   const displayStatus = activeLead.status_sub || activeLead.status_main || 'ללא סטטוס';
 
-  // Calculate age from birth_date
-  const calculateAge = (birthDate: string | null): number | null => {
-    if (!birthDate) return null;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
+  // Get age directly from database, or calculate from birth_date as fallback
+  const getAge = (): number | null => {
+    console.log('[ActionDashboard] Getting age for lead:', { 
+      leadId: activeLead?.id, 
+      age: activeLead?.age, 
+      birth_date: activeLead?.birth_date 
+    });
+    // First priority: use age field from database
+    if (activeLead?.age !== null && activeLead?.age !== undefined && activeLead?.age > 0) {
+      console.log('[ActionDashboard] Using age from database:', activeLead.age);
+      return activeLead.age;
     }
-    return age;
+    // Fallback: calculate from birth_date if available
+    if (activeLead?.birth_date) {
+      const today = new Date();
+      const birth = new Date(activeLead.birth_date);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      console.log('[ActionDashboard] Calculated age from birth_date:', age);
+      return age;
+    }
+    console.log('[ActionDashboard] No age available');
+    return null;
   };
 
-  const age = calculateAge(activeLead.birth_date);
+  const age = getAge();
   
   // Calculate BMI if height and weight are available
   const calculateBMI = (height: number | null, weight: number | null): number | null => {
@@ -623,10 +638,18 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               onCancel={handlePersonalCancel}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
-              <ReadOnlyField
+              <InlineEditableField
+                ref={ageRef}
                 label="גיל"
-                value={age !== null ? `${age} שנים` : null}
+                value={age || 0}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ age: Number(newValue) });
+                }}
+                type="number"
+                formatValue={(val) => val === 0 || !val ? '-' : `${val} שנים`}
                 className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-slate-900"
+                onEditingChange={(isEditing) => handlePersonalFieldEditingChange('age', isEditing)}
               />
               <InlineEditableField
                 ref={heightRef}
@@ -658,19 +681,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                   {bmi !== null ? bmi : '-'}
                 </span>
               </div>
-              <InlineEditableField
-                ref={birthDateRef}
-                label="תאריך לידה"
-                value={activeLead.birth_date || ''}
-                onSave={async (newValue) => {
-                  await onUpdateLead({ birth_date: String(newValue) });
-                }}
-                type="date"
-                formatValue={(val) => val ? formatDate(String(val)) : '-'}
-                className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-slate-900"
-                onEditingChange={(isEditing) => handlePersonalFieldEditingChange('birth_date', isEditing)}
-              />
               {activeLead.target_weight && (
                 <ReadOnlyField
                   label="משקל יעד"

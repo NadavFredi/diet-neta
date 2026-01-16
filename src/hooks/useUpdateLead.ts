@@ -33,7 +33,7 @@ export const useUpdateLead = () => {
         .from('leads')
         .update(cleanUpdates)
         .eq('id', leadId)
-        .select('*, workout_history, steps_history, nutrition_history, supplements_history')
+        .select('*, workout_history, steps_history, nutrition_history, supplements_history, age')
         .single();
 
       if (updateError) {

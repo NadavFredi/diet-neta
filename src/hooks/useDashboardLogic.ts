@@ -106,7 +106,44 @@ export const useDashboardLogic = () => {
       console.log(`useDashboardLogic: Received ${dbLeads.length} leads from service`);
 
       // Transform to UI format (minimal - most work done in PostgreSQL)
-      const uiLeads: Lead[] = dbLeads.map(mapLeadToUIFormat);
+      const uiLeads: Lead[] = dbLeads.map((lead, index) => {
+        try {
+          return mapLeadToUIFormat(lead);
+        } catch (error) {
+          console.error(`useDashboardLogic: Error mapping lead at index ${index}:`, error, lead);
+          // Return a minimal valid lead object to prevent complete failure
+          return {
+            id: lead.id || `error-${index}`,
+            name: lead.customer_name || 'Unknown',
+            createdDate: lead.created_date_formatted || '',
+            status: lead.status_sub || lead.status_main || '',
+            phone: lead.customer_phone || '',
+            email: lead.customer_email || '',
+            source: lead.source || '',
+            age: lead.age || 0,
+            birthDate: lead.birth_date_formatted || '',
+            height: lead.height || 0,
+            weight: lead.weight || 0,
+            fitnessGoal: lead.fitness_goal || '',
+            activityLevel: lead.activity_level || '',
+            preferredTime: lead.preferred_time || '',
+            notes: lead.notes || undefined,
+            dailyStepsGoal: 0,
+            weeklyWorkouts: 0,
+            dailySupplements: [],
+            subscription: {
+              joinDate: '',
+              initialPackageMonths: 0,
+              initialPrice: 0,
+              monthlyRenewalPrice: 0,
+              currentWeekInProgram: 0,
+              timeInCurrentBudget: '',
+            },
+            workoutProgramsHistory: [],
+            stepsHistory: [],
+          } as Lead;
+        }
+      });
       console.log(`useDashboardLogic: Transformed to ${uiLeads.length} UI leads`);
 
       // Update Redux with fetched leads (source of truth)

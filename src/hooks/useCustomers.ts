@@ -53,6 +53,7 @@ export interface CustomerWithLeads extends Customer {
     source: string | null;
     fitness_goal: string | null;
     birth_date: string | null;
+    age: number | null;
     height: number | null;
     weight: number | null;
     activity_level: string | null;
@@ -150,7 +151,7 @@ export const useCustomer = (customerId: string | undefined) => {
         .from('customers')
         .select(`
           *,
-          leads(*)
+          leads(*, age)
         `)
         .eq('id', customerId)
         .single();
@@ -176,6 +177,7 @@ export const useCustomer = (customerId: string | undefined) => {
           source: lead.source,
           fitness_goal: lead.fitness_goal,
           birth_date: lead.birth_date,
+          age: lead.age,
           height: lead.height,
           weight: lead.weight,
           activity_level: lead.activity_level,
