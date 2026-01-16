@@ -24,6 +24,7 @@ import {
   FileText,
   Wallet,
   Image as ImageIcon,
+  Menu,
 } from 'lucide-react';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
@@ -64,6 +65,7 @@ export const ClientDashboardView: React.FC = () => {
   const [activeTab, setActiveTab] = useState('workout');
   const [isMultiDayModalOpen, setIsMultiDayModalOpen] = useState(false);
   const [isNutritionPlanDialogOpen, setIsNutritionPlanDialogOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Initialize selectedDate to today on mount
   useEffect(() => {
@@ -200,16 +202,39 @@ export const ClientDashboardView: React.FC = () => {
 
   return (
     <div className="bg-[#F8FAFC] flex flex-col h-full" dir="rtl" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Main Layout: Sidebar + Content */}
       <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Left Vertical Navigation Sidebar */}
-        <div className="w-64 bg-[#5B6FB9] border-l border-white/10 flex-shrink-0 flex flex-col">
-          <div className="border-b border-white/10 flex items-center justify-center px-4 py-5">
+        <div className={cn(
+          "fixed lg:static inset-y-0 right-0 z-50 w-64 bg-[#5B6FB9] border-l border-white/10 flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out",
+          isMobileMenuOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
+        )}>
+          <div className="border-b border-white/10 flex items-center justify-between px-4 py-5">
             <NetaLogo size="default" variant="default" />
+            {/* Close button for mobile */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="lg:hidden h-8 w-8 text-white hover:bg-white/20"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
           <nav className="flex-1 p-3 pt-4 overflow-y-auto">
             <button
-              onClick={() => setActiveTab('workout')}
+              onClick={() => {
+                setActiveTab('workout');
+                setIsMobileMenuOpen(false);
+              }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'workout'
@@ -221,7 +246,10 @@ export const ClientDashboardView: React.FC = () => {
               <span className="text-sm">אימונים</span>
             </button>
             <button
-              onClick={() => setActiveTab('nutrition')}
+              onClick={() => {
+                setActiveTab('nutrition');
+                setIsMobileMenuOpen(false);
+              }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'nutrition'
@@ -233,7 +261,10 @@ export const ClientDashboardView: React.FC = () => {
               <span className="text-sm">תזונה</span>
             </button>
             <button
-              onClick={() => setActiveTab('checkin')}
+              onClick={() => {
+                setActiveTab('checkin');
+                setIsMobileMenuOpen(false);
+              }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'checkin'
@@ -245,7 +276,10 @@ export const ClientDashboardView: React.FC = () => {
               <span className="text-sm">דיווח יומי</span>
             </button>
             <button
-              onClick={() => setActiveTab('summaries')}
+              onClick={() => {
+                setActiveTab('summaries');
+                setIsMobileMenuOpen(false);
+              }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'summaries'
@@ -257,7 +291,10 @@ export const ClientDashboardView: React.FC = () => {
               <span className="text-sm">סיכומים שבועיים</span>
             </button>
             <button
-              onClick={() => setActiveTab('budget')}
+              onClick={() => {
+                setActiveTab('budget');
+                setIsMobileMenuOpen(false);
+              }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'budget'
@@ -269,7 +306,10 @@ export const ClientDashboardView: React.FC = () => {
               <span className="text-sm">תקציב</span>
             </button>
             <button
-              onClick={() => setActiveTab('progress')}
+              onClick={() => {
+                setActiveTab('progress');
+                setIsMobileMenuOpen(false);
+              }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'progress'
@@ -281,7 +321,10 @@ export const ClientDashboardView: React.FC = () => {
               <span className="text-sm">התקדמות ויזואלית</span>
             </button>
             <button
-              onClick={() => setActiveTab('bloodtests')}
+              onClick={() => {
+                setActiveTab('bloodtests');
+                setIsMobileMenuOpen(false);
+              }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
                 activeTab === 'bloodtests'
@@ -299,10 +342,21 @@ export const ClientDashboardView: React.FC = () => {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, flex: '1 1 auto' }}>
-          <div className="w-full px-6 xl:px-8 py-2 pb-4">
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-2xl font-bold text-[#334155]" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
+        <div className="flex-1 overflow-y-auto w-full lg:w-auto" style={{ minHeight: 0, flex: '1 1 auto' }}>
+          <div className="w-full px-3 sm:px-4 md:px-6 xl:px-8 py-2 pb-4">
+            {/* Mobile Header with Menu Button */}
+            <div className="flex items-center justify-between mb-3 gap-2">
+              {/* Mobile Menu Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden h-9 w-9 text-gray-700 hover:bg-gray-100"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+              
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-[#334155] flex-1 text-right" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
                 {greeting}
               </h1>
               {isImpersonating ? (
@@ -319,91 +373,93 @@ export const ClientDashboardView: React.FC = () => {
                       description: 'חזרת למצב מנהל',
                     });
                   }}
-                  className="border-[#5B6FB9] bg-[#5B6FB9]/10 text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
+                  className="border-[#5B6FB9] bg-[#5B6FB9]/10 text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white hover:border-[#5B6FB9] text-xs sm:text-sm md:text-base font-semibold rounded-lg px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 transition-all duration-200"
                 >
-                  <X className="h-4 w-4 ml-2" />
-                  צא ממצב צפייה
+                  <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+                  <span className="hidden sm:inline">צא ממצב צפייה</span>
+                  <span className="sm:hidden">צא</span>
                 </Button>
               ) : (
                 <Button
                   variant="outline"
                   size="default"
                   onClick={handleLogout}
-                  className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200"
+                  className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-xs sm:text-sm md:text-base font-semibold rounded-lg px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 transition-all duration-200"
                 >
-                  <LogOut className="h-4 w-4 ml-2" />
-                  התנתק
+                  <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+                  <span className="hidden sm:inline">התנתק</span>
+                  <span className="sm:hidden">יציאה</span>
                 </Button>
               )}
             </div>
-            {/* 7-Day Averages Header - Larger Cards */}
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <Card className="p-4 border border-slate-200 bg-white shadow-sm rounded-lg">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Activity className="h-5 w-5 text-[#5B6FB9] flex-shrink-0" />
+            {/* 7-Day Averages Header - Responsive Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
+              <Card className="p-3 sm:p-4 border border-slate-200 bg-white shadow-sm rounded-lg">
+                <div className="flex items-center justify-between gap-2 sm:gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                    <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-[#5B6FB9] flex-shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-black truncate">
+                      <div className="text-xs sm:text-sm font-semibold text-black truncate">
                         תרגילים
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-[10px] sm:text-xs text-slate-500">
                         ממוצע 7 ימים
                       </div>
                     </div>
                   </div>
                   <div className="flex items-baseline gap-1 flex-shrink-0">
-                    <div className="text-2xl font-bold text-black leading-none">
+                    <div className="text-xl sm:text-2xl font-bold text-black leading-none">
                       {sevenDayAverages.exercises.toFixed(1)}
                     </div>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-[10px] sm:text-xs text-slate-500">
                       /יום
                     </span>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-4 border border-slate-200 bg-white shadow-sm rounded-lg">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Footprints className="h-5 w-5 text-[#5B6FB9] flex-shrink-0" />
+              <Card className="p-3 sm:p-4 border border-slate-200 bg-white shadow-sm rounded-lg">
+                <div className="flex items-center justify-between gap-2 sm:gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                    <Footprints className="h-4 w-4 sm:h-5 sm:w-5 text-[#5B6FB9] flex-shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-black truncate">
+                      <div className="text-xs sm:text-sm font-semibold text-black truncate">
                         צעדים
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-[10px] sm:text-xs text-slate-500">
                         ממוצע 7 ימים
                       </div>
                     </div>
                   </div>
                   <div className="flex items-baseline gap-1 flex-shrink-0">
-                    <div className="text-2xl font-bold text-black leading-none">
+                    <div className="text-xl sm:text-2xl font-bold text-black leading-none">
                       {sevenDayAverages.steps.toLocaleString()}
                     </div>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-[10px] sm:text-xs text-slate-500">
                       צעדים
                     </span>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-4 border border-slate-200 bg-white shadow-sm rounded-lg">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <UtensilsCrossed className="h-5 w-5 text-[#5B6FB9] flex-shrink-0" />
+              <Card className="p-3 sm:p-4 border border-slate-200 bg-white shadow-sm rounded-lg">
+                <div className="flex items-center justify-between gap-2 sm:gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                    <UtensilsCrossed className="h-4 w-4 sm:h-5 sm:w-5 text-[#5B6FB9] flex-shrink-0" />
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-black truncate">
+                      <div className="text-xs sm:text-sm font-semibold text-black truncate">
                         תזונה
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-[10px] sm:text-xs text-slate-500">
                         ממוצע 7 ימים
                       </div>
                     </div>
                   </div>
                   <div className="flex items-baseline gap-1 flex-shrink-0">
-                    <div className="text-2xl font-bold text-black leading-none">
+                    <div className="text-xl sm:text-2xl font-bold text-black leading-none">
                       {sevenDayAverages.nutrition.toLocaleString()}
                     </div>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-[10px] sm:text-xs text-slate-500">
                       קק״ל
                     </span>
                   </div>
@@ -413,7 +469,7 @@ export const ClientDashboardView: React.FC = () => {
 
             {/* Content based on active tab */}
             {activeTab === 'workout' && (
-              <div className="space-y-6 pb-4">
+              <div className="space-y-4 sm:space-y-6 pb-4">
                 {workoutPlan ? (
                   <WorkoutPlanCard
                     workoutPlan={workoutPlan}
@@ -436,7 +492,7 @@ export const ClientDashboardView: React.FC = () => {
             )}
 
             {activeTab === 'nutrition' && (
-              <div className="space-y-6 pb-4">
+              <div className="space-y-4 sm:space-y-6 pb-4">
                 {isLoadingNutritionPlan ? (
                   <Card className="border border-slate-200 shadow-sm">
                     <CardContent className="p-12 text-center">
@@ -478,7 +534,7 @@ export const ClientDashboardView: React.FC = () => {
             {activeTab === 'checkin' && (
               <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0" style={{ maxHeight: '100%' }} dir="rtl">
                 {/* Calendar Sidebar - Right Side (20% width on desktop) - First in RTL = Right side */}
-                <div className="flex-shrink-0 flex flex-col lg:w-[20%] hidden lg:flex">
+                <div className="flex-shrink-0 flex flex-col lg:w-[20%] hidden lg:flex min-h-0">
                   <div className="bg-white border border-slate-200 rounded-lg shadow-none overflow-hidden flex-1 flex flex-col">
                     <CheckInCalendarSidebar checkIns={checkIns} />
                   </div>
@@ -497,7 +553,7 @@ export const ClientDashboardView: React.FC = () => {
             )}
 
             {activeTab === 'summaries' && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Weekly summaries content can be added here if needed */}
                 <Card className="border border-slate-200 shadow-sm rounded-3xl">
                   <CardContent className="p-12 text-center">
@@ -514,7 +570,7 @@ export const ClientDashboardView: React.FC = () => {
             )}
 
             {activeTab === 'budget' && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <BudgetView
                   leadId={activeLead?.id}
                   customerId={customer?.id}
@@ -524,21 +580,21 @@ export const ClientDashboardView: React.FC = () => {
 
             {/* Visual Progress Tab */}
             {activeTab === 'progress' && customer?.id && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <VisualProgressCard customerId={customer.id} />
               </div>
             )}
 
             {/* Blood Tests Tab */}
             {activeTab === 'bloodtests' && customer?.id && activeLead?.id && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <BloodTestsCard leadId={activeLead.id} customerId={customer.id} />
               </div>
             )}
 
             {/* Disclaimer - Positioned within content */}
-            <div className="w-full py-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
+            <div className="w-full py-3 sm:py-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 text-xs sm:text-sm text-blue-900">
                 <p className="font-medium mb-1">שימו לב:</p>
                 <p>
                   ההמלצות במסמך זה אינן מהוות ייעוץ רפואי. המלווה אינה רופאה או תזונאית קלינית, וכל שינוי תזונתי, תוספים או פעילות גופנית יש לבצע באחריות אישית ובהתייעצות עם רופא מוסמך.
