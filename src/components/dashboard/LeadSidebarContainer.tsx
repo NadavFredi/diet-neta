@@ -37,6 +37,7 @@ interface LeadSidebarContainerProps {
     isLoading: boolean;
     error: string | null;
   } | null;
+  onUpdateLead?: (updates: any) => Promise<void>;
 }
 
 export const LeadSidebarContainer: React.FC<LeadSidebarContainerProps> = ({
@@ -46,6 +47,7 @@ export const LeadSidebarContainer: React.FC<LeadSidebarContainerProps> = ({
   getStatusColor,
   getStatusBorderColor,
   formSubmission,
+  onUpdateLead,
 }) => {
   const leftSidebar = useAppSelector(selectLeftSidebar);
 
@@ -80,6 +82,7 @@ export const LeadSidebarContainer: React.FC<LeadSidebarContainerProps> = ({
           leadPhone={formSubmission.leadPhone}
           isLoading={formSubmission.isLoading}
           error={formSubmission.error}
+          onUpdateLead={onUpdateLead}
         />
       )}
     </>

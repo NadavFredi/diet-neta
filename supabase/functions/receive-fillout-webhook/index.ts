@@ -126,10 +126,12 @@ serve(async (req) => {
 
     // Get the open-meeting form ID from environment variable
     // Try both VITE_ and non-VITE_ versions for compatibility
+    // Default to n5VwsjFk5ous if not set
     const openMeetingFormId = Deno.env.get('VITE_FILLOUT_FORM_ID_MEETING') || 
                               Deno.env.get('FILLOUT_FORM_ID_MEETING') ||
                               Deno.env.get('VITE_FILLOUT_FORM_ID_OPEN_MEETING') ||
-                              Deno.env.get('FILLOUT_FORM_ID_OPEN_MEETING');
+                              Deno.env.get('FILLOUT_FORM_ID_OPEN_MEETING') ||
+                              'n5VwsjFk5ous'; // Default form ID for meeting form
     
     // Also check if formName contains "open-meeting" or "open_meeting" as a fallback
     const formNameLower = formName ? String(formName).toLowerCase() : '';
@@ -309,9 +311,71 @@ serve(async (req) => {
 
       if (!leadError && leadData) {
         customerId = leadData.customer_id;
-        console.log('[receive-fillout-webhook] Found customer_id from lead:', customerId);
+        console.log('[receive-fillout-webhook] ✅ Found customer_id from lead:', customerId);
+      } else {
+        console.log('[receive-fillout-webhook] ⚠️ Could not find customer_id from lead:', leadError);
       }
     }
+    
+    // Fallback: Try to find customer by phone or email from form submission
+    if (!customerId && !leadId) {
+      const supabase = createSupabaseAdmin();
+      
+      // Try to extract phone or email from meeting_data (will be populated later)
+      // For now, we'll check if we can find it in questions
+      let phoneFromForm: string | null = null;
+      let emailFromForm: string | null = null;
+      
+      if (body.questions && Array.isArray(body.questions)) {
+        for (const q of body.questions) {
+          const key = (q.name || q.id || '').toLowerCase();
+          const value = q.value?.toString() || '';
+          
+          if ((key.includes('phone') || key.includes('tel') || key.includes('mobile')) && value) {
+            phoneFromForm = value.replace(/[^0-9+]/g, '');
+          }
+          if ((key.includes('email') || key.includes('mail')) && value && value.includes('@')) {
+            emailFromForm = value;
+          }
+        }
+      }
+      
+      // Try to find customer by phone
+      if (phoneFromForm) {
+        const { data: customerByPhone } = await supabase
+          .from('customers')
+          .select('id')
+          .or(`phone.eq.${phoneFromForm},phone.eq.${phoneFromForm.replace(/^\+/, '')},phone.eq.0${phoneFromForm.replace(/^972/, '')}`)
+          .limit(1)
+          .maybeSingle();
+        
+        if (customerByPhone) {
+          customerId = customerByPhone.id;
+          console.log('[receive-fillout-webhook] ✅ Found customer_id by phone:', customerId);
+        }
+      }
+      
+      // Try to find customer by email if phone didn't work
+      if (!customerId && emailFromForm) {
+        const { data: customerByEmail } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('email', emailFromForm)
+          .limit(1)
+          .maybeSingle();
+        
+        if (customerByEmail) {
+          customerId = customerByEmail.id;
+          console.log('[receive-fillout-webhook] ✅ Found customer_id by email:', customerId);
+        }
+      }
+    }
+    
+    // Log final IDs for debugging
+    console.log('[receive-fillout-webhook] ========== FINAL ID EXTRACTION ==========');
+    console.log('[receive-fillout-webhook] leadId:', leadId);
+    console.log('[receive-fillout-webhook] customerId:', customerId);
+    console.log('[receive-fillout-webhook] =========================================');
 
     // Build meeting_data from questions - try multiple formats
     const meetingData: Record<string, any> = {};
@@ -633,6 +697,21 @@ serve(async (req) => {
       }
 
       console.log('[receive-fillout-webhook] Meeting updated successfully:', updated.id);
+      
+      // Check if this is the questionnaire form (23ggw4DEs7us) and update lead fields
+      const questionnaireFormId = '23ggw4DEs7us';
+      const normalizedQuestionnaireFormId = questionnaireFormId.trim().toLowerCase();
+      const normalizedFormIdForUpdate = formId ? String(formId).trim().toLowerCase() : '';
+      const isQuestionnaireForm = normalizedFormIdForUpdate === normalizedQuestionnaireFormId;
+      
+      if (isQuestionnaireForm && leadId) {
+        console.log('[receive-fillout-webhook] ✅ Detected questionnaire form, updating lead fields');
+        updateLeadFromQuestionnaireForm(leadId, customerId, meetingData, supabase).catch((err) => {
+          console.error('[receive-fillout-webhook] ❌ Error updating lead from questionnaire (non-blocking):', err);
+          console.error('[receive-fillout-webhook] Error stack:', err?.stack);
+        });
+      }
+      
       // Note: Don't trigger automation on updates, only on new submissions
       return successResponse({ 
         message: 'Meeting updated',
@@ -661,14 +740,45 @@ serve(async (req) => {
 
       console.log('[receive-fillout-webhook] Meeting created successfully:', newMeeting.id);
       
+      // Check if this is the questionnaire form (23ggw4DEs7us) and update lead fields
+      const questionnaireFormId = '23ggw4DEs7us';
+      const normalizedQuestionnaireFormId = questionnaireFormId.trim().toLowerCase();
+      const isQuestionnaireForm = normalizedFormId === normalizedQuestionnaireFormId;
+      
+      if (isQuestionnaireForm && leadId) {
+        console.log('[receive-fillout-webhook] ✅ Detected questionnaire form, updating lead fields');
+        updateLeadFromQuestionnaireForm(leadId, customerId, meetingData, supabase).catch((err) => {
+          console.error('[receive-fillout-webhook] ❌ Error updating lead from questionnaire (non-blocking):', err);
+          console.error('[receive-fillout-webhook] Error stack:', err?.stack);
+        });
+      }
+      
+      console.log('[receive-fillout-webhook] ========== AUTOMATION DECISION ==========');
+      console.log('[receive-fillout-webhook] shouldTriggerAutomation:', shouldTriggerAutomation);
+      console.log('[receive-fillout-webhook] customerId:', customerId);
+      console.log('[receive-fillout-webhook] leadId:', leadId);
+      console.log('[receive-fillout-webhook] formId:', formId);
+      console.log('[receive-fillout-webhook] openMeetingFormId:', openMeetingFormId);
+      console.log('[receive-fillout-webhook] =========================================');
+      
       // Trigger intro_questionnaire automation automatically ONLY for open-meeting form submissions
       // Run this asynchronously so it doesn't block the webhook response
       if (shouldTriggerAutomation) {
+        console.log('[receive-fillout-webhook] ✅ Automation will be triggered');
         triggerIntroQuestionnaireAutomation(customerId, leadId, supabase).catch((err) => {
-          console.error('[receive-fillout-webhook] Error triggering automation (non-blocking):', err);
+          console.error('[receive-fillout-webhook] ❌ Error triggering automation (non-blocking):', err);
+          console.error('[receive-fillout-webhook] Error stack:', err?.stack);
         });
       } else {
-        console.log('[receive-fillout-webhook] Skipping automation - form is not open-meeting form');
+        console.log('[receive-fillout-webhook] ⚠️ Skipping automation - form is not open-meeting form');
+        console.log('[receive-fillout-webhook] Debug info:', {
+          formId,
+          formName,
+          openMeetingFormId,
+          normalizedFormId,
+          normalizedOpenMeetingFormId,
+          isOpenMeetingForm,
+        });
       }
       
       return successResponse({ 
@@ -684,6 +794,185 @@ serve(async (req) => {
     return errorResponse(`Internal server error: ${error.message}`, 500);
   }
 });
+
+/**
+ * Update lead fields from questionnaire form submission
+ * Extracts period, age, email, height, weight from form answers
+ */
+async function updateLeadFromQuestionnaireForm(
+  leadId: string,
+  customerId: string | null,
+  meetingData: Record<string, any>,
+  supabase: any
+): Promise<void> {
+  console.log('[receive-fillout-webhook] ========== UPDATING LEAD FROM QUESTIONNAIRE ==========');
+  console.log('[receive-fillout-webhook] leadId:', leadId);
+  console.log('[receive-fillout-webhook] customerId:', customerId);
+  console.log('[receive-fillout-webhook] Available fields in meetingData:', Object.keys(meetingData));
+  
+  try {
+    const updates: Record<string, any> = {};
+    
+    // Helper function to find field value by multiple possible field names
+    const findFieldValue = (possibleNames: string[]): any => {
+      for (const name of possibleNames) {
+        // Try exact match
+        if (meetingData[name] !== undefined && meetingData[name] !== null && meetingData[name] !== '') {
+          return meetingData[name];
+        }
+        // Try case-insensitive match
+        const lowerName = name.toLowerCase();
+        for (const key in meetingData) {
+          if (key.toLowerCase() === lowerName && meetingData[key] !== undefined && meetingData[key] !== null && meetingData[key] !== '') {
+            return meetingData[key];
+          }
+        }
+      }
+      return null;
+    };
+    
+    // Extract period (מקבלת מחזור) - boolean field
+    // Try multiple possible field names
+    const periodValue = findFieldValue([
+      'period',
+      'מקבלת מחזור',
+      'menstrual_period',
+      'menstrualPeriod',
+      'has_period',
+      'hasPeriod',
+      'period_status',
+      'periodStatus'
+    ]);
+    
+    if (periodValue !== null) {
+      // Convert various formats to boolean
+      if (typeof periodValue === 'boolean') {
+        updates.period = periodValue;
+      } else if (typeof periodValue === 'string') {
+        const lowerValue = periodValue.toLowerCase().trim();
+        if (lowerValue === 'כן' || lowerValue === 'yes' || lowerValue === 'true' || lowerValue === '1') {
+          updates.period = true;
+        } else if (lowerValue === 'לא' || lowerValue === 'no' || lowerValue === 'false' || lowerValue === '0') {
+          updates.period = false;
+        }
+      } else if (typeof periodValue === 'number') {
+        updates.period = periodValue === 1;
+      }
+      console.log('[receive-fillout-webhook] Extracted period:', periodValue, '->', updates.period);
+    }
+    
+    // Extract age - integer field
+    const ageValue = findFieldValue([
+      'age',
+      'גיל',
+      'age_years',
+      'ageYears',
+      'years_old',
+      'yearsOld'
+    ]);
+    
+    if (ageValue !== null) {
+      const ageNum = typeof ageValue === 'number' ? ageValue : parseInt(String(ageValue), 10);
+      if (!isNaN(ageNum) && ageNum > 0 && ageNum < 150) {
+        updates.age = ageNum;
+        console.log('[receive-fillout-webhook] Extracted age:', ageValue, '->', updates.age);
+      }
+    }
+    
+    // Extract height - decimal field (in cm)
+    const heightValue = findFieldValue([
+      'height',
+      'גובה',
+      'height_cm',
+      'heightCm',
+      'height_cm',
+      'heightInCm'
+    ]);
+    
+    if (heightValue !== null) {
+      const heightNum = typeof heightValue === 'number' ? heightValue : parseFloat(String(heightValue));
+      if (!isNaN(heightNum) && heightNum > 0 && heightNum < 300) {
+        updates.height = heightNum;
+        console.log('[receive-fillout-webhook] Extracted height:', heightValue, '->', updates.height);
+      }
+    }
+    
+    // Extract weight - decimal field (in kg)
+    const weightValue = findFieldValue([
+      'weight',
+      'משקל',
+      'weight_kg',
+      'weightKg',
+      'weight_kg',
+      'weightInKg'
+    ]);
+    
+    if (weightValue !== null) {
+      const weightNum = typeof weightValue === 'number' ? weightValue : parseFloat(String(weightValue));
+      if (!isNaN(weightNum) && weightNum > 0 && weightNum < 500) {
+        updates.weight = weightNum;
+        console.log('[receive-fillout-webhook] Extracted weight:', weightValue, '->', updates.weight);
+      }
+    }
+    
+    // Extract email - string field (update both lead's customer and customer table)
+    const emailValue = findFieldValue([
+      'email',
+      'אימייל',
+      'e_mail',
+      'eMail',
+      'email_address',
+      'emailAddress'
+    ]);
+    
+    if (emailValue !== null && typeof emailValue === 'string' && emailValue.includes('@')) {
+      const emailStr = emailValue.trim().toLowerCase();
+      if (emailStr.length > 0 && emailStr.length < 255) {
+        // Update customer email if we have customerId
+        if (customerId) {
+          const { error: customerUpdateError } = await supabase
+            .from('customers')
+            .update({ email: emailStr })
+            .eq('id', customerId);
+          
+          if (customerUpdateError) {
+            console.error('[receive-fillout-webhook] Error updating customer email:', customerUpdateError);
+          } else {
+            console.log('[receive-fillout-webhook] Updated customer email:', emailStr);
+          }
+        }
+      }
+    }
+    
+    // Update lead if we have any updates
+    if (Object.keys(updates).length > 0) {
+      console.log('[receive-fillout-webhook] Updating lead with fields:', updates);
+      
+      const { data: updatedLead, error: updateError } = await supabase
+        .from('leads')
+        .update(updates)
+        .eq('id', leadId)
+        .select()
+        .single();
+      
+      if (updateError) {
+        console.error('[receive-fillout-webhook] Error updating lead:', updateError);
+        throw updateError;
+      }
+      
+      console.log('[receive-fillout-webhook] ✅ Lead updated successfully:', updatedLead.id);
+      console.log('[receive-fillout-webhook] Updated fields:', Object.keys(updates));
+    } else {
+      console.log('[receive-fillout-webhook] ⚠️ No fields to update - no matching fields found in form submission');
+    }
+    
+    console.log('[receive-fillout-webhook] ========== LEAD UPDATE COMPLETED ==========');
+  } catch (error: any) {
+    console.error('[receive-fillout-webhook] ❌ Error in updateLeadFromQuestionnaireForm:', error);
+    console.error('[receive-fillout-webhook] Error stack:', error?.stack);
+    throw error;
+  }
+}
 
 /**
  * Automatically trigger intro_questionnaire automation when a form is submitted

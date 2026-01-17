@@ -511,14 +511,17 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
                 className="flex items-center gap-2"
               >
                 {isAutoTrigger ? (
-                  // Auto-triggered automation - no send button, just display with indicator
-                  <div
+                  // Auto-triggered automation - can also be triggered manually
+                  <Button
+                    onClick={() => handleSendFlow(flow.key)}
+                    disabled={isSending || !hasTemplate}
                     className={cn(
                       "flex-1 justify-start min-h-9 h-auto",
                       "bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200",
+                      "hover:from-purple-100 hover:to-blue-100 hover:border-purple-300",
                       "text-xs font-semibold rounded-lg px-3 py-1.5",
                       "flex items-center gap-2",
-                      !hasTemplate && "opacity-50"
+                      !hasTemplate && "opacity-50 cursor-not-allowed"
                     )}
                     style={{
                       wordBreak: 'break-word',
@@ -526,14 +529,23 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
                       whiteSpace: 'normal',
                       lineHeight: '1.5'
                     }}
-                    title={!hasTemplate ? 'נדרש להגדיר תבנית תחילה' : 'נשלח אוטומטית לאחר הגשת טופס תיאום פגישה'}
+                    title={!hasTemplate ? 'נדרש להגדיר תבנית תחילה' : 'נשלח אוטומטית לאחר הגשת טופס תיאום פגישה - ניתן לשלוח גם ידנית'}
                   >
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <Zap className="h-3.5 w-3.5 text-purple-600" />
-                      <span className="text-xs text-purple-600 font-bold">אוטומטי</span>
-                    </div>
-                    <span className="text-right leading-tight text-gray-900">{flow.label}</span>
-                  </div>
+                    {isSending ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 ml-1.5 animate-spin flex-shrink-0" />
+                        <span>שולח...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <Zap className="h-3.5 w-3.5 text-purple-600" />
+                          <span className="text-xs text-purple-600 font-bold">אוטומטי</span>
+                        </div>
+                        <span className="text-right leading-tight text-gray-900">{flow.label}</span>
+                      </>
+                    )}
+                  </Button>
                 ) : (
                   // Manual automation - has send button
                   <Button

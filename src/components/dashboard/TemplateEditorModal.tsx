@@ -125,6 +125,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   });
   const [media, setMedia] = useState<MediaData | null>(initialMedia || null);
   const [mediaLoadError, setMediaLoadError] = useState<string | null>(null);
+  const [blobRetryCount, setBlobRetryCount] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isGifPickerOpen, setIsGifPickerOpen] = useState(false);
@@ -279,14 +280,24 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     updateMedia();
   }, [initialMedia, isOpen]);
 
-  // Clean up preview URLs when component unmounts or media changes
+  // Clean up preview URLs when component unmounts or media is removed
   useEffect(() => {
     return () => {
-      if (media?.previewUrl && media.previewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(media.previewUrl);
+      // Only revoke blob URLs on unmount, not on every media change
+      // This prevents premature revocation when uploading new files
+    };
+  }, []);
+
+  // Clean up blob URLs when media is explicitly removed or component unmounts
+  useEffect(() => {
+    const currentMedia = media;
+    return () => {
+      // Only revoke if media still exists and is a blob URL
+      if (currentMedia?.previewUrl && currentMedia.previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(currentMedia.previewUrl);
       }
     };
-  }, [media]);
+  }, [media?.previewUrl]);
 
   const toolbarOptions = useMemo(() => [
     [{ 'header': [1, 2, 3, false] }],
@@ -427,12 +438,35 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      const previewUrl = URL.createObjectURL(file);
-      setMedia({
-        type: 'image',
-        file,
-        previewUrl,
-      });
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        setMediaLoadError('הקובץ גדול מדי. גודל מקסימלי: 10MB');
+        return;
+      }
+      
+      // Revoke previous blob URL if it exists
+      if (media?.previewUrl && media.previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(media.previewUrl);
+      }
+      
+      // Clear any previous errors and reset retry count
+      setMediaLoadError(null);
+      setBlobRetryCount(0);
+      
+      try {
+        // Create new blob URL for the uploaded file
+        const previewUrl = URL.createObjectURL(file);
+        setMedia({
+          type: 'image',
+          file,
+          previewUrl,
+          url: previewUrl, // Also set url for consistency
+        });
+      } catch (error) {
+        console.error('[TemplateEditorModal] Error creating blob URL:', error);
+        setMediaLoadError('שגיאה ביצירת תצוגה מקדימה של הקובץ');
+      }
     }
     // Reset input so same file can be selected again
     if (fileInputRef.current) {
@@ -443,11 +477,21 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('video/')) {
+      // Revoke previous blob URL if it exists
+      if (media?.previewUrl && media.previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(media.previewUrl);
+      }
+      
+      // Clear any previous errors
+      setMediaLoadError(null);
+      
+      // Create new blob URL for the uploaded file
       const previewUrl = URL.createObjectURL(file);
       setMedia({
         type: 'video',
         file,
         previewUrl,
+        url: previewUrl, // Also set url for consistency
       });
     }
     // Reset input so same file can be selected again
@@ -1049,8 +1093,8 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
               <Smartphone className="h-4 w-4" />
               תצוגה מקדימה
             </Label>
-            <Card className="flex-1 bg-white border-0 shadow-sm rounded-2xl overflow-hidden">
-              <div className="bg-slate-900 rounded-t-2xl px-4 py-2 flex items-center gap-2">
+            <Card className="flex-1 bg-white border-0 shadow-sm rounded-2xl overflow-hidden flex flex-col">
+              <div className="bg-slate-900 rounded-t-2xl px-4 py-2 flex items-center gap-2 flex-shrink-0">
                 <div className="w-3 h-3 rounded-full bg-red-500"></div>
                 <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
@@ -1058,10 +1102,13 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                   <span className="text-xs text-slate-300 font-medium">WhatsApp</span>
                 </div>
               </div>
-              <div className="p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white min-h-[500px]">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white" style={{ minHeight: '500px' }}>
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                  {/* Media Preview */}
-                  {media && (media.previewUrl || media.url) && (() => {
+                  {/* Media Preview - Only show if media exists and has a valid URL */}
+                  {(() => {
+                    // Check if we have valid media with a valid URL
+                    if (!media) return null;
+                    
                     // Safely extract URL string - handle cases where it might be an object
                     let mediaSrc: string = '';
                     const rawUrl = media.previewUrl || media.url;
@@ -1076,34 +1123,23 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                       }
                     }
                     
-                    // Validate that we have a valid URL string
+                    // If no valid URL string, don't render media section at all
                     if (!mediaSrc || (typeof mediaSrc !== 'string') || mediaSrc.trim() === '') {
-                      console.error('[TemplateEditorModal] Invalid media source:', { mediaSrc, type: typeof mediaSrc, media });
-                      return (
-                        <div className="p-4 text-center text-red-500 text-sm bg-red-50 rounded border border-red-200">
-                          שגיאה בטעינת המדיה: מקור לא תקין
-                        </div>
-                      );
+                      return null;
                     }
                     
-                    // Validate URL format
-                    try {
-                      new URL(mediaSrc);
-                    } catch (e) {
-                      console.error('[TemplateEditorModal] Invalid URL format:', mediaSrc);
-                      return (
-                        <div className="p-4 text-center text-red-500 text-sm bg-red-50 rounded border border-red-200">
-                          שגיאה בטעינת המדיה: כתובת לא תקינה
-                        </div>
-                      );
+                    // Validate URL format - blob URLs are always valid, so allow them
+                    // For other URLs, validate the format
+                    if (!mediaSrc.startsWith('blob:')) {
+                      try {
+                        new URL(mediaSrc);
+                      } catch (e) {
+                        // Invalid URL format (non-blob) - don't render media section
+                        return null;
+                      }
                     }
                     
-                    console.log('[TemplateEditorModal] Rendering media preview:', {
-                      type: media.type,
-                      src: mediaSrc,
-                      hasPreviewUrl: !!media.previewUrl,
-                      hasUrl: !!media.url
-                    });
+                    // Only render if we have valid media with valid URL
                     return (
                       <div className="relative w-full">
                         {mediaLoadError ? (
@@ -1115,6 +1151,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                           <>
                             {media.type === 'image' || media.type === 'gif' ? (
                               <img
+                                key={mediaSrc} // Force re-render when src changes
                                 src={mediaSrc}
                                 alt="Preview"
                                 className="w-full h-auto max-h-[300px] object-cover rounded-t-lg"
@@ -1123,17 +1160,51 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                                   setMediaLoadError(null);
                                 }}
                                 onError={(e) => {
-                                  const errorMsg = 'שגיאה בטעינת המדיה - ייתכן שהקובץ לא קיים או שאין גישה אליו';
-                                  console.error('[TemplateEditorModal] Error loading media preview:', {
-                                    src: mediaSrc,
-                                    type: media.type,
-                                    error: e
-                                  });
-                                  setMediaLoadError(errorMsg);
+                                  // Check if this is a blob URL that failed
+                                  if (mediaSrc.startsWith('blob:')) {
+                                    // For blob URLs, try to recreate once if we have the file and haven't retried yet
+                                    if (media?.file && blobRetryCount < 1) {
+                                      try {
+                                        // Revoke the old blob URL
+                                        URL.revokeObjectURL(mediaSrc);
+                                        // Create a new blob URL
+                                        const newBlobUrl = URL.createObjectURL(media.file);
+                                        setBlobRetryCount(prev => prev + 1);
+                                        setMedia({
+                                          ...media,
+                                          previewUrl: newBlobUrl,
+                                          url: newBlobUrl,
+                                        });
+                                        setMediaLoadError(null);
+                                        return; // Don't set error, try again with new URL
+                                      } catch (recreateError) {
+                                        console.error('[TemplateEditorModal] Failed to recreate blob URL:', recreateError);
+                                      }
+                                    }
+                                    // If we can't recreate or already retried, show error
+                                    const errorMsg = 'שגיאה בטעינת המדיה - הקובץ עלול להיות פגום או בפורמט לא נתמך';
+                                    console.error('[TemplateEditorModal] Error loading blob URL:', {
+                                      src: mediaSrc,
+                                      type: media.type,
+                                      retryCount: blobRetryCount,
+                                      error: e
+                                    });
+                                    setMediaLoadError(errorMsg);
+                                  } else {
+                                    // For non-blob URLs, show standard error
+                                    const errorMsg = 'שגיאה בטעינת המדיה - ייתכן שהקובץ לא קיים או שאין גישה אליו';
+                                    console.error('[TemplateEditorModal] Error loading media preview:', {
+                                      src: mediaSrc,
+                                      type: media.type,
+                                      error: e
+                                    });
+                                    setMediaLoadError(errorMsg);
+                                  }
                                 }}
                               />
                             ) : media.type === 'video' ? (
                               <video
+                                key={mediaSrc} // Force re-render when src changes
                                 src={mediaSrc}
                                 controls
                                 className="w-full h-auto max-h-[300px] rounded-t-lg"
@@ -1142,13 +1213,18 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                                   setMediaLoadError(null);
                                 }}
                                 onError={(e) => {
-                                  const errorMsg = 'שגיאה בטעינת הווידאו - ייתכן שהקובץ לא קיים או שאין גישה אליו';
-                                  console.error('[TemplateEditorModal] Error loading video preview:', {
-                                    src: mediaSrc,
-                                    type: media.type,
-                                    error: e
-                                  });
-                                  setMediaLoadError(errorMsg);
+                                  // Only show error if it's not a blob URL
+                                  if (!mediaSrc.startsWith('blob:')) {
+                                    const errorMsg = 'שגיאה בטעינת הווידאו - ייתכן שהקובץ לא קיים או שאין גישה אליו';
+                                    console.error('[TemplateEditorModal] Error loading video preview:', {
+                                      src: mediaSrc,
+                                      type: media.type,
+                                      error: e
+                                    });
+                                    setMediaLoadError(errorMsg);
+                                  } else {
+                                    console.warn('[TemplateEditorModal] Blob URL failed to load for video:', mediaSrc);
+                                  }
                                 }}
                               >
                                 הדפדפן שלך אינו תומך בתג וידאו.

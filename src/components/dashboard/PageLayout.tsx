@@ -272,6 +272,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
                 getStatusColor={getStatusColor}
                 getStatusBorderColor={getStatusBorderColor}
                 formSubmission={formSubmissionData}
+                onUpdateLead={onUpdateLead}
               />
 
               {/* Center: ActionDashboard - Scrollable Content */}
