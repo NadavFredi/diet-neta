@@ -62,8 +62,8 @@ serve(async (req) => {
     }
     
     // Try query parameters
+    const url = new URL(req.url);
     if (!formId) {
-      const url = new URL(req.url);
       formId = url.searchParams.get('form_id') || '';
     }
     
@@ -78,22 +78,39 @@ serve(async (req) => {
       console.log('[sync-fillout-meetings] Using default form ID:', formId);
     }
     
+    // Always sync both meeting forms (open-meeting and budget-meeting)
+    const formIdsToSync: string[] = [];
+    
+    // Add open-meeting form
+    if (formId && !formId.startsWith('-')) {
+      formIdsToSync.push(formId);
+    }
+    
+    // Add budget-meeting form
+    const budgetFormId = Deno.env.get('FILLOUT_FORM_ID_BUDGET_MEETING') || 
+                        Deno.env.get('VITE_FILLOUT_FORM_ID_BUDGET_MEETING') || 
+                        'veY7bX8Uajus';
+    if (budgetFormId && budgetFormId !== formId && !budgetFormId.startsWith('-')) {
+      formIdsToSync.push(budgetFormId);
+    }
+    
     // If formId starts with "-", it's likely a slug, not an ID
     // Fillout form IDs are typically alphanumeric strings, not starting with "-"
     if (formId.startsWith('-')) {
       console.warn('[sync-fillout-meetings] Form ID appears to be a slug, not an ID:', formId);
       console.warn('[sync-fillout-meetings] Using default form ID instead: n5VwsjFk5ous');
       formId = 'n5VwsjFk5ous'; // Use the actual form ID
+      if (!formIdsToSync.includes(formId)) {
+        formIdsToSync.unshift(formId); // Add to beginning
+      }
     }
     
-    if (!formId || formId.trim() === '') {
-      console.error('[sync-fillout-meetings] Form ID is empty or missing');
+    if (formIdsToSync.length === 0) {
+      console.error('[sync-fillout-meetings] No valid form IDs to sync');
       return errorResponse('Missing form_id parameter. Please provide the Fillout form ID. You can find it in your Fillout form editor URL (the part after /editor/).', 400);
     }
     
-    console.log('[sync-fillout-meetings] Using form ID:', formId);
-    
-    console.log('[sync-fillout-meetings] Using form ID:', formId);
+    console.log('[sync-fillout-meetings] Syncing meeting forms:', formIdsToSync);
 
     // Try multiple possible environment variable names
     // Note: VITE_ prefix is typically stripped in edge functions, but we check both
@@ -112,65 +129,72 @@ serve(async (req) => {
     
     console.log('[sync-fillout-meetings] FILLOUT_API_KEY found (length:', filloutApiKey.length, ')');
 
-    console.log('[sync-fillout-meetings] Syncing form:', formId);
-    console.log('[sync-fillout-meetings] API key present:', !!filloutApiKey);
-
-    // Fetch submissions from Fillout API
-    const filloutUrl = `https://api.fillout.com/v1/api/forms/${formId}/submissions?limit=100`;
-    console.log('[sync-fillout-meetings] Fetching from Fillout API:', filloutUrl);
-    
-    let filloutResponse;
-    try {
-      filloutResponse = await fetch(filloutUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${filloutApiKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
-    } catch (fetchError: any) {
-      console.error('[sync-fillout-meetings] Network error fetching from Fillout:', fetchError);
-      return errorResponse(`Network error: ${fetchError.message}`, 500);
-    }
-
-    if (!filloutResponse.ok) {
-      const errorText = await filloutResponse.text();
-      console.error('[sync-fillout-meetings] Fillout API error:', {
-        status: filloutResponse.status,
-        statusText: filloutResponse.statusText,
-        error: errorText,
-        formId,
-      });
-      return errorResponse(`Fillout API error (${filloutResponse.status}): ${errorText}`, filloutResponse.status);
-    }
-
-    const filloutData: FilloutFormSubmissionsResponse = await filloutResponse.json();
-    console.log('[sync-fillout-meetings] Fetched submissions:', filloutData.totalResponses);
-    
-    // Log the first submission structure to understand the format
-    if (filloutData.responses && filloutData.responses.length > 0) {
-      console.log('[sync-fillout-meetings] First submission structure:', JSON.stringify(filloutData.responses[0], null, 2));
-      console.log('[sync-fillout-meetings] First submission keys:', Object.keys(filloutData.responses[0]));
-      if (filloutData.responses[0].questions) {
-        console.log('[sync-fillout-meetings] First submission questions:', JSON.stringify(filloutData.responses[0].questions, null, 2));
-      }
-    }
-
-    if (!filloutData.responses || filloutData.responses.length === 0) {
-      return successResponse({ 
-        message: 'No submissions found',
-        synced: 0,
-        skipped: 0,
-      });
-    }
-
     const supabase = createSupabaseAdmin();
-    let synced = 0;
-    let skipped = 0;
-    const errors: string[] = [];
+    let totalSynced = 0;
+    let totalSkipped = 0;
+    const allErrors: string[] = [];
 
-    // Process each submission
-    for (const submission of filloutData.responses) {
+    // Process each form ID
+    for (const currentFormId of formIdsToSync) {
+      console.log('[sync-fillout-meetings] Syncing form:', currentFormId);
+      console.log('[sync-fillout-meetings] API key present:', !!filloutApiKey);
+
+      // Fetch submissions from Fillout API
+      const filloutUrl = `https://api.fillout.com/v1/api/forms/${currentFormId}/submissions?limit=100`;
+      console.log('[sync-fillout-meetings] Fetching from Fillout API:', filloutUrl);
+      
+      let filloutResponse;
+      try {
+        filloutResponse = await fetch(filloutUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${filloutApiKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch (fetchError: any) {
+        console.error('[sync-fillout-meetings] Network error fetching from Fillout:', fetchError);
+        allErrors.push(`Network error for form ${currentFormId}: ${fetchError.message}`);
+        continue; // Skip this form and continue with next
+      }
+
+      if (!filloutResponse.ok) {
+        const errorText = await filloutResponse.text();
+        console.error('[sync-fillout-meetings] Fillout API error:', {
+          status: filloutResponse.status,
+          statusText: filloutResponse.statusText,
+          error: errorText,
+          formId: currentFormId,
+        });
+        allErrors.push(`Fillout API error for form ${currentFormId} (${filloutResponse.status}): ${errorText}`);
+        continue; // Skip this form and continue with next
+      }
+
+      const filloutData: FilloutFormSubmissionsResponse = await filloutResponse.json();
+      console.log('[sync-fillout-meetings] Fetched submissions for form', currentFormId, ':', filloutData.totalResponses);
+      
+      // Log the first submission structure to understand the format
+      if (filloutData.responses && filloutData.responses.length > 0) {
+        console.log('[sync-fillout-meetings] First submission structure:', JSON.stringify(filloutData.responses[0], null, 2));
+        console.log('[sync-fillout-meetings] First submission keys:', Object.keys(filloutData.responses[0]));
+        if (filloutData.responses[0].questions) {
+          console.log('[sync-fillout-meetings] First submission questions:', JSON.stringify(filloutData.responses[0].questions, null, 2));
+        }
+      }
+
+      if (!filloutData.responses || filloutData.responses.length === 0) {
+        console.log('[sync-fillout-meetings] No submissions found for form:', currentFormId);
+        continue; // Skip this form and continue with next
+      }
+
+      // Check if this is the budget meeting form
+      const budgetFormId = Deno.env.get('FILLOUT_FORM_ID_BUDGET_MEETING') || 
+                          Deno.env.get('VITE_FILLOUT_FORM_ID_BUDGET_MEETING') || 
+                          'veY7bX8Uajus';
+      const isBudgetForm = currentFormId.trim().toLowerCase() === budgetFormId.trim().toLowerCase();
+
+      // Process each submission
+      for (const submission of filloutData.responses) {
       try {
         // Check if meeting already exists
         const { data: existing } = await supabase
@@ -196,7 +220,7 @@ serve(async (req) => {
             console.log('[sync-fillout-meetings] Meeting has only metadata, will update with full data');
           } else {
             console.log('[sync-fillout-meetings] Meeting already has full data, skipping update');
-            skipped++;
+            totalSkipped++;
             continue;
           }
         }
@@ -399,9 +423,24 @@ serve(async (req) => {
         console.log(`[sync-fillout-meetings] Extracted meeting_data for ${submission.submissionId}:`, JSON.stringify(meetingData, null, 2));
 
         // Add metadata
-        meetingData._formId = formId;
+        meetingData._formId = currentFormId;
         meetingData._submissionTime = submission.submissionTime;
         meetingData._lastUpdatedAt = submission.lastUpdatedAt;
+        
+        // Set meeting type based on form ID
+        if (isBudgetForm) {
+          // Set meeting type to "תיאום תקציב" for budget meeting form
+          meetingData['סוג פגישה'] = 'תיאום תקציב';
+          meetingData['פגישת הכרות'] = 'תיאום תקציב'; // Also set the common field name
+          meetingData.meeting_type = 'תיאום תקציב';
+          console.log('[sync-fillout-meetings] ✅ Detected budget meeting form, setting meeting type to "תיאום תקציב"');
+        } else {
+          // Keep default for open-meeting form
+          if (!meetingData['סוג פגישה'] && !meetingData['פגישת הכרות']) {
+            meetingData['סוג פגישה'] = 'פגישת הכרות';
+            meetingData['פגישת הכרות'] = 'פגישת הכרות';
+          }
+        }
 
         if (existing) {
           // Update existing meeting with full data
@@ -417,10 +456,10 @@ serve(async (req) => {
 
           if (updateError) {
             console.error('[sync-fillout-meetings] Error updating meeting:', updateError);
-            errors.push(`Failed to update meeting for submission ${submission.submissionId}: ${updateError.message}`);
+            allErrors.push(`Failed to update meeting for submission ${submission.submissionId}: ${updateError.message}`);
           } else {
             console.log('[sync-fillout-meetings] Updated meeting for submission:', submission.submissionId);
-            synced++;
+            totalSynced++;
           }
         } else {
           // Create new meeting
@@ -435,24 +474,25 @@ serve(async (req) => {
 
           if (insertError) {
             console.error('[sync-fillout-meetings] Error creating meeting:', insertError);
-            errors.push(`Failed to create meeting for submission ${submission.submissionId}: ${insertError.message}`);
+            allErrors.push(`Failed to create meeting for submission ${submission.submissionId}: ${insertError.message}`);
           } else {
             console.log('[sync-fillout-meetings] Created meeting for submission:', submission.submissionId);
-            synced++;
+            totalSynced++;
           }
         }
       } catch (error: any) {
         console.error('[sync-fillout-meetings] Error processing submission:', error);
-        errors.push(`Error processing submission ${submission.submissionId}: ${error.message}`);
+        allErrors.push(`Error processing submission ${submission.submissionId}: ${error.message}`);
       }
-    }
+    } // End of submissions loop
+    } // End of forms loop
 
     return successResponse({
       message: 'Sync completed',
-      synced,
-      skipped,
-      total: filloutData.responses.length,
-      errors: errors.length > 0 ? errors : undefined,
+      synced: totalSynced,
+      skipped: totalSkipped,
+      formsSynced: formIdsToSync.length,
+      errors: allErrors.length > 0 ? allErrors : undefined,
     });
   } catch (error: any) {
     console.error('[sync-fillout-meetings] Unexpected error:', error);

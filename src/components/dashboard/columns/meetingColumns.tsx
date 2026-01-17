@@ -270,10 +270,10 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     },
     cell: ({ row }) => {
       const meetingData = row.original.meeting_data || {};
-      // Extract meeting type from various possible fields
-      const meetingType = meetingData['פגישת הכרות'] || 
-                        meetingData['סוג פגישה'] || 
+      // Extract meeting type from various possible fields (prioritize סוג פגישה and meeting_type)
+      const meetingType = meetingData['סוג פגישה'] || 
                         meetingData.meeting_type ||
+                        meetingData['פגישת הכרות'] || 
                         meetingData.type ||
                         'פגישת הכרות';
       return (

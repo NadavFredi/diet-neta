@@ -276,8 +276,14 @@ const MeetingDetailView = () => {
     if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
       const scheduling = meetingData.scheduling[0];
       if (scheduling.value) {
+        // Check for meeting type in meeting_data first, then fall back to scheduling data
+        const meetingType = meetingData['סוג פגישה'] || 
+                          meetingData.meeting_type ||
+                          scheduling.name || 
+                          scheduling.value.name || 
+                          'פגישת הכרות';
         return {
-          name: scheduling.name || scheduling.value.name || 'פגישת הכרות',
+          name: meetingType,
           eventStartTime: scheduling.value.eventStartTime,
           eventEndTime: scheduling.value.eventEndTime,
           timezone: scheduling.value.timezone,
@@ -293,8 +299,14 @@ const MeetingDetailView = () => {
     const eventEndTimeKey = 'scheduling[0].value.eventEndTime';
     
     if (meetingData[eventStartTimeKey] || meetingData[eventEndTimeKey]) {
+      // Check for meeting type in meeting_data first, then fall back to scheduling data
+      const meetingType = meetingData['סוג פגישה'] || 
+                        meetingData.meeting_type ||
+                        meetingData['scheduling[0].name'] || 
+                        meetingData['scheduling[0].value.name'] || 
+                        'פגישת הכרות';
       return {
-        name: meetingData['scheduling[0].name'] || meetingData['scheduling[0].value.name'] || 'פגישת הכרות',
+        name: meetingType,
         eventStartTime: meetingData[eventStartTimeKey],
         eventEndTime: meetingData[eventEndTimeKey],
         timezone: meetingData['scheduling[0].value.timezone'],
@@ -342,8 +354,12 @@ const MeetingDetailView = () => {
     }
   }
 
-  // Determine meeting type
-  const meetingTypeName = schedulingData?.name || meetingData['פגישת הכרות'] || 'פגישת הכרות';
+  // Determine meeting type - check multiple possible field names
+  const meetingTypeName = schedulingData?.name || 
+                         meetingData['סוג פגישה'] || 
+                         meetingData.meeting_type ||
+                         meetingData['פגישת הכרות'] || 
+                         'פגישת הכרות';
   const meetingType = MEETING_TYPES[meetingTypeName as MeetingTypeKey] || {
     label: meetingTypeName,
     color: 'bg-gray-100 text-gray-800 border-gray-300',
