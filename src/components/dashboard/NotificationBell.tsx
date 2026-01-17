@@ -39,7 +39,7 @@ export const NotificationBell = () => {
           <Bell className="h-5 w-5 text-gray-700" />
           {unreadCount > 0 && (
             <Badge
-              className="absolute -top-1 -left-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white text-xs font-semibold border-2 border-white"
+              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white text-xs font-semibold border-2 border-white"
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
@@ -88,9 +88,9 @@ export const NotificationBell = () => {
                     )}
                     dir="rtl"
                   >
-                    <div className="flex items-start gap-3" dir="rtl">
+                    <div className="flex items-start gap-3 flex-row-reverse" dir="rtl">
                       <div className="flex-1 min-w-0 text-right">
-                        <div className="flex items-center gap-2 mb-1 justify-end" dir="rtl">
+                        <div className="flex items-center gap-2 mb-1 flex-row-reverse" dir="rtl">
                           <p className="text-sm font-semibold text-gray-900 text-right">
                             {notification.title}
                           </p>

@@ -452,22 +452,20 @@ export const NutritionTemplateForm = ({
                           className="h-8 text-sm rounded-lg flex-1"
                         />
                       </div>
-                      {calculatorInputs.gender === 'female' && (
-                        <div className="flex items-center justify-between gap-2">
-                          <Label htmlFor="calc-hip" className="text-sm font-medium text-right flex-shrink-0 w-24">
-                            אגן (ס"מ)
-                          </Label>
-                          <Input
-                            id="calc-hip"
-                            type="number"
-                            value={calculatorInputs.hip || ''}
-                            onChange={(e) => setCalculatorInput('hip', parseFloat(e.target.value) || 0)}
-                            dir="ltr"
-                            min="0"
-                            className="h-8 text-sm rounded-lg flex-1"
-                          />
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="calc-hip" className="text-sm font-medium text-right flex-shrink-0 w-24">
+                          היקף אגן (ס"מ)
+                        </Label>
+                        <Input
+                          id="calc-hip"
+                          type="number"
+                          value={calculatorInputs.hip || ''}
+                          onChange={(e) => setCalculatorInput('hip', parseFloat(e.target.value) || 0)}
+                          dir="ltr"
+                          min="0"
+                          className="h-8 text-sm rounded-lg flex-1"
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
