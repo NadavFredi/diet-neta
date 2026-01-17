@@ -14,6 +14,7 @@ import formsReducer from './slices/formsSlice';
 import paymentReducer from './slices/paymentSlice';
 import budgetReducer from './slices/budgetSlice';
 import subscriptionTypesReducer from './slices/subscriptionTypesSlice';
+import notificationReducer from './slices/notificationSlice';
 
 export const store = configureStore({
   reducer: {
@@ -31,6 +32,7 @@ export const store = configureStore({
     payment: paymentReducer,
     budget: budgetReducer,
     subscriptionTypes: subscriptionTypesReducer,
+    notifications: notificationReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => {

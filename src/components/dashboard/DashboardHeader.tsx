@@ -9,6 +9,7 @@ import { stopImpersonation } from '@/store/slices/impersonationSlice';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { NotificationBell } from '@/components/dashboard/NotificationBell';
 
 interface DashboardHeaderProps {
   userEmail: string | undefined;
@@ -109,10 +110,10 @@ export const DashboardHeader = ({
           marginRight: `${sidebarWidth.width}px`,
         }}
       >
-        <div className="flex-1 flex items-center justify-between px-6 py-5 h-full">
+        <div className="flex-1 flex items-center justify-between px-3 sm:px-4 md:px-6 py-5 h-full gap-2 sm:gap-4">
           {/* Client Hero Content - Right side (if present) */}
           {clientHeroContent ? (
-            <div className="flex-1 flex items-center min-w-0 mr-4">
+            <div className="flex-1 flex items-center min-w-0 mr-2 sm:mr-4 overflow-hidden">
               {clientHeroContent}
             </div>
           ) : (
@@ -120,12 +121,12 @@ export const DashboardHeader = ({
           )}
 
           {/* User info and logout - ALWAYS positioned on left side */}
-          <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
             {/* Impersonation Mode Indicator */}
             {isImpersonating && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200">
-                <Eye className="h-4 w-4 text-orange-600" />
-                <span className="text-sm font-semibold text-orange-700">מצב תצוגה פעיל</span>
+              <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200">
+                <Eye className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                <span className="text-sm font-semibold text-orange-700 whitespace-nowrap">מצב תצוגה פעיל</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -135,12 +136,15 @@ export const DashboardHeader = ({
                     const returnPath = previousLocation || '/dashboard';
                     navigate(returnPath);
                   }}
-                  className="h-6 px-2 text-orange-600 hover:bg-orange-100"
+                  className="h-6 px-2 text-orange-600 hover:bg-orange-100 flex-shrink-0"
                 >
                   יציאה
                 </Button>
               </div>
             )}
+
+            {/* Notification Bell */}
+            <NotificationBell />
 
             {/* Avatar with Popover */}
             <Popover>
@@ -153,7 +157,7 @@ export const DashboardHeader = ({
                   </Avatar>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 p-4" align="end" side="bottom" dir="rtl">
+              <PopoverContent className="w-64 max-w-[calc(100vw-2rem)] p-4" align="end" side="bottom" dir="rtl">
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-gray-500 font-medium">משתמש מחובר</span>

@@ -211,9 +211,9 @@ const Dashboard = () => {
             minHeight: 'calc(100vh - 60px)',
           }}
         >
-          <div className="p-6">
+          <div className="p-3 sm:p-4 md:p-6">
             {/* Unified Workspace Panel - Master Container */}
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
               {/* Header Section - Control Deck */}
               <TableActionHeader
                 resourceKey="leads"

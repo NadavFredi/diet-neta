@@ -252,7 +252,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           <main
             className="flex-1 flex flex-col bg-gray-50 overflow-y-auto overflow-x-hidden scroll-smooth custom-scrollbar"
             style={{
-              padding: '20px'
+              padding: 'clamp(12px, 3vw, 20px)'
             }}
           >
             {/* Content Area - Split View for History/Submission Sidebar */}
@@ -279,7 +279,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
               <div
                 className="flex-1 transition-all duration-200 ease-out"
                 style={{
-                  minWidth: '400px'
+                  minWidth: 'min(100%, 400px)'
                 }}
               >
                 <ActionDashboard

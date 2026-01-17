@@ -364,11 +364,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden w-full" dir="rtl">
-      <div className="p-4 w-full min-w-0 text-right">
+      <div className="p-2 sm:p-4 w-full min-w-0 text-right">
         {/* Row 1: 3-Column Grid - Subscription, CRM Status, Personal Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" style={{ gridAutoRows: 'min-content' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Card 1: Subscription Details */}
-          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-100">
@@ -509,7 +509,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Card 2: CRM Status & Info */}
-          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <CardHeaderWithActions
               icon={Target}
               iconBgColor="bg-indigo-100"
@@ -630,7 +630,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Card 3: Personal Details */}
-          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <CardHeaderWithActions
               icon={Target}
               iconBgColor="bg-cyan-100"
@@ -710,7 +710,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         </div>
 
         {/* Row 2: 3-Column Grid - WhatsApp Automation, Fillout Forms, Payment Center */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" style={{ gridAutoRows: 'min-content' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Card 4: WhatsApp Automation - Compact Version */}
           <LeadAutomationCard
             customer={customer}
@@ -746,7 +746,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
         {/* Row 3: Progress Gallery & Blood Tests - Full Width Grid */}
         {customer?.id && (
-          <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="mb-3 sm:mb-4 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <ProgressGalleryCard customerId={customer.id} />
             <BloodTestsGalleryCard leadId={activeLead.id} customerId={customer.id} />
           </div>
