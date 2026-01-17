@@ -221,17 +221,32 @@ export const useWorkoutBoard = (
     const overId = over.id as string;
 
     // Parse the IDs: format is "day-exerciseId" or "day-column"
-    const activeParts = activeId.split('-');
-    const overParts = overId.split('-');
+    // Exercise IDs may contain hyphens, so we split only on the first hyphen
+    const parseId = (id: string): { day: string; exerciseId?: string; isColumn?: boolean } => {
+      const firstDashIndex = id.indexOf('-');
+      if (firstDashIndex === -1) return { day: id };
+      
+      const day = id.substring(0, firstDashIndex);
+      const rest = id.substring(firstDashIndex + 1);
+      
+      if (rest === 'column') {
+        return { day, isColumn: true };
+      }
+      
+      return { day, exerciseId: rest };
+    };
 
-    // If dragging an exercise
-    if (activeParts.length === 2 && activeParts[0] !== 'column') {
-      const [sourceDay, exerciseId] = activeParts;
-      const sourceDayKey = sourceDay as keyof WeeklyWorkout['days'];
+    const activeParsed = parseId(activeId);
+    const overParsed = parseId(overId);
+
+    // If dragging an exercise (not a column)
+    if (activeParsed.exerciseId && !activeParsed.isColumn) {
+      const sourceDayKey = activeParsed.day as keyof WeeklyWorkout['days'];
+      const exerciseId = activeParsed.exerciseId;
 
       // If dropping on a column (empty area of a day)
-      if (overParts.length === 2 && overParts[1] === 'column') {
-        const targetDayKey = overParts[0] as keyof WeeklyWorkout['days'];
+      if (overParsed.isColumn) {
+        const targetDayKey = overParsed.day as keyof WeeklyWorkout['days'];
         
         if (sourceDayKey !== targetDayKey) {
           // Move exercise to different day
@@ -241,14 +256,16 @@ export const useWorkoutBoard = (
             
             if (!exercise) return prev;
 
+            const updatedSourceExercises = sourceDay.exercises.filter((ex) => ex.id !== exerciseId);
+            
             return {
               ...prev,
               days: {
                 ...prev.days,
                 [sourceDayKey]: {
                   ...sourceDay,
-                  exercises: sourceDay.exercises.filter((ex) => ex.id !== exerciseId),
-                  isActive: sourceDay.exercises.length > 1,
+                  exercises: updatedSourceExercises,
+                  isActive: updatedSourceExercises.length > 0,
                 },
                 [targetDayKey]: {
                   ...prev.days[targetDayKey],
@@ -259,10 +276,10 @@ export const useWorkoutBoard = (
             };
           });
         }
-      } else if (overParts.length === 2 && overParts[1] !== 'column') {
+      } else if (overParsed.exerciseId) {
         // Dropping on another exercise (reordering)
-        const [targetDay, targetExerciseId] = overParts;
-        const targetDayKey = targetDay as keyof WeeklyWorkout['days'];
+        const targetDayKey = overParsed.day as keyof WeeklyWorkout['days'];
+        const targetExerciseId = overParsed.exerciseId;
 
         if (sourceDayKey === targetDayKey) {
           // Reorder within same day
@@ -273,9 +290,15 @@ export const useWorkoutBoard = (
             const targetIndex = exercises.findIndex((ex) => ex.id === targetExerciseId);
 
             if (sourceIndex === -1 || targetIndex === -1) return prev;
+            if (sourceIndex === targetIndex) return prev; // No change needed
 
-            const [removed] = exercises.splice(sourceIndex, 1);
-            exercises.splice(targetIndex, 0, removed);
+            // Remove item from source position
+            const [movedExercise] = exercises.splice(sourceIndex, 1);
+            
+            // Calculate correct insert position
+            // If source was before target, target index shifts left by 1 after removal
+            const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+            exercises.splice(insertIndex, 0, movedExercise);
 
             return {
               ...prev,
@@ -303,14 +326,16 @@ export const useWorkoutBoard = (
 
             targetExercises.splice(insertIndex, 0, exercise);
 
+            const updatedSourceExercises = sourceDay.exercises.filter((ex) => ex.id !== exerciseId);
+            
             return {
               ...prev,
               days: {
                 ...prev.days,
                 [sourceDayKey]: {
                   ...sourceDay,
-                  exercises: sourceDay.exercises.filter((ex) => ex.id !== exerciseId),
-                  isActive: sourceDay.exercises.length > 1,
+                  exercises: updatedSourceExercises,
+                  isActive: updatedSourceExercises.length > 0,
                 },
                 [targetDayKey]: {
                   ...targetDay,

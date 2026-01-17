@@ -716,12 +716,18 @@ const DayColumn = ({
     id: `${dayKey}-column`,
   });
 
-  const handleDuplicateClick = () => {
+  const handleDuplicateClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setIsDuplicateDialogOpen(true);
     setSelectedTargetDay('');
   };
 
-  const handleDuplicateConfirm = () => {
+  const handleDuplicateConfirm = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (selectedTargetDay && selectedTargetDay !== dayKey) {
       onDuplicateDay(selectedTargetDay as keyof WeeklyWorkout['days']);
       setIsDuplicateDialogOpen(false);
@@ -762,6 +768,7 @@ const DayColumn = ({
                 size="sm"
                 variant="outline"
                 onClick={handleDuplicateClick}
+                type="button"
                 className="flex-1 text-xs h-7"
               >
                 <Copy className="h-3 w-3 ml-1" />
@@ -848,7 +855,18 @@ const DayColumn = ({
 
       {/* Duplicate Day Dialog */}
       <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
-        <DialogContent className="sm:max-w-md" dir="rtl">
+        <DialogContent 
+          className="sm:max-w-md" 
+          dir="rtl"
+          onInteractOutside={(e) => {
+            // Prevent closing when clicking outside - only close via explicit action
+            e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            // Allow escape to close
+            // Don't prevent default
+          }}
+        >
           <DialogHeader>
             <DialogTitle>שכפל יום - {dayLabel}</DialogTitle>
           </DialogHeader>
@@ -872,6 +890,7 @@ const DayColumn = ({
             </div>
             <div className="flex justify-start gap-2 pt-2">
               <Button
+                type="button"
                 onClick={handleDuplicateConfirm}
                 disabled={!selectedTargetDay || selectedTargetDay === dayKey}
                 className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
@@ -880,8 +899,11 @@ const DayColumn = ({
                 שכפל
               </Button>
               <Button
+                type="button"
                 variant="outline"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setIsDuplicateDialogOpen(false);
                   setSelectedTargetDay('');
                 }}

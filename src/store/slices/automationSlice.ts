@@ -207,10 +207,17 @@ export const saveTemplate = createAsyncThunk(
             
             // Provide user-friendly error messages based on error type
             let errorMessage = 'נכשל בהעלאת הקובץ';
-            if (uploadError.message.includes('name resolution failed') || uploadError.message.includes('503')) {
-              errorMessage = 'שירות האחסון לא זמין כרגע. אנא ודא שהשירות פועל או נסה שוב מאוחר יותר.';
-            } else if (uploadError.message.includes('Bucket not found')) {
+            if (uploadError.message.includes('name resolution failed') || 
+                uploadError.message.includes('503') || 
+                uploadError.message.includes('502') ||
+                uploadError.message.includes('Bad Gateway') ||
+                uploadError.message.includes('invalid response') ||
+                uploadError.message.includes('upstream server')) {
+              errorMessage = 'שירות האחסון לא זמין כרגע. אנא ודא שהשירות פועל או נסה שוב מאוחר יותר. אם הבעיה נמשכת, נסה לרענן את הדף.';
+            } else if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('bucket')) {
               errorMessage = 'תיקיית האחסון לא נמצאה. אנא ודא שהשירות מוגדר כהלכה.';
+            } else if (uploadError.statusCode === 502 || uploadError.httpStatusCode === 502) {
+              errorMessage = 'שירות האחסון לא מגיב כרגע. אנא נסה שוב בעוד כמה רגעים.';
             } else {
               errorMessage = `נכשל בהעלאת הקובץ: ${uploadError.message}`;
             }
