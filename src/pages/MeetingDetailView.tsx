@@ -13,6 +13,7 @@ import { useState, useEffect } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { ClientHero } from '@/components/dashboard/ClientHero';
+import { ClientHeroBar } from '@/components/dashboard/ClientHeroBar';
 import { ResizableNotesPanel } from '@/components/dashboard/ResizableNotesPanel';
 import { LeadSidebarContainer } from '@/components/dashboard/LeadSidebarContainer';
 import { Card, CardContent } from '@/components/ui/card';
@@ -173,6 +174,15 @@ const MeetingDetailView = () => {
   const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
   const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
 
+  // Modal state management (same as lead page)
+  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
+  const [isTraineeSettingsOpen, setIsTraineeSettingsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Get notes count for the customer
+  const notes = useAppSelector(selectCustomerNotes(customer?.id));
+  const notesCount = notes?.length || 0;
+
   // Fetch notes when customer changes - MUST be before early returns
   useEffect(() => {
     if (customer?.id) {
@@ -180,20 +190,27 @@ const MeetingDetailView = () => {
     }
   }, [customer?.id, dispatch]);
 
+  const HEADER_HEIGHT_LOADING = 60;
+
   if (isLoading) {
     return (
       <>
-        <DashboardHeader 
-          userEmail={user?.email} 
-          onLogout={handleLogout}
-          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-        />
-        <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
+        <div
+          className="fixed top-0 left-0 right-0 z-40 flex-shrink-0"
+          style={{ height: `${HEADER_HEIGHT_LOADING}px` }}
+        >
+          <DashboardHeader 
+            userEmail={user?.email} 
+            onLogout={handleLogout}
+            sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+          />
+        </div>
+        <div className="min-h-screen" dir="rtl" style={{ paddingTop: `${HEADER_HEIGHT_LOADING}px` }}>
           <main 
             className="bg-gray-50 overflow-y-auto transition-all duration-300 ease-in-out" 
             style={{ 
               marginRight: `${sidebarWidth.width}px`,
-              minHeight: 'calc(100vh - 88px)',
+              minHeight: `calc(100vh - ${HEADER_HEIGHT_LOADING}px)`,
             }}
           >
             <div className="p-6">
@@ -213,17 +230,22 @@ const MeetingDetailView = () => {
   if (!meeting || !customer) {
     return (
       <>
-        <DashboardHeader 
-          userEmail={user?.email} 
-          onLogout={handleLogout}
-          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-        />
-        <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
+        <div
+          className="fixed top-0 left-0 right-0 z-40 flex-shrink-0"
+          style={{ height: `${HEADER_HEIGHT_LOADING}px` }}
+        >
+          <DashboardHeader 
+            userEmail={user?.email} 
+            onLogout={handleLogout}
+            sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+          />
+        </div>
+        <div className="min-h-screen" dir="rtl" style={{ paddingTop: `${HEADER_HEIGHT_LOADING}px` }}>
           <main 
             className="bg-gray-50 overflow-y-auto transition-all duration-300 ease-in-out" 
             style={{ 
               marginRight: `${sidebarWidth.width}px`,
-              minHeight: 'calc(100vh - 88px)',
+              minHeight: `calc(100vh - ${HEADER_HEIGHT_LOADING}px)`,
             }}
           >
             <div className="p-6">
@@ -335,38 +357,77 @@ const MeetingDetailView = () => {
 
   const status = meetingData.status || meetingData['סטטוס'] || 'פעיל';
 
+  const HEADER_HEIGHT = 60;
+
   return (
     <>
-      <DashboardHeader 
-        userEmail={user?.email} 
-        onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-      />
+      {/* Top Navigation Header - Fixed (spans full width) */}
+      <div
+        className="fixed top-0 left-0 right-0 z-40 flex-shrink-0"
+        style={{ height: `${HEADER_HEIGHT}px` }}
+      >
+        <DashboardHeader 
+          userEmail={user?.email} 
+          onLogout={handleLogout}
+          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+          clientHeroContent={
+            customer ? (
+              <ClientHeroBar
+                customer={customer}
+                mostRecentLead={leadData as any}
+                onBack={handleBack}
+                onWhatsApp={handleWhatsApp}
+                onUpdateCustomer={handleUpdateCustomer}
+                onViewCustomerProfile={handleViewCustomerProfile}
+                onPaymentHistoryClick={() => setIsPaymentHistoryOpen(true)}
+                onTraineeSettingsClick={() => setIsTraineeSettingsOpen(true)}
+                onToggleExpand={() => setIsExpanded(!isExpanded)}
+                isExpanded={isExpanded}
+                notesCount={notesCount}
+              />
+            ) : undefined
+          }
+        />
+      </div>
           
       {/* Main Content Area - Below Navigation Header */}
       <div 
         className="flex flex-col flex-1 overflow-hidden"
         style={{ 
-          marginTop: '88px',
+          marginTop: `${HEADER_HEIGHT}px`,
           marginRight: `${sidebarWidth.width}px`, // Account for navigation sidebar
-          height: 'calc(100vh - 88px)'
+          height: `calc(100vh - ${HEADER_HEIGHT}px)`
         }}
         dir="rtl"
       >
-        {/* Page Header (ClientHero) - Full Width, Fixed at Top */}
-        <div className="flex-shrink-0 w-full bg-white border-b border-gray-200">
-          <ClientHero
-            customer={customer}
-            mostRecentLead={leadData as any}
-            status={status}
-            onBack={handleBack}
-            onWhatsApp={handleWhatsApp}
-            onUpdateLead={handleUpdateLead}
-            onUpdateCustomer={handleUpdateCustomer}
-            getStatusColor={getStatusColor}
-            onViewCustomerProfile={handleViewCustomerProfile}
-          />
-        </div>
+        {/* Page Header (ClientHero) - Full Width, Fixed at Top - Only show expandable section when main bar is in header */}
+        {customer && (
+          <div
+            className="flex-shrink-0 w-full bg-white border-b border-gray-200"
+            style={{
+              marginTop: isExpanded ? 'var(--expandable-height, 0px)' : '0px'
+            }}
+          >
+            <ClientHero
+              customer={customer}
+              mostRecentLead={leadData as any}
+              status={status}
+              onBack={handleBack}
+              onWhatsApp={handleWhatsApp}
+              onUpdateLead={handleUpdateLead}
+              onUpdateCustomer={handleUpdateCustomer}
+              getStatusColor={getStatusColor}
+              onViewCustomerProfile={handleViewCustomerProfile}
+              hideMainBar={true}
+              isPaymentHistoryOpen={isPaymentHistoryOpen}
+              onPaymentHistoryClose={() => setIsPaymentHistoryOpen(false)}
+              isTraineeSettingsOpen={isTraineeSettingsOpen}
+              onTraineeSettingsClose={() => setIsTraineeSettingsOpen(false)}
+              isExpanded={isExpanded}
+              onToggleExpand={() => setIsExpanded(!isExpanded)}
+            />
+          </div>
+        )}
 
         {/* Main Content Wrapper - Dual Column Layout (Body | Notes) */}
         <div 
