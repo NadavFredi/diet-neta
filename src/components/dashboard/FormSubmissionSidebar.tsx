@@ -54,7 +54,7 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
   error,
 }) => {
   const dispatch = useAppDispatch();
-  const { close } = useLeadSidebar();
+  const { closeHistory } = useLeadSidebar();
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -327,7 +327,7 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={close}
+                onClick={closeHistory}
                 className="h-6 w-6 text-gray-500 hover:text-gray-900 hover:bg-white/80"
                 title="סגור"
               >

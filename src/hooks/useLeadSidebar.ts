@@ -47,6 +47,14 @@ export const useLeadSidebar = () => {
     dispatch(closeSidebar());
   }, [dispatch]);
 
+  const closeHistory = useCallback(() => {
+    dispatch(setLeftSidebar('none'));
+  }, [dispatch]);
+
+  const closeNotes = useCallback(() => {
+    dispatch(setNotesOpen(false));
+  }, [dispatch]);
+
   const isHistoryOpen = leftSidebar === 'history';
   const isSubmissionOpen = leftSidebar === 'submission';
   const isNotesOpen = notesOpen;
@@ -65,6 +73,8 @@ export const useLeadSidebar = () => {
     toggleHistory,
     toggleNotes,
     close,
+    closeHistory,
+    closeNotes,
   };
 };
 

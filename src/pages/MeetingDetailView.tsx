@@ -548,14 +548,12 @@ const MeetingDetailView = () => {
                       <div className="space-y-3">
                         <div>
                           <label className="text-xs font-semibold text-gray-500 block mb-1">סוג פגישה</label>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className={cn("w-full justify-center border", meetingType.color)}
-                          >
-                            <Handshake className="h-4 w-4 ml-1.5" />
-                            {meetingType.label}
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Handshake className="h-4 w-4 text-gray-400" />
+                            <p className="text-sm text-gray-900">
+                              {meetingType.label}
+                            </p>
+                          </div>
                         </div>
                         <div>
                           <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך</label>
