@@ -414,11 +414,9 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
 
   const handleLabelChange = (value: string) => {
     setNewFlowLabel(value);
-    // Auto-generate flow key from label if key is empty
-    if (!newFlowKey.trim()) {
-      const generatedKey = generateFlowKey(value);
-      setNewFlowKey(generatedKey);
-    }
+    // Always auto-generate flow key from label
+    const generatedKey = generateFlowKey(value);
+    setNewFlowKey(generatedKey);
   };
 
   const handleDeleteAutomation = (flowKey: string) => {
@@ -661,19 +659,8 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
                 placeholder="לדוגמה: שליחת תזכורת שבועית"
                 dir="rtl"
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="flow-key">מפתח אוטומציה (מזהה ייחודי)</Label>
-              <Input
-                id="flow-key"
-                value={newFlowKey}
-                onChange={(e) => setNewFlowKey(e.target.value)}
-                placeholder="לדוגמה: weekly_reminder"
-                dir="ltr"
-                className="font-mono text-sm"
-              />
               <p className="text-xs text-muted-foreground">
-                המפתח ייווצר אוטומטית מהשם. ניתן לערוך אותו ידנית.
+                מפתח האוטומציה ייווצר אוטומטית מהשם
               </p>
             </div>
           </div>

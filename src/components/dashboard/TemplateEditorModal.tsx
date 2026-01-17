@@ -29,7 +29,6 @@ import 'react-quill/dist/quill.snow.css';
 import { AVAILABLE_PLACEHOLDERS, getPlaceholdersByCategory, getCategoryLabel, type Placeholder } from '@/utils/whatsappPlaceholders';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
-import { GifPicker } from './GifPicker';
 import { DevModeId } from '@/components/ui/DevModeId';
 
 export interface WhatsAppButton {
@@ -128,9 +127,6 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const [blobRetryCount, setBlobRetryCount] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
-  const [isGifPickerOpen, setIsGifPickerOpen] = useState(false);
-  const [gifUrl, setGifUrl] = useState('');
-  const [gifPickerMode, setGifPickerMode] = useState<'picker' | 'url'>('picker');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const quillRef = useRef<ReactQuill>(null);
@@ -225,8 +221,6 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
           setMedia(null);
           setMediaLoadError(null);
         }
-        setGifUrl('');
-        setGifPickerMode('picker');
       } catch (error) {
         console.error('[TemplateEditorModal] Error resetting state:', error);
         setTemplate('');
@@ -500,26 +494,6 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     }
   };
 
-  const handleGifSelect = (gifUrl: string) => {
-    setMedia({
-      type: 'gif',
-      url: gifUrl,
-      previewUrl: gifUrl, // Ensure previewUrl is set for immediate preview
-    });
-    setIsGifPickerOpen(false);
-  };
-
-  const handleGifUrlSubmit = () => {
-    if (gifUrl.trim()) {
-      setMedia({
-        type: 'gif',
-        url: gifUrl.trim(),
-        previewUrl: gifUrl.trim(), // Ensure previewUrl is set for immediate preview
-      });
-      setGifUrl('');
-      setIsGifPickerOpen(false);
-    }
-  };
 
   const handleRemoveMedia = () => {
     if (media?.previewUrl && media.previewUrl.startsWith('blob:')) {
@@ -870,73 +844,6 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                         <Video className="h-4 w-4 text-slate-400 hover:text-slate-600" />
                       </label>
 
-                      {/* GIF Picker Popover */}
-                      <Popover open={isGifPickerOpen} onOpenChange={setIsGifPickerOpen}>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className={cn(
-                              "h-8 w-8 p-0",
-                              "bg-white border border-slate-300 rounded-lg",
-                              "hover:bg-slate-50 hover:border-[#5B6FB9] hover:shadow-sm",
-                              "transition-all duration-200 shadow-sm",
-                              "flex items-center justify-center cursor-pointer"
-                            )}
-                            title="הוסף GIF"
-                          >
-                            <Image className="h-4 w-4 text-slate-400 hover:text-slate-600" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent 
-                          className="w-auto p-0 border border-slate-200 shadow-xl" 
-                          align="start" 
-                          side="top" 
-                          dir="rtl" 
-                          sideOffset={8}
-                        >
-                          <Tabs value={gifPickerMode} onValueChange={(v) => setGifPickerMode(v as 'picker' | 'url')} dir="rtl">
-                            <TabsList className="w-full rounded-b-none border-b border-slate-200 bg-slate-50">
-                              <TabsTrigger value="picker" className="flex-1 text-xs">חיפוש GIF</TabsTrigger>
-                              <TabsTrigger value="url" className="flex-1 text-xs">קישור ידני</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="picker" className="mt-0">
-                              <GifPicker onSelect={handleGifSelect} onClose={() => setIsGifPickerOpen(false)} />
-                            </TabsContent>
-                            <TabsContent value="url" className="mt-0 p-4">
-                              <div className="space-y-3 w-[400px]">
-                                <div>
-                                  <Label className="text-sm font-semibold text-slate-900 mb-2 block">
-                                    הוסף קישור GIF
-                                  </Label>
-                                  <Input
-                                    type="url"
-                                    value={gifUrl}
-                                    onChange={(e) => setGifUrl(e.target.value)}
-                                    placeholder="https://example.com/image.gif"
-                                    className="text-sm"
-                                    dir="ltr"
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        handleGifUrlSubmit();
-                                      }
-                                    }}
-                                  />
-                                </div>
-                                <Button
-                                  type="button"
-                                  onClick={handleGifUrlSubmit}
-                                  disabled={!gifUrl.trim()}
-                                  className="w-full bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
-                                  size="sm"
-                                >
-                                  הוסף
-                                </Button>
-                              </div>
-                            </TabsContent>
-                          </Tabs>
-                        </PopoverContent>
-                      </Popover>
                     </div>
                   </div>
                 </div>

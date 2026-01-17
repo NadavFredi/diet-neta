@@ -6,6 +6,7 @@ import { fetchLeads } from '@/store/slices/dashboardSlice';
 import { STATUS_CATEGORIES } from './useLeadStatus';
 import { toast } from '@/hooks/use-toast';
 import { validatePhoneNumberFormat, formatPhoneNumberForGreenAPI } from '@/components/ui/phone-input';
+import { useAssignBudgetToLead } from './useBudgets';
 
 export interface AddLeadFormData {
   full_name: string;
@@ -25,6 +26,7 @@ export interface AddLeadFormData {
   preferred_time: string;
   notes: string;
   subscription_type_id: string;
+  budget_id: string;
 }
 
 const initialFormData: AddLeadFormData = {
@@ -45,11 +47,13 @@ const initialFormData: AddLeadFormData = {
   preferred_time: '',
   notes: '',
   subscription_type_id: '',
+  budget_id: '',
 };
 
 export const useAddLead = () => {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
+  const assignBudgetToLead = useAssignBudgetToLead();
   const [formData, setFormData] = useState<AddLeadFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -306,6 +310,26 @@ export const useAddLead = () => {
           variant: 'destructive',
         });
         return false;
+      }
+
+      // Step 5: Assign budget if selected
+      if (formData.budget_id && newLead?.id) {
+        try {
+          await assignBudgetToLead.mutateAsync({
+            budgetId: formData.budget_id,
+            leadId: newLead.id,
+            notes: 'הוקצה בעת יצירת הליד',
+          });
+          console.log('[useAddLead] Budget assigned successfully to new lead');
+        } catch (budgetError: any) {
+          console.error('[useAddLead] Error assigning budget:', budgetError);
+          // Don't fail the entire operation if budget assignment fails
+          toast({
+            title: 'אזהרה',
+            description: 'הליד נוצר בהצלחה, אך נכשל בהקצאת התקציב. ניתן להקצות תקציב מאוחר יותר.',
+            variant: 'destructive',
+          });
+        }
       }
 
       toast({

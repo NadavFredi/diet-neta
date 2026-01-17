@@ -27,8 +27,43 @@ export const EditWorkoutTemplateDialog = ({
         className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" 
         dir="rtl"
         onInteractOutside={(e) => {
-          // Prevent closing when clicking outside - only close via explicit action
-          e.preventDefault();
+          // Allow drag operations to work - check if this is a drag by examining the event
+          const nativeEvent = e.nativeEvent;
+          
+          // If this is a pointer event with buttons pressed, it's an active drag operation
+          // Allow drag operations to continue even when pointer moves over the overlay
+          if (nativeEvent instanceof PointerEvent) {
+            if (nativeEvent.buttons !== 0) {
+              // Mouse buttons are pressed, this is a drag - allow it
+              return;
+            }
+            // For pointermove events during drag, also allow
+            if (nativeEvent.type === 'pointermove') {
+              return;
+            }
+          }
+          
+          // Check if the event originated from or is related to a draggable element
+          const target = e.target as HTMLElement;
+          const isDraggableElement = 
+            target.closest('.cursor-grab') !== null ||
+            target.closest('.cursor-grabbing') !== null ||
+            target.classList.contains('cursor-grab') ||
+            target.classList.contains('cursor-grabbing');
+          
+          if (isDraggableElement) {
+            // This is related to drag and drop, allow it
+            return;
+          }
+          
+          // Only prevent closing on actual click/tap events (not drags)
+          // This prevents the dialog from closing when clicking outside
+          if (nativeEvent.type === 'mousedown' || 
+              nativeEvent.type === 'pointerdown' ||
+              nativeEvent.type === 'touchstart') {
+            // This is a click/tap, prevent closing
+            e.preventDefault();
+          }
         }}
         onEscapeKeyDown={(e) => {
           // Prevent closing on escape - only close via explicit action

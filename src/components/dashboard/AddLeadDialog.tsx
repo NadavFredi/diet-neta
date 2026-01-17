@@ -28,6 +28,7 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSubscriptionTypes } from '@/store/slices/subscriptionTypesSlice';
 import { useEffect } from 'react';
+import { useBudgets } from '@/hooks/useBudgets';
 
 interface AddLeadDialogProps {
   isOpen: boolean;
@@ -54,7 +55,9 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
     resetForm,
   } = useAddLead();
 
-  // Fetch subscription types when dialog opens
+  // Fetch subscription types and budgets when dialog opens
+  const { data: budgets = [], isLoading: isLoadingBudgets } = useBudgets();
+
   useEffect(() => {
     if (isOpen) {
       dispatch(fetchSubscriptionTypes());
@@ -88,15 +91,18 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-gray-900">הוסף ליד חדש</DialogTitle>
-          <DialogDescription className="text-gray-600">
-            מלא את הפרטים הבאים כדי להוסיף ליד חדש למערכת
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-5xl max-h-[95vh] flex flex-col p-0" dir="rtl">
+        <div className="px-6 pt-6 pb-4 border-b">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-gray-900">הוסף ליד חדש</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              מלא את הפרטים הבאים כדי להוסיף ליד חדש למערכת
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Personal Information Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">מידע אישי</h3>
@@ -432,6 +438,45 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
             </div>
           </div>
 
+          {/* Budget Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">תקציב</h3>
+
+            <div className="space-y-2">
+              <Label htmlFor="budget_id" className="text-right">
+                קישור תקציב (אופציונלי)
+              </Label>
+              <Select
+                value={formData.budget_id || undefined}
+                onValueChange={(value) => handleInputChange('budget_id', value)}
+                disabled={isLoadingBudgets}
+              >
+                <SelectTrigger className="text-right">
+                  <SelectValue placeholder={isLoadingBudgets ? 'טוען...' : 'בחר תקציב (אופציונלי)'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {budgets.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-gray-500 text-center">
+                      אין תקציבים זמינים
+                    </div>
+                  ) : (
+                    budgets.map((budget) => (
+                      <SelectItem key={budget.id} value={budget.id}>
+                        {budget.name}
+                        {budget.description && ` - ${budget.description}`}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {formData.budget_id && (
+                <p className="text-sm text-gray-600 text-right">
+                  התקציב יוקצה אוטומטית לליד
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Notes Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">הערות</h3>
@@ -450,10 +495,11 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
               />
             </div>
           </div>
+          </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-start gap-3 mt-6 pt-6 border-t" dir="rtl">
+        <div className="flex items-center justify-start gap-3 px-6 py-4 border-t bg-gray-50" dir="rtl">
           <Button
             onClick={handleFormSubmit}
             disabled={isSubmitting}

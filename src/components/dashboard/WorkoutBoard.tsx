@@ -29,10 +29,17 @@ import {
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useWorkoutBoard, DAYS } from '@/hooks/useWorkoutBoard';
-import type { Exercise } from '@/components/dashboard/WeeklyWorkoutBuilder';
+import type { Exercise, WeeklyWorkout } from '@/components/dashboard/WeeklyWorkoutBuilder';
 import { QuickAddExercise } from './QuickAddExercise';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/lib/supabaseClient';
 
 interface WorkoutBoardProps {
@@ -683,6 +690,7 @@ interface DayColumnProps {
   onRemoveExercise: (exerciseId: string) => void;
   onActivateDay: () => void;
   onCopyTemplate: (template: 'push' | 'pull' | 'legs' | 'upper' | 'lower') => void;
+  onDuplicateDay: (targetDay: keyof WeeklyWorkout['days']) => void;
   activeId: string | null;
 }
 
@@ -696,14 +704,30 @@ const DayColumn = ({
   onRemoveExercise,
   onActivateDay,
   onCopyTemplate,
+  onDuplicateDay,
   activeId,
 }: DayColumnProps) => {
   const exerciseIds = dayData.exercises.map((ex) => `${dayKey}-${ex.id}`);
   const totalSets = dayData.exercises.reduce((sum, ex) => sum + ex.sets, 0);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [selectedTargetDay, setSelectedTargetDay] = useState<string>('');
   
   const { setNodeRef, isOver } = useDroppable({
     id: `${dayKey}-column`,
   });
+
+  const handleDuplicateClick = () => {
+    setIsDuplicateDialogOpen(true);
+    setSelectedTargetDay('');
+  };
+
+  const handleDuplicateConfirm = () => {
+    if (selectedTargetDay && selectedTargetDay !== dayKey) {
+      onDuplicateDay(selectedTargetDay as keyof WeeklyWorkout['days']);
+      setIsDuplicateDialogOpen(false);
+      setSelectedTargetDay('');
+    }
+  };
 
   return (
     <div className="flex flex-col h-full flex-1 min-w-0" style={{ flex: '1 1 0%' }} dir="rtl">
@@ -732,6 +756,19 @@ const DayColumn = ({
               )}
             </div>
           </div>
+          {dayData.isActive && dayData.exercises.length > 0 && (
+            <div className="flex gap-1.5 mt-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDuplicateClick}
+                className="flex-1 text-xs h-7"
+              >
+                <Copy className="h-3 w-3 ml-1" />
+                שכפל יום
+              </Button>
+            </div>
+          )}
           {!dayData.isActive && (
             <Button
               size="sm"
@@ -808,6 +845,53 @@ const DayColumn = ({
           </div>
         )}
       </Card>
+
+      {/* Duplicate Day Dialog */}
+      <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>שכפל יום - {dayLabel}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="target-day" className="text-right">
+                בחר יום יעד לשכפול
+              </Label>
+              <Select value={selectedTargetDay} onValueChange={setSelectedTargetDay}>
+                <SelectTrigger id="target-day" className="text-right">
+                  <SelectValue placeholder="בחר יום" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DAYS.filter((day) => day.key !== dayKey).map((day) => (
+                    <SelectItem key={day.key} value={day.key}>
+                      {day.label} ({day.short})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-start gap-2 pt-2">
+              <Button
+                onClick={handleDuplicateConfirm}
+                disabled={!selectedTargetDay || selectedTargetDay === dayKey}
+                className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+              >
+                <Copy className="h-4 w-4 ml-2" />
+                שכפל
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsDuplicateDialogOpen(false);
+                  setSelectedTargetDay('');
+                }}
+              >
+                ביטול
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -1056,6 +1140,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
                   onRemoveExercise={(exerciseId) => removeExercise(dayKey, exerciseId)}
                   onActivateDay={() => updateDay(dayKey, { isActive: true })}
                   onCopyTemplate={(template) => copyFromTemplate(dayKey, template)}
+                  onDuplicateDay={(targetDay) => duplicateDay(dayKey, targetDay)}
                   activeId={activeId}
                 />
               );
