@@ -90,6 +90,28 @@ const saveCustomFlows = (flows: FlowConfig[]): void => {
   }
 };
 
+// Load deleted default flows from localStorage
+const loadDeletedDefaultFlows = (): string[] => {
+  try {
+    const stored = localStorage.getItem('deleted_default_automation_flows');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('[LeadAutomationCard] Error loading deleted default flows:', error);
+  }
+  return [];
+};
+
+// Save deleted default flows to localStorage
+const saveDeletedDefaultFlows = (deletedKeys: string[]): void => {
+  try {
+    localStorage.setItem('deleted_default_automation_flows', JSON.stringify(deletedKeys));
+  } catch (error) {
+    console.error('[LeadAutomationCard] Error saving deleted default flows:', error);
+  }
+};
+
 interface LeadAutomationCardProps {
   customer: Customer | null;
   lead: LeadData | null;
@@ -109,18 +131,23 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
   const sendingFlow = useAppSelector((state) => state.automation.sendingFlow);
   const [editingFlowKey, setEditingFlowKey] = useState<string | null>(null);
   const [customFlows, setCustomFlows] = useState<FlowConfig[]>(loadCustomFlows());
+  const [deletedDefaultFlows, setDeletedDefaultFlows] = useState<string[]>(loadDeletedDefaultFlows());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newFlowLabel, setNewFlowLabel] = useState('');
   const [newFlowKey, setNewFlowKey] = useState('');
   const [deletingFlowKey, setDeletingFlowKey] = useState<string | null>(null);
 
-  // Load custom flows on mount
+  // Load custom flows and deleted default flows on mount
   useEffect(() => {
     setCustomFlows(loadCustomFlows());
+    setDeletedDefaultFlows(loadDeletedDefaultFlows());
   }, []);
 
-  // Combine default and custom flows
-  const allFlows = [...DEFAULT_FLOW_CONFIGS, ...customFlows];
+  // Combine default and custom flows, filtering out deleted default flows
+  const allFlows = [
+    ...DEFAULT_FLOW_CONFIGS.filter(flow => !deletedDefaultFlows.includes(flow.key)),
+    ...customFlows
+  ];
 
   // Fetch templates on mount
   useEffect(() => {
@@ -395,20 +422,20 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
   };
 
   const handleDeleteAutomation = (flowKey: string) => {
-    // Check if it's a default flow (cannot delete)
-    if (DEFAULT_FLOW_CONFIGS.some(flow => flow.key === flowKey)) {
-      toast({
-        title: 'שגיאה',
-        description: 'לא ניתן למחוק אוטומציות ברירת מחדל',
-        variant: 'destructive',
-      });
-      return;
+    // Check if it's a default flow
+    const isDefaultFlow = DEFAULT_FLOW_CONFIGS.some(flow => flow.key === flowKey);
+    
+    if (isDefaultFlow) {
+      // Mark default flow as deleted
+      const updatedDeleted = [...deletedDefaultFlows, flowKey];
+      setDeletedDefaultFlows(updatedDeleted);
+      saveDeletedDefaultFlows(updatedDeleted);
+    } else {
+      // Remove from custom flows
+      const updatedFlows = customFlows.filter(flow => flow.key !== flowKey);
+      setCustomFlows(updatedFlows);
+      saveCustomFlows(updatedFlows);
     }
-
-    // Remove from custom flows
-    const updatedFlows = customFlows.filter(flow => flow.key !== flowKey);
-    setCustomFlows(updatedFlows);
-    saveCustomFlows(updatedFlows);
 
     // If the deleted flow was being edited, close the editor
     if (editingFlowKey === flowKey) {
@@ -421,10 +448,6 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
     });
 
     setDeletingFlowKey(null);
-  };
-
-  const isCustomFlow = (flowKey: string): boolean => {
-    return customFlows.some(flow => flow.key === flowKey);
   };
 
   if (!customer || !lead) {
@@ -553,17 +576,15 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
                 >
                   <Settings className="h-3.5 w-3.5 text-gray-600" />
                 </Button>
-                {isCustomFlow(flow.key) && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setDeletingFlowKey(flow.key)}
-                    className="h-9 w-9 flex-shrink-0 border-red-300 hover:bg-red-50 hover:border-red-400 text-red-600"
-                    title="מחק אוטומציה"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setDeletingFlowKey(flow.key)}
+                  className="h-9 w-9 flex-shrink-0 border-red-300 hover:bg-red-50 hover:border-red-400 text-red-600"
+                  title="מחק אוטומציה"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
             );
           })}

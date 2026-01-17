@@ -169,6 +169,17 @@ const MeetingDetailView = () => {
     return 'bg-gray-50 text-gray-700 border-gray-200';
   };
 
+  // Get sidebar states from Redux (same as customer page) - MUST be before early returns
+  const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
+  const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
+
+  // Fetch notes when customer changes - MUST be before early returns
+  useEffect(() => {
+    if (customer?.id) {
+      dispatch(fetchCustomerNotes(customer.id));
+    }
+  }, [customer?.id, dispatch]);
+
   if (isLoading) {
     return (
       <>
@@ -323,17 +334,6 @@ const MeetingDetailView = () => {
   };
 
   const status = meetingData.status || meetingData['סטטוס'] || 'פעיל';
-
-  // Get sidebar states from Redux (same as customer page)
-  const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
-  const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
-
-  // Fetch notes when customer changes
-  useEffect(() => {
-    if (customer?.id) {
-      dispatch(fetchCustomerNotes(customer.id));
-    }
-  }, [customer?.id, dispatch]);
 
   return (
     <>
