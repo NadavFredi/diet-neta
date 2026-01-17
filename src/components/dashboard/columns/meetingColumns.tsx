@@ -41,31 +41,43 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     cell: ({ row }) => {
       const meetingData = row.original.meeting_data || {};
       
-      // First, try to extract from Schedule field (actual meeting date/time from Fillout)
-      let dateValue = null;
-      if (meetingData.Schedule || meetingData.schedule || meetingData['Schedule'] || meetingData['פגישת הכרות']) {
-        const scheduleValue = meetingData.Schedule || meetingData.schedule || meetingData['Schedule'] || meetingData['פגישת הכרות'];
-        // Schedule field might be a datetime string or formatted date
-        if (scheduleValue) {
-          try {
-            // Try to parse as date
-            const scheduleDate = new Date(scheduleValue);
-            if (!isNaN(scheduleDate.getTime())) {
-              // Format as date only (without time)
-              dateValue = formatDate(scheduleDate.toISOString());
-            } else {
-              // If parsing fails, try to extract date part from string
-              const dateMatch = String(scheduleValue).match(/(\d{4}-\d{2}-\d{2})|(\d{2}\/\d{2}\/\d{4})/);
-              if (dateMatch) {
-                dateValue = dateMatch[0];
-              } else {
-                dateValue = String(scheduleValue).split(' ')[0]; // Take first part if space-separated
-              }
-            }
-          } catch (e) {
-            // If all parsing fails, use the raw value
-            dateValue = String(scheduleValue);
+      // Extract scheduling data (same logic as MeetingDetailView)
+      const extractSchedulingData = () => {
+        if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
+          const scheduling = meetingData.scheduling[0];
+          if (scheduling.value) {
+            return {
+              eventStartTime: scheduling.value.eventStartTime,
+              eventEndTime: scheduling.value.eventEndTime,
+            };
           }
+        }
+
+        const eventStartTimeKey = 'scheduling[0].value.eventStartTime';
+        const eventEndTimeKey = 'scheduling[0].value.eventEndTime';
+        
+        if (meetingData[eventStartTimeKey] || meetingData[eventEndTimeKey]) {
+          return {
+            eventStartTime: meetingData[eventStartTimeKey],
+            eventEndTime: meetingData[eventEndTimeKey],
+          };
+        }
+
+        return null;
+      };
+
+      const schedulingData = extractSchedulingData();
+      
+      // Extract date from eventStartTime (same logic as MeetingDetailView)
+      let dateValue = null;
+      if (schedulingData?.eventStartTime) {
+        try {
+          const startDate = new Date(schedulingData.eventStartTime);
+          if (!isNaN(startDate.getTime())) {
+            dateValue = formatDate(startDate.toISOString());
+          }
+        } catch (e) {
+          console.error('[MeetingColumns] Error parsing start time:', e);
         }
       }
       
@@ -100,168 +112,78 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     cell: ({ row }) => {
       const meetingData = row.original.meeting_data || {};
       
-      // Debug: Log all keys to help identify time field (remove in production)
-      if (process.env.NODE_ENV === 'development' && Object.keys(meetingData).length > 0) {
-        const allKeys = Object.keys(meetingData);
-        const timeRelatedKeys = allKeys.filter(key => {
-          const keyLower = key.toLowerCase();
-          return keyLower.includes('time') || keyLower.includes('hour') || keyLower.includes('שעה') || keyLower.includes('זמן');
-        });
-        if (timeRelatedKeys.length > 0) {
-          console.log('[MeetingColumns] Time-related keys found:', timeRelatedKeys, meetingData);
-        }
-      }
-      
-      // First, try to extract from Schedule field (actual meeting date/time from Fillout)
-      let timeValue = null;
-      if (meetingData.Schedule || meetingData.schedule || meetingData['Schedule'] || meetingData['פגישת הכרות']) {
-        const scheduleValue = meetingData.Schedule || meetingData.schedule || meetingData['Schedule'] || meetingData['פגישת הכרות'];
-        if (scheduleValue) {
-          try {
-            // Try to parse as date and extract time
-            const scheduleDate = new Date(scheduleValue);
-            if (!isNaN(scheduleDate.getTime())) {
-              // Extract time in HH:MM format
-              const hours = scheduleDate.getHours().toString().padStart(2, '0');
-              const minutes = scheduleDate.getMinutes().toString().padStart(2, '0');
-              timeValue = `${hours}:${minutes}`;
-            } else {
-              // If parsing fails, try to extract time pattern from string (e.g., "11:00 AM")
-              const timeMatch = String(scheduleValue).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-              if (timeMatch) {
-                let hours = parseInt(timeMatch[1]);
-                const minutes = timeMatch[2];
-                const ampm = timeMatch[3].toUpperCase();
-                if (ampm === 'PM' && hours !== 12) hours += 12;
-                if (ampm === 'AM' && hours === 12) hours = 0;
-                timeValue = `${hours.toString().padStart(2, '0')}:${minutes}`;
-              } else {
-                // Try to find time pattern without AM/PM
-                const timePatternMatch = String(scheduleValue).match(/(\d{1,2}):(\d{2})/);
-                if (timePatternMatch) {
-                  timeValue = timePatternMatch[0];
-                }
-              }
-            }
-          } catch (e) {
-            // If parsing fails, continue to other fields
+      // Extract scheduling data (same logic as MeetingDetailView)
+      const extractSchedulingData = () => {
+        if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
+          const scheduling = meetingData.scheduling[0];
+          if (scheduling.value) {
+            return {
+              eventStartTime: scheduling.value.eventStartTime,
+              eventEndTime: scheduling.value.eventEndTime,
+            };
           }
         }
-      }
-      
-      // Fallback to common field names - prioritize 'hour' field from form submission
-      if (!timeValue) {
-        timeValue = meetingData.hour ||
-                   meetingData.time || 
-                   meetingData.meeting_time || 
-                   meetingData.start_time ||
-                   meetingData.end_time ||
-                   meetingData['שעה'] || 
-                   meetingData['שעת פגישה'] ||
-                   meetingData['שעת התחלה'] ||
-                   meetingData['שעת סיום'] ||
-                   meetingData['זמן'];
-      }
-      
-      // If not found, search through ALL keys for time-related patterns
-      // Prioritize 'hour' field first
-      if (!timeValue) {
-        const allKeys = Object.keys(meetingData);
+
+        const eventStartTimeKey = 'scheduling[0].value.eventStartTime';
+        const eventEndTimeKey = 'scheduling[0].value.eventEndTime';
         
-        // First pass: look specifically for 'hour' field (case-insensitive)
-        for (const key of allKeys) {
-          const keyLower = key.toLowerCase();
-          if (keyLower === 'hour' || keyLower === 'שעה') {
-            const value = meetingData[key];
-            if (value && value !== null && value !== '') {
-              timeValue = value;
-              break;
-            }
-          }
+        if (meetingData[eventStartTimeKey] || meetingData[eventEndTimeKey]) {
+          return {
+            eventStartTime: meetingData[eventStartTimeKey],
+            eventEndTime: meetingData[eventEndTimeKey],
+          };
         }
-        
-        // Second pass: look for other time-related fields
-        if (!timeValue) {
-          for (const key of allKeys) {
-            const keyLower = key.toLowerCase();
-            const value = meetingData[key];
-            
-            // Check if key name suggests it's a time field
-            if (keyLower.includes('time') || 
-                keyLower.includes('hour') || 
-                keyLower.includes('שעה') ||
-                keyLower.includes('זמן')) {
-              if (value && value !== null && value !== '') {
-                timeValue = value;
-                break;
-              }
-            }
-            
-            // Check if value looks like a time (HH:MM or HHMM format)
-            if (value && typeof value === 'string') {
-              const timePattern = /^(\d{1,2}):(\d{2})/; // HH:MM
-              const timePatternNoColon = /^(\d{3,4})$/; // HHMM or HMM
-              if (timePattern.test(value) || timePatternNoColon.test(value)) {
-                timeValue = value;
-                break;
-              }
-            }
+
+        return null;
+      };
+
+      const schedulingData = extractSchedulingData();
+      
+      // Extract time from eventStartTime and eventEndTime (same logic as MeetingDetailView)
+      let meetingStartTime = null;
+      let meetingEndTime = null;
+
+      if (schedulingData?.eventStartTime) {
+        try {
+          const startDate = new Date(schedulingData.eventStartTime);
+          if (!isNaN(startDate.getTime())) {
+            const hours = startDate.getHours().toString().padStart(2, '0');
+            const minutes = startDate.getMinutes().toString().padStart(2, '0');
+            meetingStartTime = `${hours}:${minutes}`;
           }
+        } catch (e) {
+          console.error('[MeetingColumns] Error parsing start time:', e);
         }
       }
-      
-      // If no direct time field, try to extract from datetime strings
-      if (!timeValue) {
-        // Check all date fields
-        const dateFields = ['date', 'meeting_date', 'start_date', 'end_date', 'תאריך', 'תאריך פגישה', 'תאריך התחלה', 'תאריך סיום'];
-        for (const field of dateFields) {
-          const dateValue = meetingData[field];
-          if (dateValue && typeof dateValue === 'string') {
-            // Check if it's a datetime string (contains time)
-            if (dateValue.includes('T') || dateValue.includes(' ')) {
-              try {
-                const date = new Date(dateValue);
-                if (!isNaN(date.getTime())) {
-                  // Extract time in HH:MM format
-                  const hours = date.getHours().toString().padStart(2, '0');
-                  const minutes = date.getMinutes().toString().padStart(2, '0');
-                  timeValue = `${hours}:${minutes}`;
-                  break;
-                }
-              } catch (e) {
-                // If parsing fails, try to extract time pattern from string
-                const timeMatch = dateValue.match(/(\d{1,2}):(\d{2})/);
-                if (timeMatch) {
-                  timeValue = timeMatch[0];
-                  break;
-                }
-              }
-            }
+
+      if (schedulingData?.eventEndTime) {
+        try {
+          const endDate = new Date(schedulingData.eventEndTime);
+          if (!isNaN(endDate.getTime())) {
+            const hours = endDate.getHours().toString().padStart(2, '0');
+            const minutes = endDate.getMinutes().toString().padStart(2, '0');
+            meetingEndTime = `${hours}:${minutes}`;
           }
+        } catch (e) {
+          console.error('[MeetingColumns] Error parsing end time:', e);
         }
       }
+
+      // Format time range (same logic as MeetingDetailView formatTimeRange)
+      const formatTimeRange = () => {
+        if (meetingStartTime && meetingEndTime) {
+          if (meetingStartTime > meetingEndTime) {
+            return `${meetingEndTime} - ${meetingStartTime}`;
+          }
+          return `${meetingStartTime} - ${meetingEndTime}`;
+        }
+        return meetingStartTime || null;
+      };
+
+      const timeValue = formatTimeRange();
       
-      // Format time value if it exists
       if (timeValue) {
-        const timeStr = String(timeValue).trim();
-        // If it's already in HH:MM format, use it
-        if (timeStr.match(/^\d{1,2}:\d{2}/)) {
-          return <span className="text-gray-700">{timeStr}</span>;
-        }
-        // If it's a number (like 1430 for 14:30), convert it
-        if (/^\d{3,4}$/.test(timeStr)) {
-          const padded = timeStr.padStart(4, '0');
-          const hours = padded.substring(0, 2);
-          const minutes = padded.substring(2, 4);
-          return <span className="text-gray-700">{hours}:{minutes}</span>;
-        }
-        // If it's in format like "14:30:00", extract just HH:MM
-        const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
-        if (timeMatch) {
-          return <span className="text-gray-700">{timeMatch[0]}</span>;
-        }
-        // Otherwise, just display as is
-        return <span className="text-gray-700">{timeStr}</span>;
+        return <span className="text-gray-700">{timeValue}</span>;
       }
       
       return <span className="text-gray-400">-</span>;
