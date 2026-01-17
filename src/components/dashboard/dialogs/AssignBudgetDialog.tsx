@@ -46,7 +46,8 @@ export const AssignBudgetDialog = ({
 }: AssignBudgetDialogProps) => {
   const [selectedBudgetId, setSelectedBudgetId] = useState<string>('');
   const [notes, setNotes] = useState('');
-  const { data: budgets = [], isLoading: isLoadingBudgets } = useBudgets();
+  // Refetch budgets when dialog opens to ensure we have the latest data
+  const { data: budgets = [], isLoading: isLoadingBudgets, refetch: refetchBudgets } = useBudgets();
   const assignToLead = useAssignBudgetToLead();
   const assignToCustomer = useAssignBudgetToCustomer();
   const { toast } = useToast();
@@ -56,8 +57,11 @@ export const AssignBudgetDialog = ({
     if (!isOpen) {
       setSelectedBudgetId('');
       setNotes('');
+    } else {
+      // Refetch budgets when dialog opens to ensure we have the latest data
+      refetchBudgets();
     }
-  }, [isOpen]);
+  }, [isOpen, refetchBudgets]);
 
   const handleAssign = async () => {
     if (!selectedBudgetId) {

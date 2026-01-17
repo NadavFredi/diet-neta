@@ -53,7 +53,18 @@ export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) =>
         }
         throw error;
       }
-      return data as Budget[];
+
+      // Filter out any invalid budgets (ensure name exists and budget is valid)
+      const validBudgets = (data || []).filter((budget: any) => {
+        // Ensure budget has required fields
+        return budget && 
+               budget.id && 
+               budget.name && 
+               budget.name.trim() !== '' &&
+               (budget.is_public === true || budget.created_by === userId);
+      });
+
+      return validBudgets as Budget[];
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -201,7 +212,10 @@ export const useCreateBudget = () => {
       return data as Budget;
     },
     onSuccess: () => {
+      // Invalidate all budget queries to ensure new budget appears everywhere
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      // Also refetch immediately to update UI
+      queryClient.refetchQueries({ queryKey: ['budgets'] });
     },
   });
 };
@@ -252,8 +266,11 @@ export const useUpdateBudget = () => {
       return data as Budget;
     },
     onSuccess: (data) => {
+      // Invalidate all budget queries to ensure updated budget appears everywhere
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget', data.id] });
+      // Also refetch immediately to update UI
+      queryClient.refetchQueries({ queryKey: ['budgets'] });
     },
   });
 };
@@ -278,7 +295,10 @@ export const useDeleteBudget = () => {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate all budget queries to ensure deleted budget is removed everywhere
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      // Also refetch immediately to update UI
+      queryClient.refetchQueries({ queryKey: ['budgets'] });
     },
   });
 };
