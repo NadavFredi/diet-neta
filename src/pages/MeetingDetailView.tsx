@@ -60,6 +60,11 @@ const MEETING_TYPES = {
     color: 'bg-green-100 text-green-800 border-green-300',
     icon: '🥗',
   },
+  'תיאום תקציב': {
+    label: 'תיאום תקציב',
+    color: 'bg-orange-100 text-orange-800 border-orange-300',
+    icon: '💰',
+  },
 } as const;
 
 type MeetingTypeKey = keyof typeof MEETING_TYPES;

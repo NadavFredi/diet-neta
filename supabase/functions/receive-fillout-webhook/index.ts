@@ -133,6 +133,11 @@ serve(async (req) => {
                               Deno.env.get('FILLOUT_FORM_ID_OPEN_MEETING') ||
                               'n5VwsjFk5ous'; // Default form ID for meeting form
     
+    // Get the budget meeting form ID from environment variable
+    const budgetMeetingFormId = Deno.env.get('VITE_FILLOUT_FORM_ID_BUDGET_MEETING') || 
+                                Deno.env.get('FILLOUT_FORM_ID_BUDGET_MEETING') ||
+                                'veY7bX8Uajus'; // Default form ID for budget meeting form
+    
     // Also check if formName contains "open-meeting" or "open_meeting" as a fallback
     const formNameLower = formName ? String(formName).toLowerCase() : '';
     const isOpenMeetingForm = formNameLower.includes('open-meeting') || 
@@ -142,6 +147,7 @@ serve(async (req) => {
     // Compare form IDs (case-insensitive, trim whitespace)
     const normalizedFormId = formId ? String(formId).trim().toLowerCase() : '';
     const normalizedOpenMeetingFormId = openMeetingFormId ? String(openMeetingFormId).trim().toLowerCase() : '';
+    const normalizedBudgetMeetingFormId = budgetMeetingFormId ? String(budgetMeetingFormId).trim().toLowerCase() : '';
     
     // Check if form ID matches OR if form name indicates it's the open-meeting form
     const shouldTriggerAutomation = (normalizedOpenMeetingFormId && 
@@ -149,13 +155,21 @@ serve(async (req) => {
                                     normalizedFormId === normalizedOpenMeetingFormId) ||
                                     isOpenMeetingForm;
     
+    // Check if this is a budget meeting form
+    const isBudgetMeetingForm = normalizedBudgetMeetingFormId && 
+                               normalizedFormId && 
+                               normalizedFormId === normalizedBudgetMeetingFormId;
+    
     console.log('[receive-fillout-webhook] Automation trigger check:', {
       formId: formId,
       formName: formName,
       normalizedFormId,
       openMeetingFormId: openMeetingFormId,
       normalizedOpenMeetingFormId,
+      budgetMeetingFormId: budgetMeetingFormId,
+      normalizedBudgetMeetingFormId,
       isOpenMeetingForm,
+      isBudgetMeetingForm,
       shouldTriggerAutomation,
       hasFormId: !!formId,
       hasFormName: !!formName,
@@ -163,6 +177,8 @@ serve(async (req) => {
       allEnvVars: {
         VITE_FILLOUT_FORM_ID_MEETING: Deno.env.get('VITE_FILLOUT_FORM_ID_MEETING') ? 'SET' : 'NOT SET',
         FILLOUT_FORM_ID_MEETING: Deno.env.get('FILLOUT_FORM_ID_MEETING') ? 'SET' : 'NOT SET',
+        VITE_FILLOUT_FORM_ID_BUDGET_MEETING: Deno.env.get('VITE_FILLOUT_FORM_ID_BUDGET_MEETING') ? 'SET' : 'NOT SET',
+        FILLOUT_FORM_ID_BUDGET_MEETING: Deno.env.get('FILLOUT_FORM_ID_BUDGET_MEETING') ? 'SET' : 'NOT SET',
       }
     });
     
@@ -651,6 +667,21 @@ serve(async (req) => {
     meetingData._submissionTime = body.submissionTime || body.submission_time || body.createdAt || body.created_at || new Date().toISOString();
     meetingData._formName = body.formName || body.form_name || body.form?.name;
     meetingData._rawWebhookPayload = rawWebhookPayload; // Store complete raw webhook payload for debugging
+    
+    // Set meeting type based on form ID
+    if (isBudgetMeetingForm) {
+      // Set meeting type to "תיאום תקציב" for budget meeting form
+      meetingData['סוג פגישה'] = 'תיאום תקציב';
+      meetingData['פגישת הכרות'] = 'תיאום תקציב'; // Also set the common field name
+      meetingData.meeting_type = 'תיאום תקציב';
+      console.log('[receive-fillout-webhook] ✅ Detected budget meeting form, setting meeting type to "תיאום תקציב"');
+    } else if (shouldTriggerAutomation || isOpenMeetingForm) {
+      // Keep default for open-meeting form
+      if (!meetingData['סוג פגישה'] && !meetingData['פגישת הכרות']) {
+        meetingData['סוג פגישה'] = 'פגישת הכרות';
+        meetingData['פגישת הכרות'] = 'פגישת הכרות';
+      }
+    }
     
     // Log what we extracted
     console.log('[receive-fillout-webhook] ========== EXTRACTION SUMMARY ==========');
