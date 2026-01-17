@@ -34,11 +34,12 @@ export const NotificationBell = () => {
           variant="ghost"
           size="icon"
           className="relative h-10 w-10 rounded-full hover:bg-gray-100"
+          dir="rtl"
         >
           <Bell className="h-5 w-5 text-gray-700" />
           {unreadCount > 0 && (
             <Badge
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white text-xs font-semibold border-2 border-white"
+              className="absolute -top-1 -left-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white text-xs font-semibold border-2 border-white"
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
@@ -46,17 +47,18 @@ export const NotificationBell = () => {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-96 p-0" align="end" side="bottom" dir="rtl">
-        <div className="flex flex-col h-[500px]">
+        <div className="flex flex-col h-[500px]" dir="rtl">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b">
-            <h3 className="font-semibold text-gray-900">התראות</h3>
+          <div className="flex items-center justify-between p-4 border-b" dir="rtl">
+            <h3 className="font-semibold text-gray-900 text-right">התראות</h3>
             {unreadCount > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleMarkAllAsRead}
                 disabled={isMarkingAsRead}
-                className="text-xs text-[#5B6FB9] hover:text-[#5B6FB9]/80"
+                className="text-xs text-[#5B6FB9] hover:text-[#5B6FB9]/80 text-right"
+                dir="rtl"
               >
                 {isMarkingAsRead ? 'מסמן...' : 'סמן הכל כנקרא'}
               </Button>
@@ -64,18 +66,18 @@ export const NotificationBell = () => {
           </div>
 
           {/* Notifications List */}
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1" dir="rtl">
             {isLoading && notifications.length === 0 ? (
-              <div className="flex items-center justify-center p-8">
-                <p className="text-sm text-gray-500">טוען התראות...</p>
+              <div className="flex items-center justify-center p-8" dir="rtl">
+                <p className="text-sm text-gray-500 text-right">טוען התראות...</p>
               </div>
             ) : notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-8 text-center">
+              <div className="flex flex-col items-center justify-center p-8 text-center" dir="rtl">
                 <Bell className="h-12 w-12 text-gray-300 mb-3" />
-                <p className="text-sm text-gray-500">אין התראות חדשות</p>
+                <p className="text-sm text-gray-500 text-right">אין התראות חדשות</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100" dir="rtl">
                 {notifications.map((notification) => (
                   <button
                     key={notification.id}
@@ -84,21 +86,22 @@ export const NotificationBell = () => {
                       'w-full text-right p-4 hover:bg-gray-50 transition-colors',
                       !notification.is_read && 'bg-blue-50/50'
                     )}
+                    dir="rtl"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-sm font-semibold text-gray-900">
+                    <div className="flex items-start gap-3" dir="rtl">
+                      <div className="flex-1 min-w-0 text-right">
+                        <div className="flex items-center gap-2 mb-1 justify-end" dir="rtl">
+                          <p className="text-sm font-semibold text-gray-900 text-right">
                             {notification.title}
                           </p>
                           {!notification.is_read && (
                             <div className="h-2 w-2 rounded-full bg-[#5B6FB9] flex-shrink-0" />
                           )}
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">
+                        <p className="text-sm text-gray-600 mb-2 text-right">
                           {notification.message}
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-400 text-right">
                           {formatRelativeTime(notification.created_at)}
                         </p>
                       </div>
@@ -111,8 +114,8 @@ export const NotificationBell = () => {
 
           {/* Footer - Show count if there are many notifications */}
           {notifications.length > 0 && (
-            <div className="p-3 border-t bg-gray-50">
-              <p className="text-xs text-center text-gray-500">
+            <div className="p-3 border-t bg-gray-50" dir="rtl">
+              <p className="text-xs text-center text-gray-500 text-right">
                 {notifications.length} התראות
                 {unreadCount > 0 && ` • ${unreadCount} לא נקראו`}
               </p>

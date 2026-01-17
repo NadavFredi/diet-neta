@@ -241,6 +241,31 @@ export const upsertCheckIn = createAsyncThunk(
       .single();
 
     if (error) throw error;
+    
+    // Create notification for admins (fire and forget - don't block on this)
+    if (data) {
+      import('@/utils/notificationHelper').then(({ notifyCheckInCompleted }) => {
+        // Get customer name for notification
+        supabase
+          .from('customers')
+          .select('full_name')
+          .eq('id', data.customer_id)
+          .single()
+          .then(({ data: customer }) => {
+            if (customer) {
+              notifyCheckInCompleted(
+                data.customer_id,
+                data.lead_id,
+                customer.full_name || 'לקוח',
+                data.check_in_date
+              ).catch((err) => {
+                console.error('[ClientSlice] Failed to create check-in notification:', err);
+              });
+            }
+          });
+      });
+    }
+    
     return data as DailyCheckIn;
   }
 );
@@ -260,6 +285,36 @@ export const batchUpsertCheckIns = createAsyncThunk(
       .select();
 
     if (error) throw error;
+    
+    // Create notifications for batch check-ins (fire and forget)
+    if (data && data.length > 0) {
+      import('@/utils/notificationHelper').then(({ notifyCheckInCompleted }) => {
+        // Get unique customer IDs
+        const customerIds = [...new Set(data.map(ci => ci.customer_id))];
+        
+        // Fetch customer names
+        supabase
+          .from('customers')
+          .select('id, full_name')
+          .in('id', customerIds)
+          .then(({ data: customers }) => {
+            const customerMap = new Map(customers?.map(c => [c.id, c.full_name || 'לקוח']) || []);
+            
+            // Create notification for each check-in
+            data.forEach((checkIn) => {
+              notifyCheckInCompleted(
+                checkIn.customer_id,
+                checkIn.lead_id,
+                customerMap.get(checkIn.customer_id) || 'לקוח',
+                checkIn.check_in_date
+              ).catch((err) => {
+                console.error('[ClientSlice] Failed to create batch check-in notification:', err);
+              });
+            });
+          });
+      });
+    }
+    
     return (data || []) as DailyCheckIn[];
   }
 );
@@ -268,6 +323,13 @@ export const batchUpsertCheckIns = createAsyncThunk(
 export const updateClientLead = createAsyncThunk(
   'client/updateLead',
   async ({ leadId, updates }: { leadId: string; updates: Partial<ClientLead> }) => {
+    // Get customer info before update for notifications
+    const { data: leadBefore } = await supabase
+      .from('leads')
+      .select('customer_id, customers(full_name)')
+      .eq('id', leadId)
+      .single();
+
     const { data, error } = await supabase
       .from('leads')
       .update(updates)
@@ -276,6 +338,32 @@ export const updateClientLead = createAsyncThunk(
       .single();
 
     if (error) throw error;
+    
+    // Create notifications for profile updates (fire and forget)
+    if (data && leadBefore?.customer_id) {
+      const customerName = (leadBefore.customers as any)?.full_name || 'לקוח';
+      import('@/utils/notificationHelper').then(({ notifyProfileUpdated, notifyWeightUpdated }) => {
+        // Check if weight was updated
+        if (updates.weight !== undefined && updates.weight !== null) {
+          notifyWeightUpdated(
+            leadBefore.customer_id,
+            leadId,
+            customerName,
+            updates.weight
+          ).catch((err) => console.error('[ClientSlice] Failed to create weight notification:', err));
+        } else {
+          // Generic profile update
+          const updatedFields = Object.keys(updates).join(', ');
+          notifyProfileUpdated(
+            leadBefore.customer_id,
+            leadId,
+            customerName,
+            updatedFields
+          ).catch((err) => console.error('[ClientSlice] Failed to create profile notification:', err));
+        }
+      });
+    }
+    
     return data as ClientLead;
   }
 );
@@ -284,6 +372,13 @@ export const updateClientLead = createAsyncThunk(
 export const updateClientCustomer = createAsyncThunk(
   'client/updateCustomer',
   async ({ customerId, updates }: { customerId: string; updates: Partial<ClientCustomer> }) => {
+    // Get customer name before update for notifications
+    const { data: customerBefore } = await supabase
+      .from('customers')
+      .select('full_name')
+      .eq('id', customerId)
+      .single();
+
     const { data, error } = await supabase
       .from('customers')
       .update(updates)
@@ -292,6 +387,21 @@ export const updateClientCustomer = createAsyncThunk(
       .single();
 
     if (error) throw error;
+    
+    // Create notifications for profile updates (fire and forget)
+    if (data && customerBefore) {
+      const customerName = customerBefore.full_name || 'לקוח';
+      import('@/utils/notificationHelper').then(({ notifyProfileUpdated }) => {
+        const updatedFields = Object.keys(updates).join(', ');
+        notifyProfileUpdated(
+          customerId,
+          null,
+          customerName,
+          updatedFields
+        ).catch((err) => console.error('[ClientSlice] Failed to create profile notification:', err));
+      });
+    }
+    
     return data as ClientCustomer;
   }
 );
