@@ -37,19 +37,19 @@ export const LeadRow = ({ lead, columnVisibility }: LeadRowProps) => {
   return (
     <div
       onClick={handleRowClick}
-      className="bg-white border-b border-gray-200 px-7 py-4 hover:bg-gray-50 transition-all duration-200 cursor-pointer"
+      className="bg-white border-b border-gray-200 px-3 sm:px-5 md:px-7 py-3 sm:py-4 hover:bg-gray-50 transition-all duration-200 cursor-pointer"
     >
       <div
         className="grid items-center"
         style={{
           gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(0, 1fr))`,
-          gap: '1.25rem',
+          gap: 'clamp(0.5rem, 2vw, 1.25rem)',
         }}
       >
         {visibleColumns.map((col) => {
           if (!columnVisibility[col]) return null;
           return (
-            <div key={col} className="text-sm text-gray-700 text-right">
+            <div key={col} className="text-xs sm:text-sm text-gray-700 text-right truncate">
               {col === 'id' && (
                 <DevModeId id={lead.id} />
               )}

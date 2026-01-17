@@ -296,14 +296,14 @@ export const TableActionHeader = ({
       resourceKey={resourceKey}
       className={className}
       actions={
-        <div className="flex items-center gap-3" dir="rtl">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap" dir="rtl">
           {/* Search Input - Rightmost (first in RTL flex) */}
           {enableSearch && (
             <Input
               placeholder={searchPlaceholder || `חיפוש...`}
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-64 h-11 text-base bg-white text-gray-900 border border-indigo-200/60 hover:bg-white focus:bg-white focus:border-indigo-400"
+              className="w-full sm:w-64 h-10 sm:h-11 text-sm sm:text-base bg-white text-gray-900 border border-indigo-200/60 hover:bg-white focus:bg-white focus:border-indigo-400"
               dir="rtl"
             />
           )}
@@ -315,13 +315,13 @@ export const TableActionHeader = ({
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="gap-2 h-11"
+                  className="gap-1.5 sm:gap-2 h-10 sm:h-11 px-2 sm:px-3"
                 >
                   <Columns className="h-4 w-4" />
                   <span>עמודות</span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80" align="end" dir="rtl">
+              <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm" align="end" dir="rtl">
                 {getColumnSettingsComponent()}
               </PopoverContent>
             </Popover>
@@ -371,7 +371,7 @@ export const TableActionHeader = ({
           {addButtonLabel && onAddClick && (
             <Button
               onClick={onAddClick}
-              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-2 flex-shrink-0"
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
               size="sm"
             >
               <Plus className="h-4 w-4" />
