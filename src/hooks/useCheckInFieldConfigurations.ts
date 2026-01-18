@@ -13,6 +13,7 @@ export interface CheckInFieldConfig {
   unit: string;
   section: 'body' | 'activity' | 'nutrition' | 'wellness';
   id?: string; // For dynamic fields
+  order?: number; // Order within the section for drag-and-drop
 }
 
 export interface CheckInSectionConfig {
@@ -39,24 +40,24 @@ export const DEFAULT_CHECK_IN_CONFIG: CheckInFieldConfiguration = {
     wellness: { visible: true, label: 'בריאות' },
   },
   fields: {
-    weight: { visible: true, label: 'משקל', unit: 'ק״ג', section: 'body' },
-    bellyCircumference: { visible: true, label: 'היקף בטן', unit: 'ס״מ', section: 'body' },
-    waistCircumference: { visible: true, label: 'היקף מותן', unit: 'ס״מ', section: 'body' },
-    thighCircumference: { visible: true, label: 'היקף ירכיים', unit: 'ס״מ', section: 'body' },
-    armCircumference: { visible: true, label: 'היקף יד', unit: 'ס״מ', section: 'body' },
-    neckCircumference: { visible: true, label: 'היקף צוואר', unit: 'ס״מ', section: 'body' },
-    stepsActual: { visible: true, label: 'מס\' צעדים יומי', unit: 'צעדים', section: 'activity' },
-    exercisesCount: { visible: true, label: 'כמה תרגילים עשית', unit: 'תרגילים', section: 'activity' },
-    cardioAmount: { visible: true, label: 'כמה אירובי עשית', unit: 'דקות', section: 'activity' },
-    intervalsCount: { visible: true, label: 'כמה אינטרוולים', unit: 'אינטרוולים', section: 'activity' },
-    caloriesDaily: { visible: true, label: 'קלוריות יומי', unit: 'קק״ל', section: 'nutrition' },
-    proteinDaily: { visible: true, label: 'חלבון יומי', unit: 'גרם', section: 'nutrition' },
-    fiberDaily: { visible: true, label: 'סיבים יומי', unit: 'גרם', section: 'nutrition' },
-    waterAmount: { visible: true, label: 'כמה מים שתית', unit: 'ליטר', section: 'nutrition' },
-    stressLevel: { visible: true, label: 'רמת הלחץ היומי', unit: '1-10', section: 'wellness' },
-    hungerLevel: { visible: true, label: 'רמת הרעב שלך', unit: '1-10', section: 'wellness' },
-    energyLevel: { visible: true, label: 'רמת האנרגיה שלך', unit: '1-10', section: 'wellness' },
-    sleepHours: { visible: true, label: 'כמה שעות ישנת', unit: 'שעות', section: 'wellness' },
+    weight: { visible: true, label: 'משקל', unit: 'ק״ג', section: 'body', order: 0 },
+    bellyCircumference: { visible: true, label: 'היקף בטן', unit: 'ס״מ', section: 'body', order: 1 },
+    waistCircumference: { visible: true, label: 'היקף מותן', unit: 'ס״מ', section: 'body', order: 2 },
+    thighCircumference: { visible: true, label: 'היקף ירכיים', unit: 'ס״מ', section: 'body', order: 3 },
+    armCircumference: { visible: true, label: 'היקף יד', unit: 'ס״מ', section: 'body', order: 4 },
+    neckCircumference: { visible: true, label: 'היקף צוואר', unit: 'ס״מ', section: 'body', order: 5 },
+    stepsActual: { visible: true, label: 'מס\' צעדים יומי', unit: 'צעדים', section: 'activity', order: 0 },
+    exercisesCount: { visible: true, label: 'כמה תרגילים עשית', unit: 'תרגילים', section: 'activity', order: 1 },
+    cardioAmount: { visible: true, label: 'כמה אירובי עשית', unit: 'דקות', section: 'activity', order: 2 },
+    intervalsCount: { visible: true, label: 'כמה אינטרוולים', unit: 'אינטרוולים', section: 'activity', order: 3 },
+    caloriesDaily: { visible: true, label: 'קלוריות יומי', unit: 'קק״ל', section: 'nutrition', order: 0 },
+    proteinDaily: { visible: true, label: 'חלבון יומי', unit: 'גרם', section: 'nutrition', order: 1 },
+    fiberDaily: { visible: true, label: 'סיבים יומי', unit: 'גרם', section: 'nutrition', order: 2 },
+    waterAmount: { visible: true, label: 'כמה מים שתית', unit: 'ליטר', section: 'nutrition', order: 3 },
+    stressLevel: { visible: true, label: 'רמת הלחץ היומי', unit: '1-10', section: 'wellness', order: 0 },
+    hungerLevel: { visible: true, label: 'רמת הרעב שלך', unit: '1-10', section: 'wellness', order: 1 },
+    energyLevel: { visible: true, label: 'רמת האנרגיה שלך', unit: '1-10', section: 'wellness', order: 2 },
+    sleepHours: { visible: true, label: 'כמה שעות ישנת', unit: 'שעות', section: 'wellness', order: 3 },
   },
 };
 
@@ -109,15 +110,38 @@ export const useCheckInFieldConfigurations = (customerId?: string | null) => {
 
       // Merge with defaults to ensure all fields are present
       if (configData) {
+        // Merge fields, preserving order from configData or falling back to defaults
+        const mergedFields: Record<string, CheckInFieldConfig> = {};
+        
+        // Start with default fields to ensure all are present
+        Object.entries(DEFAULT_CHECK_IN_CONFIG.fields).forEach(([key, defaultField]) => {
+          const configField = configData.fields?.[key];
+          mergedFields[key] = {
+            ...defaultField,
+            ...(configField || {}),
+            // Ensure order is set (use config order if exists, otherwise default order)
+            order: configField?.order !== undefined ? configField.order : defaultField.order ?? 999,
+          };
+        });
+        
+        // Add any custom fields from configData that aren't in defaults
+        if (configData.fields) {
+          Object.entries(configData.fields).forEach(([key, field]) => {
+            if (!mergedFields[key]) {
+              mergedFields[key] = {
+                ...field,
+                order: field.order ?? 999,
+              };
+            }
+          });
+        }
+        
         const mergedConfig: CheckInFieldConfiguration = {
           sections: {
             ...DEFAULT_CHECK_IN_CONFIG.sections,
             ...configData.sections,
           },
-          fields: {
-            ...DEFAULT_CHECK_IN_CONFIG.fields,
-            ...(configData.fields || {}),
-          },
+          fields: mergedFields,
         };
         setConfiguration(mergedConfig);
       } else {

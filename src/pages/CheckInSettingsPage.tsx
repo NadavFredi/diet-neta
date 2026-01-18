@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { useCheckInFieldConfigurations, type CheckInFieldConfiguration, DEFAULT_CHECK_IN_CONFIG } from '@/hooks/useCheckInFieldConfigurations';
 import { useToast } from '@/hooks/use-toast';
-import { Scale, Activity, UtensilsCrossed, Moon, Save, Trash2, Plus } from 'lucide-react';
+import { Scale, Activity, UtensilsCrossed, Moon, Save, Trash2, Plus, GripVertical } from 'lucide-react';
 import { RTLSwitch } from '@/components/ui/RTLSwitch';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
@@ -26,6 +26,9 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Available units for fields
 const AVAILABLE_UNITS = [
@@ -45,7 +48,7 @@ const AVAILABLE_UNITS = [
 
 interface FieldRowProps {
   fieldId: string;
-  field: { visible: boolean; label: string; unit: string; section: string };
+  field: { visible: boolean; label: string; unit: string; section: string; order?: number };
   onToggle: (fieldId: string, visible: boolean) => void;
   onLabelChange: (fieldId: string, label: string) => void;
   onUnitChange: (fieldId: string, unit: string) => void;
@@ -60,14 +63,36 @@ const FieldRow: React.FC<FieldRowProps> = ({
   onUnitChange,
   onDelete,
 }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: fieldId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
-        "grid grid-cols-[40px_50px_1fr_120px] gap-2 items-center py-2 px-2 border-b border-slate-100 hover:bg-gray-50 transition-colors group",
+        "grid grid-cols-[40px_30px_50px_1fr_120px] gap-2 items-center py-2 px-2 border-b border-slate-100 hover:bg-gray-50 transition-colors group",
         "text-xs"
       )}
       dir="rtl"
     >
+      {/* Drag Handle */}
+      <div className="flex items-center justify-center cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
+        <GripVertical className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+      </div>
+
       {/* Delete Button - Left side (visual right in RTL) */}
       <div className="flex items-center justify-center">
         <Button
@@ -140,7 +165,7 @@ const FieldRow: React.FC<FieldRowProps> = ({
 interface SectionEditorProps {
   sectionKey: string;
   section: { visible: boolean; label: string };
-  fields: Record<string, { visible: boolean; label: string; unit: string; section: string; id?: string }>;
+  fields: Record<string, { visible: boolean; label: string; unit: string; section: string; id?: string; order?: number }>;
   onSectionToggle: (sectionKey: string, visible: boolean) => void;
   onSectionLabelChange: (sectionKey: string, label: string) => void;
   onFieldToggle: (fieldId: string, visible: boolean) => void;
@@ -148,6 +173,7 @@ interface SectionEditorProps {
   onFieldUnitChange: (fieldId: string, unit: string) => void;
   onFieldDelete: (fieldId: string) => void;
   onFieldAdd: (sectionKey: string) => void;
+  onFieldReorder: (sectionKey: string, fieldIds: string[]) => void;
   sectionIcon: React.ComponentType<{ className?: string }>;
 }
 
@@ -162,14 +188,45 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   onFieldUnitChange,
   onFieldDelete,
   onFieldAdd,
+  onFieldReorder,
   sectionIcon: SectionIcon,
 }) => {
   const sectionFields = useMemo(() => {
     return Object.entries(fields)
-      .filter(([_, field]) => field.section === sectionKey);
+      .filter(([_, field]) => field.section === sectionKey)
+      .sort(([_, a], [__, b]) => {
+        const orderA = a.order ?? 999;
+        const orderB = b.order ?? 999;
+        return orderA - orderB;
+      });
   }, [fields, sectionKey]);
 
   const visibleCount = sectionFields.filter(([_, f]) => f.visible).length;
+  
+  const fieldIds = useMemo(() => sectionFields.map(([fieldId]) => fieldId), [sectionFields]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before dragging starts
+      },
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = fieldIds.indexOf(active.id as string);
+      const newIndex = fieldIds.indexOf(over.id as string);
+
+      const newFieldIds = [...fieldIds];
+      const [removed] = newFieldIds.splice(oldIndex, 1);
+      newFieldIds.splice(newIndex, 0, removed);
+
+      onFieldReorder(sectionKey, newFieldIds);
+    }
+  };
 
   return (
     <Card className="border border-slate-200 bg-white shadow-sm" dir="rtl">
@@ -208,10 +265,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
         <CardContent className="pt-0 pb-2 px-3">
           {/* Table Header */}
           <div
-            className="grid grid-cols-[40px_50px_1fr_120px] gap-2 items-center py-1.5 px-2 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider"
+            className="grid grid-cols-[40px_30px_50px_1fr_120px] gap-2 items-center py-1.5 px-2 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider"
             dir="rtl"
             style={{ fontSize: '10px' }}
           >
+            <div className="text-center"></div>
             <div className="text-center"></div>
             <div className="text-center">פעיל</div>
             <div>שם השדה</div>
@@ -219,19 +277,27 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
           </div>
 
           {/* Field Rows */}
-          <div className="divide-y divide-slate-100">
-            {sectionFields.map(([fieldId, field]) => (
-              <FieldRow
-                key={fieldId}
-                fieldId={fieldId}
-                field={field}
-                onToggle={onFieldToggle}
-                onLabelChange={onFieldLabelChange}
-                onUnitChange={onFieldUnitChange}
-                onDelete={onFieldDelete}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={fieldIds} strategy={verticalListSortingStrategy}>
+              <div className="divide-y divide-slate-100">
+                {sectionFields.map(([fieldId, field]) => (
+                  <FieldRow
+                    key={fieldId}
+                    fieldId={fieldId}
+                    field={field}
+                    onToggle={onFieldToggle}
+                    onLabelChange={onFieldLabelChange}
+                    onUnitChange={onFieldUnitChange}
+                    onDelete={onFieldDelete}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
 
           {/* Add Field Button - Dashed border ghost button */}
           <div className="pt-1.5 mt-1.5 border-t border-slate-200">
@@ -360,6 +426,15 @@ export const CheckInSettingsPage: React.FC = () => {
 
   const handleFieldAdd = (sectionKey: string) => {
     const newFieldId = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Get existing fields in this section to determine next order
+    const sectionFields = Object.entries(localConfig.fields)
+      .filter(([_, field]) => field.section === sectionKey);
+    const maxOrder = Math.max(
+      ...sectionFields.map(([_, field]) => field.order ?? 0),
+      -1
+    );
+    
     setLocalConfig((prev) => ({
       ...prev,
       fields: {
@@ -370,9 +445,32 @@ export const CheckInSettingsPage: React.FC = () => {
           unit: AVAILABLE_UNITS[0],
           section: sectionKey as 'body' | 'activity' | 'nutrition' | 'wellness',
           id: newFieldId,
+          order: maxOrder + 1,
         },
       },
     }));
+    setHasChanges(true);
+  };
+
+  const handleFieldReorder = (sectionKey: string, fieldIds: string[]) => {
+    setLocalConfig((prev) => {
+      const newFields = { ...prev.fields };
+      
+      // Update order for each field based on new position
+      fieldIds.forEach((fieldId, index) => {
+        if (newFields[fieldId]) {
+          newFields[fieldId] = {
+            ...newFields[fieldId],
+            order: index,
+          };
+        }
+      });
+      
+      return {
+        ...prev,
+        fields: newFields,
+      };
+    });
     setHasChanges(true);
   };
 
@@ -466,6 +564,7 @@ export const CheckInSettingsPage: React.FC = () => {
               onFieldUnitChange={handleFieldUnitChange}
               onFieldDelete={handleFieldDelete}
               onFieldAdd={handleFieldAdd}
+              onFieldReorder={handleFieldReorder}
               sectionIcon={Scale}
             />
 
@@ -480,6 +579,7 @@ export const CheckInSettingsPage: React.FC = () => {
               onFieldUnitChange={handleFieldUnitChange}
               onFieldDelete={handleFieldDelete}
               onFieldAdd={handleFieldAdd}
+              onFieldReorder={handleFieldReorder}
               sectionIcon={Activity}
             />
 
@@ -494,6 +594,7 @@ export const CheckInSettingsPage: React.FC = () => {
               onFieldUnitChange={handleFieldUnitChange}
               onFieldDelete={handleFieldDelete}
               onFieldAdd={handleFieldAdd}
+              onFieldReorder={handleFieldReorder}
               sectionIcon={UtensilsCrossed}
             />
 
@@ -508,6 +609,7 @@ export const CheckInSettingsPage: React.FC = () => {
               onFieldUnitChange={handleFieldUnitChange}
               onFieldDelete={handleFieldDelete}
               onFieldAdd={handleFieldAdd}
+              onFieldReorder={handleFieldReorder}
               sectionIcon={Moon}
             />
           </div>

@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Activity, CalendarDays, Trash2 } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Activity, CalendarDays, Trash2, Eye, FileText, Send, Edit } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DailyActivityLog } from './DailyActivityLog';
 import { WeeklyReviewModule } from './WeeklyReviewModule';
@@ -32,6 +32,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
@@ -39,10 +49,20 @@ import { DailyCheckInDetailModal } from './dialogs/DailyCheckInDetailModal';
 import { AddWorkoutPlanDialog } from './dialogs/AddWorkoutPlanDialog';
 import { AddNutritionPlanDialog } from './dialogs/AddNutritionPlanDialog';
 import { StepsPlanDialog } from './dialogs/StepsPlanDialog';
+import { BudgetDetailsModal } from './dialogs/BudgetDetailsModal';
+import { SendBudgetModal } from './SendBudgetModal';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDeleteBudgetAssignment } from '@/hooks/useBudgets';
+import { useDeleteBudgetAssignment, useBudget } from '@/hooks/useBudgets';
+import type { Budget } from '@/store/slices/budgetSlice';
+import { useNavigate } from 'react-router-dom';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface WorkoutHistoryItem {
   id?: string;
@@ -146,9 +166,18 @@ export const LeadHistoryTabs = ({
   const [activeTab, setActiveTab] = useState('budgets');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const deleteBudgetAssignment = useDeleteBudgetAssignment();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState<BudgetAssignmentItem | null>(null);
+  const [editingAssignment, setEditingAssignment] = useState<BudgetAssignmentItem | null>(null);
+  const [editNotes, setEditNotes] = useState('');
+  const [viewingBudgetId, setViewingBudgetId] = useState<string | null>(null);
+  const [sendingBudgetId, setSendingBudgetId] = useState<string | null>(null);
+  const [customerPhone, setCustomerPhone] = useState<string | null>(null);
+  
+  // Fetch budget data when sendingBudgetId is set
+  const { data: sendingBudget } = useBudget(sendingBudgetId);
   
   // Dialog states
   const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
@@ -174,6 +203,42 @@ export const LeadHistoryTabs = ({
   const handleDeleteClick = (assignment: BudgetAssignmentItem) => {
     setAssignmentToDelete(assignment);
     setDeleteDialogOpen(true);
+  };
+
+  // Edit budget assignment (assignment-specific fields only - notes and is_active)
+  const handleEditAssignment = (assignment: BudgetAssignmentItem) => {
+    setEditingAssignment(assignment);
+    setEditNotes(assignment.notes || '');
+  };
+
+  const handleSaveAssignmentEdit = async () => {
+    if (!editingAssignment) return;
+
+    try {
+      const { error } = await supabase
+        .from('budget_assignments')
+        .update({
+          notes: editNotes || null,
+        })
+        .eq('id', editingAssignment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'הצלחה',
+        description: 'הפרטי הקצאה עודכנו בהצלחה',
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      setEditingAssignment(null);
+      setEditNotes('');
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון פרטי הקצאה',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -761,18 +826,132 @@ export const LeadHistoryTabs = ({
                         {assignment.notes || '-'}
                       </TableCell>
                       <TableCell className="py-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(assignment);
-                          }}
-                          disabled={deleteBudgetAssignment.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <TooltipProvider>
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                            {/* View Button */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Open budget details modal
+                                    setViewingBudgetId(assignment.budget_id);
+                                  }}
+                                  disabled={deleteBudgetAssignment.isPending}
+                                  className="h-7 w-7 p-0 hover:bg-blue-50 hover:text-blue-600"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>תצוגה מהירה</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {/* Export PDF Button */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Navigate to print page for this budget
+                                    navigate(`/dashboard/print/budget/${assignment.budget_id}`);
+                                  }}
+                                  disabled={deleteBudgetAssignment.isPending}
+                                  className="h-7 w-7 p-0 hover:bg-purple-50 hover:text-purple-600"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>הדפס תקציב</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {/* Send WhatsApp Button */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    // Fetch customer phone if we have customerId
+                                    if (customerId && !customerPhone) {
+                                      try {
+                                        const { data: customer } = await supabase
+                                          .from('customers')
+                                          .select('phone')
+                                          .eq('id', customerId)
+                                          .single();
+                                        if (customer?.phone) {
+                                          setCustomerPhone(customer.phone);
+                                        }
+                                      } catch (error) {
+                                        console.error('Error fetching customer phone:', error);
+                                      }
+                                    }
+                                    // Open send budget modal
+                                    setSendingBudgetId(assignment.budget_id);
+                                  }}
+                                  disabled={deleteBudgetAssignment.isPending}
+                                  className="h-7 w-7 p-0 hover:bg-green-50 hover:text-green-600"
+                                >
+                                  <Send className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>שלח תקציב</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {/* Edit Button - Edit assignment-specific fields only (affects only this lead) */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditAssignment(assignment);
+                                  }}
+                                  disabled={deleteBudgetAssignment.isPending}
+                                  className="h-7 w-7 p-0 hover:bg-blue-50"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>ערוך הערות (השפעה רק על הליד הזה)</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {/* Delete Button */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteClick(assignment);
+                                  }}
+                                  disabled={deleteBudgetAssignment.isPending}
+                                  className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>מחק הקצאה</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -982,6 +1161,74 @@ export const LeadHistoryTabs = ({
         leadId={leadId}
         initialData={editingStepsPlan}
       />
+
+      {/* Budget Details Modal */}
+      <BudgetDetailsModal
+        isOpen={!!viewingBudgetId}
+        onOpenChange={(open) => {
+          if (!open) setViewingBudgetId(null);
+        }}
+        budgetId={viewingBudgetId}
+      />
+
+      {/* Send Budget Modal */}
+      <SendBudgetModal
+        isOpen={!!sendingBudgetId && !!sendingBudget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSendingBudgetId(null);
+            setCustomerPhone(null);
+          }
+        }}
+        budget={sendingBudget}
+        phoneNumber={customerPhone}
+      />
+
+      {/* Edit Budget Assignment Dialog - Edit assignment-specific fields only */}
+      <Dialog open={!!editingAssignment} onOpenChange={(open) => {
+        if (!open) {
+          setEditingAssignment(null);
+          setEditNotes('');
+        }
+      }}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>ערוך הערות הקצאה</DialogTitle>
+            <DialogDescription>
+              שינויים כאן משפיעים רק על ההקצאה של הליד הזה, ולא על התקציב עצמו
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="assignment-notes">הערות</Label>
+              <Textarea
+                id="assignment-notes"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="הוסף הערות להקצאת התקציב..."
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingAssignment(null);
+                setEditNotes('');
+              }}
+            >
+              ביטול
+            </Button>
+            <Button
+              onClick={handleSaveAssignmentEdit}
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
+            >
+              שמור
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
