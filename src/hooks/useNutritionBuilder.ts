@@ -10,10 +10,28 @@ export interface ActivityEntry {
   minutesPerWeek: number;
 }
 
+export interface ManualOverride {
+  calories: boolean;
+  protein: boolean;
+  carbs: boolean;
+  fat: boolean;
+  fiber: boolean;
+}
+
+export interface ManualFields {
+  steps: number | null;
+  workouts: string | null;
+  supplements: string | null;
+}
+
 export interface NutritionBuilderState {
   name: string;
   description: string;
   targets: NutritionTargets;
+  // Manual override tracking - which fields have been manually edited
+  manualOverride: ManualOverride;
+  // Manual fields (steps, workouts, supplements)
+  manualFields: ManualFields;
   // Enhanced calculator inputs
   calculatorInputs: {
     weight: number;
@@ -50,8 +68,10 @@ export interface BMRResults {
 export interface NutritionBuilderActions {
   setName: (name: string) => void;
   setDescription: (description: string) => void;
-  setTarget: <K extends keyof NutritionTargets>(key: K, value: number) => void;
+  setTarget: <K extends keyof NutritionTargets>(key: K, value: number, isManual?: boolean) => void;
   setTargets: (targets: Partial<NutritionTargets>) => void;
+  setManualOverride: <K extends keyof ManualOverride>(key: K, value: boolean) => void;
+  setManualField: <K extends keyof ManualFields>(key: K, value: ManualFields[K]) => void;
   setCalculatorInput: <K extends keyof NutritionBuilderState['calculatorInputs']>(
     key: K,
     value: NutritionBuilderState['calculatorInputs'][K]
@@ -74,6 +94,8 @@ export interface NutritionBuilderActions {
       name: string;
       description: string;
       targets: NutritionTargets;
+      manual_override?: ManualOverride;
+      manual_fields?: ManualFields;
     };
     userData?: NutritionTargets;
   };
@@ -275,6 +297,32 @@ const initializeTargets = (initialData?: NutritionTemplate | { targets?: Nutriti
   };
 };
 
+const initializeManualOverride = (initialData?: NutritionTemplate | { manual_override?: ManualOverride }): ManualOverride => {
+  if (initialData && 'manual_override' in initialData && initialData.manual_override) {
+    return initialData.manual_override;
+  }
+  
+  return {
+    calories: false,
+    protein: false,
+    carbs: false,
+    fat: false,
+    fiber: false,
+  };
+};
+
+const initializeManualFields = (initialData?: NutritionTemplate | { manual_fields?: ManualFields }): ManualFields => {
+  if (initialData && 'manual_fields' in initialData && initialData.manual_fields) {
+    return initialData.manual_fields;
+  }
+  
+  return {
+    steps: null,
+    workouts: null,
+    supplements: null,
+  };
+};
+
 export const useNutritionBuilder = (
   mode: NutritionBuilderMode,
   initialData?: NutritionTemplate | { targets?: NutritionTargets }
@@ -286,6 +334,8 @@ export const useNutritionBuilder = (
     initialData && 'description' in initialData ? initialData.description || '' : ''
   );
   const [targets, setTargetsState] = useState<NutritionTargets>(() => initializeTargets(initialData));
+  const [manualOverride, setManualOverrideState] = useState<ManualOverride>(() => initializeManualOverride(initialData as any));
+  const [manualFields, setManualFieldsState] = useState<ManualFields>(() => initializeManualFields(initialData as any));
   
   const [calculatorInputs, setCalculatorInputsState] = useState<NutritionBuilderState['calculatorInputs']>({
     weight: 70,
@@ -314,17 +364,39 @@ export const useNutritionBuilder = (
   
   const [calculatorOpen, setCalculatorOpen] = useState(true); // Open by default in diagnostic mode
 
-  const setTarget = useCallback(<K extends keyof NutritionTargets>(key: K, value: number) => {
+  const setTarget = useCallback(<K extends keyof NutritionTargets>(key: K, value: number, isManual: boolean = false) => {
     setTargetsState((prev) => ({
       ...prev,
       [key]: Math.max(0, value),
     }));
+    
+    // If manually edited, mark as manually overridden
+    if (isManual) {
+      setManualOverrideState((prev) => ({
+        ...prev,
+        [key]: true,
+      }));
+    }
   }, []);
 
   const setTargets = useCallback((newTargets: Partial<NutritionTargets>) => {
     setTargetsState((prev) => ({
       ...prev,
       ...newTargets,
+    }));
+  }, []);
+
+  const setManualOverride = useCallback(<K extends keyof ManualOverride>(key: K, value: boolean) => {
+    setManualOverrideState((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  }, []);
+
+  const setManualField = useCallback(<K extends keyof ManualFields>(key: K, value: ManualFields[K]) => {
+    setManualFieldsState((prev) => ({
+      ...prev,
+      [key]: value,
     }));
   }, []);
 
@@ -436,8 +508,17 @@ export const useNutritionBuilder = (
 
   const applyCalculatedValues = useCallback(() => {
     const calculatedMacros = calculateMacros();
-    setTargets(calculatedMacros);
-  }, [calculateMacros, setTargets]);
+    // Only update targets that are NOT manually overridden
+    setTargetsState((prev) => {
+      const updated = { ...prev };
+      if (!manualOverride.calories) updated.calories = calculatedMacros.calories;
+      if (!manualOverride.protein) updated.protein = calculatedMacros.protein;
+      if (!manualOverride.carbs) updated.carbs = calculatedMacros.carbs;
+      if (!manualOverride.fat) updated.fat = calculatedMacros.fat;
+      if (!manualOverride.fiber) updated.fiber = calculatedMacros.fiber;
+      return updated;
+    });
+  }, [calculateMacros, manualOverride]);
 
   const getNutritionData = useCallback((mode: NutritionBuilderMode) => {
     if (mode === 'template') {
@@ -446,6 +527,8 @@ export const useNutritionBuilder = (
           name,
           description,
           targets,
+          manual_override: manualOverride,
+          manual_fields: manualFields,
         },
       };
     } else {
@@ -453,12 +536,24 @@ export const useNutritionBuilder = (
         userData: targets,
       };
     }
-  }, [name, description, targets]);
+  }, [name, description, targets, manualOverride, manualFields]);
 
   const reset = useCallback(() => {
     setName('');
     setDescription('');
     setTargetsState(initializeTargets());
+    setManualOverrideState({
+      calories: false,
+      protein: false,
+      carbs: false,
+      fat: false,
+      fiber: false,
+    });
+    setManualFieldsState({
+      steps: null,
+      workouts: null,
+      supplements: null,
+    });
     setCalculatorInputsState({
       weight: 70,
       height: 170,
@@ -507,6 +602,8 @@ export const useNutritionBuilder = (
     name,
     description,
     targets,
+    manualOverride,
+    manualFields,
     calculatorInputs,
     activityEntries,
     calculatorOpen,
@@ -514,6 +611,8 @@ export const useNutritionBuilder = (
     setDescription,
     setTarget,
     setTargets,
+    setManualOverride,
+    setManualField,
     setCalculatorInput,
     setCalculatorOpen,
     addActivityEntry,

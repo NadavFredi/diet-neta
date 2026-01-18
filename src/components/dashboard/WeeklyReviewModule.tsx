@@ -442,52 +442,88 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
         lastSavedWeekRef.current = currentWeekKey;
         return updated;
       } else {
-        // Use upsert to handle conflicts (e.g., if review was created between query and insert)
-        const { data: created, error } = await supabase
+        // Check if a review already exists for this week (to handle race conditions)
+        let existingCheckQuery = supabase
           .from('weekly_reviews')
-          .upsert(reviewData, {
-            onConflict: 'week_start_date,lead_id,customer_id',
-            ignoreDuplicates: false,
-          })
-          .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-          .single();
-        if (error) {
-          // If conflict (409), try to fetch and update the existing review
-          if (error.code === '23505' || error.code === '409' || error.message?.includes('conflict')) {
-            let conflictQuery = supabase
-              .from('weekly_reviews')
-              .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-              .eq('week_start_date', reviewData.week_start_date);
-            
-            if (leadId) {
-              conflictQuery = conflictQuery.eq('lead_id', leadId);
-            } else if (customerId) {
-              conflictQuery = conflictQuery.eq('customer_id', customerId);
-            }
-            
-            const { data: conflictReview } = await conflictQuery.maybeSingle();
-            if (conflictReview) {
-              // Update the existing review instead
-              const { data: updated, error: updateError } = await supabase
-                .from('weekly_reviews')
-                .update(reviewData)
-                .eq('id', conflictReview.id)
-                .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-                .single();
-              if (updateError) throw updateError;
-              lastSavedWeekRef.current = currentWeekKey;
-              return updated;
-            }
-          }
-          throw error;
+          .select('id')
+          .eq('week_start_date', reviewData.week_start_date);
+        
+        if (leadId) {
+          existingCheckQuery = existingCheckQuery.eq('lead_id', leadId);
+        } else if (customerId) {
+          existingCheckQuery = existingCheckQuery.eq('customer_id', customerId);
         }
-        lastSavedWeekRef.current = currentWeekKey;
-        return created;
+        
+        const { data: existingCheck, error: checkError } = await existingCheckQuery.maybeSingle();
+        if (checkError && checkError.code !== 'PGRST116') throw checkError;
+        
+        if (existingCheck) {
+          // Update existing review
+          const { data: updated, error: updateError } = await supabase
+            .from('weekly_reviews')
+            .update(reviewData)
+            .eq('id', existingCheck.id)
+            .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+            .single();
+          if (updateError) throw updateError;
+          lastSavedWeekRef.current = currentWeekKey;
+          return updated;
+        } else {
+          // Insert new review
+          const { data: created, error: insertError } = await supabase
+            .from('weekly_reviews')
+            .insert(reviewData)
+            .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+            .single();
+          if (insertError) {
+            // If unique constraint violation, try to fetch and update
+            if (insertError.code === '23505') {
+              let conflictQuery = supabase
+                .from('weekly_reviews')
+                .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+                .eq('week_start_date', reviewData.week_start_date);
+              
+              if (leadId) {
+                conflictQuery = conflictQuery.eq('lead_id', leadId);
+              } else if (customerId) {
+                conflictQuery = conflictQuery.eq('customer_id', customerId);
+              }
+              
+              const { data: conflictReview } = await conflictQuery.maybeSingle();
+              if (conflictReview) {
+                // Update the existing review instead
+                const { data: updated, error: updateError } = await supabase
+                  .from('weekly_reviews')
+                  .update(reviewData)
+                  .eq('id', conflictReview.id)
+                  .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+                  .single();
+                if (updateError) throw updateError;
+                lastSavedWeekRef.current = currentWeekKey;
+                return updated;
+              }
+            }
+            throw insertError;
+          }
+          lastSavedWeekRef.current = currentWeekKey;
+          return created;
+        }
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['weekly-review'] });
-      queryClient.invalidateQueries({ queryKey: ['weekly-reviews'] });
+      // Invalidate all weekly review related queries to ensure lists update immediately
+      // This ensures any component displaying weekly reviews will refresh automatically
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && (
+            key === 'weekly-review' ||
+            key === 'weekly-reviews' ||
+            key === 'weekly-reviews-list' ||
+            key === 'weekly-reviews-client'
+          );
+        }
+      });
       
       // Only show toast if we haven't shown one for this save operation
       if (!hasShownSuccessToast.current) {

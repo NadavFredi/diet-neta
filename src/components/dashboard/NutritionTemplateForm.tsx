@@ -44,6 +44,11 @@ import {
   Trash2,
   Activity,
   BarChart3,
+  Lock,
+  Unlock,
+  Footprints,
+  Dumbbell,
+  Pill,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { NutritionTemplate } from '@/hooks/useNutritionTemplates';
@@ -91,12 +96,16 @@ export const NutritionTemplateForm = ({
     name,
     description,
     targets,
+    manualOverride,
+    manualFields,
     calculatorInputs,
     activityEntries,
     calculatorOpen,
     setName,
     setDescription,
     setTarget,
+    setManualOverride,
+    setManualField,
     setCalculatorInput,
     setCalculatorOpen,
     addActivityEntry,
@@ -115,15 +124,21 @@ export const NutritionTemplateForm = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Auto-apply calculated values when inputs change
+  // Auto-apply calculated values when inputs change (only if not manually overridden)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (calculatorInputs.weight > 0 && calculatorInputs.height > 0 && calculatorInputs.age > 0) {
-        applyCalculatedValues();
-      }
-    }, AUTO_APPLY_THRESHOLD);
+    // Only auto-apply if at least one field is not manually overridden
+    const hasAutoFields = !manualOverride.calories || !manualOverride.protein || 
+                         !manualOverride.carbs || !manualOverride.fat || !manualOverride.fiber;
+    
+    if (hasAutoFields) {
+      const timer = setTimeout(() => {
+        if (calculatorInputs.weight > 0 && calculatorInputs.height > 0 && calculatorInputs.age > 0) {
+          applyCalculatedValues();
+        }
+      }, AUTO_APPLY_THRESHOLD);
 
-    return () => clearTimeout(timer);
+      return () => clearTimeout(timer);
+    }
   }, [
     calculatorInputs.weight,
     calculatorInputs.height,
@@ -131,11 +146,14 @@ export const NutritionTemplateForm = ({
     calculatorInputs.gender,
     calculatorInputs.pal,
     calculatorInputs.caloricDeficitPercent,
+    calculatorInputs.caloricDeficitCalories,
+    calculatorInputs.caloricDeficitMode,
     calculatorInputs.proteinPerKg,
     calculatorInputs.fatPerKg,
     calculatorInputs.carbsPerKg,
     activityEntries,
     applyCalculatedValues,
+    manualOverride,
   ]);
 
   // Calculate derived metrics
@@ -264,6 +282,8 @@ export const NutritionTemplateForm = ({
     onChange,
     unit,
     color,
+    isManual,
+    onLockToggle,
   }: {
     label: string;
     icon: React.ComponentType<{ className?: string }>;
@@ -271,14 +291,43 @@ export const NutritionTemplateForm = ({
     onChange: (value: number) => void;
     unit: string;
     color: string;
+    isManual?: boolean;
+    onLockToggle?: () => void;
   }) => (
-    <Card className="border border-slate-200 hover:border-opacity-80 transition-colors rounded-2xl shadow-sm flex flex-col" style={{ borderColor: color }}>
+    <Card className={cn(
+      "border border-slate-200 hover:border-opacity-80 transition-colors rounded-2xl shadow-sm flex flex-col",
+      isManual && "ring-2 ring-amber-400/50"
+    )} style={{ borderColor: color }}>
       <CardHeader className="pb-1.5 pt-2 px-2.5 flex-shrink-0">
-        <div className="flex items-center gap-1.5">
-          <div className="p-0.5 rounded" style={{ backgroundColor: `${color}15` }}>
-            <Icon className="h-3 w-3" style={{ color }} />
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5 flex-1">
+            <div className="p-0.5 rounded" style={{ backgroundColor: `${color}15` }}>
+              <Icon className="h-3 w-3" style={{ color }} />
+            </div>
+            <CardTitle className="text-base font-semibold">{label}</CardTitle>
           </div>
-          <CardTitle className="text-base font-semibold">{label}</CardTitle>
+          {onLockToggle && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onLockToggle}
+                  className="h-6 w-6 p-0"
+                >
+                  {isManual ? (
+                    <Lock className="h-3 w-3 text-amber-600" />
+                  ) : (
+                    <Unlock className="h-3 w-3 text-muted-foreground" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                {isManual ? 'נלחץ ידנית - לחץ לשחרור' : 'חישוב אוטומטי - לחץ לנעילה'}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </CardHeader>
       <CardContent className="px-2.5 pb-2.5 pt-0 flex-1 flex items-center">
@@ -796,41 +845,51 @@ export const NutritionTemplateForm = ({
                       label="קלוריות"
                       icon={Flame}
                       value={targets.calories}
-                      onChange={(val) => setTarget('calories', val)}
+                      onChange={(val) => setTarget('calories', val, true)}
                       unit="קק״ל"
                       color={MACRO_COLORS.calories}
+                      isManual={manualOverride.calories}
+                      onLockToggle={() => setManualOverride('calories', !manualOverride.calories)}
                     />
                     <MacroInputCard
                       label="חלבון"
                       icon={Beef}
                       value={targets.protein}
-                      onChange={(val) => setTarget('protein', val)}
+                      onChange={(val) => setTarget('protein', val, true)}
                       unit="גרם"
                       color={MACRO_COLORS.protein}
+                      isManual={manualOverride.protein}
+                      onLockToggle={() => setManualOverride('protein', !manualOverride.protein)}
                     />
                     <MacroInputCard
                       label="פחמימות"
                       icon={Wheat}
                       value={targets.carbs}
-                      onChange={(val) => setTarget('carbs', val)}
+                      onChange={(val) => setTarget('carbs', val, true)}
                       unit="גרם"
                       color={MACRO_COLORS.carbs}
+                      isManual={manualOverride.carbs}
+                      onLockToggle={() => setManualOverride('carbs', !manualOverride.carbs)}
                     />
                     <MacroInputCard
                       label="שומן"
                       icon={Droplets}
                       value={targets.fat}
-                      onChange={(val) => setTarget('fat', val)}
+                      onChange={(val) => setTarget('fat', val, true)}
                       unit="גרם"
                       color={MACRO_COLORS.fat}
+                      isManual={manualOverride.fat}
+                      onLockToggle={() => setManualOverride('fat', !manualOverride.fat)}
                     />
                     <MacroInputCard
                       label="סיבים"
                       icon={Leaf}
                       value={targets.fiber}
-                      onChange={(val) => setTarget('fiber', val)}
+                      onChange={(val) => setTarget('fiber', val, true)}
                       unit="גרם"
                       color={MACRO_COLORS.fiber}
+                      isManual={manualOverride.fiber}
+                      onLockToggle={() => setManualOverride('fiber', !manualOverride.fiber)}
                     />
                   </div>
                 </CardContent>

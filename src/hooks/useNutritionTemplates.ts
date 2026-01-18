@@ -10,11 +10,27 @@ export interface NutritionTargets {
   fiber: number;
 }
 
+export interface ManualOverride {
+  calories?: boolean;
+  protein?: boolean;
+  carbs?: boolean;
+  fat?: boolean;
+  fiber?: boolean;
+}
+
+export interface ManualFields {
+  steps?: number | null;
+  workouts?: string | null;
+  supplements?: string | null;
+}
+
 export interface NutritionTemplate {
   id: string;
   name: string;
   description: string | null;
   targets: NutritionTargets;
+  manual_override?: ManualOverride;
+  manual_fields?: ManualFields;
   is_public: boolean;
   created_at: string;
   updated_at: string;
@@ -105,11 +121,15 @@ export const useCreateNutritionTemplate = () => {
       name,
       description,
       targets,
+      manual_override,
+      manual_fields,
       is_public = false,
     }: {
       name: string;
       description?: string;
       targets: NutritionTargets;
+      manual_override?: ManualOverride;
+      manual_fields?: ManualFields;
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -122,6 +142,8 @@ export const useCreateNutritionTemplate = () => {
           name,
           description: description || null,
           targets,
+          manual_override: manual_override || {},
+          manual_fields: manual_fields || {},
           is_public,
           created_by: userId,
         })
@@ -154,12 +176,16 @@ export const useUpdateNutritionTemplate = () => {
       name,
       description,
       targets,
+      manual_override,
+      manual_fields,
       is_public,
     }: {
       templateId: string;
       name?: string;
       description?: string;
       targets?: NutritionTargets;
+      manual_override?: ManualOverride;
+      manual_fields?: ManualFields;
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -170,6 +196,8 @@ export const useUpdateNutritionTemplate = () => {
       if (name !== undefined) updateData.name = name;
       if (description !== undefined) updateData.description = description || null;
       if (targets !== undefined) updateData.targets = targets;
+      if (manual_override !== undefined) updateData.manual_override = manual_override;
+      if (manual_fields !== undefined) updateData.manual_fields = manual_fields;
       if (is_public !== undefined) updateData.is_public = is_public;
 
       const { data, error } = await supabase
