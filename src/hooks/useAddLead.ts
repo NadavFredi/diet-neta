@@ -337,13 +337,26 @@ export const useAddLead = () => {
         description: 'הליד נוסף בהצלחה',
       });
 
-      // Invalidate customer query
+      console.log('[useAddLead] Lead created successfully, invalidating queries...');
+      console.log('[useAddLead] New lead ID:', newLead.id);
+      console.log('[useAddLead] Customer ID:', customerId);
+
+      // Invalidate customer and leads queries to refresh cache
+      console.log('[useAddLead] Invalidating customer query...');
       await queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+      console.log('[useAddLead] Invalidating customers query (all customers)...');
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      console.log('[useAddLead] Invalidating leads query...');
+      await queryClient.invalidateQueries({ queryKey: ['leads'] });
+      console.log('[useAddLead] Invalidating filtered-leads query...');
+      await queryClient.invalidateQueries({ queryKey: ['filtered-leads'] });
+      console.log('[useAddLead] All queries invalidated successfully');
       
       // Note: Leads list refresh is handled by parent component via onLeadCreated callback
 
       // Reset form (dialog will be closed by parent component)
       resetForm();
+      console.log('[useAddLead] Form reset, returning success');
       return true;
     } catch (err: any) {
       console.error('Unexpected error adding lead:', err);

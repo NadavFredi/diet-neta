@@ -15,10 +15,10 @@ const loadSidebarState = (): Partial<SidebarState> => {
         isCollapsed: parsed.isCollapsed ?? false,
         expandedSections: parsed.expandedSections ?? {
           leads: true,
-          customers: true,
-          templates: true,
-          nutrition_templates: true,
-          meetings: true,
+          customers: false,
+          templates: false,
+          nutrition_templates: false,
+          meetings: false,
         },
       };
     }
@@ -32,10 +32,10 @@ const initialState: SidebarState = {
   isCollapsed: false,
   expandedSections: {
     leads: true,
-    customers: true,
-    templates: true,
-    nutrition_templates: true,
-    meetings: true,
+    customers: false,
+    templates: false,
+    nutrition_templates: false,
+    meetings: false,
   },
   ...loadSidebarState(),
 };
@@ -78,9 +78,18 @@ const sidebarSlice = createSlice({
     },
     toggleSection: (state, action: PayloadAction<string>) => {
       const resourceKey = action.payload;
-      if (state.expandedSections[resourceKey] !== undefined) {
-        state.expandedSections[resourceKey] = !state.expandedSections[resourceKey];
+      const isCurrentlyExpanded = state.expandedSections[resourceKey] ?? false;
+      
+      if (isCurrentlyExpanded) {
+        // If already expanded, collapse it
+        state.expandedSections[resourceKey] = false;
       } else {
+        // If collapsed, expand it and collapse all others
+        // First, collapse all sections
+        Object.keys(state.expandedSections).forEach((key) => {
+          state.expandedSections[key] = false;
+        });
+        // Then expand the clicked section
         state.expandedSections[resourceKey] = true;
       }
       saveSidebarState(state);

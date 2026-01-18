@@ -758,7 +758,7 @@ serve(async (req) => {
     let submissionType: string | null = null;
     
     // First, check if this is a meeting form (by form ID or form name) - this must override form_name
-    const normalizedFormId = formId ? String(formId).trim().toLowerCase() : '';
+    // Use normalizedFormId that was already declared above (reuse existing variable)
     if (normalizedFormId === normalizedOpenMeetingFormId || isOpenMeetingForm) {
       // This is definitely an open-meeting form, so set submissionType to 'meeting' to ensure meetings table gets updated
       submissionType = 'meeting';

@@ -125,6 +125,7 @@ export const useDashboardLogic = () => {
   // PostgreSQL does all the heavy lifting
   // =====================================================
   const refreshLeads = useCallback(async () => {
+    console.log('[useDashboardLogic] refreshLeads called');
     setIsRefreshing(true);
     dispatch(setLoading(true));
     dispatch(setError(null));
@@ -176,10 +177,11 @@ export const useDashboardLogic = () => {
         }),
       ]);
 
-      console.log(`useDashboardLogic: Received ${dbLeads.length} leads from service (total: ${totalCount})`);
+      console.log(`[useDashboardLogic] Received ${dbLeads.length} leads from service (total: ${totalCount})`);
 
       // Update total count in Redux
       dispatch(setTotalLeads(totalCount));
+      console.log('[useDashboardLogic] Total leads count updated in Redux:', totalCount);
 
       // Transform to UI format (minimal - most work done in PostgreSQL)
       const uiLeads: Lead[] = dbLeads.map((lead, index) => {
@@ -223,9 +225,12 @@ export const useDashboardLogic = () => {
       console.log(`useDashboardLogic: Transformed to ${uiLeads.length} UI leads`);
 
       // Update Redux with fetched leads (source of truth)
-      console.log(`useDashboardLogic: Dispatching ${uiLeads.length} leads to Redux`);
+      console.log(`[useDashboardLogic] Dispatching ${uiLeads.length} leads to Redux`);
+      console.log(`[useDashboardLogic] First lead ID:`, uiLeads[0]?.id);
+      console.log(`[useDashboardLogic] Last lead ID:`, uiLeads[uiLeads.length - 1]?.id);
       dispatch(setLeads(uiLeads));
       dispatch(setLoading(false));
+      console.log(`[useDashboardLogic] Leads updated in Redux successfully, refreshLeads completed`);
     } catch (err: any) {
       console.error('Error fetching leads:', err);
       dispatch(setError(err.message || 'Failed to fetch leads'));

@@ -115,6 +115,23 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
       
       // Extract scheduling data (same logic as MeetingDetailView)
       const extractSchedulingData = () => {
+        // First, check for direct event_start_time and event_end_time fields (from form n5VwsjFk5ous)
+        if (meetingData.event_start_time || meetingData.event_end_time) {
+          return {
+            eventStartTime: meetingData.event_start_time,
+            eventEndTime: meetingData.event_end_time,
+          };
+        }
+
+        // Also try camelCase variants
+        if (meetingData.eventStartTime || meetingData.eventEndTime) {
+          return {
+            eventStartTime: meetingData.eventStartTime,
+            eventEndTime: meetingData.eventEndTime,
+          };
+        }
+
+        // Fall back to scheduling array format
         if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
           const scheduling = meetingData.scheduling[0];
           if (scheduling.value) {
@@ -125,6 +142,7 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
           }
         }
 
+        // Try dot-notation keys
         const eventStartTimeKey = 'scheduling[0].value.eventStartTime';
         const eventEndTimeKey = 'scheduling[0].value.eventEndTime';
         
