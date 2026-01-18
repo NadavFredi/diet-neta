@@ -131,8 +131,32 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
     setIsCreateDialogOpen(true);
   };
 
+  const handleDialogClose = () => {
+    setIsCreateDialogOpen(false);
+    setEditingReview(null);
+  };
+
   return (
     <div className="flex flex-col h-full" dir="rtl">
+      {/* Edit Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={handleDialogClose}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingReview ? 'עריכת דיווח שבועי' : 'דיווח שבועי חדש'}
+            </DialogTitle>
+          </DialogHeader>
+          <WeeklyReviewModule
+            leadId={leadId}
+            customerId={customerId}
+            customerPhone={customerPhone}
+            customerName={customerName}
+            initialWeekStart={editingReview?.week_start_date}
+            onSave={handleCreateSuccess}
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* List of Weekly Reviews */}
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
