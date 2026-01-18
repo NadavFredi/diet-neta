@@ -76,9 +76,16 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   const dispatch = useAppDispatch();
   const templates = useAppSelector((state) => state.automation.templates);
 
-  // Fetch WhatsApp templates on mount
+  // Fetch WhatsApp templates on mount and periodically to catch updates
   useEffect(() => {
     dispatch(fetchTemplates());
+    
+    // Refetch templates periodically to catch updates from automation page
+    const intervalId = setInterval(() => {
+      dispatch(fetchTemplates());
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(intervalId);
   }, [dispatch]);
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
     // Use initialWeekStart if provided, otherwise default to start of current week (Sunday)

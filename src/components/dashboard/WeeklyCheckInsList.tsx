@@ -140,7 +140,7 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
     <div className="flex flex-col h-full" dir="rtl">
       {/* Edit Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={handleDialogClose}>
-        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="max-w-[95vw] sm:!max-w-[95vw] md:!max-w-[90vw] lg:!max-w-[85vw] max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle>
               {editingReview ? 'עריכת דיווח שבועי' : 'דיווח שבועי חדש'}

@@ -133,12 +133,27 @@ export const useWhatsAppAutomationsPage = () => {
 
   // Convert flows to WhatsAppAutomation format for table
   const automations: WhatsAppAutomation[] = useMemo(() => {
-    return allFlows.map(flow => ({
-      key: flow.key,
-      label: flow.label,
-      hasTemplate: !!(templates[flow.key]?.template_content?.trim()),
-      isAutoTrigger: flow.key === 'intro_questionnaire',
-    }));
+    return allFlows.map(flow => {
+      const template = templates[flow.key];
+      const hasContent = !!(template?.template_content?.trim());
+      
+      // Debug logging for missing templates
+      if (!hasContent && (flow.key === 'budget' || flow.key === 'weekly_review')) {
+        console.log(`[WhatsAppAutomationsPage] Template ${flow.key} status:`, {
+          exists: !!template,
+          hasContent,
+          contentLength: template?.template_content?.length || 0,
+          contentPreview: template?.template_content?.substring(0, 50) || 'empty'
+        });
+      }
+      
+      return {
+        key: flow.key,
+        label: flow.label,
+        hasTemplate: hasContent,
+        isAutoTrigger: flow.key === 'intro_questionnaire',
+      };
+    });
   }, [allFlows, templates]);
 
   // Fetch templates on mount and migrate from localStorage if needed
@@ -154,28 +169,47 @@ export const useWhatsAppAutomationsPage = () => {
           'payment_request': localStorage.getItem('paymentMessageTemplate') || '',
           'budget': localStorage.getItem('budgetMessageTemplate') || '',
           'trainee_user_credentials': localStorage.getItem('traineeUserMessageTemplate') || '',
+          'weekly_review': localStorage.getItem('weeklyReviewMessageTemplate') || '',
         };
 
+        let hasMigrations = false;
         for (const [flowKey, templateContent] of Object.entries(localStorageTemplates)) {
-          if (templateContent && !dbTemplates[flowKey]?.template_content) {
-            // Template exists in localStorage but not in database - migrate it
-            try {
-              await dispatch(saveTemplate({ 
-                flowKey, 
-                templateContent,
-                buttons: [],
-                media: null
-              })).unwrap();
-              console.log(`[WhatsAppAutomationsPage] Migrated template from localStorage: ${flowKey}`);
-            } catch (error) {
-              console.error(`[WhatsAppAutomationsPage] Error migrating template ${flowKey}:`, error);
+          // Check if template exists in localStorage and either doesn't exist in DB or is empty in DB
+          if (templateContent && templateContent.trim()) {
+            const dbTemplate = dbTemplates[flowKey]?.template_content;
+            if (!dbTemplate || !dbTemplate.trim()) {
+              // Template exists in localStorage but not in database or is empty - migrate it
+              try {
+                await dispatch(saveTemplate({ 
+                  flowKey, 
+                  templateContent,
+                  buttons: [],
+                  media: null
+                })).unwrap();
+                console.log(`[WhatsAppAutomationsPage] Migrated template from localStorage: ${flowKey}`);
+                hasMigrations = true;
+              } catch (error) {
+                console.error(`[WhatsAppAutomationsPage] Error migrating template ${flowKey}:`, error);
+              }
             }
           }
+        }
+        
+        // Refetch templates after migration to ensure sync
+        if (hasMigrations) {
+          await dispatch(fetchTemplates());
         }
       }
     };
 
     migrateAndFetch();
+    
+    // Also set up interval to refetch templates periodically (every 30 seconds) to catch updates from other components
+    const intervalId = setInterval(() => {
+      dispatch(fetchTemplates());
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(intervalId);
   }, [dispatch]);
 
   const generateFlowKey = (label: string): string => {
@@ -209,6 +243,7 @@ export const useWhatsAppAutomationsPage = () => {
         'payment_request': 'paymentMessageTemplate',
         'budget': 'budgetMessageTemplate',
         'trainee_user_credentials': 'traineeUserMessageTemplate',
+        'weekly_review': 'weeklyReviewMessageTemplate',
       };
       
       const localStorageKey = localStorageMap[flowKey];
@@ -349,6 +384,7 @@ export const useWhatsAppAutomationsPage = () => {
       'payment_request': 'paymentMessageTemplate',
       'budget': 'budgetMessageTemplate',
       'trainee_user_credentials': 'traineeUserMessageTemplate',
+      'weekly_review': 'weeklyReviewMessageTemplate',
     };
     
     const localStorageKey = localStorageMap[flowKey];

@@ -89,7 +89,7 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
       const result = await dispatch(fetchTemplates());
       if (result.type === 'automation/fetchTemplates/fulfilled') {
         const dbTemplate = result.payload['budget']?.template_content;
-        if (dbTemplate) {
+        if (dbTemplate && dbTemplate.trim()) {
           setTemplate(dbTemplate);
           localStorage.setItem('budgetMessageTemplate', dbTemplate);
           return;
@@ -98,13 +98,34 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
       
       // Fallback to localStorage
       const savedTemplate = localStorage.getItem('budgetMessageTemplate');
-      if (savedTemplate) {
+      if (savedTemplate && savedTemplate.trim()) {
         setTemplate(savedTemplate);
+        // If template exists in localStorage but not in DB, migrate it
+        const result = await dispatch(fetchTemplates());
+        if (result.type === 'automation/fetchTemplates/fulfilled') {
+          const dbTemplate = result.payload['budget']?.template_content;
+          if (!dbTemplate || !dbTemplate.trim()) {
+            // Migrate from localStorage to database
+            try {
+              await dispatch(saveTemplate({ 
+                flowKey: 'budget', 
+                templateContent: savedTemplate,
+                buttons: [],
+                media: null
+              })).unwrap();
+              console.log('[SendBudgetModal] Migrated budget template from localStorage to database');
+            } catch (error) {
+              console.error('[SendBudgetModal] Error migrating template:', error);
+            }
+          }
+        }
       }
     };
     
-    loadTemplate();
-  }, [dispatch]);
+    if (isOpen) {
+      loadTemplate();
+    }
+  }, [dispatch, isOpen]);
 
   // Fetch customer info if budget has assignments
   useEffect(() => {
@@ -220,6 +241,9 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
         buttons: buttons || [],
         media: media || null
       })).unwrap();
+      
+      // Refetch templates to ensure sync across all components
+      await dispatch(fetchTemplates());
       
       // Save to local state and localStorage for backward compatibility
       setTemplate(newTemplate);
