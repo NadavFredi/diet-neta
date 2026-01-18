@@ -378,7 +378,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
       </div>
 
       {/* Right Side (RTL): Action Bar - WhatsApp + Divider + Utility Buttons */}
-      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0">
         {/* WhatsApp Button - External Communication */}
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
@@ -386,9 +386,9 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
               size="icon"
               onClick={onWhatsApp}
               variant="outline"
-              className="h-8 w-8 sm:h-9 sm:w-9 bg-white hover:bg-[#25D366] hover:text-white text-[#25D366] border border-gray-200 hover:border-[#25D366] rounded-lg transition-colors flex-shrink-0"
+              className="h-8 w-8 bg-white hover:bg-[#25D366] hover:text-white text-[#25D366] border border-gray-200 hover:border-[#25D366] rounded-lg transition-colors flex-shrink-0"
             >
-              <WhatsAppIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <WhatsAppIcon className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="center" dir="rtl">
@@ -396,7 +396,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </TooltipContent>
         </Tooltip>
 
-        {/* Payments Button */}
+        {/* Payments Button - Hidden on very small screens */}
         {customer && onPaymentHistoryClick && (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
@@ -404,9 +404,9 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 size="icon"
                 onClick={onPaymentHistoryClick}
                 variant="outline"
-                className="h-8 w-8 sm:h-9 sm:w-9 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors flex-shrink-0"
+                className="hidden sm:flex h-8 w-8 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors flex-shrink-0"
               >
-                <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
+                <CreditCard className="h-4 w-4" strokeWidth={2.5} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" align="center" dir="rtl">
@@ -415,7 +415,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </Tooltip>
         )}
 
-        {/* Trainee Settings Button - Only show if user has a trainee account */}
+        {/* Trainee Settings Button - Hidden on mobile */}
         {customer && customer.user_id && (user?.role === 'admin' || user?.role === 'user') && onTraineeSettingsClick && (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
@@ -423,9 +423,9 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 size="icon"
                 onClick={onTraineeSettingsClick}
                 variant="outline"
-                className="h-8 w-8 sm:h-9 sm:w-9 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors flex-shrink-0"
+                className="hidden md:flex h-8 w-8 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors flex-shrink-0"
               >
-                <Settings className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
+                <Settings className="h-4 w-4" strokeWidth={2.5} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" align="center" dir="rtl">
@@ -434,14 +434,11 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </Tooltip>
         )}
 
-
-
-
         {/* Utility Group: Smart Trainee Action (Create/View), History & Notes */}
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 pl-2 sm:pl-4 md:pl-8">
-          {/* Smart Trainee Action Button - Only for admins/managers */}
+        <div className="flex items-center gap-1 flex-shrink-0 pl-1 sm:pl-2 lg:pl-4">
+          {/* Smart Trainee Action Button - Hidden on mobile */}
           {(user?.role === 'admin' || user?.role === 'user') && customer && (
-            <>
+            <div className="hidden md:block">
               <SmartTraineeActionButton
                 customerId={customer.id}
                 leadId={lead?.id || null}
@@ -451,8 +448,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 customerUserId={customer.user_id || null}
                 customerInvitationUserId={customerInvitation?.user_id || null}
               />
-
-            </>
+            </div>
           )}
 
           {/* Actions Menu (3 dots) */}
@@ -463,9 +459,9 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                   <Button
                     size="icon"
                     variant="outline"
-                    className="h-8 w-8 sm:h-9 sm:w-9 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 rounded-lg transition-colors flex-shrink-0"
+                    className="h-8 w-8 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 rounded-lg transition-colors flex-shrink-0"
                   >
-                    <MoreVertical className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
+                    <MoreVertical className="h-4 w-4" strokeWidth={2.5} />
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
@@ -481,6 +477,16 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 <Plus className="h-4 w-4 flex-shrink-0" />
                 <span>צור ליד חדש ללקוח</span>
               </DropdownMenuItem>
+              {/* Mobile-only: Payment History */}
+              {customer && onPaymentHistoryClick && (
+                <DropdownMenuItem
+                  onClick={onPaymentHistoryClick}
+                  className="cursor-pointer flex items-center gap-2 flex-row-reverse sm:hidden"
+                >
+                  <CreditCard className="h-4 w-4 flex-shrink-0" />
+                  <span>היסטוריית תשלומים</span>
+                </DropdownMenuItem>
+              )}
               {traineeProfileId && traineeIsActive !== null && (
                 <>
                   <DropdownMenuSeparator />
@@ -516,22 +522,23 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Vertical Divider */}
-          <div className="h-6 w-[1.5px] bg-gray-400 hidden sm:block" />
-          {/* History Toggle Button */}
+          {/* Vertical Divider - Hidden on mobile */}
+          <div className="h-6 w-[1.5px] bg-gray-400 hidden lg:block" />
+          
+          {/* History Toggle Button - Hidden on mobile */}
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <Button
                 size="icon"
                 onClick={toggleHistory}
                 className={cn(
-                  "h-8 w-8 sm:h-9 sm:w-9 rounded-lg transition-colors flex-shrink-0",
+                  "hidden lg:flex h-8 w-8 rounded-lg transition-colors flex-shrink-0",
                   isHistoryOpen
                     ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
                     : "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                 )}
               >
-                <History className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
+                <History className="h-4 w-4" strokeWidth={2.5} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" align="center" dir="rtl">
@@ -539,26 +546,24 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
             </TooltipContent>
           </Tooltip>
 
-
-
-          {/* Notes Toggle Button */}
+          {/* Notes Toggle Button - Hidden on mobile */}
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <Button
                 size="icon"
                 onClick={toggleNotes}
                 className={cn(
-                  "h-8 w-8 sm:h-9 sm:w-9 rounded-lg transition-colors relative flex-shrink-0",
+                  "hidden lg:flex h-8 w-8 rounded-lg transition-colors relative flex-shrink-0",
                   isNotesOpen
                     ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
                     : "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                 )}
               >
-                <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
+                <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
                 {notesCount > 0 && (
                   <Badge
                     className={cn(
-                      "absolute -top-1 -right-1 h-4 sm:h-5 min-w-4 sm:min-w-5 px-1 sm:px-1.5 flex items-center justify-center text-[10px] sm:text-xs font-semibold rounded-full border-2",
+                      "absolute -top-1 -right-1 h-4 min-w-4 px-1 flex items-center justify-center text-[10px] font-semibold rounded-full border-2",
                       isNotesOpen
                         ? "bg-white text-[#5B6FB9] border-[#5B6FB9]"
                         : "bg-[#5B6FB9] text-white border-white"

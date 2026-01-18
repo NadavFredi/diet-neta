@@ -15,6 +15,24 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
+
+// Custom hook to detect if screen is desktop (lg breakpoint = 1024px)
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return isDesktop;
+};
 import {
   setSelectedStatus,
   setSelectedFitnessGoal,
@@ -34,6 +52,7 @@ const Dashboard = () => {
   const viewId = searchParams.get('view_id');
   // Removed duplicate useDefaultView and useSavedView - they're already called in useDashboardLogic
   const sidebarWidth = useSidebarWidth();
+  const isDesktop = useIsDesktop();
   const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
 
   // Safety check: Redirect trainees immediately
@@ -205,9 +224,9 @@ const Dashboard = () => {
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
         {/* Main content */}
         <main
-          className="bg-gray-50 overflow-y-auto"
+          className="bg-gray-50 overflow-y-auto transition-all duration-300"
           style={{
-            marginRight: `${sidebarWidth.width}px`,
+            marginRight: isDesktop ? `${sidebarWidth.width}px` : 0,
             minHeight: 'calc(100vh - 60px)',
           }}
         >

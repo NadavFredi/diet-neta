@@ -407,51 +407,54 @@ export const LeadHistoryTabs = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="w-full">
-        <div className="relative mb-4">
-          <TabsList className="grid w-full grid-cols-7 h-10 bg-gray-100 rounded-lg p-1">
-            <TabsTrigger 
-              value="budgets" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
-            >
-              תקציבים
-            </TabsTrigger>
-            <TabsTrigger 
-              value="workouts" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
-            >
-              יומן אימונים
-            </TabsTrigger>
-            <TabsTrigger 
-              value="steps" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
-            >
-              יומן צעדים
-            </TabsTrigger>
-            <TabsTrigger 
-              value="nutrition" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
-            >
-              תכניות תזונה
-            </TabsTrigger>
-            <TabsTrigger 
-              value="supplements" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all border-l-2 border-gray-300"
-            >
-              תכניות תוספים
-            </TabsTrigger>
-            <TabsTrigger 
-              value="daily-activity" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all"
-            >
-              יומן פעילות יומי
-            </TabsTrigger>
-            <TabsTrigger 
-              value="weekly-checkin" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all"
-            >
-              דיווח שבועי
-            </TabsTrigger>
-          </TabsList>
+        <div className="relative mb-4 -mx-3 px-3">
+          {/* Scrollable container for mobile */}
+          <div className="overflow-x-auto scrollbar-hide pb-1">
+            <TabsList className="inline-flex min-w-full lg:grid lg:grid-cols-7 h-10 bg-gray-100 rounded-lg p-1 gap-1">
+              <TabsTrigger 
+                value="budgets" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all flex-shrink-0"
+              >
+                תקציבים
+              </TabsTrigger>
+              <TabsTrigger 
+                value="workouts" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all flex-shrink-0"
+              >
+                יומן אימונים
+              </TabsTrigger>
+              <TabsTrigger 
+                value="steps" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all flex-shrink-0"
+              >
+                יומן צעדים
+              </TabsTrigger>
+              <TabsTrigger 
+                value="nutrition" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all flex-shrink-0"
+              >
+                תכניות תזונה
+              </TabsTrigger>
+              <TabsTrigger 
+                value="supplements" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all border-l-2 border-gray-300 flex-shrink-0"
+              >
+                תכניות תוספים
+              </TabsTrigger>
+              <TabsTrigger 
+                value="daily-activity" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
+              >
+                יומן פעילות
+              </TabsTrigger>
+              <TabsTrigger 
+                value="weekly-checkin" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
+              >
+                דיווח שבועי
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </div>
 
         {/* Workout History Tab */}
