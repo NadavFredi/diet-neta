@@ -4,7 +4,7 @@
  * Displays a bell icon with unread count badge and dropdown menu
  */
 
-import { Bell } from 'lucide-react';
+import { Bell, X, Filter, Trash2, RefreshCw, Calendar, FileText, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,17 +15,56 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { he } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
+
+// Notification type configuration
+const NOTIFICATION_TYPES: Record<string, { label: string; color: string; bgColor: string }> = {
+  new_lead: { label: 'ליד חדש', color: 'text-blue-700', bgColor: 'bg-blue-100 border-blue-200' },
+  check_in_completed: { label: 'ציון יומי', color: 'text-green-700', bgColor: 'bg-green-100 border-green-200' },
+  image_uploaded: { label: 'תמונה הועלתה', color: 'text-purple-700', bgColor: 'bg-purple-100 border-purple-200' },
+  video_uploaded: { label: 'וידאו הועלה', color: 'text-pink-700', bgColor: 'bg-pink-100 border-pink-200' },
+  weight_updated: { label: 'עדכון משקל', color: 'text-orange-700', bgColor: 'bg-orange-100 border-orange-200' },
+  meal_logged: { label: 'ארוחה נרשמה', color: 'text-cyan-700', bgColor: 'bg-cyan-100 border-cyan-200' },
+  appointment_created: { label: 'תור נוצר', color: 'text-indigo-700', bgColor: 'bg-indigo-100 border-indigo-200' },
+  default: { label: 'התראה', color: 'text-gray-700', bgColor: 'bg-gray-100 border-gray-200' },
+};
+
+// Helper function to get notification type config
+const getNotificationType = (type: string) => {
+  return NOTIFICATION_TYPES[type] || NOTIFICATION_TYPES.default;
+};
 
 export const NotificationBell = () => {
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
     isLoading,
     isMarkingAsRead,
     handleMarkAllAsRead,
-    handleNotificationClick,
+    handleMarkAsRead,
     formatRelativeTime,
+    refreshNotifications,
   } = useNotifications();
+
+  // Enhanced click handler that navigates to lead/customer
+  const handleNotificationClick = (notification: any) => {
+    // Mark as read first if not already read
+    if (!notification.is_read) {
+      handleMarkAsRead(notification.id);
+    }
+
+    // Navigate to lead or customer page
+    if (notification.lead_id) {
+      navigate(`/leads/${notification.lead_id}`);
+    } else if (notification.customer_id) {
+      navigate(`/customers/${notification.customer_id}`);
+    } else if (notification.action_url) {
+      navigate(notification.action_url);
+    }
+  };
 
   return (
     <Popover>
@@ -46,23 +85,61 @@ export const NotificationBell = () => {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-96 p-0" align="end" side="bottom" dir="rtl">
-        <div className="flex flex-col h-[500px]" dir="rtl">
+      <PopoverContent className="w-[480px] p-0" align="end" side="bottom" dir="rtl">
+        <div className="flex flex-col h-[600px]" dir="rtl">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b" dir="rtl">
-            <h3 className="font-semibold text-gray-900 text-right">התראות</h3>
-            {unreadCount > 0 && (
+          <div className="flex items-center justify-between p-4 border-b bg-white sticky top-0 z-10" dir="rtl">
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 text-right mb-1">התראות</h3>
+              <p className="text-xs text-gray-500 text-right">ההתראות האחרונות מופיעות ראשונות</p>
+              {notifications.length > 0 && (
+                <p className="text-xs text-gray-600 text-right mt-1">
+                  {notifications.length} מתוך {notifications.length} התראות
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mr-4">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleMarkAllAsRead}
-                disabled={isMarkingAsRead}
-                className="text-xs text-[#5B6FB9] hover:text-[#5B6FB9]/80 text-right"
-                dir="rtl"
+                className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // TODO: Implement filter functionality
+                }}
+                title="סינון"
               >
-                {isMarkingAsRead ? 'מסמן...' : 'סמן הכל כנקרא'}
+                <Filter className="h-4 w-4" />
               </Button>
-            )}
+              {unreadCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMarkAllAsRead();
+                  }}
+                  disabled={isMarkingAsRead}
+                  title="נקה הכל"
+                >
+                  <Trash2 className="h-3 w-3 ml-1" />
+                  נקה הכל
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  refreshNotifications();
+                }}
+                title="רענון"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Notifications List */}
@@ -78,47 +155,116 @@ export const NotificationBell = () => {
               </div>
             ) : (
               <div className="divide-y divide-gray-100" dir="rtl">
-                {notifications.map((notification) => (
-                  <button
-                    key={notification.id}
-                    onClick={() => handleNotificationClick(notification)}
-                    className={cn(
-                      'w-full text-right p-4 hover:bg-gray-50 transition-colors',
-                      !notification.is_read && 'bg-blue-50/50'
-                    )}
-                    dir="rtl"
-                  >
-                    <div className="flex items-start gap-3 flex-row-reverse" dir="rtl">
-                      <div className="flex-1 min-w-0 text-right">
-                        <div className="flex items-center gap-2 mb-1 flex-row-reverse" dir="rtl">
-                          <p className="text-sm font-semibold text-gray-900 text-right">
-                            {notification.title}
-                          </p>
-                          {!notification.is_read && (
-                            <div className="h-2 w-2 rounded-full bg-[#5B6FB9] flex-shrink-0" />
+                {notifications.map((notification) => {
+                  const typeConfig = getNotificationType(notification.type);
+                  const createdDate = new Date(notification.created_at);
+                  const formattedDate = format(createdDate, 'dd/MM/yyyy', { locale: he });
+                  
+                  return (
+                    <div
+                      key={notification.id}
+                      onClick={() => handleNotificationClick(notification)}
+                      className={cn(
+                        'w-full text-right p-4 cursor-pointer transition-all duration-200 border-r-4',
+                        !notification.is_read 
+                          ? 'bg-blue-50/50 border-blue-400 hover:bg-blue-50' 
+                          : 'bg-white border-transparent hover:bg-gray-50'
+                      )}
+                      dir="rtl"
+                    >
+                      {/* Header Row with Type Badge and Dismiss */}
+                      <div className="flex items-start justify-between mb-2" dir="rtl">
+                        <div className="flex items-center gap-2 flex-row-reverse" dir="rtl">
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              'text-xs font-medium px-2 py-0.5',
+                              typeConfig.color,
+                              typeConfig.bgColor,
+                              'border'
+                            )}
+                          >
+                            {typeConfig.label}
+                          </Badge>
+                          {notification.is_read && (
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>נקרא</span>
+                            </div>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600 mb-2 text-right">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-gray-400 text-right">
-                          {formatRelativeTime(notification.created_at)}
-                        </p>
+                        {!notification.is_read && (
+                          <div className="h-2 w-2 rounded-full bg-[#5B6FB9] flex-shrink-0 mt-1" />
+                        )}
                       </div>
+
+                      {/* Title */}
+                      <p className="text-sm font-semibold text-gray-900 text-right mb-1.5">
+                        {notification.title}
+                      </p>
+
+                      {/* Message */}
+                      <p className="text-sm text-gray-700 text-right mb-3 line-clamp-2">
+                        {notification.message}
+                      </p>
+
+                      {/* Metadata and Actions */}
+                      <div className="flex items-center justify-between text-xs text-gray-500" dir="rtl">
+                        <div className="flex items-center gap-3" dir="rtl">
+                          {notification.metadata?.appointment_date && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              <span>תאריך התור: {format(new Date(notification.metadata.appointment_date), 'dd/MM/yyyy', { locale: he })}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <span>נוצר ב: {formattedDate}</span>
+                            <span className="text-gray-400">•</span>
+                            <span>{formatRelativeTime(notification.created_at)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons (if applicable) */}
+                      {(notification.lead_id || notification.customer_id) && (
+                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200" dir="rtl">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-blue-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (notification.lead_id) {
+                                navigate(`/leads/${notification.lead_id}`);
+                              } else if (notification.customer_id) {
+                                navigate(`/customers/${notification.customer_id}`);
+                              }
+                            }}
+                          >
+                            <FileText className="h-3 w-3 ml-1" />
+                            פרטי הלקוח
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </ScrollArea>
 
-          {/* Footer - Show count if there are many notifications */}
+          {/* Footer - Refresh Button */}
           {notifications.length > 0 && (
             <div className="p-3 border-t bg-gray-50" dir="rtl">
-              <p className="text-xs text-center text-gray-500 text-right">
-                {notifications.length} התראות
-                {unreadCount > 0 && ` • ${unreadCount} לא נקראו`}
-              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={refreshNotifications}
+              >
+                <RefreshCw className="h-3 w-3 ml-2" />
+                רענון עכשיו
+              </Button>
             </div>
           )}
         </div>
