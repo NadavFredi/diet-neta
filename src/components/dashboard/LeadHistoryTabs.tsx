@@ -40,8 +40,6 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
@@ -51,10 +49,11 @@ import { AddNutritionPlanDialog } from './dialogs/AddNutritionPlanDialog';
 import { StepsPlanDialog } from './dialogs/StepsPlanDialog';
 import { BudgetDetailsModal } from './dialogs/BudgetDetailsModal';
 import { SendBudgetModal } from './SendBudgetModal';
+import { EditBudgetDialog } from './dialogs/EditBudgetDialog';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDeleteBudgetAssignment, useBudget, useUpdateBudget } from '@/hooks/useBudgets';
+import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget } from '@/hooks/useBudgets';
 import type { Budget } from '@/store/slices/budgetSlice';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -129,7 +128,6 @@ interface BudgetAssignmentItem {
   budget_name?: string;
   assigned_at: string;
   is_active: boolean;
-  notes?: string;
 }
 
 interface LeadHistoryTabsProps {
@@ -170,14 +168,17 @@ export const LeadHistoryTabs = ({
   const deleteBudgetAssignment = useDeleteBudgetAssignment();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState<BudgetAssignmentItem | null>(null);
-  const [editingAssignment, setEditingAssignment] = useState<BudgetAssignmentItem | null>(null);
-  const [editNotes, setEditNotes] = useState('');
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
+  const [currentAssignment, setCurrentAssignment] = useState<BudgetAssignmentItem | null>(null);
   const [viewingBudgetId, setViewingBudgetId] = useState<string | null>(null);
   const [sendingBudgetId, setSendingBudgetId] = useState<string | null>(null);
   const [customerPhone, setCustomerPhone] = useState<string | null>(null);
   
-  // Fetch budget data when sendingBudgetId is set
+  // Fetch budget data when sendingBudgetId or editingBudgetId is set
   const { data: sendingBudget } = useBudget(sendingBudgetId);
+  const { data: editingBudget } = useBudget(editingBudgetId);
+  const updateBudget = useUpdateBudget();
+  const createBudget = useCreateBudget();
   
   // Dialog states
   const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
@@ -205,37 +206,98 @@ export const LeadHistoryTabs = ({
     setDeleteDialogOpen(true);
   };
 
-  // Edit budget assignment (assignment-specific fields only - notes and is_active)
-  const handleEditAssignment = (assignment: BudgetAssignmentItem) => {
-    setEditingAssignment(assignment);
-    setEditNotes(assignment.notes || '');
-  };
-
-  const handleSaveAssignmentEdit = async () => {
-    if (!editingAssignment) return;
-
+  // Handle editing budget from lead page - create lead-specific copy if budget is shared
+  const handleEditBudgetFromLead = async (assignment: BudgetAssignmentItem) => {
     try {
-      const { error } = await supabase
+      // Check if budget is used by multiple assignments
+      const { data: otherAssignments, error: checkError } = await supabase
         .from('budget_assignments')
-        .update({
-          notes: editNotes || null,
-        })
-        .eq('id', editingAssignment.id);
+        .select('id')
+        .eq('budget_id', assignment.budget_id)
+        .neq('id', assignment.id);
 
-      if (error) throw error;
+      if (checkError) throw checkError;
 
-      toast({
-        title: 'הצלחה',
-        description: 'הפרטי הקצאה עודכנו בהצלחה',
-      });
+      let budgetIdToEdit = assignment.budget_id;
 
-      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
-      setEditingAssignment(null);
-      setEditNotes('');
+      // If budget is shared, create a private copy for this lead only
+      if (otherAssignments && otherAssignments.length > 0) {
+        // Fetch the original budget to copy it
+        const { data: originalBudget, error: fetchError } = await supabase
+          .from('budgets')
+          .select('*')
+          .eq('id', assignment.budget_id)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        // Create a private copy (is_public: false) - this won't show in "all budgets" main list
+        const newBudget = await createBudget.mutateAsync({
+          name: `${originalBudget.name}`,
+          description: originalBudget.description || null,
+          nutrition_template_id: originalBudget.nutrition_template_id,
+          nutrition_targets: originalBudget.nutrition_targets,
+          steps_goal: originalBudget.steps_goal,
+          steps_instructions: originalBudget.steps_instructions || null,
+          workout_template_id: originalBudget.workout_template_id,
+          supplements: originalBudget.supplements || [],
+          eating_order: originalBudget.eating_order || null,
+          eating_rules: originalBudget.eating_rules || null,
+          is_public: false, // Private copy - won't appear in main budgets list
+        });
+
+        // Update the assignment to use the new private copy
+        const { error: updateError } = await supabase
+          .from('budget_assignments')
+          .update({ budget_id: newBudget.id })
+          .eq('id', assignment.id);
+
+        if (updateError) throw updateError;
+
+        budgetIdToEdit = newBudget.id;
+
+        toast({
+          title: 'הצלחה',
+          description: 'נוצר עותק פרטי של התקציב. שינויים יעשו רק על הליד הזה.',
+        });
+      }
+
+      // Store the assignment for later use in save handler
+      setCurrentAssignment(assignment);
+      // Open edit dialog for the budget (original or private copy)
+      setEditingBudgetId(budgetIdToEdit);
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל בעדכון פרטי הקצאה',
+        description: error?.message || 'נכשל בעריכת התקציב',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveBudget = async (data: any) => {
+    if (!editingBudget) return;
+
+    try {
+      await updateBudget.mutateAsync({
+        budgetId: editingBudget.id,
+        ...data,
+      });
+
+      toast({
+        title: 'הצלחה',
+        description: 'התקציב עודכן בהצלחה',
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      queryClient.invalidateQueries({ queryKey: ['budget', editingBudget.id] });
+      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      setEditingBudgetId(null);
+      setCurrentAssignment(null);
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון התקציב',
         variant: 'destructive',
       });
     }
@@ -256,6 +318,34 @@ export const LeadHistoryTabs = ({
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל במחיקת התקציב',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveAssignmentEdit = async () => {
+    if (!editingAssignment) return;
+
+    try {
+      const { error } = await supabase
+        .from('budget_assignments')
+        .update({ notes: editNotes })
+        .eq('id', editingAssignment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'הצלחה',
+        description: 'הערות ההקצאה עודכנו בהצלחה',
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      setEditingAssignment(null);
+      setEditNotes('');
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון הערות ההקצאה',
         variant: 'destructive',
       });
     }
@@ -793,7 +883,6 @@ export const LeadHistoryTabs = ({
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תקציב</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך הקצאה</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">סטטוס</TableHead>
-                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">הערות</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3 w-20">פעולות</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -801,7 +890,7 @@ export const LeadHistoryTabs = ({
                   {budgetAssignments.map((assignment, index) => (
                     <TableRow
                       key={assignment.id}
-                      onClick={() => handleEditAssignment(assignment)}
+                      onClick={() => handleEditBudgetFromLead(assignment)}
                       className={`transition-all duration-200 cursor-pointer ${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       } hover:bg-purple-50 hover:shadow-sm border-b border-gray-100`}
@@ -823,9 +912,6 @@ export const LeadHistoryTabs = ({
                         >
                           {assignment.is_active ? 'פעיל' : 'לא פעיל'}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs max-w-xs truncate font-semibold text-gray-900 py-3">
-                        {assignment.notes || '-'}
                       </TableCell>
                       <TableCell className="py-3">
                         <TooltipProvider>
@@ -911,7 +997,7 @@ export const LeadHistoryTabs = ({
                               </TooltipContent>
                             </Tooltip>
 
-                            {/* Edit Button - Edit assignment-specific fields only (affects only this lead) */}
+                            {/* Edit Button - Edit budget for this lead only */}
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
@@ -919,7 +1005,7 @@ export const LeadHistoryTabs = ({
                                   size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleEditAssignment(assignment);
+                                    handleEditBudgetFromLead(assignment);
                                   }}
                                   disabled={deleteBudgetAssignment.isPending}
                                   className="h-7 w-7 p-0 hover:bg-blue-50"
@@ -928,7 +1014,7 @@ export const LeadHistoryTabs = ({
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>ערוך הערות (השפעה רק על הליד הזה)</p>
+                                <p>ערוך תקציב (השפעה רק על הליד הזה)</p>
                               </TooltipContent>
                             </Tooltip>
 
@@ -1186,51 +1272,18 @@ export const LeadHistoryTabs = ({
         phoneNumber={customerPhone}
       />
 
-      {/* Edit Budget Assignment Dialog - Edit assignment-specific fields only (affects only this lead) */}
-      <Dialog open={!!editingAssignment} onOpenChange={(open) => {
-        if (!open) {
-          setEditingAssignment(null);
-          setEditNotes('');
-        }
-      }}>
-        <DialogContent dir="rtl">
-          <DialogHeader>
-            <DialogTitle>ערוך הערות הקצאה</DialogTitle>
-            <DialogDescription>
-              שינויים כאן משפיעים רק על ההקצאה של הליד הזה, ולא על התקציב עצמו
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="assignment-notes">הערות</Label>
-              <Textarea
-                id="assignment-notes"
-                value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
-                placeholder="הוסף הערות להקצאת התקציב..."
-                rows={4}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setEditingAssignment(null);
-                setEditNotes('');
-              }}
-            >
-              ביטול
-            </Button>
-            <Button
-              onClick={handleSaveAssignmentEdit}
-              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
-            >
-              שמור
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Edit Budget Dialog - Opens when editing budget from lead page */}
+      <EditBudgetDialog
+        isOpen={!!editingBudgetId && !!editingBudget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingBudgetId(null);
+            setCurrentAssignment(null);
+          }
+        }}
+        editingBudget={editingBudget}
+        onSave={handleSaveBudget}
+      />
     </Card>
   );
 };
