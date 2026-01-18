@@ -693,8 +693,319 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   }
 
   return (
-    <div className="flex gap-4" dir="rtl">
-      {/* Left Panel: Last Check-in */}
+    <div className="flex gap-4 w-full" dir="rtl">
+      {/* Left Panel: Weekly Review Form */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <Card className="rounded-3xl border border-gray-200 shadow-sm">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Target className="h-5 w-5 text-blue-600" />
+                סיכום אסטרטגיה שבועי
+              </CardTitle>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    {format(weekStart, 'dd/MM', { locale: he })} - {format(weekEnd, 'dd/MM', { locale: he })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedWeekStart}
+                    onSelect={(date) => {
+                      if (date) {
+                        setSelectedWeekStart(startOfWeek(date, { weekStartsOn: 0 }));
+                      }
+                    }}
+                    initialFocus
+                  />
+                  <div className="flex gap-2 p-3 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedWeekStart(subWeeks(selectedWeekStart, 1))}
+                    >
+                      שבוע קודם
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedWeekStart(addWeeks(selectedWeekStart, 1))}
+                    >
+                      שבוע הבא
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+        {/* Comparison Table - All fields editable */}
+        <div className="w-full overflow-hidden">
+          <table className="w-full text-sm table-auto" dir="rtl">
+            <thead>
+              <tr className="border-b">
+                <th className="text-right p-2 font-semibold text-gray-700 w-[25%]">מדד</th>
+                <th className="text-right p-2 font-semibold text-gray-700 w-[25%]">יעד</th>
+                <th className="text-right p-2 font-semibold text-gray-700 w-[25%]">בפועל</th>
+                <th className="text-right p-2 font-semibold text-gray-700 w-[25%]">הפרש</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b">
+                <td className="p-2 text-gray-900">קלוריות</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={targetCalories}
+                      onChange={(e) => setTargetCalories(e.target.value)}
+                      className="h-8 w-16 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">קק"ל</span>
+                  </div>
+                </td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={actualCalories}
+                      onChange={(e) => setActualCalories(e.target.value)}
+                      className="h-8 w-16 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">קק"ל</span>
+                  </div>
+                </td>
+                <td className={cn(
+                  "p-2 font-medium",
+                  targetCalories && actualCalories
+                    ? (parseFloat(actualCalories) >= parseFloat(targetCalories) ? "text-emerald-600" : "text-amber-600")
+                    : "text-gray-500"
+                )}>
+                  {calculateDelta(parseNumber(targetCalories), parseNumber(actualCalories))}
+                </td>
+              </tr>
+              <tr className="border-b">
+                <td className="p-2 text-gray-900">חלבון</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={targetProtein}
+                      onChange={(e) => setTargetProtein(e.target.value)}
+                      className="h-8 w-16 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">גרם</span>
+                  </div>
+                </td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={actualProtein}
+                      onChange={(e) => setActualProtein(e.target.value)}
+                      className="h-8 w-16 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">גרם</span>
+                  </div>
+                </td>
+                <td className={cn(
+                  "p-2 font-medium",
+                  targetProtein && actualProtein
+                    ? (parseFloat(actualProtein) >= parseFloat(targetProtein) ? "text-emerald-600" : "text-amber-600")
+                    : "text-gray-500"
+                )}>
+                  {calculateDelta(parseNumber(targetProtein), parseNumber(actualProtein))}
+                </td>
+              </tr>
+              <tr className="border-b">
+                <td className="p-2 text-gray-900">סיבים</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={targetFiber}
+                      onChange={(e) => setTargetFiber(e.target.value)}
+                      className="h-8 w-16 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">גרם</span>
+                  </div>
+                </td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={actualFiber}
+                      onChange={(e) => setActualFiber(e.target.value)}
+                      className="h-8 w-16 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">גרם</span>
+                  </div>
+                </td>
+                <td className={cn(
+                  "p-2 font-medium",
+                  targetFiber && actualFiber
+                    ? (parseFloat(actualFiber) >= parseFloat(targetFiber) ? "text-emerald-600" : "text-amber-600")
+                    : "text-gray-500"
+                )}>
+                  {calculateDelta(parseNumber(targetFiber), parseNumber(actualFiber))}
+                </td>
+              </tr>
+              <tr className="border-b">
+                <td className="p-2 text-gray-900">משקל ממוצע</td>
+                <td className="p-2 text-gray-500">-</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={actualWeight}
+                      onChange={(e) => setActualWeight(e.target.value)}
+                      className="h-8 w-16 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">ק"ג</span>
+                  </div>
+                </td>
+                <td className="p-2 text-gray-500">-</td>
+              </tr>
+              <tr>
+                <td className="p-2 text-gray-900">היקף מותן</td>
+                <td className="p-2 text-gray-500">-</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={actualWaist}
+                      onChange={(e) => setActualWaist(e.target.value)}
+                      className="h-8 w-16 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">ס"מ</span>
+                  </div>
+                </td>
+                <td className="p-2 text-gray-500">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Trainer Inputs - Side by Side */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="trainer-summary" className="text-sm font-semibold mb-2 block">
+              סיכום ומסקנות
+            </Label>
+            <Textarea
+              id="trainer-summary"
+              value={trainerSummary}
+              onChange={(e) => setTrainerSummary(e.target.value)}
+              placeholder="כתוב סיכום ומסקנות מהשבוע..."
+              className="min-h-[100px]"
+              dir="rtl"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="action-plan" className="text-sm font-semibold mb-2 block">
+              דגשים לשבוע הקרוב
+            </Label>
+            <Textarea
+              id="action-plan"
+              value={actionPlan}
+              onChange={(e) => setActionPlan(e.target.value)}
+              placeholder="כתוב דגשים לשבוע הקרוב..."
+              className="min-h-[100px]"
+              dir="rtl"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="updated-steps" className="text-sm font-semibold mb-2 block">
+                יעד צעדים לשבוע הבא
+              </Label>
+              <Input
+                id="updated-steps"
+                type="number"
+                value={updatedStepsGoal}
+                onChange={(e) => setUpdatedStepsGoal(e.target.value)}
+                placeholder="צעדים"
+                dir="rtl"
+              />
+            </div>
+            <div>
+              <Label htmlFor="updated-calories" className="text-sm font-semibold mb-2 block">
+                יעד קלורי לשבוע הבא
+              </Label>
+              <Input
+                id="updated-calories"
+                type="number"
+                value={updatedCaloriesTarget}
+                onChange={(e) => setUpdatedCaloriesTarget(e.target.value)}
+                placeholder="קק&quot;ל"
+                dir="rtl"
+              />
+            </div>
+          </div>
+
+        {/* Action Buttons - Save button on left, WhatsApp on right */}
+        <div className="flex gap-3 pt-4 border-t items-center justify-between">
+          {/* Save button on the left */}
+          <Button
+            onClick={handleSave}
+            disabled={saveReviewMutation.isPending}
+            variant="default"
+            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+          >
+            {saveReviewMutation.isPending ? (
+              <>
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                שומר...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                שמור סיכום שבועי
+              </>
+            )}
+          </Button>
+
+          {/* WhatsApp button on the right */}
+          {customerPhone && (
+            <Button
+              onClick={handleSendWhatsApp}
+              disabled={isSendingWhatsApp || saveReviewMutation.isPending}
+              variant="default"
+              className="gap-2 bg-green-600 hover:bg-green-700"
+            >
+              <MessageSquare className="h-4 w-4" />
+              {isSendingWhatsApp ? 'שולח...' : 'שלח לווטסאפ'}
+            </Button>
+          )}
+        </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Right Panel: Last Check-in */}
       <div className="w-80 flex-shrink-0">
         <Card className="rounded-3xl border border-gray-200 shadow-sm h-full">
           <CardHeader className="pb-4">
@@ -816,317 +1127,6 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                 אין צ'ק-אין עדיין
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Right Panel: Weekly Review Form */}
-      <div className="flex-1 min-w-0">
-        <Card className="rounded-3xl border border-gray-200 shadow-sm">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <Target className="h-5 w-5 text-blue-600" />
-                סיכום אסטרטגיה שבועי
-              </CardTitle>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <CalendarIcon className="h-4 w-4" />
-                    {format(weekStart, 'dd/MM', { locale: he })} - {format(weekEnd, 'dd/MM', { locale: he })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    mode="single"
-                    selected={selectedWeekStart}
-                    onSelect={(date) => {
-                      if (date) {
-                        setSelectedWeekStart(startOfWeek(date, { weekStartsOn: 0 }));
-                      }
-                    }}
-                    initialFocus
-                  />
-                  <div className="flex gap-2 p-3 border-t">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedWeekStart(subWeeks(selectedWeekStart, 1))}
-                    >
-                      שבוע קודם
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedWeekStart(addWeeks(selectedWeekStart, 1))}
-                    >
-                      שבוע הבא
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-        {/* Comparison Table - All fields editable */}
-        <div className="w-full overflow-hidden">
-          <table className="w-full text-sm table-auto" dir="rtl">
-            <thead>
-              <tr className="border-b">
-                <th className="text-right p-2 font-semibold text-gray-700">מדד</th>
-                <th className="text-right p-2 font-semibold text-gray-700">יעד</th>
-                <th className="text-right p-2 font-semibold text-gray-700">בפועל</th>
-                <th className="text-right p-2 font-semibold text-gray-700">הפרש</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b">
-                <td className="p-2 text-gray-900">קלוריות</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={targetCalories}
-                      onChange={(e) => setTargetCalories(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">קק"ל</span>
-                  </div>
-                </td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={actualCalories}
-                      onChange={(e) => setActualCalories(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">קק"ל</span>
-                  </div>
-                </td>
-                <td className={cn(
-                  "p-2 font-medium",
-                  targetCalories && actualCalories
-                    ? (parseFloat(actualCalories) >= parseFloat(targetCalories) ? "text-emerald-600" : "text-amber-600")
-                    : "text-gray-500"
-                )}>
-                  {calculateDelta(parseNumber(targetCalories), parseNumber(actualCalories))}
-                </td>
-              </tr>
-              <tr className="border-b">
-                <td className="p-2 text-gray-900">חלבון</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={targetProtein}
-                      onChange={(e) => setTargetProtein(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">גרם</span>
-                  </div>
-                </td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={actualProtein}
-                      onChange={(e) => setActualProtein(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">גרם</span>
-                  </div>
-                </td>
-                <td className={cn(
-                  "p-2 font-medium",
-                  targetProtein && actualProtein
-                    ? (parseFloat(actualProtein) >= parseFloat(targetProtein) ? "text-emerald-600" : "text-amber-600")
-                    : "text-gray-500"
-                )}>
-                  {calculateDelta(parseNumber(targetProtein), parseNumber(actualProtein))}
-                </td>
-              </tr>
-              <tr className="border-b">
-                <td className="p-2 text-gray-900">סיבים</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={targetFiber}
-                      onChange={(e) => setTargetFiber(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">גרם</span>
-                  </div>
-                </td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={actualFiber}
-                      onChange={(e) => setActualFiber(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">גרם</span>
-                  </div>
-                </td>
-                <td className={cn(
-                  "p-2 font-medium",
-                  targetFiber && actualFiber
-                    ? (parseFloat(actualFiber) >= parseFloat(targetFiber) ? "text-emerald-600" : "text-amber-600")
-                    : "text-gray-500"
-                )}>
-                  {calculateDelta(parseNumber(targetFiber), parseNumber(actualFiber))}
-                </td>
-              </tr>
-              <tr className="border-b">
-                <td className="p-2 text-gray-900">משקל ממוצע</td>
-                <td className="p-2 text-gray-500">-</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={actualWeight}
-                      onChange={(e) => setActualWeight(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">ק"ג</span>
-                  </div>
-                </td>
-                <td className="p-2 text-gray-500">-</td>
-              </tr>
-              <tr>
-                <td className="p-2 text-gray-900">היקף מותן</td>
-                <td className="p-2 text-gray-500">-</td>
-                <td className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      value={actualWaist}
-                      onChange={(e) => setActualWaist(e.target.value)}
-                      className="h-8 w-20 text-sm"
-                      placeholder="-"
-                      dir="rtl"
-                    />
-                    <span className="text-xs text-gray-500">ס"מ</span>
-                  </div>
-                </td>
-                <td className="p-2 text-gray-500">-</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Trainer Inputs - Side by Side */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="trainer-summary" className="text-sm font-semibold mb-2 block">
-              סיכום ומסקנות
-            </Label>
-            <Textarea
-              id="trainer-summary"
-              value={trainerSummary}
-              onChange={(e) => setTrainerSummary(e.target.value)}
-              placeholder="כתוב סיכום ומסקנות מהשבוע..."
-              className="min-h-[100px]"
-              dir="rtl"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="action-plan" className="text-sm font-semibold mb-2 block">
-              דגשים לשבוע הקרוב
-            </Label>
-            <Textarea
-              id="action-plan"
-              value={actionPlan}
-              onChange={(e) => setActionPlan(e.target.value)}
-              placeholder="כתוב דגשים לשבוע הקרוב..."
-              className="min-h-[100px]"
-              dir="rtl"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="updated-steps" className="text-sm font-semibold mb-2 block">
-                יעד צעדים לשבוע הבא
-              </Label>
-              <Input
-                id="updated-steps"
-                type="number"
-                value={updatedStepsGoal}
-                onChange={(e) => setUpdatedStepsGoal(e.target.value)}
-                placeholder="צעדים"
-                dir="rtl"
-              />
-            </div>
-            <div>
-              <Label htmlFor="updated-calories" className="text-sm font-semibold mb-2 block">
-                יעד קלורי לשבוע הבא
-              </Label>
-              <Input
-                id="updated-calories"
-                type="number"
-                value={updatedCaloriesTarget}
-                onChange={(e) => setUpdatedCaloriesTarget(e.target.value)}
-                placeholder="קק&quot;ל"
-                dir="rtl"
-              />
-            </div>
-          </div>
-
-        {/* Action Buttons - Save button on left, WhatsApp on right */}
-        <div className="flex gap-3 pt-4 border-t items-center justify-between">
-          {/* Save button on the left */}
-          <Button
-            onClick={handleSave}
-            disabled={saveReviewMutation.isPending}
-            variant="default"
-            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
-          >
-            {saveReviewMutation.isPending ? (
-              <>
-                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                שומר...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                שמור סיכום שבועי
-              </>
-            )}
-          </Button>
-
-          {/* WhatsApp button on the right */}
-          {customerPhone && (
-            <Button
-              onClick={handleSendWhatsApp}
-              disabled={isSendingWhatsApp || saveReviewMutation.isPending}
-              variant="default"
-              className="gap-2 bg-green-600 hover:bg-green-700"
-            >
-              <MessageSquare className="h-4 w-4" />
-              {isSendingWhatsApp ? 'שולח...' : 'שלח לווטסאפ'}
-            </Button>
-          )}
-        </div>
           </CardContent>
         </Card>
       </div>
