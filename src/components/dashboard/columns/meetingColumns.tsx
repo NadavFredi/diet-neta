@@ -2,6 +2,7 @@ import type { Meeting } from '@/hooks/useMeetings';
 import { formatDate } from '@/utils/dashboard';
 import { Badge } from '@/components/ui/badge';
 import type { DataTableColumn } from '@/components/ui/DataTable';
+import { MeetingDeleteButton } from '@/components/dashboard/MeetingDeleteButton';
 
 /**
  * Column definitions for Meetings table.
@@ -352,6 +353,20 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
       return <span className="text-gray-600">{formatDate(value)}</span>;
     },
   },
+  {
+    id: 'actions',
+    header: 'פעולות',
+    enableSorting: false,
+    enableResizing: false,
+    enableHiding: false,
+    size: 100,
+    meta: {
+      align: 'center',
+    },
+    cell: ({ row }) => {
+      return <MeetingDeleteButton meeting={row.original} />;
+    },
+  },
 ];
 
 /**
@@ -368,6 +383,7 @@ export const defaultMeetingColumnVisibility = {
   location: false,
   notes: false,
   created_at: true,
+  actions: true,
 };
 
 

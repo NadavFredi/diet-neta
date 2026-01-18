@@ -43,7 +43,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
 
           return workoutQuery;
         })() : Promise.resolve({ data: null, error: null }),
-        
+
         // Nutrition plans
         (customerId || leadId) ? (() => {
           let nutritionQuery = supabase
@@ -84,7 +84,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
         (customerId || leadId) ? (() => {
           let stepsQuery = supabase
             .from('steps_plans')
-            .select('*, budget_id')
+            .select('*, budget_id, budgets(name)')
             .order('created_at', { ascending: false });
 
           if (customerId && leadId) {
@@ -129,82 +129,82 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
       });
 
       if (workoutPlans && workoutPlans.length > 0) {
-          // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
-          const uniquePlans = Array.from(
-            new Map(workoutPlans.map((plan: any) => [plan.id, plan])).values()
-          );
-          
-          workoutHistory.push(...uniquePlans.map((plan: any) => ({
-            id: plan.id,
-            name: plan.workout_templates?.name || plan.description || 'תוכנית אימונים',
-            startDate: plan.start_date,
-            validUntil: plan.end_date || null,
-            duration: plan.end_date && plan.start_date
-              ? `${Math.ceil((new Date(plan.end_date).getTime() - new Date(plan.start_date).getTime()) / (1000 * 60 * 60 * 24))} ימים`
-              : 'ללא תאריך סיום',
-            description: plan.description || '',
-            strengthCount: plan.split?.strength || plan.strength || 0,
-            cardioCount: plan.split?.cardio || plan.cardio || 0,
-            intervalsCount: plan.split?.intervals || plan.intervals || 0,
-            strength: plan.split?.strength || plan.strength || 0,
-            cardio: plan.split?.cardio || plan.cardio || 0,
-            intervals: plan.split?.intervals || plan.intervals || 0,
-            split: plan.split || { 
-              strength: plan.strength || 0, 
-              cardio: plan.cardio || 0, 
-              intervals: plan.intervals || 0 
-            },
-            budget_id: plan.budget_id,
-            created_at: plan.created_at,
-            is_active: plan.is_active,
-          })));
+        // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
+        const uniquePlans = Array.from(
+          new Map(workoutPlans.map((plan: any) => [plan.id, plan])).values()
+        );
+
+        workoutHistory.push(...uniquePlans.map((plan: any) => ({
+          id: plan.id,
+          name: plan.workout_templates?.name || plan.description || 'תוכנית אימונים',
+          startDate: plan.start_date,
+          validUntil: plan.end_date || null,
+          duration: plan.end_date && plan.start_date
+            ? `${Math.ceil((new Date(plan.end_date).getTime() - new Date(plan.start_date).getTime()) / (1000 * 60 * 60 * 24))} ימים`
+            : 'ללא תאריך סיום',
+          description: plan.description || '',
+          strengthCount: plan.split?.strength || plan.strength || 0,
+          cardioCount: plan.split?.cardio || plan.cardio || 0,
+          intervalsCount: plan.split?.intervals || plan.intervals || 0,
+          strength: plan.split?.strength || plan.strength || 0,
+          cardio: plan.split?.cardio || plan.cardio || 0,
+          intervals: plan.split?.intervals || plan.intervals || 0,
+          split: plan.split || {
+            strength: plan.strength || 0,
+            cardio: plan.cardio || 0,
+            intervals: plan.intervals || 0
+          },
+          budget_id: plan.budget_id,
+          created_at: plan.created_at,
+          is_active: plan.is_active,
+        })));
       }
 
       if (nutritionPlans && nutritionPlans.length > 0) {
-          // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
-          const uniquePlans = Array.from(
-            new Map(nutritionPlans.map((plan: any) => [plan.id, plan])).values()
-          );
-          
-          nutritionHistory.push(...uniquePlans.map((plan: any) => ({
-            id: plan.id,
-            startDate: plan.start_date,
-            endDate: plan.end_date || null,
-            description: plan.description || plan.nutrition_templates?.name || 'תוכנית תזונה',
-            template_id: plan.template_id,
-            targets: plan.targets || {},
-            budget_id: plan.budget_id,
-            created_at: plan.created_at,
-            is_active: plan.is_active,
-          })));
+        // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
+        const uniquePlans = Array.from(
+          new Map(nutritionPlans.map((plan: any) => [plan.id, plan])).values()
+        );
+
+        nutritionHistory.push(...uniquePlans.map((plan: any) => ({
+          id: plan.id,
+          startDate: plan.start_date,
+          endDate: plan.end_date || null,
+          description: plan.description || plan.nutrition_templates?.name || 'תוכנית תזונה',
+          template_id: plan.template_id,
+          targets: plan.targets || {},
+          budget_id: plan.budget_id,
+          created_at: plan.created_at,
+          is_active: plan.is_active,
+        })));
       }
 
       if (supplementPlans && supplementPlans.length > 0) {
-          // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
-          const uniquePlans = Array.from(
-            new Map(supplementPlans.map((plan: any) => [plan.id, plan])).values()
-          );
-          
-          // Handle supplements - can be array of strings or array of objects
-          supplementsHistory.push(...uniquePlans.map((plan: any) => {
-            let supplementsArray: string[] = [];
-            if (Array.isArray(plan.supplements)) {
-              supplementsArray = plan.supplements.map((sup: any) => 
-                typeof sup === 'string' ? sup : sup.name || JSON.stringify(sup)
-              );
-            }
-            
-            return {
-              id: plan.id,
-              startDate: plan.start_date,
-              endDate: plan.end_date || null,
-              supplements: supplementsArray,
-              description: plan.description || 'תוכנית תוספים',
-              budget_id: plan.budget_id,
-              created_at: plan.created_at,
-              is_active: plan.is_active,
-            };
-          }));
+        // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
+        const uniquePlans = Array.from(
+          new Map(supplementPlans.map((plan: any) => [plan.id, plan])).values()
+        );
+
+        // Handle supplements - can be array of strings or array of objects
+        supplementsHistory.push(...uniquePlans.map((plan: any) => {
+          let supplementsArray: string[] = [];
+          if (Array.isArray(plan.supplements)) {
+            supplementsArray = plan.supplements.map((sup: any) =>
+              typeof sup === 'string' ? sup : sup.name || JSON.stringify(sup)
+            );
+          }
+
+          return {
+            id: plan.id,
+            startDate: plan.start_date,
+            endDate: plan.end_date || null,
+            supplements: supplementsArray,
+            description: plan.description || 'תוכנית תוספים',
+            budget_id: plan.budget_id,
+            created_at: plan.created_at,
+            is_active: plan.is_active,
+          };
+        }));
       }
 
       // Fetch steps plans from steps_plans table
@@ -213,19 +213,27 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
         const uniquePlans = Array.from(
           new Map(stepsPlans.map((plan: any) => [plan.id, plan])).values()
         );
-        
-        stepsHistory.push(...uniquePlans.map((plan: any) => ({
-          id: plan.id,
-          weekNumber: plan.is_active ? 'נוכחי' : `תוכנית ${plan.id.substring(0, 8)}`,
-          target: plan.steps_goal || 0,
-          startDate: plan.start_date,
-          endDate: plan.end_date || null,
-          dates: plan.start_date ? formatDate(plan.start_date) : '',
-          description: plan.description || 'תוכנית צעדים',
-          budget_id: plan.budget_id,
-          created_at: plan.created_at,
-          is_active: plan.is_active,
-        })));
+
+        stepsHistory.push(...uniquePlans.map((plan: any) => {
+          // Use budget name instead of plan ID for display
+          const budgetName = plan.budgets?.name || plan.description || '';
+          const weekNumber = plan.is_active 
+            ? 'נוכחי' 
+            : (budgetName || `תוכנית ${plan.id.substring(0, 8)}`);
+          
+          return {
+            id: plan.id,
+            weekNumber: weekNumber,
+            target: plan.steps_goal || 0,
+            startDate: plan.start_date,
+            endDate: plan.end_date || null,
+            dates: plan.start_date ? formatDate(plan.start_date) : '',
+            description: plan.description || budgetName || 'תוכנית צעדים',
+            budget_id: plan.budget_id,
+            created_at: plan.created_at,
+            is_active: plan.is_active,
+          };
+        }));
       } else {
         // Fallback: Check if there's a steps goal in daily_protocol or from active budget
         // This is a temporary workaround until steps_plans table is created
@@ -235,7 +243,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
             .select('daily_protocol')
             .eq('id', customerId)
             .single();
-          
+
           if (customer?.daily_protocol?.stepsGoal) {
             // Also check for active budget assignment to get steps_instructions
             const { data: activeBudget } = await supabase
@@ -246,7 +254,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
               .eq('customer_id', customerId)
               .eq('is_active', true)
               .maybeSingle();
-            
+
             if (activeBudget?.budget) {
               const budget = activeBudget.budget as any;
               stepsHistory.push({

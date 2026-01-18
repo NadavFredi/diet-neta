@@ -138,11 +138,15 @@ serve(async (req) => {
       Deno.env.get('FILLOUT_FORM_ID_BUDGET_MEETING') ||
       'veY7bX8Uajus'; // Default form ID for budget meeting form
 
-    // Also check if formName contains "open-meeting" or "open_meeting" as a fallback
+    // Also check if formName contains "open-meeting", "open_meeting", "priorcall", or "meeting" as a fallback
     const formNameLower = formName ? String(formName).toLowerCase() : '';
     const isOpenMeetingForm = formNameLower.includes('open-meeting') ||
       formNameLower.includes('open_meeting') ||
-      formNameLower.includes('open meeting');
+      formNameLower.includes('open meeting') ||
+      formNameLower.includes('priorcall') ||
+      formNameLower.includes('prior-call') ||
+      formNameLower.includes('פגישה') ||
+      formNameLower.includes('meeting');
 
     // Compare form IDs (case-insensitive, trim whitespace)
     const normalizedFormId = formId ? String(formId).trim().toLowerCase() : '';
@@ -750,46 +754,51 @@ serve(async (req) => {
     }
 
     // Extract submission_type from form submission data
-    // Check multiple possible field names for submission_type
+    // IMPORTANT: Check for meeting forms FIRST to ensure they always get submissionType = 'meeting'
     let submissionType: string | null = null;
     
-    // Try from form_name in body (from Fillout webhook configuration)
-    const formNameValue = body.form_name || body.formName || meetingData.form_name || meetingData.formName;
-    if (formNameValue && typeof formNameValue === 'string') {
-      // Use form_name as submission_type (e.g., "שאלון התאמה" -> "שאלון התאמה")
-      submissionType = formNameValue.trim();
-      console.log('[receive-fillout-webhook] Extracted submission_type from form_name:', submissionType);
-    }
-    
-    // Try from questions array
-    if (!submissionType && body.questions && Array.isArray(body.questions)) {
-      for (const q of body.questions) {
-        const key = (q.name || q.id || '').toLowerCase();
-        if (key.includes('submission_type') || key.includes('submissiontype') || key.includes('type')) {
-          submissionType = String(q.value || '').trim();
-          if (submissionType) break;
+    // First, check if this is a meeting form (by form ID or form name) - this must override form_name
+    const normalizedFormId = formId ? String(formId).trim().toLowerCase() : '';
+    if (normalizedFormId === normalizedOpenMeetingFormId || isOpenMeetingForm) {
+      // This is definitely an open-meeting form, so set submissionType to 'meeting' to ensure meetings table gets updated
+      submissionType = 'meeting';
+      console.log('[receive-fillout-webhook] Detected open-meeting form, setting submissionType to "meeting"');
+    } else if (normalizedFormId === normalizedBudgetMeetingFormId) {
+      // This is a budget meeting form
+      submissionType = 'budget_meeting';
+      console.log('[receive-fillout-webhook] Detected budget-meeting form, setting submissionType to "budget_meeting"');
+    } else {
+      // Not a meeting form, try to extract from form_name or other sources
+      // Try from form_name in body (from Fillout webhook configuration)
+      const formNameValue = body.form_name || body.formName || meetingData.form_name || meetingData.formName;
+      if (formNameValue && typeof formNameValue === 'string') {
+        // Use form_name as submission_type (e.g., "שאלון התאמה" -> "שאלון התאמה")
+        submissionType = formNameValue.trim();
+        console.log('[receive-fillout-webhook] Extracted submission_type from form_name:', submissionType);
+      }
+      
+      // Try from questions array
+      if (!submissionType && body.questions && Array.isArray(body.questions)) {
+        for (const q of body.questions) {
+          const key = (q.name || q.id || '').toLowerCase();
+          if (key.includes('submission_type') || key.includes('submissiontype') || key.includes('type')) {
+            submissionType = String(q.value || '').trim();
+            if (submissionType) break;
+          }
         }
       }
-    }
-    
-    // Try from direct properties in meetingData
-    const typeKeys = ['submission_type', 'submissionType', 'type', 'submission_type_field'];
-    for (const key of typeKeys) {
-      if (!submissionType && meetingData[key] && typeof meetingData[key] === 'string') {
-        submissionType = meetingData[key].trim();
-        break;
+      
+      // Try from direct properties in meetingData
+      const typeKeys = ['submission_type', 'submissionType', 'type', 'submission_type_field'];
+      for (const key of typeKeys) {
+        if (!submissionType && meetingData[key] && typeof meetingData[key] === 'string') {
+          submissionType = meetingData[key].trim();
+          break;
+        }
       }
-    }
-    
-    // If still no type found, try to infer from form ID or form name
-    if (!submissionType) {
-      const normalizedFormId = formId ? String(formId).trim().toLowerCase() : '';
-      if (normalizedFormId === normalizedOpenMeetingFormId || isOpenMeetingForm) {
-        submissionType = 'meeting';
-      } else if (normalizedFormId === normalizedBudgetMeetingFormId) {
-        submissionType = 'budget_meeting';
-      } else {
-        // Use form_name from body if available, otherwise default
+      
+      // If still no type found, use form_name as fallback
+      if (!submissionType) {
         const fallbackFormName = body.form_name || body.formName || '';
         submissionType = fallbackFormName || 'other';
       }

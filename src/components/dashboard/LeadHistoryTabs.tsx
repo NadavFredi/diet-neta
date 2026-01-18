@@ -484,17 +484,10 @@ export const LeadHistoryTabs = ({
                   <TableRow className="bg-gray-50 border-b border-gray-200">
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך התחלה</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תיאור</TableHead>
-                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">כוח</TableHead>
-                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">קרדיו</TableHead>
-                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">אינטרוולים</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {workoutHistory.map((workout, index) => {
-                    const strength = workout.split?.strength || workout.strengthCount || workout.strength || 0;
-                    const cardio = workout.split?.cardio || workout.cardioCount || workout.cardio || 0;
-                    const intervals = workout.split?.intervals || workout.intervalsCount || workout.intervals || 0;
-
                     return (
                       <TableRow
                         key={index}
@@ -536,21 +529,6 @@ export const LeadHistoryTabs = ({
                               <BudgetLinkBadge budgetId={workout.budget_id} />
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell className="py-3">
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border border-blue-200 text-xs px-2 py-0.5 font-semibold">
-                            {strength}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="py-3">
-                          <Badge variant="outline" className="bg-red-50 text-red-700 border border-red-200 text-xs px-2 py-0.5 font-semibold">
-                            {cardio}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="py-3">
-                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border border-purple-200 text-xs px-2 py-0.5 font-semibold">
-                            {intervals}
-                          </Badge>
                         </TableCell>
                       </TableRow>
                     );
