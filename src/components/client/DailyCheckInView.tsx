@@ -273,6 +273,25 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
     return true;
   }, [weight, stressLevel, hungerLevel, energyLevel]);
 
+  // Helper: Get sorted fields for a section based on order
+  // Must be defined before any early returns to follow Rules of Hooks
+  const getSortedFieldsForSection = useCallback((sectionKey: 'body' | 'activity' | 'nutrition' | 'wellness') => {
+    if (!fieldConfig?.fields) return [];
+    return Object.entries(fieldConfig.fields)
+      .filter(([_, field]) => field.section === sectionKey && field.visible)
+      .sort(([_, a], [__, b]) => {
+        const orderA = a.order ?? 999;
+        const orderB = b.order ?? 999;
+        return orderA - orderB;
+      });
+  }, [fieldConfig]);
+
+  // Get sorted fields for each section - must be defined before early return
+  const bodyFields = useMemo(() => getSortedFieldsForSection('body'), [getSortedFieldsForSection]);
+  const activityFields = useMemo(() => getSortedFieldsForSection('activity'), [getSortedFieldsForSection]);
+  const nutritionFields = useMemo(() => getSortedFieldsForSection('nutrition'), [getSortedFieldsForSection]);
+  const wellnessFields = useMemo(() => getSortedFieldsForSection('wellness'), [getSortedFieldsForSection]);
+
   const handleSubmit = () => {
     if (!isFormValid) return;
 
@@ -322,17 +341,6 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
     ? format(new Date(selectedDate), 'd בMMMM yyyy', { locale: he })
     : format(new Date(), 'd בMMMM yyyy', { locale: he });
 
-  // Helper: Get sorted fields for a section based on order
-  const getSortedFieldsForSection = useCallback((sectionKey: 'body' | 'activity' | 'nutrition' | 'wellness') => {
-    return Object.entries(fieldConfig.fields)
-      .filter(([_, field]) => field.section === sectionKey && field.visible)
-      .sort(([_, a], [__, b]) => {
-        const orderA = a.order ?? 999;
-        const orderB = b.order ?? 999;
-        return orderA - orderB;
-      });
-  }, [fieldConfig]);
-
   // Field value and setter mapping
   const fieldValueMap: Record<string, number | null> = {
     weight,
@@ -375,12 +383,6 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
     energyLevel: setEnergyLevel,
     sleepHours: setSleepHours,
   };
-
-  // Get sorted fields for each section
-  const bodyFields = useMemo(() => getSortedFieldsForSection('body'), [fieldConfig, getSortedFieldsForSection]);
-  const activityFields = useMemo(() => getSortedFieldsForSection('activity'), [fieldConfig, getSortedFieldsForSection]);
-  const nutritionFields = useMemo(() => getSortedFieldsForSection('nutrition'), [fieldConfig, getSortedFieldsForSection]);
-  const wellnessFields = useMemo(() => getSortedFieldsForSection('wellness'), [fieldConfig, getSortedFieldsForSection]);
 
   // Calculate input indices - count visible fields before each section
   let inputIndex = 0;

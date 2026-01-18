@@ -133,11 +133,6 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
 
   return (
     <div className="flex flex-col h-full" dir="rtl">
-      {/* Header without Add Button - button is now in LeadHistoryTabs header */}
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
-        <h3 className="text-base font-semibold text-slate-900">דיווחים שבועיים</h3>
-      </div>
-
       {/* List of Weekly Reviews */}
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (

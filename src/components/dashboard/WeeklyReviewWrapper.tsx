@@ -86,7 +86,7 @@ export const WeeklyReviewWrapper: React.FC<WeeklyReviewWrapperProps> = ({
           setEditingReview(null);
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="max-w-7xl w-[95vw] max-h-[90vh] overflow-y-auto overflow-x-hidden" dir="rtl">
           <DialogHeader>
             <DialogTitle>
               {editingReview ? 'ערוך דיווח שבועי' : 'דיווח שבועי חדש'}

@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { sendWhatsAppMessage, formatPhoneNumber } from '@/services/greenApiService';
-import { Calendar as CalendarIcon, Target, TrendingUp, MessageSquare, Save } from 'lucide-react';
+import { Calendar as CalendarIcon, Target, TrendingUp, MessageSquare, Save, Clock } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
@@ -87,6 +87,46 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   const { data: budgetAssignment } = useActiveBudgetForLead(leadId || null);
   const { data: customerBudgetAssignment } = useActiveBudgetForCustomer(customerId || null);
   const activeBudget = budgetAssignment?.budget || customerBudgetAssignment?.budget;
+
+  // Fetch last check-in for reference
+  const { data: lastCheckIn, isLoading: isLoadingLastCheckIn } = useQuery({
+    queryKey: ['last-check-in', customerId, leadId],
+    queryFn: async () => {
+      let finalCustomerId = customerId;
+      
+      if (!finalCustomerId && leadId) {
+        const { data: leadData, error: leadError } = await supabase
+          .from('leads')
+          .select('customer_id')
+          .eq('id', leadId)
+          .single();
+        
+        if (leadError) throw leadError;
+        if (!leadData?.customer_id) return null;
+        finalCustomerId = leadData.customer_id;
+      }
+
+      if (!finalCustomerId) return null;
+
+      // Get the most recent check-in for this customer
+      let query = supabase
+        .from('daily_check_ins')
+        .select('*')
+        .eq('customer_id', finalCustomerId)
+        .order('check_in_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (leadId) {
+        query = query.or(`lead_id.eq.${leadId},lead_id.is.null`);
+      }
+
+      const { data, error } = await query;
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows returned
+      return data;
+    },
+    enabled: !!(leadId || customerId),
+  });
 
   // Fetch daily check-ins for the selected week
   const { data: weekCheckIns, isLoading: isLoadingCheckIns } = useQuery({
@@ -653,55 +693,184 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   }
 
   return (
-    <Card className="rounded-3xl border border-gray-200 shadow-sm">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Target className="h-5 w-5 text-blue-600" />
-            סיכום אסטרטגיה שבועי
-          </CardTitle>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                {format(weekStart, 'dd/MM', { locale: he })} - {format(weekEnd, 'dd/MM', { locale: he })}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedWeekStart}
-                onSelect={(date) => {
-                  if (date) {
-                    setSelectedWeekStart(startOfWeek(date, { weekStartsOn: 0 }));
-                  }
-                }}
-                initialFocus
-              />
-              <div className="flex gap-2 p-3 border-t">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedWeekStart(subWeeks(selectedWeekStart, 1))}
-                >
-                  שבוע קודם
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedWeekStart(addWeeks(selectedWeekStart, 1))}
-                >
-                  שבוע הבא
-                </Button>
+    <div className="flex gap-4" dir="rtl">
+      {/* Left Panel: Last Check-in */}
+      <div className="w-80 flex-shrink-0">
+        <Card className="rounded-3xl border border-gray-200 shadow-sm h-full">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <Clock className="h-5 w-5 text-blue-600" />
+              צ'ק-אין אחרון
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isLoadingLastCheckIn ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
+            ) : lastCheckIn ? (
+              <>
+                <div className="text-sm text-gray-600 mb-4">
+                  <div className="font-semibold text-gray-900 mb-1">תאריך:</div>
+                  {format(new Date(lastCheckIn.check_in_date), 'dd/MM/yyyy', { locale: he })}
+                </div>
+                
+                <div className="space-y-3">
+                  {/* Nutrition Section */}
+                  {(lastCheckIn.calories_daily !== null || lastCheckIn.protein_daily !== null || lastCheckIn.fiber_daily !== null) && (
+                    <div className="border-b pb-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-2 uppercase">תזונה</div>
+                      <div className="space-y-2 text-sm">
+                        {lastCheckIn.calories_daily !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">קלוריות:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(lastCheckIn.calories_daily)} קק"ל</span>
+                          </div>
+                        )}
+                        {lastCheckIn.protein_daily !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">חלבון:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(lastCheckIn.protein_daily)} גרם</span>
+                          </div>
+                        )}
+                        {lastCheckIn.fiber_daily !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">סיבים:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(lastCheckIn.fiber_daily)} גרם</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Physical Measurements Section */}
+                  {(lastCheckIn.weight !== null || lastCheckIn.waist_circumference !== null) && (
+                    <div className="border-b pb-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-2 uppercase">מדדי גוף</div>
+                      <div className="space-y-2 text-sm">
+                        {lastCheckIn.weight !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">משקל:</span>
+                            <span className="font-semibold text-gray-900">{lastCheckIn.weight.toFixed(1)} ק"ג</span>
+                          </div>
+                        )}
+                        {lastCheckIn.waist_circumference !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">היקף מותן:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(lastCheckIn.waist_circumference)} ס"מ</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Activity Section */}
+                  {lastCheckIn.steps_actual !== null && (
+                    <div className="border-b pb-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-2 uppercase">פעילות</div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">צעדים:</span>
+                          <span className="font-semibold text-gray-900">{Math.round(lastCheckIn.steps_actual)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Additional measurements if available */}
+                  {(lastCheckIn.belly_circumference !== null || lastCheckIn.thigh_circumference !== null || lastCheckIn.arm_circumference !== null || lastCheckIn.neck_circumference !== null) && (
+                    <div className="border-b pb-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-2 uppercase">מדידות נוספות</div>
+                      <div className="space-y-2 text-sm">
+                        {lastCheckIn.belly_circumference !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">היקף בטן:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(lastCheckIn.belly_circumference)} ס"מ</span>
+                          </div>
+                        )}
+                        {lastCheckIn.thigh_circumference !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">היקף ירך:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(lastCheckIn.thigh_circumference)} ס"מ</span>
+                          </div>
+                        )}
+                        {lastCheckIn.arm_circumference !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">היקף זרוע:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(lastCheckIn.arm_circumference)} ס"מ</span>
+                          </div>
+                        )}
+                        {lastCheckIn.neck_circumference !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">היקף צוואר:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(lastCheckIn.neck_circumference)} ס"מ</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-gray-500 text-center py-8">
+                אין צ'ק-אין עדיין
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Right Panel: Weekly Review Form */}
+      <div className="flex-1 min-w-0">
+        <Card className="rounded-3xl border border-gray-200 shadow-sm">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Target className="h-5 w-5 text-blue-600" />
+                סיכום אסטרטגיה שבועי
+              </CardTitle>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    {format(weekStart, 'dd/MM', { locale: he })} - {format(weekEnd, 'dd/MM', { locale: he })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedWeekStart}
+                    onSelect={(date) => {
+                      if (date) {
+                        setSelectedWeekStart(startOfWeek(date, { weekStartsOn: 0 }));
+                      }
+                    }}
+                    initialFocus
+                  />
+                  <div className="flex gap-2 p-3 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedWeekStart(subWeeks(selectedWeekStart, 1))}
+                    >
+                      שבוע קודם
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedWeekStart(addWeeks(selectedWeekStart, 1))}
+                    >
+                      שבוע הבא
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
         {/* Comparison Table - All fields editable */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" dir="rtl">
+        <div className="w-full overflow-hidden">
+          <table className="w-full text-sm table-auto" dir="rtl">
             <thead>
               <tr className="border-b">
                 <th className="text-right p-2 font-semibold text-gray-700">מדד</th>
@@ -958,8 +1127,10 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
             </Button>
           )}
         </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };
 
