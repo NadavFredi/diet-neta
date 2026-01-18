@@ -13,12 +13,13 @@ import { useAppSelector } from '@/store/hooks';
 // Types
 // =====================================================
 
-import type { Currency } from '@/store/slices/subscriptionTypesSlice';
+import type { Currency, DurationUnit } from '@/store/slices/subscriptionTypesSlice';
 
 export interface SubscriptionType {
   id: string;
   name: string;
-  duration: number; // Duration in months
+  duration: number; // Duration value (interpreted based on duration_unit)
+  duration_unit: DurationUnit; // Unit for duration: days, weeks, or months
   price: number; // Price amount
   currency: Currency; // Currency code: ILS, USD, or EUR
   created_at: string;
@@ -100,11 +101,13 @@ export const useCreateSubscriptionType = () => {
     mutationFn: async ({
       name,
       duration,
+      duration_unit = 'months',
       price,
       currency = 'ILS',
     }: {
       name: string;
       duration: number;
+      duration_unit?: DurationUnit;
       price: number;
       currency?: Currency;
     }) => {
@@ -117,6 +120,7 @@ export const useCreateSubscriptionType = () => {
         .insert({
           name,
           duration,
+          duration_unit,
           price,
           currency,
           created_by: userId,
@@ -152,6 +156,7 @@ export const useUpdateSubscriptionType = () => {
       subscriptionTypeId: string;
       name?: string;
       duration?: number;
+      duration_unit?: DurationUnit;
       price?: number;
       currency?: Currency;
     }) => {

@@ -38,6 +38,10 @@ const DEFAULT_FLOW_CONFIGS: FlowConfig[] = [
     key: 'trainee_user_credentials',
     label: 'שליחת פרטי משתמש חניך',
   },
+  {
+    key: 'weekly_review',
+    label: 'סיכום שבועי ויעדים',
+  },
 ];
 
 // Load custom flows from localStorage

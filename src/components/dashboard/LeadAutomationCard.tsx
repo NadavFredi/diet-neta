@@ -66,7 +66,19 @@ const DEFAULT_FLOW_CONFIGS: FlowConfig[] = [
   },
   {
     key: 'intro_questionnaire',
-    label: 'שליחת שאלון הכרות לאחר קביעת שיחה',
+    label: 'אוטומטי שליחת שאלון הכרות לאחר קביעת שיחה',
+  },
+  {
+    key: 'budget',
+    label: 'שליחת תקציב',
+  },
+  {
+    key: 'payment_request',
+    label: 'בקשת תשלום',
+  },
+  {
+    key: 'trainee_user_credentials',
+    label: 'שליחת פרטי משתמש חניך',
   },
 ];
 

@@ -785,13 +785,27 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
             
-            // Calculate expiration date: add months to join date
+            // Calculate expiration date based on duration_unit
             const expirationDate = new Date(today);
-            expirationDate.setMonth(expirationDate.getMonth() + subscriptionType.duration);
+            const durationUnit = subscriptionType.duration_unit || 'months';
+            
+            switch (durationUnit) {
+              case 'days':
+                expirationDate.setDate(expirationDate.getDate() + subscriptionType.duration);
+                break;
+              case 'weeks':
+                expirationDate.setDate(expirationDate.getDate() + (subscriptionType.duration * 7));
+                break;
+              case 'months':
+              default:
+                expirationDate.setMonth(expirationDate.getMonth() + subscriptionType.duration);
+                break;
+            }
             const expirationDateStr = expirationDate.toISOString().split('T')[0];
             
             console.log('Subscription data being set:', {
               duration: subscriptionType.duration,
+              duration_unit: durationUnit,
               price: subscriptionType.price,
               expirationDate: expirationDateStr,
             });
@@ -801,6 +815,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             const updatedSubscription = {
               ...subscriptionData,
               months: subscriptionType.duration, // Copy duration value
+              duration_unit: durationUnit, // Copy duration unit
               initialPrice: subscriptionType.price, // Copy price value
               expirationDate: expirationDateStr, // Calculate expiration date
               status: 'פעיל', // Set status to Active by default

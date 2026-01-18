@@ -149,7 +149,7 @@ export const useSubscriptionTypesManagement = () => {
   };
 
   const handleSaveSubscriptionType = async (
-    data: { subscriptionTypeId?: string; name: string; duration: number; price: number; currency?: string }
+    data: { subscriptionTypeId?: string; name: string; duration: number; duration_unit?: string; price: number; currency?: string }
   ) => {
     try {
       if (editingSubscriptionType) {
@@ -157,6 +157,7 @@ export const useSubscriptionTypesManagement = () => {
           subscriptionTypeId: editingSubscriptionType.id,
           name: data.name,
           duration: data.duration,
+          duration_unit: (data.duration_unit || 'months') as any,
           price: data.price,
           currency: data.currency as any,
         });
@@ -171,6 +172,7 @@ export const useSubscriptionTypesManagement = () => {
         await createSubscriptionType.mutateAsync({
           name: data.name,
           duration: data.duration,
+          duration_unit: (data.duration_unit || 'months') as any,
           price: data.price,
           currency: (data.currency || 'ILS') as any,
         });

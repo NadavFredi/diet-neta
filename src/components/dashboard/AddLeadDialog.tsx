@@ -29,6 +29,21 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSubscriptionTypes } from '@/store/slices/subscriptionTypesSlice';
 import { useEffect } from 'react';
 import { useBudgets } from '@/hooks/useBudgets';
+import type { DurationUnit } from '@/store/slices/subscriptionTypesSlice';
+
+// Helper function to get duration unit label in Hebrew
+const getDurationUnitLabel = (unit: DurationUnit, count: number): string => {
+  switch (unit) {
+    case 'days':
+      return count === 1 ? 'יום' : 'ימים';
+    case 'weeks':
+      return count === 1 ? 'שבוע' : 'שבועות';
+    case 'months':
+      return count === 1 ? 'חודש' : 'חודשים';
+    default:
+      return '';
+  }
+};
 
 interface AddLeadDialogProps {
   isOpen: boolean;
@@ -421,9 +436,10 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                     subscriptionTypes.map((subscriptionType) => {
                       const currencySymbol = subscriptionType.currency === 'USD' ? '$' : 
                                             subscriptionType.currency === 'EUR' ? '€' : '₪';
+                      const durationUnit: DurationUnit = subscriptionType.duration_unit || 'months';
                       return (
                         <SelectItem key={subscriptionType.id} value={subscriptionType.id}>
-                          {subscriptionType.name} - {subscriptionType.duration} חודשים - {currencySymbol}{subscriptionType.price.toLocaleString('he-IL')}
+                          {subscriptionType.name} - {subscriptionType.duration} {getDurationUnitLabel(durationUnit, subscriptionType.duration)} - {currencySymbol}{subscriptionType.price.toLocaleString('he-IL')}
                         </SelectItem>
                       );
                     })

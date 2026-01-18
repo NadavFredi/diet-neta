@@ -100,11 +100,11 @@ export const WhatsAppAutomationsPage: React.FC = () => {
         onLogout={handleLogout}
         sidebarContent={<DashboardSidebar />}
       />
-
+      
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
         <main
           className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out"
-          style={{
+                          style={{
             marginRight: `${sidebarWidth.width}px`,
             minHeight: 'calc(100vh - 60px)',
           }}
@@ -134,7 +134,7 @@ export const WhatsAppAutomationsPage: React.FC = () => {
                   <div className="text-center py-12">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
                     <p className="text-gray-600">טוען אוטומציות...</p>
-                  </div>
+                          </div>
                 ) : automations && Array.isArray(automations) && automations.length > 0 ? (
                   <WhatsAppAutomationsDataTable
                     automations={automations}
@@ -145,11 +145,11 @@ export const WhatsAppAutomationsPage: React.FC = () => {
                   <div className="p-8 text-center text-gray-500">
                     <p className="text-lg font-medium mb-2">לא נמצאו אוטומציות</p>
                     <p className="text-sm">לחץ על "הוסף אוטומציה" כדי להתחיל</p>
-                  </div>
-                )}
-              </div>
+                        </div>
+                      )}
+                    </div>
             </div>
-          </div>
+        </div>
         </main>
       </div>
 

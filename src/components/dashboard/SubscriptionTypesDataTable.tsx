@@ -12,6 +12,21 @@ import {
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import type { DataTableColumn } from '@/components/ui/DataTable';
+import type { DurationUnit } from '@/store/slices/subscriptionTypesSlice';
+
+// Helper function to get duration unit label in Hebrew
+const getDurationUnitLabel = (unit: DurationUnit, count: number): string => {
+  switch (unit) {
+    case 'days':
+      return count === 1 ? 'יום' : 'ימים';
+    case 'weeks':
+      return count === 1 ? 'שבוע' : 'שבועות';
+    case 'months':
+      return count === 1 ? 'חודש' : 'חודשים';
+    default:
+      return '';
+  }
+};
 
 interface SubscriptionTypesDataTableProps {
   subscriptionTypes: SubscriptionType[];
@@ -37,7 +52,8 @@ export const subscriptionTypeColumns: DataTableColumn<SubscriptionType>[] = [
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
       const duration = row.original.duration;
-      return <span className="text-sm font-medium">{duration} חודשים</span>;
+      const durationUnit: DurationUnit = row.original.duration_unit || 'months';
+      return <span className="text-sm font-medium">{duration} {getDurationUnitLabel(durationUnit, duration)}</span>;
     },
   },
   {

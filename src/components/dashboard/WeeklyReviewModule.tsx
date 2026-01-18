@@ -5,7 +5,7 @@
  * Aggregates daily check-in data and allows trainer to provide feedback.
  */
 
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useActiveBudgetForLead, useActiveBudgetForCustomer } from '@/hooks/useBudgets';
@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { sendWhatsAppMessage, formatPhoneNumber } from '@/services/greenApiService';
+import { sendWhatsAppMessage, formatPhoneNumber, replacePlaceholders } from '@/services/greenApiService';
 import { Calendar as CalendarIcon, Target, TrendingUp, MessageSquare, Save, Clock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO } from 'date-fns';
@@ -23,6 +23,8 @@ import { he } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchTemplates } from '@/store/slices/automationSlice';
 
 interface WeeklyReviewModuleProps {
   leadId?: string | null;
@@ -71,6 +73,13 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const templates = useAppSelector((state) => state.automation.templates);
+
+  // Fetch WhatsApp templates on mount
+  useEffect(() => {
+    dispatch(fetchTemplates());
+  }, [dispatch]);
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
     // Use initialWeekStart if provided, otherwise default to start of current week (Sunday)
     if (initialWeekStart) {
@@ -697,31 +706,87 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     try {
       const weekLabel = `שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}`;
       
-      // Build message using editable values
-      let message = `📊 *סיכום שבועי - ${weekLabel}*\n\n`;
-      message += `🎯 *יעדים:*\n`;
-      if (targetCalories) message += `קלוריות: ${Math.round(parseFloat(targetCalories))} קק"ל\n`;
-      if (targetProtein) message += `חלבון: ${Math.round(parseFloat(targetProtein))} גרם\n`;
-      if (targetFiber) message += `סיבים: ${Math.round(parseFloat(targetFiber))} גרם\n`;
-      if (targetSteps) message += `צעדים: ${Math.round(parseFloat(targetSteps))}\n`;
+      // Check if there's a custom template for weekly_review
+      const weeklyReviewTemplate = templates['weekly_review'];
+      let message: string;
+      let processedButtons: Array<{ id: string; text: string }> | undefined;
+      let media: { type: 'image' | 'video' | 'gif'; url: string } | undefined;
       
-      message += `\n📈 *בפועל (ממוצע):*\n`;
-      if (actualCalories) message += `קלוריות: ${Math.round(parseFloat(actualCalories))} קק"ל\n`;
-      if (actualProtein) message += `חלבון: ${Math.round(parseFloat(actualProtein))} גרם\n`;
-      if (actualFiber) message += `סיבים: ${Math.round(parseFloat(actualFiber))} גרם\n`;
-      if (actualWeight) message += `משקל ממוצע: ${parseFloat(actualWeight).toFixed(1)} ק"ג\n`;
-      
-      if (trainerSummary) {
-        message += `\n💬 *סיכום ומסקנות:*\n${trainerSummary}\n`;
-      }
-      
-      if (actionPlan) {
-        message += `\n🎯 *דגשים לשבוע הקרוב:*\n${actionPlan}\n`;
+      if (weeklyReviewTemplate?.template_content?.trim()) {
+        // Use custom template with placeholders
+        const placeholders: Record<string, string> = {
+          // Week info
+          '{{week_label}}': weekLabel,
+          '{{week_start}}': format(weekStart, 'dd/MM', { locale: he }),
+          '{{week_end}}': format(weekEnd, 'dd/MM', { locale: he }),
+          
+          // Customer info
+          '{{first_name}}': customerName?.split(' ')[0] || '',
+          '{{full_name}}': customerName || '',
+          
+          // Targets
+          '{{target_calories}}': targetCalories ? Math.round(parseFloat(targetCalories)).toString() : '-',
+          '{{target_protein}}': targetProtein ? Math.round(parseFloat(targetProtein)).toString() : '-',
+          '{{target_fiber}}': targetFiber ? Math.round(parseFloat(targetFiber)).toString() : '-',
+          '{{target_steps}}': targetSteps ? Math.round(parseFloat(targetSteps)).toString() : '-',
+          
+          // Actuals
+          '{{actual_calories}}': actualCalories ? Math.round(parseFloat(actualCalories)).toString() : '-',
+          '{{actual_protein}}': actualProtein ? Math.round(parseFloat(actualProtein)).toString() : '-',
+          '{{actual_fiber}}': actualFiber ? Math.round(parseFloat(actualFiber)).toString() : '-',
+          '{{actual_weight}}': actualWeight ? parseFloat(actualWeight).toFixed(1) : '-',
+          
+          // Trainer feedback
+          '{{trainer_summary}}': trainerSummary || '',
+          '{{action_plan}}': actionPlan || '',
+        };
+        
+        message = replacePlaceholders(weeklyReviewTemplate.template_content, placeholders);
+        
+        // Process buttons if they exist
+        if (weeklyReviewTemplate.buttons?.length) {
+          processedButtons = weeklyReviewTemplate.buttons.map(btn => ({
+            id: btn.id,
+            text: replacePlaceholders(btn.text, placeholders),
+          }));
+        }
+        
+        // Process media if it exists
+        if (weeklyReviewTemplate.media?.url) {
+          media = {
+            type: weeklyReviewTemplate.media.type as 'image' | 'video' | 'gif',
+            url: weeklyReviewTemplate.media.url,
+          };
+        }
+      } else {
+        // Use default message format
+        message = `📊 *סיכום שבועי - ${weekLabel}*\n\n`;
+        message += `🎯 *יעדים:*\n`;
+        if (targetCalories) message += `קלוריות: ${Math.round(parseFloat(targetCalories))} קק"ל\n`;
+        if (targetProtein) message += `חלבון: ${Math.round(parseFloat(targetProtein))} גרם\n`;
+        if (targetFiber) message += `סיבים: ${Math.round(parseFloat(targetFiber))} גרם\n`;
+        if (targetSteps) message += `צעדים: ${Math.round(parseFloat(targetSteps))}\n`;
+        
+        message += `\n📈 *בפועל (ממוצע):*\n`;
+        if (actualCalories) message += `קלוריות: ${Math.round(parseFloat(actualCalories))} קק"ל\n`;
+        if (actualProtein) message += `חלבון: ${Math.round(parseFloat(actualProtein))} גרם\n`;
+        if (actualFiber) message += `סיבים: ${Math.round(parseFloat(actualFiber))} גרם\n`;
+        if (actualWeight) message += `משקל ממוצע: ${parseFloat(actualWeight).toFixed(1)} ק"ג\n`;
+        
+        if (trainerSummary) {
+          message += `\n💬 *סיכום ומסקנות:*\n${trainerSummary}\n`;
+        }
+        
+        if (actionPlan) {
+          message += `\n🎯 *דגשים לשבוע הקרוב:*\n${actionPlan}\n`;
+        }
       }
 
       const result = await sendWhatsAppMessage({
         phoneNumber: customerPhone,
         message,
+        buttons: processedButtons,
+        media,
       });
 
       if (result.success) {
