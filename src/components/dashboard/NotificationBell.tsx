@@ -4,7 +4,7 @@
  * Displays a bell icon with unread count badge and dropdown menu
  */
 
-import { Bell, X, Filter, Trash2, RefreshCw, Calendar, FileText, CheckCircle2 } from 'lucide-react';
+import { Bell, Filter, Trash2, RefreshCw, Calendar, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -196,11 +196,13 @@ export const NotificationBell = () => {
                 className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   refreshNotifications();
                 }}
+                disabled={isLoading}
                 title="רענון"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
               </Button>
             </div>
           </div>
@@ -301,28 +303,6 @@ export const NotificationBell = () => {
                           </div>
                         </div>
                       </div>
-
-                      {/* Action Buttons (if applicable) */}
-                      {(notification.lead_id || notification.customer_id) && (
-                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200" dir="rtl">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-blue-50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (notification.lead_id) {
-                                navigate(`/leads/${notification.lead_id}`);
-                              } else if (notification.customer_id) {
-                                navigate(`/customers/${notification.customer_id}`);
-                              }
-                            }}
-                          >
-                            <FileText className="h-3 w-3 ml-1" />
-                            פרטי הלקוח
-                          </Button>
-                        </div>
-                      )}
                     </div>
                   );
                   })

@@ -49,6 +49,8 @@ interface LeadPaymentCardProps {
   customerPhone?: string | null;
   customerName?: string | null;
   customerEmail?: string | null;
+  customerId?: string | null;
+  leadId?: string | null;
 }
 
 type EntryMode = 'product' | 'manual';
@@ -57,6 +59,8 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   customerPhone,
   customerName,
   customerEmail,
+  customerId,
+  leadId,
 }) => {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
@@ -302,6 +306,8 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
         description: description,
         priceId: selectedPrice?.id, // Use Stripe Price ID if available
         metadata: {
+          ...(customerId && { customer_id: customerId }),
+          ...(leadId && { lead_id: leadId }),
           ...(customerEmail && { customerEmail }),
           ...(customerName && { customerName }),
           ...(billingMode && { billingMode }),

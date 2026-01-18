@@ -741,6 +741,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             customerPhone={activeLead.phone || customer?.phone || null}
             customerName={customer?.full_name || activeLead.name || null}
             customerEmail={customer?.email || activeLead.email || null}
+            customerId={customer?.id || null}
+            leadId={activeLead?.id || null}
           />
         </div>
 
