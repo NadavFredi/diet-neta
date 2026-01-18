@@ -259,6 +259,8 @@ export const useDashboardLogic = () => {
 
   // Fetch leads on mount and when filters/pagination/sorting/grouping change
   // Single useEffect to prevent duplicate calls
+  // NOTE: refreshLeads is NOT in dependencies to prevent infinite loops
+  // It's a useCallback with all necessary dependencies, so it will be recreated when needed
   useEffect(() => {
     console.log('useDashboardLogic: useEffect triggered, calling refreshLeads');
     // Always refresh leads when filters/pagination/sorting/grouping change or on mount
@@ -282,11 +284,9 @@ export const useDashboardLogic = () => {
     // Sorting dependencies
     sortBy,
     sortOrder,
-    // Grouping dependencies
+    // Grouping dependencies - use JSON.stringify to ensure stable reference
     groupByKeys[0],
     groupByKeys[1],
-    // refreshLeads itself (it has all dependencies internally)
-    refreshLeads,
   ]);
 
 
@@ -482,109 +482,122 @@ export const useDashboardLogic = () => {
   const filteredLeads = useMemo(() => leads, [leads]);
 
   // =====================================================
-  // URL Params Sync - sync Redux state with URL query params
+  // URL Params Sync - read URL params on mount/initial load only
+  // One-way: URL -> Redux (only on initial load)
   // =====================================================
+  const [hasReadUrlParams, setHasReadUrlParams] = useState(false);
+  
   useEffect(() => {
-    const params = new URLSearchParams(searchParams);
-    let hasChanges = false;
+    // Only read from URL params once on initial mount
+    if (hasReadUrlParams) return;
 
-    // Sync pagination to URL
+    const params = new URLSearchParams(searchParams);
+
+    // Read pagination from URL
     const urlPage = params.get('page');
-    if (urlPage && parseInt(urlPage, 10) !== currentPage) {
-      dispatch(setCurrentPage(parseInt(urlPage, 10)));
-      hasChanges = true;
-    } else if (!urlPage && currentPage !== 1) {
-      params.set('page', String(currentPage));
-      hasChanges = true;
+    if (urlPage) {
+      const pageNum = parseInt(urlPage, 10);
+      if (!isNaN(pageNum) && pageNum > 0 && pageNum !== currentPage) {
+        dispatch(setCurrentPage(pageNum));
+      }
     }
 
     const urlPageSize = params.get('pageSize');
-    if (urlPageSize && parseInt(urlPageSize, 10) !== pageSize) {
-      dispatch(setPageSize(parseInt(urlPageSize, 10)));
-      hasChanges = true;
-    } else if (!urlPageSize && pageSize !== 100) {
-      params.set('pageSize', String(pageSize));
-      hasChanges = true;
+    if (urlPageSize) {
+      const pageSizeNum = parseInt(urlPageSize, 10);
+      if (!isNaN(pageSizeNum) && (pageSizeNum === 50 || pageSizeNum === 100) && pageSizeNum !== pageSize) {
+        dispatch(setPageSize(pageSizeNum));
+      }
     }
 
-    // Sync search to URL
+    // Read search from URL
     const urlSearch = params.get('search');
     if (urlSearch !== null && urlSearch !== searchQuery) {
       dispatch(setSearchQuery(urlSearch));
-      hasChanges = true;
-    } else if (urlSearch === null && searchQuery) {
-      params.set('search', searchQuery);
-      hasChanges = true;
-    } else if (urlSearch !== null && urlSearch === '' && !searchQuery) {
-      params.delete('search');
-      hasChanges = true;
     }
 
-    // Sync sorting to URL
+    // Read sorting from URL
     const urlSortBy = params.get('sortBy');
-    const urlSortOrder = params.get('sortOrder') as 'ASC' | 'DESC' | null;
     if (urlSortBy && urlSortBy !== sortBy) {
       dispatch(setSortBy(urlSortBy));
-      hasChanges = true;
-    } else if (!urlSortBy && sortBy !== 'createdDate') {
-      params.set('sortBy', sortBy);
-      hasChanges = true;
     }
 
-    if (urlSortOrder && urlSortOrder !== sortOrder) {
+    const urlSortOrder = params.get('sortOrder') as 'ASC' | 'DESC' | null;
+    if (urlSortOrder && (urlSortOrder === 'ASC' || urlSortOrder === 'DESC') && urlSortOrder !== sortOrder) {
       dispatch(setSortOrder(urlSortOrder));
-      hasChanges = true;
-    } else if (!urlSortOrder && sortOrder !== 'DESC') {
-      params.set('sortOrder', sortOrder);
-      hasChanges = true;
     }
 
-    // Update URL if there are changes (without triggering navigation)
-    if (hasChanges) {
-      const newUrl = `${window.location.pathname}?${params.toString()}`;
-      window.history.replaceState({}, '', newUrl);
-    }
-  }, [searchParams, currentPage, pageSize, searchQuery, sortBy, sortOrder, dispatch]);
+    setHasReadUrlParams(true);
+  }, [hasReadUrlParams, searchParams, dispatch]); // Only depend on searchParams, not Redux state
 
   // Sync Redux state to URL on changes (one-way: Redux -> URL)
+  // This effect should NOT depend on searchParams to avoid loops
   useEffect(() => {
-    const params = new URLSearchParams(searchParams);
+    // Skip if we haven't read URL params yet (to avoid writing before reading)
+    if (!hasReadUrlParams) return;
+
+    const params = new URLSearchParams(window.location.search);
     let updated = false;
 
     // Update URL params from Redux state
     if (currentPage !== 1) {
-      params.set('page', String(currentPage));
-      updated = true;
+      if (params.get('page') !== String(currentPage)) {
+        params.set('page', String(currentPage));
+        updated = true;
+      }
     } else {
-      params.delete('page');
+      if (params.has('page')) {
+        params.delete('page');
+        updated = true;
+      }
     }
 
     if (pageSize !== 100) {
-      params.set('pageSize', String(pageSize));
-      updated = true;
+      if (params.get('pageSize') !== String(pageSize)) {
+        params.set('pageSize', String(pageSize));
+        updated = true;
+      }
     } else {
-      params.delete('pageSize');
+      if (params.has('pageSize')) {
+        params.delete('pageSize');
+        updated = true;
+      }
     }
 
     if (searchQuery) {
-      params.set('search', searchQuery);
-      updated = true;
+      if (params.get('search') !== searchQuery) {
+        params.set('search', searchQuery);
+        updated = true;
+      }
     } else {
-      params.delete('search');
+      if (params.has('search')) {
+        params.delete('search');
+        updated = true;
+      }
     }
 
     if (sortBy !== 'createdDate') {
-      params.set('sortBy', sortBy);
-      updated = true;
+      if (params.get('sortBy') !== sortBy) {
+        params.set('sortBy', sortBy);
+        updated = true;
+      }
     } else {
-      params.delete('sortBy');
+      if (params.has('sortBy')) {
+        params.delete('sortBy');
+        updated = true;
+      }
     }
 
     if (sortOrder !== 'DESC') {
-      params.set('sortOrder', sortOrder);
-      updated = true;
+      if (params.get('sortOrder') !== sortOrder) {
+        params.set('sortOrder', sortOrder);
+        updated = true;
+      }
     } else {
-      params.delete('sortOrder');
+      if (params.has('sortOrder')) {
+        params.delete('sortOrder');
+        updated = true;
+      }
     }
 
     // Preserve view_id if present
@@ -592,11 +605,11 @@ export const useDashboardLogic = () => {
       params.set('view_id', viewId);
     }
 
-    if (updated || viewId) {
+    if (updated) {
       const newUrl = `${window.location.pathname}?${params.toString()}`;
       window.history.replaceState({}, '', newUrl);
     }
-  }, [currentPage, pageSize, searchQuery, sortBy, sortOrder, viewId, searchParams]);
+  }, [currentPage, pageSize, searchQuery, sortBy, sortOrder, viewId, hasReadUrlParams]); // Removed searchParams to prevent loop
 
   // =====================================================
   // Return API

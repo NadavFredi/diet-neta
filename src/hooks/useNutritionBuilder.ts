@@ -323,6 +323,38 @@ const initializeManualFields = (initialData?: NutritionTemplate | { manual_field
   };
 };
 
+const initializeActivityEntries = (initialData?: NutritionTemplate | { activity_entries?: ActivityEntry[] }): ActivityEntry[] => {
+  if (initialData && 'activity_entries' in initialData && initialData.activity_entries && Array.isArray(initialData.activity_entries)) {
+    // Ensure all entries have required fields and valid structure
+    const entries = initialData.activity_entries.map((entry, index) => {
+      // Handle both number and string values (from JSON)
+      const metsValue = entry.mets != null ? (typeof entry.mets === 'number' ? entry.mets : parseFloat(String(entry.mets))) : 0;
+      const minutesValue = entry.minutesPerWeek != null ? (typeof entry.minutesPerWeek === 'number' ? entry.minutesPerWeek : parseInt(String(entry.minutesPerWeek), 10)) : 0;
+      
+      return {
+        id: entry.id || String(Date.now() + index),
+        activityType: entry.activityType || '',
+        mets: isNaN(metsValue) ? 0 : metsValue,
+        minutesPerWeek: isNaN(minutesValue) ? 0 : minutesValue,
+      };
+    });
+    
+    console.log('[useNutritionBuilder] Initialized activityEntries from initialData:', entries);
+    return entries;
+  }
+  
+  // Default activity entries
+  const defaultEntries = [
+    { id: '1', activityType: 'הליכה איטית/יוגה/פילאטיס', mets: 3.5, minutesPerWeek: 0 },
+    { id: '2', activityType: 'אימון משקולות כבד', mets: 5.5, minutesPerWeek: 0 },
+    { id: '3', activityType: 'סטודיו/פונקציונלי/איר', mets: 6.0, minutesPerWeek: 0 },
+    { id: '4', activityType: 'ריצה קלה/ג\'וגינג', mets: 7.5, minutesPerWeek: 0 },
+    { id: '5', activityType: 'ריצה מהירה/שחייה מהירה/ספינינג', mets: 10.0, minutesPerWeek: 0 },
+  ];
+  console.log('[useNutritionBuilder] Using default activityEntries:', defaultEntries);
+  return defaultEntries;
+};
+
 export const useNutritionBuilder = (
   mode: NutritionBuilderMode,
   initialData?: NutritionTemplate | { targets?: NutritionTargets }
@@ -336,6 +368,8 @@ export const useNutritionBuilder = (
   const [targets, setTargetsState] = useState<NutritionTargets>(() => initializeTargets(initialData));
   const [manualOverride, setManualOverrideState] = useState<ManualOverride>(() => initializeManualOverride(initialData as any));
   const [manualFields, setManualFieldsState] = useState<ManualFields>(() => initializeManualFields(initialData as any));
+  
+  const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>(() => initializeActivityEntries(initialData as any));
   
   const [calculatorInputs, setCalculatorInputsState] = useState<NutritionBuilderState['calculatorInputs']>({
     weight: 70,
@@ -353,14 +387,6 @@ export const useNutritionBuilder = (
     fatPerKg: 1.0,
     carbsPerKg: 2.0,
   });
-  
-  const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([
-    { id: '1', activityType: 'הליכה איטית/יוגה/פילאטיס', mets: 3.5, minutesPerWeek: 0 },
-    { id: '2', activityType: 'אימון משקולות כבד', mets: 5.5, minutesPerWeek: 0 },
-    { id: '3', activityType: 'סטודיו/פונקציונלי/איר', mets: 6.0, minutesPerWeek: 0 },
-    { id: '4', activityType: 'ריצה קלה/ג\'וגינג', mets: 7.5, minutesPerWeek: 0 },
-    { id: '5', activityType: 'ריצה מהירה/שחייה מהירה/ספינינג', mets: 10.0, minutesPerWeek: 0 },
-  ]);
   
   const [calculatorOpen, setCalculatorOpen] = useState(true); // Open by default in diagnostic mode
 
@@ -529,6 +555,7 @@ export const useNutritionBuilder = (
           targets,
           manual_override: manualOverride,
           manual_fields: manualFields,
+          activity_entries: activityEntries, // Include activity entries
         },
       };
     } else {
@@ -536,7 +563,7 @@ export const useNutritionBuilder = (
         userData: targets,
       };
     }
-  }, [name, description, targets, manualOverride, manualFields]);
+  }, [name, description, targets, manualOverride, manualFields, activityEntries]);
 
   const reset = useCallback(() => {
     setName('');
