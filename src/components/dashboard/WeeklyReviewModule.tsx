@@ -425,9 +425,10 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           .update(reviewData)
           .eq('id', existingReview.id)
           .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-          .single();
+          .maybeSingle();
         if (error) throw error;
-        return updated;
+        // If update returned null (record doesn't exist), fall through to create new
+        if (updated) return updated;
       }
 
       if (existingReview?.id) {
@@ -437,10 +438,13 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           .update(reviewData)
           .eq('id', existingReview.id)
           .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-          .single();
+          .maybeSingle();
         if (error) throw error;
-        lastSavedWeekRef.current = currentWeekKey;
-        return updated;
+        // If update returned null (record doesn't exist), fall through to create new
+        if (updated) {
+          lastSavedWeekRef.current = currentWeekKey;
+          return updated;
+        }
       } else {
         // Check if a review already exists for this week (to handle race conditions)
         let existingCheckQuery = supabase
@@ -464,10 +468,13 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
             .update(reviewData)
             .eq('id', existingCheck.id)
             .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-            .single();
+            .maybeSingle();
           if (updateError) throw updateError;
-          lastSavedWeekRef.current = currentWeekKey;
-          return updated;
+          // If update returned null (record doesn't exist), fall through to create new
+          if (updated) {
+            lastSavedWeekRef.current = currentWeekKey;
+            return updated;
+          }
         } else {
           // Insert new review
           const { data: created, error: insertError } = await supabase
@@ -497,10 +504,13 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                   .update(reviewData)
                   .eq('id', conflictReview.id)
                   .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-                  .single();
+                  .maybeSingle();
                 if (updateError) throw updateError;
-                lastSavedWeekRef.current = currentWeekKey;
-                return updated;
+                // If update returned null, fall through to insert
+                if (updated) {
+                  lastSavedWeekRef.current = currentWeekKey;
+                  return updated;
+                }
               }
             }
             throw insertError;
