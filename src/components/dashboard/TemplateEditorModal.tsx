@@ -132,24 +132,39 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const quillRef = useRef<ReactQuill>(null);
   const prevIsOpen = React.useRef(isOpen);
   
-  // Helper function to convert public URL to signed URL
+  // Helper function to convert public URL to signed URL (for legacy URLs)
+  // NOTE: Bucket is now private, so all URLs must be signed URLs
   const convertToSignedUrl = async (url: string): Promise<string> => {
     // If it's already a signed URL (has token) or external URL, return as-is
     if (url.includes('?token=') || (!url.includes('127.0.0.1:54321') && !url.includes('supabase.co'))) {
       return url;
     }
     
-    // Extract path from public URL format: http://127.0.0.1:54321/storage/v1/object/public/client-assets/templates/...
+    // Extract path from public URL format (for legacy URLs): http://127.0.0.1:54321/storage/v1/object/public/client-assets/templates/...
+    // Or from signed URL format: http://127.0.0.1:54321/storage/v1/object/sign/client-assets/templates/...
     let filePath = '';
     if (url.includes('/storage/v1/object/public/')) {
+      // Legacy public URL format - convert to signed URL
       const publicIndex = url.indexOf('/storage/v1/object/public/');
       if (publicIndex !== -1) {
         const pathStart = publicIndex + '/storage/v1/object/public/'.length;
         const pathEnd = url.indexOf('?', pathStart);
         filePath = pathEnd !== -1 ? url.substring(pathStart, pathEnd) : url.substring(pathStart);
       }
+    } else if (url.includes('/storage/v1/object/sign/')) {
+      // Already a signed URL format, extract path
+      const signIndex = url.indexOf('/storage/v1/object/sign/');
+      if (signIndex !== -1) {
+        const pathStart = signIndex + '/storage/v1/object/sign/'.length;
+        const bucketEnd = pathStart + 'client-assets/'.length;
+        if (url.substring(pathStart, bucketEnd) === 'client-assets/') {
+          const filePathStart = bucketEnd;
+          const pathEnd = url.indexOf('?', filePathStart);
+          filePath = pathEnd !== -1 ? url.substring(filePathStart, pathEnd) : url.substring(filePathStart);
+        }
+      }
     } else {
-      return url; // Not a public URL format, return as-is
+      return url; // Not a recognized URL format, return as-is
     }
     
     if (!filePath) {

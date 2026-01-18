@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Settings, Send, Loader2, Plus, Trash2, Zap } from 'lucide-react';
+import { Settings, Send, Loader2, Plus, Trash2, Zap, ChevronDown, Search } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchTemplates, saveTemplate, setSendingFlow } from '@/store/slices/automationSlice';
 import { sendWhatsAppMessage, replacePlaceholders } from '@/services/greenApiService';
@@ -35,6 +35,8 @@ import { TemplateEditorModal } from './TemplateEditorModal';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Customer } from '@/hooks/useCustomers';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 
 interface LeadData {
   id: string;
@@ -136,6 +138,8 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
   const [newFlowLabel, setNewFlowLabel] = useState('');
   const [newFlowKey, setNewFlowKey] = useState('');
   const [deletingFlowKey, setDeletingFlowKey] = useState<string | null>(null);
+  const [selectedFlowKey, setSelectedFlowKey] = useState<string | null>(null);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
   // Load custom flows and deleted default flows on mount
   useEffect(() => {
@@ -450,6 +454,11 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
       setEditingFlowKey(null);
     }
 
+    // If the deleted flow was selected, clear the selection
+    if (selectedFlowKey === flowKey) {
+      setSelectedFlowKey(null);
+    }
+
     toast({
       title: 'הצלחה',
       description: 'האוטומציה נמחקה בהצלחה',
@@ -507,107 +516,104 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
           </Button>
         </div>
 
-        <div className="space-y-2.5 flex-1">
-          {allFlows.map((flow) => {
-            const isSending = sendingFlow[flow.key] || false;
-            const hasTemplate = templates[flow.key]?.template_content?.trim() || false;
-            const isAutoTrigger = flow.key === 'intro_questionnaire'; // Second automation is auto-triggered
-
-            return (
-              <div
-                key={flow.key}
-                className="flex items-center gap-2"
+        {/* Single Row with Autocomplete Search and Action Buttons */}
+        <div className="flex items-center gap-2">
+          {/* Autocomplete Search */}
+          <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={isComboboxOpen}
+                className="flex-1 justify-between h-9 px-3 text-sm"
+                dir="rtl"
               >
-                {isAutoTrigger ? (
-                  // Auto-triggered automation - can also be triggered manually
-                  <Button
-                    onClick={() => handleSendFlow(flow.key)}
-                    disabled={isSending || !hasTemplate}
-                    className={cn(
-                      "flex-1 justify-start min-h-9 h-auto",
-                      "bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200",
-                      "hover:from-purple-100 hover:to-blue-100 hover:border-purple-300",
-                      "text-xs font-semibold rounded-lg px-3 py-1.5",
-                      "flex items-center gap-2",
-                      !hasTemplate && "opacity-50 cursor-not-allowed"
-                    )}
-                    style={{
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
-                      whiteSpace: 'normal',
-                      lineHeight: '1.5'
-                    }}
-                    title={!hasTemplate ? 'נדרש להגדיר תבנית תחילה' : 'נשלח אוטומטית לאחר הגשת טופס תיאום פגישה - ניתן לשלוח גם ידנית'}
-                  >
-                    {isSending ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 ml-1.5 animate-spin flex-shrink-0" />
-                        <span>שולח...</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <Zap className="h-3.5 w-3.5 text-purple-600" />
-                          <span className="text-xs text-purple-600 font-bold">אוטומטי</span>
-                        </div>
-                        <span className="text-right leading-tight text-gray-900">{flow.label}</span>
-                      </>
-                    )}
-                  </Button>
-                ) : (
-                  // Manual automation - has send button
-                  <Button
-                    onClick={() => handleSendFlow(flow.key)}
-                    disabled={isSending || !hasTemplate}
-                    className={cn(
-                      "flex-1 justify-start min-h-9 h-auto",
-                      "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white",
-                      "text-xs font-semibold rounded-lg px-3 py-1.5",
-                      !hasTemplate && "opacity-50 cursor-not-allowed"
-                    )}
-                    style={{
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
-                      whiteSpace: 'normal',
-                      lineHeight: '1.5'
-                    }}
-                    title={!hasTemplate ? 'נדרש להגדיר תבנית תחילה' : flow.label}
-                  >
-                    {isSending ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 ml-1.5 animate-spin flex-shrink-0" />
-                        <span>שולח...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-3.5 w-3.5 ml-1.5 flex-shrink-0" />
-                        <span className="text-right leading-tight">{flow.label}</span>
-                      </>
-                    )}
-                  </Button>
-                )}
+                <span className="truncate">
+                  {selectedFlowKey
+                    ? allFlows.find((flow) => flow.key === selectedFlowKey)?.label
+                    : 'בחר אוטומציה...'}
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-50 mr-2" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[400px] p-0" align="start" dir="rtl">
+              <Command>
+                <CommandInput placeholder="חפש אוטומציה..." />
+                <CommandList>
+                  <CommandEmpty>לא נמצאה אוטומציה</CommandEmpty>
+                  <CommandGroup>
+                    {allFlows.map((flow) => (
+                      <CommandItem
+                        key={flow.key}
+                        value={`${flow.key}-${flow.label}`}
+                        keywords={[flow.label, flow.key]}
+                        onSelect={() => {
+                          setSelectedFlowKey(flow.key);
+                          setIsComboboxOpen(false);
+                        }}
+                      >
+                        <span>{flow.label}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
 
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setEditingFlowKey(flow.key)}
-                  className="h-9 w-9 flex-shrink-0 border-gray-300 hover:bg-gray-200 hover:border-gray-400"
-                  title="ערוך תבנית"
-                >
-                  <Settings className="h-3.5 w-3.5 text-gray-600" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setDeletingFlowKey(flow.key)}
-                  className="h-9 w-9 flex-shrink-0 border-red-300 hover:bg-red-50 hover:border-red-400 text-red-600"
-                  title="מחק אוטומציה"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            );
-          })}
+          {/* Action Buttons */}
+          {selectedFlowKey && (
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (selectedFlowKey) {
+                    handleSendFlow(selectedFlowKey);
+                  }
+                }}
+                disabled={
+                  !selectedFlowKey ||
+                  sendingFlow[selectedFlowKey] ||
+                  !templates[selectedFlowKey]?.template_content?.trim()
+                }
+                className="h-9 w-9 flex-shrink-0 border-blue-300 hover:bg-blue-50 hover:border-blue-400 text-blue-600"
+                title="שלח אוטומציה"
+              >
+                {sendingFlow[selectedFlowKey] ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (selectedFlowKey) {
+                    setEditingFlowKey(selectedFlowKey);
+                  }
+                }}
+                className="h-9 w-9 flex-shrink-0 border-gray-300 hover:bg-gray-200 hover:border-gray-400"
+                title="ערוך תבנית"
+              >
+                <Settings className="h-4 w-4 text-gray-600" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (selectedFlowKey) {
+                    setDeletingFlowKey(selectedFlowKey);
+                  }
+                }}
+                className="h-9 w-9 flex-shrink-0 border-red-300 hover:bg-red-50 hover:border-red-400 text-red-600"
+                title="מחק אוטומציה"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
       </Card>
 

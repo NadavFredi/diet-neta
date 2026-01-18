@@ -36,35 +36,7 @@ export const createWhatsAppAutomationColumns = ({
     },
     cell: ({ row }) => {
       const automation = row.original;
-      const isAutoTrigger = automation.isAutoTrigger;
-      
-      return (
-        <div className="flex items-center gap-2">
-          {isAutoTrigger ? (
-            <div
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg",
-                "bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200",
-                "text-xs font-semibold"
-              )}
-            >
-              <Zap className="h-3.5 w-3.5 text-purple-600" />
-              <span className="text-purple-600 font-bold">אוטומטי</span>
-              <span className="text-gray-900">{automation.label}</span>
-            </div>
-          ) : (
-            <div
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-lg",
-                "bg-[#5B6FB9] text-white text-xs font-semibold"
-              )}
-            >
-              <Send className="h-3.5 w-3.5" />
-              <span>{automation.label}</span>
-            </div>
-          )}
-        </div>
-      );
+      return <span className="text-sm text-gray-900">{automation.label}</span>;
     },
   },
   {

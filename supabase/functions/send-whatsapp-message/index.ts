@@ -126,8 +126,11 @@ async function handleMediaMessage(
           if (!urlError && urlData?.signedUrl) {
             mediaUrl = urlData.signedUrl;
           } else {
-            // Fallback to public URL format (will only work if bucket is public)
-            mediaUrl = `${baseUrl}/storage/v1/object/public/client-assets/${filePath}`;
+            // Cannot use public URL format - bucket is private and requires signed URLs
+            return errorResponse(
+              `Failed to create signed URL for media file: ${urlError?.message || 'Unknown error'}`,
+              400
+            );
           }
         }
       } else {
