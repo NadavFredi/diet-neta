@@ -144,9 +144,19 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
   }, []);
 
   // Combine default and custom flows, filtering out deleted default flows
+  // Custom flows with keys matching default flows are label overrides, not separate flows
+  const activeDefaultFlows = DEFAULT_FLOW_CONFIGS.filter(flow => !deletedDefaultFlows.includes(flow.key));
+  const defaultFlowKeys = new Set(activeDefaultFlows.map(f => f.key));
+  const labelOverrides = new Map(customFlows.filter(f => defaultFlowKeys.has(f.key)).map(f => [f.key, f.label]));
+  const pureCustomFlows = customFlows.filter(f => !defaultFlowKeys.has(f.key));
+  
+  // Merge default flows with label overrides, then add pure custom flows
   const allFlows = [
-    ...DEFAULT_FLOW_CONFIGS.filter(flow => !deletedDefaultFlows.includes(flow.key)),
-    ...customFlows
+    ...activeDefaultFlows.map(flow => ({
+      ...flow,
+      label: labelOverrides.get(flow.key) || flow.label
+    })),
+    ...pureCustomFlows
   ];
 
   // Fetch templates on mount

@@ -637,6 +637,10 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[95vw] lg:max-w-[1400px] max-h-[95vh] flex flex-col p-0 bg-slate-50" dir="rtl">
         <DialogHeader className="px-6 pt-6 pb-4 border-b bg-white rounded-t-lg">
+          {/* Hidden DialogTitle for accessibility - screen readers will use this */}
+          <DialogTitle className="sr-only">
+            {templateLabel || flowLabel || 'ערוך תבנית'}
+          </DialogTitle>
           <div className="space-y-2">
             <Label className="text-xs font-medium text-slate-600">ערוך תבנית:</Label>
             <Input

@@ -25,6 +25,7 @@ import type { Budget } from '@/store/slices/budgetSlice';
 import { setSendingWhatsApp } from '@/store/slices/budgetSlice';
 import { useToast } from '@/hooks/use-toast';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { saveTemplate, fetchTemplates } from '@/store/slices/automationSlice';
 import { supabase } from '@/lib/supabaseClient';
 
 interface SendBudgetModalProps {
@@ -63,13 +64,47 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
   
   const isSending = budget ? (sendingWhatsApp[budget.id] || false) : false;
 
-  // Load template from localStorage
-  useEffect(() => {
-    const savedTemplate = localStorage.getItem('budgetMessageTemplate');
-    if (savedTemplate) {
-      setTemplate(savedTemplate);
+  // Helper function to get flow label (check custom flows, then default)
+  const getFlowLabel = (flowKey: string, defaultLabel: string): string => {
+    try {
+      const stored = localStorage.getItem('custom_automation_flows');
+      if (stored) {
+        const customFlows: Array<{ key: string; label: string }> = JSON.parse(stored);
+        const customFlow = customFlows.find(f => f.key === flowKey);
+        if (customFlow) {
+          return customFlow.label;
+        }
+      }
+    } catch (error) {
+      console.error('[SendBudgetModal] Error loading custom flows:', error);
     }
-  }, []);
+    return defaultLabel;
+  };
+
+  const budgetFlowLabel = getFlowLabel('budget', 'שליחת תקציב');
+
+  // Load template from database first, fallback to localStorage
+  useEffect(() => {
+    const loadTemplate = async () => {
+      const result = await dispatch(fetchTemplates());
+      if (result.type === 'automation/fetchTemplates/fulfilled') {
+        const dbTemplate = result.payload['budget']?.template_content;
+        if (dbTemplate) {
+          setTemplate(dbTemplate);
+          localStorage.setItem('budgetMessageTemplate', dbTemplate);
+          return;
+        }
+      }
+      
+      // Fallback to localStorage
+      const savedTemplate = localStorage.getItem('budgetMessageTemplate');
+      if (savedTemplate) {
+        setTemplate(savedTemplate);
+      }
+    };
+    
+    loadTemplate();
+  }, [dispatch]);
 
   // Fetch customer info if budget has assignments
   useEffect(() => {
@@ -177,13 +212,34 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
   };
 
   const handleTemplateSave = async (newTemplate: string, buttons?: any, media?: any) => {
-    setTemplate(newTemplate);
-    localStorage.setItem('budgetMessageTemplate', newTemplate);
-    setIsTemplateEditorOpen(false);
-    toast({
-      title: 'נשמר',
-      description: 'תבנית ההודעה נשמרה',
-    });
+    try {
+      // Save to database
+      await dispatch(saveTemplate({ 
+        flowKey: 'budget', 
+        templateContent: newTemplate,
+        buttons: buttons || [],
+        media: media || null
+      })).unwrap();
+      
+      // Save to local state and localStorage for backward compatibility
+      setTemplate(newTemplate);
+      localStorage.setItem('budgetMessageTemplate', newTemplate);
+      setIsTemplateEditorOpen(false);
+      toast({
+        title: 'נשמר',
+        description: 'תבנית ההודעה נשמרה',
+      });
+    } catch (error) {
+      console.error('[SendBudgetModal] Error saving template to database:', error);
+      // Still save locally even if DB save fails
+      setTemplate(newTemplate);
+      localStorage.setItem('budgetMessageTemplate', newTemplate);
+      setIsTemplateEditorOpen(false);
+      toast({
+        title: 'נשמר',
+        description: 'תבנית ההודעה נשמרה (רק מקומי)',
+      });
+    }
   };
 
   if (!budget) return null;
@@ -271,7 +327,7 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
         isOpen={isTemplateEditorOpen}
         onOpenChange={setIsTemplateEditorOpen}
         flowKey="budget"
-        flowLabel="שליחת תקציב"
+        flowLabel={budgetFlowLabel}
         initialTemplate={template}
         onSave={handleTemplateSave}
       />

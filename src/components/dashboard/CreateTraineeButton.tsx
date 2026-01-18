@@ -33,7 +33,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { sendWhatsAppMessage, replacePlaceholders } from '@/services/greenApiService';
 import { TemplateEditorModal } from './TemplateEditorModal';
-import { fetchTemplates } from '@/store/slices/automationSlice';
+import { fetchTemplates, saveTemplate } from '@/store/slices/automationSlice';
 import {
   Select,
   SelectContent,
@@ -105,6 +105,25 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Helper function to get flow label (check custom flows, then default)
+  const getFlowLabel = (flowKey: string, defaultLabel: string): string => {
+    try {
+      const stored = localStorage.getItem('custom_automation_flows');
+      if (stored) {
+        const customFlows: Array<{ key: string; label: string }> = JSON.parse(stored);
+        const customFlow = customFlows.find(f => f.key === flowKey);
+        if (customFlow) {
+          return customFlow.label;
+        }
+      }
+    } catch (error) {
+      console.error('[CreateTraineeButton] Error loading custom flows:', error);
+    }
+    return defaultLabel;
+  };
+
+  const traineeFlowLabel = getFlowLabel('trainee_user_credentials', 'פרטי כניסה למתאמן');
+
   // Default template for trainee user credentials
   const DEFAULT_TRAINEE_TEMPLATE = `שלום {{name}},
 
@@ -120,15 +139,30 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
 בברכה,
 צוות DietNeta`;
 
-  // Load template from localStorage on mount
+  // Load template from database first, fallback to localStorage
   useEffect(() => {
-    const savedTemplate = localStorage.getItem('traineeUserMessageTemplate');
-    if (savedTemplate) {
-      setMessageTemplate(savedTemplate);
-    } else {
-      setMessageTemplate(DEFAULT_TRAINEE_TEMPLATE);
-    }
-  }, []);
+    const loadTemplate = async () => {
+      const result = await dispatch(fetchTemplates());
+      if (result.type === 'automation/fetchTemplates/fulfilled') {
+        const dbTemplate = result.payload['trainee_user_credentials']?.template_content;
+        if (dbTemplate) {
+          setMessageTemplate(dbTemplate);
+          localStorage.setItem('traineeUserMessageTemplate', dbTemplate);
+          return;
+        }
+      }
+      
+      // Fallback to localStorage
+      const savedTemplate = localStorage.getItem('traineeUserMessageTemplate');
+      if (savedTemplate) {
+        setMessageTemplate(savedTemplate);
+      } else {
+        setMessageTemplate(DEFAULT_TRAINEE_TEMPLATE);
+      }
+    };
+    
+    loadTemplate();
+  }, [dispatch]);
 
   // Save template to localStorage when it changes
   useEffect(() => {
@@ -673,11 +707,27 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         isOpen={isTemplateEditorOpen}
         onOpenChange={setIsTemplateEditorOpen}
         flowKey="trainee_user_credentials"
-        flowLabel="פרטי כניסה למתאמן"
+        flowLabel={traineeFlowLabel}
         initialTemplate={messageTemplate || DEFAULT_TRAINEE_TEMPLATE}
         onSave={async (template, buttons, media) => {
-          setMessageTemplate(template);
-          localStorage.setItem('traineeUserMessageTemplate', template);
+          try {
+            // Save to database
+            await dispatch(saveTemplate({ 
+              flowKey: 'trainee_user_credentials', 
+              templateContent: template,
+              buttons: buttons || [],
+              media: media || null
+            })).unwrap();
+            
+            // Save to local state and localStorage for backward compatibility
+            setMessageTemplate(template);
+            localStorage.setItem('traineeUserMessageTemplate', template);
+          } catch (error) {
+            console.error('[CreateTraineeButton] Error saving template to database:', error);
+            // Still save locally even if DB save fails
+            setMessageTemplate(template);
+            localStorage.setItem('traineeUserMessageTemplate', template);
+          }
         }}
       />
     </Dialog>

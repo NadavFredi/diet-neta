@@ -54,7 +54,7 @@ import { SendBudgetModal } from './SendBudgetModal';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDeleteBudgetAssignment, useBudget } from '@/hooks/useBudgets';
+import { useDeleteBudgetAssignment, useBudget, useUpdateBudget } from '@/hooks/useBudgets';
 import type { Budget } from '@/store/slices/budgetSlice';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -260,6 +260,7 @@ export const LeadHistoryTabs = ({
       });
     }
   };
+
 
   // Handler functions
   const handleWorkoutClick = () => {
@@ -800,7 +801,8 @@ export const LeadHistoryTabs = ({
                   {budgetAssignments.map((assignment, index) => (
                     <TableRow
                       key={assignment.id}
-                      className={`transition-all duration-200 ${
+                      onClick={() => handleEditAssignment(assignment)}
+                      className={`transition-all duration-200 cursor-pointer ${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       } hover:bg-purple-50 hover:shadow-sm border-b border-gray-100`}
                     >
@@ -1184,7 +1186,7 @@ export const LeadHistoryTabs = ({
         phoneNumber={customerPhone}
       />
 
-      {/* Edit Budget Assignment Dialog - Edit assignment-specific fields only */}
+      {/* Edit Budget Assignment Dialog - Edit assignment-specific fields only (affects only this lead) */}
       <Dialog open={!!editingAssignment} onOpenChange={(open) => {
         if (!open) {
           setEditingAssignment(null);

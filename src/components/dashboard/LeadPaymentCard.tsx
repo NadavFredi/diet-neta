@@ -22,6 +22,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CreditCard, Settings, Send, Loader2, AlertCircle, Check, ChevronsUpDown, Package, Edit3, Sparkles } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { saveTemplate, fetchTemplates } from '@/store/slices/automationSlice';
 import {
   setAmount,
   setCurrency,
@@ -68,6 +69,26 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
 
+  // Helper function to get flow label (check custom flows, then default)
+  const getFlowLabel = (flowKey: string, defaultLabel: string): string => {
+    try {
+      const stored = localStorage.getItem('custom_automation_flows');
+      if (stored) {
+        const customFlows: Array<{ key: string; label: string }> = JSON.parse(stored);
+        const customFlow = customFlows.find(f => f.key === flowKey);
+        if (customFlow) {
+          return customFlow.label;
+        }
+      }
+    } catch (error) {
+      console.error('[LeadPaymentCard] Error loading custom flows:', error);
+    }
+    return defaultLabel;
+  };
+
+  // Get dynamic label for payment_request flow
+  const paymentFlowLabel = getFlowLabel('payment_request', 'בקשת תשלום');
+
   // Redux state
   const {
     currentAmount,
@@ -81,12 +102,28 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
     error,
   } = useAppSelector((state) => state.payment);
 
-  // Load template from localStorage on mount
+  // Load template from database first, fallback to localStorage
   useEffect(() => {
-    const savedTemplate = localStorage.getItem('paymentMessageTemplate');
-    if (savedTemplate) {
-      dispatch(setPaymentMessageTemplate(savedTemplate));
-    }
+    const loadTemplate = async () => {
+      // Fetch templates from database
+      const result = await dispatch(fetchTemplates());
+      if (result.type === 'automation/fetchTemplates/fulfilled') {
+        const dbTemplate = result.payload['payment_request']?.template_content;
+        if (dbTemplate) {
+          dispatch(setPaymentMessageTemplate(dbTemplate));
+          localStorage.setItem('paymentMessageTemplate', dbTemplate);
+          return;
+        }
+      }
+      
+      // Fallback to localStorage
+      const savedTemplate = localStorage.getItem('paymentMessageTemplate');
+      if (savedTemplate) {
+        dispatch(setPaymentMessageTemplate(savedTemplate));
+      }
+    };
+    
+    loadTemplate();
   }, [dispatch]);
 
   // Save template to localStorage when it changes
@@ -201,8 +238,24 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   };
 
   const handleSaveTemplate = async (template: string, buttons?: Array<{ id: string; text: string }>, media?: any) => {
-    dispatch(setPaymentMessageTemplate(template));
-    localStorage.setItem('paymentMessageTemplate', template);
+    try {
+      // Save to database
+      await dispatch(saveTemplate({ 
+        flowKey: 'payment_request', 
+        templateContent: template,
+        buttons: buttons || [],
+        media: media || null
+      })).unwrap();
+      
+      // Save to Redux state and localStorage for backward compatibility
+      dispatch(setPaymentMessageTemplate(template));
+      localStorage.setItem('paymentMessageTemplate', template);
+    } catch (error) {
+      console.error('[LeadPaymentCard] Error saving template to database:', error);
+      // Still save to localStorage even if DB save fails
+      dispatch(setPaymentMessageTemplate(template));
+      localStorage.setItem('paymentMessageTemplate', template);
+    }
   };
 
   const handleCreateAndSend = async () => {
@@ -841,7 +894,7 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
         isOpen={isTemplateEditorOpen}
         onOpenChange={setIsTemplateEditorOpen}
         flowKey="payment_request"
-        flowLabel="בקשת תשלום"
+        flowLabel={paymentFlowLabel}
         initialTemplate={paymentMessageTemplate}
         onSave={handleSaveTemplate}
       />
