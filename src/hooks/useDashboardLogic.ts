@@ -6,7 +6,7 @@
  * No client-side filtering or calculations.
  */
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { useSavedView, type FilterConfig } from '@/hooks/useSavedViews';
@@ -30,10 +30,19 @@ import {
   setLeads,
   setLoading,
   setError,
+  setCurrentPage,
+  setPageSize,
+  setTotalLeads,
+  setSortBy,
+  setSortOrder,
 } from '@/store/slices/dashboardSlice';
-import { fetchFilteredLeads, mapLeadToUIFormat, type LeadFilterParams } from '@/services/leadService';
+import { fetchFilteredLeads, getFilteredLeadsCount, mapLeadToUIFormat, type LeadFilterParams } from '@/services/leadService';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import type { ColumnVisibility as ColumnVisibilityType } from '@/utils/dashboard';
+import {
+  selectGroupByKeys,
+  selectGroupSorting,
+} from '@/store/slices/tableStateSlice';
 
 export const useDashboardLogic = () => {
   const dispatch = useAppDispatch();
@@ -59,7 +68,22 @@ export const useDashboardLogic = () => {
     columnVisibility,
     isLoading,
     error,
+    // Pagination state
+    currentPage,
+    pageSize,
+    totalLeads,
+    // Sorting state
+    sortBy,
+    sortOrder,
   } = useAppSelector((state) => state.dashboard);
+
+  // Group by state from tableStateSlice (for leads)
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
+  const groupSorting = useAppSelector((state) => selectGroupSorting(state, 'leads'));
+
+  // Debounced search - internal state for debouncing
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { user } = useAppSelector((state) => state.auth);
   const { defaultView } = useDefaultView('leads');
@@ -75,7 +99,30 @@ export const useDashboardLogic = () => {
   }, [viewId, defaultView, navigate]);
 
   // =====================================================
-  // Fetch leads with filters (PostgreSQL does the filtering)
+  // Debounced search - update debounced value after 500ms
+  // =====================================================
+  useEffect(() => {
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout to update debounced value
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    // Cleanup timeout on unmount or when searchQuery changes
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // =====================================================
+  // Fetch leads with filters, pagination, sorting, grouping
+  // PostgreSQL does all the heavy lifting
   // =====================================================
   const refreshLeads = useCallback(async () => {
     setIsRefreshing(true);
@@ -83,9 +130,12 @@ export const useDashboardLogic = () => {
     dispatch(setError(null));
 
     try {
+      // Calculate offset from current page and page size
+      const offset = (currentPage - 1) * pageSize;
+
       // Build filter params from Redux state
       const filterParams: LeadFilterParams = {
-        searchQuery: searchQuery || null,
+        searchQuery: debouncedSearchQuery || null, // Use debounced search
         createdDate: selectedDate || null,
         statusMain: selectedStatus || null,
         statusSub: null, // Can be added if needed
@@ -96,14 +146,40 @@ export const useDashboardLogic = () => {
         activityLevel: selectedActivityLevel || null,
         preferredTime: selectedPreferredTime || null,
         source: selectedSource || null,
-        limit: 1000, // Reasonable limit
-        offset: 0,
+        // Pagination
+        limit: pageSize,
+        offset: offset,
+        // Sorting
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        // Grouping (from tableStateSlice)
+        groupByLevel1: groupByKeys[0] || null,
+        groupByLevel2: groupByKeys[1] || null,
       };
 
-      // Fetch filtered leads from PostgreSQL (RPC function)
+      // Fetch total count and leads in parallel
       console.log('useDashboardLogic: Calling fetchFilteredLeads with params:', filterParams);
-      const dbLeads = await fetchFilteredLeads(filterParams);
-      console.log(`useDashboardLogic: Received ${dbLeads.length} leads from service`);
+      const [dbLeads, totalCount] = await Promise.all([
+        fetchFilteredLeads(filterParams),
+        getFilteredLeadsCount({
+          searchQuery: debouncedSearchQuery || null,
+          createdDate: selectedDate || null,
+          statusMain: selectedStatus || null,
+          statusSub: null,
+          age: selectedAge || null,
+          height: selectedHeight || null,
+          weight: selectedWeight || null,
+          fitnessGoal: selectedFitnessGoal || null,
+          activityLevel: selectedActivityLevel || null,
+          preferredTime: selectedPreferredTime || null,
+          source: selectedSource || null,
+        }),
+      ]);
+
+      console.log(`useDashboardLogic: Received ${dbLeads.length} leads from service (total: ${totalCount})`);
+
+      // Update total count in Redux
+      dispatch(setTotalLeads(totalCount));
 
       // Transform to UI format (minimal - most work done in PostgreSQL)
       const uiLeads: Lead[] = dbLeads.map((lead, index) => {
@@ -160,7 +236,7 @@ export const useDashboardLogic = () => {
       setIsRefreshing(false);
     }
   }, [
-    searchQuery,
+    debouncedSearchQuery, // Use debounced search
     selectedDate,
     selectedStatus,
     selectedAge,
@@ -170,19 +246,27 @@ export const useDashboardLogic = () => {
     selectedActivityLevel,
     selectedPreferredTime,
     selectedSource,
+    // Pagination dependencies
+    currentPage,
+    pageSize,
+    // Sorting dependencies
+    sortBy,
+    sortOrder,
+    // Grouping dependencies
+    groupByKeys,
     dispatch,
   ]);
 
-  // Fetch leads on mount and when filters change
+  // Fetch leads on mount and when filters/pagination/sorting/grouping change
   // Single useEffect to prevent duplicate calls
   useEffect(() => {
     console.log('useDashboardLogic: useEffect triggered, calling refreshLeads');
-    // Always refresh leads when filters change or on mount
+    // Always refresh leads when filters/pagination/sorting/grouping change or on mount
     refreshLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    // Only include filter dependencies, not refreshLeads itself
-    searchQuery,
+    // Filter dependencies (using debounced search)
+    debouncedSearchQuery,
     selectedDate,
     selectedStatus,
     selectedAge,
@@ -192,6 +276,17 @@ export const useDashboardLogic = () => {
     selectedActivityLevel,
     selectedPreferredTime,
     selectedSource,
+    // Pagination dependencies
+    currentPage,
+    pageSize,
+    // Sorting dependencies
+    sortBy,
+    sortOrder,
+    // Grouping dependencies
+    groupByKeys[0],
+    groupByKeys[1],
+    // refreshLeads itself (it has all dependencies internally)
+    refreshLeads,
   ]);
 
 
@@ -240,6 +335,28 @@ export const useDashboardLogic = () => {
 
   const handleToggleColumn = useCallback((column: keyof ColumnVisibilityType) => {
     dispatch(toggleColumnVisibility(column));
+  }, [dispatch]);
+
+  // =====================================================
+  // Pagination Handlers (trigger server requests)
+  // =====================================================
+  const handlePageChange = useCallback((page: number) => {
+    dispatch(setCurrentPage(page));
+    // refreshLeads will be triggered by useEffect when currentPage changes
+  }, [dispatch]);
+
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    dispatch(setPageSize(newPageSize));
+    // refreshLeads will be triggered by useEffect when pageSize changes
+  }, [dispatch]);
+
+  // =====================================================
+  // Sorting Handlers (trigger server requests)
+  // =====================================================
+  const handleSortChange = useCallback((newSortBy: string, newSortOrder: 'ASC' | 'DESC') => {
+    dispatch(setSortBy(newSortBy));
+    dispatch(setSortOrder(newSortOrder));
+    // refreshLeads will be triggered by useEffect when sortBy/sortOrder changes
   }, [dispatch]);
 
   // =====================================================
@@ -365,6 +482,123 @@ export const useDashboardLogic = () => {
   const filteredLeads = useMemo(() => leads, [leads]);
 
   // =====================================================
+  // URL Params Sync - sync Redux state with URL query params
+  // =====================================================
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    let hasChanges = false;
+
+    // Sync pagination to URL
+    const urlPage = params.get('page');
+    if (urlPage && parseInt(urlPage, 10) !== currentPage) {
+      dispatch(setCurrentPage(parseInt(urlPage, 10)));
+      hasChanges = true;
+    } else if (!urlPage && currentPage !== 1) {
+      params.set('page', String(currentPage));
+      hasChanges = true;
+    }
+
+    const urlPageSize = params.get('pageSize');
+    if (urlPageSize && parseInt(urlPageSize, 10) !== pageSize) {
+      dispatch(setPageSize(parseInt(urlPageSize, 10)));
+      hasChanges = true;
+    } else if (!urlPageSize && pageSize !== 100) {
+      params.set('pageSize', String(pageSize));
+      hasChanges = true;
+    }
+
+    // Sync search to URL
+    const urlSearch = params.get('search');
+    if (urlSearch !== null && urlSearch !== searchQuery) {
+      dispatch(setSearchQuery(urlSearch));
+      hasChanges = true;
+    } else if (urlSearch === null && searchQuery) {
+      params.set('search', searchQuery);
+      hasChanges = true;
+    } else if (urlSearch !== null && urlSearch === '' && !searchQuery) {
+      params.delete('search');
+      hasChanges = true;
+    }
+
+    // Sync sorting to URL
+    const urlSortBy = params.get('sortBy');
+    const urlSortOrder = params.get('sortOrder') as 'ASC' | 'DESC' | null;
+    if (urlSortBy && urlSortBy !== sortBy) {
+      dispatch(setSortBy(urlSortBy));
+      hasChanges = true;
+    } else if (!urlSortBy && sortBy !== 'createdDate') {
+      params.set('sortBy', sortBy);
+      hasChanges = true;
+    }
+
+    if (urlSortOrder && urlSortOrder !== sortOrder) {
+      dispatch(setSortOrder(urlSortOrder));
+      hasChanges = true;
+    } else if (!urlSortOrder && sortOrder !== 'DESC') {
+      params.set('sortOrder', sortOrder);
+      hasChanges = true;
+    }
+
+    // Update URL if there are changes (without triggering navigation)
+    if (hasChanges) {
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [searchParams, currentPage, pageSize, searchQuery, sortBy, sortOrder, dispatch]);
+
+  // Sync Redux state to URL on changes (one-way: Redux -> URL)
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    let updated = false;
+
+    // Update URL params from Redux state
+    if (currentPage !== 1) {
+      params.set('page', String(currentPage));
+      updated = true;
+    } else {
+      params.delete('page');
+    }
+
+    if (pageSize !== 100) {
+      params.set('pageSize', String(pageSize));
+      updated = true;
+    } else {
+      params.delete('pageSize');
+    }
+
+    if (searchQuery) {
+      params.set('search', searchQuery);
+      updated = true;
+    } else {
+      params.delete('search');
+    }
+
+    if (sortBy !== 'createdDate') {
+      params.set('sortBy', sortBy);
+      updated = true;
+    } else {
+      params.delete('sortBy');
+    }
+
+    if (sortOrder !== 'DESC') {
+      params.set('sortOrder', sortOrder);
+      updated = true;
+    } else {
+      params.delete('sortOrder');
+    }
+
+    // Preserve view_id if present
+    if (viewId) {
+      params.set('view_id', viewId);
+    }
+
+    if (updated || viewId) {
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [currentPage, pageSize, searchQuery, sortBy, sortOrder, viewId, searchParams]);
+
+  // =====================================================
   // Return API
   // =====================================================
   return {
@@ -387,6 +621,15 @@ export const useDashboardLogic = () => {
     error,
     savedView, // Expose savedView to avoid duplicate calls
 
+    // Pagination state
+    currentPage,
+    pageSize,
+    totalLeads,
+    
+    // Sorting state
+    sortBy,
+    sortOrder,
+
     // UI State
     isSettingsOpen,
     datePickerOpen,
@@ -406,6 +649,11 @@ export const useDashboardLogic = () => {
     handlePreferredTimeChange,
     handleSourceChange,
     handleToggleColumn,
+    // Pagination handlers
+    handlePageChange,
+    handlePageSizeChange,
+    // Sorting handlers
+    handleSortChange,
     handleLogout,
     handleAddLead,
     setIsSettingsOpen,

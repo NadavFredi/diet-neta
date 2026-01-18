@@ -3,13 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import { DataTable } from '@/components/ui/DataTable';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { leadColumns } from './columns/leadColumns';
+import { useAppSelector } from '@/store/hooks';
 
 interface LeadsDataTableProps {
   leads: Lead[];
   enableColumnVisibility?: boolean;
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
 }
 
-export const LeadsDataTable = ({ leads, enableColumnVisibility = true }: LeadsDataTableProps) => {
+export const LeadsDataTable = ({ 
+  leads, 
+  enableColumnVisibility = true, 
+  onSortChange,
+  sortBy: externalSortBy,
+  sortOrder: externalSortOrder,
+}: LeadsDataTableProps) => {
+  // Get sorting state from Redux if not provided as props
+  const reduxSortBy = useAppSelector((state) => state.dashboard.sortBy);
+  const reduxSortOrder = useAppSelector((state) => state.dashboard.sortOrder);
+  
+  const sortBy = externalSortBy ?? reduxSortBy;
+  const sortOrder = externalSortOrder ?? reduxSortOrder;
   const navigate = useNavigate();
 
   // CRITICAL: Pass ALL columns from schema to DataTable
@@ -68,6 +84,10 @@ export const LeadsDataTable = ({ leads, enableColumnVisibility = true }: LeadsDa
       resourceKey="leads"
       initialColumnVisibility={initialVisibility} // Used only for initial Redux initialization
       initialColumnOrder={initialColumnOrder} // Used only for initial Redux initialization
+      onSortChange={onSortChange} // Server-side sorting handler
+      serverSideSorting={!!onSortChange} // Enable server-side sorting if handler provided
+      sortBy={sortBy} // Current sort column (for server-side sorting)
+      sortOrder={sortOrder} // Current sort order (for server-side sorting)
     />
   );
 };
