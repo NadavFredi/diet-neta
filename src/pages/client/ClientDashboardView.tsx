@@ -214,7 +214,7 @@ export const ClientDashboardView: React.FC = () => {
       <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Left Vertical Navigation Sidebar */}
         <div className={cn(
-          "fixed lg:static inset-y-0 right-0 z-50 w-64 bg-[#5B6FB9] border-l border-white/10 flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out",
+          "fixed lg:static inset-y-0 right-0 z-50 w-72 sm:w-64 bg-[#5B6FB9] border-l border-white/10 flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-lg",
           isMobileMenuOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         )}>
           <div className="border-b border-white/10 flex items-center justify-between px-4 py-5">
@@ -224,9 +224,9 @@ export const ClientDashboardView: React.FC = () => {
               variant="ghost"
               size="icon"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="lg:hidden h-8 w-8 text-white hover:bg-white/20"
+              className="lg:hidden h-10 w-10 text-white hover:bg-white/20 rounded-full"
             >
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             </Button>
           </div>
           <nav className="flex-1 p-3 pt-4 overflow-y-auto">
@@ -236,14 +236,14 @@ export const ClientDashboardView: React.FC = () => {
                 setIsMobileMenuOpen(false);
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
                 activeTab === 'workout'
-                  ? "bg-white text-gray-800 shadow-sm font-semibold"
-                  : "text-white hover:bg-white/10"
+                  ? "bg-white text-gray-800 shadow-md font-semibold"
+                  : "text-white hover:bg-white/15 active:bg-white/20"
               )}
             >
               <Dumbbell className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm">אימונים</span>
+              <span className="text-sm font-medium">אימונים</span>
             </button>
             <button
               onClick={() => {
@@ -251,14 +251,14 @@ export const ClientDashboardView: React.FC = () => {
                 setIsMobileMenuOpen(false);
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
                 activeTab === 'nutrition'
-                  ? "bg-white text-gray-800 shadow-sm font-semibold"
-                  : "text-white hover:bg-white/10"
+                  ? "bg-white text-gray-800 shadow-md font-semibold"
+                  : "text-white hover:bg-white/15 active:bg-white/20"
               )}
             >
               <Flame className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm">תזונה</span>
+              <span className="text-sm font-medium">תזונה</span>
             </button>
             <button
               onClick={() => {
@@ -266,14 +266,14 @@ export const ClientDashboardView: React.FC = () => {
                 setIsMobileMenuOpen(false);
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
                 activeTab === 'checkin'
-                  ? "bg-white text-gray-800 shadow-sm font-semibold"
-                  : "text-white hover:bg-white/10"
+                  ? "bg-white text-gray-800 shadow-md font-semibold"
+                  : "text-white hover:bg-white/15 active:bg-white/20"
               )}
             >
               <Calendar className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm">דיווח יומי</span>
+              <span className="text-sm font-medium">דיווח יומי</span>
             </button>
             <button
               onClick={() => {
@@ -281,14 +281,14 @@ export const ClientDashboardView: React.FC = () => {
                 setIsMobileMenuOpen(false);
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
                 activeTab === 'summaries'
-                  ? "bg-white text-gray-800 shadow-sm font-semibold"
-                  : "text-white hover:bg-white/10"
+                  ? "bg-white text-gray-800 shadow-md font-semibold"
+                  : "text-white hover:bg-white/15 active:bg-white/20"
               )}
             >
               <Target className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm">סיכומים שבועיים</span>
+              <span className="text-sm font-medium">סיכומים שבועיים</span>
             </button>
             <button
               onClick={() => {
@@ -296,14 +296,14 @@ export const ClientDashboardView: React.FC = () => {
                 setIsMobileMenuOpen(false);
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
                 activeTab === 'budget'
-                  ? "bg-white text-gray-800 shadow-sm font-semibold"
-                  : "text-white hover:bg-white/10"
+                  ? "bg-white text-gray-800 shadow-md font-semibold"
+                  : "text-white hover:bg-white/15 active:bg-white/20"
               )}
             >
               <Wallet className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm">תקציב</span>
+              <span className="text-sm font-medium">תקציב</span>
             </button>
             <button
               onClick={() => {
@@ -311,14 +311,14 @@ export const ClientDashboardView: React.FC = () => {
                 setIsMobileMenuOpen(false);
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
                 activeTab === 'progress'
-                  ? "bg-white text-gray-800 shadow-sm font-semibold"
-                  : "text-white hover:bg-white/10"
+                  ? "bg-white text-gray-800 shadow-md font-semibold"
+                  : "text-white hover:bg-white/15 active:bg-white/20"
               )}
             >
               <ImageIcon className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm">התקדמות ויזואלית</span>
+              <span className="text-sm font-medium">התקדמות ויזואלית</span>
             </button>
             <button
               onClick={() => {
@@ -326,14 +326,14 @@ export const ClientDashboardView: React.FC = () => {
                 setIsMobileMenuOpen(false);
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 mb-1",
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
                 activeTab === 'bloodtests'
-                  ? "bg-white text-gray-800 shadow-sm font-semibold"
-                  : "text-white hover:bg-white/10"
+                  ? "bg-white text-gray-800 shadow-md font-semibold"
+                  : "text-white hover:bg-white/15 active:bg-white/20"
               )}
             >
               <Activity className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm">בדיקות דם</span>
+              <span className="text-sm font-medium">בדיקות דם</span>
             </button>
           </nav>
           <div className="flex-shrink-0 border-t border-white/10">
@@ -345,15 +345,15 @@ export const ClientDashboardView: React.FC = () => {
         <div className="flex-1 overflow-y-auto w-full lg:w-auto" style={{ minHeight: 0, flex: '1 1 auto' }}>
           <div className="w-full px-3 sm:px-4 md:px-6 xl:px-8 py-2 pb-4">
             {/* Mobile Header with Menu Button */}
-            <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="flex items-center justify-between mb-3 gap-2 sm:gap-3">
               {/* Mobile Menu Button */}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden h-9 w-9 text-gray-700 hover:bg-gray-100"
+                className="lg:hidden h-11 w-11 text-[#5B6FB9] border-[#5B6FB9]/30 hover:bg-[#5B6FB9]/10 hover:border-[#5B6FB9] rounded-xl shadow-sm"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-6 w-6" />
               </Button>
               
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-[#334155] flex-1 text-right" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>

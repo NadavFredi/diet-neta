@@ -282,17 +282,17 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap w-full">
+    <div className="flex items-center justify-between gap-1 sm:gap-2 lg:gap-4 flex-wrap w-full">
       {/* Left Side (RTL): Back Button, Name, Phone, Email */}
-      <div className="flex items-center gap-2 sm:gap-4 flex-wrap min-w-0 flex-1 min-w-0">
+      <div className="flex items-center gap-1 sm:gap-2 lg:gap-4 flex-wrap min-w-0 flex-1">
         {/* Return Button */}
         <Button
           onClick={onBack}
           variant="ghost"
           size="sm"
-          className="text-gray-600 hover:text-gray-900 flex-shrink-0 h-7 px-1.5 sm:px-2"
+          className="text-gray-600 hover:text-gray-900 flex-shrink-0 h-8 w-8 sm:h-7 sm:w-auto sm:px-2 p-0"
         >
-          <ArrowRight className="h-3.5 w-3.5 ml-1" />
+          <ArrowRight className="h-4 w-4 sm:h-3.5 sm:w-3.5 sm:ml-1" />
           <span className="hidden sm:inline">חזור</span>
         </Button>
 
@@ -300,17 +300,17 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
         {onViewCustomerProfile ? (
           <button
             onClick={onViewCustomerProfile}
-            className="text-sm sm:text-base font-bold text-gray-900 flex-shrink-0 hover:text-[#5B6FB9] transition-colors cursor-pointer truncate max-w-[150px] sm:max-w-none"
+            className="text-sm sm:text-base font-bold text-gray-900 flex-shrink-0 hover:text-[#5B6FB9] transition-colors cursor-pointer truncate max-w-[100px] sm:max-w-[150px] lg:max-w-none"
           >
             {customer.full_name}
           </button>
         ) : (
-          <h1 className="text-sm sm:text-base font-bold text-gray-900 flex-shrink-0 truncate max-w-[150px] sm:max-w-none">{customer.full_name}</h1>
+          <h1 className="text-sm sm:text-base font-bold text-gray-900 flex-shrink-0 truncate max-w-[100px] sm:max-w-[150px] lg:max-w-none">{customer.full_name}</h1>
         )}
 
-        {/* Phone - On same line - Editable */}
+        {/* Phone - On same line - Editable - Hidden on very small screens */}
         {onUpdateCustomer && customer && (
-          <div className="flex items-center gap-1.5 flex-shrink-0 group/phone">
+          <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0 group/phone">
             <Phone className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
             <div className="relative">
               {customer.phone ? (
@@ -350,7 +350,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
 
         {/* Email - On same line (optional, can be hidden on smaller screens) */}
         {onUpdateCustomer && customer && customer.email && (
-          <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
+          <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
             <Mail className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
             <span className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
               {customer.email}
@@ -358,13 +358,13 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </div>
         )}
 
-        {/* Toggle Button for Additional Details */}
+        {/* Toggle Button for Additional Details - Hidden on mobile */}
         {onToggleExpand && (
           <Button
             onClick={onToggleExpand}
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 flex items-center gap-1 flex-shrink-0"
+            className="hidden md:flex h-7 px-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 items-center gap-1 flex-shrink-0"
           >
             <span className="text-xs">פרטים נוספים</span>
             <ChevronDown
