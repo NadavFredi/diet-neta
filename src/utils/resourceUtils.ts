@@ -23,6 +23,9 @@ export const getResourceKeyFromPath = (pathname: string): string | null => {
   if (pathname.startsWith('/dashboard/budgets')) {
     return 'budgets';
   }
+  if (pathname.startsWith('/dashboard/payments')) {
+    return 'payments';
+  }
   if (pathname.startsWith('/dashboard/check-in-settings')) {
     return 'check_in_settings';
   }

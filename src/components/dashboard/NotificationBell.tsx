@@ -12,12 +12,20 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 
 // Notification type configuration
 const NOTIFICATION_TYPES: Record<string, { label: string; color: string; bgColor: string }> = {
@@ -38,6 +46,7 @@ const getNotificationType = (type: string) => {
 
 export const NotificationBell = () => {
   const navigate = useNavigate();
+  const [filterType, setFilterType] = useState<string | null>(null);
   const {
     notifications,
     unreadCount,
@@ -49,6 +58,18 @@ export const NotificationBell = () => {
     refreshNotifications,
   } = useNotifications();
 
+  // Filter notifications based on selected type
+  const filteredNotifications = useMemo(() => {
+    if (!filterType) return notifications;
+    return notifications.filter(n => n.type === filterType);
+  }, [notifications, filterType]);
+
+  // Get available notification types for filter
+  const availableTypes = useMemo(() => {
+    const types = new Set(notifications.map(n => n.type));
+    return Array.from(types);
+  }, [notifications]);
+
   // Enhanced click handler that navigates to lead/customer
   const handleNotificationClick = (notification: any) => {
     // Mark as read first if not already read
@@ -56,13 +77,17 @@ export const NotificationBell = () => {
       handleMarkAsRead(notification.id);
     }
 
-    // Navigate to lead or customer page
+    // Navigate to lead or customer page - prioritize lead_id, then customer_id, then action_url
     if (notification.lead_id) {
       navigate(`/leads/${notification.lead_id}`);
     } else if (notification.customer_id) {
       navigate(`/customers/${notification.customer_id}`);
     } else if (notification.action_url) {
-      navigate(notification.action_url);
+      // Handle both relative and absolute URLs
+      const url = notification.action_url.startsWith('/') 
+        ? notification.action_url 
+        : `/${notification.action_url}`;
+      navigate(url);
     }
   };
 
@@ -92,25 +117,63 @@ export const NotificationBell = () => {
             <div className="flex-1">
               <h3 className="font-semibold text-gray-900 text-right mb-1">התראות</h3>
               <p className="text-xs text-gray-500 text-right">ההתראות האחרונות מופיעות ראשונות</p>
-              {notifications.length > 0 && (
+              {filteredNotifications.length > 0 && (
                 <p className="text-xs text-gray-600 text-right mt-1">
-                  {notifications.length} מתוך {notifications.length} התראות
+                  {filteredNotifications.length} מתוך {notifications.length} התראות
+                  {filterType && ` • מסונן לפי: ${getNotificationType(filterType).label}`}
                 </p>
               )}
             </div>
             <div className="flex items-center gap-2 mr-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // TODO: Implement filter functionality
-                }}
-                title="סינון"
-              >
-                <Filter className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100",
+                      filterType && "text-[#5B6FB9] bg-blue-50"
+                    )}
+                    title="סינון"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" dir="rtl" className="w-48">
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFilterType(null);
+                    }}
+                    className={cn(
+                      "cursor-pointer",
+                      !filterType && "bg-blue-50 text-[#5B6FB9]"
+                    )}
+                  >
+                    כל ההתראות
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {availableTypes.map((type) => {
+                    const typeConfig = getNotificationType(type);
+                    return (
+                      <DropdownMenuItem
+                        key={type}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFilterType(type);
+                        }}
+                        className={cn(
+                          "cursor-pointer",
+                          filterType === type && "bg-blue-50 text-[#5B6FB9]"
+                        )}
+                      >
+                        {typeConfig.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
               {unreadCount > 0 && (
                 <Button
                   variant="ghost"
@@ -155,7 +218,21 @@ export const NotificationBell = () => {
               </div>
             ) : (
               <div className="divide-y divide-gray-100" dir="rtl">
-                {notifications.map((notification) => {
+                {filteredNotifications.length === 0 && filterType ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center" dir="rtl">
+                    <Filter className="h-12 w-12 text-gray-300 mb-3" />
+                    <p className="text-sm text-gray-500 text-right mb-2">אין התראות מסוג זה</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-[#5B6FB9]"
+                      onClick={() => setFilterType(null)}
+                    >
+                      הסר סינון
+                    </Button>
+                  </div>
+                ) : (
+                  filteredNotifications.map((notification) => {
                   const typeConfig = getNotificationType(notification.type);
                   const createdDate = new Date(notification.created_at);
                   const formattedDate = format(createdDate, 'dd/MM/yyyy', { locale: he });
@@ -248,25 +325,11 @@ export const NotificationBell = () => {
                       )}
                     </div>
                   );
-                })}
+                  })
+                )}
               </div>
             )}
           </ScrollArea>
-
-          {/* Footer - Refresh Button */}
-          {notifications.length > 0 && (
-            <div className="p-3 border-t bg-gray-50" dir="rtl">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-xs"
-                onClick={refreshNotifications}
-              >
-                <RefreshCw className="h-3 w-3 ml-2" />
-                רענון עכשיו
-              </Button>
-            </div>
-          )}
         </div>
       </PopoverContent>
     </Popover>

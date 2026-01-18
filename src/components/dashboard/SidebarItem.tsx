@@ -75,6 +75,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     item.resourceKey === 'templates' || 
     item.resourceKey === 'nutrition_templates' ||
     item.resourceKey === 'budgets' ||
+    item.resourceKey === 'payments' ||
     item.resourceKey === 'meetings';
   
   // Only fetch saved views and default view for:

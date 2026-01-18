@@ -64,6 +64,13 @@ const navigationItems: NavItem[] = [
     path: '/dashboard/budgets',
   },
   {
+    id: 'payments',
+    resourceKey: 'payments',
+    label: 'תשלומים',
+    icon: CreditCard,
+    path: '/dashboard/payments',
+  },
+  {
     id: 'subscription-types',
     resourceKey: 'subscription_types',
     label: 'סוגי מנויים',
@@ -174,6 +181,10 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     if (path === '/dashboard/subscription-types') {
       // Active for subscription types list
       return location.pathname === '/dashboard/subscription-types';
+    }
+    if (path === '/dashboard/payments') {
+      // Active for payments page
+      return location.pathname === '/dashboard/payments';
     }
     if (path === '/dashboard/whatsapp-automations') {
       // Active for WhatsApp automations page

@@ -28,14 +28,10 @@ export const useAllPayments = () => {
     queryKey: ['all-payments'],
     queryFn: async (): Promise<AllPaymentRecord[]> => {
       try {
-        // Query payments table with JOINs to customers and leads
+        // Query payments table
         const { data, error } = await supabase
           .from('payments')
-          .select(`
-            *,
-            customer:customers!payments_customer_id_fkey(id, full_name),
-            lead:leads!payments_lead_id_fkey(id)
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -47,31 +43,35 @@ export const useAllPayments = () => {
           throw error;
         }
 
-        // Get lead names separately (if lead_id exists)
-        // We need to fetch leads to get the customer name from the lead's customer relationship
-        const leadIds = (data || [])
-          .map((p: any) => p.lead_id)
-          .filter((id: string | null) => id !== null) as string[];
+        // Get unique customer IDs and lead IDs
+        const customerIds = [...new Set((data || []).map((p: any) => p.customer_id).filter(Boolean))];
+        const leadIds = [...new Set((data || []).map((p: any) => p.lead_id).filter(Boolean))];
 
-        let leadNamesMap: Record<string, string> = {};
-        if (leadIds.length > 0) {
-          // Fetch leads with customer data
-          const { data: leadsData, error: leadsError } = await supabase
-            .from('leads')
-            .select(`
-              id,
-              customer:customers!leads_customer_id_fkey(full_name)
-            `)
-            .in('id', leadIds);
+        // Fetch customer names
+        let customerNamesMap: Record<string, string> = {};
+        if (customerIds.length > 0) {
+          const { data: customersData, error: customersError } = await supabase
+            .from('customers')
+            .select('id, full_name')
+            .in('id', customerIds);
 
-          if (!leadsError && leadsData) {
-            // Map lead IDs to customer names (since leads don't have a name field directly)
-            leadsData.forEach((lead: any) => {
-              if (lead.customer?.full_name) {
-                leadNamesMap[lead.id] = lead.customer.full_name;
+          if (!customersError && customersData) {
+            customersData.forEach((customer: any) => {
+              if (customer.full_name) {
+                customerNamesMap[customer.id] = customer.full_name;
               }
             });
           }
+        }
+
+        // Fetch lead names (leads don't have a direct name, but we can show lead ID or customer name from lead)
+        // For now, we'll just show lead ID if available
+        let leadNamesMap: Record<string, string> = {};
+        if (leadIds.length > 0) {
+          // Leads don't have a direct name field, so we'll just mark them as having a lead
+          leadIds.forEach((leadId) => {
+            leadNamesMap[leadId] = `ליד ${leadId.slice(0, 8)}`;
+          });
         }
 
         // Map Hebrew status to English for internal use
@@ -92,7 +92,7 @@ export const useAllPayments = () => {
           receipt_url: record.receipt_url || null,
           transaction_id: record.transaction_id || record.stripe_payment_id || record.id,
           customer_id: record.customer_id,
-          customer_name: record.customer?.full_name || null,
+          customer_name: customerNamesMap[record.customer_id] || null,
           lead_id: record.lead_id || null,
           lead_name: record.lead_id ? leadNamesMap[record.lead_id] || null : null,
         })) as AllPaymentRecord[];
