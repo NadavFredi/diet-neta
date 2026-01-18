@@ -5,8 +5,8 @@
  * Can be used in the header navbar to save vertical space.
  */
 
-import React, { useState } from 'react';
-import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard, Settings, MoreVertical, Trash2, Plus, UserCheck, UserX } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard, Settings, MoreVertical, Trash2, Plus, UserCheck, UserX, Calendar } from 'lucide-react';
 
 // WhatsApp Icon Component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -46,11 +46,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useMeetings } from '@/hooks/useMeetings';
+import { MeetingsDataTable } from './MeetingsDataTable';
 import { useAppSelector } from '@/store/hooks';
 import { SmartTraineeActionButton } from './SmartTraineeActionButton';
 import { fetchInvitations } from '@/store/slices/invitationSlice';
 import { useAppDispatch } from '@/store/hooks';
-import { useEffect } from 'react';
 import type { Customer } from '@/hooks/useCustomers';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
@@ -102,6 +110,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { data: allMeetings = [], isLoading: isLoadingMeetings } = useMeetings();
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<'lead' | 'customer' | null>(null);
@@ -110,6 +119,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   const [traineeProfileId, setTraineeProfileId] = useState<string | null>(null);
   const [traineeIsActive, setTraineeIsActive] = useState<boolean | null>(null);
   const [isUpdatingTraineeStatus, setIsUpdatingTraineeStatus] = useState(false);
+  const [isMeetingsModalOpen, setIsMeetingsModalOpen] = useState(false);
 
   // Fetch invitations for this customer
   useEffect(() => {
@@ -281,6 +291,18 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
     }
   };
 
+  // Filter meetings by lead_id or customer_id
+  const leadMeetings = useMemo(() => {
+    if (!lead?.id && !customer?.id) return [];
+    
+    return allMeetings.filter((meeting) => {
+      // Match by lead_id first, then fallback to customer_id
+      if (lead?.id && meeting.lead_id === lead.id) return true;
+      if (customer?.id && meeting.customer_id === customer.id) return true;
+      return false;
+    });
+  }, [allMeetings, lead?.id, customer?.id]);
+
   return (
     <div className="flex items-center justify-between gap-1 sm:gap-2 lg:gap-4 flex-wrap w-full">
       {/* Left Side (RTL): Back Button, Name, Phone, Email */}
@@ -393,6 +415,23 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </TooltipTrigger>
           <TooltipContent side="bottom" align="center" dir="rtl">
             <p>שלח וואטסאפ</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Calendar Button - View Meetings */}
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={() => setIsMeetingsModalOpen(true)}
+              variant="outline"
+              className="h-8 w-8 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors flex-shrink-0"
+            >
+              <Calendar className="h-4 w-4" strokeWidth={2.5} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center" dir="rtl">
+            <p>צפה בכל הפגישות</p>
           </TooltipContent>
         </Tooltip>
 
@@ -633,6 +672,35 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
         onOpenChange={setIsAddLeadDialogOpen}
         customer={customer}
       />
+
+      {/* Meetings Modal */}
+      <Dialog open={isMeetingsModalOpen} onOpenChange={setIsMeetingsModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[95vw] md:max-w-[95vw] lg:max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>כל הפגישות - {customer.full_name}</DialogTitle>
+            <DialogDescription>
+              {leadMeetings.length > 0 
+                ? `נמצאו ${leadMeetings.length} פגישות` 
+                : 'לא נמצאו פגישות ללקוח זה'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto min-h-0">
+            {isLoadingMeetings ? (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p className="text-gray-600">טוען פגישות...</p>
+              </div>
+            ) : leadMeetings.length > 0 ? (
+              <MeetingsDataTable meetings={leadMeetings} />
+            ) : (
+              <div className="p-8 text-center text-gray-500">
+                <p className="text-lg font-medium mb-2">לא נמצאו פגישות</p>
+                <p className="text-sm">פגישות מתווספות אוטומטית מטופס Fillout</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -77,7 +77,11 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
       if (type === 'number') {
         finalValue = Number(editValue);
         if (isNaN(finalValue)) {
-          throw new Error('Invalid number');
+          throw new Error('מספר לא תקין');
+        }
+        // Additional validation for very large numbers that might cause overflow
+        if (Math.abs(finalValue) > 1000000) {
+          throw new Error('המספר גדול מדי');
         }
       }
       

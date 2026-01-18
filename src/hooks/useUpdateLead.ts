@@ -25,6 +25,54 @@ export const useUpdateLead = () => {
         throw new Error('No valid updates provided');
       }
       
+      // Validate numeric fields against database constraints
+      // Convert empty strings to null for numeric fields
+      if ('height' in cleanUpdates) {
+        if (cleanUpdates.height === '' || cleanUpdates.height === null || cleanUpdates.height === undefined) {
+          cleanUpdates.height = null;
+        } else {
+          const height = Number(cleanUpdates.height);
+          if (isNaN(height) || height > 999.99 || height < -999.99) {
+            throw new Error('גובה חייב להיות בין -999.99 ל-999.99 ס"מ');
+          }
+        }
+      }
+      
+      if ('weight' in cleanUpdates) {
+        if (cleanUpdates.weight === '' || cleanUpdates.weight === null || cleanUpdates.weight === undefined) {
+          cleanUpdates.weight = null;
+        } else {
+          const weight = Number(cleanUpdates.weight);
+          if (isNaN(weight) || weight > 999.99 || weight < -999.99) {
+            throw new Error('משקל חייב להיות בין -999.99 ל-999.99 ק"ג');
+          }
+        }
+      }
+      
+      // age is INTEGER - should be reasonable (0-150)
+      if ('age' in cleanUpdates) {
+        if (cleanUpdates.age === '' || cleanUpdates.age === null || cleanUpdates.age === undefined) {
+          cleanUpdates.age = null;
+        } else {
+          const age = Number(cleanUpdates.age);
+          if (isNaN(age) || !Number.isInteger(age) || age > 150 || age < 0) {
+            throw new Error('גיל חייב להיות מספר שלם בין 0 ל-150');
+          }
+        }
+      }
+      
+      // bmi is DECIMAL(4, 2) - max value is 99.99
+      if ('bmi' in cleanUpdates) {
+        if (cleanUpdates.bmi === '' || cleanUpdates.bmi === null || cleanUpdates.bmi === undefined) {
+          cleanUpdates.bmi = null;
+        } else {
+          const bmi = Number(cleanUpdates.bmi);
+          if (isNaN(bmi) || bmi > 99.99 || bmi < 0) {
+            throw new Error('BMI חייב להיות בין 0 ל-99.99');
+          }
+        }
+      }
+      
       // Add updated_at timestamp
       cleanUpdates.updated_at = new Date().toISOString();
       
