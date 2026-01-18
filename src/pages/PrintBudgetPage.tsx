@@ -296,11 +296,11 @@ const PrintBudgetPage = () => {
                             <table className="w-full border-collapse" dir="rtl">
                               <thead>
                                 <tr className="border-b border-gray-300 bg-gray-50">
-                                  <th className="p-2 text-right text-xs font-semibold text-gray-700 w-16">תמונה</th>
-                                  <th className="p-2 text-right text-xs font-semibold text-gray-700 w-20">סטים</th>
-                                  <th className="p-2 text-right text-xs font-semibold text-gray-700 w-24">חזרות</th>
-                                  <th className="p-2 text-right text-xs font-semibold text-gray-700">תרגיל</th>
-                                  <th className="p-2 text-right text-xs font-semibold text-gray-700 w-12">מס'</th>
+                                  <th className="p-4 text-right text-sm font-semibold text-gray-700 w-40">תמונה</th>
+                                  <th className="p-4 text-right text-sm font-semibold text-gray-700 w-20">סטים</th>
+                                  <th className="p-4 text-right text-sm font-semibold text-gray-700 w-24">חזרות</th>
+                                  <th className="p-4 text-right text-sm font-semibold text-gray-700">תרגיל</th>
+                                  <th className="p-4 text-right text-sm font-semibold text-gray-700 w-12">מס'</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -321,12 +321,12 @@ const PrintBudgetPage = () => {
                                   
                                   return (
                                     <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50 print:hover:bg-transparent">
-                                      <td className="p-2 text-center">
+                                      <td className="p-4 text-center">
                                         {imageUrl ? (
                                           <img
                                             src={imageUrl}
                                             alt={exercise.name || 'תרגיל'}
-                                            className="w-16 h-16 object-cover mx-auto border border-gray-300 rounded"
+                                            className="w-32 h-32 object-cover mx-auto border border-gray-300 rounded"
                                             onError={(e) => {
                                               // Fallback if image fails to load - hide the broken image
                                               const target = e.target as HTMLImageElement;
@@ -334,18 +334,18 @@ const PrintBudgetPage = () => {
                                             }}
                                           />
                                         ) : (
-                                          <div className="w-16 h-16 bg-gray-100 border border-gray-300 rounded mx-auto flex items-center justify-center">
-                                            <span className="text-xs text-gray-400">אין תמונה</span>
+                                          <div className="w-32 h-32 bg-gray-100 border border-gray-300 rounded mx-auto flex items-center justify-center">
+                                            <span className="text-sm text-gray-400">אין תמונה</span>
                                           </div>
                                         )}
                                       </td>
-                                      <td className="p-2 text-center text-gray-700">
+                                      <td className="p-4 text-center text-gray-700 text-base">
                                         {exercise.sets || '—'}
                                       </td>
-                                      <td className="p-2 text-center text-gray-700">
+                                      <td className="p-4 text-center text-gray-700 text-base">
                                         {exercise.reps || '—'}
                                       </td>
-                                      <td className="p-2 text-right">
+                                      <td className="p-4 text-right">
                                         {videoUrl ? (
                                           <a
                                             href={videoUrl}
@@ -365,7 +365,7 @@ const PrintBudgetPage = () => {
                                           <span className="text-gray-600 text-xs block mt-1">({exercise.notes})</span>
                                         )}
                                       </td>
-                                      <td className="p-2 text-center text-gray-500 font-medium text-xs">
+                                      <td className="p-4 text-center text-gray-500 font-medium text-base">
                                         {exerciseId}
                                       </td>
                                     </tr>
