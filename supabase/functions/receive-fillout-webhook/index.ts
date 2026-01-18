@@ -5,6 +5,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { successResponse, errorResponse } from '../_shared/response.ts';
 import { createSupabaseAdmin } from '../_shared/supabase.ts';
+import { stripHtmlForWhatsApp } from '../_shared/utils.ts';
 
 interface FilloutWebhookBody {
   eventId?: string;
@@ -1309,6 +1310,9 @@ async function triggerIntroQuestionnaireAutomation(
       const value = String(placeholders[key] || '');
       message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
     });
+
+    // Strip HTML tags and format for WhatsApp
+    message = stripHtmlForWhatsApp(message);
 
     // Process buttons if they exist
     let processedButtons: Array<{ id: string; text: string }> | undefined = undefined;
