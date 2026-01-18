@@ -311,14 +311,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
   // Get age directly from database, or calculate from birth_date as fallback
   const getAge = (): number | null => {
-    console.log('[ActionDashboard] Getting age for lead:', { 
-      leadId: activeLead?.id, 
-      age: activeLead?.age, 
-      birth_date: activeLead?.birth_date 
-    });
     // First priority: use age field from database
     if (activeLead?.age !== null && activeLead?.age !== undefined && activeLead?.age > 0) {
-      console.log('[ActionDashboard] Using age from database:', activeLead.age);
       return activeLead.age;
     }
     // Fallback: calculate from birth_date if available
@@ -330,10 +324,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
         age--;
       }
-      console.log('[ActionDashboard] Calculated age from birth_date:', age);
       return age;
     }
-    console.log('[ActionDashboard] No age available');
     return null;
   };
 
@@ -725,16 +717,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             leadEmail={customer?.email || activeLead?.email || null} 
             leadPhone={activeLead?.phone || customer?.phone || null}
           />
-          {/* Debug: Log what we're passing to LeadFormsCard */}
-          {console.log('[ActionDashboard] Passing to LeadFormsCard:', {
-            activeLeadId: activeLead?.id || 'NULL',
-            activeLeadIdType: typeof activeLead?.id,
-            customerEmail: customer?.email || 'NULL',
-            activeLeadPhone: activeLead?.phone || 'NULL',
-            customerPhone: customer?.phone || 'NULL',
-            finalLeadId: activeLead?.id || null,
-            finalPhone: activeLead?.phone || customer?.phone || null,
-          }) || null}
 
           {/* Card 6: Stripe Payment Center */}
           <LeadPaymentCard
@@ -770,7 +752,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             onAddDietPlan={onAddDietPlan}
             onAddSupplementsPlan={() => {
               // Supplements plan creation - placeholder for future implementation
-              console.log('Add supplements plan');
             }}
             onAssignBudget={onAssignBudget || (() => {})}
           />
@@ -783,7 +764,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         onOpenChange={setIsCreateSubscriptionModalOpen}
         onConfirm={async (subscriptionType) => {
           try {
-            console.log('Creating subscription with type:', subscriptionType);
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
             
@@ -805,13 +785,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             }
             const expirationDateStr = expirationDate.toISOString().split('T')[0];
             
-            console.log('Subscription data being set:', {
-              duration: subscriptionType.duration,
-              duration_unit: durationUnit,
-              price: subscriptionType.price,
-              expirationDate: expirationDateStr,
-            });
-            
             // Create a NEW subscription_data object (copy values, not reference)
             // This ensures one-way relationship - template changes don't affect leads
             const updatedSubscription = {
@@ -823,14 +796,12 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               status: 'פעיל', // Set status to Active by default
             };
             
-            console.log('Updated subscription_data:', updatedSubscription);
-            
             await onUpdateLead({
               join_date: todayStr,
               subscription_data: updatedSubscription,
             });
           } catch (error: any) {
-            console.error('Error creating subscription:', error);
+            // Error creating subscription
           }
         }}
       />

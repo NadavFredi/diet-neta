@@ -85,7 +85,7 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
         }
       }
     } catch (error) {
-      console.error('[LeadPaymentCard] Error loading custom flows:', error);
+      // Error loading custom flows
     }
     return defaultLabel;
   };
@@ -144,20 +144,16 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       try {
         const response = await fetchStripeProducts();
         if (response.success && response.products) {
-          console.log('[LeadPaymentCard] Loaded products:', response.products.length);
           setProducts(response.products);
           if (response.products.length === 0) {
-            console.warn('[LeadPaymentCard] No products found in Stripe account');
             // Don't switch to manual mode automatically - let user see the empty state
           }
         } else {
-          console.error('[LeadPaymentCard] Failed to load products:', response.error);
           dispatch(setError(response.error || 'שגיאה בטעינת מוצרים מ-Stripe'));
           // Fallback to manual mode if products can't be loaded
           setEntryMode('manual');
         }
       } catch (error: any) {
-        console.error('[LeadPaymentCard] Exception loading products:', error);
         dispatch(setError('שגיאה בטעינת מוצרים מ-Stripe: ' + (error?.message || 'שגיאה לא צפויה')));
         setEntryMode('manual');
       } finally {
@@ -172,7 +168,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
     if (selectedPrice && entryMode === 'product') {
       // Safety check: ensure unit_amount exists and is valid
       if (selectedPrice.unit_amount === null || selectedPrice.unit_amount === undefined || isNaN(selectedPrice.unit_amount)) {
-        console.warn('[LeadPaymentCard] Selected price has invalid unit_amount:', selectedPrice);
         return;
       }
       
@@ -255,7 +250,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       dispatch(setPaymentMessageTemplate(template));
       localStorage.setItem('paymentMessageTemplate', template);
     } catch (error) {
-      console.error('[LeadPaymentCard] Error saving template to database:', error);
       // Still save to localStorage even if DB save fails
       dispatch(setPaymentMessageTemplate(template));
       localStorage.setItem('paymentMessageTemplate', template);
@@ -340,48 +334,23 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       });
 
       // Send WhatsApp message
-      console.log('[LeadPaymentCard] Preparing to send WhatsApp message:', {
-        phoneNumber: customerPhone,
-        messageLength: message.length,
-        messagePreview: message.substring(0, 100) + '...',
-        paymentUrl: paymentUrl,
-      });
-      
       let whatsappResponse: any = undefined;
       try {
-        console.log('[LeadPaymentCard] Calling sendWhatsAppMessage...');
         const result = await sendWhatsAppMessage({
           phoneNumber: customerPhone,
           message: message,
         });
         
-        console.log('[LeadPaymentCard] Raw result from sendWhatsAppMessage:', result);
-        console.log('[LeadPaymentCard] Result type:', typeof result);
-        console.log('[LeadPaymentCard] Result is null?', result === null);
-        console.log('[LeadPaymentCard] Result is undefined?', result === undefined);
-        
         whatsappResponse = result;
         
         // Safety check: if result is undefined or null, create error response
         if (!whatsappResponse) {
-          console.error('[LeadPaymentCard] sendWhatsAppMessage returned undefined/null!');
           whatsappResponse = {
             success: false,
             error: 'שגיאה בשליחת הודעת WhatsApp: הפונקציה לא החזירה תגובה',
           };
         }
-        
-        console.log('[LeadPaymentCard] WhatsApp response received:', {
-          success: whatsappResponse?.success,
-          error: whatsappResponse?.error,
-          hasData: !!whatsappResponse?.data,
-          fullResponse: whatsappResponse,
-        });
       } catch (whatsappError: any) {
-        console.error('[LeadPaymentCard] Exception in sendWhatsAppMessage:', whatsappError);
-        console.error('[LeadPaymentCard] Error stack:', whatsappError?.stack);
-        console.error('[LeadPaymentCard] Error name:', whatsappError?.name);
-        console.error('[LeadPaymentCard] Error message:', whatsappError?.message);
         whatsappResponse = {
           success: false,
           error: whatsappError?.message || 'שגיאה בשליחת הודעת WhatsApp',
@@ -390,7 +359,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       
       // Final safety check
       if (!whatsappResponse) {
-        console.error('[LeadPaymentCard] whatsappResponse is still undefined after try-catch!');
         whatsappResponse = {
           success: false,
           error: 'שגיאה בשליחת הודעת WhatsApp: תגובה לא התקבלה',
@@ -400,10 +368,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       // Safety check: ensure response exists
       if (!whatsappResponse || !whatsappResponse.success) {
         const errorMessage = whatsappResponse?.error || 'שגיאה בשליחת הודעת WhatsApp';
-        console.error('[LeadPaymentCard] WhatsApp send failed:', {
-          response: whatsappResponse,
-          errorMessage,
-        });
         dispatch(setError(errorMessage));
         toast({
           title: 'שגיאה',
@@ -413,8 +377,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
         dispatch(setGeneratingLink(false));
         return;
       }
-      
-      console.log('[LeadPaymentCard] WhatsApp message sent successfully!');
 
       // Success!
       toast({
@@ -427,7 +389,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       setSelectedProduct(null);
       setSelectedPrice(null);
     } catch (error: any) {
-      console.error('[LeadPaymentCard] Error:', error);
       dispatch(setError(error?.message || 'שגיאה לא צפויה'));
       toast({
         title: 'שגיאה',
@@ -462,7 +423,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   const formatPrice = (price: StripePrice): string => {
     // Safety check: handle null/undefined unit_amount (shouldn't happen, but just in case)
     if (price.unit_amount === null || price.unit_amount === undefined || isNaN(price.unit_amount)) {
-      console.warn('[LeadPaymentCard] Invalid unit_amount for price:', price.id, price.unit_amount);
       return 'מחיר לא זמין';
     }
     

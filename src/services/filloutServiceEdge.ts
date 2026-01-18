@@ -77,25 +77,8 @@ export const getFormSubmissions = async (
     // The data contains the Fillout API response directly
     const filloutResponse = result.data;
     
-    console.log('[Fillout] Edge Function response structure:', {
-      hasResponses: !!filloutResponse?.responses,
-      responsesCount: filloutResponse?.responses?.length || 0,
-      totalResponses: filloutResponse?.totalResponses,
-      firstResponseSample: filloutResponse?.responses?.[0] ? {
-        submissionId: filloutResponse.responses[0].submissionId,
-        questionsCount: filloutResponse.responses[0].questions?.length || 0,
-        questions: filloutResponse.responses[0].questions?.map((q: any) => ({
-          id: q.id,
-          name: q.name,
-          type: q.type,
-          value: q.value,
-        })) || [],
-      } : null,
-    });
-    
     return filloutResponse;
   } catch (error: any) {
-    console.error('[Fillout] Error fetching form submissions:', error);
     throw error;
   }
 };
@@ -140,7 +123,6 @@ export const getFormSubmission = async (
 
     return result.data;
   } catch (error: any) {
-    console.error('[Fillout] Error fetching form submission:', error);
     throw error;
   }
 };
@@ -175,73 +157,13 @@ export const findMostRecentSubmission = async (
         : undefined,
     };
     
-    console.log('[findMostRecentSubmission] ========== FUNCTION CALLED ==========');
-    console.log('[findMostRecentSubmission] Original criteria:', JSON.stringify(criteria, null, 2));
-    console.log('[findMostRecentSubmission] Normalized criteria:', JSON.stringify(normalizedCriteria, null, 2));
-    console.log('[findMostRecentSubmission] leadId to search for:', normalizedCriteria.leadId || 'NOT PROVIDED');
-    console.log('[findMostRecentSubmission] phone to search for:', normalizedCriteria.phone || 'NOT PROVIDED');
     const response = await getFormSubmissions(formId, { limit: 100 });
-    console.log('[findMostRecentSubmission] Received submissions:', {
-      totalResponses: response.totalResponses,
-      responsesCount: response.responses?.length || 0,
-      allSubmissions: response.responses?.map((s: any) => ({
-        submissionId: s.submissionId,
-        urlParameters: s.urlParameters,
-        leadIdInParams: s.urlParameters?.find((p: any) => 
-          p.name === 'lead_id' || p.id === 'lead_id' || p.name?.toLowerCase() === 'lead_id'
-        )?.value || 'NO LEAD_ID',
-        phoneQuestion: s.questions?.find((q: any) => 
-          q.name?.toLowerCase().includes('טלפון') || 
-          q.type === 'PhoneNumber' ||
-          q.type?.toLowerCase() === 'phonenumber'
-        )?.value || 'NO PHONE',
-      })) || [],
-    });
-    
-    // Filter submissions based on criteria
-    // Priority: leadId (most reliable) > phone (email matching removed)
-    console.log('[findMostRecentSubmission] Searching for submission:', {
-      formId,
-      criteria: {
-        leadId: criteria.leadId || 'NOT PROVIDED',
-        phone: criteria.phone || 'NOT PROVIDED',
-        email: 'ignored (matching disabled)',
-      },
-      totalSubmissions: response.responses.length,
-      submissionLeadIds: response.responses.map((s: any) => {
-        const leadIdParam = s.urlParameters?.find((p: any) => 
-          p.name === 'lead_id' || p.id === 'lead_id' || p.name?.toLowerCase() === 'lead_id'
-        );
-        return {
-          submissionId: s.submissionId,
-          leadId: leadIdParam?.value || 'NO LEAD_ID',
-          urlParams: s.urlParameters,
-        };
-      }),
-      submissionPhones: response.responses.map((s: any) => {
-        const phoneQ = s.questions?.find((q: any) => 
-          q.name?.toLowerCase().includes('טלפון') || 
-          q.type === 'PhoneNumber' ||
-          q.type?.toLowerCase() === 'phonenumber'
-        );
-        return {
-          submissionId: s.submissionId,
-          phone: phoneQ?.value || 'NO PHONE',
-        };
-      }),
-    });
-
-    console.log('[findMostRecentSubmission] ========== STARTING TO CHECK SUBMISSIONS ==========');
-    console.log('[findMostRecentSubmission] Total submissions to check:', response.responses.length);
     
     // SIMPLE MATCHING: If leadId is provided, match by leadId only
     if (normalizedCriteria.leadId) {
       const searchLeadId = String(normalizedCriteria.leadId).trim();
-      console.log('[findMostRecentSubmission] Searching for leadId:', searchLeadId);
       
       for (const submission of response.responses) {
-        console.log(`[findMostRecentSubmission] Checking submission ${submission.submissionId}`);
-        
         // Check all URL parameters for lead_id
         if (submission.urlParameters && Array.isArray(submission.urlParameters)) {
           for (const param of submission.urlParameters) {
@@ -257,22 +179,8 @@ export const findMostRecentSubmission = async (
                                  paramId === 'leadid' ||
                                  paramId === 'lead-id';
             
-            if (isLeadIdParam) {
-              console.log('[findMostRecentSubmission] Found lead_id parameter:', {
-                paramName: param.name,
-                paramId: param.id,
-                paramValue,
-                searchLeadId,
-                match: paramValue === searchLeadId,
-              });
-              
-              if (paramValue === searchLeadId) {
-                console.log('[findMostRecentSubmission] ✅ MATCH FOUND by leadId!', {
-                  submissionId: submission.submissionId,
-                  leadId: searchLeadId,
-                });
-                return submission;
-              }
+            if (isLeadIdParam && paramValue === searchLeadId) {
+              return submission;
             }
           }
         }
@@ -282,7 +190,6 @@ export const findMostRecentSubmission = async (
     // Fallback to phone matching if leadId didn't match
     if (normalizedCriteria.phone && !normalizedCriteria.leadId) {
       const searchPhone = String(normalizedCriteria.phone).replace(/\D/g, '');
-      console.log('[findMostRecentSubmission] No leadId match, trying phone:', searchPhone);
       
       for (const submission of response.responses) {
         // Phone matching logic (simplified)
@@ -298,48 +205,15 @@ export const findMostRecentSubmission = async (
             if (submissionPhone === searchPhone || 
                 submissionPhone.endsWith(searchPhone) || 
                 searchPhone.endsWith(submissionPhone)) {
-              console.log('[findMostRecentSubmission] ✅ MATCH FOUND by phone!', {
-                submissionId: submission.submissionId,
-                phone: searchPhone,
-              });
               return submission;
             }
           }
         }
       }
     }
-    
-
-    console.log('[findMostRecentSubmission] ❌ No matching submission found');
-    console.log('[findMostRecentSubmission] Searched for leadId:', normalizedCriteria.leadId || 'NOT PROVIDED');
-    console.log('[findMostRecentSubmission] Searched for phone:', normalizedCriteria.phone || 'NOT PROVIDED');
-    console.log('[findMostRecentSubmission] Checked submissions:', response.responses.length);
-    
-    // Log all lead_ids found in submissions for debugging
-    const allLeadIds = response.responses.map((s: any) => {
-      if (s.urlParameters && Array.isArray(s.urlParameters)) {
-        for (const param of s.urlParameters) {
-          const paramName = String(param.name || '').toLowerCase().trim();
-          const paramId = String(param.id || '').toLowerCase().trim();
-          if (paramName === 'lead_id' || paramId === 'lead_id' || 
-              paramName === 'leadid' || paramId === 'leadid') {
-            return {
-              submissionId: s.submissionId,
-              leadId: param.value,
-              paramName: param.name,
-              paramId: param.id,
-            };
-          }
-        }
-      }
-      return null;
-    }).filter(Boolean);
-    
-    console.log('[findMostRecentSubmission] All lead_ids found in submissions:', allLeadIds);
 
     return null;
   } catch (error: any) {
-    console.error('[Fillout] Error finding submission:', error);
     throw error;
   }
 };
