@@ -1030,6 +1030,37 @@ COMMENT ON COLUMN "auth"."users"."is_sso_user" IS 'Auth: Set this column to true
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."blood_tests" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "lead_id" "uuid" NOT NULL,
+    "file_url" "text" NOT NULL,
+    "file_name" "text" NOT NULL,
+    "upload_date" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "uploaded_by" "uuid"
+);
+
+
+ALTER TABLE "public"."blood_tests" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."blood_tests" IS 'Blood test PDF files uploaded by clients or managers';
+
+
+
+COMMENT ON COLUMN "public"."blood_tests"."lead_id" IS 'Reference to the lead (client)';
+
+
+
+COMMENT ON COLUMN "public"."blood_tests"."file_url" IS 'Storage path in client-assets bucket (e.g., customer_id/blood-tests/filename.pdf)';
+
+
+
+COMMENT ON COLUMN "public"."blood_tests"."file_name" IS 'Original file name for display';
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."budget_assignments" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "budget_id" "uuid" NOT NULL,
@@ -1352,6 +1383,43 @@ COMMENT ON COLUMN "public"."green_api_settings"."api_token_instance" IS 'Green A
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."internal_knowledge_base" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "title" "text" NOT NULL,
+    "description" "text",
+    "video_url" "text",
+    "tags" "text"[] DEFAULT '{}'::"text"[],
+    "duration" integer,
+    "additional_info" "jsonb" DEFAULT '{}'::"jsonb",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid"
+);
+
+
+ALTER TABLE "public"."internal_knowledge_base" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."internal_knowledge_base" IS 'Internal knowledge base for storing video links and resources for staff/managers (NOT customer-related)';
+
+
+
+COMMENT ON COLUMN "public"."internal_knowledge_base"."video_url" IS 'Video link URL (external link, no storage)';
+
+
+
+COMMENT ON COLUMN "public"."internal_knowledge_base"."tags" IS 'Array of tags for categorization and filtering';
+
+
+
+COMMENT ON COLUMN "public"."internal_knowledge_base"."duration" IS 'Duration in seconds (optional)';
+
+
+
+COMMENT ON COLUMN "public"."internal_knowledge_base"."additional_info" IS 'Flexible JSONB field for additional metadata';
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."invitation_audit_log" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "invitation_id" "uuid",
@@ -1555,7 +1623,7 @@ COMMENT ON COLUMN "public"."nutrition_templates"."is_public" IS 'Whether the tem
 
 
 CREATE TABLE IF NOT EXISTS "public"."payments" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "customer_id" "uuid" NOT NULL,
     "lead_id" "uuid",
     "product_name" "text" NOT NULL,
@@ -1604,6 +1672,7 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "role" "text" DEFAULT 'user'::"text" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "is_active" boolean DEFAULT true NOT NULL,
     CONSTRAINT "profiles_role_check" CHECK (("role" = ANY (ARRAY['admin'::"text", 'user'::"text", 'trainee'::"text"])))
 );
 
@@ -1616,6 +1685,10 @@ COMMENT ON TABLE "public"."profiles" IS 'User profiles linked to auth.users, man
 
 
 COMMENT ON COLUMN "public"."profiles"."role" IS 'User role: admin (coach/admin), user (coach), trainee (client/trainee)';
+
+
+
+COMMENT ON COLUMN "public"."profiles"."is_active" IS 'Whether the user account is active (trainee access gating)';
 
 
 
@@ -1695,6 +1768,32 @@ COMMENT ON COLUMN "public"."steps_plans"."steps_goal" IS 'Daily steps goal for t
 
 
 COMMENT ON COLUMN "public"."steps_plans"."steps_instructions" IS 'Instructions and guidelines for daily steps';
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."subscription_types" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "name" "text" NOT NULL,
+    "duration" integer NOT NULL,
+    "price" numeric(10,2) NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid"
+);
+
+
+ALTER TABLE "public"."subscription_types" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."subscription_types" IS 'Master subscription type templates that can be used to populate lead subscription data';
+
+
+
+COMMENT ON COLUMN "public"."subscription_types"."duration" IS 'Duration in months (e.g., 3, 6, 12)';
+
+
+
+COMMENT ON COLUMN "public"."subscription_types"."price" IS 'Price in NIS (e.g., 299.99)';
 
 
 
@@ -2190,6 +2289,11 @@ ALTER TABLE ONLY "auth"."users"
 
 
 
+ALTER TABLE ONLY "public"."blood_tests"
+    ADD CONSTRAINT "blood_tests_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."budget_assignments"
     ADD CONSTRAINT "budget_assignments_pkey" PRIMARY KEY ("id");
 
@@ -2240,6 +2344,11 @@ ALTER TABLE ONLY "public"."green_api_settings"
 
 
 
+ALTER TABLE ONLY "public"."internal_knowledge_base"
+    ADD CONSTRAINT "internal_knowledge_base_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."invitation_audit_log"
     ADD CONSTRAINT "invitation_audit_log_pkey" PRIMARY KEY ("id");
 
@@ -2282,6 +2391,11 @@ ALTER TABLE ONLY "public"."saved_views"
 
 ALTER TABLE ONLY "public"."steps_plans"
     ADD CONSTRAINT "steps_plans_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."subscription_types"
+    ADD CONSTRAINT "subscription_types_pkey" PRIMARY KEY ("id");
 
 
 
@@ -2547,6 +2661,18 @@ CREATE INDEX "users_is_anonymous_idx" ON "auth"."users" USING "btree" ("is_anony
 
 
 
+CREATE INDEX "idx_blood_tests_lead_id" ON "public"."blood_tests" USING "btree" ("lead_id");
+
+
+
+CREATE INDEX "idx_blood_tests_upload_date" ON "public"."blood_tests" USING "btree" ("upload_date" DESC);
+
+
+
+CREATE INDEX "idx_blood_tests_uploaded_by" ON "public"."blood_tests" USING "btree" ("uploaded_by");
+
+
+
 CREATE INDEX "idx_budget_assignments_assigned_at" ON "public"."budget_assignments" USING "btree" ("assigned_at" DESC);
 
 
@@ -2676,6 +2802,22 @@ CREATE INDEX "idx_daily_check_ins_date" ON "public"."daily_check_ins" USING "btr
 
 
 CREATE INDEX "idx_daily_check_ins_lead_id" ON "public"."daily_check_ins" USING "btree" ("lead_id");
+
+
+
+CREATE INDEX "idx_internal_kb_created_at" ON "public"."internal_knowledge_base" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_internal_kb_created_by" ON "public"."internal_knowledge_base" USING "btree" ("created_by");
+
+
+
+CREATE INDEX "idx_internal_kb_tags" ON "public"."internal_knowledge_base" USING "gin" ("tags");
+
+
+
+CREATE INDEX "idx_internal_kb_title" ON "public"."internal_knowledge_base" USING "btree" ("title");
 
 
 
@@ -2923,6 +3065,14 @@ CREATE INDEX "idx_steps_plans_user_id" ON "public"."steps_plans" USING "btree" (
 
 
 
+CREATE INDEX "idx_subscription_types_created_at" ON "public"."subscription_types" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_subscription_types_created_by" ON "public"."subscription_types" USING "btree" ("created_by");
+
+
+
 CREATE INDEX "idx_supplement_plans_budget_id" ON "public"."supplement_plans" USING "btree" ("budget_id");
 
 
@@ -3111,6 +3261,10 @@ CREATE OR REPLACE TRIGGER "set_green_api_settings_user_trigger" BEFORE INSERT OR
 
 
 
+CREATE OR REPLACE TRIGGER "update_blood_tests_updated_at" BEFORE UPDATE ON "public"."blood_tests" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
 CREATE OR REPLACE TRIGGER "update_budget_assignments_updated_at" BEFORE UPDATE ON "public"."budget_assignments" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
@@ -3132,6 +3286,10 @@ CREATE OR REPLACE TRIGGER "update_daily_check_ins_updated_at" BEFORE UPDATE ON "
 
 
 CREATE OR REPLACE TRIGGER "update_green_api_settings_updated_at" BEFORE UPDATE ON "public"."green_api_settings" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_internal_kb_updated_at" BEFORE UPDATE ON "public"."internal_knowledge_base" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
 
@@ -3164,6 +3322,10 @@ CREATE OR REPLACE TRIGGER "update_saved_views_updated_at" BEFORE UPDATE ON "publ
 
 
 CREATE OR REPLACE TRIGGER "update_steps_plans_updated_at" BEFORE UPDATE ON "public"."steps_plans" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_subscription_types_updated_at" BEFORE UPDATE ON "public"."subscription_types" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
 
@@ -3275,6 +3437,16 @@ ALTER TABLE ONLY "auth"."sso_domains"
 
 
 
+ALTER TABLE ONLY "public"."blood_tests"
+    ADD CONSTRAINT "blood_tests_lead_id_fkey" FOREIGN KEY ("lead_id") REFERENCES "public"."leads"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."blood_tests"
+    ADD CONSTRAINT "blood_tests_uploaded_by_fkey" FOREIGN KEY ("uploaded_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."budget_assignments"
     ADD CONSTRAINT "budget_assignments_assigned_by_fkey" FOREIGN KEY ("assigned_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
@@ -3362,6 +3534,11 @@ ALTER TABLE ONLY "public"."green_api_settings"
 
 ALTER TABLE ONLY "public"."green_api_settings"
     ADD CONSTRAINT "green_api_settings_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."internal_knowledge_base"
+    ADD CONSTRAINT "internal_knowledge_base_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
 
 
@@ -3477,6 +3654,11 @@ ALTER TABLE ONLY "public"."steps_plans"
 
 ALTER TABLE ONLY "public"."steps_plans"
     ADD CONSTRAINT "steps_plans_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."subscription_types"
+    ADD CONSTRAINT "subscription_types_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
 
 
@@ -3766,6 +3948,14 @@ CREATE POLICY "Admins have full access to steps plans" ON "public"."steps_plans"
 
 
 
+CREATE POLICY "Admins have full access to subscription types" ON "public"."subscription_types" USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text"))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+
+
+
 CREATE POLICY "Admins have full access to supplement plans" ON "public"."supplement_plans" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text"))))) WITH CHECK ((EXISTS ( SELECT 1
@@ -3798,7 +3988,15 @@ CREATE POLICY "Allow anonymous read leads" ON "public"."leads" FOR SELECT TO "an
 
 
 
+CREATE POLICY "Authenticated users can delete knowledge base" ON "public"."internal_knowledge_base" FOR DELETE USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
 CREATE POLICY "Authenticated users can insert customers" ON "public"."customers" FOR INSERT WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Authenticated users can insert knowledge base" ON "public"."internal_knowledge_base" FOR INSERT WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
 
 
 
@@ -3818,6 +4016,10 @@ CREATE POLICY "Authenticated users can read customers" ON "public"."customers" F
 
 
 
+CREATE POLICY "Authenticated users can read knowledge base" ON "public"."internal_knowledge_base" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
 CREATE POLICY "Authenticated users can read leads" ON "public"."leads" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
 
 
@@ -3831,6 +4033,10 @@ CREATE POLICY "Authenticated users can read payments" ON "public"."payments" FOR
 
 
 CREATE POLICY "Authenticated users can update customers" ON "public"."customers" FOR UPDATE USING (("auth"."role"() = 'authenticated'::"text")) WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Authenticated users can update knowledge base" ON "public"."internal_knowledge_base" FOR UPDATE USING (("auth"."role"() = 'authenticated'::"text")) WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
 
 
 
@@ -3898,7 +4104,37 @@ CREATE POLICY "Coaches can view all weekly reviews" ON "public"."weekly_reviews"
 
 
 
+CREATE POLICY "Managers can delete blood tests" ON "public"."blood_tests" FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = ANY (ARRAY['admin'::"text", 'user'::"text"]))))));
+
+
+
+CREATE POLICY "Managers can insert blood tests" ON "public"."blood_tests" FOR INSERT WITH CHECK (((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = ANY (ARRAY['admin'::"text", 'user'::"text"]))))) AND (("auth"."uid"() = "uploaded_by") OR ("uploaded_by" IS NULL))));
+
+
+
 CREATE POLICY "System can insert audit logs" ON "public"."invitation_audit_log" FOR INSERT WITH CHECK (true);
+
+
+
+CREATE POLICY "Trainees can delete their own blood tests" ON "public"."blood_tests" FOR DELETE USING (((EXISTS ( SELECT 1
+   FROM ("public"."leads"
+     JOIN "public"."customers" ON (("customers"."id" = "leads"."customer_id")))
+  WHERE (("leads"."id" = "blood_tests"."lead_id") AND ("customers"."id" IN ( SELECT "leads"."customer_id"
+           FROM "public"."profiles"
+          WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'trainee'::"text"))))))) AND ("uploaded_by" = "auth"."uid"())));
+
+
+
+CREATE POLICY "Trainees can insert blood tests for their customer" ON "public"."blood_tests" FOR INSERT WITH CHECK (((EXISTS ( SELECT 1
+   FROM ("public"."leads"
+     JOIN "public"."customers" ON (("customers"."id" = "leads"."customer_id")))
+  WHERE (("leads"."id" = "blood_tests"."lead_id") AND ("customers"."id" IN ( SELECT "leads"."customer_id"
+           FROM "public"."profiles"
+          WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'trainee'::"text"))))))) AND ("auth"."uid"() = "uploaded_by")));
 
 
 
@@ -3994,6 +4230,10 @@ CREATE POLICY "Users can delete own steps plans" ON "public"."steps_plans" FOR D
 
 
 
+CREATE POLICY "Users can delete own subscription types" ON "public"."subscription_types" FOR DELETE USING (("auth"."uid"() = "created_by"));
+
+
+
 CREATE POLICY "Users can delete own supplement plans" ON "public"."supplement_plans" FOR DELETE USING (("auth"."uid"() = "user_id"));
 
 
@@ -4043,6 +4283,10 @@ CREATE POLICY "Users can insert own nutrition templates" ON "public"."nutrition_
 
 
 CREATE POLICY "Users can insert own steps plans" ON "public"."steps_plans" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can insert own subscription types" ON "public"."subscription_types" FOR INSERT WITH CHECK (("auth"."uid"() = "created_by"));
 
 
 
@@ -4130,6 +4374,10 @@ CREATE POLICY "Users can update own steps plans" ON "public"."steps_plans" FOR U
 
 
 
+CREATE POLICY "Users can update own subscription types" ON "public"."subscription_types" FOR UPDATE USING (("auth"."uid"() = "created_by")) WITH CHECK (("auth"."uid"() = "created_by"));
+
+
+
 CREATE POLICY "Users can update own supplement plans" ON "public"."supplement_plans" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
 
 
@@ -4151,6 +4399,19 @@ CREATE POLICY "Users can update their own interface preferences" ON "public"."us
 
 
 CREATE POLICY "Users can update their own saved views" ON "public"."saved_views" FOR UPDATE USING (("auth"."uid"() = "created_by")) WITH CHECK (("auth"."uid"() = "created_by"));
+
+
+
+CREATE POLICY "Users can view blood tests for accessible leads" ON "public"."blood_tests" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."leads"
+  WHERE (("leads"."id" = "blood_tests"."lead_id") AND (("leads"."assigned_to" = "auth"."uid"()) OR (EXISTS ( SELECT 1
+           FROM "public"."profiles"
+          WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = ANY (ARRAY['admin'::"text", 'user'::"text"]))))) OR (EXISTS ( SELECT 1
+           FROM ("public"."customers"
+             JOIN "public"."leads" "leads_1" ON (("leads_1"."customer_id" = "customers"."id")))
+          WHERE (("leads_1"."id" = "blood_tests"."lead_id") AND ("customers"."id" IN ( SELECT "leads_1"."customer_id"
+                   FROM "public"."profiles"
+                  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'trainee'::"text"))))))))))));
 
 
 
@@ -4188,12 +4449,19 @@ CREATE POLICY "Users can view relevant budget assignments" ON "public"."budget_a
 
 
 
+CREATE POLICY "Users can view subscription types" ON "public"."subscription_types" FOR SELECT USING (true);
+
+
+
 CREATE POLICY "Users can view their own interface preferences" ON "public"."user_interface_preferences" FOR SELECT USING (("auth"."uid"() = "user_id"));
 
 
 
 CREATE POLICY "Users can view their own saved views" ON "public"."saved_views" FOR SELECT USING (("auth"."uid"() = "created_by"));
 
+
+
+ALTER TABLE "public"."blood_tests" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."budget_assignments" ENABLE ROW LEVEL SECURITY;
@@ -4215,6 +4483,9 @@ ALTER TABLE "public"."daily_check_ins" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."green_api_settings" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."internal_knowledge_base" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."invitation_audit_log" ENABLE ROW LEVEL SECURITY;
@@ -4242,6 +4513,9 @@ ALTER TABLE "public"."saved_views" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."steps_plans" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."subscription_types" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."supplement_plans" ENABLE ROW LEVEL SECURITY;
@@ -4274,6 +4548,8 @@ GRANT USAGE ON SCHEMA "auth" TO "postgres";
 
 
 
+REVOKE USAGE ON SCHEMA "public" FROM PUBLIC;
+GRANT ALL ON SCHEMA "public" TO PUBLIC;
 GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
@@ -4409,42 +4685,63 @@ GRANT ALL ON FUNCTION "public"."verify_invitation_token"("p_token_hash" "text", 
 GRANT ALL ON TABLE "auth"."audit_log_entries" TO "dashboard_user";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."audit_log_entries" TO "postgres";
 GRANT SELECT ON TABLE "auth"."audit_log_entries" TO "postgres" WITH GRANT OPTION;
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."audit_log_entries" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."flow_state" TO "postgres";
 GRANT SELECT ON TABLE "auth"."flow_state" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."flow_state" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."flow_state" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."identities" TO "postgres";
 GRANT SELECT ON TABLE "auth"."identities" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."identities" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."identities" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT ALL ON TABLE "auth"."instances" TO "dashboard_user";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."instances" TO "postgres";
 GRANT SELECT ON TABLE "auth"."instances" TO "postgres" WITH GRANT OPTION;
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."instances" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."mfa_amr_claims" TO "postgres";
 GRANT SELECT ON TABLE "auth"."mfa_amr_claims" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."mfa_amr_claims" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."mfa_amr_claims" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."mfa_challenges" TO "postgres";
 GRANT SELECT ON TABLE "auth"."mfa_challenges" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."mfa_challenges" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."mfa_challenges" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."mfa_factors" TO "postgres";
 GRANT SELECT ON TABLE "auth"."mfa_factors" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."mfa_factors" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."mfa_factors" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
@@ -4471,12 +4768,18 @@ GRANT ALL ON TABLE "auth"."oauth_consents" TO "dashboard_user";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."one_time_tokens" TO "postgres";
 GRANT SELECT ON TABLE "auth"."one_time_tokens" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."one_time_tokens" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."one_time_tokens" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT ALL ON TABLE "auth"."refresh_tokens" TO "dashboard_user";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."refresh_tokens" TO "postgres";
 GRANT SELECT ON TABLE "auth"."refresh_tokens" TO "postgres" WITH GRANT OPTION;
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."refresh_tokens" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
@@ -4488,12 +4791,18 @@ GRANT ALL ON SEQUENCE "auth"."refresh_tokens_id_seq" TO "postgres";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."saml_providers" TO "postgres";
 GRANT SELECT ON TABLE "auth"."saml_providers" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."saml_providers" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."saml_providers" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."saml_relay_states" TO "postgres";
 GRANT SELECT ON TABLE "auth"."saml_relay_states" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."saml_relay_states" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."saml_relay_states" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
@@ -4504,24 +4813,42 @@ GRANT SELECT ON TABLE "auth"."schema_migrations" TO "postgres" WITH GRANT OPTION
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."sessions" TO "postgres";
 GRANT SELECT ON TABLE "auth"."sessions" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."sessions" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."sessions" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."sso_domains" TO "postgres";
 GRANT SELECT ON TABLE "auth"."sso_domains" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."sso_domains" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."sso_domains" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."sso_providers" TO "postgres";
 GRANT SELECT ON TABLE "auth"."sso_providers" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."sso_providers" TO "dashboard_user";
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."sso_providers" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
 
 
 
 GRANT ALL ON TABLE "auth"."users" TO "dashboard_user";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."users" TO "postgres";
 GRANT SELECT ON TABLE "auth"."users" TO "postgres" WITH GRANT OPTION;
+SET SESSION AUTHORIZATION "postgres";
+GRANT SELECT ON TABLE "auth"."users" TO "dashboard_user";
+RESET SESSION AUTHORIZATION;
+
+
+
+GRANT ALL ON TABLE "public"."blood_tests" TO "anon";
+GRANT ALL ON TABLE "public"."blood_tests" TO "authenticated";
+GRANT ALL ON TABLE "public"."blood_tests" TO "service_role";
 
 
 
@@ -4564,6 +4891,12 @@ GRANT ALL ON TABLE "public"."daily_check_ins" TO "service_role";
 GRANT ALL ON TABLE "public"."green_api_settings" TO "anon";
 GRANT ALL ON TABLE "public"."green_api_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."green_api_settings" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."internal_knowledge_base" TO "anon";
+GRANT ALL ON TABLE "public"."internal_knowledge_base" TO "authenticated";
+GRANT ALL ON TABLE "public"."internal_knowledge_base" TO "service_role";
 
 
 
@@ -4618,6 +4951,12 @@ GRANT ALL ON TABLE "public"."saved_views" TO "service_role";
 GRANT ALL ON TABLE "public"."steps_plans" TO "anon";
 GRANT ALL ON TABLE "public"."steps_plans" TO "authenticated";
 GRANT ALL ON TABLE "public"."steps_plans" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."subscription_types" TO "anon";
+GRANT ALL ON TABLE "public"."subscription_types" TO "authenticated";
+GRANT ALL ON TABLE "public"."subscription_types" TO "service_role";
 
 
 
@@ -4691,9 +5030,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQ
 
 
 
-
-
-
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "authenticated";
@@ -4701,16 +5037,10 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUN
 
 
 
-
-
-
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
-
-
-
 
 
 

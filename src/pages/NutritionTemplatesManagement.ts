@@ -148,13 +148,18 @@ export const useNutritionTemplatesManagement = () => {
   };
 
   const handleSaveTemplate = async (
-    data: Partial<NutritionTemplate> | { name: string; description: string; targets: any }
+    data: Partial<NutritionTemplate> | { name: string; description: string; targets: any; manual_override?: any; manual_fields?: any; activity_entries?: any }
   ) => {
     try {
       if (editingTemplate) {
         await updateTemplate.mutateAsync({
           templateId: editingTemplate.id,
-          ...data,
+          name: data.name,
+          description: data.description,
+          targets: data.targets,
+          manual_override: (data as any).manual_override,
+          manual_fields: (data as any).manual_fields,
+          activity_entries: (data as any).activity_entries,
         });
         toast({
           title: 'הצלחה',
@@ -167,6 +172,9 @@ export const useNutritionTemplatesManagement = () => {
           name: data.name,
           description: data.description,
           targets: data.targets,
+          manual_override: (data as any).manual_override,
+          manual_fields: (data as any).manual_fields,
+          activity_entries: (data as any).activity_entries,
           is_public: false,
         });
         toast({

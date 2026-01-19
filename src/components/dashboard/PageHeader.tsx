@@ -92,7 +92,7 @@ export const PageHeader = ({
       className={cn(
         'relative',
         'border-b border-gray-200',
-        'px-6 py-5',
+        'px-3 sm:px-4 md:px-6 py-4 sm:py-5',
         'bg-white',
         className
       )}
@@ -124,9 +124,9 @@ export const PageHeader = ({
         )}
 
         {/* Top Row: Title and Primary Actions */}
-        <div className="flex items-center justify-between gap-6 mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-6 mb-3 sm:mb-4">
           {/* Title Section (Right side in RTL) */}
-          <div className="flex-1 min-w-0 flex items-center gap-3">
+          <div className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
             {Icon && (
               <button
                 type="button"
@@ -154,7 +154,7 @@ export const PageHeader = ({
               </button>
             )}
             <div className="flex-1 min-w-0 flex items-center">
-              <h1 className="text-2xl font-semibold text-gray-900 leading-tight">
+              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-tight truncate">
                 {title}
               </h1>
             </div>
@@ -167,7 +167,7 @@ export const PageHeader = ({
           
           {/* Actions Section (Left side in RTL) */}
           {actions && (
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start">
               {actions}
             </div>
           )}

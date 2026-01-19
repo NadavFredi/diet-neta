@@ -191,8 +191,12 @@ const BudgetManagement = () => {
 
       {/* Edit Budget Dialog */}
       <EditBudgetDialog
-        isOpen={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
+        isOpen={isEditDialogOpen && !!editingBudget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsEditDialogOpen(false);
+          }
+        }}
         editingBudget={editingBudget}
         onSave={handleSaveBudget}
       />

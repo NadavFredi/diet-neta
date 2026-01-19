@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { UserPlus, Loader2, MessageCircle, Settings, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Loader2, MessageCircle, Eye, EyeOff } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -33,7 +33,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { sendWhatsAppMessage, replacePlaceholders } from '@/services/greenApiService';
 import { TemplateEditorModal } from './TemplateEditorModal';
-import { fetchTemplates } from '@/store/slices/automationSlice';
+import { fetchTemplates, saveTemplate } from '@/store/slices/automationSlice';
 import {
   Select,
   SelectContent,
@@ -41,31 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-// Flow configs for template labels (same as LeadAutomationCard)
-const DEFAULT_FLOW_CONFIGS = [
-  {
-    key: 'customer_journey_start',
-    label: 'תחילת מסע לקוח ותיאום פגישה',
-  },
-  {
-    key: 'intro_questionnaire',
-    label: 'שליחת שאלון הכרות לאחר קביעת שיחה',
-  },
-];
-
-// Load custom flows from localStorage
-const loadCustomFlows = (): Array<{ key: string; label: string }> => {
-  try {
-    const stored = localStorage.getItem('custom_automation_flows');
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('[CreateTraineeButton] Error loading custom flows:', error);
-  }
-  return [];
-};
+import { getActiveFlows, getFlowLabel } from '@/utils/whatsappAutomationFlows';
 
 interface CreateTraineeButtonProps {
   customerId: string;
@@ -105,6 +81,8 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const traineeFlowLabel = getFlowLabel('trainee_user_credentials', 'פרטי כניסה למתאמן');
+
   // Default template for trainee user credentials
   const DEFAULT_TRAINEE_TEMPLATE = `שלום {{name}},
 
@@ -120,15 +98,30 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
 בברכה,
 צוות DietNeta`;
 
-  // Load template from localStorage on mount
+  // Load template from database first, fallback to localStorage
   useEffect(() => {
-    const savedTemplate = localStorage.getItem('traineeUserMessageTemplate');
-    if (savedTemplate) {
-      setMessageTemplate(savedTemplate);
-    } else {
-      setMessageTemplate(DEFAULT_TRAINEE_TEMPLATE);
-    }
-  }, []);
+    const loadTemplate = async () => {
+      const result = await dispatch(fetchTemplates());
+      if (result.type === 'automation/fetchTemplates/fulfilled') {
+        const dbTemplate = result.payload['trainee_user_credentials']?.template_content;
+        if (dbTemplate) {
+          setMessageTemplate(dbTemplate);
+          localStorage.setItem('traineeUserMessageTemplate', dbTemplate);
+          return;
+        }
+      }
+      
+      // Fallback to localStorage
+      const savedTemplate = localStorage.getItem('traineeUserMessageTemplate');
+      if (savedTemplate) {
+        setMessageTemplate(savedTemplate);
+      } else {
+        setMessageTemplate(DEFAULT_TRAINEE_TEMPLATE);
+      }
+    };
+    
+    loadTemplate();
+  }, [dispatch]);
 
   // Save template to localStorage when it changes
   useEffect(() => {
@@ -138,12 +131,26 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   }, [messageTemplate]);
 
   // Load WhatsApp templates from automation flows
+  // Only load templates that are active in the WhatsApp automations page
   useEffect(() => {
     const loadTemplates = async () => {
       setIsLoadingTemplates(true);
       try {
-        const result = await dispatch(fetchTemplates()).unwrap();
-        setTemplates(result);
+        const allTemplates = await dispatch(fetchTemplates()).unwrap();
+        
+        // Get only active flows (same as WhatsApp automations page)
+        const activeFlows = getActiveFlows();
+        const activeFlowKeys = new Set(activeFlows.map(f => f.key));
+        
+        // Filter templates to only include active flows
+        const filteredTemplates: Record<string, any> = {};
+        Object.entries(allTemplates).forEach(([key, template]) => {
+          if (activeFlowKeys.has(key)) {
+            filteredTemplates[key] = template;
+          }
+        });
+        
+        setTemplates(filteredTemplates);
       } catch (error) {
         console.error('[CreateTraineeButton] Error loading templates:', error);
       } finally {
@@ -484,18 +491,8 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
       </Tooltip>
       <DialogContent className="sm:max-w-[500px]" dir="rtl">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>צור משתמש מתאמן</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsTemplateEditorOpen(true)}
-              disabled={isLoading || userCreated || isSendingWhatsApp}
-              className="h-7 px-2 text-xs text-gray-600 hover:text-black hover:bg-gray-50"
-            >
-              <Settings className="h-3 w-3 ml-1" />
-              ערוך טמפלייט
-            </Button>
+          <DialogTitle>
+            צור משתמש מתאמן
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -599,10 +596,8 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
                 <SelectContent>
                   <SelectItem value="default">תבנית ברירת מחדל (פרטי כניסה)</SelectItem>
                   {Object.entries(templates).map(([key, template]) => {
-                    // Get flow label from DEFAULT_FLOW_CONFIGS, custom flows, or use key
-                    const allFlows = [...DEFAULT_FLOW_CONFIGS, ...loadCustomFlows()];
-                    const flowConfig = allFlows.find(f => f.key === key);
-                    const label = flowConfig?.label || key;
+                    // Get flow label from active flows (same as WhatsApp automations page)
+                    const label = getFlowLabel(key, key);
                     return (
                       <SelectItem key={key} value={key}>
                         {label}
@@ -673,11 +668,27 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         isOpen={isTemplateEditorOpen}
         onOpenChange={setIsTemplateEditorOpen}
         flowKey="trainee_user_credentials"
-        flowLabel="פרטי כניסה למתאמן"
+        flowLabel={traineeFlowLabel}
         initialTemplate={messageTemplate || DEFAULT_TRAINEE_TEMPLATE}
         onSave={async (template, buttons, media) => {
-          setMessageTemplate(template);
-          localStorage.setItem('traineeUserMessageTemplate', template);
+          try {
+            // Save to database
+            await dispatch(saveTemplate({ 
+              flowKey: 'trainee_user_credentials', 
+              templateContent: template,
+              buttons: buttons || [],
+              media: media || null
+            })).unwrap();
+            
+            // Save to local state and localStorage for backward compatibility
+            setMessageTemplate(template);
+            localStorage.setItem('traineeUserMessageTemplate', template);
+          } catch (error) {
+            console.error('[CreateTraineeButton] Error saving template to database:', error);
+            // Still save locally even if DB save fails
+            setMessageTemplate(template);
+            localStorage.setItem('traineeUserMessageTemplate', template);
+          }
         }}
       />
     </Dialog>

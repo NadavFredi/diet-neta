@@ -8,7 +8,7 @@ export interface Placeholder {
   key: string;
   label: string;
   description: string;
-  category: 'customer' | 'lead' | 'fitness' | 'plans';
+  category: 'customer' | 'lead' | 'fitness' | 'plans' | 'weekly_review';
 }
 
 export const AVAILABLE_PLACEHOLDERS: Placeholder[] = [
@@ -43,6 +43,23 @@ export const AVAILABLE_PLACEHOLDERS: Placeholder[] = [
   
   // Payment
   { key: 'payment_link', label: 'קישור תשלום', description: 'קישור לתשלום Stripe', category: 'customer' },
+  
+  // Weekly Review placeholders (for weekly_review template)
+  { key: 'week_label', label: 'תווית שבוע', description: 'טווח התאריכים של השבוע (למשל: שבוע 01/01 - 07/01)', category: 'weekly_review' },
+  { key: 'week_start', label: 'תחילת שבוע', description: 'תאריך תחילת השבוע', category: 'weekly_review' },
+  { key: 'week_end', label: 'סוף שבוע', description: 'תאריך סוף השבוע', category: 'weekly_review' },
+  { key: 'first_name', label: 'שם פרטי', description: 'השם הפרטי של הלקוח', category: 'weekly_review' },
+  { key: 'full_name', label: 'שם מלא', description: 'השם המלא של הלקוח', category: 'weekly_review' },
+  { key: 'target_calories', label: 'יעד קלוריות', description: 'יעד קלוריות יומי', category: 'weekly_review' },
+  { key: 'target_protein', label: 'יעד חלבון', description: 'יעד חלבון יומי בגרמים', category: 'weekly_review' },
+  { key: 'target_fiber', label: 'יעד סיבים', description: 'יעד סיבים יומי בגרמים', category: 'weekly_review' },
+  { key: 'target_steps', label: 'יעד צעדים', description: 'יעד צעדים יומי', category: 'weekly_review' },
+  { key: 'actual_calories', label: 'קלוריות בפועל', description: 'ממוצע קלוריות בפועל', category: 'weekly_review' },
+  { key: 'actual_protein', label: 'חלבון בפועל', description: 'ממוצע חלבון בפועל בגרמים', category: 'weekly_review' },
+  { key: 'actual_fiber', label: 'סיבים בפועל', description: 'ממוצע סיבים בפועל בגרמים', category: 'weekly_review' },
+  { key: 'actual_weight', label: 'משקל ממוצע', description: 'משקל ממוצע לשבוע בק"ג', category: 'weekly_review' },
+  { key: 'trainer_summary', label: 'סיכום מאמן', description: 'סיכום ומסקנות המאמן', category: 'weekly_review' },
+  { key: 'action_plan', label: 'תוכנית פעולה', description: 'דגשים ומטרות לשבוע הבא', category: 'weekly_review' },
 ];
 
 export const getPlaceholdersByCategory = (category: Placeholder['category']): Placeholder[] => {
@@ -55,6 +72,7 @@ export const getCategoryLabel = (category: Placeholder['category']): string => {
     lead: 'פרטי התעניינות',
     fitness: 'מידע כושר',
     plans: 'תוכניות',
+    weekly_review: 'סיכום שבועי',
   };
   return labels[category];
 };

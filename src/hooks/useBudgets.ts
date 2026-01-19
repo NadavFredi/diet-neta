@@ -53,7 +53,18 @@ export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) =>
         }
         throw error;
       }
-      return data as Budget[];
+
+      // Filter out any invalid budgets (ensure name exists and budget is valid)
+      const validBudgets = (data || []).filter((budget: any) => {
+        // Ensure budget has required fields
+        return budget &&
+          budget.id &&
+          budget.name &&
+          budget.name.trim() !== '' &&
+          (budget.is_public === true || budget.created_by === userId);
+      });
+
+      return validBudgets as Budget[];
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -110,6 +121,8 @@ export const useActiveBudgetForLead = (leadId: string | null) => {
       return data as (BudgetAssignment & { budget: Budget }) | null;
     },
     enabled: !!leadId,
+    refetchInterval: 30000, // Refetch every 30 seconds to sync with manager portal
+    staleTime: 10000, // Consider data stale after 10 seconds
   });
 };
 
@@ -134,6 +147,8 @@ export const useActiveBudgetForCustomer = (customerId: string | null) => {
       return data as (BudgetAssignment & { budget: Budget }) | null;
     },
     enabled: !!customerId,
+    refetchInterval: 30000, // Refetch every 30 seconds to sync with manager portal
+    staleTime: 10000, // Consider data stale after 10 seconds
   });
 };
 
@@ -201,7 +216,10 @@ export const useCreateBudget = () => {
       return data as Budget;
     },
     onSuccess: () => {
+      // Invalidate all budget queries to ensure new budget appears everywhere
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      // Also refetch immediately to update UI
+      queryClient.refetchQueries({ queryKey: ['budgets'] });
     },
   });
 };
@@ -240,6 +258,17 @@ export const useUpdateBudget = () => {
         }
       });
 
+      // Explicitly ensure workout_template_id is included if provided (even if null)
+      if ('workout_template_id' in updates) {
+        updateData.workout_template_id = updates.workout_template_id ?? null;
+      }
+
+      console.log('[useUpdateBudget] Updating budget:', {
+        budgetId,
+        updateData,
+        workout_template_id: updateData.workout_template_id
+      });
+
       const { data, error } = await supabase
         .from('budgets')
         .update(updateData)
@@ -248,12 +277,24 @@ export const useUpdateBudget = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useUpdateBudget] Error updating budget:', error);
+        throw error;
+      }
+
+      console.log('[useUpdateBudget] Budget updated successfully:', {
+        id: data.id,
+        workout_template_id: data.workout_template_id
+      });
+
       return data as Budget;
     },
     onSuccess: (data) => {
+      // Invalidate all budget queries to ensure updated budget appears everywhere
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget', data.id] });
+      // Also refetch immediately to update UI
+      queryClient.refetchQueries({ queryKey: ['budgets'] });
     },
   });
 };
@@ -278,7 +319,10 @@ export const useDeleteBudget = () => {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate all budget queries to ensure deleted budget is removed everywhere
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      // Also refetch immediately to update UI
+      queryClient.refetchQueries({ queryKey: ['budgets'] });
     },
   });
 };
@@ -377,12 +421,23 @@ export const useAssignBudgetToLead = () => {
 
       return data as BudgetAssignment & { budget: Budget };
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', variables.leadId] });
-      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+    onSuccess: async (_, variables) => {
+      // Invalidate all budget-related queries
+      await queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] });
+      await queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', variables.leadId] });
+      await queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer'] });
+      
+      // Invalidate all plan queries to ensure workout and nutrition plans update
+      await queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+      await queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+      await queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+      await queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      
+      // Refetch immediately to update UI
+      await queryClient.refetchQueries({ queryKey: ['budgetAssignment'] });
+      
+      // Also refetch plans-history to ensure supplement and steps plans appear
+      await queryClient.refetchQueries({ queryKey: ['plans-history'] });
     },
   });
 };
@@ -474,12 +529,23 @@ export const useAssignBudgetToCustomer = () => {
 
       return data as BudgetAssignment & { budget: Budget };
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', variables.customerId] });
-      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+    onSuccess: async (_, variables) => {
+      // Invalidate all budget-related queries
+      await queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] });
+      await queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'customer', variables.customerId] });
+      await queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead'] });
+      
+      // Invalidate all plan queries to ensure workout and nutrition plans update
+      await queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+      await queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+      await queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+      await queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      
+      // Refetch immediately to update UI
+      await queryClient.refetchQueries({ queryKey: ['budgetAssignment'] });
+      
+      // Also refetch plans-history to ensure supplement and steps plans appear
+      await queryClient.refetchQueries({ queryKey: ['plans-history'] });
     },
   });
 };
@@ -578,17 +644,23 @@ export const useDeleteBudgetAssignment = () => {
 
       return { success: true };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
-      queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] });
-      queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
-      queryClient.invalidateQueries({ queryKey: ['workout-plans'] });
-      queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] });
-      queryClient.invalidateQueries({ queryKey: ['supplement-plans'] });
-      queryClient.invalidateQueries({ queryKey: ['steps-plans'] });
+    onSuccess: async () => {
+      // Invalidate all budget-related queries
+      await queryClient.invalidateQueries({ queryKey: ['budget-assignments'] });
+      await queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] });
+      
+      // Invalidate all plan queries to ensure workout and nutrition plans update
+      await queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
+      await queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
+      await queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+      await queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      await queryClient.invalidateQueries({ queryKey: ['workout-plans'] });
+      await queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] });
+      await queryClient.invalidateQueries({ queryKey: ['supplement-plans'] });
+      await queryClient.invalidateQueries({ queryKey: ['steps-plans'] });
+      
+      // Refetch immediately to update UI
+      await queryClient.refetchQueries({ queryKey: ['budgetAssignment'] });
     },
   });
 };

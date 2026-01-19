@@ -86,11 +86,6 @@ export const fetchFormSubmission = createAsyncThunk(
       if (!formTypeConfig || !formTypeConfig.formId || 
           formTypeConfig.formId === 'your_characterization_form_id' ||
           formTypeConfig.formId.trim() === '') {
-        console.warn('[formsSlice] Form ID not configured or is placeholder:', {
-          formType,
-          formId: formTypeConfig?.formId,
-          envValues,
-        });
         const envVarName = formType === 'details' ? 'VITE_FILLOUT_FORM_ID_DETAILS' :
                           formType === 'intro' ? 'VITE_FILLOUT_FORM_ID_INTRO' :
                           'VITE_FILLOUT_FORM_ID_CHARACTERIZATION';
@@ -101,22 +96,6 @@ export const fetchFormSubmission = createAsyncThunk(
           `After updating .env.local, restart the dev server.`
         );
       }
-
-      console.log('[formsSlice] Fetching submission:', {
-        formType,
-        formId: formTypeConfig.formId,
-        leadId: leadId || 'NOT PROVIDED',
-        leadIdType: typeof leadId,
-        leadIdLength: leadId?.length,
-        phoneNumber: phoneNumber || 'NOT PROVIDED',
-        email: email ? 'provided but not used for matching' : 'not provided',
-        matchingPriority: 'leadId (exact match) > phone (normalized match)',
-        envVars: {
-          DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS,
-          INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO,
-          CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION,
-        },
-      });
 
       const submission = await findMostRecentSubmission(
         formTypeConfig.formId,
@@ -132,7 +111,6 @@ export const fetchFormSubmission = createAsyncThunk(
         submission,
       };
     } catch (error: any) {
-      console.error('[fetchFormSubmission] Error:', error);
       return rejectWithValue(error?.message || 'Failed to fetch form submission');
     }
   }
@@ -171,7 +149,6 @@ export const fetchAllFormSubmissions = createAsyncThunk(
 
       return { success: true };
     } catch (error: any) {
-      console.error('[fetchAllFormSubmissions] Error:', error);
       return rejectWithValue(error?.message || 'Failed to fetch form submissions');
     }
   }
@@ -210,22 +187,12 @@ const formsSlice = createSlice({
         state.isLoading[key] = false;
         state.submissions[key] = submission;
         state.error = null; // Clear errors on success
-        console.log('[formsSlice] Submission fetched:', {
-          formType: key,
-          hasSubmission: !!submission,
-          submissionId: submission?.submissionId,
-        });
       })
       .addCase(fetchFormSubmission.rejected, (state, action) => {
         const key = action.meta.arg.formType;
         state.isLoading[key] = false;
         const errorMsg = action.payload as string || action.error.message || 'Unknown error';
         state.error = errorMsg;
-        console.error('[formsSlice] Error fetching submission:', {
-          formType: key,
-          error: errorMsg,
-          payload: action.payload,
-        });
       })
       // Fetch all form submissions
       .addCase(fetchAllFormSubmissions.pending, (state) => {

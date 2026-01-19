@@ -18,10 +18,12 @@ import { useTableFilters } from '@/hooks/useTableFilters';
 import { customerColumns } from '@/components/dashboard/columns/customerColumns';
 import { useCustomersManagement } from './CustomersManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { useQueryClient } from '@tanstack/react-query';
 
 const CustomersManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
+  const queryClient = useQueryClient();
   const {
     customers,
     savedView,
@@ -53,6 +55,12 @@ const CustomersManagement = () => {
   const handleAddLead = useCallback(() => {
     setIsAddLeadDialogOpen(true);
   }, []);
+
+  const handleLeadCreated = useCallback(() => {
+    // Refresh customers data after a lead is created
+    queryClient.invalidateQueries({ queryKey: ['customers'] });
+    setIsAddLeadDialogOpen(false);
+  }, [queryClient]);
 
   const filteredCustomers = customers; // For now, filtering happens in the hook
 
@@ -122,6 +130,7 @@ const CustomersManagement = () => {
       <AddLeadDialog
         isOpen={isAddLeadDialogOpen}
         onOpenChange={setIsAddLeadDialogOpen}
+        onLeadCreated={handleLeadCreated}
       />
 
       <SaveViewModal

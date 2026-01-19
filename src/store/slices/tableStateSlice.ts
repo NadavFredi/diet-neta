@@ -45,7 +45,7 @@ const tableStateSlice = createSlice({
       }>
     ) => {
       const { resourceKey, columnIds, initialVisibility, initialSizing, initialOrder } = action.payload;
-      
+
       // Only initialize if not already initialized
       if (!state.tables[resourceKey]) {
         const visibility: Record<string, boolean> = {};

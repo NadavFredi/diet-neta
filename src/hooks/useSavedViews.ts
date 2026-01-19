@@ -187,7 +187,7 @@ export const useCreateSavedView = () => {
           is_default: isDefault,
           created_by: userId,
         })
-        .select()
+        .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
         .single();
 
       if (error) throw error;
@@ -249,7 +249,7 @@ export const useUpdateSavedView = () => {
         .update(updateData)
         .eq('id', viewId)
         .eq('created_by', userId)
-        .select()
+        .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
         .single();
 
       if (error) throw error;

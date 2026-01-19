@@ -70,12 +70,12 @@ export const fetchTemplates = createAsyncThunk(
           if (template.buttons !== null && template.buttons !== undefined) {
             try {
               let buttonsData = template.buttons;
-              
+
               // If it's a string, parse it first
               if (typeof buttonsData === 'string') {
                 buttonsData = JSON.parse(buttonsData);
               }
-              
+
               // If it's an array, validate and normalize
               if (Array.isArray(buttonsData)) {
                 parsedButtons = buttonsData
@@ -100,7 +100,7 @@ export const fetchTemplates = createAsyncThunk(
                   }];
                 }
               }
-              
+
               // Only set if we have valid buttons
               if (!parsedButtons || parsedButtons.length === 0) {
                 parsedButtons = undefined;
@@ -110,7 +110,7 @@ export const fetchTemplates = createAsyncThunk(
               parsedButtons = undefined;
             }
           }
-          
+
           // Parse media from JSONB if it exists
           let parsedMedia: MediaData | null = null;
           if (template.media !== null && template.media !== undefined) {
@@ -158,14 +158,14 @@ export const fetchTemplates = createAsyncThunk(
 export const saveTemplate = createAsyncThunk(
   'automation/saveTemplate',
   async (
-    { 
-      flowKey, 
-      templateContent, 
+    {
+      flowKey,
+      templateContent,
       buttons,
       media
-    }: { 
-      flowKey: string; 
-      templateContent: string; 
+    }: {
+      flowKey: string;
+      templateContent: string;
       buttons?: WhatsAppButton[];
       media?: { type: 'image' | 'video' | 'gif'; file?: File; url?: string; previewUrl?: string } | null;
     },
@@ -194,7 +194,7 @@ export const saveTemplate = createAsyncThunk(
           const fileExt = media.file.name.split('.').pop();
           const fileName = `${user.id}/${flowKey}/${Date.now()}.${fileExt}`;
           const bucketName = 'client-assets'; // Using existing bucket
-          
+
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from(bucketName)
             .upload(`templates/${fileName}`, media.file, {
@@ -204,17 +204,24 @@ export const saveTemplate = createAsyncThunk(
 
           if (uploadError) {
             console.error('[saveTemplate] Error uploading file:', uploadError);
-            
+
             // Provide user-friendly error messages based on error type
             let errorMessage = 'נכשל בהעלאת הקובץ';
-            if (uploadError.message.includes('name resolution failed') || uploadError.message.includes('503')) {
-              errorMessage = 'שירות האחסון לא זמין כרגע. אנא ודא שהשירות פועל או נסה שוב מאוחר יותר.';
-            } else if (uploadError.message.includes('Bucket not found')) {
+            if (uploadError.message.includes('name resolution failed') ||
+              uploadError.message.includes('503') ||
+              uploadError.message.includes('502') ||
+              uploadError.message.includes('Bad Gateway') ||
+              uploadError.message.includes('invalid response') ||
+              uploadError.message.includes('upstream server')) {
+              errorMessage = 'שירות האחסון לא זמין כרגע. אנא ודא שהשירות פועל או נסה שוב מאוחר יותר. אם הבעיה נמשכת, נסה לרענן את הדף.';
+            } else if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('bucket')) {
               errorMessage = 'תיקיית האחסון לא נמצאה. אנא ודא שהשירות מוגדר כהלכה.';
+            } else if (uploadError.statusCode === 502 || uploadError.httpStatusCode === 502) {
+              errorMessage = 'שירות האחסון לא מגיב כרגע. אנא נסה שוב בעוד כמה רגעים.';
             } else {
               errorMessage = `נכשל בהעלאת הקובץ: ${uploadError.message}`;
             }
-            
+
             throw new Error(errorMessage);
           }
 
@@ -245,14 +252,14 @@ export const saveTemplate = createAsyncThunk(
         }
       }
 
-      const updateData: any = { 
+      const updateData: any = {
         template_content: templateContent,
       };
-      
+
       // Always update buttons - use empty array if undefined or empty to clear buttons
       // Supabase will automatically handle JSONB conversion
       updateData.buttons = (buttons && buttons.length > 0) ? buttons : [];
-      
+
       // Update media (can be null to clear)
       updateData.media = mediaData;
 

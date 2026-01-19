@@ -10,11 +10,28 @@ export interface NutritionTargets {
   fiber: number;
 }
 
+export interface ManualOverride {
+  calories?: boolean;
+  protein?: boolean;
+  carbs?: boolean;
+  fat?: boolean;
+  fiber?: boolean;
+}
+
+export interface ManualFields {
+  steps?: number | null;
+  workouts?: string | null;
+  supplements?: string | null;
+}
+
 export interface NutritionTemplate {
   id: string;
   name: string;
   description: string | null;
   targets: NutritionTargets;
+  manual_override?: ManualOverride;
+  manual_fields?: ManualFields;
+  activity_entries?: any[]; // Activity entries for METs calculation
   is_public: boolean;
   created_at: string;
   updated_at: string;
@@ -105,35 +122,52 @@ export const useCreateNutritionTemplate = () => {
       name,
       description,
       targets,
+      manual_override,
+      manual_fields,
+      activity_entries,
       is_public = false,
     }: {
       name: string;
       description?: string;
       targets: NutritionTargets;
+      manual_override?: ManualOverride;
+      manual_fields?: ManualFields;
+      activity_entries?: any[]; // Activity entries for METs calculation
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
 
       const userId = user.id; // Use user.id from Redux instead of API call
 
+      // Build insert data object - always include all fields with defaults
+      const insertData: any = {
+        name,
+        description: description || null,
+        targets,
+        is_public,
+        created_by: userId,
+        manual_override: manual_override ?? {},
+        manual_fields: manual_fields ?? {},
+        activity_entries: activity_entries ?? [],
+      };
+
       const { data, error } = await supabase
         .from('nutrition_templates')
-        .insert({
-          name,
-          description: description || null,
-          targets,
-          is_public,
-          created_by: userId,
-        })
+        .insert(insertData)
         .select()
         .single();
 
       if (error) {
         console.error('Error creating nutrition template:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        console.error('Insert data:', JSON.stringify(insertData, null, 2));
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התבניות לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
-        throw error;
+        if (error.message?.includes('column') || error.message?.includes('schema cache') || error.code === '42703') {
+          throw new Error(`עמודות חסרות בטבלה: ${error.message}. אנא ודא שהמיגרציה האחרונה הופעלה: 20260121000006_add_activity_entries_to_nutrition_templates`);
+        }
+        throw new Error(error.message || 'שגיאה ביצירת התבנית');
       }
       return data as NutritionTemplate;
     },
@@ -154,22 +188,31 @@ export const useUpdateNutritionTemplate = () => {
       name,
       description,
       targets,
+      manual_override,
+      manual_fields,
+      activity_entries,
       is_public,
     }: {
       templateId: string;
       name?: string;
       description?: string;
       targets?: NutritionTargets;
+      manual_override?: ManualOverride;
+      manual_fields?: ManualFields;
+      activity_entries?: any[]; // Activity entries for METs calculation
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
 
       const userId = user.id; // Use user.id from Redux instead of API call
 
-      const updateData: Partial<NutritionTemplate> = {};
+      const updateData: any = {}; // Use 'any' to allow activity_entries which may not be in NutritionTemplate type
       if (name !== undefined) updateData.name = name;
       if (description !== undefined) updateData.description = description || null;
       if (targets !== undefined) updateData.targets = targets;
+      if (manual_override !== undefined) updateData.manual_override = manual_override;
+      if (manual_fields !== undefined) updateData.manual_fields = manual_fields;
+      if (activity_entries !== undefined) updateData.activity_entries = activity_entries;
       if (is_public !== undefined) updateData.is_public = is_public;
 
       const { data, error } = await supabase

@@ -6,14 +6,16 @@ import { fetchLeads } from '@/store/slices/dashboardSlice';
 import { STATUS_CATEGORIES } from './useLeadStatus';
 import { toast } from '@/hooks/use-toast';
 import { validatePhoneNumberFormat, formatPhoneNumberForGreenAPI } from '@/components/ui/phone-input';
+import { useAssignBudgetToLead } from './useBudgets';
 
 export interface AddLeadFormData {
   full_name: string;
   phone: string;
   email: string;
   city: string;
-  birth_date: string;
+  age: number | null;
   gender: 'male' | 'female' | 'other' | '';
+  period: boolean | null;
   status_main: string;
   status_sub: string;
   height: number | null;
@@ -23,6 +25,8 @@ export interface AddLeadFormData {
   activity_level: string;
   preferred_time: string;
   notes: string;
+  subscription_type_id: string;
+  budget_id: string;
 }
 
 const initialFormData: AddLeadFormData = {
@@ -30,8 +34,9 @@ const initialFormData: AddLeadFormData = {
   phone: '',
   email: '',
   city: '',
-  birth_date: '',
-  gender: '',
+  age: null,
+  gender: 'female',
+  period: null,
   status_main: '',
   status_sub: '',
   height: null,
@@ -41,11 +46,14 @@ const initialFormData: AddLeadFormData = {
   activity_level: '',
   preferred_time: '',
   notes: '',
+  subscription_type_id: '',
+  budget_id: '',
 };
 
 export const useAddLead = () => {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
+  const assignBudgetToLead = useAssignBudgetToLead();
   const [formData, setFormData] = useState<AddLeadFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -55,7 +63,7 @@ export const useAddLead = () => {
     setSelectedCategory('');
   };
 
-  const handleInputChange = (field: keyof AddLeadFormData, value: string | number | null) => {
+  const handleInputChange = (field: keyof AddLeadFormData, value: string | number | boolean | null) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -220,12 +228,48 @@ export const useAddLead = () => {
         }
       }
 
-      // Step 3: Create Lead (wrapped in transaction via RPC or sequential with error handling)
+      // Step 3: Prepare subscription data if subscription type is selected
+      let subscriptionData: any = {};
+      let joinDate: string | null = null;
+      
+      if (formData.subscription_type_id) {
+        // Fetch subscription type details
+        const { data: subscriptionType, error: subTypeError } = await supabase
+          .from('subscription_types')
+          .select('*')
+          .eq('id', formData.subscription_type_id)
+          .single();
+
+        if (subTypeError) {
+          console.error('Error fetching subscription type:', subTypeError);
+          toast({
+            title: 'אזהרה',
+            description: 'שגיאה בטעינת סוג המנוי. הליד יווצר ללא מנוי.',
+            variant: 'destructive',
+          });
+        } else if (subscriptionType) {
+          // Populate subscription_data with subscription type details
+          const today = new Date();
+          joinDate = today.toISOString().split('T')[0];
+          
+          subscriptionData = {
+            months: subscriptionType.duration,
+            initialPrice: subscriptionType.price,
+            renewalPrice: 0, // Can be set later
+            subscription_status: 'active',
+            subscription_type_id: subscriptionType.id,
+            subscription_type_name: subscriptionType.name,
+          };
+        }
+      }
+
+      // Step 4: Create Lead (wrapped in transaction via RPC or sequential with error handling)
       const leadData: any = {
         customer_id: customerId,
         city: formData.city.trim() || null,
-        birth_date: formData.birth_date || null,
+        age: formData.age || null,
         gender: formData.gender || null,
+        period: formData.period !== null && formData.period !== undefined ? formData.period : null,
         status_main: formData.status_main || null,
         status_sub: formData.status_sub || null,
         height: formData.height || null,
@@ -235,11 +279,12 @@ export const useAddLead = () => {
         activity_level: formData.activity_level || null,
         preferred_time: formData.preferred_time || null,
         notes: formData.notes.trim() || null,
+        join_date: joinDate,
         // Set default JSONB values
         daily_protocol: {},
         workout_history: [],
         steps_history: [],
-        subscription_data: {},
+        subscription_data: subscriptionData,
       };
 
       const { data: newLead, error: leadError } = await supabase
@@ -267,17 +312,51 @@ export const useAddLead = () => {
         return false;
       }
 
+      // Step 5: Assign budget if selected
+      if (formData.budget_id && newLead?.id) {
+        try {
+          await assignBudgetToLead.mutateAsync({
+            budgetId: formData.budget_id,
+            leadId: newLead.id,
+            notes: 'הוקצה בעת יצירת הליד',
+          });
+          console.log('[useAddLead] Budget assigned successfully to new lead');
+        } catch (budgetError: any) {
+          console.error('[useAddLead] Error assigning budget:', budgetError);
+          // Don't fail the entire operation if budget assignment fails
+          toast({
+            title: 'אזהרה',
+            description: 'הליד נוצר בהצלחה, אך נכשל בהקצאת התקציב. ניתן להקצות תקציב מאוחר יותר.',
+            variant: 'destructive',
+          });
+        }
+      }
+
       toast({
         title: 'הצלחה',
         description: 'הליד נוסף בהצלחה',
       });
 
-      // Refresh leads list
-      await dispatch(fetchLeads());
+      console.log('[useAddLead] Lead created successfully, invalidating queries...');
+      console.log('[useAddLead] New lead ID:', newLead.id);
+      console.log('[useAddLead] Customer ID:', customerId);
+
+      // Invalidate customer and leads queries to refresh cache
+      console.log('[useAddLead] Invalidating customer query...');
       await queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+      console.log('[useAddLead] Invalidating customers query (all customers)...');
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      console.log('[useAddLead] Invalidating leads query...');
+      await queryClient.invalidateQueries({ queryKey: ['leads'] });
+      console.log('[useAddLead] Invalidating filtered-leads query...');
+      await queryClient.invalidateQueries({ queryKey: ['filtered-leads'] });
+      console.log('[useAddLead] All queries invalidated successfully');
+      
+      // Note: Leads list refresh is handled by parent component via onLeadCreated callback
 
       // Reset form (dialog will be closed by parent component)
       resetForm();
+      console.log('[useAddLead] Form reset, returning success');
       return true;
     } catch (err: any) {
       console.error('Unexpected error adding lead:', err);

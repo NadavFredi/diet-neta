@@ -285,7 +285,7 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col" dir="rtl">
+      <DialogContent className="max-w-[98vw] lg:max-w-[1600px] max-h-[90vh] overflow-hidden flex flex-col" dir="rtl">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold text-black">דיווח מרובה ימים</DialogTitle>
         </DialogHeader>

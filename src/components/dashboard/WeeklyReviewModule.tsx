@@ -5,7 +5,7 @@
  * Aggregates daily check-in data and allows trainer to provide feedback.
  */
 
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useActiveBudgetForLead, useActiveBudgetForCustomer } from '@/hooks/useBudgets';
@@ -15,13 +15,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { sendWhatsAppMessage, formatPhoneNumber } from '@/services/greenApiService';
-import { Calendar as CalendarIcon, Target, TrendingUp, MessageSquare, Save } from 'lucide-react';
+import { sendWhatsAppMessage, formatPhoneNumber, replacePlaceholders } from '@/services/greenApiService';
+import { Calendar as CalendarIcon, Target, TrendingUp, MessageSquare, Save, Clock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, parseISO } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchTemplates } from '@/store/slices/automationSlice';
 
 interface WeeklyReviewModuleProps {
   leadId?: string | null;
@@ -70,6 +73,20 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const templates = useAppSelector((state) => state.automation.templates);
+
+  // Fetch WhatsApp templates on mount and periodically to catch updates
+  useEffect(() => {
+    dispatch(fetchTemplates());
+    
+    // Refetch templates periodically to catch updates from automation page
+    const intervalId = setInterval(() => {
+      dispatch(fetchTemplates());
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [dispatch]);
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
     // Use initialWeekStart if provided, otherwise default to start of current week (Sunday)
     if (initialWeekStart) {
@@ -87,6 +104,68 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   const { data: budgetAssignment } = useActiveBudgetForLead(leadId || null);
   const { data: customerBudgetAssignment } = useActiveBudgetForCustomer(customerId || null);
   const activeBudget = budgetAssignment?.budget || customerBudgetAssignment?.budget;
+
+  // Fetch all check-ins for selection
+  const { data: allCheckIns, isLoading: isLoadingAllCheckIns } = useQuery({
+    queryKey: ['all-check-ins', customerId, leadId],
+    queryFn: async () => {
+      let finalCustomerId = customerId;
+      
+      if (!finalCustomerId && leadId) {
+        const { data: leadData, error: leadError } = await supabase
+          .from('leads')
+          .select('customer_id')
+          .eq('id', leadId)
+          .single();
+        
+        if (leadError) throw leadError;
+        if (!leadData?.customer_id) return [];
+        finalCustomerId = leadData.customer_id;
+      }
+
+      if (!finalCustomerId) return [];
+
+      // Get all check-ins for this customer (ordered by date, most recent first)
+      let query = supabase
+        .from('daily_check_ins')
+        .select('*')
+        .eq('customer_id', finalCustomerId)
+        .order('check_in_date', { ascending: false })
+        .limit(50); // Limit to last 50 check-ins
+
+      if (leadId) {
+        query = query.or(`lead_id.eq.${leadId},lead_id.is.null`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!(leadId || customerId),
+  });
+
+  // State for selected check-in ID (defaults to most recent)
+  const [selectedCheckInId, setSelectedCheckInId] = useState<string | null>(null);
+
+  // Get the selected check-in or default to the most recent one
+  const selectedCheckIn = useMemo(() => {
+    if (!allCheckIns || allCheckIns.length === 0) return null;
+    
+    if (selectedCheckInId) {
+      const found = allCheckIns.find(ci => ci.id === selectedCheckInId);
+      if (found) return found;
+    }
+    
+    // Default to most recent (first in the array since they're sorted descending)
+    return allCheckIns[0];
+  }, [allCheckIns, selectedCheckInId]);
+
+  // Update selected check-in when check-ins are loaded for the first time
+  React.useEffect(() => {
+    if (allCheckIns && allCheckIns.length > 0 && !selectedCheckInId) {
+      setSelectedCheckInId(allCheckIns[0].id);
+    }
+  }, [allCheckIns, selectedCheckInId]);
 
   // Fetch daily check-ins for the selected week
   const { data: weekCheckIns, isLoading: isLoadingCheckIns } = useQuery({
@@ -356,6 +435,13 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     }
   }, [existingReview, targets, calculatedAverages]);
 
+  // Update selectedWeekStart when initialWeekStart changes (for editing)
+  React.useEffect(() => {
+    if (initialWeekStart) {
+      setSelectedWeekStart(new Date(initialWeekStart));
+    }
+  }, [initialWeekStart]);
+
   // Reset saved week ref when week changes
   React.useEffect(() => {
     lastSavedWeekRef.current = null;
@@ -385,9 +471,10 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           .update(reviewData)
           .eq('id', existingReview.id)
           .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-          .single();
+          .maybeSingle();
         if (error) throw error;
-        return updated;
+        // If update returned null (record doesn't exist), fall through to create new
+        if (updated) return updated;
       }
 
       if (existingReview?.id) {
@@ -397,57 +484,102 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           .update(reviewData)
           .eq('id', existingReview.id)
           .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-          .single();
+          .maybeSingle();
         if (error) throw error;
-        lastSavedWeekRef.current = currentWeekKey;
-        return updated;
-      } else {
-        // Use upsert to handle conflicts (e.g., if review was created between query and insert)
-        const { data: created, error } = await supabase
-          .from('weekly_reviews')
-          .upsert(reviewData, {
-            onConflict: 'week_start_date,lead_id,customer_id',
-            ignoreDuplicates: false,
-          })
-          .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-          .single();
-        if (error) {
-          // If conflict (409), try to fetch and update the existing review
-          if (error.code === '23505' || error.code === '409' || error.message?.includes('conflict')) {
-            let conflictQuery = supabase
-              .from('weekly_reviews')
-              .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-              .eq('week_start_date', reviewData.week_start_date);
-            
-            if (leadId) {
-              conflictQuery = conflictQuery.eq('lead_id', leadId);
-            } else if (customerId) {
-              conflictQuery = conflictQuery.eq('customer_id', customerId);
-            }
-            
-            const { data: conflictReview } = await conflictQuery.maybeSingle();
-            if (conflictReview) {
-              // Update the existing review instead
-              const { data: updated, error: updateError } = await supabase
-                .from('weekly_reviews')
-                .update(reviewData)
-                .eq('id', conflictReview.id)
-                .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
-                .single();
-              if (updateError) throw updateError;
-              lastSavedWeekRef.current = currentWeekKey;
-              return updated;
-            }
-          }
-          throw error;
+        // If update returned null (record doesn't exist), fall through to create new
+        if (updated) {
+          lastSavedWeekRef.current = currentWeekKey;
+          return updated;
         }
-        lastSavedWeekRef.current = currentWeekKey;
-        return created;
+      } else {
+        // Check if a review already exists for this week (to handle race conditions)
+        let existingCheckQuery = supabase
+          .from('weekly_reviews')
+          .select('id')
+          .eq('week_start_date', reviewData.week_start_date);
+        
+        if (leadId) {
+          existingCheckQuery = existingCheckQuery.eq('lead_id', leadId);
+        } else if (customerId) {
+          existingCheckQuery = existingCheckQuery.eq('customer_id', customerId);
+        }
+        
+        const { data: existingCheck, error: checkError } = await existingCheckQuery.maybeSingle();
+        if (checkError && checkError.code !== 'PGRST116') throw checkError;
+        
+        if (existingCheck) {
+          // Update existing review
+          const { data: updated, error: updateError } = await supabase
+            .from('weekly_reviews')
+            .update(reviewData)
+            .eq('id', existingCheck.id)
+            .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+            .maybeSingle();
+          if (updateError) throw updateError;
+          // If update returned null (record doesn't exist), fall through to create new
+          if (updated) {
+            lastSavedWeekRef.current = currentWeekKey;
+            return updated;
+          }
+        } else {
+          // Insert new review
+          const { data: created, error: insertError } = await supabase
+            .from('weekly_reviews')
+            .insert(reviewData)
+            .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+            .single();
+          if (insertError) {
+            // If unique constraint violation, try to fetch and update
+            if (insertError.code === '23505') {
+              let conflictQuery = supabase
+                .from('weekly_reviews')
+                .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+                .eq('week_start_date', reviewData.week_start_date);
+              
+              if (leadId) {
+                conflictQuery = conflictQuery.eq('lead_id', leadId);
+              } else if (customerId) {
+                conflictQuery = conflictQuery.eq('customer_id', customerId);
+              }
+              
+              const { data: conflictReview } = await conflictQuery.maybeSingle();
+              if (conflictReview) {
+                // Update the existing review instead
+                const { data: updated, error: updateError } = await supabase
+                  .from('weekly_reviews')
+                  .update(reviewData)
+                  .eq('id', conflictReview.id)
+                  .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+                  .maybeSingle();
+                if (updateError) throw updateError;
+                // If update returned null, fall through to insert
+                if (updated) {
+                  lastSavedWeekRef.current = currentWeekKey;
+                  return updated;
+                }
+              }
+            }
+            throw insertError;
+          }
+          lastSavedWeekRef.current = currentWeekKey;
+          return created;
+        }
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['weekly-review'] });
-      queryClient.invalidateQueries({ queryKey: ['weekly-reviews'] });
+      // Invalidate all weekly review related queries to ensure lists update immediately
+      // This ensures any component displaying weekly reviews will refresh automatically
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && (
+            key === 'weekly-review' ||
+            key === 'weekly-reviews' ||
+            key === 'weekly-reviews-list' ||
+            key === 'weekly-reviews-client'
+          );
+        }
+      });
       
       // Only show toast if we haven't shown one for this save operation
       if (!hasShownSuccessToast.current) {
@@ -581,31 +713,85 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     try {
       const weekLabel = `שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}`;
       
-      // Build message using editable values
-      let message = `📊 *סיכום שבועי - ${weekLabel}*\n\n`;
-      message += `🎯 *יעדים:*\n`;
-      if (targetCalories) message += `קלוריות: ${Math.round(parseFloat(targetCalories))} קק"ל\n`;
-      if (targetProtein) message += `חלבון: ${Math.round(parseFloat(targetProtein))} גרם\n`;
-      if (targetFiber) message += `סיבים: ${Math.round(parseFloat(targetFiber))} גרם\n`;
-      if (targetSteps) message += `צעדים: ${Math.round(parseFloat(targetSteps))}\n`;
+      // Check if there's a custom template for weekly_review
+      const weeklyReviewTemplate = templates['weekly_review'];
+      let message: string;
+      let processedButtons: Array<{ id: string; text: string }> | undefined;
+      let media: { type: 'image' | 'video' | 'gif'; url: string } | undefined;
       
-      message += `\n📈 *בפועל (ממוצע):*\n`;
-      if (actualCalories) message += `קלוריות: ${Math.round(parseFloat(actualCalories))} קק"ל\n`;
-      if (actualProtein) message += `חלבון: ${Math.round(parseFloat(actualProtein))} גרם\n`;
-      if (actualFiber) message += `סיבים: ${Math.round(parseFloat(actualFiber))} גרם\n`;
-      if (actualWeight) message += `משקל ממוצע: ${parseFloat(actualWeight).toFixed(1)} ק"ג\n`;
-      
-      if (trainerSummary) {
-        message += `\n💬 *סיכום ומסקנות:*\n${trainerSummary}\n`;
-      }
-      
-      if (actionPlan) {
-        message += `\n🎯 *דגשים לשבוע הקרוב:*\n${actionPlan}\n`;
+      if (weeklyReviewTemplate?.template_content?.trim()) {
+        // Use custom template with placeholders
+        const placeholders: Record<string, string> = {
+          // Week info
+          '{{week_label}}': weekLabel,
+          '{{week_start}}': format(weekStart, 'dd/MM', { locale: he }),
+          '{{week_end}}': format(weekEnd, 'dd/MM', { locale: he }),
+          
+          // Customer info
+          '{{first_name}}': customerName?.split(' ')[0] || '',
+          '{{full_name}}': customerName || '',
+          
+          // Targets
+          '{{target_calories}}': targetCalories ? Math.round(parseFloat(targetCalories)).toString() : '-',
+          '{{target_protein}}': targetProtein ? Math.round(parseFloat(targetProtein)).toString() : '-',
+          '{{target_fiber}}': targetFiber ? Math.round(parseFloat(targetFiber)).toString() : '-',
+          '{{target_steps}}': targetSteps ? Math.round(parseFloat(targetSteps)).toString() : '-',
+          
+          // Actuals
+          '{{actual_calories}}': actualCalories ? Math.round(parseFloat(actualCalories)).toString() : '-',
+          '{{actual_protein}}': actualProtein ? Math.round(parseFloat(actualProtein)).toString() : '-',
+          '{{actual_fiber}}': actualFiber ? Math.round(parseFloat(actualFiber)).toString() : '-',
+          '{{actual_weight}}': actualWeight ? parseFloat(actualWeight).toFixed(1) : '-',
+          
+          // Trainer feedback
+          '{{trainer_summary}}': trainerSummary || '',
+          '{{action_plan}}': actionPlan || '',
+        };
+        
+        message = replacePlaceholders(weeklyReviewTemplate.template_content, placeholders);
+        
+        // Process buttons if they exist
+        if (weeklyReviewTemplate.buttons?.length) {
+          processedButtons = weeklyReviewTemplate.buttons.map(btn => ({
+            id: btn.id,
+            text: replacePlaceholders(btn.text, placeholders),
+          }));
+        }
+        
+        // Process media if it exists
+        if (weeklyReviewTemplate.media?.url) {
+          media = {
+            type: weeklyReviewTemplate.media.type as 'image' | 'video' | 'gif',
+            url: weeklyReviewTemplate.media.url,
+          };
+        }
+      } else {
+        // Use default message format (matches the format from WhatsApp automation)
+        message = `📊 סיכום שבועי - שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}\n\n`;
+        message += `🎯 יעדים:\n`;
+        if (targetCalories) message += `קלוריות: ${Math.round(parseFloat(targetCalories))} קק"ל\n`;
+        if (targetProtein) message += `חלבון: ${Math.round(parseFloat(targetProtein))} גרם\n`;
+        if (targetFiber) message += `סיבים: ${Math.round(parseFloat(targetFiber))} גרם\n`;
+        if (targetSteps) message += `צעדים: ${Math.round(parseFloat(targetSteps))}\n`;
+        
+        message += `\n📈 בפועל (ממוצע):\n`;
+        if (actualCalories) message += `קלוריות: ${Math.round(parseFloat(actualCalories))} קק"ל\n`;
+        if (actualWeight) message += `משקל ממוצע: ${parseFloat(actualWeight).toFixed(1)} ק"ג\n`;
+        
+        if (trainerSummary) {
+          message += `\n💬 סיכום ומסקנות:\n${trainerSummary}\n`;
+        }
+        
+        if (actionPlan) {
+          message += `\n🎯 דגשים לשבוע הקרוב:\n${actionPlan}\n`;
+        }
       }
 
       const result = await sendWhatsAppMessage({
         phoneNumber: customerPhone,
         message,
+        buttons: processedButtons,
+        media,
       });
 
       if (result.success) {
@@ -653,61 +839,64 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   }
 
   return (
-    <Card className="rounded-3xl border border-gray-200 shadow-sm">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Target className="h-5 w-5 text-blue-600" />
-            סיכום אסטרטגיה שבועי
-          </CardTitle>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                {format(weekStart, 'dd/MM', { locale: he })} - {format(weekEnd, 'dd/MM', { locale: he })}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedWeekStart}
-                onSelect={(date) => {
-                  if (date) {
-                    setSelectedWeekStart(startOfWeek(date, { weekStartsOn: 0 }));
-                  }
-                }}
-                initialFocus
-              />
-              <div className="flex gap-2 p-3 border-t">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedWeekStart(subWeeks(selectedWeekStart, 1))}
-                >
-                  שבוע קודם
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedWeekStart(addWeeks(selectedWeekStart, 1))}
-                >
-                  שבוע הבא
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="flex gap-4 w-full" dir="rtl">
+      {/* Left Panel: Weekly Review Form */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <Card className="rounded-3xl border border-gray-200 shadow-sm">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Target className="h-5 w-5 text-blue-600" />
+                סיכום אסטרטגיה שבועי
+              </CardTitle>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    {format(weekStart, 'dd/MM', { locale: he })} - {format(weekEnd, 'dd/MM', { locale: he })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedWeekStart}
+                    onSelect={(date) => {
+                      if (date) {
+                        setSelectedWeekStart(startOfWeek(date, { weekStartsOn: 0 }));
+                      }
+                    }}
+                    initialFocus
+                  />
+                  <div className="flex gap-2 p-3 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedWeekStart(subWeeks(selectedWeekStart, 1))}
+                    >
+                      שבוע קודם
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedWeekStart(addWeeks(selectedWeekStart, 1))}
+                    >
+                      שבוע הבא
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
         {/* Comparison Table - All fields editable */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" dir="rtl">
+        <div className="w-full overflow-hidden">
+          <table className="w-full text-sm table-auto" dir="rtl">
             <thead>
               <tr className="border-b">
-                <th className="text-right p-2 font-semibold text-gray-700">מדד</th>
-                <th className="text-right p-2 font-semibold text-gray-700">יעד</th>
-                <th className="text-right p-2 font-semibold text-gray-700">בפועל</th>
-                <th className="text-right p-2 font-semibold text-gray-700">הפרש</th>
+                <th className="text-right p-2 font-semibold text-gray-700 w-[25%]">מדד</th>
+                <th className="text-right p-2 font-semibold text-gray-700 w-[25%]">יעד</th>
+                <th className="text-right p-2 font-semibold text-gray-700 w-[25%]">בפועל</th>
+                <th className="text-right p-2 font-semibold text-gray-700 w-[25%]">הפרש</th>
               </tr>
             </thead>
             <tbody>
@@ -719,7 +908,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                       type="number"
                       value={targetCalories}
                       onChange={(e) => setTargetCalories(e.target.value)}
-                      className="h-8 w-20 text-sm"
+                      className="h-8 w-16 text-sm"
                       placeholder="-"
                       dir="rtl"
                     />
@@ -732,7 +921,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                       type="number"
                       value={actualCalories}
                       onChange={(e) => setActualCalories(e.target.value)}
-                      className="h-8 w-20 text-sm"
+                      className="h-8 w-16 text-sm"
                       placeholder="-"
                       dir="rtl"
                     />
@@ -756,7 +945,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                       type="number"
                       value={targetProtein}
                       onChange={(e) => setTargetProtein(e.target.value)}
-                      className="h-8 w-20 text-sm"
+                      className="h-8 w-16 text-sm"
                       placeholder="-"
                       dir="rtl"
                     />
@@ -769,7 +958,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                       type="number"
                       value={actualProtein}
                       onChange={(e) => setActualProtein(e.target.value)}
-                      className="h-8 w-20 text-sm"
+                      className="h-8 w-16 text-sm"
                       placeholder="-"
                       dir="rtl"
                     />
@@ -793,7 +982,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                       type="number"
                       value={targetFiber}
                       onChange={(e) => setTargetFiber(e.target.value)}
-                      className="h-8 w-20 text-sm"
+                      className="h-8 w-16 text-sm"
                       placeholder="-"
                       dir="rtl"
                     />
@@ -806,7 +995,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                       type="number"
                       value={actualFiber}
                       onChange={(e) => setActualFiber(e.target.value)}
-                      className="h-8 w-20 text-sm"
+                      className="h-8 w-16 text-sm"
                       placeholder="-"
                       dir="rtl"
                     />
@@ -832,7 +1021,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                       step="0.1"
                       value={actualWeight}
                       onChange={(e) => setActualWeight(e.target.value)}
-                      className="h-8 w-20 text-sm"
+                      className="h-8 w-16 text-sm"
                       placeholder="-"
                       dir="rtl"
                     />
@@ -850,7 +1039,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                       type="number"
                       value={actualWaist}
                       onChange={(e) => setActualWaist(e.target.value)}
-                      className="h-8 w-20 text-sm"
+                      className="h-8 w-16 text-sm"
                       placeholder="-"
                       dir="rtl"
                     />
@@ -958,8 +1147,159 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
             </Button>
           )}
         </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Right Panel: Check-in Selection */}
+      <div className="w-80 flex-shrink-0">
+        <Card className="rounded-3xl border border-gray-200 shadow-sm h-full">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between mb-3">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Clock className="h-5 w-5 text-blue-600" />
+                צ'ק-אין אחרון
+              </CardTitle>
+            </div>
+            {allCheckIns && allCheckIns.length > 0 && (
+              <Select
+                value={selectedCheckInId || ''}
+                onValueChange={(value) => setSelectedCheckInId(value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="בחר צ'ק-אין">
+                    {selectedCheckIn
+                      ? format(new Date(selectedCheckIn.check_in_date), 'dd/MM/yyyy', { locale: he })
+                      : 'בחר צ\'ק-אין'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {allCheckIns.map((checkIn) => (
+                    <SelectItem key={checkIn.id} value={checkIn.id}>
+                      {format(new Date(checkIn.check_in_date), 'dd/MM/yyyy', { locale: he })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isLoadingAllCheckIns ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              </div>
+            ) : selectedCheckIn ? (
+              <>
+                <div className="text-sm text-gray-600 mb-4">
+                  <div className="font-semibold text-gray-900 mb-1">תאריך:</div>
+                  {format(new Date(selectedCheckIn.check_in_date), 'dd/MM/yyyy', { locale: he })}
+                </div>
+                
+                <div className="space-y-3">
+                  {/* Nutrition Section */}
+                  {(selectedCheckIn.calories_daily !== null || selectedCheckIn.protein_daily !== null || selectedCheckIn.fiber_daily !== null) && (
+                    <div className="border-b pb-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-2 uppercase">תזונה</div>
+                      <div className="space-y-2 text-sm">
+                        {selectedCheckIn.calories_daily !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">קלוריות:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(selectedCheckIn.calories_daily)} קק"ל</span>
+                          </div>
+                        )}
+                        {selectedCheckIn.protein_daily !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">חלבון:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(selectedCheckIn.protein_daily)} גרם</span>
+                          </div>
+                        )}
+                        {selectedCheckIn.fiber_daily !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">סיבים:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(selectedCheckIn.fiber_daily)} גרם</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Physical Measurements Section */}
+                  {(selectedCheckIn.weight !== null || selectedCheckIn.waist_circumference !== null) && (
+                    <div className="border-b pb-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-2 uppercase">מדדי גוף</div>
+                      <div className="space-y-2 text-sm">
+                        {selectedCheckIn.weight !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">משקל:</span>
+                            <span className="font-semibold text-gray-900">{selectedCheckIn.weight.toFixed(1)} ק"ג</span>
+                          </div>
+                        )}
+                        {selectedCheckIn.waist_circumference !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">היקף מותן:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(selectedCheckIn.waist_circumference)} ס"מ</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Activity Section */}
+                  {selectedCheckIn.steps_actual !== null && (
+                    <div className="border-b pb-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-2 uppercase">פעילות</div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">צעדים:</span>
+                          <span className="font-semibold text-gray-900">{Math.round(selectedCheckIn.steps_actual)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Additional measurements if available */}
+                  {(selectedCheckIn.belly_circumference !== null || selectedCheckIn.thigh_circumference !== null || selectedCheckIn.arm_circumference !== null || selectedCheckIn.neck_circumference !== null) && (
+                    <div className="border-b pb-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-2 uppercase">מדידות נוספות</div>
+                      <div className="space-y-2 text-sm">
+                        {selectedCheckIn.belly_circumference !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">היקף בטן:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(selectedCheckIn.belly_circumference)} ס"מ</span>
+                          </div>
+                        )}
+                        {selectedCheckIn.thigh_circumference !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">היקף ירך:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(selectedCheckIn.thigh_circumference)} ס"מ</span>
+                          </div>
+                        )}
+                        {selectedCheckIn.arm_circumference !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">היקף זרוע:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(selectedCheckIn.arm_circumference)} ס"מ</span>
+                          </div>
+                        )}
+                        {selectedCheckIn.neck_circumference !== null && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">היקף צוואר:</span>
+                            <span className="font-semibold text-gray-900">{Math.round(selectedCheckIn.neck_circumference)} ס"מ</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-gray-500 text-center py-8">
+                אין צ'ק-אין עדיין
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };
 

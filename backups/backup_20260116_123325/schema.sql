@@ -1383,6 +1383,43 @@ COMMENT ON COLUMN "public"."green_api_settings"."api_token_instance" IS 'Green A
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."internal_knowledge_base" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "title" "text" NOT NULL,
+    "description" "text",
+    "video_url" "text",
+    "tags" "text"[] DEFAULT '{}'::"text"[],
+    "duration" integer,
+    "additional_info" "jsonb" DEFAULT '{}'::"jsonb",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid"
+);
+
+
+ALTER TABLE "public"."internal_knowledge_base" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."internal_knowledge_base" IS 'Internal knowledge base for storing video links and resources for staff/managers (NOT customer-related)';
+
+
+
+COMMENT ON COLUMN "public"."internal_knowledge_base"."video_url" IS 'Video link URL (external link, no storage)';
+
+
+
+COMMENT ON COLUMN "public"."internal_knowledge_base"."tags" IS 'Array of tags for categorization and filtering';
+
+
+
+COMMENT ON COLUMN "public"."internal_knowledge_base"."duration" IS 'Duration in seconds (optional)';
+
+
+
+COMMENT ON COLUMN "public"."internal_knowledge_base"."additional_info" IS 'Flexible JSONB field for additional metadata';
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."invitation_audit_log" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "invitation_id" "uuid",
@@ -1586,7 +1623,7 @@ COMMENT ON COLUMN "public"."nutrition_templates"."is_public" IS 'Whether the tem
 
 
 CREATE TABLE IF NOT EXISTS "public"."payments" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "customer_id" "uuid" NOT NULL,
     "lead_id" "uuid",
     "product_name" "text" NOT NULL,
@@ -1635,6 +1672,7 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "role" "text" DEFAULT 'user'::"text" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "is_active" boolean DEFAULT true NOT NULL,
     CONSTRAINT "profiles_role_check" CHECK (("role" = ANY (ARRAY['admin'::"text", 'user'::"text", 'trainee'::"text"])))
 );
 
@@ -1647,6 +1685,10 @@ COMMENT ON TABLE "public"."profiles" IS 'User profiles linked to auth.users, man
 
 
 COMMENT ON COLUMN "public"."profiles"."role" IS 'User role: admin (coach/admin), user (coach), trainee (client/trainee)';
+
+
+
+COMMENT ON COLUMN "public"."profiles"."is_active" IS 'Whether the user account is active (trainee access gating)';
 
 
 
@@ -2302,6 +2344,11 @@ ALTER TABLE ONLY "public"."green_api_settings"
 
 
 
+ALTER TABLE ONLY "public"."internal_knowledge_base"
+    ADD CONSTRAINT "internal_knowledge_base_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."invitation_audit_log"
     ADD CONSTRAINT "invitation_audit_log_pkey" PRIMARY KEY ("id");
 
@@ -2755,6 +2802,22 @@ CREATE INDEX "idx_daily_check_ins_date" ON "public"."daily_check_ins" USING "btr
 
 
 CREATE INDEX "idx_daily_check_ins_lead_id" ON "public"."daily_check_ins" USING "btree" ("lead_id");
+
+
+
+CREATE INDEX "idx_internal_kb_created_at" ON "public"."internal_knowledge_base" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_internal_kb_created_by" ON "public"."internal_knowledge_base" USING "btree" ("created_by");
+
+
+
+CREATE INDEX "idx_internal_kb_tags" ON "public"."internal_knowledge_base" USING "gin" ("tags");
+
+
+
+CREATE INDEX "idx_internal_kb_title" ON "public"."internal_knowledge_base" USING "btree" ("title");
 
 
 
@@ -3226,6 +3289,10 @@ CREATE OR REPLACE TRIGGER "update_green_api_settings_updated_at" BEFORE UPDATE O
 
 
 
+CREATE OR REPLACE TRIGGER "update_internal_kb_updated_at" BEFORE UPDATE ON "public"."internal_knowledge_base" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
 CREATE OR REPLACE TRIGGER "update_leads_updated_at" BEFORE UPDATE ON "public"."leads" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
@@ -3467,6 +3534,11 @@ ALTER TABLE ONLY "public"."green_api_settings"
 
 ALTER TABLE ONLY "public"."green_api_settings"
     ADD CONSTRAINT "green_api_settings_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."internal_knowledge_base"
+    ADD CONSTRAINT "internal_knowledge_base_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
 
 
@@ -3916,7 +3988,15 @@ CREATE POLICY "Allow anonymous read leads" ON "public"."leads" FOR SELECT TO "an
 
 
 
+CREATE POLICY "Authenticated users can delete knowledge base" ON "public"."internal_knowledge_base" FOR DELETE USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
 CREATE POLICY "Authenticated users can insert customers" ON "public"."customers" FOR INSERT WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Authenticated users can insert knowledge base" ON "public"."internal_knowledge_base" FOR INSERT WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
 
 
 
@@ -3936,6 +4016,10 @@ CREATE POLICY "Authenticated users can read customers" ON "public"."customers" F
 
 
 
+CREATE POLICY "Authenticated users can read knowledge base" ON "public"."internal_knowledge_base" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
 CREATE POLICY "Authenticated users can read leads" ON "public"."leads" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
 
 
@@ -3949,6 +4033,10 @@ CREATE POLICY "Authenticated users can read payments" ON "public"."payments" FOR
 
 
 CREATE POLICY "Authenticated users can update customers" ON "public"."customers" FOR UPDATE USING (("auth"."role"() = 'authenticated'::"text")) WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Authenticated users can update knowledge base" ON "public"."internal_knowledge_base" FOR UPDATE USING (("auth"."role"() = 'authenticated'::"text")) WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
 
 
 
@@ -4397,6 +4485,9 @@ ALTER TABLE "public"."daily_check_ins" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."green_api_settings" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."internal_knowledge_base" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."invitation_audit_log" ENABLE ROW LEVEL SECURITY;
 
 
@@ -4800,6 +4891,12 @@ GRANT ALL ON TABLE "public"."daily_check_ins" TO "service_role";
 GRANT ALL ON TABLE "public"."green_api_settings" TO "anon";
 GRANT ALL ON TABLE "public"."green_api_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."green_api_settings" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."internal_knowledge_base" TO "anon";
+GRANT ALL ON TABLE "public"."internal_knowledge_base" TO "authenticated";
+GRANT ALL ON TABLE "public"."internal_knowledge_base" TO "service_role";
 
 
 

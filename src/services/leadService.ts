@@ -24,8 +24,15 @@ export interface LeadFilterParams {
   activityLevel?: string | null;
   preferredTime?: string | null;
   source?: string | null;
+  // Pagination
   limit?: number;
   offset?: number;
+  // Sorting
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+  // Grouping
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
 }
 
 export interface LeadFromDB {
@@ -74,15 +81,17 @@ export interface LeadFilterOptions {
 
 /**
  * Fetch filtered leads using PostgreSQL RPC function
- * All filtering happens in the database - no client-side processing
+ * All filtering, sorting, grouping, and pagination happens in the database
  */
 export async function fetchFilteredLeads(
   filters: LeadFilterParams
 ): Promise<LeadFromDB[]> {
   try {
     const { data, error } = await supabase.rpc('get_filtered_leads', {
+      p_limit_count: filters.limit || 100,
+      p_offset_count: filters.offset || 0,
       p_search_query: filters.searchQuery || null,
-      p_created_date: filters.createdDate || null,
+      p_date: filters.createdDate || null,
       p_status_main: filters.statusMain || null,
       p_status_sub: filters.statusSub || null,
       p_age: filters.age || null,
@@ -92,8 +101,12 @@ export async function fetchFilteredLeads(
       p_activity_level: filters.activityLevel || null,
       p_preferred_time: filters.preferredTime || null,
       p_source: filters.source || null,
-      p_limit_count: filters.limit || 1000,
-      p_offset_count: filters.offset || 0,
+      // Sorting parameters
+      p_sort_by: filters.sortBy || 'created_at',
+      p_sort_order: filters.sortOrder || 'DESC',
+      // Grouping parameters
+      p_group_by_level1: filters.groupByLevel1 || null,
+      p_group_by_level2: filters.groupByLevel2 || null,
     });
 
     if (error) {
@@ -107,6 +120,40 @@ export async function fetchFilteredLeads(
     return data || [];
   } catch (error) {
     console.error('Unexpected error in fetchFilteredLeads:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get total count of leads matching filter criteria
+ * Used for pagination to calculate total pages
+ */
+export async function getFilteredLeadsCount(
+  filters: Omit<LeadFilterParams, 'limit' | 'offset' | 'sortBy' | 'sortOrder' | 'groupByLevel1' | 'groupByLevel2'>
+): Promise<number> {
+  try {
+    const { data, error } = await supabase.rpc('get_filtered_leads_count', {
+      p_search_query: filters.searchQuery || null,
+      p_date: filters.createdDate || null,
+      p_status_main: filters.statusMain || null,
+      p_status_sub: filters.statusSub || null,
+      p_age: filters.age || null,
+      p_height: filters.height || null,
+      p_weight: filters.weight || null,
+      p_fitness_goal: filters.fitnessGoal || null,
+      p_activity_level: filters.activityLevel || null,
+      p_preferred_time: filters.preferredTime || null,
+      p_source: filters.source || null,
+    });
+
+    if (error) {
+      console.error('Error fetching leads count:', error);
+      throw error;
+    }
+
+    return data || 0;
+  } catch (error) {
+    console.error('Unexpected error in getFilteredLeadsCount:', error);
     throw error;
   }
 }

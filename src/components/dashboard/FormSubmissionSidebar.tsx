@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { FileText, X, Loader2, RefreshCw, Maximize2, Grid3x3, List, ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
+import { FileText, X, Loader2, RefreshCw, Maximize2, Grid3x3, List, ChevronDown, ChevronUp, ChevronsUpDown, Download } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
@@ -18,6 +18,8 @@ import { useLeadSidebar } from '@/hooks/useLeadSidebar';
 import { cn } from '@/lib/utils';
 import type { FilloutSubmission } from '@/services/filloutService';
 import { ReadOnlyField } from './ReadOnlyField';
+import { extractLeadFieldsFromSubmission } from '@/utils/filloutFieldExtractor';
+import { useToast } from '@/hooks/use-toast';
 
 interface FormSubmissionSidebarProps {
   formType: FormType;
@@ -27,6 +29,7 @@ interface FormSubmissionSidebarProps {
   leadPhone?: string;
   isLoading: boolean;
   error: string | null;
+  onUpdateLead?: (updates: any) => Promise<void>;
 }
 
 const STORAGE_KEY = 'formSubmissionPanelWidth';
@@ -52,9 +55,12 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
   leadPhone,
   isLoading,
   error,
+  onUpdateLead,
 }) => {
   const dispatch = useAppDispatch();
-  const { close } = useLeadSidebar();
+  const { closeHistory } = useLeadSidebar();
+  const { toast } = useToast();
+  const [isUpdating, setIsUpdating] = useState(false);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -259,6 +265,56 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
     }
   }, [submission?.submissionId]);
 
+  // Check if this is the questionnaire form that supports field updates
+  const questionnaireFormId = '23ggw4DEs7us';
+  const isQuestionnaireForm = formType.formId?.trim().toLowerCase() === questionnaireFormId.trim().toLowerCase();
+  const canUpdateLead = isQuestionnaireForm && leadId && onUpdateLead && submission;
+
+  // Handle manual update from form submission
+  const handleUpdateLead = async () => {
+    if (!submission || !leadId || !onUpdateLead) {
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const extractedFields = extractLeadFieldsFromSubmission(submission, formType.formId);
+      
+      // Remove undefined values
+      const updates: any = {};
+      if (extractedFields.period !== undefined) updates.period = extractedFields.period;
+      if (extractedFields.age !== undefined) updates.age = extractedFields.age;
+      if (extractedFields.height !== undefined) updates.height = extractedFields.height;
+      if (extractedFields.weight !== undefined) updates.weight = extractedFields.weight;
+
+      if (Object.keys(updates).length === 0) {
+        toast({
+          title: 'אין שדות לעדכון',
+          description: 'לא נמצאו שדות מתאימים בתשובות הטופס לעדכון',
+          variant: 'default',
+        });
+        return;
+      }
+
+      await onUpdateLead(updates);
+
+      toast({
+        title: 'הצלחה',
+        description: `עודכנו ${Object.keys(updates).length} שדות בהצלחה`,
+        variant: 'default',
+      });
+    } catch (error: any) {
+      console.error('[FormSubmissionSidebar] Error updating lead:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון השדות',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const isExpanded = width >= 600;
 
   return (
@@ -289,6 +345,29 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
               <h2 className="text-sm font-bold text-gray-900 truncate">{formType.label}</h2>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
+              {/* Update Lead Button - Only show for questionnaire form */}
+              {canUpdateLead && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleUpdateLead}
+                  disabled={isUpdating}
+                  className="h-6 px-2 text-xs text-blue-600 hover:text-blue-900 hover:bg-blue-50"
+                  title="עדכן שדות מהטופס"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 ml-1 animate-spin" />
+                      מעדכן...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-3.5 w-3.5 ml-1" />
+                      עדכן שדות
+                    </>
+                  )}
+                </Button>
+              )}
               {/* Collapse/Expand All Button - Only show when submission exists and has categories */}
               {submission && Object.keys(categorizedQuestions).length > 0 && (
                 <Button
@@ -327,7 +406,7 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={close}
+                onClick={closeHistory}
                 className="h-6 w-6 text-gray-500 hover:text-gray-900 hover:bg-white/80"
                 title="סגור"
               >

@@ -43,7 +43,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
 
           return workoutQuery;
         })() : Promise.resolve({ data: null, error: null }),
-        
+
         // Nutrition plans
         (customerId || leadId) ? (() => {
           let nutritionQuery = supabase
@@ -70,6 +70,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
             .order('created_at', { ascending: false });
 
           if (customerId && leadId) {
+            // When both are provided, match plans that have either customer_id OR lead_id OR both
             supplementQuery = supplementQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
           } else if (customerId) {
             supplementQuery = supplementQuery.eq('customer_id', customerId);
@@ -84,10 +85,11 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
         (customerId || leadId) ? (() => {
           let stepsQuery = supabase
             .from('steps_plans')
-            .select('*, budget_id')
+            .select('*, budget_id, budgets(name)')
             .order('created_at', { ascending: false });
 
           if (customerId && leadId) {
+            // When both are provided, match plans that have either customer_id OR lead_id OR both
             stepsQuery = stepsQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
           } else if (customerId) {
             stepsQuery = stepsQuery.eq('customer_id', customerId);
@@ -127,14 +129,115 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
         supplements: supplementPlans?.length || 0,
         steps: stepsPlans?.length || 0,
       });
+      
+      // Debug: Log supplement and steps plans details
+      if (supplementPlans && supplementPlans.length > 0) {
+        console.log('[usePlansHistory] Supplement plans details:', supplementPlans.map((p: any) => ({
+          id: p.id,
+          budget_id: p.budget_id,
+          customer_id: p.customer_id,
+          lead_id: p.lead_id,
+          created_at: p.created_at,
+        })));
+      }
+      
+      if (stepsPlans && stepsPlans.length > 0) {
+        console.log('[usePlansHistory] Steps plans details:', stepsPlans.map((p: any) => ({
+          id: p.id,
+          budget_id: p.budget_id,
+          customer_id: p.customer_id,
+          lead_id: p.lead_id,
+          created_at: p.created_at,
+        })));
+      }
+
+      // Get active budget assignment to determine which plans are active
+      let activeBudgetId: string | null = null;
+      if (customerId || leadId) {
+        let activeBudgetQuery = supabase
+          .from('budget_assignments')
+          .select('budget_id')
+          .eq('is_active', true);
+
+        if (customerId && leadId) {
+          activeBudgetQuery = activeBudgetQuery.or(`customer_id.eq.${customerId},lead_id.eq.${leadId}`);
+        } else if (customerId) {
+          activeBudgetQuery = activeBudgetQuery.eq('customer_id', customerId);
+        } else if (leadId) {
+          activeBudgetQuery = activeBudgetQuery.eq('lead_id', leadId);
+        }
+
+        const { data: activeBudgetAssignment } = await activeBudgetQuery.maybeSingle();
+        activeBudgetId = activeBudgetAssignment?.budget_id || null;
+      }
 
       if (workoutPlans && workoutPlans.length > 0) {
-          // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
-          const uniquePlans = Array.from(
-            new Map(workoutPlans.map((plan: any) => [plan.id, plan])).values()
-          );
+        // First deduplicate by id to prevent exact duplicates
+        const uniquePlansById = Array.from(
+          new Map(workoutPlans.map((plan: any) => [plan.id, plan])).values()
+        );
+
+        // Then deduplicate by budget_id - only one plan per budget (keep the most recent one)
+        // This ensures that even if a plan has both customer_id and lead_id, we only show it once per budget
+        const plansByBudget = new Map<string, any>();
+        uniquePlansById.forEach((plan: any) => {
+          // Skip plans without budget_id
+          if (!plan.budget_id) {
+            return;
+          }
           
-          workoutHistory.push(...uniquePlans.map((plan: any) => ({
+          const budgetKey = plan.budget_id;
+          const existing = plansByBudget.get(budgetKey);
+          
+          if (!existing) {
+            plansByBudget.set(budgetKey, plan);
+          } else {
+            // Keep the most recent one (by start_date or created_at)
+            const existingDate = existing.start_date || existing.created_at || '';
+            const planDate = plan.start_date || plan.created_at || '';
+            if (planDate > existingDate || (!planDate && !existingDate && plan.created_at > existing.created_at)) {
+              plansByBudget.set(budgetKey, plan);
+            }
+          }
+        });
+        
+        const deduplicatedPlans = Array.from(plansByBudget.values());
+
+        // Find the most recent plan from the active budget to mark as active
+        let activePlanId: string | null = null;
+        if (activeBudgetId) {
+          const activePlan = deduplicatedPlans
+            .filter((plan: any) => plan.budget_id === activeBudgetId)
+            .sort((a: any, b: any) => {
+              const dateA = a.start_date || a.created_at || '';
+              const dateB = b.start_date || b.created_at || '';
+              return dateB.localeCompare(dateA);
+            })[0];
+          if (activePlan) {
+            activePlanId = activePlan.id;
+          }
+        }
+
+        // Sort: active plan first, then by start_date descending (newest first)
+        const sortedPlans = deduplicatedPlans.sort((a: any, b: any) => {
+          const aIsActive = activePlanId !== null && a.id === activePlanId;
+          const bIsActive = activePlanId !== null && b.id === activePlanId;
+          
+          // Active plans come first
+          if (aIsActive && !bIsActive) return -1;
+          if (!aIsActive && bIsActive) return 1;
+          
+          // Then sort by date
+          const dateA = a.start_date || a.created_at || '';
+          const dateB = b.start_date || b.created_at || '';
+          return dateB.localeCompare(dateA);
+        });
+
+        workoutHistory.push(...sortedPlans.map((plan: any) => {
+          // Only mark as active if it's the most recent plan from the active budget
+          const isActive = activePlanId !== null && plan.id === activePlanId;
+          
+          return {
             id: plan.id,
             name: plan.workout_templates?.name || plan.description || 'תוכנית אימונים',
             startDate: plan.start_date,
@@ -149,24 +252,85 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
             strength: plan.split?.strength || plan.strength || 0,
             cardio: plan.split?.cardio || plan.cardio || 0,
             intervals: plan.split?.intervals || plan.intervals || 0,
-            split: plan.split || { 
-              strength: plan.strength || 0, 
-              cardio: plan.cardio || 0, 
-              intervals: plan.intervals || 0 
+            split: plan.split || {
+              strength: plan.strength || 0,
+              cardio: plan.cardio || 0,
+              intervals: plan.intervals || 0
             },
             budget_id: plan.budget_id,
             created_at: plan.created_at,
-            is_active: plan.is_active,
-          })));
+            is_active: isActive,
+          };
+        }));
       }
 
       if (nutritionPlans && nutritionPlans.length > 0) {
-          // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
-          const uniquePlans = Array.from(
-            new Map(nutritionPlans.map((plan: any) => [plan.id, plan])).values()
-          );
+        // First deduplicate by id to prevent exact duplicates
+        const uniquePlansById = Array.from(
+          new Map(nutritionPlans.map((plan: any) => [plan.id, plan])).values()
+        );
+
+        // Then deduplicate by budget_id - only one plan per budget (keep the most recent one)
+        // This ensures that even if a plan has both customer_id and lead_id, we only show it once per budget
+        const plansByBudget = new Map<string, any>();
+        uniquePlansById.forEach((plan: any) => {
+          // Skip plans without budget_id
+          if (!plan.budget_id) {
+            return;
+          }
           
-          nutritionHistory.push(...uniquePlans.map((plan: any) => ({
+          const budgetKey = plan.budget_id;
+          const existing = plansByBudget.get(budgetKey);
+          
+          if (!existing) {
+            plansByBudget.set(budgetKey, plan);
+          } else {
+            // Keep the most recent one (by start_date or created_at)
+            const existingDate = existing.start_date || existing.created_at || '';
+            const planDate = plan.start_date || plan.created_at || '';
+            if (planDate > existingDate || (!planDate && !existingDate && plan.created_at > existing.created_at)) {
+              plansByBudget.set(budgetKey, plan);
+            }
+          }
+        });
+        
+        const deduplicatedPlans = Array.from(plansByBudget.values());
+
+        // Find the most recent plan from the active budget to mark as active
+        let activePlanId: string | null = null;
+        if (activeBudgetId) {
+          const activePlan = deduplicatedPlans
+            .filter((plan: any) => plan.budget_id === activeBudgetId)
+            .sort((a: any, b: any) => {
+              const dateA = a.start_date || a.created_at || '';
+              const dateB = b.start_date || b.created_at || '';
+              return dateB.localeCompare(dateA);
+            })[0];
+          if (activePlan) {
+            activePlanId = activePlan.id;
+          }
+        }
+
+        // Sort: active plan first, then by start_date descending (newest first)
+        const sortedPlans = deduplicatedPlans.sort((a: any, b: any) => {
+          const aIsActive = activePlanId !== null && a.id === activePlanId;
+          const bIsActive = activePlanId !== null && b.id === activePlanId;
+          
+          // Active plans come first
+          if (aIsActive && !bIsActive) return -1;
+          if (!aIsActive && bIsActive) return 1;
+          
+          // Then sort by date
+          const dateA = a.start_date || a.created_at || '';
+          const dateB = b.start_date || b.created_at || '';
+          return dateB.localeCompare(dateA);
+        });
+
+        nutritionHistory.push(...sortedPlans.map((plan: any) => {
+          // Only mark as active if it's the most recent plan from the active budget
+          const isActive = activePlanId !== null && plan.id === activePlanId;
+          
+          return {
             id: plan.id,
             startDate: plan.start_date,
             endDate: plan.end_date || null,
@@ -175,98 +339,208 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
             targets: plan.targets || {},
             budget_id: plan.budget_id,
             created_at: plan.created_at,
-            is_active: plan.is_active,
-          })));
+            is_active: isActive,
+          };
+        }));
       }
 
       if (supplementPlans && supplementPlans.length > 0) {
-          // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
-          const uniquePlans = Array.from(
-            new Map(supplementPlans.map((plan: any) => [plan.id, plan])).values()
-          );
+        // First deduplicate by id to prevent exact duplicates
+        const uniquePlansById = Array.from(
+          new Map(supplementPlans.map((plan: any) => [plan.id, plan])).values()
+        );
+
+        // Then deduplicate by budget_id - only one plan per budget (keep the most recent one)
+        // This ensures that even if a plan has both customer_id and lead_id, we only show it once per budget
+        const plansByBudget = new Map<string, any>();
+        const plansWithoutBudget: any[] = [];
+        
+        uniquePlansById.forEach((plan: any) => {
+          // Handle plans without budget_id separately
+          if (!plan.budget_id) {
+            plansWithoutBudget.push(plan);
+            return;
+          }
           
-          // Handle supplements - can be array of strings or array of objects
-          supplementsHistory.push(...uniquePlans.map((plan: any) => {
-            let supplementsArray: string[] = [];
-            if (Array.isArray(plan.supplements)) {
-              supplementsArray = plan.supplements.map((sup: any) => 
-                typeof sup === 'string' ? sup : sup.name || JSON.stringify(sup)
-              );
+          const budgetKey = plan.budget_id;
+          const existing = plansByBudget.get(budgetKey);
+          
+          if (!existing) {
+            plansByBudget.set(budgetKey, plan);
+          } else {
+            // Keep the most recent one (by start_date or created_at)
+            const existingDate = existing.start_date || existing.created_at || '';
+            const planDate = plan.start_date || plan.created_at || '';
+            if (planDate > existingDate || (!planDate && !existingDate && plan.created_at > existing.created_at)) {
+              plansByBudget.set(budgetKey, plan);
             }
-            
-            return {
-              id: plan.id,
-              startDate: plan.start_date,
-              endDate: plan.end_date || null,
-              supplements: supplementsArray,
-              description: plan.description || 'תוכנית תוספים',
-              budget_id: plan.budget_id,
-              created_at: plan.created_at,
-              is_active: plan.is_active,
-            };
-          }));
+          }
+        });
+        
+        // Combine plans with budget_id and plans without budget_id
+        const deduplicatedPlans = [...Array.from(plansByBudget.values()), ...plansWithoutBudget];
+
+        // Find the most recent plan from the active budget to mark as active
+        let activePlanId: string | null = null;
+        if (activeBudgetId) {
+          const activePlan = deduplicatedPlans
+            .filter((plan: any) => plan.budget_id === activeBudgetId)
+            .sort((a: any, b: any) => {
+              const dateA = a.start_date || a.created_at || '';
+              const dateB = b.start_date || b.created_at || '';
+              return dateB.localeCompare(dateA);
+            })[0];
+          if (activePlan) {
+            activePlanId = activePlan.id;
+          }
+        }
+
+        // Sort: active plan first, then by start_date descending (newest first)
+        const sortedPlans = deduplicatedPlans.sort((a: any, b: any) => {
+          const aIsActive = activePlanId !== null && a.id === activePlanId;
+          const bIsActive = activePlanId !== null && b.id === activePlanId;
+          
+          // Active plans come first
+          if (aIsActive && !bIsActive) return -1;
+          if (!aIsActive && bIsActive) return 1;
+          
+          // Then sort by date
+          const dateA = a.start_date || a.created_at || '';
+          const dateB = b.start_date || b.created_at || '';
+          return dateB.localeCompare(dateA);
+        });
+
+        // Handle supplements - can be array of strings or array of objects
+        supplementsHistory.push(...sortedPlans.map((plan: any) => {
+          let supplementsArray: string[] = [];
+          if (Array.isArray(plan.supplements)) {
+            supplementsArray = plan.supplements.map((sup: any) =>
+              typeof sup === 'string' ? sup : sup.name || JSON.stringify(sup)
+            );
+          }
+
+          // Only mark as active if it's the most recent plan from the active budget
+          const isActive = activePlanId !== null && plan.id === activePlanId;
+
+          return {
+            id: plan.id,
+            startDate: plan.start_date,
+            endDate: plan.end_date || null,
+            supplements: supplementsArray,
+            description: plan.description || 'תוכנית תוספים',
+            budget_id: plan.budget_id,
+            created_at: plan.created_at,
+            is_active: isActive,
+          };
+        }));
       }
 
       // Fetch steps plans from steps_plans table
       if (stepsPlans && stepsPlans.length > 0) {
-        // Deduplicate by id to prevent duplicates when both customer_id and lead_id match
-        const uniquePlans = Array.from(
+        // First deduplicate by id to prevent exact duplicates
+        const uniquePlansById = Array.from(
           new Map(stepsPlans.map((plan: any) => [plan.id, plan])).values()
         );
+
+        // Then deduplicate by budget_id - only one plan per budget (keep the most recent one)
+        // This ensures that even if a plan has both customer_id and lead_id, we only show it once per budget
+        const plansByBudget = new Map<string, any>();
+        const plansWithoutBudget: any[] = [];
         
-        stepsHistory.push(...uniquePlans.map((plan: any) => ({
-          id: plan.id,
-          weekNumber: plan.is_active ? 'נוכחי' : `תוכנית ${plan.id.substring(0, 8)}`,
-          target: plan.steps_goal || 0,
-          startDate: plan.start_date,
-          endDate: plan.end_date || null,
-          dates: plan.start_date ? formatDate(plan.start_date) : '',
-          description: plan.description || 'תוכנית צעדים',
-          budget_id: plan.budget_id,
-          created_at: plan.created_at,
-          is_active: plan.is_active,
-        })));
-      } else {
-        // Fallback: Check if there's a steps goal in daily_protocol or from active budget
-        // This is a temporary workaround until steps_plans table is created
-        if (customerId) {
-          const { data: customer } = await supabase
-            .from('customers')
-            .select('daily_protocol')
-            .eq('id', customerId)
-            .single();
+        uniquePlansById.forEach((plan: any) => {
+          // Handle plans without budget_id separately
+          if (!plan.budget_id) {
+            plansWithoutBudget.push(plan);
+            return;
+          }
           
-          if (customer?.daily_protocol?.stepsGoal) {
-            // Also check for active budget assignment to get steps_instructions
-            const { data: activeBudget } = await supabase
-              .from('budget_assignments')
-              .select(`
-                budget:budgets(steps_goal, steps_instructions, name)
-              `)
-              .eq('customer_id', customerId)
-              .eq('is_active', true)
-              .maybeSingle();
-            
-            if (activeBudget?.budget) {
-              const budget = activeBudget.budget as any;
-              stepsHistory.push({
-                weekNumber: 'נוכחי',
-                target: budget.steps_goal || customer.daily_protocol.stepsGoal || 0,
-                startDate: new Date().toISOString().split('T')[0],
-                description: `תוכנית צעדים מתקציב: ${budget.name || 'תקציב פעיל'}`,
-                budget_id: activeBudget.budget_id,
-                is_active: true,
-              });
-            } else if (customer.daily_protocol.stepsGoal) {
-              stepsHistory.push({
-                weekNumber: 'נוכחי',
-                target: customer.daily_protocol.stepsGoal,
-                startDate: new Date().toISOString().split('T')[0],
-                description: 'תוכנית צעדים',
-                is_active: true,
-              });
+          const budgetKey = plan.budget_id;
+          const existing = plansByBudget.get(budgetKey);
+          
+          if (!existing) {
+            plansByBudget.set(budgetKey, plan);
+          } else {
+            // Keep the most recent one (by start_date or created_at)
+            const existingDate = existing.start_date || existing.created_at || '';
+            const planDate = plan.start_date || plan.created_at || '';
+            if (planDate > existingDate || (!planDate && !existingDate && plan.created_at > existing.created_at)) {
+              plansByBudget.set(budgetKey, plan);
             }
           }
+        });
+        
+        // Combine plans with budget_id and plans without budget_id
+        const deduplicatedPlans = [...Array.from(plansByBudget.values()), ...plansWithoutBudget];
+
+        // Find the most recent plan from the active budget to mark as active
+        let activePlanId: string | null = null;
+        if (activeBudgetId) {
+          const activePlan = deduplicatedPlans
+            .filter((plan: any) => plan.budget_id === activeBudgetId)
+            .sort((a: any, b: any) => {
+              const dateA = a.start_date || a.created_at || '';
+              const dateB = b.start_date || b.created_at || '';
+              return dateB.localeCompare(dateA);
+            })[0];
+          if (activePlan) {
+            activePlanId = activePlan.id;
+          }
+        }
+
+        // Sort: active plan first, then by start_date descending (newest first)
+        const sortedPlans = deduplicatedPlans.sort((a: any, b: any) => {
+          const aIsActive = activePlanId !== null && a.id === activePlanId;
+          const bIsActive = activePlanId !== null && b.id === activePlanId;
+          
+          // Active plans come first
+          if (aIsActive && !bIsActive) return -1;
+          if (!aIsActive && bIsActive) return 1;
+          
+          // Then sort by date
+          const dateA = a.start_date || a.created_at || '';
+          const dateB = b.start_date || b.created_at || '';
+          return dateB.localeCompare(dateA);
+        });
+
+        stepsHistory.push(...sortedPlans.map((plan: any) => {
+          // Use budget name instead of plan ID for display
+          const budgetName = plan.budgets?.name || plan.description || '';
+          // Only mark as active if it's the most recent plan from the active budget
+          const isActive = activePlanId !== null && plan.id === activePlanId;
+          const weekNumber = isActive 
+            ? 'נוכחי' 
+            : (budgetName || `תוכנית ${plan.id.substring(0, 8)}`);
+          
+          return {
+            id: plan.id,
+            weekNumber: weekNumber,
+            target: plan.steps_goal || 0,
+            startDate: plan.start_date,
+            endDate: plan.end_date || null,
+            dates: plan.start_date ? formatDate(plan.start_date) : '',
+            description: plan.description || budgetName || 'תוכנית צעדים',
+            budget_id: plan.budget_id,
+            created_at: plan.created_at,
+            is_active: isActive,
+          };
+        }));
+      } else if (activeBudgetId) {
+        // Fallback: If no steps plans exist but there's an active budget, show the budget's steps goal
+        const { data: activeBudget } = await supabase
+          .from('budgets')
+          .select('steps_goal, name')
+          .eq('id', activeBudgetId)
+          .maybeSingle();
+
+        if (activeBudget?.steps_goal) {
+          stepsHistory.push({
+            weekNumber: 'נוכחי',
+            target: activeBudget.steps_goal,
+            startDate: new Date().toISOString().split('T')[0],
+            description: `תוכנית צעדים מתקציב: ${activeBudget.name || 'תקציב פעיל'}`,
+            budget_id: activeBudgetId,
+            is_active: true,
+          });
         }
       }
 

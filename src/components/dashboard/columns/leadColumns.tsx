@@ -10,8 +10,8 @@ import { DevModeId } from '@/components/ui/DevModeId';
  * TypeScript will error if any accessorKey doesn't exist on Lead.
  * 
  * Column order matches the default view (from right to left in RTL):
- * 1. createdDate, 2. name, 3. status, 4. age, 5. birthDate, 6. fitnessGoal,
- * 7. activityLevel, 8. preferredTime, 9. phone, 10. source, 11. notes
+ * 1. createdDate, 2. name, 3. status, 4. age, 5. fitnessGoal,
+ * 6. activityLevel, 7. preferredTime, 8. phone, 9. source, 10. notes
  * Hidden: id, email, height, weight
  */
 export const leadColumns: DataTableColumn<Lead>[] = [
@@ -103,23 +103,6 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       const value = getValue() as number;
       if (!value || value === 0) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-900">{value} שנים</span>;
-    },
-  },
-  {
-    id: 'birthDate',
-    header: 'תאריך לידה',
-    accessorKey: 'birthDate',
-    enableSorting: true,
-    enableResizing: true,
-    enableHiding: true,
-    size: 150,
-    meta: {
-      align: 'right',
-    },
-    cell: ({ getValue }) => {
-      const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
-      return <span className="text-gray-600">{formatDate(value)}</span>;
     },
   },
   {
@@ -331,7 +314,6 @@ export const defaultLeadColumnVisibility: Record<string, boolean> = {
   phone: true,
   // All other columns hidden by default
   age: false,
-  birthDate: false,
   height: false,
   weight: false,
   fitnessGoal: false,

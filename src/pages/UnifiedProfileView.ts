@@ -25,6 +25,7 @@ export interface LeadData {
   preferred_time: string | null;
   notes: string | null;
   birth_date: string | null;
+  age: number | null;
   height: number | null;
   weight: number | null;
   city: string | null;
@@ -120,10 +121,11 @@ export const useUnifiedProfileView = () => {
       if (!selectedInterestId) return null;
       const { data, error } = await supabase
         .from('leads')
-        .select('*, workout_history, steps_history, nutrition_history, supplements_history')
+        .select('*')
         .eq('id', selectedInterestId)
         .single();
       if (error) throw error;
+      console.log('[UnifiedProfileView] Fetched lead data:', { id: data?.id, age: data?.age, birth_date: data?.birth_date });
       return data as LeadData;
     },
     enabled: !!selectedInterestId,
@@ -208,7 +210,10 @@ export const useUnifiedProfileView = () => {
     return age;
   };
 
-  const customerAge = activeLead?.birth_date ? calculateAge(activeLead.birth_date) : 0;
+  // Use age directly from database, or calculate from birth_date as fallback
+  const customerAge = activeLead?.age !== null && activeLead?.age !== undefined 
+    ? activeLead.age 
+    : (activeLead?.birth_date ? calculateAge(activeLead.birth_date) : 0);
   const displayStatus = activeLead?.status_sub || activeLead?.status_main || 'ללא סטטוס';
 
   // Calculate profile stats for Rich Hero

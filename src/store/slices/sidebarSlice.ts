@@ -5,21 +5,52 @@ interface SidebarState {
   expandedSections: Record<string, boolean>;
 }
 
+// Normalize expanded sections to ensure only one is expanded at a time
+const normalizeExpandedSections = (expandedSections: Record<string, boolean>): Record<string, boolean> => {
+  const normalized: Record<string, boolean> = {};
+  const keys = Object.keys(expandedSections);
+  
+  // Find the first expanded section, if any
+  const firstExpandedKey = keys.find(key => expandedSections[key] === true);
+  
+  // Set all sections to false initially
+  keys.forEach(key => {
+    normalized[key] = false;
+  });
+  
+  // Only keep the first expanded section
+  if (firstExpandedKey) {
+    normalized[firstExpandedKey] = true;
+  } else if (keys.length > 0) {
+    // If none were expanded, default to the first key (usually 'leads')
+    normalized[keys[0]] = true;
+  }
+  
+  return normalized;
+};
+
 // Load initial state from localStorage
 const loadSidebarState = (): Partial<SidebarState> => {
   try {
     const saved = localStorage.getItem('sidebarState');
     if (saved) {
       const parsed = JSON.parse(saved);
+      const loadedExpandedSections = parsed.expandedSections ?? {
+        leads: true,
+        customers: false,
+        templates: false,
+        nutrition_templates: false,
+        meetings: false,
+        budgets: false,
+        payments: false,
+      };
+      
+      // Normalize to ensure only one section is expanded
+      const normalizedExpandedSections = normalizeExpandedSections(loadedExpandedSections);
+      
       return {
         isCollapsed: parsed.isCollapsed ?? false,
-        expandedSections: parsed.expandedSections ?? {
-          leads: true,
-          customers: true,
-          templates: true,
-          nutrition_templates: true,
-          meetings: true,
-        },
+        expandedSections: normalizedExpandedSections,
       };
     }
   } catch (error) {
@@ -28,16 +59,25 @@ const loadSidebarState = (): Partial<SidebarState> => {
   return {};
 };
 
+const defaultExpandedSections: Record<string, boolean> = {
+  leads: true,
+  customers: false,
+  templates: false,
+  nutrition_templates: false,
+  meetings: false,
+  budgets: false,
+  payments: false,
+};
+
+const loadedState = loadSidebarState();
+const mergedExpandedSections = {
+  ...defaultExpandedSections,
+  ...(loadedState.expandedSections || {}),
+};
+
 const initialState: SidebarState = {
-  isCollapsed: false,
-  expandedSections: {
-    leads: true,
-    customers: true,
-    templates: true,
-    nutrition_templates: true,
-    meetings: true,
-  },
-  ...loadSidebarState(),
+  isCollapsed: loadedState.isCollapsed ?? false,
+  expandedSections: normalizeExpandedSections(mergedExpandedSections),
 };
 
 // Save to localStorage helper
@@ -78,15 +118,31 @@ const sidebarSlice = createSlice({
     },
     toggleSection: (state, action: PayloadAction<string>) => {
       const resourceKey = action.payload;
-      if (state.expandedSections[resourceKey] !== undefined) {
-        state.expandedSections[resourceKey] = !state.expandedSections[resourceKey];
+      const isCurrentlyExpanded = state.expandedSections[resourceKey] ?? false;
+      
+      if (isCurrentlyExpanded) {
+        // If already expanded, collapse it
+        state.expandedSections[resourceKey] = false;
       } else {
+        // If collapsed, expand it and collapse all others
+        // First, collapse all sections
+        Object.keys(state.expandedSections).forEach((key) => {
+          state.expandedSections[key] = false;
+        });
+        // Then expand the clicked section
         state.expandedSections[resourceKey] = true;
       }
       saveSidebarState(state);
     },
     setSectionExpanded: (state, action: PayloadAction<{ resourceKey: string; expanded: boolean }>) => {
       const { resourceKey, expanded } = action.payload;
+      if (expanded) {
+        // If expanding, collapse all other sections first to ensure only one is open
+        Object.keys(state.expandedSections).forEach((key) => {
+          state.expandedSections[key] = false;
+        });
+      }
+      // Then set the target section's state
       state.expandedSections[resourceKey] = expanded;
       saveSidebarState(state);
     },

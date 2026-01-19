@@ -11,11 +11,16 @@ import { supabase } from '@/lib/supabaseClient';
 // Types
 // =====================================================
 
+export type Currency = 'ILS' | 'USD' | 'EUR';
+export type DurationUnit = 'days' | 'weeks' | 'months';
+
 export interface SubscriptionType {
   id: string;
   name: string;
-  duration: number; // Duration in months
-  price: number; // Price in NIS
+  duration: number; // Duration value (interpreted based on duration_unit)
+  duration_unit: DurationUnit; // Unit for duration: days, weeks, or months
+  price: number; // Price amount
+  currency: Currency; // Currency code: ILS, USD, or EUR
   created_at: string;
   updated_at: string;
   created_by: string | null;

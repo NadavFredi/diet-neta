@@ -106,6 +106,11 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
           created_at: true,
         },
       };
+    case 'payments':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+      };
     default:
       return {
         searchQuery: '',
@@ -157,6 +162,8 @@ export const useDefaultView = (resourceKey: string | null) => {
           ? 'כל תבניות התזונה'
           : resourceKey === 'budgets'
           ? 'כל התקציבים'
+          : resourceKey === 'payments'
+          ? 'כל התשלומים'
           : resourceKey === 'meetings'
           ? 'כל הפגישות'
           : 'כל התכניות';

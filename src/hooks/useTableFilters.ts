@@ -318,6 +318,47 @@ export const BUDGET_FILTER_FIELDS: FilterField[] = [
 /**
  * Get filter fields for Budgets table with dynamic options from data
  */
+// Base filter fields for Payments table (without dynamic options)
+export const PAYMENT_FILTER_FIELDS: FilterField[] = [
+  {
+    id: 'created_at',
+    label: 'תאריך יצירה',
+    type: 'date',
+    operators: ['equals', 'before', 'after', 'between'],
+  },
+  {
+    id: 'status',
+    label: 'סטטוס תשלום',
+    type: 'multiselect',
+    options: ['שולם', 'ממתין', 'הוחזר', 'נכשל'],
+    operators: ['is', 'isNot'],
+  },
+  {
+    id: 'amount',
+    label: 'סכום',
+    type: 'number',
+    operators: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
+  },
+  {
+    id: 'currency',
+    label: 'מטבע',
+    type: 'multiselect',
+    options: ['ILS', 'USD', 'EUR'],
+    operators: ['is', 'isNot'],
+  },
+];
+
+/**
+ * Get filter fields for Payments table with dynamic options from data
+ */
+export function getPaymentFilterFields(payments: any[] = []): FilterField[] {
+  return PAYMENT_FILTER_FIELDS.map(field => {
+    // If we need dynamic options in the future, we can add them here
+    // For now, return the base fields
+    return field;
+  });
+}
+
 export function getBudgetFilterFields(budgets: any[] = []): FilterField[] {
   return BUDGET_FILTER_FIELDS.map(field => {
     // If we need dynamic options in the future, we can add them here

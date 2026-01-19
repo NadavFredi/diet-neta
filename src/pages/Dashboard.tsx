@@ -6,6 +6,7 @@ import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
+import { Pagination } from '@/components/dashboard/Pagination';
 import { leadColumns } from '@/components/dashboard/columns/leadColumns';
 import { useDashboardLogic } from '@/hooks/useDashboardLogic';
 import { useDefaultView } from '@/hooks/useDefaultView';
@@ -15,6 +16,24 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
+
+// Custom hook to detect if screen is desktop (lg breakpoint = 1024px)
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return isDesktop;
+};
 import {
   setSelectedStatus,
   setSelectedFitnessGoal,
@@ -34,6 +53,7 @@ const Dashboard = () => {
   const viewId = searchParams.get('view_id');
   // Removed duplicate useDefaultView and useSavedView - they're already called in useDashboardLogic
   const sidebarWidth = useSidebarWidth();
+  const isDesktop = useIsDesktop();
   const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
 
   // Safety check: Redirect trainees immediately
@@ -68,6 +88,17 @@ const Dashboard = () => {
     getCurrentFilterConfig,
     isLoading,
     savedView, // Get savedView from useDashboardLogic instead of duplicate call
+    refreshLeads,
+    // Pagination state and handlers
+    currentPage,
+    pageSize,
+    totalLeads,
+    handlePageChange,
+    handlePageSizeChange,
+    // Sorting handlers
+    sortBy,
+    sortOrder,
+    handleSortChange,
   } = useDashboardLogic();
 
   // Debug: Log filteredLeads when it changes
@@ -77,7 +108,11 @@ const Dashboard = () => {
       isArray: Array.isArray(filteredLeads),
       isLoading,
       data: filteredLeads?.slice(0, 2), // First 2 items for debugging
+      fullData: filteredLeads, // Full data for debugging
     });
+    if (filteredLeads && filteredLeads.length > 0) {
+      console.log('Dashboard: First lead sample:', filteredLeads[0]);
+    }
   }, [filteredLeads, isLoading]);
 
   // Filter system - connect to Redux for leads
@@ -200,20 +235,20 @@ const Dashboard = () => {
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
         {/* Main content */}
         <main
-          className="bg-gray-50 overflow-y-auto"
+          className="bg-gray-50 overflow-y-auto transition-all duration-300"
           style={{
-            marginRight: `${sidebarWidth.width}px`,
+            marginRight: isDesktop ? `${sidebarWidth.width}px` : 0,
             minHeight: 'calc(100vh - 60px)',
           }}
         >
-          <div className="p-6">
+          <div className="p-3 sm:p-4 md:p-6">
             {/* Unified Workspace Panel - Master Container */}
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
               {/* Header Section - Control Deck */}
               <TableActionHeader
                 resourceKey="leads"
                 title={savedView?.view_name || 'ניהול לידים'}
-                dataCount={filteredLeads?.length || 0}
+                dataCount={totalLeads || 0}
                 singularLabel="ליד"
                 pluralLabel="לידים"
                 filterFields={leadFilterFields}
@@ -241,16 +276,33 @@ const Dashboard = () => {
                     <p>טוען נתונים...</p>
                   </div>
                 ) : filteredLeads && Array.isArray(filteredLeads) && filteredLeads.length > 0 ? (
-                  <LeadsDataTable leads={filteredLeads} enableColumnVisibility={false} />
+                  <>
+                    <LeadsDataTable 
+                      leads={filteredLeads} 
+                      enableColumnVisibility={false}
+                      onSortChange={handleSortChange}
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                    />
+                    {/* Pagination Footer */}
+                    {totalLeads > 0 && (
+                      <Pagination
+                        currentPage={currentPage}
+                        pageSize={pageSize}
+                        totalItems={totalLeads}
+                        onPageChange={handlePageChange}
+                        onPageSizeChange={handlePageSizeChange}
+                        isLoading={isLoading}
+                      />
+                    )}
+                  </>
                 ) : (
                   <div className="p-8 text-center text-gray-500">
                     <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
                     <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-                    {!isLoading && (
+                    {!isLoading && totalLeads === 0 && (
                       <p className="text-xs text-gray-400 mt-2">
-                        {filteredLeads && Array.isArray(filteredLeads)
-                          ? `מספר לידים: ${filteredLeads.length}`
-                          : 'אין נתונים זמינים'}
+                        מספר לידים: 0
                       </p>
                     )}
                   </div>
@@ -265,6 +317,7 @@ const Dashboard = () => {
       <AddLeadDialog
         isOpen={isAddLeadDialogOpen}
         onOpenChange={setIsAddLeadDialogOpen}
+        onLeadCreated={refreshLeads}
       />
 
       {/* Save View Modal */}

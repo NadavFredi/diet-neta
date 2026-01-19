@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNutritionBuilder, type NutritionBuilderMode } from '@/hooks/useNutritionBuilder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,11 @@ import {
   Trash2,
   Activity,
   BarChart3,
+  Lock,
+  Unlock,
+  Footprints,
+  Dumbbell,
+  Pill,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { NutritionTemplate } from '@/hooks/useNutritionTemplates';
@@ -91,12 +96,16 @@ export const NutritionTemplateForm = ({
     name,
     description,
     targets,
+    manualOverride,
+    manualFields,
     calculatorInputs,
     activityEntries,
     calculatorOpen,
     setName,
     setDescription,
     setTarget,
+    setManualOverride,
+    setManualField,
     setCalculatorInput,
     setCalculatorOpen,
     addActivityEntry,
@@ -114,16 +123,52 @@ export const NutritionTemplateForm = ({
   } = useNutritionBuilder(mode, initialData);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Auto-apply calculated values when inputs change
+  
+  // Local state for input values to prevent focus loss while typing
+  const [localInputValues, setLocalInputValues] = useState<Record<string, { mets?: string; minutes?: string }>>({});
+  
+  // Initialize local input values from activityEntries (only when entries are added/removed, not on value changes)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (calculatorInputs.weight > 0 && calculatorInputs.height > 0 && calculatorInputs.age > 0) {
-        applyCalculatedValues();
+    setLocalInputValues((prev) => {
+      const newLocalValues: Record<string, { mets?: string; minutes?: string }> = {};
+      let hasNewEntries = false;
+      
+      activityEntries.forEach((entry) => {
+        // Only initialize if this entry doesn't have local state yet (new entry or first load)
+        if (!prev[entry.id]) {
+          hasNewEntries = true;
+          const metsVal = entry.mets != null && typeof entry.mets === 'number' && !isNaN(entry.mets) ? String(entry.mets) : '';
+          const minutesVal = entry.minutesPerWeek != null && typeof entry.minutesPerWeek === 'number' && !isNaN(entry.minutesPerWeek) ? String(entry.minutesPerWeek) : '';
+          newLocalValues[entry.id] = { mets: metsVal, minutes: minutesVal };
+        } else {
+          // Keep existing local state (preserves values being typed)
+          newLocalValues[entry.id] = prev[entry.id];
+        }
+      });
+      
+      // Only update if there are new entries or entries were removed
+      if (hasNewEntries || Object.keys(prev).length !== activityEntries.length) {
+        return newLocalValues;
       }
-    }, AUTO_APPLY_THRESHOLD);
+      return prev;
+    });
+  }, [activityEntries.length, activityEntries.map(e => e.id).join(',')]); // Only update when entries are added/removed, not on value changes
 
-    return () => clearTimeout(timer);
+  // Auto-apply calculated values when inputs change (only if not manually overridden)
+  useEffect(() => {
+    // Only auto-apply if at least one field is not manually overridden
+    const hasAutoFields = !manualOverride.calories || !manualOverride.protein || 
+                         !manualOverride.carbs || !manualOverride.fat || !manualOverride.fiber;
+    
+    if (hasAutoFields) {
+      const timer = setTimeout(() => {
+        if (calculatorInputs.weight > 0 && calculatorInputs.height > 0 && calculatorInputs.age > 0) {
+          applyCalculatedValues();
+        }
+      }, AUTO_APPLY_THRESHOLD);
+
+      return () => clearTimeout(timer);
+    }
   }, [
     calculatorInputs.weight,
     calculatorInputs.height,
@@ -131,11 +176,14 @@ export const NutritionTemplateForm = ({
     calculatorInputs.gender,
     calculatorInputs.pal,
     calculatorInputs.caloricDeficitPercent,
+    calculatorInputs.caloricDeficitCalories,
+    calculatorInputs.caloricDeficitMode,
     calculatorInputs.proteinPerKg,
     calculatorInputs.fatPerKg,
     calculatorInputs.carbsPerKg,
     activityEntries,
     applyCalculatedValues,
+    manualOverride,
   ]);
 
   // Calculate derived metrics
@@ -241,6 +289,44 @@ export const NutritionTemplateForm = ({
     e.stopPropagation(); // Prevent event bubbling to parent forms
     setIsSubmitting(true);
     try {
+      // Save any pending local input values before submitting
+      // This ensures values typed but not yet saved (via Enter) are persisted
+      const pendingUpdates: Array<{ id: string; updates: Partial<ActivityEntry> }> = [];
+      
+      Object.entries(localInputValues).forEach(([entryId, localValues]) => {
+        const entry = activityEntries.find(e => e.id === entryId);
+        if (entry) {
+          const updates: Partial<ActivityEntry> = {};
+          if (localValues.mets !== undefined) {
+            const metsVal = localValues.mets.trim();
+            const numVal = metsVal === '' ? 0 : parseFloat(metsVal);
+            const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+            if (finalVal !== entry.mets) {
+              updates.mets = finalVal;
+            }
+          }
+          if (localValues.minutes !== undefined) {
+            const minutesVal = localValues.minutes.trim();
+            const numVal = minutesVal === '' ? 0 : parseInt(minutesVal, 10);
+            const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+            if (finalVal !== entry.minutesPerWeek) {
+              updates.minutesPerWeek = finalVal;
+            }
+          }
+          if (Object.keys(updates).length > 0) {
+            pendingUpdates.push({ id: entryId, updates });
+          }
+        }
+      });
+      
+      // Apply all pending updates
+      pendingUpdates.forEach(({ id, updates }) => {
+        updateActivityEntry(id, updates);
+      });
+      
+      // Small delay to ensure state updates are applied
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       const data = getNutritionData(mode);
       if (mode === 'template' && data.templateData) {
         onSave(data.templateData);
@@ -264,6 +350,8 @@ export const NutritionTemplateForm = ({
     onChange,
     unit,
     color,
+    isManual,
+    onLockToggle,
   }: {
     label: string;
     icon: React.ComponentType<{ className?: string }>;
@@ -271,31 +359,112 @@ export const NutritionTemplateForm = ({
     onChange: (value: number) => void;
     unit: string;
     color: string;
-  }) => (
-    <Card className="border border-slate-200 hover:border-opacity-80 transition-colors rounded-2xl shadow-sm flex flex-col" style={{ borderColor: color }}>
+    isManual?: boolean;
+    onLockToggle?: () => void;
+  }) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [localValue, setLocalValue] = useState<string>(value != null ? String(value) : '');
+    
+    // Sync local value when prop value changes (but not while user is typing)
+    useEffect(() => {
+      if (document.activeElement !== inputRef.current) {
+        setLocalValue(value != null ? String(value) : '');
+      }
+    }, [value]);
+    
+    const handleLockToggle = () => {
+      // Save current input value when lock is clicked
+      if (inputRef.current) {
+        const val = inputRef.current.value.trim();
+        const numVal = val === '' ? 0 : parseFloat(val);
+        const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+        onChange(finalVal);
+        setLocalValue(finalVal === 0 ? '' : String(finalVal));
+      }
+      if (onLockToggle) {
+        onLockToggle();
+      }
+    };
+    
+    return (
+    <Card className={cn(
+      "border border-slate-200 hover:border-opacity-80 transition-colors rounded-2xl shadow-sm flex flex-col",
+      isManual && "ring-2 ring-amber-400/50"
+    )} style={{ borderColor: color }}>
       <CardHeader className="pb-1.5 pt-2 px-2.5 flex-shrink-0">
-        <div className="flex items-center gap-1.5">
-          <div className="p-0.5 rounded" style={{ backgroundColor: `${color}15` }}>
-            <Icon className="h-3 w-3" style={{ color }} />
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5 flex-1">
+            <div className="p-0.5 rounded" style={{ backgroundColor: `${color}15` }}>
+              <Icon className="h-3 w-3" style={{ color }} />
+            </div>
+            <CardTitle className="text-base font-semibold">{label}</CardTitle>
           </div>
-          <CardTitle className="text-base font-semibold">{label}</CardTitle>
+          {onLockToggle && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLockToggle}
+                  className="h-6 w-6 p-0"
+                >
+                  {isManual ? (
+                    <Lock className="h-3 w-3 text-amber-600" />
+                  ) : (
+                    <Unlock className="h-3 w-3 text-muted-foreground" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                {isManual ? 'נלחץ ידנית - לחץ לשחרור' : 'חישוב אוטומטי - לחץ לנעילה'}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </CardHeader>
       <CardContent className="px-2.5 pb-2.5 pt-0 flex-1 flex items-center">
         <div className="flex items-center gap-1.5 w-full">
           <Input
-            type="number"
-            value={value || ''}
-            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+            ref={inputRef}
+            type="text"
+            inputMode="decimal"
+            value={localValue}
+            onChange={(e) => {
+              const val = (e.target as HTMLInputElement).value;
+              // Allow empty string, numbers, and decimal point while typing
+              if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                // Update local state only (no parent re-render)
+                setLocalValue(val);
+              }
+            }}
+            onKeyDown={(e) => {
+              // Save on Enter key
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const target = e.target as HTMLInputElement;
+                const val = target.value.trim();
+                const numVal = val === '' ? 0 : parseFloat(val);
+                const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+                onChange(finalVal);
+                setLocalValue(finalVal === 0 ? '' : String(finalVal));
+                target.blur();
+              }
+            }}
+            onBlur={(e) => {
+              // Don't save on blur - restore original value
+              setLocalValue(value != null ? String(value) : '');
+            }}
             className="text-lg font-bold text-center h-10 rounded-lg flex-1"
             dir="ltr"
-            min="0"
+            placeholder="0"
           />
           <span className="text-sm font-semibold text-muted-foreground whitespace-nowrap">{unit}</span>
         </div>
       </CardContent>
     </Card>
   );
+  };
 
   return (
     <TooltipProvider>
@@ -452,22 +621,20 @@ export const NutritionTemplateForm = ({
                           className="h-8 text-sm rounded-lg flex-1"
                         />
                       </div>
-                      {calculatorInputs.gender === 'female' && (
-                        <div className="flex items-center justify-between gap-2">
-                          <Label htmlFor="calc-hip" className="text-sm font-medium text-right flex-shrink-0 w-24">
-                            אגן (ס"מ)
-                          </Label>
-                          <Input
-                            id="calc-hip"
-                            type="number"
-                            value={calculatorInputs.hip || ''}
-                            onChange={(e) => setCalculatorInput('hip', parseFloat(e.target.value) || 0)}
-                            dir="ltr"
-                            min="0"
-                            className="h-8 text-sm rounded-lg flex-1"
-                          />
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="calc-hip" className="text-sm font-medium text-right flex-shrink-0 w-24">
+                          היקף אגן (ס"מ)
+                        </Label>
+                        <Input
+                          id="calc-hip"
+                          type="number"
+                          value={calculatorInputs.hip || ''}
+                          onChange={(e) => setCalculatorInput('hip', parseFloat(e.target.value) || 0)}
+                          dir="ltr"
+                          min="0"
+                          className="h-8 text-sm rounded-lg flex-1"
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -667,13 +834,20 @@ export const NutritionTemplateForm = ({
                       <TableHeader className="sticky top-0 bg-white z-10">
                         <TableRow>
                           <TableHead className="h-9 text-sm text-right p-2">סוג פעילות</TableHead>
-                          <TableHead className="h-9 text-sm w-16 text-center p-2">METS</TableHead>
-                          <TableHead className="h-9 text-sm w-20 text-center p-2">דקות/שבוע</TableHead>
+                          <TableHead className="h-9 text-sm text-center p-2" style={{ minWidth: '80px', width: '80px' }}>METS</TableHead>
+                          <TableHead className="h-9 text-sm text-center p-2" style={{ minWidth: '100px', width: '100px' }}>דקות/שבוע</TableHead>
                           <TableHead className="h-9 text-sm w-8 p-2"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {activityEntries.map((entry) => (
+                        {activityEntries.map((entry) => {
+                          // Use local state for input values to prevent focus loss while typing
+                          const metsDisplayValue = localInputValues[entry.id]?.mets ?? 
+                            (entry.mets != null && typeof entry.mets === 'number' && !isNaN(entry.mets) ? String(entry.mets) : '');
+                          const minutesDisplayValue = localInputValues[entry.id]?.minutes ?? 
+                            (entry.minutesPerWeek != null && typeof entry.minutesPerWeek === 'number' && !isNaN(entry.minutesPerWeek) ? String(entry.minutesPerWeek) : '');
+                          
+                          return (
                           <TableRow key={entry.id}>
                             <TableCell className="p-2">
                               <Input
@@ -684,25 +858,113 @@ export const NutritionTemplateForm = ({
                                 dir="rtl"
                               />
                             </TableCell>
-                            <TableCell className="p-2">
+                            <TableCell className="p-2" style={{ minWidth: '80px', width: '80px' }}>
                               <Input
-                                type="number"
-                                value={entry.mets || ''}
-                                onChange={(e) => updateActivityEntry(entry.id, { mets: parseFloat(e.target.value) || 0 })}
+                                type="text"
+                                inputMode="decimal"
+                                value={metsDisplayValue}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  // Allow empty string, numbers, and decimal point while typing
+                                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                    // Update local state only (no re-render of parent)
+                                    setLocalInputValues((prev) => ({
+                                      ...prev,
+                                      [entry.id]: { ...prev[entry.id], mets: val }
+                                    }));
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  // Save on Enter key
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    const target = e.target as HTMLInputElement;
+                                    const val = target.value.trim();
+                                    const numVal = val === '' ? 0 : parseFloat(val);
+                                    const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+                                    // Save to parent state immediately
+                                    updateActivityEntry(entry.id, { mets: finalVal });
+                                    // Update local state to match saved value
+                                    setLocalInputValues((prev) => ({
+                                      ...prev,
+                                      [entry.id]: { ...prev[entry.id], mets: finalVal === 0 ? '' : String(finalVal) }
+                                    }));
+                                    target.blur();
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  // On blur, if value changed but wasn't saved (no Enter), save it
+                                  const target = e.target as HTMLInputElement;
+                                  const val = target.value.trim();
+                                  const numVal = val === '' ? 0 : parseFloat(val);
+                                  const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+                                  // Check if value differs from current entry value
+                                  if (finalVal !== entry.mets) {
+                                    updateActivityEntry(entry.id, { mets: finalVal });
+                                    setLocalInputValues((prev) => ({
+                                      ...prev,
+                                      [entry.id]: { ...prev[entry.id], mets: finalVal === 0 ? '' : String(finalVal) }
+                                    }));
+                                  }
+                                }}
                                 dir="ltr"
-                                className="h-8 text-sm text-center"
-                                min="0"
-                                step="0.1"
+                                className="h-8 text-sm text-center w-full"
+                                style={{ minWidth: '60px' }}
+                                placeholder="0.0"
                               />
                             </TableCell>
                             <TableCell className="p-2">
                               <Input
-                                type="number"
-                                value={entry.minutesPerWeek || ''}
-                                onChange={(e) => updateActivityEntry(entry.id, { minutesPerWeek: parseInt(e.target.value) || 0 })}
+                                type="text"
+                                inputMode="numeric"
+                                value={minutesDisplayValue}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  // Allow only digits while typing
+                                  if (val === '' || /^\d+$/.test(val)) {
+                                    // Update local state only (no re-render of parent)
+                                    setLocalInputValues((prev) => ({
+                                      ...prev,
+                                      [entry.id]: { ...prev[entry.id], minutes: val }
+                                    }));
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  // Save on Enter key
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    const target = e.target as HTMLInputElement;
+                                    const val = target.value.trim();
+                                    const numVal = val === '' ? 0 : parseInt(val, 10);
+                                    const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+                                    // Save to parent state immediately
+                                    updateActivityEntry(entry.id, { minutesPerWeek: finalVal });
+                                    // Update local state to match saved value
+                                    setLocalInputValues((prev) => ({
+                                      ...prev,
+                                      [entry.id]: { ...prev[entry.id], minutes: finalVal === 0 ? '' : String(finalVal) }
+                                    }));
+                                    target.blur();
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  // On blur, if value changed but wasn't saved (no Enter), save it
+                                  const target = e.target as HTMLInputElement;
+                                  const val = target.value.trim();
+                                  const numVal = val === '' ? 0 : parseInt(val, 10);
+                                  const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+                                  // Check if value differs from current entry value
+                                  if (finalVal !== entry.minutesPerWeek) {
+                                    updateActivityEntry(entry.id, { minutesPerWeek: finalVal });
+                                    setLocalInputValues((prev) => ({
+                                      ...prev,
+                                      [entry.id]: { ...prev[entry.id], minutes: finalVal === 0 ? '' : String(finalVal) }
+                                    }));
+                                  }
+                                }}
                                 dir="ltr"
                                 className="h-8 text-sm text-center"
-                                min="0"
+                                placeholder="0"
                               />
                             </TableCell>
                             <TableCell className="p-1.5">
@@ -717,7 +979,8 @@ export const NutritionTemplateForm = ({
                               </Button>
                             </TableCell>
                           </TableRow>
-                        ))}
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -798,41 +1061,51 @@ export const NutritionTemplateForm = ({
                       label="קלוריות"
                       icon={Flame}
                       value={targets.calories}
-                      onChange={(val) => setTarget('calories', val)}
+                      onChange={(val) => setTarget('calories', val, true)}
                       unit="קק״ל"
                       color={MACRO_COLORS.calories}
+                      isManual={manualOverride.calories}
+                      onLockToggle={() => setManualOverride('calories', !manualOverride.calories)}
                     />
                     <MacroInputCard
                       label="חלבון"
                       icon={Beef}
                       value={targets.protein}
-                      onChange={(val) => setTarget('protein', val)}
+                      onChange={(val) => setTarget('protein', val, true)}
                       unit="גרם"
                       color={MACRO_COLORS.protein}
+                      isManual={manualOverride.protein}
+                      onLockToggle={() => setManualOverride('protein', !manualOverride.protein)}
                     />
                     <MacroInputCard
                       label="פחמימות"
                       icon={Wheat}
                       value={targets.carbs}
-                      onChange={(val) => setTarget('carbs', val)}
+                      onChange={(val) => setTarget('carbs', val, true)}
                       unit="גרם"
                       color={MACRO_COLORS.carbs}
+                      isManual={manualOverride.carbs}
+                      onLockToggle={() => setManualOverride('carbs', !manualOverride.carbs)}
                     />
                     <MacroInputCard
                       label="שומן"
                       icon={Droplets}
                       value={targets.fat}
-                      onChange={(val) => setTarget('fat', val)}
+                      onChange={(val) => setTarget('fat', val, true)}
                       unit="גרם"
                       color={MACRO_COLORS.fat}
+                      isManual={manualOverride.fat}
+                      onLockToggle={() => setManualOverride('fat', !manualOverride.fat)}
                     />
                     <MacroInputCard
                       label="סיבים"
                       icon={Leaf}
                       value={targets.fiber}
-                      onChange={(val) => setTarget('fiber', val)}
+                      onChange={(val) => setTarget('fiber', val, true)}
                       unit="גרם"
                       color={MACRO_COLORS.fiber}
+                      isManual={manualOverride.fiber}
+                      onLockToggle={() => setManualOverride('fiber', !manualOverride.fiber)}
                     />
                   </div>
                 </CardContent>

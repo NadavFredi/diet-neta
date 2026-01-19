@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book } from 'lucide-react';
+import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { toggleSection } from '@/store/slices/sidebarSlice';
+import { toggleSection, setSectionExpanded } from '@/store/slices/sidebarSlice';
 import { SidebarItem } from './SidebarItem';
 import type { SavedView } from '@/hooks/useSavedViews';
 import { useInterfaceIconPreferences } from '@/hooks/useInterfaceIconPreferences';
@@ -64,6 +64,13 @@ const navigationItems: NavItem[] = [
     path: '/dashboard/budgets',
   },
   {
+    id: 'payments',
+    resourceKey: 'payments',
+    label: 'תשלומים',
+    icon: CreditCard,
+    path: '/dashboard/payments',
+  },
+  {
     id: 'subscription-types',
     resourceKey: 'subscription_types',
     label: 'סוגי מנויים',
@@ -83,6 +90,13 @@ const navigationItems: NavItem[] = [
     label: 'הגדרות צ\'ק-אין',
     icon: Settings,
     path: '/dashboard/check-in-settings',
+  },
+  {
+    id: 'whatsapp-automations',
+    resourceKey: 'whatsapp_automations',
+    label: 'אוטומציית WhatsApp',
+    icon: Send,
+    path: '/dashboard/whatsapp-automations',
   },
 ];
 
@@ -142,6 +156,27 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     ? Object.keys(expandedSections).reduce((acc, key) => ({ ...acc, [key]: false }), {} as Record<string, boolean>)
     : expandedSections;
 
+  // Auto-expand the section for the current route when navigating
+  useEffect(() => {
+    if (isCollapsed) return; // Don't auto-expand if sidebar is collapsed
+    
+    const activeItem = navigationItems.find(item => isActive(item.path));
+    if (activeItem) {
+      const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'meetings'].includes(activeItem.resourceKey);
+      // Only auto-expand if it supports views and isn't already expanded
+      if (supportsViews && !expandedSections[activeItem.resourceKey]) {
+        // Collapse all sections first
+        navigationItems.forEach(item => {
+          if (item.resourceKey !== activeItem.resourceKey) {
+            dispatch(setSectionExpanded({ resourceKey: item.resourceKey, expanded: false }));
+          }
+        });
+        // Then expand the active section
+        dispatch(setSectionExpanded({ resourceKey: activeItem.resourceKey, expanded: true }));
+      }
+    }
+  }, [location.pathname, isCollapsed, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const isActive = (path: string) => {
     if (path === '/dashboard') {
       // Active for dashboard and lead profile routes (not customer routes)
@@ -167,6 +202,14 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     if (path === '/dashboard/subscription-types') {
       // Active for subscription types list
       return location.pathname === '/dashboard/subscription-types';
+    }
+    if (path === '/dashboard/payments') {
+      // Active for payments page
+      return location.pathname === '/dashboard/payments';
+    }
+    if (path === '/dashboard/whatsapp-automations') {
+      // Active for WhatsApp automations page
+      return location.pathname === '/dashboard/whatsapp-automations';
     }
     return location.pathname === path || location.pathname.startsWith(path);
   };
@@ -231,7 +274,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
               item={item}
               active={isActive(item.path)}
               activeViewId={activeViewId}
-                isExpanded={effectiveExpandedSections[item.resourceKey] ?? true}
+                isExpanded={effectiveExpandedSections[item.resourceKey] ?? false}
                 onToggle={() => handleToggleSection(item.resourceKey)}
               onResourceClick={() => handleResourceClick(item)}
               onViewClick={handleViewClick}

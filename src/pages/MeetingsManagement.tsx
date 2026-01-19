@@ -17,11 +17,6 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { MEETING_FILTER_FIELDS, getMeetingFilterFields } from '@/hooks/useTableFilters';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
-import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
-import { useToast } from '@/hooks/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
 
 const MeetingsManagement = () => {
   const navigate = useNavigate();
@@ -35,9 +30,6 @@ const MeetingsManagement = () => {
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('meetings');
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   
   const {
     meetings,
@@ -69,43 +61,6 @@ const MeetingsManagement = () => {
     setViewToEdit(view);
     setIsEditViewModalOpen(true);
   }, []);
-
-  const handleSyncMeetings = useCallback(async () => {
-    setIsSyncing(true);
-    try {
-      // Get form ID from environment variable
-      // The actual Fillout form ID (not the slug) - you can find it in the form editor URL
-      // e.g., if the editor URL is build.fillout.com/editor/n5VwsjFk5ous, the form ID is n5VwsjFk5ous
-      const formId = import.meta.env.VITE_FILLOUT_FORM_ID_MEETING || 'n5VwsjFk5ous';
-      
-      console.log('[MeetingsManagement] Syncing meetings with form ID:', formId);
-      
-      const { data, error } = await supabase.functions.invoke('sync-fillout-meetings', {
-        body: { form_id: formId },
-      });
-
-      if (error) throw error;
-
-      // Refresh meetings list
-      await queryClient.invalidateQueries({ queryKey: ['meetings'] });
-
-      toast({
-        title: 'הצלחה',
-        description: data?.synced 
-          ? `סונכרנו ${data.synced} פגישות חדשות` 
-          : 'הסינכרון הושלם',
-      });
-    } catch (error: any) {
-      console.error('[MeetingsManagement] Sync error:', error);
-      toast({
-        title: 'שגיאה',
-        description: error?.message || 'נכשל בסינכרון פגישות. אנא נסה שוב.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [toast, queryClient]);
 
   return (
     <>
@@ -144,17 +99,6 @@ const MeetingsManagement = () => {
                   legacyOnFilterAdd={addFilter}
                   legacyOnFilterRemove={removeFilter}
                   legacyOnFilterClear={clearFilters}
-                  customActions={
-                    <Button
-                      onClick={handleSyncMeetings}
-                      disabled={isSyncing}
-                      size="sm"
-                      className="gap-2 h-11 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                      {isSyncing ? 'מסנכרן...' : 'סנכרן מ-Fillout'}
-                    </Button>
-                  }
                 />
 
                 <div className="bg-white">
@@ -168,15 +112,7 @@ const MeetingsManagement = () => {
                   ) : (
                     <div className="p-8 text-center text-gray-500">
                       <p className="text-lg font-medium mb-2">לא נמצאו פגישות</p>
-                      <p className="text-sm mb-4">פגישות יוצרו מטופס Fillout</p>
-                      <Button
-                        onClick={handleSyncMeetings}
-                        disabled={isSyncing}
-                        className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
-                      >
-                        <RefreshCw className={`h-4 w-4 ml-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                        {isSyncing ? 'מסנכרן...' : 'סנכרן פגישות מ-Fillout'}
-                      </Button>
+                      <p className="text-sm">פגישות מתווספות אוטומטית מטופס Fillout</p>
                     </div>
                   )}
                 </div>

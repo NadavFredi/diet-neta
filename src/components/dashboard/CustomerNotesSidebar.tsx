@@ -52,7 +52,7 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
-  const { close } = useLeadSidebar();
+  const { closeNotes } = useLeadSidebar();
   
   const allNotes = useAppSelector(selectCustomerNotes(customerId));
   const isLoading = useAppSelector(selectIsLoadingNotes(customerId));
@@ -574,7 +574,7 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={close}
+                onClick={closeNotes}
                 className="h-8 w-8 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               >
                 <X className="h-4 w-4" />

@@ -10,7 +10,6 @@ export type ColumnKey =
   | "email"
   | "source"
   | "age"
-  | "birthDate"
   | "height"
   | "weight"
   | "fitnessGoal"
@@ -27,7 +26,6 @@ export interface ColumnVisibility {
   email: boolean
   source: boolean
   age: boolean
-  birthDate: boolean
   height: boolean
   weight: boolean
   fitnessGoal: boolean
@@ -40,7 +38,6 @@ export const COLUMN_ORDER: ColumnKey[] = [
   "id",
   "name",
   "age",
-  "birthDate",
   "height",
   "weight",
   "fitnessGoal",
@@ -81,7 +78,6 @@ export const getColumnLabel = (key: ColumnKey): string => {
     email: "אימייל",
     source: "מקור",
     age: "גיל",
-    birthDate: "תאריך לידה",
     height: 'גובה (ס"מ)',
     weight: 'משקל (ק"ג)',
     fitnessGoal: "מטרת כושר",

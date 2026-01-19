@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { DataTable } from '@/components/ui/DataTable';
 import type { Meeting } from '@/hooks/useMeetings';
-import { meetingColumns } from './columns/meetingColumns';
+import { meetingColumns, defaultMeetingColumnVisibility } from './columns/meetingColumns';
 
 interface MeetingsDataTableProps {
   meetings: Meeting[];
@@ -21,9 +21,10 @@ export const MeetingsDataTable = ({ meetings }: MeetingsDataTableProps) => {
       onRowClick={handleRowClick}
       dir="rtl"
       emptyMessage="לא נמצאו פגישות"
-      enableColumnVisibility={false}
+      enableColumnVisibility={true}
       enableColumnReordering={true}
       resourceKey="meetings"
+      initialColumnVisibility={defaultMeetingColumnVisibility}
     />
   );
 };

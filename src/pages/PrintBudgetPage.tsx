@@ -273,7 +273,7 @@ const PrintBudgetPage = () => {
                       <strong>מטרות כלליות:</strong> {workoutTemplate.routine_data.weeklyWorkout.generalGoals}
                     </p>
                   )}
-                  <div className="space-y-3 text-sm">
+                  <div className="space-y-4 text-sm">
                     {Object.entries(workoutTemplate.routine_data.weeklyWorkout.days || {}).map(([dayKey, dayData]: [string, any]) => {
                       if (!dayData || !dayData.isActive || !dayData.exercises || dayData.exercises.length === 0) {
                         return null;
@@ -291,20 +291,89 @@ const PrintBudgetPage = () => {
                       
                       return (
                         <div key={dayKey} className="bg-white rounded p-3 border border-green-200 print:break-inside-avoid">
-                          <p className="font-semibold text-green-900 mb-2">{dayLabels[dayKey] || dayKey}</p>
-                          <ul className="list-disc list-inside space-y-1 text-gray-700">
-                            {dayData.exercises.map((exercise: any, idx: number) => (
-                              <li key={idx}>
-                                <span className="font-medium">{exercise.name}</span>
-                                {exercise.sets && exercise.reps && (
-                                  <span className="text-gray-500"> - {exercise.sets} סטים x {exercise.reps} חזרות</span>
-                                )}
-                                {exercise.notes && (
-                                  <span className="text-gray-600 text-xs block mr-4">({exercise.notes})</span>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
+                          <p className="font-semibold text-green-900 mb-3">{dayLabels[dayKey] || dayKey}</p>
+                          <div className="overflow-x-auto">
+                            <table className="w-full border-collapse" dir="rtl">
+                              <thead>
+                                <tr className="border-b border-gray-300 bg-gray-50">
+                                  <th className="p-4 text-right text-sm font-semibold text-gray-700 w-40">תמונה</th>
+                                  <th className="p-4 text-right text-sm font-semibold text-gray-700 w-20">סטים</th>
+                                  <th className="p-4 text-right text-sm font-semibold text-gray-700 w-24">חזרות</th>
+                                  <th className="p-4 text-right text-sm font-semibold text-gray-700">תרגיל</th>
+                                  <th className="p-4 text-right text-sm font-semibold text-gray-700 w-12">מס'</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {dayData.exercises.map((exercise: any, idx: number) => {
+                                  // Generate exercise identifier (A, B, C1, C2, etc.)
+                                  const getExerciseId = (index: number): string => {
+                                    const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+                                    const letter = letters[Math.floor(index / 2)] || String.fromCharCode(65 + index);
+                                    const subIndex = index % 2;
+                                    return subIndex === 0 ? letter : `${letter}${subIndex + 1}`;
+                                  };
+                                  
+                                  const exerciseId = getExerciseId(idx);
+                                  
+                                  // Normalize image_url and video_url - handle both empty strings and null/undefined
+                                  const imageUrl = exercise.image_url && exercise.image_url.trim() ? exercise.image_url.trim() : null;
+                                  const videoUrl = exercise.video_url && exercise.video_url.trim() ? exercise.video_url.trim() : null;
+                                  
+                                  return (
+                                    <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50 print:hover:bg-transparent">
+                                      <td className="p-4 text-center">
+                                        {imageUrl ? (
+                                          <img
+                                            src={imageUrl}
+                                            alt={exercise.name || 'תרגיל'}
+                                            className="w-32 h-32 object-cover mx-auto border border-gray-300 rounded"
+                                            onError={(e) => {
+                                              // Fallback if image fails to load - hide the broken image
+                                              const target = e.target as HTMLImageElement;
+                                              target.style.display = 'none';
+                                            }}
+                                          />
+                                        ) : (
+                                          <div className="w-32 h-32 bg-gray-100 border border-gray-300 rounded mx-auto flex items-center justify-center">
+                                            <span className="text-sm text-gray-400">אין תמונה</span>
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="p-4 text-center text-gray-700 text-base">
+                                        {exercise.sets || '—'}
+                                      </td>
+                                      <td className="p-4 text-center text-gray-700 text-base">
+                                        {exercise.reps || '—'}
+                                      </td>
+                                      <td className="p-4 text-right">
+                                        {videoUrl ? (
+                                          <a
+                                            href={videoUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-medium text-blue-600 hover:text-blue-800 underline print:text-blue-700"
+                                            style={{ textDecorationColor: '#9333ea' }}
+                                          >
+                                            {exercise.name || 'תרגיל ללא שם'}
+                                          </a>
+                                        ) : (
+                                          <span className="font-medium text-gray-800">
+                                            {exercise.name || 'תרגיל ללא שם'}
+                                          </span>
+                                        )}
+                                        {exercise.notes && (
+                                          <span className="text-gray-600 text-xs block mt-1">({exercise.notes})</span>
+                                        )}
+                                      </td>
+                                      <td className="p-4 text-center text-gray-500 font-medium text-base">
+                                        {exerciseId}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       );
                     })}

@@ -99,7 +99,18 @@ export const fetchBudgets = createAsyncThunk(
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as Budget[];
+
+      // Filter out any invalid budgets (ensure name exists and budget is valid)
+      const validBudgets = (data || []).filter((budget: any) => {
+        // Ensure budget has required fields
+        return budget && 
+               budget.id && 
+               budget.name && 
+               budget.name.trim() !== '' &&
+               (budget.is_public === true || budget.created_by === user.id);
+      });
+
+      return validBudgets as Budget[];
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch budgets');
     }

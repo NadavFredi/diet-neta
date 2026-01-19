@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Settings, Send, Loader2, Plus, Trash2, Zap } from 'lucide-react';
+import { Settings, Send, Loader2, Plus, Trash2, Zap, ChevronDown, Search } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchTemplates, saveTemplate, setSendingFlow } from '@/store/slices/automationSlice';
 import { sendWhatsAppMessage, replacePlaceholders } from '@/services/greenApiService';
@@ -35,6 +35,8 @@ import { TemplateEditorModal } from './TemplateEditorModal';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Customer } from '@/hooks/useCustomers';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 
 interface LeadData {
   id: string;
@@ -64,7 +66,19 @@ const DEFAULT_FLOW_CONFIGS: FlowConfig[] = [
   },
   {
     key: 'intro_questionnaire',
-    label: 'שליחת שאלון הכרות לאחר קביעת שיחה',
+    label: 'אוטומטי שליחת שאלון הכרות לאחר קביעת שיחה',
+  },
+  {
+    key: 'budget',
+    label: 'שליחת תקציב',
+  },
+  {
+    key: 'payment_request',
+    label: 'בקשת תשלום',
+  },
+  {
+    key: 'trainee_user_credentials',
+    label: 'שליחת פרטי משתמש חניך',
   },
 ];
 
@@ -90,6 +104,28 @@ const saveCustomFlows = (flows: FlowConfig[]): void => {
   }
 };
 
+// Load deleted default flows from localStorage
+const loadDeletedDefaultFlows = (): string[] => {
+  try {
+    const stored = localStorage.getItem('deleted_default_automation_flows');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('[LeadAutomationCard] Error loading deleted default flows:', error);
+  }
+  return [];
+};
+
+// Save deleted default flows to localStorage
+const saveDeletedDefaultFlows = (deletedKeys: string[]): void => {
+  try {
+    localStorage.setItem('deleted_default_automation_flows', JSON.stringify(deletedKeys));
+  } catch (error) {
+    console.error('[LeadAutomationCard] Error saving deleted default flows:', error);
+  }
+};
+
 interface LeadAutomationCardProps {
   customer: Customer | null;
   lead: LeadData | null;
@@ -109,18 +145,35 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
   const sendingFlow = useAppSelector((state) => state.automation.sendingFlow);
   const [editingFlowKey, setEditingFlowKey] = useState<string | null>(null);
   const [customFlows, setCustomFlows] = useState<FlowConfig[]>(loadCustomFlows());
+  const [deletedDefaultFlows, setDeletedDefaultFlows] = useState<string[]>(loadDeletedDefaultFlows());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newFlowLabel, setNewFlowLabel] = useState('');
   const [newFlowKey, setNewFlowKey] = useState('');
   const [deletingFlowKey, setDeletingFlowKey] = useState<string | null>(null);
+  const [selectedFlowKey, setSelectedFlowKey] = useState<string | null>(null);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
-  // Load custom flows on mount
+  // Load custom flows and deleted default flows on mount
   useEffect(() => {
     setCustomFlows(loadCustomFlows());
+    setDeletedDefaultFlows(loadDeletedDefaultFlows());
   }, []);
 
-  // Combine default and custom flows
-  const allFlows = [...DEFAULT_FLOW_CONFIGS, ...customFlows];
+  // Combine default and custom flows, filtering out deleted default flows
+  // Custom flows with keys matching default flows are label overrides, not separate flows
+  const activeDefaultFlows = DEFAULT_FLOW_CONFIGS.filter(flow => !deletedDefaultFlows.includes(flow.key));
+  const defaultFlowKeys = new Set(activeDefaultFlows.map(f => f.key));
+  const labelOverrides = new Map(customFlows.filter(f => defaultFlowKeys.has(f.key)).map(f => [f.key, f.label]));
+  const pureCustomFlows = customFlows.filter(f => !defaultFlowKeys.has(f.key));
+  
+  // Merge default flows with label overrides, then add pure custom flows
+  const allFlows = [
+    ...activeDefaultFlows.map(flow => ({
+      ...flow,
+      label: labelOverrides.get(flow.key) || flow.label
+    })),
+    ...pureCustomFlows
+  ];
 
   // Fetch templates on mount
   useEffect(() => {
@@ -387,32 +440,35 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
 
   const handleLabelChange = (value: string) => {
     setNewFlowLabel(value);
-    // Auto-generate flow key from label if key is empty
-    if (!newFlowKey.trim()) {
-      const generatedKey = generateFlowKey(value);
-      setNewFlowKey(generatedKey);
-    }
+    // Always auto-generate flow key from label
+    const generatedKey = generateFlowKey(value);
+    setNewFlowKey(generatedKey);
   };
 
   const handleDeleteAutomation = (flowKey: string) => {
-    // Check if it's a default flow (cannot delete)
-    if (DEFAULT_FLOW_CONFIGS.some(flow => flow.key === flowKey)) {
-      toast({
-        title: 'שגיאה',
-        description: 'לא ניתן למחוק אוטומציות ברירת מחדל',
-        variant: 'destructive',
-      });
-      return;
+    // Check if it's a default flow
+    const isDefaultFlow = DEFAULT_FLOW_CONFIGS.some(flow => flow.key === flowKey);
+    
+    if (isDefaultFlow) {
+      // Mark default flow as deleted
+      const updatedDeleted = [...deletedDefaultFlows, flowKey];
+      setDeletedDefaultFlows(updatedDeleted);
+      saveDeletedDefaultFlows(updatedDeleted);
+    } else {
+      // Remove from custom flows
+      const updatedFlows = customFlows.filter(flow => flow.key !== flowKey);
+      setCustomFlows(updatedFlows);
+      saveCustomFlows(updatedFlows);
     }
-
-    // Remove from custom flows
-    const updatedFlows = customFlows.filter(flow => flow.key !== flowKey);
-    setCustomFlows(updatedFlows);
-    saveCustomFlows(updatedFlows);
 
     // If the deleted flow was being edited, close the editor
     if (editingFlowKey === flowKey) {
       setEditingFlowKey(null);
+    }
+
+    // If the deleted flow was selected, clear the selection
+    if (selectedFlowKey === flowKey) {
+      setSelectedFlowKey(null);
     }
 
     toast({
@@ -421,10 +477,6 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
     });
 
     setDeletingFlowKey(null);
-  };
-
-  const isCustomFlow = (flowKey: string): boolean => {
-    return customFlows.some(flow => flow.key === flowKey);
   };
 
   if (!customer || !lead) {
@@ -476,97 +528,104 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
           </Button>
         </div>
 
-        <div className="space-y-2.5 flex-1">
-          {allFlows.map((flow) => {
-            const isSending = sendingFlow[flow.key] || false;
-            const hasTemplate = templates[flow.key]?.template_content?.trim() || false;
-            const isAutoTrigger = flow.key === 'intro_questionnaire'; // Second automation is auto-triggered
-
-            return (
-              <div
-                key={flow.key}
-                className="flex items-center gap-2"
+        {/* Single Row with Autocomplete Search and Action Buttons */}
+        <div className="flex items-center gap-2">
+          {/* Autocomplete Search */}
+          <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={isComboboxOpen}
+                className="flex-1 justify-between h-9 px-3 text-sm"
+                dir="rtl"
               >
-                {isAutoTrigger ? (
-                  // Auto-triggered automation - no send button, just display with indicator
-                  <div
-                    className={cn(
-                      "flex-1 justify-start min-h-9 h-auto",
-                      "bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200",
-                      "text-xs font-semibold rounded-lg px-3 py-1.5",
-                      "flex items-center gap-2",
-                      !hasTemplate && "opacity-50"
-                    )}
-                    style={{
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
-                      whiteSpace: 'normal',
-                      lineHeight: '1.5'
-                    }}
-                    title={!hasTemplate ? 'נדרש להגדיר תבנית תחילה' : 'נשלח אוטומטית לאחר הגשת טופס תיאום פגישה'}
-                  >
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <Zap className="h-3.5 w-3.5 text-purple-600" />
-                      <span className="text-xs text-purple-600 font-bold">אוטומטי</span>
-                    </div>
-                    <span className="text-right leading-tight text-gray-900">{flow.label}</span>
-                  </div>
-                ) : (
-                  // Manual automation - has send button
-                  <Button
-                    onClick={() => handleSendFlow(flow.key)}
-                    disabled={isSending || !hasTemplate}
-                    className={cn(
-                      "flex-1 justify-start min-h-9 h-auto",
-                      "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white",
-                      "text-xs font-semibold rounded-lg px-3 py-1.5",
-                      !hasTemplate && "opacity-50 cursor-not-allowed"
-                    )}
-                    style={{
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
-                      whiteSpace: 'normal',
-                      lineHeight: '1.5'
-                    }}
-                    title={!hasTemplate ? 'נדרש להגדיר תבנית תחילה' : flow.label}
-                  >
-                    {isSending ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 ml-1.5 animate-spin flex-shrink-0" />
-                        <span>שולח...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-3.5 w-3.5 ml-1.5 flex-shrink-0" />
-                        <span className="text-right leading-tight">{flow.label}</span>
-                      </>
-                    )}
-                  </Button>
-                )}
+                <span className="truncate">
+                  {selectedFlowKey
+                    ? allFlows.find((flow) => flow.key === selectedFlowKey)?.label
+                    : 'בחר אוטומציה...'}
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-50 mr-2" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[400px] p-0" align="start" dir="rtl">
+              <Command>
+                <CommandInput placeholder="חפש אוטומציה..." />
+                <CommandList>
+                  <CommandEmpty>לא נמצאה אוטומציה</CommandEmpty>
+                  <CommandGroup>
+                    {allFlows.map((flow) => (
+                      <CommandItem
+                        key={flow.key}
+                        value={`${flow.key}-${flow.label}`}
+                        keywords={[flow.label, flow.key]}
+                        onSelect={() => {
+                          setSelectedFlowKey(flow.key);
+                          setIsComboboxOpen(false);
+                        }}
+                      >
+                        <span>{flow.label}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
 
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setEditingFlowKey(flow.key)}
-                  className="h-9 w-9 flex-shrink-0 border-gray-300 hover:bg-gray-200 hover:border-gray-400"
-                  title="ערוך תבנית"
-                >
-                  <Settings className="h-3.5 w-3.5 text-gray-600" />
-                </Button>
-                {isCustomFlow(flow.key) && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setDeletingFlowKey(flow.key)}
-                    className="h-9 w-9 flex-shrink-0 border-red-300 hover:bg-red-50 hover:border-red-400 text-red-600"
-                    title="מחק אוטומציה"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+          {/* Action Buttons */}
+          {selectedFlowKey && (
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (selectedFlowKey) {
+                    handleSendFlow(selectedFlowKey);
+                  }
+                }}
+                disabled={
+                  !selectedFlowKey ||
+                  sendingFlow[selectedFlowKey] ||
+                  !templates[selectedFlowKey]?.template_content?.trim()
+                }
+                className="h-9 w-9 flex-shrink-0 border-blue-300 hover:bg-blue-50 hover:border-blue-400 text-blue-600"
+                title="שלח אוטומציה"
+              >
+                {sendingFlow[selectedFlowKey] ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
                 )}
-              </div>
-            );
-          })}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (selectedFlowKey) {
+                    setEditingFlowKey(selectedFlowKey);
+                  }
+                }}
+                className="h-9 w-9 flex-shrink-0 border-gray-300 hover:bg-gray-200 hover:border-gray-400"
+                title="ערוך תבנית"
+              >
+                <Settings className="h-4 w-4 text-gray-600" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (selectedFlowKey) {
+                    setDeletingFlowKey(selectedFlowKey);
+                  }
+                }}
+                className="h-9 w-9 flex-shrink-0 border-red-300 hover:bg-red-50 hover:border-red-400 text-red-600"
+                title="מחק אוטומציה"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
       </Card>
 
@@ -628,19 +687,8 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
                 placeholder="לדוגמה: שליחת תזכורת שבועית"
                 dir="rtl"
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="flow-key">מפתח אוטומציה (מזהה ייחודי)</Label>
-              <Input
-                id="flow-key"
-                value={newFlowKey}
-                onChange={(e) => setNewFlowKey(e.target.value)}
-                placeholder="לדוגמה: weekly_reminder"
-                dir="ltr"
-                className="font-mono text-sm"
-              />
               <p className="text-xs text-muted-foreground">
-                המפתח ייווצר אוטומטית מהשם. ניתן לערוך אותו ידנית.
+                מפתח האוטומציה ייווצר אוטומטית מהשם
               </p>
             </div>
           </div>

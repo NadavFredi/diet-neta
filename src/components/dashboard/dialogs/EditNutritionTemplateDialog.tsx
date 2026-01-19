@@ -22,9 +22,9 @@ export const EditNutritionTemplateDialog = ({
   onSave,
 }: EditNutritionTemplateDialogProps) => {
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange} dir="rtl" modal={true}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange} modal={true}>
       <DialogContent 
-        className="max-w-[95vw] w-[95vw] max-h-[95vh] h-[95vh] flex flex-col p-0 overflow-hidden rounded-[1.5rem]" 
+        className="!max-w-[98vw] !w-[98vw] !h-[95vh] !max-h-[95vh] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%] !rounded-none" 
         dir="rtl"
         onInteractOutside={(e) => {
           // Prevent closing when clicking outside - only close via explicit action
@@ -35,10 +35,10 @@ export const EditNutritionTemplateDialog = ({
           e.preventDefault();
         }}
       >
-        <DialogHeader className="px-3 pt-3 pb-2 border-b flex-shrink-0">
-          <DialogTitle className="text-base">עריכת תבנית תזונה</DialogTitle>
+        <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
+          <DialogTitle>עריכת תבנית תזונה</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+        <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
           {editingTemplate && (
             <NutritionTemplateForm
               mode="template"

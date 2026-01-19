@@ -16,11 +16,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { he } from 'date-fns/locale';
 import { useAddLead } from '@/hooks/useAddLead';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 import {
@@ -30,13 +25,38 @@ import {
   SOURCE_OPTIONS,
 } from '@/utils/dashboard';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchSubscriptionTypes } from '@/store/slices/subscriptionTypesSlice';
+import { useEffect } from 'react';
+import { useBudgets } from '@/hooks/useBudgets';
+import type { DurationUnit } from '@/store/slices/subscriptionTypesSlice';
+
+// Helper function to get duration unit label in Hebrew
+const getDurationUnitLabel = (unit: DurationUnit, count: number): string => {
+  switch (unit) {
+    case 'days':
+      return count === 1 ? 'יום' : 'ימים';
+    case 'weeks':
+      return count === 1 ? 'שבוע' : 'שבועות';
+    case 'months':
+      return count === 1 ? 'חודש' : 'חודשים';
+    default:
+      return '';
+  }
+};
 
 interface AddLeadDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  onLeadCreated?: () => void | Promise<void>;
 }
 
-export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
+export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDialogProps) => {
+  const dispatch = useAppDispatch();
+  const { subscriptionTypes, isLoading: isLoadingSubscriptionTypes } = useAppSelector(
+    (state) => state.subscriptionTypes
+  );
+  
   const {
     formData,
     isSubmitting,
@@ -49,6 +69,15 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
     handleSubmit,
     resetForm,
   } = useAddLead();
+
+  // Fetch subscription types and budgets when dialog opens
+  const { data: budgets = [], isLoading: isLoadingBudgets } = useBudgets();
+
+  useEffect(() => {
+    if (isOpen) {
+      dispatch(fetchSubscriptionTypes());
+    }
+  }, [isOpen, dispatch]);
 
   const handleClose = () => {
     if (isSubmitting) return; // Prevent closing while submitting
@@ -64,32 +93,43 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
   };
 
   const handleFormSubmit = async () => {
+    console.log('[AddLeadDialog] Form submit started');
     const success = await handleSubmit();
+    console.log('[AddLeadDialog] Form submit completed, success:', success);
     // Close dialog after successful submission
     if (success) {
+      // Refresh leads list if callback provided
+      if (onLeadCreated) {
+        console.log('[AddLeadDialog] Calling onLeadCreated callback...');
+        await onLeadCreated();
+        console.log('[AddLeadDialog] onLeadCreated callback completed');
+      } else {
+        console.warn('[AddLeadDialog] No onLeadCreated callback provided');
+      }
       onOpenChange(false);
     }
   };
 
-  const birthDate = formData.birth_date ? new Date(formData.birth_date) : undefined;
-
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-gray-900">הוסף ליד חדש</DialogTitle>
-          <DialogDescription className="text-gray-600">
-            מלא את הפרטים הבאים כדי להוסיף ליד חדש למערכת
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-[1400px] w-[98vw] max-h-[85vh] flex flex-col p-0 lg:max-w-[1400px] md:max-w-[95vw] sm:max-w-[95vw]" dir="rtl">
+        <div className="px-6 pt-3 pb-2 border-b flex-shrink-0">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">הוסף ליד חדש</DialogTitle>
+            <DialogDescription className="text-sm text-gray-600 mt-0.5">
+              מלא את הפרטים הבאים כדי להוסיף ליד חדש למערכת
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div className="flex-1 overflow-y-auto px-6 pt-2 pb-0">
+          <div className="grid grid-cols-1 xl:grid-cols-3 lg:grid-cols-3 md:grid-cols-2 gap-3 xl:gap-4">
           {/* Personal Information Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">מידע אישי</h3>
+          <div className="space-y-2">
+            <h3 className="text-base font-semibold text-gray-900 border-b pb-1">מידע אישי</h3>
 
-            <div className="space-y-2">
-              <Label htmlFor="full_name" className="text-right">
+            <div className="space-y-1">
+              <Label htmlFor="full_name" className="text-right text-sm">
                 שם מלא <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -97,12 +137,12 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
                 value={formData.full_name}
                 onChange={(e) => handleInputChange('full_name', e.target.value)}
                 placeholder="הכנס שם מלא"
-                className="text-right"
+                className="text-right h-9"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="text-right">
+            <div className="space-y-1">
+              <Label htmlFor="phone" className="text-right text-sm">
                 מספר טלפון <span className="text-red-500">*</span>
               </Label>
               <PhoneInput
@@ -116,8 +156,8 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-right">
+            <div className="space-y-1">
+              <Label htmlFor="email" className="text-right text-sm">
                 אימייל
               </Label>
               <Input
@@ -126,82 +166,98 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="example@email.com"
-                className="text-right dir-ltr"
+                className="text-right dir-ltr h-9"
                 dir="ltr"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="city" className="text-right">
-                עיר
-              </Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
-                placeholder="הכנס עיר"
-                className="text-right"
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="city" className="text-right text-sm">
+                  עיר
+                </Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => handleInputChange('city', e.target.value)}
+                  placeholder="הכנס עיר"
+                  className="text-right h-9"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="age" className="text-right text-sm">
+                  גיל
+                </Label>
+                <Input
+                  id="age"
+                  type="number"
+                  value={formData.age || ''}
+                  onChange={(e) =>
+                    handleInputChange('age', e.target.value ? parseInt(e.target.value, 10) : null)
+                  }
+                  placeholder="הכנס גיל"
+                  min="0"
+                  max="150"
+                  className="text-right dir-ltr h-9"
+                  dir="ltr"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="birth_date" className="text-right">
-                תאריך לידה
-              </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-right font-normal bg-gray-50 hover:bg-white"
-                  >
-                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    {birthDate ? format(birthDate, 'dd/MM/yyyy', { locale: he }) : 'בחר תאריך'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    mode="single"
-                    selected={birthDate}
-                    onSelect={(date) =>
-                      handleInputChange('birth_date', date ? format(date, 'yyyy-MM-dd') : '')
-                    }
-                    locale={he}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="gender" className="text-right text-sm">
+                  מגדר
+                </Label>
+                <Select
+                  value={formData.gender}
+                  onValueChange={(value) => handleInputChange('gender', value as any)}
+                >
+                  <SelectTrigger className="text-right h-9">
+                    <SelectValue placeholder="בחר מגדר" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">זכר</SelectItem>
+                    <SelectItem value="female">נקבה</SelectItem>
+                    <SelectItem value="other">אחר</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="gender" className="text-right">
-                מגדר
-              </Label>
-              <Select
-                value={formData.gender}
-                onValueChange={(value) => handleInputChange('gender', value as any)}
-              >
-                <SelectTrigger className="text-right">
-                  <SelectValue placeholder="בחר מגדר" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="male">זכר</SelectItem>
-                  <SelectItem value="female">נקבה</SelectItem>
-                  <SelectItem value="other">אחר</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-1">
+                <Label htmlFor="period" className="text-right text-sm">
+                  מקבלת מחזור
+                </Label>
+                <Select
+                  value={formData.period === true ? 'yes' : formData.period === false ? 'no' : ''}
+                  onValueChange={(value) => {
+                    const boolValue = value === 'yes' ? true : value === 'no' ? false : null;
+                    handleInputChange('period', boolValue);
+                  }}
+                >
+                  <SelectTrigger className="text-right h-9">
+                    <SelectValue placeholder="בחר" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">כן</SelectItem>
+                    <SelectItem value="no">לא</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
           {/* Status & Fitness Information Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">סטטוס וכושר</h3>
+          <div className="space-y-2">
+            <h3 className="text-base font-semibold text-gray-900 border-b pb-1">סטטוס וכושר</h3>
 
-            <div className="space-y-2">
-              <Label htmlFor="status_main" className="text-right">
+            <div className="space-y-1">
+              <Label htmlFor="status_main" className="text-right text-sm">
                 סטטוס ראשי
               </Label>
               <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-right h-9">
                   <SelectValue placeholder="בחר סטטוס" />
                 </SelectTrigger>
                 <SelectContent>
@@ -215,8 +271,8 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
             </div>
 
             {hasSubStatuses && selectedCategoryData?.subStatuses && (
-              <div className="space-y-2">
-                <Label htmlFor="status_sub" className="text-right">
+              <div className="space-y-1">
+                <Label htmlFor="status_sub" className="text-right text-sm">
                   סטטוס משני
                 </Label>
                 <Select
@@ -227,7 +283,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
                   }
                   onValueChange={handleSubStatusChange}
                 >
-                  <SelectTrigger className="text-right">
+                  <SelectTrigger className="text-right h-9">
                     <SelectValue placeholder="בחר סטטוס משני" />
                   </SelectTrigger>
                   <SelectContent>
@@ -241,15 +297,15 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="source" className="text-right">
+            <div className="space-y-1">
+              <Label htmlFor="source" className="text-right text-sm">
                 מקור
               </Label>
               <Select
                 value={formData.source}
                 onValueChange={(value) => handleInputChange('source', value)}
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-right h-9">
                   <SelectValue placeholder="בחר מקור" />
                 </SelectTrigger>
                 <SelectContent>
@@ -262,15 +318,15 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fitness_goal" className="text-right">
+            <div className="space-y-1">
+              <Label htmlFor="fitness_goal" className="text-right text-sm">
                 מטרת כושר
               </Label>
               <Select
                 value={formData.fitness_goal}
                 onValueChange={(value) => handleInputChange('fitness_goal', value)}
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-right h-9">
                   <SelectValue placeholder="בחר מטרת כושר" />
                 </SelectTrigger>
                 <SelectContent>
@@ -283,15 +339,15 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="activity_level" className="text-right">
+            <div className="space-y-1">
+              <Label htmlFor="activity_level" className="text-right text-sm">
                 רמת פעילות
               </Label>
               <Select
                 value={formData.activity_level}
                 onValueChange={(value) => handleInputChange('activity_level', value)}
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-right h-9">
                   <SelectValue placeholder="בחר רמת פעילות" />
                 </SelectTrigger>
                 <SelectContent>
@@ -304,15 +360,15 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="preferred_time" className="text-right">
+            <div className="space-y-1">
+              <Label htmlFor="preferred_time" className="text-right text-sm">
                 זמן מועדף
               </Label>
               <Select
                 value={formData.preferred_time}
                 onValueChange={(value) => handleInputChange('preferred_time', value)}
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-right h-9">
                   <SelectValue placeholder="בחר זמן מועדף" />
                 </SelectTrigger>
                 <SelectContent>
@@ -327,50 +383,125 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
           </div>
 
           {/* Physical Metrics Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">מדדים פיזיים</h3>
+          <div className="space-y-2">
+            <h3 className="text-base font-semibold text-gray-900 border-b pb-1">מדדים פיזיים</h3>
 
-            <div className="space-y-2">
-              <Label htmlFor="height" className="text-right">
-                גובה (ס"מ)
-              </Label>
-              <Input
-                id="height"
-                type="number"
-                value={formData.height || ''}
-                onChange={(e) =>
-                  handleInputChange('height', e.target.value ? parseFloat(e.target.value) : null)
-                }
-                placeholder="175"
-                className="text-right dir-ltr"
-                dir="ltr"
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="height" className="text-right text-sm">
+                  גובה (ס"מ)
+                </Label>
+                <Input
+                  id="height"
+                  type="number"
+                  value={formData.height || ''}
+                  onChange={(e) =>
+                    handleInputChange('height', e.target.value ? parseFloat(e.target.value) : null)
+                  }
+                  placeholder="175"
+                  className="text-right dir-ltr h-9"
+                  dir="ltr"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="weight" className="text-right text-sm">
+                  משקל (ק"ג)
+                </Label>
+                <Input
+                  id="weight"
+                  type="number"
+                  value={formData.weight || ''}
+                  onChange={(e) =>
+                    handleInputChange('weight', e.target.value ? parseFloat(e.target.value) : null)
+                  }
+                  placeholder="70"
+                  className="text-right dir-ltr h-9"
+                  dir="ltr"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="weight" className="text-right">
-                משקל (ק"ג)
-              </Label>
-              <Input
-                id="weight"
-                type="number"
-                value={formData.weight || ''}
-                onChange={(e) =>
-                  handleInputChange('weight', e.target.value ? parseFloat(e.target.value) : null)
-                }
-                placeholder="70"
-                className="text-right dir-ltr"
-                dir="ltr"
-              />
+            {/* Subscription & Budget Section */}
+            <div className="space-y-2 pt-1">
+              <h3 className="text-base font-semibold text-gray-900 border-b pb-1">מנוי ותקציב</h3>
+
+              <div className="space-y-1">
+                <Label htmlFor="subscription_type_id" className="text-right text-sm">
+                  סוג מנוי (אופציונלי)
+                </Label>
+                <Select
+                  value={formData.subscription_type_id || undefined}
+                  onValueChange={(value) => handleInputChange('subscription_type_id', value)}
+                  disabled={isLoadingSubscriptionTypes}
+                >
+                  <SelectTrigger className="text-right h-9">
+                    <SelectValue placeholder={isLoadingSubscriptionTypes ? 'טוען...' : 'בחר סוג מנוי (אופציונלי)'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subscriptionTypes.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-gray-500 text-center">
+                        אין סוגי מנויים זמינים
+                      </div>
+                    ) : (
+                      subscriptionTypes.map((subscriptionType) => {
+                        const currencySymbol = subscriptionType.currency === 'USD' ? '$' : 
+                                              subscriptionType.currency === 'EUR' ? '€' : '₪';
+                        const durationUnit: DurationUnit = subscriptionType.duration_unit || 'months';
+                        return (
+                          <SelectItem key={subscriptionType.id} value={subscriptionType.id}>
+                            {subscriptionType.name} - {subscriptionType.duration} {getDurationUnitLabel(durationUnit, subscriptionType.duration)} - {currencySymbol}{subscriptionType.price.toLocaleString('he-IL')}
+                          </SelectItem>
+                        );
+                      })
+                    )}
+                  </SelectContent>
+                </Select>
+                {formData.subscription_type_id && (
+                  <p className="text-xs text-gray-600 text-right mt-0.5">
+                    המנוי יווצר אוטומטית עם הליד
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="budget_id" className="text-right text-sm">
+                  קישור תקציב (אופציונלי)
+                </Label>
+                <Select
+                  value={formData.budget_id || undefined}
+                  onValueChange={(value) => handleInputChange('budget_id', value)}
+                  disabled={isLoadingBudgets}
+                >
+                  <SelectTrigger className="text-right h-9">
+                    <SelectValue placeholder={isLoadingBudgets ? 'טוען...' : 'בחר תקציב (אופציונלי)'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {budgets.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-gray-500 text-center">
+                        אין תקציבים זמינים
+                      </div>
+                    ) : (
+                      budgets.map((budget) => (
+                        <SelectItem key={budget.id} value={budget.id}>
+                          {budget.name}
+                          {budget.description && ` - ${budget.description}`}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {formData.budget_id && (
+                  <p className="text-xs text-gray-600 text-right mt-0.5">
+                    התקציב יוקצה אוטומטית לליד
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Notes Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">הערות</h3>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes" className="text-right">
+            {/* Notes Section */}
+            <div className="space-y-1 pt-1 pb-0">
+              <Label htmlFor="notes" className="text-right text-sm">
                 הערות
               </Label>
               <Textarea
@@ -378,19 +509,20 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
                 value={formData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 placeholder="הכנס הערות נוספות..."
-                className="text-right min-h-[120px]"
-                rows={5}
+                className="text-right min-h-[50px]"
+                rows={2}
               />
             </div>
+          </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-start gap-3 mt-6 pt-6 border-t" dir="rtl">
+        <div className="flex items-center justify-start gap-3 px-6 py-2 border-t bg-gray-50 flex-shrink-0 mt-0" dir="rtl">
           <Button
             onClick={handleFormSubmit}
             disabled={isSubmitting}
-            className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white min-w-[100px]"
+            className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white min-w-[100px] h-9"
           >
             {isSubmitting ? 'שומר...' : 'שמור'}
           </Button>
@@ -398,7 +530,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange }: AddLeadDialogProps) => {
             variant="outline"
             onClick={handleClose}
             disabled={isSubmitting}
-            className="min-w-[100px]"
+            className="min-w-[100px] h-9"
           >
             ביטול
           </Button>

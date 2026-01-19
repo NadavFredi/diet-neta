@@ -22,6 +22,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CreditCard, Settings, Send, Loader2, AlertCircle, Check, ChevronsUpDown, Package, Edit3, Sparkles } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { saveTemplate, fetchTemplates } from '@/store/slices/automationSlice';
 import {
   setAmount,
   setCurrency,
@@ -48,6 +49,8 @@ interface LeadPaymentCardProps {
   customerPhone?: string | null;
   customerName?: string | null;
   customerEmail?: string | null;
+  customerId?: string | null;
+  leadId?: string | null;
 }
 
 type EntryMode = 'product' | 'manual';
@@ -56,6 +59,8 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   customerPhone,
   customerName,
   customerEmail,
+  customerId,
+  leadId,
 }) => {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
@@ -67,6 +72,26 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   const [selectedPrice, setSelectedPrice] = useState<StripePrice | null>(null);
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
+
+  // Helper function to get flow label (check custom flows, then default)
+  const getFlowLabel = (flowKey: string, defaultLabel: string): string => {
+    try {
+      const stored = localStorage.getItem('custom_automation_flows');
+      if (stored) {
+        const customFlows: Array<{ key: string; label: string }> = JSON.parse(stored);
+        const customFlow = customFlows.find(f => f.key === flowKey);
+        if (customFlow) {
+          return customFlow.label;
+        }
+      }
+    } catch (error) {
+      // Error loading custom flows
+    }
+    return defaultLabel;
+  };
+
+  // Get dynamic label for payment_request flow
+  const paymentFlowLabel = getFlowLabel('payment_request', 'בקשת תשלום');
 
   // Redux state
   const {
@@ -81,12 +106,28 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
     error,
   } = useAppSelector((state) => state.payment);
 
-  // Load template from localStorage on mount
+  // Load template from database first, fallback to localStorage
   useEffect(() => {
-    const savedTemplate = localStorage.getItem('paymentMessageTemplate');
-    if (savedTemplate) {
-      dispatch(setPaymentMessageTemplate(savedTemplate));
-    }
+    const loadTemplate = async () => {
+      // Fetch templates from database
+      const result = await dispatch(fetchTemplates());
+      if (result.type === 'automation/fetchTemplates/fulfilled') {
+        const dbTemplate = result.payload['payment_request']?.template_content;
+        if (dbTemplate) {
+          dispatch(setPaymentMessageTemplate(dbTemplate));
+          localStorage.setItem('paymentMessageTemplate', dbTemplate);
+          return;
+        }
+      }
+      
+      // Fallback to localStorage
+      const savedTemplate = localStorage.getItem('paymentMessageTemplate');
+      if (savedTemplate) {
+        dispatch(setPaymentMessageTemplate(savedTemplate));
+      }
+    };
+    
+    loadTemplate();
   }, [dispatch]);
 
   // Save template to localStorage when it changes
@@ -100,25 +141,33 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   useEffect(() => {
     const loadProducts = async () => {
       setIsLoadingProducts(true);
-      const response = await fetchStripeProducts();
-      if (response.success && response.products) {
-        setProducts(response.products);
-      } else {
-        console.error('[LeadPaymentCard] Failed to load products:', response.error);
-        // Fallback to manual mode if products can't be loaded
+      try {
+        const response = await fetchStripeProducts();
+        if (response.success && response.products) {
+          setProducts(response.products);
+          if (response.products.length === 0) {
+            // Don't switch to manual mode automatically - let user see the empty state
+          }
+        } else {
+          dispatch(setError(response.error || 'שגיאה בטעינת מוצרים מ-Stripe'));
+          // Fallback to manual mode if products can't be loaded
+          setEntryMode('manual');
+        }
+      } catch (error: any) {
+        dispatch(setError('שגיאה בטעינת מוצרים מ-Stripe: ' + (error?.message || 'שגיאה לא צפויה')));
         setEntryMode('manual');
+      } finally {
+        setIsLoadingProducts(false);
       }
-      setIsLoadingProducts(false);
     };
     loadProducts();
-  }, []);
+  }, [dispatch]);
 
   // Auto-populate when product/price is selected
   useEffect(() => {
     if (selectedPrice && entryMode === 'product') {
       // Safety check: ensure unit_amount exists and is valid
       if (selectedPrice.unit_amount === null || selectedPrice.unit_amount === undefined || isNaN(selectedPrice.unit_amount)) {
-        console.warn('[LeadPaymentCard] Selected price has invalid unit_amount:', selectedPrice);
         return;
       }
       
@@ -188,8 +237,23 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   };
 
   const handleSaveTemplate = async (template: string, buttons?: Array<{ id: string; text: string }>, media?: any) => {
-    dispatch(setPaymentMessageTemplate(template));
-    localStorage.setItem('paymentMessageTemplate', template);
+    try {
+      // Save to database
+      await dispatch(saveTemplate({ 
+        flowKey: 'payment_request', 
+        templateContent: template,
+        buttons: buttons || [],
+        media: media || null
+      })).unwrap();
+      
+      // Save to Redux state and localStorage for backward compatibility
+      dispatch(setPaymentMessageTemplate(template));
+      localStorage.setItem('paymentMessageTemplate', template);
+    } catch (error) {
+      // Still save to localStorage even if DB save fails
+      dispatch(setPaymentMessageTemplate(template));
+      localStorage.setItem('paymentMessageTemplate', template);
+    }
   };
 
   const handleCreateAndSend = async () => {
@@ -236,6 +300,8 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
         description: description,
         priceId: selectedPrice?.id, // Use Stripe Price ID if available
         metadata: {
+          ...(customerId && { customer_id: customerId }),
+          ...(leadId && { lead_id: leadId }),
           ...(customerEmail && { customerEmail }),
           ...(customerName && { customerName }),
           ...(billingMode && { billingMode }),
@@ -268,48 +334,23 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       });
 
       // Send WhatsApp message
-      console.log('[LeadPaymentCard] Preparing to send WhatsApp message:', {
-        phoneNumber: customerPhone,
-        messageLength: message.length,
-        messagePreview: message.substring(0, 100) + '...',
-        paymentUrl: paymentUrl,
-      });
-      
       let whatsappResponse: any = undefined;
       try {
-        console.log('[LeadPaymentCard] Calling sendWhatsAppMessage...');
         const result = await sendWhatsAppMessage({
           phoneNumber: customerPhone,
           message: message,
         });
         
-        console.log('[LeadPaymentCard] Raw result from sendWhatsAppMessage:', result);
-        console.log('[LeadPaymentCard] Result type:', typeof result);
-        console.log('[LeadPaymentCard] Result is null?', result === null);
-        console.log('[LeadPaymentCard] Result is undefined?', result === undefined);
-        
         whatsappResponse = result;
         
         // Safety check: if result is undefined or null, create error response
         if (!whatsappResponse) {
-          console.error('[LeadPaymentCard] sendWhatsAppMessage returned undefined/null!');
           whatsappResponse = {
             success: false,
             error: 'שגיאה בשליחת הודעת WhatsApp: הפונקציה לא החזירה תגובה',
           };
         }
-        
-        console.log('[LeadPaymentCard] WhatsApp response received:', {
-          success: whatsappResponse?.success,
-          error: whatsappResponse?.error,
-          hasData: !!whatsappResponse?.data,
-          fullResponse: whatsappResponse,
-        });
       } catch (whatsappError: any) {
-        console.error('[LeadPaymentCard] Exception in sendWhatsAppMessage:', whatsappError);
-        console.error('[LeadPaymentCard] Error stack:', whatsappError?.stack);
-        console.error('[LeadPaymentCard] Error name:', whatsappError?.name);
-        console.error('[LeadPaymentCard] Error message:', whatsappError?.message);
         whatsappResponse = {
           success: false,
           error: whatsappError?.message || 'שגיאה בשליחת הודעת WhatsApp',
@@ -318,7 +359,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       
       // Final safety check
       if (!whatsappResponse) {
-        console.error('[LeadPaymentCard] whatsappResponse is still undefined after try-catch!');
         whatsappResponse = {
           success: false,
           error: 'שגיאה בשליחת הודעת WhatsApp: תגובה לא התקבלה',
@@ -328,10 +368,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       // Safety check: ensure response exists
       if (!whatsappResponse || !whatsappResponse.success) {
         const errorMessage = whatsappResponse?.error || 'שגיאה בשליחת הודעת WhatsApp';
-        console.error('[LeadPaymentCard] WhatsApp send failed:', {
-          response: whatsappResponse,
-          errorMessage,
-        });
         dispatch(setError(errorMessage));
         toast({
           title: 'שגיאה',
@@ -341,8 +377,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
         dispatch(setGeneratingLink(false));
         return;
       }
-      
-      console.log('[LeadPaymentCard] WhatsApp message sent successfully!');
 
       // Success!
       toast({
@@ -355,7 +389,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
       setSelectedProduct(null);
       setSelectedPrice(null);
     } catch (error: any) {
-      console.error('[LeadPaymentCard] Error:', error);
       dispatch(setError(error?.message || 'שגיאה לא צפויה'));
       toast({
         title: 'שגיאה',
@@ -390,7 +423,6 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
   const formatPrice = (price: StripePrice): string => {
     // Safety check: handle null/undefined unit_amount (shouldn't happen, but just in case)
     if (price.unit_amount === null || price.unit_amount === undefined || isNaN(price.unit_amount)) {
-      console.warn('[LeadPaymentCard] Invalid unit_amount for price:', price.id, price.unit_amount);
       return 'מחיר לא זמין';
     }
     
@@ -828,7 +860,7 @@ export const LeadPaymentCard: React.FC<LeadPaymentCardProps> = ({
         isOpen={isTemplateEditorOpen}
         onOpenChange={setIsTemplateEditorOpen}
         flowKey="payment_request"
-        flowLabel="בקשת תשלום"
+        flowLabel={paymentFlowLabel}
         initialTemplate={paymentMessageTemplate}
         onSave={handleSaveTemplate}
       />

@@ -21,16 +21,12 @@ async function handleMediaMessage(
   let mediaUrl = media.url;
   const mediaType = media.type;
 
-  // Check if URL is a signed URL or localhost URL that GreenAPI can't access
+  // Check if URL is a signed URL or localhost URL
   const isSignedUrl = mediaUrl.includes('?token=') || mediaUrl.includes('/storage/v1/object/sign/');
   const isLocalhost = mediaUrl.includes('127.0.0.1') || mediaUrl.includes('localhost');
   
-  if (isLocalhost) {
-    return errorResponse('לא ניתן לשלוח מדיה בפיתוח מקומי. GreenAPI לא יכול לגשת לקבצים ב-localhost.', 400);
-  }
-  
+  // Handle signed URLs first - convert to public URL format
   if (isSignedUrl) {
-    // Try to convert signed URL to public URL
     let filePath = '';
     if (mediaUrl.includes('/storage/v1/object/sign/')) {
       const signIndex = mediaUrl.indexOf('/storage/v1/object/sign/');
@@ -39,19 +35,113 @@ async function handleMediaMessage(
         const pathEnd = mediaUrl.indexOf('?', pathStart);
         filePath = pathEnd !== -1 ? mediaUrl.substring(pathStart, pathEnd) : mediaUrl.substring(pathStart);
       }
+    } else if (mediaUrl.includes('?token=')) {
+      // Handle signed URLs with token parameter (e.g., from createSignedUrl)
+      const urlParts = new URL(mediaUrl);
+      const pathMatch = urlParts.pathname.match(/\/storage\/v1\/object\/sign\/(.+)$/);
+      if (pathMatch) {
+        filePath = pathMatch[1];
+      }
     }
     
     if (filePath && filePath.startsWith('templates/')) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
       if (supabaseUrl) {
         const baseUrl = supabaseUrl.replace(/\/$/, '');
-        mediaUrl = `${baseUrl}/storage/v1/object/public/client-assets/${filePath}`;
+        // For localhost, we need to use the public endpoint or download and proxy
+        if (isLocalhost) {
+          // In local development, download the file and create a data URL or use a different approach
+          // Since GreenAPI can't access localhost, we'll download the file and upload it via a proxy
+          // For now, let's try using the storage public endpoint if available
+          // If the bucket is private, we'll need to download and re-upload to a public service
+          
+          // For localhost, we need to make the file publicly accessible for GreenAPI
+          // Since GreenAPI servers can't access localhost, we'll:
+          // 1. Download the file using the signed URL (edge function can access localhost)
+          // 2. Create a new signed URL with very long expiry that uses the public endpoint format
+          //    This might work if Supabase local storage is accessible via public endpoint
+          // 3. If that doesn't work, we'll need to use ngrok or a public file hosting service
+          
+          console.log('[send-whatsapp-message] Localhost detected for templates, creating long-lived signed URL...');
+          
+          try {
+            const supabaseAdmin = createSupabaseAdmin();
+            const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+            
+            // Create a new signed URL with very long expiry (1 year) using admin client
+            // The signed URL should work from GreenAPI servers if they can resolve localhost
+            // But since they can't, we need an alternative approach
+            
+            // Alternative: For local development, check if we're using ngrok or similar
+            // If SUPABASE_URL contains a public domain (not localhost), use that
+            const isPublicUrl = !supabaseUrl.includes('127.0.0.1') && !supabaseUrl.includes('localhost');
+            
+            if (isPublicUrl) {
+              // If using ngrok or similar, the URL should work
+              const { data: urlData, error: urlError } = await supabaseAdmin.storage
+                .from('client-assets')
+                .createSignedUrl(filePath, 31536000); // 1 year expiry
+              
+              if (!urlError && urlData?.signedUrl) {
+                mediaUrl = urlData.signedUrl;
+                console.log('[send-whatsapp-message] Created long-lived signed URL for public domain');
+              }
+          } else {
+            // For true localhost, create a signed URL anyway
+            // Note: GreenAPI servers cannot access localhost URLs directly
+            // Solutions for local dev:
+            // 1. Use ngrok to expose localhost: npx ngrok http 54321
+            // 2. Make the storage bucket temporarily public for development
+            // 3. Upload files to a public cloud storage service
+            
+            const { data: urlData, error: urlError } = await supabaseAdmin.storage
+              .from('client-assets')
+              .createSignedUrl(filePath, 31536000); // 1 year expiry
+            
+            if (!urlError && urlData?.signedUrl) {
+              mediaUrl = urlData.signedUrl;
+              console.warn('[send-whatsapp-message] Using localhost signed URL');
+              console.warn('[send-whatsapp-message] For local dev: Use ngrok (npx ngrok http 54321) to expose Supabase publicly, then update SUPABASE_URL');
+              // Continue - let GreenAPI try to access it. If ngrok is set up, it might work.
+            } else {
+              return errorResponse(
+                `Failed to create signed URL for local file: ${urlError?.message || 'Unknown error'}`,
+                400
+              );
+            }
+          }
+            
+          } catch (fetchError: any) {
+            console.error('[send-whatsapp-message] Error processing localhost file:', fetchError);
+            return errorResponse(`Failed to process media file for local development: ${fetchError.message}`, 400);
+          }
+        } else {
+          // For production (non-localhost), create a signed URL
+          // Public URL format only works if bucket is public, which ours is not
+          const supabaseAdmin = createSupabaseAdmin();
+          const { data: urlData, error: urlError } = await supabaseAdmin.storage
+            .from('client-assets')
+            .createSignedUrl(filePath, 31536000); // 1 year expiry
+          
+          if (!urlError && urlData?.signedUrl) {
+            mediaUrl = urlData.signedUrl;
+          } else {
+            // Cannot use public URL format - bucket is private and requires signed URLs
+            return errorResponse(
+              `Failed to create signed URL for media file: ${urlError?.message || 'Unknown error'}`,
+              400
+            );
+          }
+        }
       } else {
-        return errorResponse('לא ניתן לשלוח מדיה עם קישור פרטי. אנא ודא שהמדיה נגישה באופן ציבורי.', 400);
+        return errorResponse('לא ניתן לשלוח מדיה עם קישור פרטי. SUPABASE_URL לא מוגדר.', 400);
       }
     } else {
-      return errorResponse('לא ניתן לשלוח מדיה עם קישור פרטי. GreenAPI דורש קישור ציבורי.', 400);
+      return errorResponse('לא ניתן לשלוח מדיה עם קישור פרטי. GreenAPI דורש קישור ציבורי או נתיב תבנית תקין.', 400);
     }
+  } else if (isLocalhost && !mediaUrl.startsWith('data:')) {
+    // If it's localhost but not a signed URL (shouldn't happen, but handle it)
+    return errorResponse('לא ניתן לשלוח מדיה מפיתוח מקומי ללא קישור חתום. אנא העלה את הקובץ ל-Supabase Storage תחילה.', 400);
   }
 
   // Determine file extension

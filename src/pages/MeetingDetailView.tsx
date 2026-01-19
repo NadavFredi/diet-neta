@@ -13,6 +13,7 @@ import { useState, useEffect } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { ClientHero } from '@/components/dashboard/ClientHero';
+import { ClientHeroBar } from '@/components/dashboard/ClientHeroBar';
 import { ResizableNotesPanel } from '@/components/dashboard/ResizableNotesPanel';
 import { LeadSidebarContainer } from '@/components/dashboard/LeadSidebarContainer';
 import { Card, CardContent } from '@/components/ui/card';
@@ -58,6 +59,11 @@ const MEETING_TYPES = {
     label: 'פגישת תזונה',
     color: 'bg-green-100 text-green-800 border-green-300',
     icon: '🥗',
+  },
+  'תיאום תקציב': {
+    label: 'תיאום תקציב',
+    color: 'bg-orange-100 text-orange-800 border-orange-300',
+    icon: '💰',
   },
 } as const;
 
@@ -169,20 +175,47 @@ const MeetingDetailView = () => {
     return 'bg-gray-50 text-gray-700 border-gray-200';
   };
 
+  // Get sidebar states from Redux (same as customer page) - MUST be before early returns
+  const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
+  const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
+
+  // Modal state management (same as lead page)
+  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
+  const [isTraineeSettingsOpen, setIsTraineeSettingsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Get notes count for the customer
+  const notes = useAppSelector(selectCustomerNotes(customer?.id));
+  const notesCount = notes?.length || 0;
+
+  // Fetch notes when customer changes - MUST be before early returns
+  useEffect(() => {
+    if (customer?.id) {
+      dispatch(fetchCustomerNotes(customer.id));
+    }
+  }, [customer?.id, dispatch]);
+
+  const HEADER_HEIGHT_LOADING = 60;
+
   if (isLoading) {
     return (
       <>
-        <DashboardHeader 
-          userEmail={user?.email} 
-          onLogout={handleLogout}
-          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-        />
-        <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
+        <div
+          className="fixed top-0 left-0 right-0 z-40 flex-shrink-0"
+          style={{ height: `${HEADER_HEIGHT_LOADING}px` }}
+        >
+          <DashboardHeader 
+            userEmail={user?.email} 
+            onLogout={handleLogout}
+            sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+          />
+        </div>
+        <div className="min-h-screen" dir="rtl" style={{ paddingTop: `${HEADER_HEIGHT_LOADING}px` }}>
           <main 
             className="bg-gray-50 overflow-y-auto transition-all duration-300 ease-in-out" 
             style={{ 
               marginRight: `${sidebarWidth.width}px`,
-              minHeight: 'calc(100vh - 88px)',
+              minHeight: `calc(100vh - ${HEADER_HEIGHT_LOADING}px)`,
             }}
           >
             <div className="p-6">
@@ -202,17 +235,22 @@ const MeetingDetailView = () => {
   if (!meeting || !customer) {
     return (
       <>
-        <DashboardHeader 
-          userEmail={user?.email} 
-          onLogout={handleLogout}
-          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-        />
-        <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
+        <div
+          className="fixed top-0 left-0 right-0 z-40 flex-shrink-0"
+          style={{ height: `${HEADER_HEIGHT_LOADING}px` }}
+        >
+          <DashboardHeader 
+            userEmail={user?.email} 
+            onLogout={handleLogout}
+            sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+          />
+        </div>
+        <div className="min-h-screen" dir="rtl" style={{ paddingTop: `${HEADER_HEIGHT_LOADING}px` }}>
           <main 
             className="bg-gray-50 overflow-y-auto transition-all duration-300 ease-in-out" 
             style={{ 
               marginRight: `${sidebarWidth.width}px`,
-              minHeight: 'calc(100vh - 88px)',
+              minHeight: `calc(100vh - ${HEADER_HEIGHT_LOADING}px)`,
             }}
           >
             <div className="p-6">
@@ -235,11 +273,36 @@ const MeetingDetailView = () => {
 
   // Extract scheduling data
   const extractSchedulingData = () => {
+    // First, check for direct event_start_time and event_end_time fields (from custom webhook payloads)
+    if (meetingData.event_start_time || meetingData.event_end_time || meetingData.eventStartTime || meetingData.eventEndTime) {
+      const meetingType = meetingData['סוג פגישה'] || 
+                        meetingData.meeting_type ||
+                        meetingData['Form_name'] ||
+                        'פגישת הכרות';
+      return {
+        name: meetingType,
+        eventStartTime: meetingData.event_start_time || meetingData.eventStartTime,
+        eventEndTime: meetingData.event_end_time || meetingData.eventEndTime,
+        timezone: meetingData.timezone || null,
+        scheduledUserName: meetingData.scheduledUserName || null,
+        scheduledUserEmail: meetingData.scheduledUserEmail || null,
+        email: meetingData.email || null,
+        fullName: meetingData.fullName || null,
+      };
+    }
+
     if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
       const scheduling = meetingData.scheduling[0];
       if (scheduling.value) {
+        // Check for meeting type in meeting_data first, then fall back to scheduling data
+        const meetingType = meetingData['סוג פגישה'] || 
+                          meetingData.meeting_type ||
+                          meetingData['Form_name'] ||
+                          scheduling.name || 
+                          scheduling.value.name || 
+                          'פגישת הכרות';
         return {
-          name: scheduling.name || scheduling.value.name || 'פגישת הכרות',
+          name: meetingType,
           eventStartTime: scheduling.value.eventStartTime,
           eventEndTime: scheduling.value.eventEndTime,
           timezone: scheduling.value.timezone,
@@ -255,8 +318,15 @@ const MeetingDetailView = () => {
     const eventEndTimeKey = 'scheduling[0].value.eventEndTime';
     
     if (meetingData[eventStartTimeKey] || meetingData[eventEndTimeKey]) {
+      // Check for meeting type in meeting_data first, then fall back to scheduling data
+      const meetingType = meetingData['סוג פגישה'] || 
+                        meetingData.meeting_type ||
+                        meetingData['Form_name'] ||
+                        meetingData['scheduling[0].name'] || 
+                        meetingData['scheduling[0].value.name'] || 
+                        'פגישת הכרות';
       return {
-        name: meetingData['scheduling[0].name'] || meetingData['scheduling[0].value.name'] || 'פגישת הכרות',
+        name: meetingType,
         eventStartTime: meetingData[eventStartTimeKey],
         eventEndTime: meetingData[eventEndTimeKey],
         timezone: meetingData['scheduling[0].value.timezone'],
@@ -304,8 +374,12 @@ const MeetingDetailView = () => {
     }
   }
 
-  // Determine meeting type
-  const meetingTypeName = schedulingData?.name || meetingData['פגישת הכרות'] || 'פגישת הכרות';
+  // Determine meeting type - check multiple possible field names
+  const meetingTypeName = schedulingData?.name || 
+                         meetingData['סוג פגישה'] || 
+                         meetingData.meeting_type ||
+                         meetingData['פגישת הכרות'] || 
+                         'פגישת הכרות';
   const meetingType = MEETING_TYPES[meetingTypeName as MeetingTypeKey] || {
     label: meetingTypeName,
     color: 'bg-gray-100 text-gray-800 border-gray-300',
@@ -324,49 +398,77 @@ const MeetingDetailView = () => {
 
   const status = meetingData.status || meetingData['סטטוס'] || 'פעיל';
 
-  // Get sidebar states from Redux (same as customer page)
-  const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
-  const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
-
-  // Fetch notes when customer changes
-  useEffect(() => {
-    if (customer?.id) {
-      dispatch(fetchCustomerNotes(customer.id));
-    }
-  }, [customer?.id, dispatch]);
+  const HEADER_HEIGHT = 60;
 
   return (
     <>
-      <DashboardHeader 
-        userEmail={user?.email} 
-        onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-      />
+      {/* Top Navigation Header - Fixed (spans full width) */}
+      <div
+        className="fixed top-0 left-0 right-0 z-40 flex-shrink-0"
+        style={{ height: `${HEADER_HEIGHT}px` }}
+      >
+        <DashboardHeader 
+          userEmail={user?.email} 
+          onLogout={handleLogout}
+          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+          clientHeroContent={
+            customer ? (
+              <ClientHeroBar
+                customer={customer}
+                mostRecentLead={leadData as any}
+                onBack={handleBack}
+                onWhatsApp={handleWhatsApp}
+                onUpdateCustomer={handleUpdateCustomer}
+                onViewCustomerProfile={handleViewCustomerProfile}
+                onPaymentHistoryClick={() => setIsPaymentHistoryOpen(true)}
+                onTraineeSettingsClick={() => setIsTraineeSettingsOpen(true)}
+                onToggleExpand={() => setIsExpanded(!isExpanded)}
+                isExpanded={isExpanded}
+                notesCount={notesCount}
+              />
+            ) : undefined
+          }
+        />
+      </div>
           
       {/* Main Content Area - Below Navigation Header */}
       <div 
         className="flex flex-col flex-1 overflow-hidden"
         style={{ 
-          marginTop: '88px',
+          marginTop: `${HEADER_HEIGHT}px`,
           marginRight: `${sidebarWidth.width}px`, // Account for navigation sidebar
-          height: 'calc(100vh - 88px)'
+          height: `calc(100vh - ${HEADER_HEIGHT}px)`
         }}
         dir="rtl"
       >
-        {/* Page Header (ClientHero) - Full Width, Fixed at Top */}
-        <div className="flex-shrink-0 w-full bg-white border-b border-gray-200">
-          <ClientHero
-            customer={customer}
-            mostRecentLead={leadData as any}
-            status={status}
-            onBack={handleBack}
-            onWhatsApp={handleWhatsApp}
-            onUpdateLead={handleUpdateLead}
-            onUpdateCustomer={handleUpdateCustomer}
-            getStatusColor={getStatusColor}
-            onViewCustomerProfile={handleViewCustomerProfile}
-          />
-        </div>
+        {/* Page Header (ClientHero) - Full Width, Fixed at Top - Only show expandable section when main bar is in header */}
+        {customer && (
+          <div
+            className="flex-shrink-0 w-full bg-white border-b border-gray-200"
+            style={{
+              marginTop: isExpanded ? 'var(--expandable-height, 0px)' : '0px'
+            }}
+          >
+            <ClientHero
+              customer={customer}
+              mostRecentLead={leadData as any}
+              status={status}
+              onBack={handleBack}
+              onWhatsApp={handleWhatsApp}
+              onUpdateLead={handleUpdateLead}
+              onUpdateCustomer={handleUpdateCustomer}
+              getStatusColor={getStatusColor}
+              onViewCustomerProfile={handleViewCustomerProfile}
+              hideMainBar={true}
+              isPaymentHistoryOpen={isPaymentHistoryOpen}
+              onPaymentHistoryClose={() => setIsPaymentHistoryOpen(false)}
+              isTraineeSettingsOpen={isTraineeSettingsOpen}
+              onTraineeSettingsClose={() => setIsTraineeSettingsOpen(false)}
+              isExpanded={isExpanded}
+              onToggleExpand={() => setIsExpanded(!isExpanded)}
+            />
+          </div>
+        )}
 
         {/* Main Content Wrapper - Dual Column Layout (Body | Notes) */}
         <div 
@@ -487,14 +589,12 @@ const MeetingDetailView = () => {
                       <div className="space-y-3">
                         <div>
                           <label className="text-xs font-semibold text-gray-500 block mb-1">סוג פגישה</label>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className={cn("w-full justify-center border", meetingType.color)}
-                          >
-                            <Handshake className="h-4 w-4 ml-1.5" />
-                            {meetingType.label}
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Handshake className="h-4 w-4 text-gray-400" />
+                            <p className="text-sm text-gray-900">
+                              {meetingType.label}
+                            </p>
+                          </div>
                         </div>
                         <div>
                           <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך</label>

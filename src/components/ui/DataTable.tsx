@@ -87,6 +87,11 @@ export interface DataTableProps<T> {
   resourceKey?: ResourceKey; // Resource key for Redux state management
   initialColumnVisibility?: Record<string, boolean>; // Optional initial visibility state (deprecated - use Redux)
   initialColumnOrder?: string[]; // Optional initial column order (deprecated - use Redux)
+  // Server-side sorting (for leads)
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  serverSideSorting?: boolean; // If true, disable client-side sorting and use onSortChange
+  sortBy?: string; // Current sort column (for server-side sorting)
+  sortOrder?: 'ASC' | 'DESC'; // Current sort order (for server-side sorting)
 }
 
 // Helper function to get header text and smart truncate
@@ -357,9 +362,33 @@ export function DataTable<T extends Record<string, any>>({
   resourceKey,
   initialColumnVisibility,
   initialColumnOrder,
+  onSortChange,
+  serverSideSorting = false,
+  sortBy: externalSortBy,
+  sortOrder: externalSortOrder,
 }: DataTableProps<T>) {
   const dispatch = useAppDispatch();
+  
+  // For server-side sorting, sync sorting state from props
+  // For client-side sorting, use local state
+  const serverSortingState = useMemo<SortingState>(() => {
+    if (serverSideSorting && externalSortBy) {
+      return [{
+        id: externalSortBy,
+        desc: externalSortOrder === 'DESC',
+      }];
+    }
+    return [];
+  }, [serverSideSorting, externalSortBy, externalSortOrder]);
+  
   const [sorting, setSorting] = useState<SortingState>([]);
+  
+  // Sync sorting state with server-side sorting props
+  useEffect(() => {
+    if (serverSideSorting && externalSortBy) {
+      setSorting(serverSortingState);
+    }
+  }, [serverSideSorting, externalSortBy, externalSortOrder, serverSortingState]);
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const tableRef = React.useRef<HTMLDivElement>(null);
   const [hasMeasured, setHasMeasured] = useState(false);
@@ -689,7 +718,18 @@ export function DataTable<T extends Record<string, any>>({
     const column = table.getColumn(columnId);
     if (!column || !column.getCanSort()) return null;
 
-    const sortDirection = column.getIsSorted();
+    // For server-side sorting, check external sortBy/sortOrder props
+    // For client-side sorting, use table's sorting state
+    let sortDirection: false | 'asc' | 'desc' = false;
+    
+    if (serverSideSorting && externalSortBy === columnId) {
+      // Server-side sorting: use props
+      sortDirection = externalSortOrder === 'ASC' ? 'asc' : 'desc';
+    } else {
+      // Client-side sorting: use table's sorting state
+      sortDirection = column.getIsSorted();
+    }
+
     if (sortDirection === 'asc') {
       return <ArrowUp className="h-4 w-4 text-blue-600" />;
     }
@@ -701,7 +741,25 @@ export function DataTable<T extends Record<string, any>>({
 
   const handleHeaderClick = (columnId: string) => {
     const column = table.getColumn(columnId);
-    if (column && column.getCanSort()) {
+    if (!column || !column.getCanSort()) return;
+
+    // If server-side sorting is enabled, use onSortChange callback
+    if (serverSideSorting && onSortChange) {
+      // Determine new sort order based on current sortBy/sortOrder props
+      let newSortOrder: 'ASC' | 'DESC' = 'DESC';
+
+      if (externalSortBy === columnId) {
+        // Currently sorting by this column - toggle order
+        newSortOrder = externalSortOrder === 'DESC' ? 'ASC' : 'DESC';
+      } else {
+        // Not sorting by this column yet - default to DESC
+        newSortOrder = 'DESC';
+      }
+
+      // Call server-side sort handler
+      onSortChange(columnId, newSortOrder);
+    } else {
+      // Client-side sorting (existing behavior)
       column.toggleSorting(undefined, true);
     }
   };

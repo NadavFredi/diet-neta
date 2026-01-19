@@ -206,7 +206,7 @@ export const BudgetDetailsModal = ({
                             </div>
                             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">תוכנית תזונה מפורטת</h3>
                           </div>
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             <CompactField 
                               label="שם התבנית" 
                               value={nutritionTemplate.name}
@@ -217,11 +217,130 @@ export const BudgetDetailsModal = ({
                                 <p className="text-xs font-semibold text-slate-900">{nutritionTemplate.description}</p>
                               </div>
                             )}
-                            <div className="mt-2">
-                              <Badge variant="outline" className="text-[10px] bg-slate-100 text-slate-600 border-slate-300">
-                                אין נתונים מפורטים זמינים
-                              </Badge>
-                            </div>
+
+                            {/* Detailed Targets */}
+                            {nutritionTemplate.targets && (
+                              <div className="mt-3 pt-3 border-t border-slate-100">
+                                <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wide block mb-2">יעדי מקרו-נוטריאנטים מפורטים</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {nutritionTemplate.targets.calories && (
+                                    <CompactField 
+                                      label="קלוריות" 
+                                      value={`${nutritionTemplate.targets.calories} קק"ל`}
+                                    />
+                                  )}
+                                  {nutritionTemplate.targets.protein && (
+                                    <CompactField 
+                                      label="חלבון" 
+                                      value={`${nutritionTemplate.targets.protein} גרם`}
+                                    />
+                                  )}
+                                  {nutritionTemplate.targets.carbs && (
+                                    <CompactField 
+                                      label="פחמימות" 
+                                      value={`${nutritionTemplate.targets.carbs} גרם`}
+                                    />
+                                  )}
+                                  {nutritionTemplate.targets.fat && (
+                                    <CompactField 
+                                      label="שומן" 
+                                      value={`${nutritionTemplate.targets.fat} גרם`}
+                                    />
+                                  )}
+                                  {nutritionTemplate.targets.fiber && (
+                                    <CompactField 
+                                      label="סיבים" 
+                                      value={`${nutritionTemplate.targets.fiber} גרם`}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Activity Entries (METs) */}
+                            {nutritionTemplate.activity_entries && Array.isArray(nutritionTemplate.activity_entries) && nutritionTemplate.activity_entries.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-slate-100">
+                                <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wide block mb-2">פעילות גופנית (METS)</span>
+                                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                                  {nutritionTemplate.activity_entries.map((activity: any, idx: number) => (
+                                    <div key={activity.id || idx} className="text-xs bg-slate-50 rounded-md px-2 py-1.5 border border-slate-200">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="font-semibold text-slate-900">{activity.activityType || 'פעילות'}</span>
+                                        <div className="flex items-center gap-2 text-slate-600">
+                                          {activity.mets && (
+                                            <span className="text-[10px]">METS: {activity.mets}</span>
+                                          )}
+                                          {activity.minutesPerWeek && (
+                                            <span className="text-[10px]">{activity.minutesPerWeek} דק'/שבוע</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Manual Fields */}
+                            {nutritionTemplate.manual_fields && (
+                              <div className="mt-3 pt-3 border-t border-slate-100">
+                                <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wide block mb-2">שדות ידניים</span>
+                                <div className="space-y-1.5">
+                                  {nutritionTemplate.manual_fields.steps && (
+                                    <CompactField 
+                                      label="יעד צעדים" 
+                                      value={nutritionTemplate.manual_fields.steps.toLocaleString()}
+                                    />
+                                  )}
+                                  {nutritionTemplate.manual_fields.workouts && (
+                                    <div>
+                                      <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wide block mb-0.5">אימונים</span>
+                                      <p className="text-xs font-semibold text-slate-900">{nutritionTemplate.manual_fields.workouts}</p>
+                                    </div>
+                                  )}
+                                  {nutritionTemplate.manual_fields.supplements && (
+                                    <div>
+                                      <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wide block mb-0.5">תוספים</span>
+                                      <p className="text-xs font-semibold text-slate-900">{nutritionTemplate.manual_fields.supplements}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Manual Override Info */}
+                            {nutritionTemplate.manual_override && Object.keys(nutritionTemplate.manual_override).length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-slate-100">
+                                <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wide block mb-2">שדות שנעלו ידנית</span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {nutritionTemplate.manual_override.calories && (
+                                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] px-1.5 py-0.5">
+                                      קלוריות
+                                    </Badge>
+                                  )}
+                                  {nutritionTemplate.manual_override.protein && (
+                                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] px-1.5 py-0.5">
+                                      חלבון
+                                    </Badge>
+                                  )}
+                                  {nutritionTemplate.manual_override.carbs && (
+                                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] px-1.5 py-0.5">
+                                      פחמימות
+                                    </Badge>
+                                  )}
+                                  {nutritionTemplate.manual_override.fat && (
+                                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] px-1.5 py-0.5">
+                                      שומן
+                                    </Badge>
+                                  )}
+                                  {nutritionTemplate.manual_override.fiber && (
+                                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] px-1.5 py-0.5">
+                                      סיבים
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>

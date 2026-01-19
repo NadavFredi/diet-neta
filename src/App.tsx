@@ -16,12 +16,14 @@ import TemplatesManagement from "./pages/TemplatesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
 import BudgetManagement from "./pages/BudgetManagement.tsx";
 import SubscriptionTypesManagement from "./pages/SubscriptionTypesManagement.tsx";
+import PaymentsManagement from "./pages/PaymentsManagement.tsx";
 import KnowledgeBaseManagement from "./pages/KnowledgeBaseManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
 import MeetingsManagement from "./pages/MeetingsManagement.tsx";
 import MeetingDetailView from "./pages/MeetingDetailView.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
 import { CheckInSettingsPage } from "./pages/CheckInSettingsPage.tsx";
+import { WhatsAppAutomationsPage } from "./pages/WhatsAppAutomationsPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ClientDashboard from "./pages/client/ClientDashboard.tsx";
 import { InviteAccept } from "./pages/InviteAccept.tsx";
@@ -125,6 +127,14 @@ const AppContent = () => {
             }
           />
           <Route
+            path="/dashboard/payments"
+            element={
+              <ProtectedRoute>
+                <PaymentsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/dashboard/knowledge-base"
             element={
               <ProtectedRoute>
@@ -145,6 +155,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <CheckInSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/whatsapp-automations"
+            element={
+              <ProtectedRoute>
+                <WhatsAppAutomationsPage />
               </ProtectedRoute>
             }
           />

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Calendar, 
   Flame,
+  UtensilsCrossed,
   Beef,
   Wheat,
   Droplets,
@@ -192,141 +193,56 @@ export const NutritionPlanCard = ({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Description */}
-        {nutritionPlan.description && (
-          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-            <div className="flex items-start gap-2">
-              <FileText className="h-5 w-5 text-slate-600 mt-0.5 flex-shrink-0" />
-              <p className="text-slate-700 leading-relaxed">{nutritionPlan.description}</p>
-            </div>
+        {/* Nutrition Plan Section - Print Budget Design */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center gap-2 mb-4">
+            <UtensilsCrossed className="h-5 w-5 text-blue-600" />
+            <h3 className="text-xl font-bold text-gray-800">תוכנית תזונה</h3>
           </div>
-        )}
+          
+          {nutritionPlan.description && (
+            <div className="mb-4">
+              <p className="font-semibold text-gray-700 mb-2">{nutritionPlan.description}</p>
+            </div>
+          )}
 
-        {/* Macro Targets Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Calories */}
-          <div className="bg-orange-50 rounded-xl p-5 border-2 border-orange-200">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-orange-200 rounded-lg">
-                <Flame className="h-5 w-5 text-orange-700" />
+          {/* Nutrition Targets */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-800 mb-3">יעדי מקרו-נוטריאנטים</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs text-blue-600 mb-1">קלוריות</p>
+                <p className="text-lg font-bold text-blue-900">
+                  {nutritionPlan.targets.calories || '—'}
+                </p>
               </div>
               <div>
-                <p className="text-sm font-medium text-orange-600">קלוריות</p>
-                <p className="text-2xl font-bold text-orange-900">{nutritionPlan.targets.calories}</p>
-              </div>
-            </div>
-            <p className="text-xs text-orange-600 mt-2">קק״ל יומי</p>
-          </div>
-
-          {/* Protein */}
-          <div className="bg-red-50 rounded-xl p-5 border-2 border-red-200">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-red-200 rounded-lg">
-                <Beef className="h-5 w-5 text-red-700" />
+                <p className="text-xs text-blue-600 mb-1">חלבון (גרם)</p>
+                <p className="text-lg font-bold text-blue-900">
+                  {nutritionPlan.targets.protein || '—'}
+                </p>
               </div>
               <div>
-                <p className="text-sm font-medium text-red-600">חלבון</p>
-                <p className="text-2xl font-bold text-red-900">{nutritionPlan.targets.protein}</p>
-              </div>
-            </div>
-            <p className="text-xs text-red-600 mt-2">{percentages.protein}% • גרם יומי</p>
-          </div>
-
-          {/* Carbs */}
-          <div className="bg-blue-50 rounded-xl p-5 border-2 border-blue-200">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-200 rounded-lg">
-                <Wheat className="h-5 w-5 text-blue-700" />
+                <p className="text-xs text-blue-600 mb-1">פחמימות (גרם)</p>
+                <p className="text-lg font-bold text-blue-900">
+                  {nutritionPlan.targets.carbs || '—'}
+                </p>
               </div>
               <div>
-                <p className="text-sm font-medium text-blue-600">פחמימות</p>
-                <p className="text-2xl font-bold text-blue-900">{nutritionPlan.targets.carbs}</p>
+                <p className="text-xs text-blue-600 mb-1">שומן (גרם)</p>
+                <p className="text-lg font-bold text-blue-900">
+                  {nutritionPlan.targets.fat || '—'}
+                </p>
               </div>
             </div>
-            <p className="text-xs text-blue-600 mt-2">{percentages.carbs}% • גרם יומי</p>
-          </div>
-
-          {/* Fat */}
-          <div className="bg-amber-50 rounded-xl p-5 border-2 border-amber-200">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-amber-200 rounded-lg">
-                <Droplets className="h-5 w-5 text-amber-700" />
+            {nutritionPlan.targets.fiber && (
+              <div className="mt-3 pt-3 border-t border-blue-200">
+                <p className="text-xs text-blue-600 mb-1">סיבים (גרם)</p>
+                <p className="text-lg font-bold text-blue-900">
+                  {nutritionPlan.targets.fiber || '—'}
+                </p>
               </div>
-              <div>
-                <p className="text-sm font-medium text-amber-600">שומן</p>
-                <p className="text-2xl font-bold text-amber-900">{nutritionPlan.targets.fat}</p>
-              </div>
-            </div>
-            <p className="text-xs text-amber-600 mt-2">{percentages.fat}% • גרם יומי</p>
-          </div>
-
-          {/* Fiber */}
-          <div className="bg-green-50 rounded-xl p-5 border-2 border-green-200">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-green-200 rounded-lg">
-                <Leaf className="h-5 w-5 text-green-700" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-green-600">סיבים</p>
-                <p className="text-2xl font-bold text-green-900">{nutritionPlan.targets.fiber}</p>
-              </div>
-            </div>
-            <p className="text-xs text-green-600 mt-2">גרם יומי</p>
-          </div>
-        </div>
-
-        {/* Macro Distribution Summary */}
-        <div className="mt-6 pt-6 border-t-2 border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-            <Target className="h-5 w-5 text-blue-600" />
-            התפלגות מקרו-נוטריאנטים
-          </h3>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg p-4 border border-slate-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                  <span className="text-sm font-medium text-slate-700">חלבון</span>
-                </div>
-                <span className="text-lg font-bold text-slate-900">{percentages.protein}%</span>
-              </div>
-              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-red-500 transition-all"
-                  style={{ width: `${percentages.protein}%` }}
-                />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-slate-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                  <span className="text-sm font-medium text-slate-700">פחמימות</span>
-                </div>
-                <span className="text-lg font-bold text-slate-900">{percentages.carbs}%</span>
-              </div>
-              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 transition-all"
-                  style={{ width: `${percentages.carbs}%` }}
-                />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-slate-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-amber-500"></div>
-                  <span className="text-sm font-medium text-slate-700">שומן</span>
-                </div>
-                <span className="text-lg font-bold text-slate-900">{percentages.fat}%</span>
-              </div>
-              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-amber-500 transition-all"
-                  style={{ width: `${percentages.fat}%` }}
-                />
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </CardContent>

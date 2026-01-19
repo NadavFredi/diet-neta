@@ -109,7 +109,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   // Refs for Personal Details card editable fields
   const heightRef = useRef<InlineEditableFieldRef>(null);
   const weightRef = useRef<InlineEditableFieldRef>(null);
-  const birthDateRef = useRef<InlineEditableFieldRef>(null);
+  const ageRef = useRef<InlineEditableFieldRef>(null);
+  const periodRef = useRef<InlineEditableSelectRef>(null);
 
   // Track editing state for all cards
   const [subscriptionEditingFields, setSubscriptionEditingFields] = useState<Set<string>>(new Set());
@@ -229,7 +230,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     const refs = [
       heightRef,
       weightRef,
-      birthDateRef,
+      ageRef,
+      periodRef,
     ];
 
     const savePromises = refs
@@ -243,7 +245,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     const refs = [
       heightRef,
       weightRef,
-      birthDateRef,
+      ageRef,
+      periodRef,
     ];
 
     refs.forEach(ref => {
@@ -306,20 +309,27 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   // This matches the database structure and ensures correct display
   const displayStatus = activeLead.status_sub || activeLead.status_main || 'ללא סטטוס';
 
-  // Calculate age from birth_date
-  const calculateAge = (birthDate: string | null): number | null => {
-    if (!birthDate) return null;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
+  // Get age directly from database, or calculate from birth_date as fallback
+  const getAge = (): number | null => {
+    // First priority: use age field from database
+    if (activeLead?.age !== null && activeLead?.age !== undefined && activeLead?.age > 0) {
+      return activeLead.age;
     }
-    return age;
+    // Fallback: calculate from birth_date if available
+    if (activeLead?.birth_date) {
+      const today = new Date();
+      const birth = new Date(activeLead.birth_date);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      return age;
+    }
+    return null;
   };
 
-  const age = calculateAge(activeLead.birth_date);
+  const age = getAge();
   
   // Calculate BMI if height and weight are available
   const calculateBMI = (height: number | null, weight: number | null): number | null => {
@@ -346,11 +356,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden w-full" dir="rtl">
-      <div className="p-4 w-full min-w-0 text-right">
+      <div className="p-2 sm:p-4 w-full min-w-0 text-right">
         {/* Row 1: 3-Column Grid - Subscription, CRM Status, Personal Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" style={{ gridAutoRows: 'min-content' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Card 1: Subscription Details */}
-          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-100">
@@ -491,7 +501,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Card 2: CRM Status & Info */}
-          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <CardHeaderWithActions
               icon={Target}
               iconBgColor="bg-indigo-100"
@@ -612,7 +622,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Card 3: Personal Details */}
-          <Card className="p-6 border border-slate-100 rounded-xl shadow-md bg-white flex flex-col h-full">
+          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <CardHeaderWithActions
               icon={Target}
               iconBgColor="bg-cyan-100"
@@ -623,10 +633,18 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               onCancel={handlePersonalCancel}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
-              <ReadOnlyField
+              <InlineEditableField
+                ref={ageRef}
                 label="גיל"
-                value={age !== null ? `${age} שנים` : null}
+                value={age || 0}
+                onSave={async (newValue) => {
+                  await onUpdateLead({ age: Number(newValue) });
+                }}
+                type="number"
+                formatValue={(val) => val === 0 || !val ? '-' : `${val} שנים`}
                 className="border-0 p-0"
+                valueClassName="text-sm font-semibold text-slate-900"
+                onEditingChange={(isEditing) => handlePersonalFieldEditingChange('age', isEditing)}
               />
               <InlineEditableField
                 ref={heightRef}
@@ -658,18 +676,19 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                   {bmi !== null ? bmi : '-'}
                 </span>
               </div>
-              <InlineEditableField
-                ref={birthDateRef}
-                label="תאריך לידה"
-                value={activeLead.birth_date || ''}
+              <InlineEditableSelect
+                ref={periodRef}
+                label="מקבלת מחזור"
+                value={activeLead.period === true ? 'כן' : activeLead.period === false ? 'לא' : ''}
+                options={['כן', 'לא']}
                 onSave={async (newValue) => {
-                  await onUpdateLead({ birth_date: String(newValue) });
+                  const boolValue = newValue === 'כן' ? true : newValue === 'לא' ? false : null;
+                  await onUpdateLead({ period: boolValue });
                 }}
-                type="date"
-                formatValue={(val) => val ? formatDate(String(val)) : '-'}
+                formatValue={(val) => val || '-'}
+                badgeClassName="bg-pink-50 text-pink-700 border-pink-200"
                 className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-slate-900"
-                onEditingChange={(isEditing) => handlePersonalFieldEditingChange('birth_date', isEditing)}
+                onEditingChange={(isEditing) => handlePersonalFieldEditingChange('period', isEditing)}
               />
               {activeLead.target_weight && (
                 <ReadOnlyField
@@ -683,7 +702,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         </div>
 
         {/* Row 2: 3-Column Grid - WhatsApp Automation, Fillout Forms, Payment Center */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4" style={{ gridAutoRows: 'min-content' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Card 4: WhatsApp Automation - Compact Version */}
           <LeadAutomationCard
             customer={customer}
@@ -698,30 +717,22 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             leadEmail={customer?.email || activeLead?.email || null} 
             leadPhone={activeLead?.phone || customer?.phone || null}
           />
-          {/* Debug: Log what we're passing to LeadFormsCard */}
-          {console.log('[ActionDashboard] Passing to LeadFormsCard:', {
-            activeLeadId: activeLead?.id || 'NULL',
-            activeLeadIdType: typeof activeLead?.id,
-            customerEmail: customer?.email || 'NULL',
-            activeLeadPhone: activeLead?.phone || 'NULL',
-            customerPhone: customer?.phone || 'NULL',
-            finalLeadId: activeLead?.id || null,
-            finalPhone: activeLead?.phone || customer?.phone || null,
-          }) || null}
 
           {/* Card 6: Stripe Payment Center */}
           <LeadPaymentCard
             customerPhone={activeLead.phone || customer?.phone || null}
             customerName={customer?.full_name || activeLead.name || null}
             customerEmail={customer?.email || activeLead.email || null}
+            customerId={customer?.id || null}
+            leadId={activeLead?.id || null}
           />
         </div>
 
         {/* Row 3: Progress Gallery & Blood Tests - Full Width Grid */}
         {customer?.id && (
-          <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="mb-3 sm:mb-4 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <ProgressGalleryCard customerId={customer.id} />
-            <BloodTestsGalleryCard leadId={activeLead.id} />
+            <BloodTestsGalleryCard leadId={activeLead.id} customerId={customer.id} />
           </div>
         )}
 
@@ -741,7 +752,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             onAddDietPlan={onAddDietPlan}
             onAddSupplementsPlan={() => {
               // Supplements plan creation - placeholder for future implementation
-              console.log('Add supplements plan');
             }}
             onAssignBudget={onAssignBudget || (() => {})}
           />
@@ -754,39 +764,44 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         onOpenChange={setIsCreateSubscriptionModalOpen}
         onConfirm={async (subscriptionType) => {
           try {
-            console.log('Creating subscription with type:', subscriptionType);
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
             
-            // Calculate expiration date: add months to join date
+            // Calculate expiration date based on duration_unit
             const expirationDate = new Date(today);
-            expirationDate.setMonth(expirationDate.getMonth() + subscriptionType.duration);
-            const expirationDateStr = expirationDate.toISOString().split('T')[0];
+            const durationUnit = subscriptionType.duration_unit || 'months';
             
-            console.log('Subscription data being set:', {
-              duration: subscriptionType.duration,
-              price: subscriptionType.price,
-              expirationDate: expirationDateStr,
-            });
+            switch (durationUnit) {
+              case 'days':
+                expirationDate.setDate(expirationDate.getDate() + subscriptionType.duration);
+                break;
+              case 'weeks':
+                expirationDate.setDate(expirationDate.getDate() + (subscriptionType.duration * 7));
+                break;
+              case 'months':
+              default:
+                expirationDate.setMonth(expirationDate.getMonth() + subscriptionType.duration);
+                break;
+            }
+            const expirationDateStr = expirationDate.toISOString().split('T')[0];
             
             // Create a NEW subscription_data object (copy values, not reference)
             // This ensures one-way relationship - template changes don't affect leads
             const updatedSubscription = {
               ...subscriptionData,
               months: subscriptionType.duration, // Copy duration value
+              duration_unit: durationUnit, // Copy duration unit
               initialPrice: subscriptionType.price, // Copy price value
               expirationDate: expirationDateStr, // Calculate expiration date
               status: 'פעיל', // Set status to Active by default
             };
-            
-            console.log('Updated subscription_data:', updatedSubscription);
             
             await onUpdateLead({
               join_date: todayStr,
               subscription_data: updatedSubscription,
             });
           } catch (error: any) {
-            console.error('Error creating subscription:', error);
+            // Error creating subscription
           }
         }}
       />

@@ -117,26 +117,7 @@ export const parsePhoneNumberParts = (phone: string): {
     cleaned = cleaned.substring(1);
   }
   
-  // Try to detect country code
-  // Israel: 972
-  if (cleaned.startsWith('972') && cleaned.length >= 12) {
-    return {
-      countryCode: '972',
-      localNumber: cleaned.substring(3),
-      fullNumber: hasPlus ? `+${cleaned}` : cleaned
-    };
-  }
-  
-  // USA/Canada: 1
-  if (cleaned.startsWith('1') && cleaned.length === 11) {
-    return {
-      countryCode: '1',
-      localNumber: cleaned.substring(1),
-      fullNumber: hasPlus ? `+${cleaned}` : cleaned
-    };
-  }
-  
-  // Try to parse with libphonenumber-js for other countries
+  // Try to parse with libphonenumber-js first (most reliable)
   try {
     const parsed = parsePhoneNumber(phone);
     return {
@@ -145,13 +126,34 @@ export const parsePhoneNumberParts = (phone: string): {
       fullNumber: parsed.number || phone
     };
   } catch {
-    // Fallback: treat as local number
+    // If parsing fails, try manual detection
+  }
+  
+  // Manual detection for common countries
+  // Israel: 972
+  if (cleaned.startsWith('972') && cleaned.length >= 11) {
     return {
-      countryCode: null,
-      localNumber: cleaned,
+      countryCode: '972',
+      localNumber: cleaned.substring(3),
       fullNumber: hasPlus ? `+${cleaned}` : cleaned
     };
   }
+  
+  // USA/Canada: 1 (10 digits after country code)
+  if (cleaned.startsWith('1') && cleaned.length >= 11 && cleaned.length <= 12) {
+    return {
+      countryCode: '1',
+      localNumber: cleaned.substring(1),
+      fullNumber: hasPlus ? `+${cleaned}` : cleaned
+    };
+  }
+  
+  // Fallback: treat as local number
+  return {
+    countryCode: null,
+    localNumber: cleaned,
+    fullNumber: hasPlus ? `+${cleaned}` : cleaned
+  };
 };
 
 /**
@@ -233,7 +235,41 @@ export const validatePhoneNumberFormat = (
   }
   
   try {
-    const country = (countryCode || 'il') as CountryCode;
+    // First, try to parse the number to detect the country automatically
+    let parsed: any = null;
+    let detectedCountry: string | undefined = undefined;
+    
+    try {
+      // Try parsing without country code first - libphonenumber-js can detect it
+      parsed = parsePhoneNumber(cleaned);
+      detectedCountry = parsed.country;
+    } catch {
+      // If parsing fails, try with provided country code
+      if (countryCode) {
+        try {
+          parsed = parsePhoneNumber(cleaned, countryCode as CountryCode);
+          detectedCountry = countryCode;
+        } catch {
+          // Continue to fallback
+        }
+      }
+    }
+    
+    // If we successfully parsed, validate it
+    if (parsed) {
+      if (parsed.isValid()) {
+        return {
+          isValid: true,
+          formatted: parsed.number
+        };
+      } else {
+        // Number is parsed but invalid
+        return { isValid: false, error: 'מספר טלפון לא תקין' };
+      }
+    }
+    
+    // Fallback: Try validation with detected or provided country
+    const country = (detectedCountry || countryCode || 'il') as CountryCode;
     
     // Try to validate with the country code
     let isValid = isValidPhoneNumber(cleaned, country);
@@ -254,7 +290,7 @@ export const validatePhoneNumberFormat = (
           if (firstDigit === '5' || firstDigit === '0' || ['2', '3', '4', '7', '8', '9'].includes(firstDigit)) {
             // Looks valid, try parsing
             try {
-              const parsed = parsePhoneNumber(cleaned, country);
+              const parsed = parsePhoneNumber(cleaned, 'il');
               if (parsed.isValid()) {
                 return {
                   isValid: true,
@@ -271,16 +307,39 @@ export const validatePhoneNumberFormat = (
     }
     
     // Get formatted version
-    const parsed = parsePhoneNumber(cleaned, country);
-    return {
-      isValid: true,
-      formatted: parsed.number
-    };
+    try {
+      const parsed = parsePhoneNumber(cleaned, country);
+      return {
+        isValid: true,
+        formatted: parsed.number
+      };
+    } catch {
+      // If parsing fails but validation passed, return the cleaned number
+      return {
+        isValid: true,
+        formatted: cleaned
+      };
+    }
   } catch (error) {
     // If parsing fails, check if it's a valid length for the country
     if (cleaned.startsWith('+972') && digitsOnly.length >= 11 && digitsOnly.length <= 12) {
       // Israeli number with reasonable length, might be valid
       return { isValid: true, formatted: cleaned };
+    }
+    // For other countries, if it has reasonable length (10-15 digits), might be valid
+    if (digitsOnly.length >= 10 && digitsOnly.length <= 15) {
+      // Try one more time without country code
+      try {
+        const parsed = parsePhoneNumber(cleaned);
+        if (parsed.isValid()) {
+          return {
+            isValid: true,
+            formatted: parsed.number
+          };
+        }
+      } catch {
+        // Continue to error
+      }
     }
     return { isValid: false, error: 'מספר טלפון לא תקין' };
   }
@@ -420,9 +479,20 @@ export const PhoneInput = ({
       return { isValid: false, error: "מספר טלפון לא תקין" }
     }
 
+    // For Israeli numbers, handle leading 0 after country code
+    // Convert +9720526861485 to +972526861485
+    let normalizedNumber = fullNumber;
+    if (fullNumber.startsWith("+9720") && fullNumber.length === 14) {
+      // Remove the extra 0 after 972
+      normalizedNumber = `+972${fullNumber.substring(5)}`;
+    }
+
+    // Use the provided countryCode, or try to detect from selectedCountry, or let validation auto-detect
+    const validationCountryCode = countryCode || selectedCountry?.countryCode;
+    
     const validation = validatePhoneNumberFormat(
-      fullNumber, 
-      countryCode || selectedCountry?.countryCode || defaultCountry
+      normalizedNumber, 
+      validationCountryCode
     );
     
     return {
@@ -437,6 +507,7 @@ export const PhoneInput = ({
       // Use centralized parsing utility
       const parts = parsePhoneNumberParts(value);
       let countryFound = false;
+      let localNumber = parts.localNumber;
 
       // Try to find country by country code
       if (parts.countryCode) {
@@ -447,14 +518,22 @@ export const PhoneInput = ({
         
         if (country) {
           setSelectedCountry(country);
-          setPhoneNumber(parts.localNumber);
+          // For Israeli numbers, remove leading 0 if present
+          if (country.dialCode === "972" && localNumber.startsWith("0") && localNumber.length === 10) {
+            localNumber = localNumber.substring(1);
+          }
+          setPhoneNumber(localNumber);
           countryFound = true;
         } else {
           // Try to match by dial code
           for (const country of allCountries) {
             if (parts.countryCode === country.dialCode) {
               setSelectedCountry(country);
-              setPhoneNumber(parts.localNumber);
+              // For Israeli numbers, remove leading 0 if present
+              if (country.dialCode === "972" && localNumber.startsWith("0") && localNumber.length === 10) {
+                localNumber = localNumber.substring(1);
+              }
+              setPhoneNumber(localNumber);
               countryFound = true;
               break;
             }
@@ -473,7 +552,11 @@ export const PhoneInput = ({
           if (cleanValue.startsWith(country.dialCode)) {
             setSelectedCountry(country);
             // Extract phone number
-            const phone = cleanValue.substring(country.dialCode.length);
+            let phone = cleanValue.substring(country.dialCode.length);
+            // For Israeli numbers, remove leading 0 if present
+            if (country.dialCode === "972" && phone.startsWith("0") && phone.length === 10) {
+              phone = phone.substring(1);
+            }
             setPhoneNumber(phone);
             countryFound = true;
             break;
@@ -487,7 +570,11 @@ export const PhoneInput = ({
         if (defaultCountryData) {
           setSelectedCountry(defaultCountryData);
           // Treat the entire value as the local phone number (remove + if present)
-          const cleanValue = value.replace(/^\+/, "");
+          let cleanValue = value.replace(/^\+/, "");
+          // For Israeli numbers, remove leading 0 if present
+          if (defaultCountryData.dialCode === "972" && cleanValue.startsWith("0") && cleanValue.length === 10) {
+            cleanValue = cleanValue.substring(1);
+          }
           setPhoneNumber(cleanValue);
         }
       }
@@ -510,7 +597,14 @@ export const PhoneInput = ({
   // Separate effect to validate after phoneNumber and selectedCountry are set
   React.useEffect(() => {
     if (value && phoneNumber && selectedCountry && showValidation) {
-      const fullNumber = value.startsWith('+') ? value : `+${selectedCountry.dialCode}${phoneNumber}`;
+      // Use the value directly if it's already in the correct format, otherwise construct it
+      let fullNumber = value.startsWith('+') ? value : `+${selectedCountry.dialCode}${phoneNumber}`;
+      
+      // For Israeli numbers, ensure no extra 0 after country code
+      if (fullNumber.startsWith("+9720") && fullNumber.length === 14) {
+        fullNumber = `+972${fullNumber.substring(5)}`;
+      }
+      
       const validation = validatePhoneNumber(fullNumber, selectedCountry.countryCode);
       setIsValid(validation.isValid);
       setValidationError(validation.error || "");
@@ -611,12 +705,20 @@ export const PhoneInput = ({
 
   // Handle phone number change
   const handlePhoneChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newPhoneNumber = e.target.value.replace(/\D/g, "") // Only digits
+    let newPhoneNumber = e.target.value.replace(/\D/g, "") // Only digits
+    
+    // For Israeli numbers (972), automatically remove leading 0
+    // This allows users to type "0526861485" which becomes "526861485"
+    if (selectedCountry?.dialCode === "972" && newPhoneNumber.startsWith("0") && newPhoneNumber.length === 10) {
+      newPhoneNumber = newPhoneNumber.substring(1) // Remove leading 0
+    }
+    
     setPhoneNumber(newPhoneNumber)
 
     // Combine with country code
     if (selectedCountry && newPhoneNumber) {
       const fullNumber = `+${selectedCountry.dialCode}${newPhoneNumber}`
+      // Ensure we pass the normalized number (without extra 0) to onChange
       onChange?.(fullNumber)
 
       // Validate if showValidation is enabled

@@ -9,7 +9,11 @@ interface LeadListProps {
 }
 
 export const LeadList = ({ leads, columnVisibility }: LeadListProps) => {
-  const visibleColumns = COLUMN_ORDER.filter((col) => columnVisibility[col]);
+  const visibleColumns = COLUMN_ORDER.filter((col) => {
+    // Safeguard: skip birthDate if it somehow still exists
+    if (col === 'birthDate') return false;
+    return columnVisibility[col] !== false;
+  });
 
   if (leads.length === 0) {
     return (

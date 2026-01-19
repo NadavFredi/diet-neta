@@ -127,10 +127,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/receive-fillout-webhook/index.ts"
 
-[functions.sync-fillout-meetings]
-enabled = true
-verify_jwt = true
-entrypoint = "./functions/sync-fillout-meetings/index.ts"
+# [functions.sync-fillout-meetings]
+# DISABLED: Uses Fillout API which has been removed. Only webhook-based integration is used now.
+# enabled = false
+# verify_jwt = true
+# entrypoint = "./functions/sync-fillout-meetings/index.ts"
 
 [functions.send-whatsapp-message]
 enabled = true
@@ -141,11 +142,6 @@ entrypoint = "./functions/send-whatsapp-message/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/receive-whatsapp-webhook/index.ts"
-
-[functions.fillout-api]
-enabled = true
-verify_jwt = true
-entrypoint = "./functions/fillout-api/index.ts"
 
 [functions.stripe-api]
 enabled = true

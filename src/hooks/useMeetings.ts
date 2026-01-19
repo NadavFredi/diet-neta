@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 export interface Meeting {
@@ -25,7 +26,9 @@ export interface Meeting {
 
 // Fetch all meetings with joined lead and customer data
 export const useMeetings = () => {
-  return useQuery({
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
     queryKey: ['meetings'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -40,7 +43,35 @@ export const useMeetings = () => {
       if (error) throw error;
       return (data || []) as Meeting[];
     },
+    // Refetch every 10 seconds to catch new meetings
+    refetchInterval: 10000,
   });
+
+  // Set up real-time subscription for automatic updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('meetings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'meetings',
+        },
+        (payload) => {
+          console.log('[useMeetings] Real-time change detected:', payload.eventType);
+          // Invalidate and refetch meetings when any change occurs
+          queryClient.invalidateQueries({ queryKey: ['meetings'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  return query;
 };
 
 // Fetch a single meeting by ID
@@ -64,6 +95,25 @@ export const useMeeting = (meetingId: string | null) => {
       return data as Meeting;
     },
     enabled: !!meetingId,
+  });
+};
+
+// Delete a meeting
+export const useDeleteMeeting = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (meetingId: string) => {
+      const { error } = await supabase
+        .from('meetings')
+        .delete()
+        .eq('id', meetingId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meetings'] });
+    },
   });
 };
 

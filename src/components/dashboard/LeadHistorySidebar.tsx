@@ -38,7 +38,7 @@ export const LeadHistorySidebar: React.FC<LeadHistorySidebarProps> = ({
   getStatusColor,
   getStatusBorderColor,
 }) => {
-  const { close } = useLeadSidebar();
+  const { closeHistory } = useLeadSidebar();
 
   return (
     <div className="flex-shrink-0 flex flex-col min-h-0 w-[350px]" dir="rtl">
@@ -53,7 +53,7 @@ export const LeadHistorySidebar: React.FC<LeadHistorySidebarProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              onClick={close}
+              onClick={closeHistory}
               className="h-7 w-7 text-gray-500 hover:text-gray-900 hover:bg-white/80"
             >
               <X className="h-4 w-4" />

@@ -5,8 +5,8 @@
  * Can be used in the header navbar to save vertical space.
  */
 
-import React, { useState } from 'react';
-import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard, Settings, MoreVertical, Trash2, Plus, UserCheck, UserX } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard, Settings, MoreVertical, Trash2, Plus, UserCheck, UserX, Calendar } from 'lucide-react';
 
 // WhatsApp Icon Component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -46,11 +46,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useMeetings } from '@/hooks/useMeetings';
+import { MeetingsDataTable } from './MeetingsDataTable';
 import { useAppSelector } from '@/store/hooks';
 import { SmartTraineeActionButton } from './SmartTraineeActionButton';
 import { fetchInvitations } from '@/store/slices/invitationSlice';
 import { useAppDispatch } from '@/store/hooks';
-import { useEffect } from 'react';
 import type { Customer } from '@/hooks/useCustomers';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
@@ -102,6 +110,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { data: allMeetings = [], isLoading: isLoadingMeetings } = useMeetings();
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<'lead' | 'customer' | null>(null);
@@ -110,6 +119,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   const [traineeProfileId, setTraineeProfileId] = useState<string | null>(null);
   const [traineeIsActive, setTraineeIsActive] = useState<boolean | null>(null);
   const [isUpdatingTraineeStatus, setIsUpdatingTraineeStatus] = useState(false);
+  const [isMeetingsModalOpen, setIsMeetingsModalOpen] = useState(false);
 
   // Fetch invitations for this customer
   useEffect(() => {
@@ -281,36 +291,48 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
     }
   };
 
+  // Filter meetings by lead_id or customer_id
+  const leadMeetings = useMemo(() => {
+    if (!lead?.id && !customer?.id) return [];
+    
+    return allMeetings.filter((meeting) => {
+      // Match by lead_id first, then fallback to customer_id
+      if (lead?.id && meeting.lead_id === lead.id) return true;
+      if (customer?.id && meeting.customer_id === customer.id) return true;
+      return false;
+    });
+  }, [allMeetings, lead?.id, customer?.id]);
+
   return (
-    <div className="flex items-center justify-between gap-4 flex-wrap w-full">
+    <div className="flex items-center justify-between gap-1 sm:gap-2 lg:gap-4 flex-wrap w-full">
       {/* Left Side (RTL): Back Button, Name, Phone, Email */}
-      <div className="flex items-center gap-4 flex-wrap min-w-0">
+      <div className="flex items-center gap-1 sm:gap-2 lg:gap-4 flex-wrap min-w-0 flex-1">
         {/* Return Button */}
         <Button
           onClick={onBack}
           variant="ghost"
           size="sm"
-          className="text-gray-600 hover:text-gray-900 flex-shrink-0 h-7 px-2"
+          className="text-gray-600 hover:text-gray-900 flex-shrink-0 h-8 w-8 sm:h-7 sm:w-auto sm:px-2 p-0"
         >
-          <ArrowRight className="h-3.5 w-3.5 ml-1" />
-          חזור
+          <ArrowRight className="h-4 w-4 sm:h-3.5 sm:w-3.5 sm:ml-1" />
+          <span className="hidden sm:inline">חזור</span>
         </Button>
 
         {/* Name - Page Title - Clickable to navigate to customer page */}
         {onViewCustomerProfile ? (
           <button
             onClick={onViewCustomerProfile}
-            className="text-base font-bold text-gray-900 flex-shrink-0 hover:text-[#5B6FB9] transition-colors cursor-pointer"
+            className="text-sm sm:text-base font-bold text-gray-900 flex-shrink-0 hover:text-[#5B6FB9] transition-colors cursor-pointer truncate max-w-[100px] sm:max-w-[150px] lg:max-w-none"
           >
             {customer.full_name}
           </button>
         ) : (
-          <h1 className="text-base font-bold text-gray-900 flex-shrink-0">{customer.full_name}</h1>
+          <h1 className="text-sm sm:text-base font-bold text-gray-900 flex-shrink-0 truncate max-w-[100px] sm:max-w-[150px] lg:max-w-none">{customer.full_name}</h1>
         )}
 
-        {/* Phone - On same line - Editable */}
+        {/* Phone - On same line - Editable - Hidden on very small screens */}
         {onUpdateCustomer && customer && (
-          <div className="flex items-center gap-1.5 flex-shrink-0 group/phone">
+          <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0 group/phone">
             <Phone className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
             <div className="relative">
               {customer.phone ? (
@@ -350,7 +372,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
 
         {/* Email - On same line (optional, can be hidden on smaller screens) */}
         {onUpdateCustomer && customer && customer.email && (
-          <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
+          <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
             <Mail className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
             <span className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
               {customer.email}
@@ -358,13 +380,13 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </div>
         )}
 
-        {/* Toggle Button for Additional Details */}
+        {/* Toggle Button for Additional Details - Hidden on mobile */}
         {onToggleExpand && (
           <Button
             onClick={onToggleExpand}
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 flex items-center gap-1 flex-shrink-0"
+            className="hidden md:flex h-7 px-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 items-center gap-1 flex-shrink-0"
           >
             <span className="text-xs">פרטים נוספים</span>
             <ChevronDown
@@ -378,7 +400,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
       </div>
 
       {/* Right Side (RTL): Action Bar - WhatsApp + Divider + Utility Buttons */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0">
         {/* WhatsApp Button - External Communication */}
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
@@ -386,9 +408,9 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
               size="icon"
               onClick={onWhatsApp}
               variant="outline"
-              className="h-9 w-9 bg-white hover:bg-[#25D366] hover:text-white text-[#25D366] border border-gray-200 hover:border-[#25D366] rounded-lg transition-colors"
+              className="h-8 w-8 bg-white hover:bg-[#25D366] hover:text-white text-[#25D366] border border-gray-200 hover:border-[#25D366] rounded-lg transition-colors flex-shrink-0"
             >
-              <WhatsAppIcon className="h-5 w-5" />
+              <WhatsAppIcon className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="center" dir="rtl">
@@ -396,7 +418,24 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </TooltipContent>
         </Tooltip>
 
-        {/* Payments Button */}
+        {/* Calendar Button - View Meetings */}
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={() => setIsMeetingsModalOpen(true)}
+              variant="outline"
+              className="h-8 w-8 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors flex-shrink-0"
+            >
+              <Calendar className="h-4 w-4" strokeWidth={2.5} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center" dir="rtl">
+            <p>צפה בכל הפגישות</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Payments Button - Hidden on very small screens */}
         {customer && onPaymentHistoryClick && (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
@@ -404,9 +443,9 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 size="icon"
                 onClick={onPaymentHistoryClick}
                 variant="outline"
-                className="h-9 w-9 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors"
+                className="hidden sm:flex h-8 w-8 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors flex-shrink-0"
               >
-                <CreditCard className="h-5 w-5" strokeWidth={2.5} />
+                <CreditCard className="h-4 w-4" strokeWidth={2.5} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" align="center" dir="rtl">
@@ -415,7 +454,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </Tooltip>
         )}
 
-        {/* Trainee Settings Button - Only show if user has a trainee account */}
+        {/* Trainee Settings Button - Hidden on mobile */}
         {customer && customer.user_id && (user?.role === 'admin' || user?.role === 'user') && onTraineeSettingsClick && (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
@@ -423,9 +462,9 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 size="icon"
                 onClick={onTraineeSettingsClick}
                 variant="outline"
-                className="h-9 w-9 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors"
+                className="hidden md:flex h-8 w-8 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors flex-shrink-0"
               >
-                <Settings className="h-5 w-5" strokeWidth={2.5} />
+                <Settings className="h-4 w-4" strokeWidth={2.5} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" align="center" dir="rtl">
@@ -434,14 +473,11 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           </Tooltip>
         )}
 
-
-
-
         {/* Utility Group: Smart Trainee Action (Create/View), History & Notes */}
-        <div className="flex items-center gap-2 flex-shrink-0 pl-8">
-          {/* Smart Trainee Action Button - Only for admins/managers */}
+        <div className="flex items-center gap-1 flex-shrink-0 pl-1 sm:pl-2 lg:pl-4">
+          {/* Smart Trainee Action Button - Hidden on mobile */}
           {(user?.role === 'admin' || user?.role === 'user') && customer && (
-            <>
+            <div className="hidden md:block">
               <SmartTraineeActionButton
                 customerId={customer.id}
                 leadId={lead?.id || null}
@@ -451,8 +487,7 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 customerUserId={customer.user_id || null}
                 customerInvitationUserId={customerInvitation?.user_id || null}
               />
-
-            </>
+            </div>
           )}
 
           {/* Actions Menu (3 dots) */}
@@ -463,9 +498,9 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                   <Button
                     size="icon"
                     variant="outline"
-                    className="h-9 w-9 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 rounded-lg transition-colors"
+                    className="h-8 w-8 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 rounded-lg transition-colors flex-shrink-0"
                   >
-                    <MoreVertical className="h-5 w-5" strokeWidth={2.5} />
+                    <MoreVertical className="h-4 w-4" strokeWidth={2.5} />
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
@@ -481,6 +516,16 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
                 <Plus className="h-4 w-4 flex-shrink-0" />
                 <span>צור ליד חדש ללקוח</span>
               </DropdownMenuItem>
+              {/* Mobile-only: Payment History */}
+              {customer && onPaymentHistoryClick && (
+                <DropdownMenuItem
+                  onClick={onPaymentHistoryClick}
+                  className="cursor-pointer flex items-center gap-2 flex-row-reverse sm:hidden"
+                >
+                  <CreditCard className="h-4 w-4 flex-shrink-0" />
+                  <span>היסטוריית תשלומים</span>
+                </DropdownMenuItem>
+              )}
               {traineeProfileId && traineeIsActive !== null && (
                 <>
                   <DropdownMenuSeparator />
@@ -516,22 +561,23 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Vertical Divider */}
-          <div className="h-6 w-[1.5px] bg-gray-400" />
-          {/* History Toggle Button */}
+          {/* Vertical Divider - Hidden on mobile */}
+          <div className="h-6 w-[1.5px] bg-gray-400 hidden lg:block" />
+          
+          {/* History Toggle Button - Hidden on mobile */}
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <Button
                 size="icon"
                 onClick={toggleHistory}
                 className={cn(
-                  "h-9 w-9 rounded-lg transition-colors",
+                  "hidden lg:flex h-8 w-8 rounded-lg transition-colors flex-shrink-0",
                   isHistoryOpen
                     ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
                     : "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                 )}
               >
-                <History className="h-5 w-5" strokeWidth={2.5} />
+                <History className="h-4 w-4" strokeWidth={2.5} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" align="center" dir="rtl">
@@ -539,26 +585,24 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
             </TooltipContent>
           </Tooltip>
 
-
-
-          {/* Notes Toggle Button */}
+          {/* Notes Toggle Button - Hidden on mobile */}
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <Button
                 size="icon"
                 onClick={toggleNotes}
                 className={cn(
-                  "h-9 w-9 rounded-lg transition-colors relative",
+                  "hidden lg:flex h-8 w-8 rounded-lg transition-colors relative flex-shrink-0",
                   isNotesOpen
                     ? "bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
                     : "bg-transparent text-gray-700 hover:bg-[#5B6FB9] hover:text-white border border-gray-200"
                 )}
               >
-                <MessageSquare className="h-5 w-5" strokeWidth={2.5} />
+                <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
                 {notesCount > 0 && (
                   <Badge
                     className={cn(
-                      "absolute -top-1 -right-1 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs font-semibold rounded-full border-2",
+                      "absolute -top-1 -right-1 h-4 min-w-4 px-1 flex items-center justify-center text-[10px] font-semibold rounded-full border-2",
                       isNotesOpen
                         ? "bg-white text-[#5B6FB9] border-[#5B6FB9]"
                         : "bg-[#5B6FB9] text-white border-white"
@@ -628,6 +672,35 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
         onOpenChange={setIsAddLeadDialogOpen}
         customer={customer}
       />
+
+      {/* Meetings Modal */}
+      <Dialog open={isMeetingsModalOpen} onOpenChange={setIsMeetingsModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[95vw] md:max-w-[95vw] lg:max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>כל הפגישות - {customer.full_name}</DialogTitle>
+            <DialogDescription>
+              {leadMeetings.length > 0 
+                ? `נמצאו ${leadMeetings.length} פגישות` 
+                : 'לא נמצאו פגישות ללקוח זה'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto min-h-0">
+            {isLoadingMeetings ? (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p className="text-gray-600">טוען פגישות...</p>
+              </div>
+            ) : leadMeetings.length > 0 ? (
+              <MeetingsDataTable meetings={leadMeetings} />
+            ) : (
+              <div className="p-8 text-center text-gray-500">
+                <p className="text-lg font-medium mb-2">לא נמצאו פגישות</p>
+                <p className="text-sm">פגישות מתווספות אוטומטית מטופס Fillout</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

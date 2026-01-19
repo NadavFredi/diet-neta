@@ -27,31 +27,31 @@ const Login = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50" dir="rtl">
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
         <div className="w-full max-w-lg">
           {/* Login Card */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 p-6 sm:p-8">
             {/* Logo Area */}
             <div className="text-center mb-6">
-              <div className="flex flex-row items-center justify-center gap-6 mb-3">
+              <div className="flex flex-row items-center justify-center gap-3 sm:gap-6 mb-3">
                 <img
                   src="https://dietneta.com/wp-content/uploads/2025/08/logo.svg"
                   alt="Diet Neta Logo"
-                  className="h-12 w-auto object-contain max-h-12"
+                  className="h-10 sm:h-12 w-auto object-contain max-h-10 sm:max-h-12"
                 />
-                <div className="h-8 w-px bg-gray-200"></div>
+                <div className="h-6 sm:h-8 w-px bg-gray-200"></div>
                 <img
                   src="/logo.svg"
                   alt="Easy Flow Logo"
-                  className="h-12 w-auto object-contain max-h-12"
+                  className="h-10 sm:h-12 w-auto object-contain max-h-10 sm:max-h-12"
                 />
               </div>
             </div>
 
             {/* Welcome Text */}
             <div className="text-center mb-6">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">ברוכים הבאים</h2>
-              <p className="text-sm text-gray-600">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">ברוכים הבאים</h2>
+              <p className="text-xs sm:text-sm text-gray-600">
                 התחבר לחשבון שלך כדי להמשיך
               </p>
             </div>
@@ -164,10 +164,10 @@ const Login = () => {
         href="https://wa.me/972XXXXXXXXX"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-6 left-6 w-14 h-14 bg-[#25D366] hover:bg-[#20BA5A] rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all z-50"
+        className="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 w-12 h-12 sm:w-14 sm:h-14 bg-[#25D366] hover:bg-[#20BA5A] rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all z-50"
         aria-label="צור קשר ב-WhatsApp"
       >
-        <MessageCircle className="h-7 w-7 text-white fill-current" />
+        <MessageCircle className="h-6 w-6 sm:h-7 sm:w-7 text-white fill-current" />
       </a>
     </div>
   );

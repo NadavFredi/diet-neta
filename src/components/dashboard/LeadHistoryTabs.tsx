@@ -5,11 +5,11 @@
  * Used in ActionDashboard for the active lead interaction.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Activity, CalendarDays, Trash2 } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Activity, CalendarDays, Trash2, Eye, FileText, Send, Edit } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DailyActivityLog } from './DailyActivityLog';
 import { WeeklyReviewModule } from './WeeklyReviewModule';
@@ -32,6 +32,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
@@ -39,10 +47,21 @@ import { DailyCheckInDetailModal } from './dialogs/DailyCheckInDetailModal';
 import { AddWorkoutPlanDialog } from './dialogs/AddWorkoutPlanDialog';
 import { AddNutritionPlanDialog } from './dialogs/AddNutritionPlanDialog';
 import { StepsPlanDialog } from './dialogs/StepsPlanDialog';
+import { BudgetDetailsModal } from './dialogs/BudgetDetailsModal';
+import { SendBudgetModal } from './SendBudgetModal';
+import { EditBudgetDialog } from './dialogs/EditBudgetDialog';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDeleteBudgetAssignment } from '@/hooks/useBudgets';
+import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget } from '@/hooks/useBudgets';
+import type { Budget } from '@/store/slices/budgetSlice';
+import { useNavigate } from 'react-router-dom';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface WorkoutHistoryItem {
   id?: string;
@@ -109,7 +128,6 @@ interface BudgetAssignmentItem {
   budget_name?: string;
   assigned_at: string;
   is_active: boolean;
-  notes?: string;
 }
 
 interface LeadHistoryTabsProps {
@@ -146,9 +164,28 @@ export const LeadHistoryTabs = ({
   const [activeTab, setActiveTab] = useState('budgets');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const deleteBudgetAssignment = useDeleteBudgetAssignment();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState<BudgetAssignmentItem | null>(null);
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
+  const [currentAssignment, setCurrentAssignment] = useState<BudgetAssignmentItem | null>(null);
+  const [viewingBudgetId, setViewingBudgetId] = useState<string | null>(null);
+  const [sendingBudgetId, setSendingBudgetId] = useState<string | null>(null);
+  const [customerPhone, setCustomerPhone] = useState<string | null>(null);
+  
+  // Fetch budget data when sendingBudgetId or editingBudgetId is set
+  const { data: sendingBudget } = useBudget(sendingBudgetId);
+  const { data: editingBudget, refetch: refetchEditingBudget } = useBudget(editingBudgetId);
+  
+  // Refetch budget when dialog opens to ensure fresh data
+  useEffect(() => {
+    if (editingBudgetId) {
+      refetchEditingBudget();
+    }
+  }, [editingBudgetId, refetchEditingBudget]);
+  const updateBudget = useUpdateBudget();
+  const createBudget = useCreateBudget();
   
   // Dialog states
   const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
@@ -176,6 +213,136 @@ export const LeadHistoryTabs = ({
     setDeleteDialogOpen(true);
   };
 
+  // Handle editing budget from lead page - create lead-specific copy if budget is shared
+  const handleEditBudgetFromLead = async (assignment: BudgetAssignmentItem) => {
+    try {
+      // Check if budget is used by multiple assignments
+      const { data: otherAssignments, error: checkError } = await supabase
+        .from('budget_assignments')
+        .select('id')
+        .eq('budget_id', assignment.budget_id)
+        .neq('id', assignment.id);
+
+      if (checkError) throw checkError;
+
+      let budgetIdToEdit = assignment.budget_id;
+
+      // If budget is shared, create a private copy for this lead only
+      if (otherAssignments && otherAssignments.length > 0) {
+        // Fetch the original budget to copy it
+        const { data: originalBudget, error: fetchError } = await supabase
+          .from('budgets')
+          .select('*')
+          .eq('id', assignment.budget_id)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        // Create a private copy (is_public: false) - this won't show in "all budgets" main list
+        const newBudget = await createBudget.mutateAsync({
+          name: `${originalBudget.name}`,
+          description: originalBudget.description || null,
+          nutrition_template_id: originalBudget.nutrition_template_id,
+          nutrition_targets: originalBudget.nutrition_targets,
+          steps_goal: originalBudget.steps_goal,
+          steps_instructions: originalBudget.steps_instructions || null,
+          workout_template_id: originalBudget.workout_template_id,
+          supplements: originalBudget.supplements || [],
+          eating_order: originalBudget.eating_order || null,
+          eating_rules: originalBudget.eating_rules || null,
+          is_public: false, // Private copy - won't appear in main budgets list
+        });
+
+        // Update the assignment to use the new private copy
+        const { error: updateError } = await supabase
+          .from('budget_assignments')
+          .update({ budget_id: newBudget.id })
+          .eq('id', assignment.id);
+
+        if (updateError) throw updateError;
+
+        budgetIdToEdit = newBudget.id;
+
+        toast({
+          title: 'הצלחה',
+          description: 'נוצר עותק פרטי של התקציב. שינויים יעשו רק על הליד הזה.',
+        });
+      }
+
+      // Store the assignment for later use in save handler
+      setCurrentAssignment(assignment);
+      // Open edit dialog for the budget (original or private copy)
+      setEditingBudgetId(budgetIdToEdit);
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעריכת התקציב',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveBudget = async (data: any) => {
+    if (!editingBudget) return;
+
+    try {
+      console.log('[LeadHistoryTabs] Saving budget:', {
+        budgetId: editingBudget.id,
+        workout_template_id: data.workout_template_id,
+        nutrition_template_id: data.nutrition_template_id,
+        fullData: data
+      });
+
+      const updateResult = await updateBudget.mutateAsync({
+        budgetId: editingBudget.id,
+        name: data.name,
+        description: data.description ?? null,
+        nutrition_template_id: data.nutrition_template_id ?? null,
+        nutrition_targets: data.nutrition_targets,
+        steps_goal: data.steps_goal,
+        steps_instructions: data.steps_instructions ?? null,
+        workout_template_id: data.workout_template_id ?? null,
+        supplements: data.supplements || [],
+        eating_order: data.eating_order ?? null,
+        eating_rules: data.eating_rules ?? null,
+      });
+
+      console.log('[LeadHistoryTabs] Budget saved successfully:', {
+        id: updateResult.id,
+        workout_template_id: updateResult.workout_template_id
+      });
+
+      toast({
+        title: 'הצלחה',
+        description: 'התקציב עודכן בהצלחה',
+      });
+
+      // Invalidate all relevant queries to ensure UI updates
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+        queryClient.invalidateQueries({ queryKey: ['budget', editingBudget.id] }),
+        queryClient.invalidateQueries({ queryKey: ['budget', updateResult.id] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+        queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+      ]);
+
+      // Refetch to ensure we have the latest data
+      await queryClient.refetchQueries({ queryKey: ['budgets'] });
+      await queryClient.refetchQueries({ queryKey: ['budget', editingBudget.id] });
+
+      setEditingBudgetId(null);
+      setCurrentAssignment(null);
+    } catch (error: any) {
+      console.error('[LeadHistoryTabs] Error saving budget:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון התקציב',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!assignmentToDelete) return;
 
@@ -195,6 +362,35 @@ export const LeadHistoryTabs = ({
       });
     }
   };
+
+  const handleSaveAssignmentEdit = async () => {
+    if (!editingAssignment) return;
+
+    try {
+      const { error } = await supabase
+        .from('budget_assignments')
+        .update({ notes: editNotes })
+        .eq('id', editingAssignment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'הצלחה',
+        description: 'הערות ההקצאה עודכנו בהצלחה',
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      setEditingAssignment(null);
+      setEditNotes('');
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון הערות ההקצאה',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   // Handler functions
   const handleWorkoutClick = () => {
@@ -251,51 +447,54 @@ export const LeadHistoryTabs = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="w-full">
-        <div className="relative mb-4">
-          <TabsList className="grid w-full grid-cols-7 h-10 bg-gray-100 rounded-lg p-1">
-            <TabsTrigger 
-              value="budgets" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
-            >
-              תקציבים
-            </TabsTrigger>
-            <TabsTrigger 
-              value="workouts" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
-            >
-              יומן אימונים
-            </TabsTrigger>
-            <TabsTrigger 
-              value="steps" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
-            >
-              יומן צעדים
-            </TabsTrigger>
-            <TabsTrigger 
-              value="nutrition" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all"
-            >
-              תכניות תזונה
-            </TabsTrigger>
-            <TabsTrigger 
-              value="supplements" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all border-l-2 border-gray-300"
-            >
-              תכניות תוספים
-            </TabsTrigger>
-            <TabsTrigger 
-              value="daily-activity" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all"
-            >
-              יומן פעילות יומי
-            </TabsTrigger>
-            <TabsTrigger 
-              value="weekly-checkin" 
-              className="text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all"
-            >
-              דיווח שבועי
-            </TabsTrigger>
-          </TabsList>
+        <div className="relative mb-4 -mx-3 px-3">
+          {/* Scrollable container for mobile */}
+          <div className="overflow-x-auto scrollbar-hide pb-1">
+            <TabsList className="inline-flex min-w-full lg:grid lg:grid-cols-7 h-10 bg-gray-100 rounded-lg p-1 gap-1">
+              <TabsTrigger 
+                value="budgets" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all flex-shrink-0"
+              >
+                תקציבים
+              </TabsTrigger>
+              <TabsTrigger 
+                value="workouts" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all flex-shrink-0"
+              >
+                יומן אימונים
+              </TabsTrigger>
+              <TabsTrigger 
+                value="steps" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all flex-shrink-0"
+              >
+                יומן צעדים
+              </TabsTrigger>
+              <TabsTrigger 
+                value="nutrition" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all flex-shrink-0"
+              >
+                תכניות תזונה
+              </TabsTrigger>
+              <TabsTrigger 
+                value="supplements" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E8EDF7] data-[state=active]:text-[#5B6FB9] data-[state=active]:shadow-sm data-[state=inactive]:text-[#5B6FB9]/70 data-[state=inactive]:hover:bg-[#E8EDF7]/50 transition-all border-l-2 border-gray-300 flex-shrink-0"
+              >
+                תכניות תוספים
+              </TabsTrigger>
+              <TabsTrigger 
+                value="daily-activity" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
+              >
+                יומן פעילות
+              </TabsTrigger>
+              <TabsTrigger 
+                value="weekly-checkin" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
+              >
+                דיווח שבועי
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </div>
 
         {/* Workout History Tab */}
@@ -325,20 +524,17 @@ export const LeadHistoryTabs = ({
                   <TableRow className="bg-gray-50 border-b border-gray-200">
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך התחלה</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תיאור</TableHead>
-                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">כוח</TableHead>
-                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">קרדיו</TableHead>
-                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">אינטרוולים</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {workoutHistory.map((workout, index) => {
-                    const strength = workout.split?.strength || workout.strengthCount || workout.strength || 0;
-                    const cardio = workout.split?.cardio || workout.cardioCount || workout.cardio || 0;
-                    const intervals = workout.split?.intervals || workout.intervalsCount || workout.intervals || 0;
-
+                    // Ensure only the first active plan (by sorted order) is shown as active
+                    const firstActiveIndex = workoutHistory.findIndex((w: any) => w.is_active === true);
+                    const isActive = workout.is_active === true && index === firstActiveIndex;
+                    
                     return (
                       <TableRow
-                        key={index}
+                        key={workout.id ? `workout-${workout.id}-${index}` : `workout-${index}`}
                         onClick={async () => {
                           if (workout.id) {
                             // Fetch full plan data
@@ -363,9 +559,11 @@ export const LeadHistoryTabs = ({
                             setSelectedWorkoutPlan(workout);
                           }
                         }}
-                        className={`transition-all duration-200 cursor-pointer ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                        } hover:bg-blue-50 hover:shadow-sm border-b border-gray-100`}
+                      className={`transition-all duration-200 cursor-pointer ${
+                        isActive
+                          ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                          : index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                      } hover:bg-blue-50 hover:shadow-sm border-b border-gray-100`}
                       >
                         <TableCell className="text-xs font-semibold text-gray-900 py-3">
                           {workout.startDate ? formatDate(workout.startDate) : '-'}
@@ -373,25 +571,15 @@ export const LeadHistoryTabs = ({
                         <TableCell className="text-xs max-w-xs font-semibold text-gray-900 py-3">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="truncate">{workout.description || workout.name || '-'}</span>
+                            {isActive && (
+                              <Badge className="bg-blue-500 text-white border-0 text-xs px-2 py-0.5 font-semibold">
+                                פעיל
+                              </Badge>
+                            )}
                             {workout.budget_id && (
                               <BudgetLinkBadge budgetId={workout.budget_id} />
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell className="py-3">
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border border-blue-200 text-xs px-2 py-0.5 font-semibold">
-                            {strength}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="py-3">
-                          <Badge variant="outline" className="bg-red-50 text-red-700 border border-red-200 text-xs px-2 py-0.5 font-semibold">
-                            {cardio}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="py-3">
-                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border border-purple-200 text-xs px-2 py-0.5 font-semibold">
-                            {intervals}
-                          </Badge>
                         </TableCell>
                       </TableRow>
                     );
@@ -425,10 +613,13 @@ export const LeadHistoryTabs = ({
           ) : (
             <div className="space-y-2">
               {(stepsHistory || []).map((step: any, index: number) => {
-                const isCurrent = index === (stepsHistory || []).length - 1;
+                // Use is_active from the data, but ensure only the first active plan (by date) is shown as active
+                // Find the first active plan's index to ensure only one is marked
+                const firstActiveIndex = (stepsHistory || []).findIndex((s: any) => s.is_active === true);
+                const isCurrent = step.is_active === true && index === firstActiveIndex;
                 return (
                   <div
-                    key={index}
+                    key={step.id ? `step-${step.id}-${index}` : `step-${step.weekNumber || step.week || index}-${step.startDate || step.dates || index}-${index}`}
                     onClick={async () => {
                       if (customerId) {
                         // Fetch customer's daily_protocol for steps goal
@@ -529,9 +720,14 @@ export const LeadHistoryTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {nutritionHistory.map((nutrition, index) => (
+                  {nutritionHistory.map((nutrition, index) => {
+                    // Ensure only the first active plan (by sorted order) is shown as active
+                    const firstActiveIndex = nutritionHistory.findIndex((n: any) => n.is_active === true);
+                    const isActive = nutrition.is_active === true && index === firstActiveIndex;
+                    
+                    return (
                     <TableRow
-                      key={index}
+                      key={nutrition.id ? `nutrition-${nutrition.id}-${index}` : `nutrition-${index}`}
                       onClick={async () => {
                         if (nutrition.id) {
                           // Fetch full plan data
@@ -557,7 +753,9 @@ export const LeadHistoryTabs = ({
                         }
                       }}
                       className={`transition-all duration-200 cursor-pointer ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                        isActive
+                          ? 'bg-orange-50 border-l-4 border-l-orange-500'
+                          : index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       } hover:bg-orange-50 hover:shadow-sm border-b border-gray-100`}
                     >
                       <TableCell className="text-xs font-semibold text-gray-900 py-3">
@@ -569,6 +767,11 @@ export const LeadHistoryTabs = ({
                       <TableCell className="text-xs max-w-xs font-semibold text-gray-900 py-3">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="truncate">{nutrition.description || '-'}</span>
+                          {isActive && (
+                            <Badge className="bg-orange-500 text-white border-0 text-xs px-2 py-0.5 font-semibold">
+                              פעיל
+                            </Badge>
+                          )}
                           {nutrition.budget_id && (
                             <BudgetLinkBadge budgetId={nutrition.budget_id} />
                           )}
@@ -595,7 +798,8 @@ export const LeadHistoryTabs = ({
                         </Badge>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -634,12 +838,19 @@ export const LeadHistoryTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {supplementsHistory.map((supplement, index) => (
+                  {supplementsHistory.map((supplement, index) => {
+                    // Ensure only the first active plan (by sorted order) is shown as active
+                    const firstActiveIndex = supplementsHistory.findIndex((s: any) => s.is_active === true);
+                    const isActive = supplement.is_active === true && index === firstActiveIndex;
+                    
+                    return (
                     <TableRow
-                      key={index}
+                      key={supplement.id ? `supplement-${supplement.id}-${index}` : `supplement-${index}`}
                       onClick={() => setSelectedSupplementPlan(supplement)}
                       className={`transition-all duration-200 cursor-pointer ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                        isActive
+                          ? 'bg-green-50 border-l-4 border-l-green-500'
+                          : index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       } hover:bg-green-50 hover:shadow-sm border-b border-gray-100`}
                     >
                       <TableCell className="text-xs font-semibold text-gray-900 py-3">
@@ -651,6 +862,11 @@ export const LeadHistoryTabs = ({
                       <TableCell className="text-xs max-w-xs font-semibold text-gray-900 py-3">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="truncate">{supplement.description || '-'}</span>
+                          {isActive && (
+                            <Badge className="bg-green-500 text-white border-0 text-xs px-2 py-0.5 font-semibold">
+                              פעיל
+                            </Badge>
+                          )}
                           {supplement.budget_id && (
                             <BudgetLinkBadge budgetId={supplement.budget_id} />
                           )}
@@ -673,7 +889,8 @@ export const LeadHistoryTabs = ({
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -727,15 +944,15 @@ export const LeadHistoryTabs = ({
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תקציב</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">תאריך הקצאה</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3">סטטוס</TableHead>
-                    <TableHead className="text-right text-xs font-bold text-gray-900 py-3">הערות</TableHead>
                     <TableHead className="text-right text-xs font-bold text-gray-900 py-3 w-20">פעולות</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {budgetAssignments.map((assignment, index) => (
                     <TableRow
-                      key={assignment.id}
-                      className={`transition-all duration-200 ${
+                      key={assignment.id ? `budget-${assignment.id}-${index}` : `budget-${index}`}
+                      onClick={() => handleEditBudgetFromLead(assignment)}
+                      className={`transition-all duration-200 cursor-pointer ${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       } hover:bg-purple-50 hover:shadow-sm border-b border-gray-100`}
                     >
@@ -757,22 +974,133 @@ export const LeadHistoryTabs = ({
                           {assignment.is_active ? 'פעיל' : 'לא פעיל'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs max-w-xs truncate font-semibold text-gray-900 py-3">
-                        {assignment.notes || '-'}
-                      </TableCell>
                       <TableCell className="py-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(assignment);
-                          }}
-                          disabled={deleteBudgetAssignment.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <TooltipProvider>
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                            {/* View Button */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Open budget details modal
+                                    setViewingBudgetId(assignment.budget_id);
+                                  }}
+                                  disabled={deleteBudgetAssignment.isPending}
+                                  className="h-7 w-7 p-0 hover:bg-blue-50 hover:text-blue-600"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>תצוגה מהירה</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {/* Export PDF Button */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Navigate to print page for this budget
+                                    navigate(`/dashboard/print/budget/${assignment.budget_id}`);
+                                  }}
+                                  disabled={deleteBudgetAssignment.isPending}
+                                  className="h-7 w-7 p-0 hover:bg-purple-50 hover:text-purple-600"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>הדפס תקציב</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {/* Send WhatsApp Button */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    // Fetch customer phone if we have customerId
+                                    if (customerId && !customerPhone) {
+                                      try {
+                                        const { data: customer } = await supabase
+                                          .from('customers')
+                                          .select('phone')
+                                          .eq('id', customerId)
+                                          .single();
+                                        if (customer?.phone) {
+                                          setCustomerPhone(customer.phone);
+                                        }
+                                      } catch (error) {
+                                        console.error('Error fetching customer phone:', error);
+                                      }
+                                    }
+                                    // Open send budget modal
+                                    setSendingBudgetId(assignment.budget_id);
+                                  }}
+                                  disabled={deleteBudgetAssignment.isPending}
+                                  className="h-7 w-7 p-0 hover:bg-green-50 hover:text-green-600"
+                                >
+                                  <Send className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>שלח תקציב</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {/* Edit Button - Edit budget for this lead only */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditBudgetFromLead(assignment);
+                                  }}
+                                  disabled={deleteBudgetAssignment.isPending}
+                                  className="h-7 w-7 p-0 hover:bg-blue-50"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>ערוך תקציב (השפעה רק על הליד הזה)</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {/* Delete Button */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteClick(assignment);
+                                  }}
+                                  disabled={deleteBudgetAssignment.isPending}
+                                  className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>מחק הקצאה</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -981,6 +1309,41 @@ export const LeadHistoryTabs = ({
         customerId={customerId}
         leadId={leadId}
         initialData={editingStepsPlan}
+      />
+
+      {/* Budget Details Modal */}
+      <BudgetDetailsModal
+        isOpen={!!viewingBudgetId}
+        onOpenChange={(open) => {
+          if (!open) setViewingBudgetId(null);
+        }}
+        budgetId={viewingBudgetId}
+      />
+
+      {/* Send Budget Modal */}
+      <SendBudgetModal
+        isOpen={!!sendingBudgetId && !!sendingBudget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSendingBudgetId(null);
+            setCustomerPhone(null);
+          }
+        }}
+        budget={sendingBudget}
+        phoneNumber={customerPhone}
+      />
+
+      {/* Edit Budget Dialog - Opens when editing budget from lead page */}
+      <EditBudgetDialog
+        isOpen={!!editingBudgetId && !!editingBudget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingBudgetId(null);
+            setCurrentAssignment(null);
+          }
+        }}
+        editingBudget={editingBudget}
+        onSave={handleSaveBudget}
       />
     </Card>
   );

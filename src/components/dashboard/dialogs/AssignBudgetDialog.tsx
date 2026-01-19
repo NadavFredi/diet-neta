@@ -22,12 +22,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useBudgets } from '@/hooks/useBudgets';
-import { useAssignBudgetToLead, useAssignBudgetToCustomer } from '@/hooks/useBudgets';
+import { useBudgets, useAssignBudgetToLead, useAssignBudgetToCustomer, useCreateBudget } from '@/hooks/useBudgets';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { AddBudgetDialog } from './AddBudgetDialog';
 
 interface AssignBudgetDialogProps {
   isOpen: boolean;
@@ -46,9 +46,12 @@ export const AssignBudgetDialog = ({
 }: AssignBudgetDialogProps) => {
   const [selectedBudgetId, setSelectedBudgetId] = useState<string>('');
   const [notes, setNotes] = useState('');
-  const { data: budgets = [], isLoading: isLoadingBudgets } = useBudgets();
+  const [isAddBudgetDialogOpen, setIsAddBudgetDialogOpen] = useState(false);
+  // Refetch budgets when dialog opens to ensure we have the latest data
+  const { data: budgets = [], isLoading: isLoadingBudgets, refetch: refetchBudgets } = useBudgets();
   const assignToLead = useAssignBudgetToLead();
   const assignToCustomer = useAssignBudgetToCustomer();
+  const createBudget = useCreateBudget();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -56,8 +59,11 @@ export const AssignBudgetDialog = ({
     if (!isOpen) {
       setSelectedBudgetId('');
       setNotes('');
+    } else {
+      // Refetch budgets when dialog opens to ensure we have the latest data
+      refetchBudgets();
     }
-  }, [isOpen]);
+  }, [isOpen, refetchBudgets]);
 
   const handleAssign = async () => {
     if (!selectedBudgetId) {
@@ -164,41 +170,94 @@ export const AssignBudgetDialog = ({
     }
   };
 
+  const handleSaveBudget = async (data: any) => {
+    try {
+      const newBudget = await createBudget.mutateAsync({
+        name: data.name!,
+        description: data.description,
+        nutrition_template_id: (data as any).nutrition_template_id,
+        nutrition_targets: (data as any).nutrition_targets,
+        steps_goal: (data as any).steps_goal,
+        steps_instructions: (data as any).steps_instructions,
+        workout_template_id: (data as any).workout_template_id,
+        supplements: (data as any).supplements,
+        eating_order: (data as any).eating_order,
+        eating_rules: (data as any).eating_rules,
+        is_public: false,
+      });
+
+      // Refetch budgets to get the updated list
+      await refetchBudgets();
+
+      // Automatically select the newly created budget
+      setSelectedBudgetId(newBudget.id);
+
+      toast({
+        title: 'הצלחה',
+        description: 'התקציב נוצר בהצלחה ונבחר אוטומטית',
+      });
+
+      setIsAddBudgetDialogOpen(false);
+      return newBudget;
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת התקציב',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
   const isSubmitting = assignToLead.isPending || assignToCustomer.isPending;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange} dir="rtl">
-      <DialogContent dir="rtl" className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>הקצאת תקציב</DialogTitle>
-          <DialogDescription>
-            בחר תקציב להקצאה ל{leadId ? 'ליד' : 'לקוח'} זה. התקציב ייצור אוטומטית תכניות אימונים, תזונה ותוספים.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onOpenChange} dir="rtl">
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>הקצאת תקציב</DialogTitle>
+            <DialogDescription>
+              בחר תקציב להקצאה ל{leadId ? 'ליד' : 'לקוח'} זה. התקציב ייצור אוטומטית תכניות אימונים, תזונה ותוספים.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="budget" className="text-sm font-semibold">
-              תקציב *
-            </Label>
-            <Select
-              value={selectedBudgetId}
-              onValueChange={setSelectedBudgetId}
-              disabled={isLoadingBudgets || isSubmitting}
-            >
-              <SelectTrigger id="budget" className="border-slate-200" dir="rtl">
-                <SelectValue placeholder="בחר תקציב" />
-              </SelectTrigger>
-              <SelectContent dir="rtl">
-                {budgets.map((budget) => (
-                  <SelectItem key={budget.id} value={budget.id}>
-                    {budget.name}
-                    {budget.description && ` - ${budget.description}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="budget" className="text-sm font-semibold">
+                  תקציב *
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsAddBudgetDialogOpen(true)}
+                  disabled={isSubmitting}
+                  className="h-8 px-2"
+                >
+                  <Plus className="h-4 w-4 ml-1" />
+                  תקציב חדש
+                </Button>
+              </div>
+              <Select
+                value={selectedBudgetId}
+                onValueChange={setSelectedBudgetId}
+                disabled={isLoadingBudgets || isSubmitting}
+              >
+                <SelectTrigger id="budget" className="border-slate-200" dir="rtl">
+                  <SelectValue placeholder="בחר תקציב" />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  {budgets.map((budget) => (
+                    <SelectItem key={budget.id} value={budget.id}>
+                      {budget.name}
+                      {budget.description && ` - ${budget.description}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
           <div className="space-y-2">
             <Label htmlFor="notes" className="text-sm font-semibold">
@@ -244,6 +303,14 @@ export const AssignBudgetDialog = ({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Add Budget Dialog */}
+    <AddBudgetDialog
+      isOpen={isAddBudgetDialogOpen}
+      onOpenChange={setIsAddBudgetDialogOpen}
+      onSave={handleSaveBudget}
+    />
+    </>
   );
 };
 

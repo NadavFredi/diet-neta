@@ -3,9 +3,10 @@
  * 
  * Main wrapper for the Lead Profile Page.
  * Implements zero-scroll architecture with proper flex layout.
+ * Mobile-first responsive design.
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardSidebar } from './DashboardSidebar';
 import { ClientHero } from './ClientHero';
@@ -18,6 +19,24 @@ import { useAppSelector } from '@/store/hooks';
 import { getFormTypes } from '@/store/slices/formsSlice';
 import { useLocation } from 'react-router-dom';
 import { selectCustomerNotes } from '@/store/slices/leadViewSlice';
+
+// Custom hook to detect if screen is desktop (lg breakpoint = 1024px)
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return isDesktop;
+};
 
 interface PageLayoutProps {
   userEmail?: string;
@@ -72,6 +91,7 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
   const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
   const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
   const location = useLocation();
+  const isDesktop = useIsDesktop();
 
   // Modal state management
   const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = React.useState(false);
@@ -191,10 +211,10 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
 
       {/* Main Content Area - Below Navigation Header */}
       <div
-        className="flex flex-col flex-1 overflow-hidden"
+        className="flex flex-col flex-1 overflow-hidden transition-all duration-300"
         style={{
           marginTop: `${HEADER_HEIGHT}px`,
-          marginRight: `${sidebarWidth.width}px`, // Account for navigation sidebar
+          marginRight: isDesktop ? `${sidebarWidth.width}px` : 0, // No sidebar margin on mobile
           height: `calc(100vh - ${HEADER_HEIGHT}px)`
         }}
       >
@@ -234,8 +254,8 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           }}
           dir="rtl"
         >
-          {/* Notes Panel - Right Side (First in row = Right in RTL, next to nav) - Independent from left sidebar */}
-          {notesOpen && (
+          {/* Notes Panel - Right Side (First in row = Right in RTL, next to nav) - Hidden on mobile */}
+          {notesOpen && isDesktop && (
             <ResizableNotesPanel
               customerId={customer?.id || null}
               leads={sortedLeads.map(lead => ({
@@ -252,33 +272,36 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
           <main
             className="flex-1 flex flex-col bg-gray-50 overflow-y-auto overflow-x-hidden scroll-smooth custom-scrollbar"
             style={{
-              padding: '20px'
+              padding: isDesktop ? 'clamp(12px, 3vw, 20px)' : '12px'
             }}
           >
             {/* Content Area - Split View for History/Submission Sidebar */}
             <div
-              className="flex-1 flex gap-4"
+              className="flex-1 flex gap-4 flex-col lg:flex-row"
               style={{
                 direction: 'ltr',
                 overflowX: 'hidden',
                 minHeight: 'fit-content'
               }}
             >
-              {/* Left Side: History or Submission Sidebar */}
-              <LeadSidebarContainer
-                leads={sortedLeads}
-                activeLeadId={activeLeadId}
-                onLeadSelect={onLeadSelect}
-                getStatusColor={getStatusColor}
-                getStatusBorderColor={getStatusBorderColor}
-                formSubmission={formSubmissionData}
-              />
+              {/* Left Side: History or Submission Sidebar - Hidden on mobile */}
+              {isDesktop && (
+                <LeadSidebarContainer
+                  leads={sortedLeads}
+                  activeLeadId={activeLeadId}
+                  onLeadSelect={onLeadSelect}
+                  getStatusColor={getStatusColor}
+                  getStatusBorderColor={getStatusBorderColor}
+                  formSubmission={formSubmissionData}
+                  onUpdateLead={onUpdateLead}
+                />
+              )}
 
               {/* Center: ActionDashboard - Scrollable Content */}
               <div
-                className="flex-1 transition-all duration-200 ease-out"
+                className="flex-1 transition-all duration-200 ease-out w-full"
                 style={{
-                  minWidth: '400px'
+                  minWidth: isDesktop ? 'min(100%, 400px)' : '100%'
                 }}
               >
                 <ActionDashboard

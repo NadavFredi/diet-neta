@@ -199,6 +199,16 @@
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 #f1f5f9;
   }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
 }
 
 /* Quill Editor RTL Support & Styling */

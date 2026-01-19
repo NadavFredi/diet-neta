@@ -8,7 +8,7 @@
  * - בריאות (Wellness): 4 fields (3 scales + sleep)
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -273,6 +273,47 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
     return true;
   }, [weight, stressLevel, hungerLevel, energyLevel]);
 
+  // Helper: Get sorted fields for a section based on order
+  // Must be defined before any early returns to follow Rules of Hooks
+  const getSortedFieldsForSection = useCallback((sectionKey: 'body' | 'activity' | 'nutrition' | 'wellness') => {
+    if (!fieldConfig?.fields) return [];
+    return Object.entries(fieldConfig.fields)
+      .filter(([_, field]) => field.section === sectionKey && field.visible)
+      .sort(([_, a], [__, b]) => {
+        const orderA = a.order ?? 999;
+        const orderB = b.order ?? 999;
+        return orderA - orderB;
+      });
+  }, [fieldConfig]);
+
+  // Get sorted fields for each section - must be defined before early return
+  const bodyFields = useMemo(() => getSortedFieldsForSection('body'), [getSortedFieldsForSection]);
+  const activityFields = useMemo(() => getSortedFieldsForSection('activity'), [getSortedFieldsForSection]);
+  const nutritionFields = useMemo(() => getSortedFieldsForSection('nutrition'), [getSortedFieldsForSection]);
+  const wellnessFields = useMemo(() => getSortedFieldsForSection('wellness'), [getSortedFieldsForSection]);
+
+  // Debug: Log visible fields to help diagnose missing fields (only in development)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && fieldConfig && !isLoadingConfig) {
+      const allVisibleFields = Object.entries(fieldConfig.fields)
+        .filter(([_, field]) => field.visible)
+        .map(([fieldId, field]) => ({ fieldId, label: field.label, section: field.section }));
+      const totalVisible = allVisibleFields.length;
+      const renderedCount = bodyFields.length + activityFields.length + nutritionFields.length + wellnessFields.length;
+      
+      if (totalVisible !== renderedCount) {
+        console.warn(`DailyCheckInView - Field count mismatch: ${totalVisible} visible in config, ${renderedCount} being rendered`);
+        console.log('All visible fields:', allVisibleFields);
+        console.log('Rendered fields:', {
+          body: bodyFields.map(([id]) => id),
+          activity: activityFields.map(([id]) => id),
+          nutrition: nutritionFields.map(([id]) => id),
+          wellness: wellnessFields.map(([id]) => id),
+        });
+      }
+    }
+  }, [fieldConfig, isLoadingConfig, bodyFields, activityFields, nutritionFields, wellnessFields]);
+
   const handleSubmit = () => {
     if (!isFormValid) return;
 
@@ -321,6 +362,61 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
   const displayDate = selectedDate 
     ? format(new Date(selectedDate), 'd בMMMM yyyy', { locale: he })
     : format(new Date(), 'd בMMMM yyyy', { locale: he });
+
+  // Field value and setter mapping - includes all standard fields
+  const fieldValueMap: Record<string, number | null> = {
+    weight,
+    bellyCircumference,
+    waistCircumference,
+    thighCircumference,
+    armCircumference,
+    neckCircumference,
+    stepsActual,
+    exercisesCount,
+    cardioAmount,
+    intervalsCount,
+    caloriesDaily,
+    proteinDaily,
+    fiberDaily,
+    waterAmount,
+    stressLevel,
+    hungerLevel,
+    energyLevel,
+    sleepHours,
+  };
+
+  const fieldSetterMap: Record<string, (value: number | null) => void> = {
+    weight: setWeight,
+    bellyCircumference: setBellyCircumference,
+    waistCircumference: setWaistCircumference,
+    thighCircumference: setThighCircumference,
+    armCircumference: setArmCircumference,
+    neckCircumference: setNeckCircumference,
+    stepsActual: setStepsActual,
+    exercisesCount: setExercisesCount,
+    cardioAmount: setCardioAmount,
+    intervalsCount: setIntervalsCount,
+    caloriesDaily: setCaloriesDaily,
+    proteinDaily: setProteinDaily,
+    fiberDaily: setFiberDaily,
+    waterAmount: setWaterAmount,
+    stressLevel: setStressLevel,
+    hungerLevel: setHungerLevel,
+    energyLevel: setEnergyLevel,
+    sleepHours: setSleepHours,
+  };
+
+  // Helper to safely get field value and setter
+  const getFieldValue = (fieldId: string): number | null => {
+    return fieldValueMap[fieldId] ?? null;
+  };
+
+  const getFieldSetter = (fieldId: string): ((value: number | null) => void) | undefined => {
+    return fieldSetterMap[fieldId];
+  };
+
+  // Calculate input indices - count visible fields before each section
+  let inputIndex = 0;
 
   return (
     <div className="flex flex-col bg-white h-full" dir="rtl">
@@ -371,73 +467,31 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
               </AccordionTrigger>
               <AccordionContent className="px-2 py-2 bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {fieldConfig.fields.weight.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[0] = el)}
-                      label={fieldConfig.fields.weight.label}
-                      value={weight}
-                      onChange={setWeight}
-                      suffix={fieldConfig.fields.weight.unit || 'ק״ג'}
-                      min={0}
-                      step={0.1}
-                      onKeyDown={handleKeyDown(0)}
-                    />
-                  )}
-                  {fieldConfig.fields.bellyCircumference.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[1] = el)}
-                      label={fieldConfig.fields.bellyCircumference.label}
-                      value={bellyCircumference}
-                      onChange={setBellyCircumference}
-                      suffix={fieldConfig.fields.bellyCircumference.unit || 'ס״מ'}
-                      min={0}
-                      onKeyDown={handleKeyDown(1)}
-                    />
-                  )}
-                  {fieldConfig.fields.waistCircumference.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[2] = el)}
-                      label={fieldConfig.fields.waistCircumference.label}
-                      value={waistCircumference}
-                      onChange={setWaistCircumference}
-                      suffix={fieldConfig.fields.waistCircumference.unit || 'ס״מ'}
-                      min={0}
-                      onKeyDown={handleKeyDown(2)}
-                    />
-                  )}
-                  {fieldConfig.fields.thighCircumference.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[3] = el)}
-                      label={fieldConfig.fields.thighCircumference.label}
-                      value={thighCircumference}
-                      onChange={setThighCircumference}
-                      suffix={fieldConfig.fields.thighCircumference.unit || 'ס״מ'}
-                      min={0}
-                      onKeyDown={handleKeyDown(3)}
-                    />
-                  )}
-                  {fieldConfig.fields.armCircumference.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[4] = el)}
-                      label={fieldConfig.fields.armCircumference.label}
-                      value={armCircumference}
-                      onChange={setArmCircumference}
-                      suffix={fieldConfig.fields.armCircumference.unit || 'ס״מ'}
-                      min={0}
-                      onKeyDown={handleKeyDown(4)}
-                    />
-                  )}
-                  {fieldConfig.fields.neckCircumference.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[5] = el)}
-                      label={fieldConfig.fields.neckCircumference.label}
-                      value={neckCircumference}
-                      onChange={setNeckCircumference}
-                      suffix={fieldConfig.fields.neckCircumference.unit || 'ס״מ'}
-                      min={0}
-                      onKeyDown={handleKeyDown(5)}
-                    />
-                  )}
+                  {bodyFields.map(([fieldId, field]) => {
+                    const value = getFieldValue(fieldId);
+                    const onChange = getFieldSetter(fieldId);
+                    const idx = inputIndex++;
+                    
+                    // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
+                    if (!onChange) {
+                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
+                      return null;
+                    }
+                    
+                    return (
+                      <CompactInputCell
+                        key={fieldId}
+                        ref={(el) => (inputRefs.current[idx] = el)}
+                        label={field.label}
+                        value={value}
+                        onChange={onChange}
+                        suffix={field.unit || 'ס״מ'}
+                        min={0}
+                        step={fieldId === 'weight' ? 0.1 : 1}
+                        onKeyDown={handleKeyDown(idx)}
+                      />
+                    );
+                  })}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -456,50 +510,30 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
               </AccordionTrigger>
               <AccordionContent className="px-2 py-2 bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                  {fieldConfig.fields.stepsActual.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[6] = el)}
-                      label={fieldConfig.fields.stepsActual.label}
-                      value={stepsActual}
-                      onChange={setStepsActual}
-                      suffix={fieldConfig.fields.stepsActual.unit || 'צעדים'}
-                      min={0}
-                      onKeyDown={handleKeyDown(6)}
-                    />
-                  )}
-                  {fieldConfig.fields.exercisesCount.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[7] = el)}
-                      label={fieldConfig.fields.exercisesCount.label}
-                      value={exercisesCount}
-                      onChange={setExercisesCount}
-                      suffix={fieldConfig.fields.exercisesCount.unit || 'תרגילים'}
-                      min={0}
-                      onKeyDown={handleKeyDown(7)}
-                    />
-                  )}
-                  {fieldConfig.fields.cardioAmount.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[8] = el)}
-                      label={fieldConfig.fields.cardioAmount.label}
-                      value={cardioAmount}
-                      onChange={setCardioAmount}
-                      suffix={fieldConfig.fields.cardioAmount.unit || 'דקות'}
-                      min={0}
-                      onKeyDown={handleKeyDown(8)}
-                    />
-                  )}
-                  {fieldConfig.fields.intervalsCount.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[9] = el)}
-                      label={fieldConfig.fields.intervalsCount.label}
-                      value={intervalsCount}
-                      onChange={setIntervalsCount}
-                      suffix={fieldConfig.fields.intervalsCount.unit || 'אינטרוולים'}
-                      min={0}
-                      onKeyDown={handleKeyDown(9)}
-                    />
-                  )}
+                  {activityFields.map(([fieldId, field]) => {
+                    const value = getFieldValue(fieldId);
+                    const onChange = getFieldSetter(fieldId);
+                    const idx = inputIndex++;
+                    
+                    // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
+                    if (!onChange) {
+                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
+                      return null;
+                    }
+                    
+                    return (
+                      <CompactInputCell
+                        key={fieldId}
+                        ref={(el) => (inputRefs.current[idx] = el)}
+                        label={field.label}
+                        value={value}
+                        onChange={onChange}
+                        suffix={field.unit || ''}
+                        min={0}
+                        onKeyDown={handleKeyDown(idx)}
+                      />
+                    );
+                  })}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -518,52 +552,32 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
               </AccordionTrigger>
               <AccordionContent className="px-2 py-2 bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                  {fieldConfig.fields.caloriesDaily.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[10] = el)}
-                      label={fieldConfig.fields.caloriesDaily.label}
-                      value={caloriesDaily}
-                      onChange={setCaloriesDaily}
-                      suffix={fieldConfig.fields.caloriesDaily.unit || 'קק״ל'}
-                      min={0}
-                      onKeyDown={handleKeyDown(10)}
-                    />
-                  )}
-                  {fieldConfig.fields.proteinDaily.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[11] = el)}
-                      label={fieldConfig.fields.proteinDaily.label}
-                      value={proteinDaily}
-                      onChange={setProteinDaily}
-                      suffix={fieldConfig.fields.proteinDaily.unit || 'גרם'}
-                      min={0}
-                      onKeyDown={handleKeyDown(11)}
-                    />
-                  )}
-                  {fieldConfig.fields.fiberDaily.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[12] = el)}
-                      label={fieldConfig.fields.fiberDaily.label}
-                      value={fiberDaily}
-                      onChange={setFiberDaily}
-                      suffix={fieldConfig.fields.fiberDaily.unit || 'גרם'}
-                      min={0}
-                      onKeyDown={handleKeyDown(12)}
-                    />
-                  )}
-                  {fieldConfig.fields.waterAmount.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[13] = el)}
-                      label={fieldConfig.fields.waterAmount.label}
-                      value={waterAmount}
-                      onChange={setWaterAmount}
-                      suffix={fieldConfig.fields.waterAmount.unit || 'ליטר'}
-                      min={0}
-                      max={10}
-                      step={0.25}
-                      onKeyDown={handleKeyDown(13)}
-                    />
-                  )}
+                  {nutritionFields.map(([fieldId, field]) => {
+                    const value = getFieldValue(fieldId);
+                    const onChange = getFieldSetter(fieldId);
+                    const idx = inputIndex++;
+                    
+                    // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
+                    if (!onChange) {
+                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
+                      return null;
+                    }
+                    
+                    return (
+                      <CompactInputCell
+                        key={fieldId}
+                        ref={(el) => (inputRefs.current[idx] = el)}
+                        label={field.label}
+                        value={value}
+                        onChange={onChange}
+                        suffix={field.unit || ''}
+                        min={0}
+                        max={fieldId === 'waterAmount' ? 10 : undefined}
+                        step={fieldId === 'waterAmount' ? 0.25 : 1}
+                        onKeyDown={handleKeyDown(idx)}
+                      />
+                    );
+                  })}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -582,46 +596,47 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
               </AccordionTrigger>
               <AccordionContent className="px-2 py-2 bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                  {fieldConfig.fields.stressLevel.visible && (
-                    <CompactSlider
-                      label={fieldConfig.fields.stressLevel.label}
-                      value={stressLevel}
-                      onChange={setStressLevel}
-                      min={1}
-                      max={10}
-                    />
-                  )}
-                  {fieldConfig.fields.hungerLevel.visible && (
-                    <CompactSlider
-                      label={fieldConfig.fields.hungerLevel.label}
-                      value={hungerLevel}
-                      onChange={setHungerLevel}
-                      min={1}
-                      max={10}
-                    />
-                  )}
-                  {fieldConfig.fields.energyLevel.visible && (
-                    <CompactSlider
-                      label={fieldConfig.fields.energyLevel.label}
-                      value={energyLevel}
-                      onChange={setEnergyLevel}
-                      min={1}
-                      max={10}
-                    />
-                  )}
-                  {fieldConfig.fields.sleepHours.visible && (
-                    <CompactInputCell
-                      ref={(el) => (inputRefs.current[14] = el)}
-                      label={fieldConfig.fields.sleepHours.label}
-                      value={sleepHours}
-                      onChange={setSleepHours}
-                      suffix={fieldConfig.fields.sleepHours.unit || 'שעות'}
-                      min={0}
-                      max={24}
-                      step={0.5}
-                      onKeyDown={handleKeyDown(14)}
-                    />
-                  )}
+                  {wellnessFields.map(([fieldId, field]) => {
+                    const value = getFieldValue(fieldId);
+                    const onChange = getFieldSetter(fieldId);
+                    const idx = inputIndex++;
+                    
+                    // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
+                    if (!onChange) {
+                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
+                      return null;
+                    }
+                    
+                    // Slider fields: stressLevel, hungerLevel, energyLevel
+                    if (fieldId === 'stressLevel' || fieldId === 'hungerLevel' || fieldId === 'energyLevel') {
+                      return (
+                        <CompactSlider
+                          key={fieldId}
+                          label={field.label}
+                          value={value}
+                          onChange={onChange}
+                          min={1}
+                          max={10}
+                        />
+                      );
+                    }
+                    
+                    // Input field: sleepHours or any other wellness field
+                    return (
+                      <CompactInputCell
+                        key={fieldId}
+                        ref={(el) => (inputRefs.current[idx] = el)}
+                        label={field.label}
+                        value={value}
+                        onChange={onChange}
+                        suffix={field.unit || 'שעות'}
+                        min={fieldId === 'sleepHours' ? 0 : undefined}
+                        max={fieldId === 'sleepHours' ? 24 : undefined}
+                        step={fieldId === 'sleepHours' ? 0.5 : 1}
+                        onKeyDown={handleKeyDown(idx)}
+                      />
+                    );
+                  })}
                 </div>
               </AccordionContent>
             </AccordionItem>
