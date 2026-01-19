@@ -5,10 +5,15 @@
  * Optimized for minimal scrolling with high-density layout.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useActiveBudgetForLead, useActiveBudgetForCustomer } from '@/hooks/useBudgets';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
+import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
+import { useNutritionPlan } from '@/hooks/useNutritionPlan';
+import { useNavigate } from 'react-router-dom';
 import { 
   Target, 
   Flame,
@@ -21,6 +26,7 @@ import {
   Wheat,
   Calendar,
   FileText,
+  Dumbbell,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -34,11 +40,28 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   leadId,
   customerId,
 }) => {
+  const navigate = useNavigate();
+  
   // Fetch active budget
   const { data: leadBudget } = useActiveBudgetForLead(leadId || null);
   const { data: customerBudget } = useActiveBudgetForCustomer(customerId || null);
   const budgetAssignment = leadBudget || customerBudget;
   const budget = budgetAssignment?.budget;
+  
+  // Fetch workout plan for customer
+  const { workoutPlan, isLoading: isLoadingWorkoutPlan, fetchWorkoutPlan } = useWorkoutPlan(customerId || null);
+  
+  // Fetch nutrition plan for customer
+  const { nutritionPlan, fetchNutritionPlan } = useNutritionPlan(customerId || null);
+  
+  // Refetch plans when budget changes
+  useEffect(() => {
+    if (budget?.id) {
+      // Budget changed, refetch related plans
+      fetchWorkoutPlan();
+      fetchNutritionPlan();
+    }
+  }, [budget?.id, fetchWorkoutPlan, fetchNutritionPlan]);
 
   if (!budgetAssignment || !budget) {
     return (
@@ -69,13 +92,26 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
               <Target className="h-5 w-5 text-[#5B6FB9]" />
               {budget.name}
             </CardTitle>
-            <Badge 
-              variant="outline" 
-              className="bg-slate-50 text-slate-600 border-slate-300 text-xs px-2 py-0.5"
-            >
-              <Calendar className="h-3 w-3 mr-1" />
-              {format(new Date(budgetAssignment.assigned_at), 'dd/MM/yyyy', { locale: he })}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant="outline" 
+                className="bg-slate-50 text-slate-600 border-slate-300 text-xs px-2 py-0.5"
+              >
+                <Calendar className="h-3 w-3 mr-1" />
+                {format(new Date(budgetAssignment.assigned_at), 'dd/MM/yyyy', { locale: he })}
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigate(`/dashboard/print/budget/${budget.id}`);
+                }}
+                className="h-8 px-3 text-xs border-[#5B6FB9] text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white"
+              >
+                <FileText className="h-3.5 w-3.5 ml-1.5" />
+                הדפס תקציב
+              </Button>
+            </div>
           </div>
           {budget.description && (
             <p className="text-sm text-slate-600 mt-2 leading-relaxed" dir="rtl">
@@ -232,6 +268,37 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Workout Plan Section */}
+      {budget.workout_template_id && (
+        <div className="space-y-4">
+          {isLoadingWorkoutPlan ? (
+            <Card className="rounded-3xl border border-slate-200 shadow-sm">
+              <CardContent className="p-8 text-center">
+                <Dumbbell className="h-10 w-10 mx-auto mb-3 text-gray-400 animate-pulse" />
+                <p className="text-sm font-medium text-gray-500">טוען תוכנית אימונים...</p>
+              </CardContent>
+            </Card>
+          ) : workoutPlan ? (
+            <WorkoutPlanCard
+              workoutPlan={workoutPlan}
+              isEditable={false}
+            />
+          ) : (
+            <Card className="rounded-3xl border border-slate-200 shadow-sm">
+              <CardContent className="p-8 text-center">
+                <Dumbbell className="h-10 w-10 mx-auto mb-3 text-gray-400" />
+                <p className="text-sm font-medium text-gray-500 mb-1">
+                  אין תוכנית אימונים פעילה
+                </p>
+                <p className="text-xs text-gray-400">
+                  תוכנית האימונים תוצג כאן כאשר תהיה זמינה
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -766,26 +766,24 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           };
         }
       } else {
-        // Use default message format
-        message = `📊 *סיכום שבועי - ${weekLabel}*\n\n`;
-        message += `🎯 *יעדים:*\n`;
+        // Use default message format (matches the format from WhatsApp automation)
+        message = `📊 סיכום שבועי - שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}\n\n`;
+        message += `🎯 יעדים:\n`;
         if (targetCalories) message += `קלוריות: ${Math.round(parseFloat(targetCalories))} קק"ל\n`;
         if (targetProtein) message += `חלבון: ${Math.round(parseFloat(targetProtein))} גרם\n`;
         if (targetFiber) message += `סיבים: ${Math.round(parseFloat(targetFiber))} גרם\n`;
         if (targetSteps) message += `צעדים: ${Math.round(parseFloat(targetSteps))}\n`;
         
-        message += `\n📈 *בפועל (ממוצע):*\n`;
+        message += `\n📈 בפועל (ממוצע):\n`;
         if (actualCalories) message += `קלוריות: ${Math.round(parseFloat(actualCalories))} קק"ל\n`;
-        if (actualProtein) message += `חלבון: ${Math.round(parseFloat(actualProtein))} גרם\n`;
-        if (actualFiber) message += `סיבים: ${Math.round(parseFloat(actualFiber))} גרם\n`;
         if (actualWeight) message += `משקל ממוצע: ${parseFloat(actualWeight).toFixed(1)} ק"ג\n`;
         
         if (trainerSummary) {
-          message += `\n💬 *סיכום ומסקנות:*\n${trainerSummary}\n`;
+          message += `\n💬 סיכום ומסקנות:\n${trainerSummary}\n`;
         }
         
         if (actionPlan) {
-          message += `\n🎯 *דגשים לשבוע הקרוב:*\n${actionPlan}\n`;
+          message += `\n🎯 דגשים לשבוע הקרוב:\n${actionPlan}\n`;
         }
       }
 

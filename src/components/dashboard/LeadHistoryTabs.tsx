@@ -601,11 +601,11 @@ export const LeadHistoryTabs = ({
             </div>
           ) : (
             <div className="space-y-2">
-              {(stepsHistory || []).map((step: any, index: number) => {
-                const isCurrent = index === (stepsHistory || []).length - 1;
+              {[...(stepsHistory || [])].reverse().map((step: any, index: number) => {
+                const isCurrent = index === 0; // First item (most recent) is the active one
                 return (
                   <div
-                    key={index}
+                    key={`${step.weekNumber || step.week || index}-${step.startDate || step.dates || index}`}
                     onClick={async () => {
                       if (customerId) {
                         // Fetch customer's daily_protocol for steps goal

@@ -14,6 +14,13 @@ export const useWorkoutPlan = (customerId?: string) => {
     }
 
     fetchWorkoutPlan();
+    
+    // Set up polling to sync with budget changes (every 30 seconds)
+    const intervalId = setInterval(() => {
+      fetchWorkoutPlan();
+    }, 30000);
+    
+    return () => clearInterval(intervalId);
   }, [customerId]);
 
   const fetchWorkoutPlan = async () => {

@@ -34,6 +34,7 @@ import { MultiDayReportModal } from '@/components/client/MultiDayReportModal';
 import { BudgetView } from '@/components/client/BudgetView';
 import { VisualProgressCard } from '@/components/client/VisualProgressCard';
 import { BloodTestsCard } from '@/components/client/BloodTestsCard.tsx';
+import { WeeklyReviewsList } from '@/components/client/WeeklyReviewsList';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
@@ -552,20 +553,12 @@ export const ClientDashboardView: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'summaries' && (
+            {activeTab === 'summaries' && customer?.id && (
               <div className="space-y-4 sm:space-y-6">
-                {/* Weekly summaries content can be added here if needed */}
-                <Card className="border border-slate-200 shadow-sm rounded-3xl">
-                  <CardContent className="p-12 text-center">
-                    <Target className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p className="text-base font-medium text-gray-500 mb-2">
-                      אין סיכומים שבועיים עדיין
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      המאמן שלך יוסיף סיכומים שבועיים כאן
-                    </p>
-                  </CardContent>
-                </Card>
+                <WeeklyReviewsList
+                  customerId={customer.id}
+                  leadId={activeLead?.id || null}
+                />
               </div>
             )}
 
