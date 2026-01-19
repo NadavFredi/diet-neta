@@ -30,8 +30,6 @@ interface FilloutFormSubmissionsResponse {
 }
 
 serve(async (req) => {
-  console.log('[sync-fillout-meetings] Function called');
-
   // Handle CORS preflight
   const corsResponse = handleCors(req);
   if (corsResponse) {
@@ -57,7 +55,6 @@ serve(async (req) => {
           body: bodyText,
         });
       } catch (e) {
-        console.log('[sync-fillout-meetings] Could not parse body, trying query params');
       }
     }
     
@@ -75,7 +72,6 @@ serve(async (req) => {
     // Default to the known form ID if not provided (from the form editor URL)
     if (!formId) {
       formId = 'n5VwsjFk5ous'; // Default form ID for open-meeting form
-      console.log('[sync-fillout-meetings] Using default form ID:', formId);
     }
     
     // Always sync both meeting forms (open-meeting and budget-meeting)
@@ -97,8 +93,6 @@ serve(async (req) => {
     // If formId starts with "-", it's likely a slug, not an ID
     // Fillout form IDs are typically alphanumeric strings, not starting with "-"
     if (formId.startsWith('-')) {
-      console.warn('[sync-fillout-meetings] Form ID appears to be a slug, not an ID:', formId);
-      console.warn('[sync-fillout-meetings] Using default form ID instead: n5VwsjFk5ous');
       formId = 'n5VwsjFk5ous'; // Use the actual form ID
       if (!formIdsToSync.includes(formId)) {
         formIdsToSync.unshift(formId); // Add to beginning
@@ -106,7 +100,6 @@ serve(async (req) => {
     }
     
     if (formIdsToSync.length === 0) {
-      console.error('[sync-fillout-meetings] No valid form IDs to sync');
       return errorResponse('Missing form_id parameter. Please provide the Fillout form ID. You can find it in your Fillout form editor URL (the part after /editor/).', 400);
     }
     
@@ -119,16 +112,9 @@ serve(async (req) => {
                          Deno.env.get('FILLOUT_API_KEY');
     
     if (!filloutApiKey) {
-      console.error('[sync-fillout-meetings] Missing FILLOUT_API_KEY environment variable');
-      const envKeys = Object.keys(Deno.env.toObject());
-      const filloutKeys = envKeys.filter(k => k.toUpperCase().includes('FILLOUT'));
-      console.log('[sync-fillout-meetings] Available Fillout-related env vars:', filloutKeys);
-      console.log('[sync-fillout-meetings] All env vars (first 20):', envKeys.slice(0, 20));
       return errorResponse('Missing FILLOUT_API_KEY. Make sure it\'s in .env.local as FILLOUT_API_KEY or VITE_FILLOUT_API_KEY and restart functions with: npm run functions:local', 500);
     }
     
-    console.log('[sync-fillout-meetings] FILLOUT_API_KEY found (length:', filloutApiKey.length, ')');
-
     const supabase = createSupabaseAdmin();
     let totalSynced = 0;
     let totalSkipped = 0;
@@ -136,12 +122,8 @@ serve(async (req) => {
 
     // Process each form ID
     for (const currentFormId of formIdsToSync) {
-      console.log('[sync-fillout-meetings] Syncing form:', currentFormId);
-      console.log('[sync-fillout-meetings] API key present:', !!filloutApiKey);
-
       // Fetch submissions from Fillout API
       const filloutUrl = `https://api.fillout.com/v1/api/forms/${currentFormId}/submissions?limit=100`;
-      console.log('[sync-fillout-meetings] Fetching from Fillout API:', filloutUrl);
       
       let filloutResponse;
       try {
@@ -153,37 +135,19 @@ serve(async (req) => {
           },
         });
       } catch (fetchError: any) {
-        console.error('[sync-fillout-meetings] Network error fetching from Fillout:', fetchError);
         allErrors.push(`Network error for form ${currentFormId}: ${fetchError.message}`);
         continue; // Skip this form and continue with next
       }
 
       if (!filloutResponse.ok) {
         const errorText = await filloutResponse.text();
-        console.error('[sync-fillout-meetings] Fillout API error:', {
-          status: filloutResponse.status,
-          statusText: filloutResponse.statusText,
-          error: errorText,
-          formId: currentFormId,
-        });
         allErrors.push(`Fillout API error for form ${currentFormId} (${filloutResponse.status}): ${errorText}`);
         continue; // Skip this form and continue with next
       }
 
       const filloutData: FilloutFormSubmissionsResponse = await filloutResponse.json();
-      console.log('[sync-fillout-meetings] Fetched submissions for form', currentFormId, ':', filloutData.totalResponses);
       
-      // Log the first submission structure to understand the format
-      if (filloutData.responses && filloutData.responses.length > 0) {
-        console.log('[sync-fillout-meetings] First submission structure:', JSON.stringify(filloutData.responses[0], null, 2));
-        console.log('[sync-fillout-meetings] First submission keys:', Object.keys(filloutData.responses[0]));
-        if (filloutData.responses[0].questions) {
-          console.log('[sync-fillout-meetings] First submission questions:', JSON.stringify(filloutData.responses[0].questions, null, 2));
-        }
-      }
-
       if (!filloutData.responses || filloutData.responses.length === 0) {
-        console.log('[sync-fillout-meetings] No submissions found for form:', currentFormId);
         continue; // Skip this form and continue with next
       }
 
@@ -204,8 +168,6 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existing) {
-          console.log('[sync-fillout-meetings] Meeting already exists, checking if update needed:', submission.submissionId);
-          
           // Check if meeting_data only has metadata (needs backfill)
           const existingData = existing.meeting_data || {};
           const hasOnlyMetadata = Object.keys(existingData).every(key => 
@@ -216,10 +178,7 @@ serve(async (req) => {
             key === 'lastUpdatedAt'
           );
           
-          if (hasOnlyMetadata) {
-            console.log('[sync-fillout-meetings] Meeting has only metadata, will update with full data');
-          } else {
-            console.log('[sync-fillout-meetings] Meeting already has full data, skipping update');
+          if (!hasOnlyMetadata) {
             totalSkipped++;
             continue;
           }

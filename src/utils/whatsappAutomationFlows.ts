@@ -46,7 +46,6 @@ export const loadCustomFlows = (): FlowConfig[] => {
       return JSON.parse(stored);
     }
   } catch (error) {
-    console.error('[whatsappAutomationFlows] Error loading custom flows:', error);
   }
   return [];
 };
@@ -59,7 +58,6 @@ export const loadDeletedDefaultFlows = (): string[] => {
       return JSON.parse(stored);
     }
   } catch (error) {
-    console.error('[whatsappAutomationFlows] Error loading deleted default flows:', error);
   }
   return [];
 };

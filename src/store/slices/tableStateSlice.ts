@@ -342,40 +342,43 @@ const DEFAULT_COLUMN_ORDER: string[] = [];
 const DEFAULT_ACTIVE_FILTERS: any[] = [];
 const DEFAULT_GROUP_BY_KEYS: [string | null, string | null] = [null, null];
 const DEFAULT_GROUP_SORTING: { level1: 'asc' | 'desc' | null; level2: 'asc' | 'desc' | null } = { level1: null, level2: null };
+const DEFAULT_COLLAPSED_GROUPS: string[] = [];
 
 // Selectors
 export const selectTableState = (state: { tableState: TableStateState }, resourceKey: ResourceKey): TableState | undefined => {
   return state.tableState.tables[resourceKey];
 };
 
-// Memoized selectors to prevent unnecessary re-renders
-export const selectColumnVisibility = createSelector(
+// Helper selector to get a specific table state
+const selectTableStateByKey = createSelector(
   [
     (state: { tableState: TableStateState }) => state.tableState.tables,
     (_state: { tableState: TableStateState }, resourceKey: ResourceKey) => resourceKey,
   ],
   (tables, resourceKey) => {
-    return tables[resourceKey]?.columnVisibility ?? DEFAULT_COLUMN_VISIBILITY;
+    return tables[resourceKey];
+  }
+);
+
+// Memoized selectors to prevent unnecessary re-renders
+export const selectColumnVisibility = createSelector(
+  [selectTableStateByKey],
+  (tableState) => {
+    return tableState?.columnVisibility ?? DEFAULT_COLUMN_VISIBILITY;
   }
 );
 
 export const selectColumnSizing = createSelector(
-  [
-    (state: { tableState: TableStateState }) => state.tableState.tables,
-    (_state: { tableState: TableStateState }, resourceKey: ResourceKey) => resourceKey,
-  ],
-  (tables, resourceKey) => {
-    return tables[resourceKey]?.columnSizing ?? DEFAULT_COLUMN_SIZING;
+  [selectTableStateByKey],
+  (tableState) => {
+    return tableState?.columnSizing ?? DEFAULT_COLUMN_SIZING;
   }
 );
 
 export const selectColumnOrder = createSelector(
-  [
-    (state: { tableState: TableStateState }) => state.tableState.tables,
-    (_state: { tableState: TableStateState }, resourceKey: ResourceKey) => resourceKey,
-  ],
-  (tables, resourceKey) => {
-    return tables[resourceKey]?.columnOrder ?? DEFAULT_COLUMN_ORDER;
+  [selectTableStateByKey],
+  (tableState) => {
+    return tableState?.columnOrder ?? DEFAULT_COLUMN_ORDER;
   }
 );
 
@@ -384,12 +387,9 @@ export const selectSearchQuery = (state: { tableState: TableStateState }, resour
 };
 
 export const selectActiveFilters = createSelector(
-  [
-    (state: { tableState: TableStateState }) => state.tableState.tables,
-    (_state: { tableState: TableStateState }, resourceKey: ResourceKey) => resourceKey,
-  ],
-  (tables, resourceKey) => {
-    return tables[resourceKey]?.activeFilters ?? DEFAULT_ACTIVE_FILTERS;
+  [selectTableStateByKey],
+  (tableState) => {
+    return tableState?.activeFilters ?? DEFAULT_ACTIVE_FILTERS;
   }
 );
 
@@ -398,33 +398,24 @@ export const selectGroupByKey = (state: { tableState: TableStateState }, resourc
 };
 
 export const selectGroupByKeys = createSelector(
-  [
-    (state: { tableState: TableStateState }) => state.tableState.tables,
-    (_state: { tableState: TableStateState }, resourceKey: ResourceKey) => resourceKey,
-  ],
-  (tables, resourceKey) => {
-    return tables[resourceKey]?.groupByKeys ?? DEFAULT_GROUP_BY_KEYS;
+  [selectTableStateByKey],
+  (tableState) => {
+    return tableState?.groupByKeys ?? DEFAULT_GROUP_BY_KEYS;
   }
 );
 
 export const selectGroupSorting = createSelector(
-  [
-    (state: { tableState: TableStateState }) => state.tableState.tables,
-    (_state: { tableState: TableStateState }, resourceKey: ResourceKey) => resourceKey,
-  ],
-  (tables, resourceKey) => {
-    return tables[resourceKey]?.groupSorting ?? DEFAULT_GROUP_SORTING;
+  [selectTableStateByKey],
+  (tableState) => {
+    return tableState?.groupSorting ?? DEFAULT_GROUP_SORTING;
   }
 );
 
 // Memoized selector for collapsed groups to prevent unnecessary re-renders
 export const selectCollapsedGroups = createSelector(
-  [
-    (state: { tableState: TableStateState }) => state.tableState.tables,
-    (_state: { tableState: TableStateState }, resourceKey: ResourceKey) => resourceKey,
-  ],
-  (tables, resourceKey) => {
-    return tables[resourceKey]?.collapsedGroups || [];
+  [selectTableStateByKey],
+  (tableState) => {
+    return tableState?.collapsedGroups ?? DEFAULT_COLLAPSED_GROUPS;
   }
 );
 

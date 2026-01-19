@@ -1071,7 +1071,6 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                                 alt="Preview"
                                 className="w-full h-auto max-h-[300px] object-cover rounded-t-lg"
                                 onLoad={() => {
-                                  console.log('[TemplateEditorModal] Media loaded successfully:', mediaSrc);
                                   setMediaLoadError(null);
                                 }}
                                 onError={(e) => {
@@ -1093,26 +1092,14 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                                         setMediaLoadError(null);
                                         return; // Don't set error, try again with new URL
                                       } catch (recreateError) {
-                                        console.error('[TemplateEditorModal] Failed to recreate blob URL:', recreateError);
                                       }
                                     }
                                     // If we can't recreate or already retried, show error
                                     const errorMsg = 'שגיאה בטעינת המדיה - הקובץ עלול להיות פגום או בפורמט לא נתמך';
-                                    console.error('[TemplateEditorModal] Error loading blob URL:', {
-                                      src: mediaSrc,
-                                      type: media.type,
-                                      retryCount: blobRetryCount,
-                                      error: e
-                                    });
                                     setMediaLoadError(errorMsg);
                                   } else {
                                     // For non-blob URLs, show standard error
                                     const errorMsg = 'שגיאה בטעינת המדיה - ייתכן שהקובץ לא קיים או שאין גישה אליו';
-                                    console.error('[TemplateEditorModal] Error loading media preview:', {
-                                      src: mediaSrc,
-                                      type: media.type,
-                                      error: e
-                                    });
                                     setMediaLoadError(errorMsg);
                                   }
                                 }}
@@ -1124,21 +1111,14 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                                 controls
                                 className="w-full h-auto max-h-[300px] rounded-t-lg"
                                 onLoadedData={() => {
-                                  console.log('[TemplateEditorModal] Video loaded successfully:', mediaSrc);
                                   setMediaLoadError(null);
                                 }}
                                 onError={(e) => {
                                   // Only show error if it's not a blob URL
                                   if (!mediaSrc.startsWith('blob:')) {
                                     const errorMsg = 'שגיאה בטעינת הווידאו - ייתכן שהקובץ לא קיים או שאין גישה אליו';
-                                    console.error('[TemplateEditorModal] Error loading video preview:', {
-                                      src: mediaSrc,
-                                      type: media.type,
-                                      error: e
-                                    });
                                     setMediaLoadError(errorMsg);
                                   } else {
-                                    console.warn('[TemplateEditorModal] Blob URL failed to load for video:', mediaSrc);
                                   }
                                 }}
                               >

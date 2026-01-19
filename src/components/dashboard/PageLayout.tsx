@@ -6,7 +6,7 @@
  * Mobile-first responsive design.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardSidebar } from './DashboardSidebar';
 import { ClientHero } from './ClientHero';
@@ -105,7 +105,12 @@ export const PageLayout: React.FC<PageLayoutProps> = ({
     location.pathname.startsWith('/profile/');
 
   // Get notes count for the customer
-  const notes = useAppSelector(selectCustomerNotes(customer?.id));
+  // Memoize the selector to prevent creating a new selector on every render
+  const customerNotesSelector = useMemo(
+    () => selectCustomerNotes(customer?.id),
+    [customer?.id]
+  );
+  const notes = useAppSelector(customerNotesSelector);
   const notesCount = notes?.length || 0;
 
   // Get form submission state for sidebar

@@ -190,7 +190,6 @@ export const useWorkoutPlan = (customerId?: string) => {
       // No workout plan or template found
       setWorkoutPlan(null);
     } catch (err) {
-      console.error('Error fetching workout plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch workout plan');
       setWorkoutPlan(null);
     } finally {

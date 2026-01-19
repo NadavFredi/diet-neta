@@ -236,7 +236,6 @@ export const upsertCheckIn = createAsyncThunk(
                 customer.full_name || 'לקוח',
                 data.check_in_date
               ).catch((err) => {
-                console.error('[ClientSlice] Failed to create check-in notification:', err);
               });
             }
           });
@@ -285,7 +284,6 @@ export const batchUpsertCheckIns = createAsyncThunk(
                 customerMap.get(checkIn.customer_id) || 'לקוח',
                 checkIn.check_in_date
               ).catch((err) => {
-                console.error('[ClientSlice] Failed to create batch check-in notification:', err);
               });
             });
           });
@@ -327,7 +325,7 @@ export const updateClientLead = createAsyncThunk(
             leadId,
             customerName,
             updates.weight
-          ).catch((err) => console.error('[ClientSlice] Failed to create weight notification:', err));
+          ).catch((err) => {});
         } else {
           // Generic profile update
           const updatedFields = Object.keys(updates).join(', ');
@@ -336,7 +334,7 @@ export const updateClientLead = createAsyncThunk(
             leadId,
             customerName,
             updatedFields
-          ).catch((err) => console.error('[ClientSlice] Failed to create profile notification:', err));
+          ).catch((err) => {});
         }
       });
     }
@@ -375,7 +373,7 @@ export const updateClientCustomer = createAsyncThunk(
           null,
           customerName,
           updatedFields
-        ).catch((err) => console.error('[ClientSlice] Failed to create profile notification:', err));
+        ).catch((err) => {});
       });
     }
     

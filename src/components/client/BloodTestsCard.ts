@@ -54,7 +54,6 @@ export const useBloodTestsCard = (leadId: string, customerId: string) => {
         description: 'קובץ הבדיקה הועלה בהצלחה',
       });
     } catch (error: any) {
-      console.error('Error uploading blood test:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'לא ניתן היה להעלות את הקובץ',
@@ -105,7 +104,6 @@ export const useBloodTestsCard = (leadId: string, customerId: string) => {
         description: 'קובץ הבדיקה נמחק',
       });
     } catch (error: any) {
-      console.error('Error deleting blood test:', error);
       toast({
         title: 'שגיאה',
         description: 'לא ניתן היה למחוק את הקובץ',

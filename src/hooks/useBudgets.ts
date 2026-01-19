@@ -45,10 +45,9 @@ export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) =>
       }
 
       const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching budgets:', error);
-        if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+  
+        if (error) {
+          if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התקציבים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
         throw error;
@@ -205,10 +204,9 @@ export const useCreateBudget = () => {
         })
         .select()
         .single();
-
-      if (error) {
-        console.error('Error creating budget:', error);
-        if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+  
+        if (error) {
+          if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התקציבים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
         throw error;

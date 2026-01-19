@@ -151,7 +151,6 @@ export const createTraineeInvitation = createAsyncThunk(
         token, // Only returned for initial creation, never stored in state
       };
     } catch (error: any) {
-      console.error('[createTraineeInvitation] Error:', error);
       return rejectWithValue(error?.message || 'Failed to create invitation');
     }
   }
@@ -388,17 +387,10 @@ export const createTraineeUserWithPassword = createAsyncThunk(
           isNewUser: false,
         };
       }
-
-      // Create user via edge function (uses admin API)
-      console.log('[createTraineeUserWithPassword] Calling edge function with:', {
-        email,
-        customerId,
-        leadId: leadId || null,
-        invitedBy: user.id,
-        passwordLength: password?.length,
-      });
-      
-      // Use fetch directly to get the actual error message from response body
+  
+        // Create user via edge function (uses admin API)
+        
+        // Use fetch directly to get the actual error message from response body
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       
       // Get and refresh session to ensure we have a valid token
@@ -481,7 +473,6 @@ export const createTraineeUserWithPassword = createAsyncThunk(
         isNewUser: functionData.isNewUser !== undefined ? functionData.isNewUser : true,
       };
     } catch (error: any) {
-      console.error('[createTraineeUserWithPassword] Error:', error);
       return rejectWithValue(error?.message || 'Failed to create trainee user');
     }
   }

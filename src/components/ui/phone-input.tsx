@@ -443,7 +443,6 @@ export const PhoneInput = ({
         }
       } catch (error) {
         // Use common countries as fallback
-        console.log("Using common countries list")
       }
     }
   }, [])

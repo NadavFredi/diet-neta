@@ -9,7 +9,7 @@
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { ClientHero } from '@/components/dashboard/ClientHero';
@@ -125,7 +125,6 @@ const MeetingDetailView = () => {
       await dispatch(logoutUser()).unwrap();
       navigate('/login');
     } catch (error) {
-      console.error('[MeetingDetailView] Logout error:', error);
       navigate('/login');
     }
   };
@@ -185,7 +184,12 @@ const MeetingDetailView = () => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Get notes count for the customer
-  const notes = useAppSelector(selectCustomerNotes(customer?.id));
+  // Memoize the selector to prevent creating a new selector on every render
+  const customerNotesSelector = useMemo(
+    () => selectCustomerNotes(customer?.id),
+    [customer?.id]
+  );
+  const notes = useAppSelector(customerNotesSelector);
   const notesCount = notes?.length || 0;
 
   // Fetch notes when customer changes - MUST be before early returns
@@ -357,7 +361,6 @@ const MeetingDetailView = () => {
         meetingStartTime = `${hours}:${minutes}`;
       }
     } catch (e) {
-      console.error('[MeetingDetailView] Error parsing start time:', e);
     }
   }
 
@@ -370,7 +373,6 @@ const MeetingDetailView = () => {
         meetingEndTime = `${hours}:${minutes}`;
       }
     } catch (e) {
-      console.error('[MeetingDetailView] Error parsing end time:', e);
     }
   }
 

@@ -300,3 +300,60 @@ export const getAllSubmissionsForLead = async (
     throw error;
   }
 };
+
+/**
+ * Get form submissions for a lead grouped by form type
+ * Returns a map of form type keys ('details' | 'intro' | 'characterization') to submissions
+ * Only returns form types that have submissions
+ */
+export const getFormSubmissionsByTypeForLead = async (
+  leadId: string
+): Promise<Record<string, FilloutSubmission>> => {
+  try {
+    // Get form IDs from environment variables
+    const formIds = {
+      DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || '',
+      INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || '',
+      CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '',
+    };
+
+    // Create a reverse map: formId -> formType key
+    const formIdToTypeMap: Record<string, string> = {};
+    if (formIds.DETAILS) formIdToTypeMap[formIds.DETAILS] = 'details';
+    if (formIds.INTRO) formIdToTypeMap[formIds.INTRO] = 'intro';
+    if (formIds.CHARACTERIZATION) formIdToTypeMap[formIds.CHARACTERIZATION] = 'characterization';
+
+    // Query database for all submissions for this lead
+    const { data, error } = await supabase
+      .from('fillout_submissions')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch submissions: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      return {};
+    }
+
+    // Group submissions by form type and get the most recent one for each type
+    const submissionsByType: Record<string, FilloutSubmission> = {};
+    
+    for (const dbSubmission of data) {
+      const formId = dbSubmission.fillout_form_id;
+      const formType = formIdToTypeMap[formId];
+      
+      // Only process if this form ID maps to a known form type
+      if (formType && !submissionsByType[formType]) {
+        // Get the most recent submission for this form type
+        submissionsByType[formType] = convertDbSubmissionToFilloutSubmission(dbSubmission);
+      }
+    }
+
+    return submissionsByType;
+  } catch (error: any) {
+    throw error;
+  }
+};

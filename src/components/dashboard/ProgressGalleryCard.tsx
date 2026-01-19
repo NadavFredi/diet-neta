@@ -75,7 +75,6 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
       if (error) {
         // If storage is not available, just return empty array
         if (error.message?.includes('name resolution failed') || error.message?.includes('503')) {
-          console.warn('Storage service not available');
           setPhotos([]);
           setIsLoading(false);
           return;
@@ -100,7 +99,6 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
 
       setPhotos(photosWithUrls);
     } catch (error: any) {
-      console.error('Error fetching progress photos:', error);
       // Don't show error toast for empty folder (expected case) or storage unavailable
       if (error?.message?.includes('not found') || error?.statusCode === '404' || 
           error?.message?.includes('name resolution failed') || error?.message?.includes('503')) {
@@ -167,7 +165,6 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
       // Refresh photos list
       await fetchPhotos();
     } catch (error: any) {
-      console.error('Error uploading photo:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'לא ניתן היה להעלות את התמונה',
@@ -243,7 +240,6 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
       // Refresh photos list
       await fetchPhotos();
     } catch (error: any) {
-      console.error('Error deleting photo:', error);
       toast({
         title: 'שגיאה',
         description: 'לא ניתן היה למחוק את התמונה',

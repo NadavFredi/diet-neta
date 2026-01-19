@@ -66,7 +66,6 @@ export const VisualProgressCard: React.FC<VisualProgressCardProps> = ({
       if (error) {
         // If storage is not available (503 or connection error), show user-friendly message
         if (error.message?.includes('name resolution failed') || error.message?.includes('503')) {
-          console.warn('Storage service not available. This is expected in local development if storage is disabled.');
           setPhotos([]);
           setIsLoading(false);
           return;
@@ -91,10 +90,8 @@ export const VisualProgressCard: React.FC<VisualProgressCardProps> = ({
 
       setPhotos(photosWithUrls);
     } catch (error: any) {
-      console.error('Error fetching photos:', error);
       // Don't show error toast if storage is simply not available
       if (error.message?.includes('name resolution failed') || error.message?.includes('503')) {
-        console.warn('Storage service not available');
         setPhotos([]);
       } else {
         toast({
@@ -164,7 +161,6 @@ export const VisualProgressCard: React.FC<VisualProgressCardProps> = ({
       // Refresh photos list
       await fetchPhotos();
     } catch (error: any) {
-      console.error('Error uploading photo:', error);
       // Check if storage is not available
       if (error.message?.includes('name resolution failed') || error.message?.includes('503')) {
         toast({
@@ -242,7 +238,6 @@ export const VisualProgressCard: React.FC<VisualProgressCardProps> = ({
       // Refresh photos list
       await fetchPhotos();
     } catch (error: any) {
-      console.error('Error deleting photo:', error);
       toast({
         title: 'שגיאה',
         description: 'לא ניתן היה למחוק את התמונה',

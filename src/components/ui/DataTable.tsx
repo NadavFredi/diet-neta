@@ -56,6 +56,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 
+// Stable default values to prevent unnecessary re-renders
+const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {};
+const DEFAULT_COLUMN_SIZING: Record<string, number> = {};
+const DEFAULT_COLUMN_ORDER: string[] = [];
+const DEFAULT_GROUP_BY_KEYS: [string | null, string | null] = [null, null];
+const DEFAULT_GROUP_SORTING: { level1: 'asc' | 'desc' | null; level2: 'asc' | 'desc' | null } = { level1: null, level2: null };
+const DEFAULT_COLLAPSED_GROUPS: string[] = [];
+
 export interface DataTableColumn<T> {
   id: string;
   header: string | ((props: any) => React.ReactNode);
@@ -394,13 +402,14 @@ export function DataTable<T extends Record<string, any>>({
   const [hasMeasured, setHasMeasured] = useState(false);
 
   // Get state from Redux if resourceKey is provided, otherwise use local state (backward compatibility)
-  const reduxColumnVisibility = resourceKey ? useAppSelector((state) => selectColumnVisibility(state, resourceKey)) : {};
-  const reduxColumnSizing = resourceKey ? useAppSelector((state) => selectColumnSizing(state, resourceKey)) : {};
-  const reduxColumnOrder = resourceKey ? useAppSelector((state) => selectColumnOrder(state, resourceKey)) : [];
+  // Use stable default constants to prevent unnecessary re-renders
+  const reduxColumnVisibility = resourceKey ? useAppSelector((state) => selectColumnVisibility(state, resourceKey)) : DEFAULT_COLUMN_VISIBILITY;
+  const reduxColumnSizing = resourceKey ? useAppSelector((state) => selectColumnSizing(state, resourceKey)) : DEFAULT_COLUMN_SIZING;
+  const reduxColumnOrder = resourceKey ? useAppSelector((state) => selectColumnOrder(state, resourceKey)) : DEFAULT_COLUMN_ORDER;
   const groupByKey = resourceKey ? useAppSelector((state) => selectGroupByKey(state, resourceKey)) : null;
-  const groupByKeys = resourceKey ? useAppSelector((state) => selectGroupByKeys(state, resourceKey)) : [null, null];
-  const groupSorting = resourceKey ? useAppSelector((state) => selectGroupSorting(state, resourceKey)) : { level1: null, level2: null };
-  const collapsedGroups = resourceKey ? useAppSelector((state) => selectCollapsedGroups(state, resourceKey)) : [];
+  const groupByKeys = resourceKey ? useAppSelector((state) => selectGroupByKeys(state, resourceKey)) : DEFAULT_GROUP_BY_KEYS;
+  const groupSorting = resourceKey ? useAppSelector((state) => selectGroupSorting(state, resourceKey)) : DEFAULT_GROUP_SORTING;
+  const collapsedGroups = resourceKey ? useAppSelector((state) => selectCollapsedGroups(state, resourceKey)) : DEFAULT_COLLAPSED_GROUPS;
   
   // Convert collapsedGroups array to Set for efficient lookup
   const collapsedGroupsSet = useMemo(() => new Set(collapsedGroups), [collapsedGroups]);

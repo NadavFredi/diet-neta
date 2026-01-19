@@ -93,18 +93,13 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
   };
 
   const handleFormSubmit = async () => {
-    console.log('[AddLeadDialog] Form submit started');
     const success = await handleSubmit();
-    console.log('[AddLeadDialog] Form submit completed, success:', success);
     // Close dialog after successful submission
     if (success) {
       // Refresh leads list if callback provided
       if (onLeadCreated) {
-        console.log('[AddLeadDialog] Calling onLeadCreated callback...');
         await onLeadCreated();
-        console.log('[AddLeadDialog] onLeadCreated callback completed');
       } else {
-        console.warn('[AddLeadDialog] No onLeadCreated callback provided');
       }
       onOpenChange(false);
     }
