@@ -5,12 +5,13 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSidebar } from '@/store/slices/sidebarSlice';
-import { ChevronRight, ChevronLeft, LogOut, Eye, Menu, X } from 'lucide-react';
+import { ChevronRight, ChevronLeft, LogOut, Eye, Menu, X, UserSearch } from 'lucide-react';
 import { stopImpersonation } from '@/store/slices/impersonationSlice';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NotificationBell } from '@/components/dashboard/NotificationBell';
+import { UserImpersonationDialog } from '@/components/dashboard/UserImpersonationDialog';
 
 // Custom hook to detect if screen is desktop (lg breakpoint = 1024px)
 const useIsDesktop = () => {
@@ -44,10 +45,24 @@ export const DashboardHeader = ({
   const sidebarWidth = useSidebarWidth();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAppSelector((state) => state.auth);
   const { isImpersonating, previousLocation } = useAppSelector((state) => state.impersonation);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isImpersonationDialogOpen, setIsImpersonationDialogOpen] = useState(false);
   const isDesktop = useIsDesktop();
+
+  // Check if we're on a general header (not on leads, profile, or client pages)
+  const isGeneralHeader = !location.pathname.startsWith('/leads/') &&
+    !location.pathname.startsWith('/profile/') &&
+    !location.pathname.startsWith('/client/') &&
+    !location.pathname.startsWith('/dashboard/customers/') &&
+    !location.pathname.startsWith('/dashboard/meetings/');
+  
+  // Only show impersonation button for admins/managers on general pages
+  const showImpersonationButton = isGeneralHeader && 
+    user && 
+    (user.role === 'admin' || user.role === 'user');
 
   const handleToggleSidebar = () => {
     dispatch(toggleSidebar());
@@ -215,6 +230,19 @@ export const DashboardHeader = ({
               </div>
             )}
 
+            {/* User Impersonation Button - Only on general pages */}
+            {showImpersonationButton && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsImpersonationDialogOpen(true)}
+                className="h-10 w-10 text-gray-700 hover:bg-gray-100 flex-shrink-0"
+                title="צפה בעיני משתמש"
+              >
+                <UserSearch className="h-5 w-5" />
+              </Button>
+            )}
+
             {/* Notification Bell */}
             <NotificationBell />
 
@@ -261,6 +289,14 @@ export const DashboardHeader = ({
           </div>
         </div>
       </header>
+
+      {/* User Impersonation Dialog */}
+      {showImpersonationButton && (
+        <UserImpersonationDialog
+          open={isImpersonationDialogOpen}
+          onOpenChange={setIsImpersonationDialogOpen}
+        />
+      )}
     </>
   );
 };

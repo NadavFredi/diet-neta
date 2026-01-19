@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 
 export interface Customer {
   id: string;
@@ -66,22 +69,40 @@ export interface CustomerWithLeads extends Customer {
 }
 
 // Fetch all customers with lead counts
-export const useCustomers = () => {
+export const useCustomers = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['customers', user?.email],
+    queryKey: ['customers', filters, user?.email],
     queryFn: async () => {
       if (!user?.email) {
         return [];
       }
 
       try {
-        // Fetch all customers
-        const { data: customersData, error: customersError } = await supabase
-          .from('customers')
+        const fieldConfigs: FilterFieldConfigMap = {
+          created_at: { column: 'created_at', type: 'date' },
+          full_name: { column: 'full_name', type: 'text' },
+          phone: { column: 'phone', type: 'text' },
+          email: { column: 'email', type: 'text' },
+          total_leads: { column: 'total_leads', type: 'number' },
+          total_spent: { column: 'total_spent', type: 'number' },
+          membership_tier: { column: 'membership_tier', type: 'select' },
+        };
+
+        const searchGroup = filters?.search ? createSearchGroup(filters.search, ['full_name', 'phone', 'email']) : null;
+        const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
+
+        let query = supabase
+          .from('customers_with_lead_counts')
           .select('*')
           .order('created_at', { ascending: false });
+
+        if (combinedGroup) {
+          query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
+        }
+
+        const { data: customersData, error: customersError } = await query;
 
         if (customersError) {
           throw customersError;
@@ -91,37 +112,7 @@ export const useCustomers = () => {
           return [];
         }
 
-        // Fetch lead counts for all customers in one query
-        const customerIds = customersData.map((c: any) => c.id);
-        const { data: leadsData, error: leadsError } = await supabase
-          .from('leads')
-          .select('customer_id')
-          .in('customer_id', customerIds);
-
-        if (leadsError) {
-          // Don't throw - continue without lead counts
-        }
-
-        // Count leads per customer
-        const leadCounts = (leadsData || []).reduce((acc: Record<string, number>, lead: any) => {
-          const customerId = lead.customer_id;
-          acc[customerId] = (acc[customerId] || 0) + 1;
-          return acc;
-        }, {});
-
-        // Transform the data to include total_leads
-        const result = customersData.map((customer: any) => ({
-          id: customer.id,
-          full_name: customer.full_name,
-          phone: customer.phone,
-          email: customer.email,
-          user_id: customer.user_id || null, // Include user_id for trainee account link
-          created_at: customer.created_at,
-          updated_at: customer.updated_at,
-          total_leads: leadCounts[customer.id] || 0,
-        })) as Customer[];
-
-        return result;
+        return (customersData || []) as Customer[];
       } catch (error: any) {
         return [];
       }

@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 
 export interface NutritionTargets {
   calories: number;
@@ -42,7 +45,7 @@ export interface NutritionTemplate {
 // This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all templates (public + user's own)
-export const useNutritionTemplates = (filters?: { search?: string; isPublic?: boolean }) => {
+export const useNutritionTemplates = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
@@ -51,20 +54,94 @@ export const useNutritionTemplates = (filters?: { search?: string; isPublic?: bo
       if (!user?.id) throw new Error('User not authenticated');
 
       const userId = user.id; // Use user.id from Redux instead of API call
+      const fieldConfigs: FilterFieldConfigMap = {
+        created_at: { column: 'created_at', type: 'date' },
+        is_public: { column: 'is_public', type: 'select', valueMap: (value) => (value === 'כן' ? true : value === 'לא' ? false : value) },
+        calories_range: {
+          custom: (filter, negate) => {
+            const value = filter.values[0];
+            if (!value) return [];
+            const [minStr, maxStr] = value.split('-');
+            const column = "targets->>calories";
+            if (value.endsWith('+')) {
+              const min = Number(value.replace('+', ''));
+              return [[{ column, operator: 'gte', value: min, negate }]];
+            }
+            const min = Number(minStr);
+            const max = Number(maxStr);
+            if (!negate) {
+              return [[
+                { column, operator: 'gte', value: min },
+                { column, operator: 'lte', value: max },
+              ]];
+            }
+            return [
+              [{ column, operator: 'lt', value: min }],
+              [{ column, operator: 'gt', value: max }],
+            ];
+          },
+        },
+        protein_range: {
+          custom: (filter, negate) => {
+            const value = filter.values[0];
+            if (!value) return [];
+            const [minStr, maxStr] = value.split('-');
+            const column = "targets->>protein";
+            if (value.endsWith('+')) {
+              const min = Number(value.replace('+', ''));
+              return [[{ column, operator: 'gte', value: min, negate }]];
+            }
+            const min = Number(minStr);
+            const max = Number(maxStr);
+            if (!negate) {
+              return [[
+                { column, operator: 'gte', value: min },
+                { column, operator: 'lte', value: max },
+              ]];
+            }
+            return [
+              [{ column, operator: 'lt', value: min }],
+              [{ column, operator: 'gt', value: max }],
+            ];
+          },
+        },
+        name: { column: 'name', type: 'text' },
+        description: { column: 'description', type: 'text' },
+      };
+
+      const accessGroup: FilterGroup = {
+        id: `access-${userId}`,
+        operator: 'or',
+        children: [
+          {
+            id: `public-${userId}`,
+            fieldId: 'is_public',
+            fieldLabel: 'is_public',
+            operator: 'equals',
+            values: ['כן'],
+            type: 'select',
+          },
+          {
+            id: `owner-${userId}`,
+            fieldId: 'created_by',
+            fieldLabel: 'created_by',
+            operator: 'equals',
+            values: [userId],
+            type: 'text',
+          },
+        ],
+      };
+
+      const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name', 'description']) : null;
+      const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
+
       let query = supabase
         .from('nutrition_templates')
         .select('*')
-        .or(`is_public.eq.true,created_by.eq.${userId}`)
         .order('created_at', { ascending: false });
 
-      // Apply search filter
-      if (filters?.search) {
-        query = query.ilike('name', `%${filters.search}%`);
-      }
-
-      // Apply public filter
-      if (filters?.isPublic !== undefined) {
-        query = query.eq('is_public', filters.isPublic);
+      if (combinedGroup) {
+        query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
       const { data, error } = await query;
@@ -253,7 +330,6 @@ export const useDeleteNutritionTemplate = () => {
     },
   });
 };
-
 
 
 

@@ -27,9 +27,11 @@ import {
   updateFilter as updateFilterAction,
   removeFilter as removeFilterAction,
   clearFilters as clearFiltersAction,
+  setActiveFilters,
   selectColumnOrder,
   selectSearchQuery,
   selectActiveFilters,
+  selectFilterGroup,
   selectGroupByKey,
   selectGroupByKeys,
   selectGroupSorting,
@@ -42,7 +44,7 @@ import {
 import { GroupBadge } from './GroupBadge';
 import { GroupBySelector } from './GroupBySelector';
 import type { DataTableColumn } from '@/components/ui/DataTable';
-import type { ActiveFilter, FilterField } from '@/components/dashboard/TableFilter';
+import type { ActiveFilter, FilterField, FilterGroup } from '@/components/dashboard/TableFilter';
 import { cn } from '@/lib/utils';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, useUpdateSavedView } from '@/hooks/useSavedViews';
@@ -88,10 +90,12 @@ interface TableActionHeaderProps {
   legacySearchQuery?: string;
   legacyOnSearchChange?: (value: string) => void;
   legacyActiveFilters?: any[];
+  legacyFilterGroup?: FilterGroup;
   legacyOnFilterAdd?: (filter: any) => void;
   legacyOnFilterUpdate?: (filter: any) => void;
   legacyOnFilterRemove?: (filterId: string) => void;
   legacyOnFilterClear?: () => void;
+  legacyOnFilterGroupChange?: (group: FilterGroup) => void;
 }
 
 export const TableActionHeader = ({
@@ -120,10 +124,12 @@ export const TableActionHeader = ({
   legacySearchQuery,
   legacyOnSearchChange,
   legacyActiveFilters,
+  legacyFilterGroup,
   legacyOnFilterAdd,
   legacyOnFilterUpdate,
   legacyOnFilterRemove,
   legacyOnFilterClear,
+  legacyOnFilterGroupChange,
 }: TableActionHeaderProps) => {
   const dispatch = useAppDispatch();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -157,6 +163,7 @@ export const TableActionHeader = ({
   // Get state from Redux (or use legacy props for leads)
   const reduxSearchQuery = useAppSelector((state) => selectSearchQuery(state, resourceKey));
   const reduxActiveFilters = useAppSelector((state) => selectActiveFilters(state, resourceKey));
+  const reduxFilterGroup = useAppSelector((state) => selectFilterGroup(state, resourceKey));
 
   // Use legacy props when provided, Redux otherwise
   const searchQuery = legacySearchQuery !== undefined 
@@ -166,6 +173,10 @@ export const TableActionHeader = ({
   const activeFilters = legacyActiveFilters !== undefined
     ? legacyActiveFilters
     : reduxActiveFilters;
+
+  const filterGroup = legacyFilterGroup !== undefined
+    ? legacyFilterGroup
+    : reduxFilterGroup;
 
   // Handle search change
   const handleSearchChange = (value: string) => {
@@ -211,6 +222,14 @@ export const TableActionHeader = ({
       dispatch(clearFiltersAction({ resourceKey }));
     }
     setEditingFilter(null);
+  };
+
+  const handleFilterGroupChange = (group: FilterGroup) => {
+    if (legacyOnFilterGroupChange) {
+      legacyOnFilterGroupChange(group);
+    } else {
+      dispatch(setActiveFilters({ resourceKey, filters: group }));
+    }
   };
 
   // Get column visibility from Redux for leads (legacy dashboardSlice)
@@ -489,6 +508,8 @@ export const TableActionHeader = ({
               onFilterUpdate={handleUpdateFilter}
               onFilterRemove={handleRemoveFilter}
               onFilterClear={handleClearFilters}
+              filterGroup={filterGroup}
+              onFilterGroupChange={handleFilterGroupChange}
               editFilter={editingFilter}
               onEditApplied={() => setEditingFilter(null)}
             />

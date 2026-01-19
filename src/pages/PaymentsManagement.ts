@@ -13,9 +13,7 @@ import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, type FilterConfig } from '@/hooks/useSavedViews';
 import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
-import { selectActiveFilters, selectSearchQuery } from '@/store/slices/tableStateSlice';
-import { applyTableFilters } from '@/utils/tableFilterUtils';
-import { getPaymentFilterFields } from '@/hooks/useTableFilters';
+import { selectActiveFilters, selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
 
 export const usePaymentsManagement = () => {
   const dispatch = useAppDispatch();
@@ -24,14 +22,18 @@ export const usePaymentsManagement = () => {
   const viewId = searchParams.get('view_id');
   const { user } = useAppSelector((state) => state.auth);
   
-  const { data: payments, isLoading: isLoadingPayments, error } = useAllPayments();
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'payments'));
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'payments'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'payments'));
+
+  const { data: payments, isLoading: isLoadingPayments, error } = useAllPayments({
+    search: searchQuery,
+    filterGroup,
+  });
   const { defaultView } = useDefaultView('payments');
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
 
   useSyncSavedViewFilters('payments', savedView, isLoadingView);
-
-  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'payments'));
-  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'payments'));
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
 
@@ -58,39 +60,7 @@ export const usePaymentsManagement = () => {
     };
   };
 
-  const filteredPayments = useMemo(() => {
-    let filtered = payments || [];
-
-    if (searchQuery && searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter((payment) => {
-        const product = payment.product_name?.toLowerCase() || '';
-        const customer = payment.customer_name?.toLowerCase() || '';
-        const lead = payment.lead_name?.toLowerCase() || '';
-        return product.includes(query) || customer.includes(query) || lead.includes(query);
-      });
-    }
-
-    const statusMap: Record<string, string> = {
-      paid: 'שולם',
-      pending: 'ממתין',
-      refunded: 'הוחזר',
-      failed: 'נכשל',
-    };
-
-    const filterFields = getPaymentFilterFields(filtered);
-
-    return applyTableFilters(
-      filtered,
-      activeFilters,
-      filterFields,
-      (payment, fieldId) => {
-        if (fieldId === 'created_at') return payment.date;
-        if (fieldId === 'status') return statusMap[payment.status] || payment.status;
-        return (payment as any)[fieldId];
-      }
-    );
-  }, [payments, searchQuery, activeFilters]);
+  const filteredPayments = useMemo(() => payments || [], [payments]);
 
   return {
     payments: filteredPayments,

@@ -30,7 +30,9 @@ export const useSyncSavedViewFilters = (
     if (filterConfig.searchQuery !== undefined) {
       dispatch(setSearchQuery({ resourceKey, query: filterConfig.searchQuery || '' }));
     }
-    if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
+    if (filterConfig.filterGroup) {
+      dispatch(setActiveFilters({ resourceKey, filters: filterConfig.filterGroup }));
+    } else if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
       dispatch(setActiveFilters({ resourceKey, filters: filterConfig.advancedFilters }));
     } else {
       dispatch(setActiveFilters({ resourceKey, filters: [] }));

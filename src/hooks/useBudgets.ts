@@ -8,6 +8,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 import type { Budget, BudgetAssignment, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
 import { syncPlansFromBudget } from '@/services/budgetPlanSync';
 
@@ -15,7 +18,7 @@ import { syncPlansFromBudget } from '@/services/budgetPlanSync';
 // This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all budgets (public + user's own)
-export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) => {
+export const useBudgets = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
@@ -24,6 +27,39 @@ export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) =>
       if (!user?.id) throw new Error('User not authenticated');
 
       const userId = user.id; // Use user.id from Redux instead of API call
+      const fieldConfigs: FilterFieldConfigMap = {
+        created_at: { column: 'created_at', type: 'date' },
+        is_public: { column: 'is_public', type: 'select', valueMap: (value) => (value === 'כן' ? true : value === 'לא' ? false : value) },
+        steps_goal: { column: 'steps_goal', type: 'number' },
+        name: { column: 'name', type: 'text' },
+      };
+
+      const accessGroup: FilterGroup = {
+        id: `access-${userId}`,
+        operator: 'or',
+        children: [
+          {
+            id: `public-${userId}`,
+            fieldId: 'is_public',
+            fieldLabel: 'is_public',
+            operator: 'equals',
+            values: ['כן'],
+            type: 'select',
+          },
+          {
+            id: `owner-${userId}`,
+            fieldId: 'created_by',
+            fieldLabel: 'created_by',
+            operator: 'equals',
+            values: [userId],
+            type: 'text',
+          },
+        ],
+      };
+
+      const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name']) : null;
+      const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
+
       let query = supabase
         .from('budgets')
         .select(`
@@ -31,17 +67,10 @@ export const useBudgets = (filters?: { search?: string; isPublic?: boolean }) =>
           workout_template:workout_templates(id, name),
           nutrition_template:nutrition_templates(id, name)
         `)
-        .or(`is_public.eq.true,created_by.eq.${userId}`)
         .order('created_at', { ascending: false });
 
-      // Apply search filter
-      if (filters?.search) {
-        query = query.ilike('name', `%${filters.search}%`);
-      }
-
-      // Apply public filter
-      if (filters?.isPublic !== undefined) {
-        query = query.eq('is_public', filters.isPublic);
+      if (combinedGroup) {
+        query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
       const { data, error } = await query;
@@ -613,4 +642,3 @@ export const useDeleteBudgetAssignment = () => {
     },
   });
 };
-

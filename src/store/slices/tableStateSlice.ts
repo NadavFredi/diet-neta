@@ -1,4 +1,15 @@
 import { createSlice, PayloadAction, createSelector } from '@reduxjs/toolkit';
+import type { ActiveFilter, FilterGroup } from '@/components/dashboard/TableFilter';
+import {
+  addFilterToGroup,
+  addGroupToGroup,
+  createRootGroup,
+  flattenFilterGroup,
+  removeFilterFromGroup,
+  removeGroupFromGroup,
+  updateFilterInGroup,
+  updateGroupInGroup,
+} from '@/utils/filterGroupUtils';
 
 export type ResourceKey = 'leads' | 'customers' | 'templates' | 'nutrition_templates' | 'budgets' | 'meetings';
 
@@ -7,7 +18,8 @@ export interface TableState {
   columnSizing: Record<string, number>;
   columnOrder: string[];
   searchQuery: string;
-  activeFilters: any[]; // ActiveFilter[] type from TableFilter
+  activeFilters: ActiveFilter[];
+  filterGroup: FilterGroup;
   groupByKey: string | null; // Legacy: Column key to group by (null = no grouping) - DEPRECATED
   groupByKeys: [string | null, string | null]; // Multi-level grouping: [Level 1, Level 2] (max 2 levels)
   groupSorting: {
@@ -59,6 +71,7 @@ const tableStateSlice = createSlice({
           columnOrder: initialOrder || columnIds,
           searchQuery: '',
           activeFilters: [],
+          filterGroup: createRootGroup([]),
           groupByKey: null, // Legacy
           groupByKeys: [null, null], // Multi-level grouping
           groupSorting: {
@@ -88,6 +101,7 @@ const tableStateSlice = createSlice({
           columnOrder: [columnId],
           searchQuery: '',
           activeFilters: [],
+          filterGroup: createRootGroup([]),
           groupByKey: null,
           groupByKeys: [null, null],
           groupSorting: { level1: null, level2: null },
@@ -195,14 +209,18 @@ const tableStateSlice = createSlice({
       state,
       action: PayloadAction<{
         resourceKey: ResourceKey;
-        filter: any; // ActiveFilter type
+        filter: ActiveFilter;
+        parentGroupId?: string;
       }>
     ) => {
-      const { resourceKey, filter } = action.payload;
+      const { resourceKey, filter, parentGroupId } = action.payload;
       if (!state.tables[resourceKey]) {
         return;
       }
-      state.tables[resourceKey].activeFilters.push(filter);
+      const currentGroup = state.tables[resourceKey].filterGroup || createRootGroup([]);
+      const nextGroup = addFilterToGroup(currentGroup, filter, parentGroupId);
+      state.tables[resourceKey].filterGroup = nextGroup;
+      state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
     },
 
     // Update a filter by id
@@ -210,16 +228,17 @@ const tableStateSlice = createSlice({
       state,
       action: PayloadAction<{
         resourceKey: ResourceKey;
-        filter: any; // ActiveFilter type
+        filter: ActiveFilter;
       }>
     ) => {
       const { resourceKey, filter } = action.payload;
       if (!state.tables[resourceKey]) {
         return;
       }
-      state.tables[resourceKey].activeFilters = state.tables[resourceKey].activeFilters.map((item) =>
-        item.id === filter.id ? filter : item
-      );
+      const currentGroup = state.tables[resourceKey].filterGroup || createRootGroup([]);
+      const nextGroup = updateFilterInGroup(currentGroup, filter);
+      state.tables[resourceKey].filterGroup = nextGroup;
+      state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
     },
 
     // Remove a filter
@@ -234,9 +253,10 @@ const tableStateSlice = createSlice({
       if (!state.tables[resourceKey]) {
         return;
       }
-      state.tables[resourceKey].activeFilters = state.tables[resourceKey].activeFilters.filter(
-        (f) => f.id !== filterId
-      );
+      const currentGroup = state.tables[resourceKey].filterGroup || createRootGroup([]);
+      const nextGroup = removeFilterFromGroup(currentGroup, filterId);
+      state.tables[resourceKey].filterGroup = nextGroup;
+      state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
     },
 
     // Clear all filters
@@ -250,6 +270,8 @@ const tableStateSlice = createSlice({
       if (!state.tables[resourceKey]) {
         return;
       }
+      const nextGroup = createRootGroup([]);
+      state.tables[resourceKey].filterGroup = nextGroup;
       state.tables[resourceKey].activeFilters = [];
     },
 
@@ -258,14 +280,69 @@ const tableStateSlice = createSlice({
       state,
       action: PayloadAction<{
         resourceKey: ResourceKey;
-        filters: any[];
+        filters: ActiveFilter[] | FilterGroup;
       }>
     ) => {
       const { resourceKey, filters } = action.payload;
       if (!state.tables[resourceKey]) {
         return;
       }
-      state.tables[resourceKey].activeFilters = filters;
+      const nextGroup = createRootGroup(filters as any);
+      state.tables[resourceKey].filterGroup = nextGroup;
+      state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
+    },
+
+    addFilterGroup: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        group: FilterGroup;
+        parentGroupId?: string;
+      }>
+    ) => {
+      const { resourceKey, group, parentGroupId } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      const currentGroup = state.tables[resourceKey].filterGroup || createRootGroup([]);
+      const nextGroup = addGroupToGroup(currentGroup, group, parentGroupId);
+      state.tables[resourceKey].filterGroup = nextGroup;
+      state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
+    },
+
+    updateFilterGroup: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        groupId: string;
+        updates: Partial<FilterGroup>;
+      }>
+    ) => {
+      const { resourceKey, groupId, updates } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      const currentGroup = state.tables[resourceKey].filterGroup || createRootGroup([]);
+      const nextGroup = updateGroupInGroup(currentGroup, groupId, updates);
+      state.tables[resourceKey].filterGroup = nextGroup;
+      state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
+    },
+
+    removeFilterGroup: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        groupId: string;
+      }>
+    ) => {
+      const { resourceKey, groupId } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      const currentGroup = state.tables[resourceKey].filterGroup || createRootGroup([]);
+      const nextGroup = removeGroupFromGroup(currentGroup, groupId);
+      state.tables[resourceKey].filterGroup = nextGroup;
+      state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
     },
 
     // Set group by key (legacy - for backward compatibility)
@@ -361,6 +438,9 @@ export const {
   removeFilter,
   clearFilters,
   setActiveFilters,
+  addFilterGroup,
+  updateFilterGroup,
+  removeFilterGroup,
   setGroupByKey,
   setGroupByKeys,
   setGroupSorting,
@@ -374,6 +454,7 @@ const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {};
 const DEFAULT_COLUMN_SIZING: Record<string, number> = {};
 const DEFAULT_COLUMN_ORDER: string[] = [];
 const DEFAULT_ACTIVE_FILTERS: any[] = [];
+const DEFAULT_FILTER_GROUP: FilterGroup = createRootGroup([]);
 const DEFAULT_GROUP_BY_KEYS: [string | null, string | null] = [null, null];
 const DEFAULT_GROUP_SORTING: { level1: 'asc' | 'desc' | null; level2: 'asc' | 'desc' | null } = { level1: null, level2: null };
 const DEFAULT_COLLAPSED_GROUPS: string[] = [];
@@ -424,6 +505,13 @@ export const selectActiveFilters = createSelector(
   [selectTableStateByKey],
   (tableState) => {
     return tableState?.activeFilters ?? DEFAULT_ACTIVE_FILTERS;
+  }
+);
+
+export const selectFilterGroup = createSelector(
+  [selectTableStateByKey],
+  (tableState) => {
+    return tableState?.filterGroup ?? DEFAULT_FILTER_GROUP;
   }
 );
 

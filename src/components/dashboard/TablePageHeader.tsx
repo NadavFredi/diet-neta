@@ -10,7 +10,7 @@ import { GenericColumnSettings } from '@/components/dashboard/GenericColumnSetti
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { Columns, Plus, LucideIcon } from 'lucide-react';
 import { useTableFilters, type FilterField } from '@/hooks/useTableFilters';
-import type { ActiveFilter } from '@/components/dashboard/TableFilter';
+import type { ActiveFilter, FilterGroup } from '@/components/dashboard/TableFilter';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, type ResourceKey } from '@/store/slices/tableStateSlice';
@@ -51,10 +51,12 @@ interface TablePageHeaderProps {
   
   // Optional: External filter management (for modals that need access to filters)
   activeFilters?: any[];
+  filterGroup?: FilterGroup;
   onFilterAdd?: (filter: any) => void;
   onFilterUpdate?: (filter: any) => void;
   onFilterRemove?: (filterId: string) => void;
   onFilterClear?: () => void;
+  onFilterGroupChange?: (group: FilterGroup) => void;
   
   // For generic column settings (when not using template column settings)
   columns?: DataTableColumn<any>[];
@@ -81,10 +83,12 @@ export const TablePageHeader = ({
   templateColumnVisibility,
   onToggleTemplateColumn,
   activeFilters: externalActiveFilters,
+  filterGroup: externalFilterGroup,
   onFilterAdd: externalOnFilterAdd,
   onFilterUpdate: externalOnFilterUpdate,
   onFilterRemove: externalOnFilterRemove,
   onFilterClear: externalOnFilterClear,
+  onFilterGroupChange: externalOnFilterGroupChange,
   columns,
 }: TablePageHeaderProps) => {
   const dispatch = useAppDispatch();
@@ -121,10 +125,12 @@ export const TablePageHeader = ({
   // Use external filters if provided, otherwise use table filters hook
   const internalFilters = useTableFilters([]);
   const activeFilters = externalActiveFilters || internalFilters.filters;
+  const filterGroup = externalFilterGroup || internalFilters.filterGroup;
   const addFilter = externalOnFilterAdd || internalFilters.addFilter;
   const updateFilter = externalOnFilterUpdate || internalFilters.updateFilter;
   const removeFilter = externalOnFilterRemove || internalFilters.removeFilter;
   const clearFilters = externalOnFilterClear || internalFilters.clearFilters;
+  const handleFilterGroupChange = externalOnFilterGroupChange || internalFilters.setFilterGroup;
   const canEditFilters = (!!externalActiveFilters && !!externalOnFilterUpdate) || !externalActiveFilters;
 
   const handleRemoveFilter = (filterId: string) => {
@@ -317,6 +323,8 @@ export const TablePageHeader = ({
               onFilterUpdate={canEditFilters ? updateFilter : undefined}
               onFilterRemove={handleRemoveFilter}
               onFilterClear={handleClearFilters}
+              filterGroup={filterGroup}
+              onFilterGroupChange={handleFilterGroupChange}
               editFilter={canEditFilters ? editingFilter : null}
               onEditApplied={() => setEditingFilter(null)}
             />

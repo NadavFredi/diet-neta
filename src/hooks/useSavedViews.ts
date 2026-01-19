@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
 
 export interface SavedView {
   id: string;
@@ -42,6 +43,7 @@ export interface FilterConfig {
     values: string[];
     type: string;
   }>;
+  filterGroup?: FilterGroup;
 }
 
 // Helper function to get or create user ID from email
@@ -299,4 +301,3 @@ export const useDeleteSavedView = () => {
     },
   });
 };
-

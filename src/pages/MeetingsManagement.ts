@@ -14,6 +14,7 @@ import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import {
   selectSearchQuery,
   selectActiveFilters,
+  selectFilterGroup,
   setSearchQuery,
   addFilter as addFilterAction,
   removeFilter as removeFilterAction,
@@ -21,7 +22,6 @@ import {
   initializeTableState,
 } from '@/store/slices/tableStateSlice';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
-import { applyTableFilters } from '@/utils/tableFilterUtils';
 import { getMeetingFilterFields } from '@/hooks/useTableFilters';
 
 export const useMeetingsManagement = () => {
@@ -30,7 +30,14 @@ export const useMeetingsManagement = () => {
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
   
-  const { data: meetings = [], isLoading: isLoadingMeetings } = useMeetings();
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'meetings'));
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'meetings'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'meetings'));
+
+  const { data: meetings = [], isLoading: isLoadingMeetings } = useMeetings({
+    search: searchQuery,
+    filterGroup,
+  });
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
 
   useSyncSavedViewFilters('meetings', savedView, isLoadingView);
@@ -39,10 +46,6 @@ export const useMeetingsManagement = () => {
   useEffect(() => {
     dispatch(initializeTableState({ resourceKey: 'meetings' }));
   }, [dispatch]);
-
-  // Get search query and filters from Redux
-  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'meetings'));
-  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'meetings'));
 
   // Handlers
   const handleLogout = async () => {
@@ -82,47 +85,7 @@ export const useMeetingsManagement = () => {
   };
 
   // Filter meetings based on search query and active filters
-  const filteredMeetings = useMemo(() => {
-    let result = [...meetings];
-
-    // Apply search query
-    if (searchQuery && searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter((meeting) => {
-        const customerName = meeting.customer?.full_name?.toLowerCase() || '';
-        const phone = meeting.customer?.phone?.toLowerCase() || '';
-        const meetingData = meeting.meeting_data || {};
-        const meetingDate = String(meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'] || '').toLowerCase();
-        const status = String(meetingData.status || meetingData['סטטוס'] || '').toLowerCase();
-        
-        return (
-          customerName.includes(query) ||
-          phone.includes(query) ||
-          meetingDate.includes(query) ||
-          status.includes(query)
-        );
-      });
-    }
-
-    const filterFields = getMeetingFilterFields(meetings);
-
-    return applyTableFilters(
-      result,
-      activeFilters,
-      filterFields,
-      (meeting, fieldId) => {
-        if (fieldId === 'meeting_date') {
-          const meetingData = meeting.meeting_data || {};
-          return meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'];
-        }
-        if (fieldId === 'status') {
-          const meetingData = meeting.meeting_data || {};
-          return meetingData.status || meetingData['סטטוס'] || '';
-        }
-        return (meeting as any)[fieldId];
-      }
-    );
-  }, [meetings, searchQuery, activeFilters]);
+  const filteredMeetings = useMemo(() => meetings, [meetings]);
 
   return {
     meetings,

@@ -4,7 +4,17 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import { ActiveFilter, FilterField, FilterOperator } from '@/components/dashboard/TableFilter';
+import { ActiveFilter, FilterField, FilterGroup, FilterOperator } from '@/components/dashboard/TableFilter';
+import {
+  addFilterToGroup,
+  addGroupToGroup,
+  createRootGroup,
+  flattenFilterGroup,
+  removeFilterFromGroup,
+  removeGroupFromGroup,
+  updateFilterInGroup,
+  updateGroupInGroup,
+} from '@/utils/filterGroupUtils';
 import { 
   STATUS_OPTIONS, 
   FITNESS_GOAL_OPTIONS, 
@@ -469,26 +479,43 @@ export function getSubscriptionTypeFilterFields(subscriptionTypes: any[] = []): 
 }
 
 export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
-  const [filters, setFilters] = useState<ActiveFilter[]>(initialFilters);
+  const [filterGroup, setFilterGroupState] = useState<FilterGroup>(() => createRootGroup(initialFilters));
+  const filters = useMemo(() => flattenFilterGroup(filterGroup), [filterGroup]);
 
   const addFilter = useCallback((filter: ActiveFilter) => {
-    setFilters(prev => [...prev, filter]);
+    setFilterGroupState((prev) => addFilterToGroup(prev, filter));
   }, []);
 
   const removeFilter = useCallback((filterId: string) => {
-    setFilters(prev => prev.filter(f => f.id !== filterId));
+    setFilterGroupState((prev) => removeFilterFromGroup(prev, filterId));
   }, []);
 
   const clearFilters = useCallback(() => {
-    setFilters([]);
+    setFilterGroupState(createRootGroup([]));
   }, []);
 
   const updateFilters = useCallback((newFilters: ActiveFilter[]) => {
-    setFilters(newFilters);
+    setFilterGroupState(createRootGroup(newFilters));
   }, []);
 
   const updateFilter = useCallback((updatedFilter: ActiveFilter) => {
-    setFilters((prev) => prev.map((filter) => (filter.id === updatedFilter.id ? updatedFilter : filter)));
+    setFilterGroupState((prev) => updateFilterInGroup(prev, updatedFilter));
+  }, []);
+
+  const setFilterGroup = useCallback((group: FilterGroup) => {
+    setFilterGroupState(group);
+  }, []);
+
+  const addGroup = useCallback((group: FilterGroup, parentGroupId?: string) => {
+    setFilterGroupState((prev) => addGroupToGroup(prev, group, parentGroupId));
+  }, []);
+
+  const updateGroup = useCallback((groupId: string, updates: Partial<FilterGroup>) => {
+    setFilterGroupState((prev) => updateGroupInGroup(prev, groupId, updates));
+  }, []);
+
+  const removeGroup = useCallback((groupId: string) => {
+    setFilterGroupState((prev) => removeGroupFromGroup(prev, groupId));
   }, []);
 
   // Convert new filter format to legacy format for backward compatibility
@@ -509,16 +536,20 @@ export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
   }, [filters]);
 
   return {
+    filterGroup,
     filters,
     addFilter,
     removeFilter,
     clearFilters,
     updateFilters,
     updateFilter,
+    setFilterGroup,
+    addGroup,
+    updateGroup,
+    removeGroup,
     toLegacyFormat,
   };
 };
-
 
 
 

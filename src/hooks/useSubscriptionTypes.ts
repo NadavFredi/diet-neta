@@ -8,6 +8,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 
 // =====================================================
 // Types
@@ -32,7 +35,7 @@ export interface SubscriptionType {
 // =====================================================
 
 // Fetch all subscription types
-export const useSubscriptionTypes = (filters?: { search?: string }) => {
+export const useSubscriptionTypes = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
@@ -40,14 +43,21 @@ export const useSubscriptionTypes = (filters?: { search?: string }) => {
     queryFn: async () => {
       if (!user?.id) throw new Error('User not authenticated');
 
+      const fieldConfigs: FilterFieldConfigMap = {
+        created_at: { column: 'created_at', type: 'date' },
+        name: { column: 'name', type: 'text' },
+      };
+
+      const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name']) : null;
+      const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
+
       let query = supabase
         .from('subscription_types')
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Apply search filter
-      if (filters?.search) {
-        query = query.ilike('name', `%${filters.search}%`);
+      if (combinedGroup) {
+        query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
       const { data, error } = await query;

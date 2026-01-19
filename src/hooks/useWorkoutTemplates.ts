@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 
 export interface WorkoutTemplate {
   id: string;
@@ -18,7 +21,7 @@ export interface WorkoutTemplate {
 // This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all templates (public + user's own)
-export const useWorkoutTemplates = (filters?: { search?: string; goalTags?: string[]; isPublic?: boolean }) => {
+export const useWorkoutTemplates = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
@@ -27,25 +30,48 @@ export const useWorkoutTemplates = (filters?: { search?: string; goalTags?: stri
       if (!user?.id) throw new Error('User not authenticated');
 
       const userId = user.id; // Use user.id from Redux instead of API call
+      const fieldConfigs: FilterFieldConfigMap = {
+        created_at: { column: 'created_at', type: 'date' },
+        goal_tags: { column: 'goal_tags', type: 'multiselect', isArray: true },
+        is_public: { column: 'is_public', type: 'select', valueMap: (value) => (value === 'כן' ? true : value === 'לא' ? false : value) },
+        has_leads: { column: 'has_leads', type: 'select', valueMap: (value) => (value === 'כן' ? true : value === 'לא' ? false : value) },
+        name: { column: 'name', type: 'text' },
+        description: { column: 'description', type: 'text' },
+      };
+
+      const accessGroup: FilterGroup = {
+        id: `access-${userId}`,
+        operator: 'or',
+        children: [
+          {
+            id: `public-${userId}`,
+            fieldId: 'is_public',
+            fieldLabel: 'is_public',
+            operator: 'equals',
+            values: ['כן'],
+            type: 'select',
+          },
+          {
+            id: `owner-${userId}`,
+            fieldId: 'created_by',
+            fieldLabel: 'created_by',
+            operator: 'equals',
+            values: [userId],
+            type: 'text',
+          },
+        ],
+      };
+
+      const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name', 'description']) : null;
+      const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
+
       let query = supabase
-        .from('workout_templates')
+        .from('workout_templates_with_leads')
         .select('*')
-        .or(`is_public.eq.true,created_by.eq.${userId}`)
         .order('created_at', { ascending: false });
 
-      // Apply search filter
-      if (filters?.search) {
-        query = query.ilike('name', `%${filters.search}%`);
-      }
-
-      // Apply goal tags filter
-      if (filters?.goalTags && filters.goalTags.length > 0) {
-        query = query.contains('goal_tags', filters.goalTags);
-      }
-
-      // Apply public filter
-      if (filters?.isPublic !== undefined) {
-        query = query.eq('is_public', filters.isPublic);
+      if (combinedGroup) {
+        query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
       const { data, error } = await query;
@@ -217,4 +243,3 @@ export const useDeleteWorkoutTemplate = () => {
     },
   });
 };
-

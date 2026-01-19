@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { DateRangePicker } from './DateRangePicker';
 import { cn } from '@/lib/utils';
+import { FilterGroupDialog } from '@/components/dashboard/FilterGroupDialog';
 
 export type FilterOperator = 'is' | 'isNot' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'before' | 'after' | 'between';
 
@@ -44,6 +45,15 @@ export interface ActiveFilter {
   type: FilterType;
 }
 
+export interface FilterGroup {
+  id: string;
+  operator: 'and' | 'or';
+  not?: boolean;
+  children: Array<FilterNode>;
+}
+
+export type FilterNode = ActiveFilter | FilterGroup;
+
 interface TableFilterProps {
   fields: FilterField[];
   activeFilters: ActiveFilter[];
@@ -51,6 +61,10 @@ interface TableFilterProps {
   onFilterUpdate?: (filter: ActiveFilter) => void;
   onFilterRemove: (filterId: string) => void;
   onFilterClear: () => void;
+  filterGroup?: FilterGroup;
+  onFilterGroupChange?: (group: FilterGroup) => void;
+  allowDuplicateFields?: boolean;
+  buttonLabel?: string;
   editFilter?: ActiveFilter | null;
   onEditApplied?: () => void;
   className?: string;
@@ -85,11 +99,16 @@ export const TableFilter: React.FC<TableFilterProps> = ({
   onFilterUpdate,
   onFilterRemove,
   onFilterClear,
+  filterGroup,
+  onFilterGroupChange,
+  allowDuplicateFields = false,
+  buttonLabel,
   editFilter,
   onEditApplied,
   className,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [selectedField, setSelectedField] = useState<FilterField | null>(null);
   const [selectedOperator, setSelectedOperator] = useState<FilterOperator | null>(null);
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
@@ -235,9 +254,9 @@ export const TableFilter: React.FC<TableFilterProps> = ({
     return selectedValues.length > 0;
   };
 
-  const availableFields = fields.filter(
-    field => !activeFilters.some(f => f.fieldId === field.id)
-  );
+  const availableFields = allowDuplicateFields
+    ? fields
+    : fields.filter((field) => !activeFilters.some((f) => f.fieldId === field.id));
 
   return (
     <div className={cn('flex items-center gap-2', className)} dir="rtl">
@@ -253,7 +272,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
             )}
           >
             <Filter className="h-4 w-4" />
-            <span>סינון</span>
+            <span>{buttonLabel || 'סינון'}</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent 
@@ -279,6 +298,22 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                   ))}
                 </CommandGroup>
               </CommandList>
+              {filterGroup && onFilterGroupChange && (
+                <div className="p-3 border-t bg-white">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setIsOpen(false);
+                      setIsGroupDialogOpen(true);
+                    }}
+                  >
+                    עריכה מתקדמת
+                  </Button>
+                </div>
+              )}
             </Command>
           ) : (
             <div className="p-0">
@@ -455,8 +490,15 @@ export const TableFilter: React.FC<TableFilterProps> = ({
           )}
         </PopoverContent>
       </Popover>
+      {filterGroup && onFilterGroupChange && (
+        <FilterGroupDialog
+          open={isGroupDialogOpen}
+          onOpenChange={setIsGroupDialogOpen}
+          filterGroup={filterGroup}
+          fields={fields}
+          onChange={onFilterGroupChange}
+        />
+      )}
     </div>
   );
 };
-
-

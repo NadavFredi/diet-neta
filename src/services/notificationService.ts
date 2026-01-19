@@ -120,3 +120,21 @@ export const getUnreadCount = async (): Promise<number> => {
     return 0;
   }
 };
+
+/**
+ * Delete a notification
+ */
+export const deleteNotification = async (notificationId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId);
+
+    if (error) {
+      throw error;
+    }
+  } catch (error: any) {
+    throw error;
+  }
+};

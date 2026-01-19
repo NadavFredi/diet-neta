@@ -68,6 +68,18 @@ const Dashboard = () => {
 
   // Auto-navigate to default view is handled in useDashboardLogic
 
+  // Filter system for leads (advanced filter groups)
+  const {
+    filterGroup,
+    filters: activeFilters,
+    addFilter: addFilterLocal,
+    removeFilter: removeFilterLocal,
+    clearFilters: clearFiltersLocal,
+    updateFilters: updateFiltersLocal,
+    updateFilter: updateFilterLocal,
+    setFilterGroup,
+  } = useTableFilters([]);
+
   const {
     filteredLeads,
     searchQuery,
@@ -93,128 +105,34 @@ const Dashboard = () => {
     sortBy,
     sortOrder,
     handleSortChange,
-  } = useDashboardLogic();
+  } = useDashboardLogic({ filterGroup });
 
   // Debug: Log filteredLeads when it changes
   useEffect(() => {
   }, [filteredLeads, isLoading]);
-
-  const searchQueryFromFiltersRef = useRef<string | null>(null);
-  const manualSearchQueryRef = useRef<string>('');
-
-  useEffect(() => {
-    if (searchQueryFromFiltersRef.current === null) {
-      manualSearchQueryRef.current = searchQuery || '';
-    }
-  }, [searchQuery]);
-
-  // Filter system - connect to Redux for leads
-  const {
-    filters: activeFilters,
-    addFilter: addFilterLocal,
-    removeFilter: removeFilterLocal,
-    clearFilters: clearFiltersLocal,
-    updateFilters: updateFiltersLocal,
-    updateFilter: updateFilterLocal,
-  } = useTableFilters([]);
 
   // Get filter fields with dynamic options from data
   const leadFilterFields = useMemo(() => {
     return getLeadFilterFields(filteredLeads || []);
   }, [filteredLeads]);
 
-  const fieldKeyById = useMemo(() => {
-    const entries = leadFilterFields
-      .map((field) => [field.id, field.filterKey] as const)
-      .filter(([, key]) => key);
-    return new Map(entries);
-  }, [leadFilterFields]);
-
-  const filterKeyActions = useMemo(() => ({
-    searchQuery: (value: string | null) => dispatch(setSearchQuery(value || '')),
-    selectedDate: (value: string | null) => dispatch(setSelectedDate(value)),
-    selectedStatus: (value: string | null) => dispatch(setSelectedStatus(value)),
-    selectedAge: (value: string | null) => dispatch(setSelectedAge(value)),
-    selectedHeight: (value: string | null) => dispatch(setSelectedHeight(value)),
-    selectedWeight: (value: string | null) => dispatch(setSelectedWeight(value)),
-    selectedFitnessGoal: (value: string | null) => dispatch(setSelectedFitnessGoal(value)),
-    selectedActivityLevel: (value: string | null) => dispatch(setSelectedActivityLevel(value)),
-    selectedPreferredTime: (value: string | null) => dispatch(setSelectedPreferredTime(value)),
-    selectedSource: (value: string | null) => dispatch(setSelectedSource(value)),
-  }), [dispatch]);
-
-  const getFilterValue = useCallback((filter: ActiveFilter) => {
-    if (!filter.values || filter.values.length === 0) return null;
-
-    switch (filter.operator) {
-      case 'is':
-      case 'equals':
-      case 'contains':
-        return filter.values[0];
-      default:
-        return null;
-    }
-  }, []);
-
-  const applyLeadFiltersToRedux = useCallback((filters: ActiveFilter[]) => {
-    const filterKeyValues = new Map<string, string>();
-
-    filters.forEach((filter) => {
-      const key = fieldKeyById.get(filter.fieldId);
-      if (!key) return;
-      const value = getFilterValue(filter);
-      if (value === null) return;
-      filterKeyValues.set(key, value);
-    });
-
-    Object.entries(filterKeyActions).forEach(([key, apply]) => {
-      if (key === 'searchQuery') {
-        const nextValue = filterKeyValues.get(key) || null;
-        if (nextValue !== null) {
-          searchQueryFromFiltersRef.current = nextValue;
-          apply(nextValue);
-        } else if (searchQueryFromFiltersRef.current !== null) {
-          searchQueryFromFiltersRef.current = null;
-          apply(manualSearchQueryRef.current || '');
-        }
-        return;
-      }
-
-      apply(filterKeyValues.get(key) || null);
-    });
-  }, [fieldKeyById, filterKeyActions, getFilterValue]);
-
-  useEffect(() => {
-    applyLeadFiltersToRedux(activeFilters);
-  }, [activeFilters, applyLeadFiltersToRedux]);
-
-  // Convert ActiveFilter to Redux actions for leads (dynamic mapping via field config)
   const addFilter = useCallback((filter: ActiveFilter) => {
-    const nextFilters = [...activeFilters, filter];
     addFilterLocal(filter);
-    applyLeadFiltersToRedux(nextFilters);
-  }, [activeFilters, addFilterLocal, applyLeadFiltersToRedux]);
+  }, [addFilterLocal]);
 
   const removeFilter = useCallback((filterId: string) => {
-    const nextFilters = activeFilters.filter((filter) => filter.id !== filterId);
     removeFilterLocal(filterId);
-    applyLeadFiltersToRedux(nextFilters);
-  }, [removeFilterLocal, activeFilters, applyLeadFiltersToRedux]);
+  }, [removeFilterLocal]);
 
   const updateFilter = useCallback((filter: ActiveFilter) => {
-    const nextFilters = activeFilters.map((item) => (item.id === filter.id ? filter : item));
     updateFilterLocal(filter);
-    applyLeadFiltersToRedux(nextFilters);
-  }, [activeFilters, updateFilterLocal, applyLeadFiltersToRedux]);
+  }, [updateFilterLocal]);
 
   const clearFilters = useCallback(() => {
     clearFiltersLocal();
-    applyLeadFiltersToRedux([]);
-  }, [clearFiltersLocal, applyLeadFiltersToRedux]);
+  }, [clearFiltersLocal]);
 
   const handleSearchChangeWithSource = useCallback((value: string) => {
-    searchQueryFromFiltersRef.current = null;
-    manualSearchQueryRef.current = value;
     handleSearchChange(value);
   }, [handleSearchChange]);
 
@@ -241,84 +159,66 @@ const Dashboard = () => {
 
   // Load advanced filters from saved view or default view
   useEffect(() => {
-    // Priority 1: Load from saved view if viewId is present
+    const applyFilterConfig = (filterConfig: any) => {
+      if (!filterConfig) return;
+
+      if (filterConfig.filterGroup) {
+        setFilterGroup(filterConfig.filterGroup);
+      } else if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
+        const savedFilters: ActiveFilter[] = filterConfig.advancedFilters.map((f: any) => ({
+          id: f.id,
+          fieldId: f.fieldId,
+          fieldLabel: f.fieldLabel,
+          operator: f.operator as any,
+          values: f.values,
+          type: f.type as any,
+        }));
+        updateFiltersLocal(savedFilters);
+      }
+
+      if (filterConfig.searchQuery !== undefined) {
+        dispatch(setSearchQuery(filterConfig.searchQuery));
+      }
+
+      previousFiltersRef.current = JSON.stringify({
+        filters: filterConfig.filterGroup || filterConfig.advancedFilters || [],
+        searchQuery: filterConfig.searchQuery || '',
+      });
+      hasShownSaveSuggestion.current = false;
+    };
+
     if (viewId && savedView && !isLoadingView) {
       if (lastAppliedViewIdRef.current === savedView.id) {
         return;
       }
-      const filterConfig = savedView.filter_config as any;
-      if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
-        // Convert saved advanced filters to ActiveFilter format
-        const savedFilters: ActiveFilter[] = filterConfig.advancedFilters.map((f: any) => ({
-          id: f.id,
-          fieldId: f.fieldId,
-          fieldLabel: f.fieldLabel,
-          operator: f.operator as any,
-          values: f.values,
-          type: f.type as any,
-        }));
-        const hasSearchQueryFilter = savedFilters.some(
-          (filter) => fieldKeyById.get(filter.fieldId) === 'searchQuery'
-        );
-        updateFiltersLocal(savedFilters);
-        applyLeadFiltersToRedux(savedFilters);
-        // Also update search query if present
-        if (filterConfig.searchQuery !== undefined && !hasSearchQueryFilter) {
-          dispatch(setSearchQuery(filterConfig.searchQuery));
-        }
-        previousFiltersRef.current = JSON.stringify({
-          filters: savedFilters,
-          searchQuery: filterConfig.searchQuery || '',
-        });
-        hasShownSaveSuggestion.current = false; // Reset when loading saved view
-        lastAppliedViewIdRef.current = savedView.id;
-      }
-    } 
-    // Priority 2: Load from default view if no viewId but default view exists and is loaded
-    else if (!viewId && defaultView && !isLoadingDefaultView && !isLoadingView) {
+      applyFilterConfig(savedView.filter_config);
+      lastAppliedViewIdRef.current = savedView.id;
+      return;
+    }
+
+    if (!viewId && defaultView && !isLoadingDefaultView && !isLoadingView) {
       if (lastAppliedDefaultIdRef.current === defaultView.id) {
         return;
       }
-      const filterConfig = defaultView.filter_config as any;
-      if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters) && filterConfig.advancedFilters.length > 0) {
-        // Convert saved advanced filters to ActiveFilter format
-        const savedFilters: ActiveFilter[] = filterConfig.advancedFilters.map((f: any) => ({
-          id: f.id,
-          fieldId: f.fieldId,
-          fieldLabel: f.fieldLabel,
-          operator: f.operator as any,
-          values: f.values,
-          type: f.type as any,
-        }));
-        const hasSearchQueryFilter = savedFilters.some(
-          (filter) => fieldKeyById.get(filter.fieldId) === 'searchQuery'
-        );
-        updateFiltersLocal(savedFilters);
-        applyLeadFiltersToRedux(savedFilters);
-        // Also update search query if present
-        if (filterConfig.searchQuery !== undefined && !hasSearchQueryFilter) {
-          dispatch(setSearchQuery(filterConfig.searchQuery));
-        }
-        previousFiltersRef.current = JSON.stringify({
-          filters: savedFilters,
-          searchQuery: filterConfig.searchQuery || '',
-        });
-        hasShownSaveSuggestion.current = false;
-        lastAppliedDefaultIdRef.current = defaultView.id;
-      }
-    } 
-    // Priority 3: Clear filters only if no viewId and no default view (or default view has no filters)
-    else if (!viewId && !isLoadingDefaultView && !isLoadingView && (!defaultView || !defaultView.filter_config?.advancedFilters || (defaultView.filter_config as any).advancedFilters?.length === 0)) {
-      // Only clear if we haven't loaded filters yet (prevent clearing after user interaction)
+      applyFilterConfig(defaultView.filter_config);
+      lastAppliedDefaultIdRef.current = defaultView.id;
+      return;
+    }
+
+    if (
+      !viewId &&
+      !isLoadingDefaultView &&
+      !isLoadingView &&
+      (!defaultView || !defaultView.filter_config?.advancedFilters || (defaultView.filter_config as any).advancedFilters?.length === 0)
+    ) {
       if (previousFiltersRef.current === '') {
-        updateFiltersLocal([]);
-        applyLeadFiltersToRedux([]);
+        clearFiltersLocal();
         previousFiltersRef.current = '';
         hasShownSaveSuggestion.current = false;
         lastAppliedDefaultIdRef.current = null;
       }
     }
-  }, [viewId, savedView, isLoadingView, defaultView, isLoadingDefaultView, updateFiltersLocal, applyLeadFiltersToRedux, fieldKeyById, dispatch]);
+  }, [viewId, savedView, isLoadingView, defaultView, isLoadingDefaultView, updateFiltersLocal, clearFiltersLocal, dispatch, setFilterGroup]);
 
   useEffect(() => {
     if (viewId) {
@@ -412,10 +312,12 @@ const Dashboard = () => {
                 legacySearchQuery={searchQuery}
                 legacyOnSearchChange={handleSearchChangeWithSource}
                 legacyActiveFilters={activeFilters}
+                legacyFilterGroup={filterGroup}
                 legacyOnFilterAdd={addFilter}
                 legacyOnFilterUpdate={updateFilter}
                 legacyOnFilterRemove={removeFilter}
                 legacyOnFilterClear={clearFilters}
+                legacyOnFilterGroupChange={setFilterGroup}
               />
 
               {/* Table Section - Data Area */}

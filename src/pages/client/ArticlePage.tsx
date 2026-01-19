@@ -314,34 +314,73 @@ export const ArticlePage: React.FC = () => {
   // Setup image click handlers in edit mode
   useEffect(() => {
     if (!isEditing) return;
-    const quill = quillRef.current?.getEditor();
-    if (!quill) return;
+    
+    let cleanup: (() => void) | null = null;
+    
+    // Use a small delay to ensure editor is ready
+    const timeout = setTimeout(() => {
+      const quill = quillRef.current?.getEditor();
+      if (!quill) return;
 
-    const editor = quill.container.querySelector('.ql-editor');
-    if (!editor) return;
+      const editor = quill.container.querySelector('.ql-editor');
+      if (!editor) return;
 
-    const handleImageClick = (e: MouseEvent) => {
-      const target = e.target as HTMLImageElement;
-      if (target.tagName === 'IMG' && target.hasAttribute('data-editable')) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Get current width
-        const currentWidth = target.style.width || '500px';
-        const widthMatch = currentWidth.match(/(\d+)/);
-        const widthValue = widthMatch ? widthMatch[1] : '500';
-        
-        setEditingImageElement(target);
-        setImageWidth(widthValue);
-        setImageSizeType('custom');
-        setPendingImageUrl(null);
-        setImageSizeDialogOpen(true);
-      }
-    };
+      const handleImageClick = (e: MouseEvent) => {
+        const target = e.target as HTMLImageElement;
+        if (target.tagName === 'IMG' && (target.hasAttribute('data-editable') || target.hasAttribute('data-resizable'))) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Get current width - check both style and computed style
+          const styleWidth = target.style.width || '';
+          const computedStyle = window.getComputedStyle(target);
+          const computedWidth = computedStyle.width;
+          
+          let widthValue = '500';
+          let sizeType: 'small' | 'medium' | 'large' | 'full' | 'custom' = 'medium';
+          
+          // Check if it's full width (100%)
+          if (styleWidth.includes('100%')) {
+            sizeType = 'full';
+            widthValue = '100';
+          } else {
+            // Extract pixel value
+            const widthMatch = styleWidth.match(/(\d+)/) || computedWidth.match(/(\d+)/);
+            if (widthMatch) {
+              widthValue = widthMatch[1];
+              const widthNum = parseInt(widthValue);
+              
+              // Determine size type based on predefined sizes
+              if (widthNum >= 250 && widthNum < 400) {
+                sizeType = 'small';
+              } else if (widthNum >= 400 && widthNum < 600) {
+                sizeType = 'medium';
+              } else if (widthNum >= 600 && widthNum < 900) {
+                sizeType = 'large';
+              } else {
+                sizeType = 'custom';
+              }
+            }
+          }
+          
+          setEditingImageElement(target);
+          setImageWidth(widthValue);
+          setImageSizeType(sizeType);
+          setPendingImageUrl(null);
+          setImageSizeDialogOpen(true);
+        }
+      };
 
-    editor.addEventListener('click', handleImageClick);
+      editor.addEventListener('click', handleImageClick, true); // Use capture phase
+      
+      cleanup = () => {
+        editor.removeEventListener('click', handleImageClick, true);
+      };
+    }, 100);
+
     return () => {
-      editor.removeEventListener('click', handleImageClick);
+      clearTimeout(timeout);
+      if (cleanup) cleanup();
     };
   }, [isEditing, editData.content]);
 
@@ -705,7 +744,6 @@ export const ArticlePage: React.FC = () => {
                       size="sm"
                       onClick={handleDelete}
                       disabled={deleteMutation.isPending}
-                      className="text-red-600 border-red-600 hover:bg-red-50"
                     >
                       <Trash2 className="h-4 w-4 ml-2" />
                       מחק

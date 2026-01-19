@@ -12,9 +12,7 @@ import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
-import { selectActiveFilters, selectSearchQuery } from '@/store/slices/tableStateSlice';
-import { applyTableFilters } from '@/utils/tableFilterUtils';
-import { CUSTOMER_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { selectActiveFilters, selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
 
 export const useCustomersManagement = () => {
   const navigate = useNavigate();
@@ -26,12 +24,16 @@ export const useCustomersManagement = () => {
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('customers');
-  const { data: customers = [], isLoading: isLoadingCustomers } = useCustomers();
-
-  useSyncSavedViewFilters('customers', savedView, isLoadingView);
-
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'customers'));
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'customers'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'customers'));
+
+  const { data: customers = [], isLoading: isLoadingCustomers } = useCustomers({
+    search: searchQuery,
+    filterGroup,
+  });
+
+  useSyncSavedViewFilters('customers', savedView, isLoadingView);
 
   // Auto-navigate to default view
   useEffect(() => {
@@ -66,27 +68,7 @@ export const useCustomersManagement = () => {
     };
   };
 
-  // Filter customers
-  const filteredCustomers = useMemo(() => {
-    let filtered = [...customers];
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (customer) =>
-          customer.full_name.toLowerCase().includes(query) ||
-          customer.phone.includes(query) ||
-          (customer.email && customer.email.toLowerCase().includes(query))
-      );
-    }
-
-    return applyTableFilters(
-      filtered,
-      activeFilters,
-      CUSTOMER_FILTER_FIELDS,
-      (customer) => customer
-    );
-  }, [customers, searchQuery, activeFilters]);
+  const filteredCustomers = useMemo(() => customers, [customers]);
 
   return {
     // Data
@@ -106,7 +88,6 @@ export const useCustomersManagement = () => {
     getCurrentFilterConfig,
   };
 };
-
 
 
 

@@ -4,7 +4,7 @@
  * Displays a bell icon with unread count badge and dropdown menu
  */
 
-import { Bell, Filter, Trash2, RefreshCw, Calendar, CheckCircle2 } from 'lucide-react';
+import { Bell, Filter, Trash2, RefreshCw, Calendar, CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -54,6 +54,7 @@ export const NotificationBell = () => {
     isMarkingAsRead,
     handleMarkAllAsRead,
     handleMarkAsRead,
+    handleDeleteNotification,
     formatRelativeTime,
     refreshNotifications,
   } = useNotifications();
@@ -272,9 +273,18 @@ export const NotificationBell = () => {
                             </div>
                           )}
                         </div>
-                        {!notification.is_read && (
-                          <div className="h-2 w-2 rounded-full bg-[#5B6FB9] flex-shrink-0 mt-1" />
-                        )}
+                        <div className="flex items-center gap-2">
+                          {!notification.is_read && (
+                            <div className="h-2 w-2 rounded-full bg-[#5B6FB9] flex-shrink-0 mt-1" />
+                          )}
+                          <button
+                            onClick={(e) => handleDeleteNotification(notification.id, e)}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                            title="מחק התראה"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Title */}
