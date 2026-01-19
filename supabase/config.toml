@@ -145,7 +145,7 @@ entrypoint = "./functions/receive-whatsapp-webhook/index.ts"
 
 [functions.stripe-api]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 entrypoint = "./functions/stripe-api/index.ts"
 
 [functions.admin-user]
