@@ -43,7 +43,6 @@ export const useMeetingsManagement = () => {
       await dispatch(logoutUser()).unwrap();
       navigate('/login');
     } catch (error) {
-      console.error('[MeetingsManagement] Logout error:', error);
       navigate('/login');
     }
   };

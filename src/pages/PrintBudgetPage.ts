@@ -83,7 +83,7 @@ export const usePrintBudgetPage = () => {
           });
         }
       } catch (error) {
-        console.error('Error fetching client info:', error);
+        // Silent failure
       } finally {
         setIsLoadingClient(false);
       }

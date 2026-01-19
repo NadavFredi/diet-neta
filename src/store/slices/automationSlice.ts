@@ -106,7 +106,6 @@ export const fetchTemplates = createAsyncThunk(
                 parsedButtons = undefined;
               }
             } catch (error) {
-              console.warn('[fetchTemplates] Error parsing buttons:', error, template.buttons);
               parsedButtons = undefined;
             }
           }
@@ -121,19 +120,13 @@ export const fetchTemplates = createAsyncThunk(
               }
               if (typeof mediaData === 'object' && mediaData !== null && typeof mediaData.type === 'string' && typeof mediaData.url === 'string') {
                 const mediaUrl = String(mediaData.url);
-                console.log('[fetchTemplates] Parsed media for template:', template.flow_key, {
-                  type: mediaData.type,
-                  url: mediaUrl
-                });
                 parsedMedia = {
                   type: mediaData.type as 'image' | 'video' | 'gif',
                   url: mediaUrl
                 };
-              } else {
-                console.warn('[fetchTemplates] Invalid media data structure:', mediaData);
               }
             } catch (error) {
-              console.warn('[fetchTemplates] Error parsing media:', error, template.media);
+              // Silent failure
             }
           }
 
@@ -148,7 +141,6 @@ export const fetchTemplates = createAsyncThunk(
 
       return templatesMap;
     } catch (error: any) {
-      console.error('[fetchTemplates] Error:', error);
       return rejectWithValue(error?.message || 'Failed to fetch templates');
     }
   }
@@ -203,8 +195,6 @@ export const saveTemplate = createAsyncThunk(
             });
 
           if (uploadError) {
-            console.error('[saveTemplate] Error uploading file:', uploadError);
-
             // Provide user-friendly error messages based on error type
             let errorMessage = 'נכשל בהעלאת הקובץ';
             if (uploadError.message.includes('name resolution failed') ||
@@ -231,7 +221,6 @@ export const saveTemplate = createAsyncThunk(
             .createSignedUrl(`templates/${fileName}`, 31536000); // 1 year expiration
 
           if (urlError) {
-            console.error('[saveTemplate] Error creating signed URL:', urlError);
             throw new Error(`נכשל ביצירת קישור לקובץ: ${urlError.message}`);
           }
 
@@ -292,7 +281,6 @@ export const saveTemplate = createAsyncThunk(
         return data as WhatsAppFlowTemplate;
       }
     } catch (error: any) {
-      console.error('[saveTemplate] Error:', error);
       return rejectWithValue(error?.message || 'Failed to save template');
     }
   }

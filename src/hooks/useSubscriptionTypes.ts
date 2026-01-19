@@ -53,7 +53,6 @@ export const useSubscriptionTypes = (filters?: { search?: string }) => {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching subscription types:', error);
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת סוגי המנויים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
@@ -129,7 +128,6 @@ export const useCreateSubscriptionType = () => {
         .single();
 
       if (error) {
-        console.error('Error creating subscription type:', error);
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת סוגי המנויים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }

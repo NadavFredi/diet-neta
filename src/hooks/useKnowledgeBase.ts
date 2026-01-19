@@ -36,13 +36,11 @@ export const useKnowledgeBase = () => {
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Error fetching knowledge base:', error);
           throw error;
         }
 
         return (data || []) as KnowledgeBaseEntry[];
       } catch (error) {
-        console.error('Error in useKnowledgeBase:', error);
         return [];
       }
     },

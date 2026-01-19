@@ -13,7 +13,6 @@ export const useTemplatesWithLeads = () => {
         .not('lead_id', 'is', null);
 
       if (error) {
-        console.error('Error fetching templates with leads:', error);
         throw error;
       }
 

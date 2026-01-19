@@ -121,7 +121,6 @@ export const useSubscriptionTypesManagement = () => {
       await dispatch(logoutUser()).unwrap();
       navigate('/login');
     } catch (error) {
-      console.error('[SubscriptionTypesManagement] Logout error:', error);
       navigate('/login');
     }
   };

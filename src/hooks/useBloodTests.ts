@@ -55,7 +55,6 @@ export const useBloodTests = (leadId: string | null) => {
           // Extract customer_id from file_url (format: customer_id/blood-tests/filename.pdf)
           const pathParts = test.file_url.split('/');
           if (pathParts.length < 3) {
-            console.error('Invalid file_url format:', test.file_url);
             return { ...test, signedUrl: '' };
           }
 
@@ -114,7 +113,6 @@ export const useBloodTestsForCustomer = (customerId: string | null) => {
           // Extract customer_id from file_url (format: customer_id/blood-tests/filename.pdf)
           const pathParts = test.file_url.split('/');
           if (pathParts.length < 3) {
-            console.error('Invalid file_url format:', test.file_url);
             return { ...test, signedUrl: '' };
           }
 
@@ -233,7 +231,6 @@ export const useDeleteBloodTest = () => {
         .remove([test.file_url]);
 
       if (storageError) {
-        console.error('Error deleting file from storage:', storageError);
         // Continue with database delete even if storage delete fails
       }
 

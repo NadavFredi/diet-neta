@@ -261,7 +261,6 @@ const UnifiedProfileView = () => {
       // Refresh the page data if needed
       // You might want to invalidate queries or refetch data here
     } catch (error: any) {
-      console.error('Failed to create workout plan:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל ביצירת תוכנית האימונים',
@@ -304,7 +303,6 @@ const UnifiedProfileView = () => {
       // Refresh the page data if needed
       // You might want to invalidate queries or refetch data here
     } catch (error: any) {
-      console.error('Failed to create nutrition plan:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל ביצירת תוכנית התזונה',

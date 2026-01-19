@@ -10,11 +10,6 @@
 // Set VITE_GIPHY_API_KEY in your .env.local file
 const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY;
 
-if (!GIPHY_API_KEY) {
-  console.warn('[GiphyService] VITE_GIPHY_API_KEY not set. Giphy features will be disabled.');
-  console.warn('[GiphyService] To enable: Get a key from https://developers.giphy.com/ and add VITE_GIPHY_API_KEY to .env.local');
-}
-
 const GIPHY_API_BASE = 'https://api.giphy.com/v1/gifs';
 
 export interface GiphyGif {

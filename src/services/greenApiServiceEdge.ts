@@ -76,14 +76,6 @@ export const replacePlaceholders = (
 export const sendWhatsAppMessage = async (
   params: SendMessageParams
 ): Promise<GreenApiResponse> => {
-  console.log('[GreenAPI] sendWhatsAppMessage called with params:', {
-    phoneNumber: params.phoneNumber,
-    messageLength: params.message?.length,
-    hasButtons: !!params.buttons,
-    hasMedia: !!params.media,
-    mediaType: params.media?.type,
-  });
-  
   try {
     // Validate button count (max 3)
     if (params.buttons && params.buttons.length > 3) {
@@ -151,7 +143,6 @@ export const sendWhatsAppMessage = async (
     const result = await response.json();
 
     if (!response.ok) {
-      console.error('[GreenAPI] Edge Function error:', result);
       return {
         success: false,
         error: result.error || `Failed to send message: ${response.status}`,
@@ -160,25 +151,17 @@ export const sendWhatsAppMessage = async (
 
     // Validate response has idMessage
     if (!result.data?.idMessage) {
-      console.error('[GreenAPI] Response missing idMessage:', result);
       return {
         success: false,
         error: 'Message failed to send: Response missing idMessage. This usually means the message was not queued by WhatsApp.',
       };
     }
 
-    console.log('[GreenAPI] Message successfully queued:', {
-      idMessage: result.data.idMessage,
-      phoneNumber: params.phoneNumber,
-    });
-
     return {
       success: true,
       data: result.data,
     };
   } catch (error: any) {
-    console.error('[GreenAPI] Error sending message:', error);
-    
     // Check if it's a CORS error
     if (error?.message?.includes('CORS') || error?.message?.includes('Failed to fetch')) {
       return {

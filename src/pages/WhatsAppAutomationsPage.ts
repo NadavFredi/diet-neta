@@ -225,7 +225,6 @@ export const useWhatsAppAutomationsPage = () => {
         description: 'התבנית נשמרה בהצלחה',
       });
     } catch (error: any) {
-      console.error('[WhatsAppAutomationsPage] Error saving template:', error);
       toast({
         title: 'שגיאה',
         description: error || 'נכשל בשמירת התבנית',

@@ -97,7 +97,6 @@ export const createStripePaymentLink = async (
 export const createStripeCheckoutSession = async (
   params: CreatePaymentLinkParams
 ): Promise<StripePaymentLinkResponse> => {
-  console.warn('[Stripe] createStripeCheckoutSession is deprecated. Use createStripePaymentLink which routes through Edge Functions.');
   return {
     success: false,
     error: 'This function is deprecated. Use createStripePaymentLink which routes through Edge Functions.',

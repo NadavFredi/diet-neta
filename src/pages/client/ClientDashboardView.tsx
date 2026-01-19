@@ -105,6 +105,22 @@ export const ClientDashboardView: React.FC = () => {
     return { exercises, steps, nutrition };
   }, [checkIns]);
 
+  // Aggregate daily_protocol from all leads (merge, with later leads taking precedence)
+  // MUST be called before any early returns to follow Rules of Hooks
+  // This aggregates customer-level data from all leads
+  const dailyProtocol = useMemo(() => {
+    if (!leads || leads.length === 0) return {};
+    
+    // Merge all daily_protocol objects, with later (more recent) leads taking precedence
+    const merged = {};
+    leads.forEach(lead => {
+      if (lead.daily_protocol && typeof lead.daily_protocol === 'object') {
+        Object.assign(merged, lead.daily_protocol);
+      }
+    });
+    return merged;
+  }, [leads]);
+
   // Handle profile updates - update all leads with the same customer_id
   const handleUpdateWeight = async (newValue: string | number) => {
     if (!leads || leads.length === 0) return;
@@ -190,21 +206,6 @@ export const ClientDashboardView: React.FC = () => {
   }
 
   const greeting = `שלום, ${customer.full_name || user?.email || 'לקוח'}!`;
-
-  // Aggregate daily_protocol from all leads (merge, with later leads taking precedence)
-  // This aggregates customer-level data from all leads
-  const dailyProtocol = useMemo(() => {
-    if (!leads || leads.length === 0) return {};
-    
-    // Merge all daily_protocol objects, with later (more recent) leads taking precedence
-    const merged = {};
-    leads.forEach(lead => {
-      if (lead.daily_protocol && typeof lead.daily_protocol === 'object') {
-        Object.assign(merged, lead.daily_protocol);
-      }
-    });
-    return merged;
-  }, [leads]);
 
   return (
     <div className="bg-[#F8FAFC] flex flex-col h-full" dir="rtl" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>

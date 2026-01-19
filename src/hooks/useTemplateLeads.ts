@@ -24,7 +24,6 @@ export const useTemplateLeads = (templateId: string) => {
         .order('created_at', { ascending: false });
 
       if (plansError) {
-        console.error('Error fetching workout plans:', plansError);
         throw plansError;
       }
 
@@ -50,7 +49,6 @@ export const useTemplateLeads = (templateId: string) => {
         .in('id', leadIds);
 
       if (leadsError) {
-        console.error('Error fetching leads:', leadsError);
         throw leadsError;
       }
 

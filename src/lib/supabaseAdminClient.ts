@@ -35,16 +35,11 @@ const finalServiceRoleKey = supabaseServiceRoleKey || defaultLocalKey;
 // Only create admin client in local development
 // In production, this should not be used - use adminUserService instead
 if (isBrowser && !isLocalSupabase) {
-  console.warn(
-    '⚠️ WARNING: supabaseAdmin should not be used in production frontend code. ' +
-    'Use adminUserService.ts which calls Edge Functions instead.'
-  );
 }
 
 if (!finalServiceRoleKey && isBrowser && !isLocalSupabase) {
   // In production browser, don't create the client
   // Components should use adminUserService instead
-  console.warn('supabaseAdmin not available in production. Use adminUserService instead.');
 }
 
 /**

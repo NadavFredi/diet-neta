@@ -126,7 +126,6 @@ export const EditViewModal = ({
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      console.error('Failed to update view:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון התצוגה. אנא נסה שוב.',
