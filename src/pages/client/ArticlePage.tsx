@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowRight, Calendar, Image as ImageIcon, Video, Loader2, Edit, Trash2, Save, X, Upload, Plus, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Calendar, Image as ImageIcon, Video, Loader2, Edit, Trash2, Save, X, Upload, Plus, Eye, EyeOff, Maximize2, Minimize2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import type { ExternalKnowledgeBaseArticle, ArticleContent, ContentBlock } from '@/hooks/useExternalKnowledgeBase';
@@ -19,58 +19,52 @@ import { normalizeContent, useDeleteExternalArticle, useUpdateExternalArticle } 
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
 // Helper to parse video URL and get embed URL
 const getVideoEmbedUrl = (url: string): string | null => {
-  try {
-    // YouTube
-    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    const youtubeMatch = url.match(youtubeRegex);
-    if (youtubeMatch) {
-      return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
-    }
-
-    // Vimeo
-    const vimeoRegex = /(?:vimeo\.com\/)(?:.*\/)?(\d+)/;
-    const vimeoMatch = url.match(vimeoRegex);
-    if (vimeoMatch) {
-      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-    }
-
-    // Direct video URL (mp4, webm, etc.)
-    if (url.match(/\.(mp4|webm|ogg|mov)$/i)) {
-      return url;
-    }
-
-    return null;
-  } catch {
-    return null;
+  if (!url) return null;
+  
+  // YouTube
+  const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const youtubeMatch = url.match(youtubeRegex);
+  if (youtubeMatch) {
+    return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
   }
+  
+  // Vimeo
+  const vimeoRegex = /(?:vimeo\.com\/)(?:.*\/)?(\d+)/;
+  const vimeoMatch = url.match(vimeoRegex);
+  if (vimeoMatch) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+  
+  // Direct video URL (mp4, webm, etc.)
+  if (url.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i)) {
+    return url;
+  }
+  
+  return null;
 };
 
+// Render content blocks as HTML
+const renderContentBlocks = (blocks: ContentBlock[], articleTitle: string = '') => {
+  if (!blocks || blocks.length === 0) {
+    return <div className="text-gray-500 text-center py-12" dir="rtl">אין תוכן למאמר זה</div>;
+  }
 
-// Render content blocks - now handles HTML with embedded images/videos
-const renderContentBlocks = (content: ArticleContent, articleTitle: string) => {
-  const blocks = content.blocks || [];
-
-  // If we have a text block with HTML content, render it directly with proper styling
-  const textBlocks = blocks.filter(b => b.type === 'text');
-  if (textBlocks.length > 0 && textBlocks[0].content) {
-    const htmlContent = textBlocks[0].content;
-    
+  // Check if first block is text and contains HTML (from Quill)
+  if (blocks.length === 1 && blocks[0].type === 'text' && blocks[0].content && blocks[0].content.includes('<')) {
     return (
-      <div
-        className="prose prose-lg max-w-none"
-        dir="rtl"
-        style={{
-          fontSize: '18px',
-          lineHeight: '1.8',
-          color: '#1f2937',
-        }}
-      >
+      <div className="article-content" dir="rtl">
         <style>{`
+          .article-content {
+            font-size: 18px;
+            line-height: 1.8;
+            color: #1f2937;
+          }
           .article-content h1,
           .article-content h2,
           .article-content h3,
@@ -82,21 +76,13 @@ const renderContentBlocks = (content: ArticleContent, articleTitle: string) => {
             margin-bottom: 0.5em;
             color: #111827;
           }
-          .article-content h1 { font-size: 2.25em; }
-          .article-content h2 { font-size: 1.875em; }
-          .article-content h3 { font-size: 1.5em; }
-          .article-content h4 { font-size: 1.25em; }
           .article-content p {
             margin-bottom: 1em;
-            line-height: 1.8;
           }
           .article-content ul,
           .article-content ol {
             padding-right: 1.5em;
             margin-bottom: 1em;
-          }
-          .article-content li {
-            margin-bottom: 0.5em;
           }
           .article-content strong {
             font-weight: 700;
@@ -150,7 +136,7 @@ const renderContentBlocks = (content: ArticleContent, articleTitle: string) => {
         `}</style>
         <div 
           className="article-content"
-          dangerouslySetInnerHTML={{ __html: htmlContent }}
+          dangerouslySetInnerHTML={{ __html: blocks[0].content || '' }}
         />
       </div>
     );
@@ -230,8 +216,6 @@ const renderContentBlocks = (content: ArticleContent, articleTitle: string) => {
   });
 };
 
-// Quill modules configuration - will be created with handlers in component
-
 const quillFormats = [
   'header',
   'bold', 'italic', 'underline', 'strike',
@@ -262,36 +246,27 @@ export const ArticlePage: React.FC = () => {
     status: 'draft' as 'draft' | 'published',
   });
   
+  const [imageSizeDialogOpen, setImageSizeDialogOpen] = useState(false);
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+  const [editingImageElement, setEditingImageElement] = useState<HTMLImageElement | null>(null);
+  const [imageWidth, setImageWidth] = useState<string>('500');
+  const [imageSizeType, setImageSizeType] = useState<'small' | 'medium' | 'large' | 'full' | 'custom'>('medium');
+  
   const coverImageInputRef = useRef<HTMLInputElement>(null);
   const quillRef = useRef<ReactQuill>(null);
-  const [resizingImage, setResizingImage] = useState<{
-    img: HTMLImageElement;
-    startX: number;
-    startY: number;
-    startWidth: number;
-    startHeight: number;
-    handle: 'se' | 'sw' | 'ne' | 'nw' | 'e' | 'w' | 'n' | 's';
-  } | null>(null);
 
   // Check if this is manager view (dashboard route) or client view (client route)
-  const isManagerView = location.pathname.startsWith('/dashboard/knowledge-base');
+  const isManagerView = location.pathname.includes('/dashboard/');
 
+  // Fetch article
   const { data: article, isLoading, error } = useQuery({
-    queryKey: ['article', id, isManagerView],
+    queryKey: ['external-article', id],
     queryFn: async () => {
-      if (!id) throw new Error('Article ID is required');
-
-      let query = supabase
+      const { data, error } = await supabase
         .from('external_knowledge_base')
         .select('*')
-        .eq('id', id);
-
-      // Clients can only see published articles, managers can see all
-      if (!isManagerView) {
-        query = query.eq('status', 'published');
-      }
-
-      const { data, error } = await query.single();
+        .eq('id', id)
+        .single();
 
       if (error) throw error;
       return data as ExternalKnowledgeBaseArticle;
@@ -311,7 +286,7 @@ export const ArticlePage: React.FC = () => {
           htmlContent += block.content || '';
         } else if (block.type === 'image' && block.url) {
           const alt = block.content || '';
-          htmlContent += `<img src="${block.url}" alt="${alt}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" />`;
+          htmlContent += `<img src="${block.url}" data-editable="true" alt="${alt}" style="width: 500px; height: auto; border-radius: 12px; margin: 24px auto; display: block; cursor: pointer;" />`;
           if (alt) {
             htmlContent += `<p style="text-align: center; color: #6b7280; font-size: 14px; margin-top: 8px;">${alt}</p>`;
           }
@@ -336,261 +311,97 @@ export const ArticlePage: React.FC = () => {
     }
   }, [article, isEditing]);
 
-  // Insert image - will be resizable after insertion
-  const insertImage = React.useCallback((url: string) => {
+  // Setup image click handlers in edit mode
+  useEffect(() => {
+    if (!isEditing) return;
     const quill = quillRef.current?.getEditor();
-    if (!quill) {
-      toast({ title: 'שגיאה', description: 'עורך הטקסט לא זמין', variant: 'destructive' });
-      return;
-    }
+    if (!quill) return;
 
-    const range = quill.getSelection(true);
-    if (!range) {
-      // If no selection, insert at end
-      const length = quill.getLength();
-      range = { index: length - 1, length: 0 };
-    }
-
-    // Insert image with default medium size and data attribute for resizing
-    const imageHtml = `<img src="${url}" data-resizable="true" style="width: 500px; height: auto; border-radius: 12px; margin: 24px auto; display: block; cursor: move; position: relative;" />`;
-    quill.clipboard.dangerouslyPasteHTML(range.index, imageHtml);
-    quill.setSelection(range.index + 1);
-    
-    // Add resize handlers after DOM update
-    setTimeout(() => {
-      setupImageResizeHandlers(quill);
-    }, 100);
-    
-    toast({ title: 'הצלחה', description: 'התמונה הוספה לתוכן. תוכל לגרור את הפינות לשינוי גודל' });
-  }, [toast]);
-
-  // Setup resize handlers for images in the editor
-  const setupImageResizeHandlers = React.useCallback((quill: any) => {
     const editor = quill.container.querySelector('.ql-editor');
     if (!editor) return;
 
-    // Remove existing handlers
-    const existingImages = editor.querySelectorAll('img[data-resizable="true"]');
-    existingImages.forEach((img: HTMLImageElement) => {
-      // Remove old resize handles
-      const existingHandles = img.parentElement?.querySelectorAll('.resize-handle');
-      existingHandles?.forEach(handle => handle.remove());
-    });
-
-    // Add handlers to all images
-    const images = editor.querySelectorAll('img[data-resizable="true"]');
-    images.forEach((img: HTMLImageElement) => {
-      if (img.parentElement?.querySelector('.resize-handle')) return; // Already has handles
-
-      img.style.position = 'relative';
-      img.style.display = 'block';
-      img.style.margin = '24px auto';
-      
-      // Create resize handles container
-      const handlesContainer = document.createElement('div');
-      handlesContainer.style.position = 'absolute';
-      handlesContainer.style.top = '0';
-      handlesContainer.style.left = '0';
-      handlesContainer.style.width = '100%';
-      handlesContainer.style.height = '100%';
-      handlesContainer.style.pointerEvents = 'none';
-      handlesContainer.className = 'resize-handles-container';
-
-      // Create handles for corners and edges
-      const handles = [
-        { position: 'nw', cursor: 'nwse-resize' },
-        { position: 'ne', cursor: 'nesw-resize' },
-        { position: 'sw', cursor: 'nesw-resize' },
-        { position: 'se', cursor: 'nwse-resize' },
-        { position: 'n', cursor: 'ns-resize' },
-        { position: 's', cursor: 'ns-resize' },
-        { position: 'e', cursor: 'ew-resize' },
-        { position: 'w', cursor: 'ew-resize' },
-      ];
-
-      handles.forEach(({ position, cursor }) => {
-        const handle = document.createElement('div');
-        handle.className = `resize-handle resize-handle-${position}`;
-        handle.style.position = 'absolute';
-        handle.style.width = '12px';
-        handle.style.height = '12px';
-        handle.style.backgroundColor = '#5B6FB9';
-        handle.style.border = '2px solid white';
-        handle.style.borderRadius = '50%';
-        handle.style.cursor = cursor;
-        handle.style.pointerEvents = 'all';
-        handle.style.zIndex = '1000';
-        handle.style.display = 'none'; // Hidden by default, show on hover
-
-        // Position handle
-        if (position.includes('n')) handle.style.top = '-6px';
-        if (position.includes('s')) handle.style.bottom = '-6px';
-        if (position.includes('w')) handle.style.right = '-6px';
-        if (position.includes('e')) handle.style.left = '-6px';
-        if (position === 'n' || position === 's') {
-          handle.style.left = '50%';
-          handle.style.transform = 'translateX(-50%)';
-        }
-        if (position === 'e' || position === 'w') {
-          handle.style.top = '50%';
-          handle.style.transform = 'translateY(-50%)';
-        }
-
-        handle.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          handleResizeStart(e, img, position as any);
-        });
-
-        handlesContainer.appendChild(handle);
-      });
-
-      // Wrap image in container if not already wrapped
-      if (!img.parentElement?.classList.contains('image-resize-wrapper')) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'image-resize-wrapper';
-        wrapper.style.position = 'relative';
-        wrapper.style.display = 'inline-block';
-        wrapper.style.margin = '24px auto';
-        wrapper.style.maxWidth = '100%';
-        img.parentNode?.insertBefore(wrapper, img);
-        wrapper.appendChild(img);
-        wrapper.appendChild(handlesContainer);
-      } else {
-        img.parentElement.appendChild(handlesContainer);
+    const handleImageClick = (e: MouseEvent) => {
+      const target = e.target as HTMLImageElement;
+      if (target.tagName === 'IMG' && target.hasAttribute('data-editable')) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Get current width
+        const currentWidth = target.style.width || '500px';
+        const widthMatch = currentWidth.match(/(\d+)/);
+        const widthValue = widthMatch ? widthMatch[1] : '500';
+        
+        setEditingImageElement(target);
+        setImageWidth(widthValue);
+        setImageSizeType('custom');
+        setPendingImageUrl(null);
+        setImageSizeDialogOpen(true);
       }
-
-      // Show handles on hover
-      img.addEventListener('mouseenter', () => {
-        handlesContainer.querySelectorAll('.resize-handle').forEach((h: Element) => {
-          (h as HTMLElement).style.display = 'block';
-        });
-      });
-
-      const parent = img.parentElement;
-      if (parent) {
-        parent.addEventListener('mouseleave', () => {
-          handlesContainer.querySelectorAll('.resize-handle').forEach((h: Element) => {
-            (h as HTMLElement).style.display = 'none';
-          });
-        });
-      }
-    });
-  }, []);
-
-  // Handle resize start
-  const handleResizeStart = React.useCallback((e: MouseEvent, img: HTMLImageElement, handle: 'se' | 'sw' | 'ne' | 'nw' | 'e' | 'w' | 'n' | 's') => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const rect = img.getBoundingClientRect();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startWidth = rect.width;
-    const startHeight = rect.height;
-
-    setResizingImage({ img, startX, startY, startWidth, startHeight, handle });
-
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = handle.includes('n') && handle.includes('e') ? 'nesw-resize' :
-                                  handle.includes('n') && handle.includes('w') ? 'nwse-resize' :
-                                  handle.includes('s') && handle.includes('e') ? 'nwse-resize' :
-                                  handle.includes('s') && handle.includes('w') ? 'nesw-resize' :
-                                  handle === 'n' || handle === 's' ? 'ns-resize' : 'ew-resize';
-  }, []);
-
-  // Handle resize during drag
-  useEffect(() => {
-    if (!resizingImage) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const { img, startX, startY, startWidth, startHeight, handle } = resizingImage;
-      
-      const deltaX = e.clientX - startX;
-      const deltaY = e.clientY - startY;
-      
-      let newWidth = startWidth;
-      let newHeight = startHeight;
-
-      // Calculate new dimensions based on handle
-      if (handle.includes('e')) {
-        newWidth = startWidth + deltaX;
-      }
-      if (handle.includes('w')) {
-        newWidth = startWidth - deltaX;
-      }
-      if (handle.includes('s')) {
-        const aspectRatio = startHeight / startWidth;
-        newHeight = startHeight + deltaY;
-        if (handle === 's' || handle.includes('s')) {
-          newWidth = newHeight / aspectRatio;
-        }
-      }
-      if (handle.includes('n')) {
-        const aspectRatio = startHeight / startWidth;
-        newHeight = startHeight - deltaY;
-        if (handle === 'n' || handle.includes('n')) {
-          newWidth = newHeight / aspectRatio;
-        }
-      }
-
-      // Maintain aspect ratio for corner handles
-      if (handle.length === 2) {
-        const aspectRatio = startHeight / startWidth;
-        if (handle.includes('n') || handle.includes('s')) {
-          newWidth = newHeight / aspectRatio;
-        } else {
-          newHeight = newWidth * aspectRatio;
-        }
-      }
-
-      // Apply min/max constraints
-      newWidth = Math.max(100, Math.min(newWidth, 1200));
-      newHeight = Math.max(100, Math.min(newHeight, 1200));
-
-      // Apply new dimensions
-      img.style.width = `${newWidth}px`;
-      img.style.height = `${newHeight}px`;
-      img.style.maxWidth = 'none';
     };
 
-    const handleMouseUp = () => {
-      setResizingImage(null);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-      
-      // Update Quill content with new dimensions
+    editor.addEventListener('click', handleImageClick);
+    return () => {
+      editor.removeEventListener('click', handleImageClick);
+    };
+  }, [isEditing, editData.content]);
+
+  // Apply image size
+  const applyImageSize = () => {
+    const width = imageSizeType === 'full' ? '100%' : `${imageWidth}px`;
+    
+    if (pendingImageUrl) {
+      // Insert new image
+      const quill = quillRef.current?.getEditor();
+      if (!quill) return;
+
+      const range = quill.getSelection(true);
+      if (!range) {
+        const length = quill.getLength();
+        quill.setSelection(length - 1, 0);
+      }
+
+      const imageHtml = `<img src="${pendingImageUrl}" data-editable="true" style="width: ${width}; height: auto; border-radius: 12px; margin: 24px auto; display: block; cursor: pointer;" />`;
+      quill.clipboard.dangerouslyPasteHTML(quill.getSelection(true)?.index || 0, imageHtml);
+      toast({ title: 'הצלחה', description: 'התמונה הוספה לתוכן. לחץ על התמונה לשינוי גודל' });
+    } else if (editingImageElement) {
+      // Update existing image
+      editingImageElement.style.width = width;
+      editingImageElement.style.height = 'auto';
+      // Update Quill's content
       const quill = quillRef.current?.getEditor();
       if (quill) {
-        // Trigger change to save new dimensions
         const html = quill.root.innerHTML;
         setEditData(prev => ({ ...prev, content: html }));
       }
-    };
+      toast({ title: 'הצלחה', description: 'גודל התמונה עודכן' });
+    }
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    setImageSizeDialogOpen(false);
+    setPendingImageUrl(null);
+    setEditingImageElement(null);
+  };
 
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
-  }, [resizingImage]);
-
-      // Setup resize handlers when content changes
-      useEffect(() => {
-        if (!isEditing) return;
-        const quill = quillRef.current?.getEditor();
-        if (quill) {
-          // Small delay to ensure DOM is updated
-          const timeout = setTimeout(() => {
-            setupImageResizeHandlers(quill);
-          }, 100);
-          return () => clearTimeout(timeout);
-        }
-      }, [editData.content, isEditing, setupImageResizeHandlers]);
+  // Handle size type change
+  const handleSizeTypeChange = (type: 'small' | 'medium' | 'large' | 'full' | 'custom') => {
+    setImageSizeType(type);
+    switch (type) {
+      case 'small':
+        setImageWidth('300');
+        break;
+      case 'medium':
+        setImageWidth('500');
+        break;
+      case 'large':
+        setImageWidth('700');
+        break;
+      case 'full':
+        setImageWidth('100');
+        break;
+      case 'custom':
+        // Keep current width
+        break;
+    }
+  };
 
   // Create Quill modules with handlers
   const quillModules = useMemo(() => ({
@@ -643,8 +454,12 @@ export const ArticlePage: React.FC = () => {
                 throw new Error('לא ניתן לקבל קישור לתמונה');
               }
 
-              // Insert image directly (will be resizable)
-              insertImage(urlData.signedUrl);
+              // Show size dialog before inserting
+              setPendingImageUrl(urlData.signedUrl);
+              setEditingImageElement(null);
+              setImageSizeType('medium');
+              setImageWidth('500');
+              setImageSizeDialogOpen(true);
             } catch (error: any) {
               toast({ title: 'שגיאה', description: error?.message || 'נכשל בהעלאת התמונה', variant: 'destructive' });
             } finally {
@@ -661,7 +476,7 @@ export const ArticlePage: React.FC = () => {
           if (embedUrl) {
             const range = quill.getSelection(true);
             if (range) {
-              // Insert video as HTML - use a more direct approach
+              // Insert video as HTML
               const videoHtml = `<div class="ql-video-container" style="position: relative; width: 100%; padding-bottom: 56.25%; margin: 24px 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); background: #000; border-radius: 12px; overflow: hidden;">
                 <iframe src="${embedUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen="true" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
               </div>`;
@@ -673,13 +488,11 @@ export const ArticlePage: React.FC = () => {
               const videoContainer = tempDiv.firstChild as Node;
               
               if (range.index >= editor.childNodes.length) {
-                // Append to end
                 const p = document.createElement('p');
                 p.appendChild(document.createElement('br'));
                 editor.appendChild(p);
                 editor.insertBefore(videoContainer, p);
               } else {
-                // Insert at position
                 const targetNode = editor.childNodes[range.index];
                 if (targetNode) {
                   editor.insertBefore(videoContainer, targetNode);
@@ -688,10 +501,7 @@ export const ArticlePage: React.FC = () => {
                 }
               }
               
-              // Force Quill to recognize the change
               quill.update('user');
-              
-              // Move cursor after video
               const newLength = quill.getLength();
               quill.setSelection(newLength - 1);
               
@@ -770,7 +580,6 @@ export const ArticlePage: React.FC = () => {
     setIsSaving(true);
     try {
       // Save the HTML content directly - it already contains embedded images and videos
-      // The HTML from ReactQuill includes all formatting and embedded media
       await updateMutation.mutateAsync({
         id: article.id,
         updates: {
@@ -778,15 +587,22 @@ export const ArticlePage: React.FC = () => {
           cover_image: editData.cover_image,
           content: { blocks: [{ type: 'text', content: editData.content }] },
           status: editData.status,
-          images: [], // Legacy
-          videos: [], // Legacy
+          images: [],
+          videos: [],
         },
       });
 
+      toast({
+        title: 'הצלחה',
+        description: 'המאמר נשמר בהצלחה',
+      });
       setIsEditing(false);
-      toast({ title: 'הצלחה', description: 'המאמר עודכן בהצלחה' });
-    } catch (error) {
-      // Error handled in mutation
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בשמירת המאמר',
+        variant: 'destructive',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -794,12 +610,30 @@ export const ArticlePage: React.FC = () => {
 
   const handleCancel = () => {
     setIsEditing(false);
+    // Reset edit data
+    if (article) {
+      const normalized = normalizeContent(article.content);
+      let htmlContent = '';
+      normalized.blocks.forEach((block) => {
+        if (block.type === 'text') {
+          htmlContent += block.content || '';
+        } else if (block.type === 'image' && block.url) {
+          htmlContent += `<img src="${block.url}" data-editable="true" style="width: 500px; height: auto; border-radius: 12px; margin: 24px auto; display: block; cursor: pointer;" />`;
+        } else if (block.type === 'video' && block.url) {
+          const embedUrl = getVideoEmbedUrl(block.url);
+          if (embedUrl) {
+            htmlContent += `<div style="position: relative; width: 100%; padding-bottom: 56.25%; margin: 16px 0;"><iframe src="${embedUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 8px;" allowfullscreen></iframe></div>`;
+          }
+        }
+      });
+      setEditData({
+        title: article.title || '',
+        cover_image: article.cover_image,
+        content: htmlContent || '',
+        status: article.status || 'draft',
+      });
+    }
   };
-
-  const normalizedContent = useMemo(() => {
-    if (!article?.content) return { blocks: [] };
-    return normalizeContent(article.content);
-  }, [article?.content]);
 
   if (isLoading) {
     return (
@@ -950,14 +784,14 @@ export const ArticlePage: React.FC = () => {
             {/* Title */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <Label htmlFor="title" className="text-sm font-medium text-gray-700 mb-2 block">
-                כותרת *
+                כותרת המאמר *
               </Label>
               <Input
                 id="title"
                 value={editData.title}
                 onChange={(e) => setEditData({ ...editData, title: e.target.value })}
-                placeholder="הכנס כותרת"
-                className="bg-gray-50 text-2xl font-bold"
+                placeholder="הכנס כותרת למאמר"
+                className="bg-gray-50"
                 dir="rtl"
               />
             </div>
@@ -1036,36 +870,16 @@ export const ArticlePage: React.FC = () => {
                     background: #f9fafb;
                     direction: rtl;
                   }
-                  .article-editor .ql-editor .image-resize-wrapper {
-                    position: relative;
-                    display: inline-block;
-                    margin: 24px auto;
-                    max-width: 100%;
-                  }
-                  .article-editor .ql-editor .image-resize-wrapper img {
-                    max-width: none;
-                    height: auto;
+                  .article-editor .ql-editor img[data-editable="true"] {
+                    cursor: pointer;
                     border-radius: 12px;
-                    margin: 0;
+                    margin: 24px auto;
                     display: block;
-                    cursor: move;
+                    transition: outline 0.2s;
                   }
-                  .article-editor .ql-editor .image-resize-wrapper:hover {
+                  .article-editor .ql-editor img[data-editable="true"]:hover {
                     outline: 2px solid #5B6FB9;
                     outline-offset: 4px;
-                    border-radius: 12px;
-                  }
-                  .article-editor .ql-editor img:not(.image-resize-wrapper img) {
-                    max-width: 100%;
-                    height: auto;
-                    border-radius: 12px;
-                    margin: 24px auto;
-                    display: block;
-                    cursor: pointer;
-                  }
-                  .article-editor .ql-editor img:not(.image-resize-wrapper img):hover {
-                    outline: 2px solid #5B6FB9;
-                    outline-offset: 2px;
                   }
                   .article-editor .ql-editor .ql-video-container {
                     position: relative;
@@ -1084,13 +898,6 @@ export const ArticlePage: React.FC = () => {
                     width: 100%;
                     height: 100%;
                     border: none;
-                  }
-                  .article-editor .ql-editor div[style*="padding-bottom: 56.25%"] {
-                    margin: 24px 0;
-                  }
-                  .article-editor .ql-editor iframe:not(.ql-video-container iframe) {
-                    border-radius: 12px;
-                    margin: 24px 0;
                   }
                   .article-editor .ql-editor h1,
                   .article-editor .ql-editor h2,
@@ -1123,48 +930,139 @@ export const ArticlePage: React.FC = () => {
                 />
               </div>
             </div>
-
           </div>
         ) : (
           /* View Mode */
-          <>
+          <div className="space-y-8">
             {/* Cover Image */}
             {article.cover_image && (
-              <div className="mb-8">
+              <div className="rounded-xl overflow-hidden shadow-lg">
                 <img
                   src={article.cover_image}
                   alt={article.title}
-                  className="w-full h-[400px] object-cover rounded-xl shadow-lg"
+                  className="w-full h-[400px] object-cover"
                 />
               </div>
             )}
 
-            {/* Title */}
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">{article.title}</h1>
-
-            {/* Date */}
-            <div className="flex items-center gap-2 text-gray-500 mb-8">
-              <Calendar className="h-4 w-4" />
-              <span>
-                {new Date(article.created_at).toLocaleDateString('he-IL', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </span>
+            {/* Article Header */}
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-4" dir="rtl">
+                {article.title}
+              </h1>
+              <div className="flex items-center gap-4 text-gray-500 text-sm" dir="rtl">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>
+                    {new Date(article.created_at).toLocaleDateString('he-IL', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* Content Blocks */}
-            <div className="bg-white rounded-xl shadow-sm p-8 mb-8">
-              {normalizedContent.blocks.length > 0 ? (
-                renderContentBlocks(normalizedContent, article.title)
-              ) : (
-                <p className="text-gray-500">אין תוכן זמין.</p>
-              )}
+            {/* Article Content */}
+            <div className="prose prose-lg max-w-none">
+              {renderContentBlocks(normalizeContent(article.content).blocks, article.title)}
             </div>
-          </>
+          </div>
         )}
       </article>
+
+      {/* Image Size Dialog */}
+      <Dialog open={imageSizeDialogOpen} onOpenChange={setImageSizeDialogOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>{pendingImageUrl ? 'בחר גודל תמונה' : 'שנה גודל תמונה'}</DialogTitle>
+            <DialogDescription>
+              {pendingImageUrl 
+                ? 'בחר את הגודל שבו התמונה תוצג במאמר' 
+                : 'בחר את הגודל החדש לתמונה'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {pendingImageUrl && (
+            <div className="mb-4">
+              <img 
+                src={pendingImageUrl} 
+                alt="תצוגה מקדימה" 
+                className="w-full rounded-lg border border-gray-200" 
+                style={{ 
+                  width: imageSizeType === 'full' ? '100%' : `${imageWidth}px`,
+                  maxWidth: '100%',
+                  height: 'auto'
+                }}
+              />
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <Label>גודל</Label>
+              <Select value={imageSizeType} onValueChange={(v: any) => handleSizeTypeChange(v)}>
+                <SelectTrigger className="w-full mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="small">
+                    <div className="flex items-center gap-2">
+                      <Minimize2 className="h-4 w-4" />
+                      <span>קטן (300px)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="medium">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4" />
+                      <span>בינוני (500px)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="large">
+                    <div className="flex items-center gap-2">
+                      <Maximize2 className="h-4 w-4" />
+                      <span>גדול (700px)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="full">
+                    <div className="flex items-center gap-2">
+                      <Maximize2 className="h-4 w-4" />
+                      <span>רוחב מלא</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="custom">
+                    <span>מותאם אישית</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {imageSizeType === 'custom' && (
+              <div>
+                <Label>רוחב (פיקסלים)</Label>
+                <Input
+                  type="number"
+                  value={imageWidth}
+                  onChange={(e) => setImageWidth(e.target.value)}
+                  min="100"
+                  max="2000"
+                  className="mt-2"
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImageSizeDialogOpen(false)}>
+              ביטול
+            </Button>
+            <Button onClick={applyImageSize}>
+              {pendingImageUrl ? 'הוסף תמונה' : 'שמור שינויים'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
