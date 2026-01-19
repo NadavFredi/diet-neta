@@ -43,7 +43,6 @@ import { setSelectedDate } from '@/store/slices/clientSlice';
 import { useNavigate } from 'react-router-dom';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
-import { AddNutritionPlanDialog } from '@/components/dashboard/dialogs/AddNutritionPlanDialog';
 import { useClientRealtime } from '@/hooks/useClientRealtime';
 import { useToast } from '@/hooks/use-toast';
 import { updateClientLead } from '@/store/slices/clientSlice';
@@ -65,7 +64,6 @@ export const ClientDashboardView: React.FC = () => {
   const { handleLogout } = useAuth();
   const [activeTab, setActiveTab] = useState('workout');
   const [isMultiDayModalOpen, setIsMultiDayModalOpen] = useState(false);
-  const [isNutritionPlanDialogOpen, setIsNutritionPlanDialogOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Initialize selectedDate to today on mount
@@ -78,7 +76,7 @@ export const ClientDashboardView: React.FC = () => {
 
   // Fetch workout and nutrition plans for customer
   const { workoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customer?.id || null);
-  const { nutritionPlan, createNutritionPlan, fetchNutritionPlan, isLoading: isLoadingNutritionPlan } = useNutritionPlan(customer?.id || null);
+  const { nutritionPlan, isLoading: isLoadingNutritionPlan } = useNutritionPlan(customer?.id || null);
 
   // Debug: Log nutrition plan data
   useEffect(() => {
@@ -507,25 +505,15 @@ export const ClientDashboardView: React.FC = () => {
                     isEditable={false}
                   />
                 ) : (
-                  <Card className="border border-slate-200 shadow-sm">
+                  <Card className="border border-slate-200 shadow-sm rounded-3xl">
                     <CardContent className="p-12 text-center">
                       <Flame className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                       <p className="text-base font-medium text-gray-500 mb-2">
                         אין תוכנית תזונה פעילה
                       </p>
-                      <p className="text-sm text-gray-400 mb-6">
-                        צור תוכנית תזונה חדשה עבור הלקוח
+                      <p className="text-sm text-gray-400">
+                        המאמן שלך יוסיף תוכנית תזונה כאן
                       </p>
-                      <Button
-                        onClick={() => {
-                          console.log('[ClientDashboard] Opening nutrition plan dialog for customer:', customer?.id);
-                          setIsNutritionPlanDialogOpen(true);
-                        }}
-                        className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white shadow-sm"
-                      >
-                        <Flame className="h-4 w-4 ml-2" />
-                        צור תוכנית תזונה
-                      </Button>
                     </CardContent>
                   </Card>
                 )}
@@ -608,47 +596,6 @@ export const ClientDashboardView: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Nutrition Plan Creation Dialog */}
-      {customer && (
-        <AddNutritionPlanDialog
-          isOpen={isNutritionPlanDialogOpen}
-          onOpenChange={setIsNutritionPlanDialogOpen}
-          onSave={async (data) => {
-            try {
-              const leadId = activeLead?.id || undefined;
-              const planData = {
-                lead_id: leadId,
-                start_date: new Date().toISOString(),
-                description: '',
-                targets: data || {
-                  calories: 2000,
-                  protein: 150,
-                  carbs: 200,
-                  fat: 65,
-                  fiber: 30,
-                },
-              };
-              await createNutritionPlan(planData);
-              await fetchNutritionPlan(); // Refetch to update UI
-              toast({
-                title: 'הצלחה',
-                description: 'תוכנית התזונה נוצרה בהצלחה',
-              });
-              setIsNutritionPlanDialogOpen(false);
-            } catch (error: any) {
-              console.error('Failed to create nutrition plan:', error);
-              toast({
-                title: 'שגיאה',
-                description: error?.message || 'נכשל ביצירת תוכנית התזונה',
-                variant: 'destructive',
-              });
-            }
-          }}
-          customerId={customer.id}
-          leadId={activeLead?.id}
-        />
-      )}
     </div>
   );
 };
