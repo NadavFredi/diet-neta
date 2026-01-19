@@ -97,11 +97,7 @@ export const useBloodTestsCard = (leadId: string, customerId: string) => {
   };
 
   // Handle delete
-  const handleDelete = async (testId: string, fileName: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    if (!confirm(`האם אתה בטוח שברצונך למחוק את "${fileName}"?`)) return;
-
+  const handleDelete = async (testId: string) => {
     try {
       await deleteMutation.mutateAsync(testId);
       toast({

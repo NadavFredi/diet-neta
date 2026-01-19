@@ -29,13 +29,11 @@ async function getAdminUserIds(): Promise<string[]> {
       .eq('is_active', true);
 
     if (error) {
-      console.error('[NotificationHelper] Error fetching admin users:', error);
       return [];
     }
 
     return data?.map((p) => p.id) || [];
   } catch (error) {
-    console.error('[NotificationHelper] Unexpected error:', error);
     return [];
   }
 }
@@ -48,7 +46,6 @@ export async function createNotificationForAdmins(params: CreateNotificationPara
     const adminUserIds = await getAdminUserIds();
 
     if (adminUserIds.length === 0) {
-      console.warn('[NotificationHelper] No admin users found to notify');
       return;
     }
 
@@ -66,7 +63,6 @@ export async function createNotificationForAdmins(params: CreateNotificationPara
     }));
 
     if (!supabaseAdmin) {
-      console.warn('[NotificationHelper] supabaseAdmin not available, skipping notification creation');
       return;
     }
 
@@ -75,13 +71,10 @@ export async function createNotificationForAdmins(params: CreateNotificationPara
       .insert(notifications);
 
     if (error) {
-      console.error('[NotificationHelper] Error creating notifications:', error);
       throw error;
     }
 
-    console.log(`[NotificationHelper] Created ${notifications.length} notifications for admins`);
   } catch (error) {
-    console.error('[NotificationHelper] Failed to create notifications:', error);
     // Don't throw - we don't want to break the main flow if notifications fail
   }
 }

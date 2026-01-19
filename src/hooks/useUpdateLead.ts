@@ -14,7 +14,6 @@ export const useUpdateLead = () => {
 
   return useMutation({
     mutationFn: async ({ leadId, updates }: { leadId: string; updates: Record<string, any> }) => {
-      console.log('useUpdateLead: Updating lead:', { leadId, updates });
       
       // Filter out undefined values and null values that shouldn't be updated
       const cleanUpdates = Object.fromEntries(
@@ -137,18 +136,6 @@ export const useUpdateLead = () => {
         .single();
 
       if (updateError) {
-        console.error('useUpdateLead: Database error:', updateError);
-        console.error('useUpdateLead: Update details:', { 
-          leadId, 
-          cleanUpdates,
-          cleanUpdatesStringified: JSON.stringify(cleanUpdates, null, 2),
-          numericFields: {
-            height: cleanUpdates.height,
-            weight: cleanUpdates.weight,
-            age: cleanUpdates.age,
-            bmi: cleanUpdates.bmi,
-          }
-        });
         throw new Error(`Failed to update lead: ${updateError.message}`);
       }
       
@@ -157,7 +144,6 @@ export const useUpdateLead = () => {
       }
       
       // Return the updated lead data
-      console.log('useUpdateLead: Update successful', { leadId, updates: cleanUpdates, updatedLead });
       return updatedLead;
     },
     onMutate: async ({ leadId, updates }) => {
@@ -174,7 +160,6 @@ export const useUpdateLead = () => {
       // Optimistically update the lead query - merge updates properly
       queryClient.setQueryData(['lead', leadId], (old: any) => {
         if (!old) {
-          console.warn('useUpdateLead: No existing lead data found for optimistic update', leadId);
           return old;
         }
         // Deep merge to handle nested objects like subscription_data
@@ -186,7 +171,6 @@ export const useUpdateLead = () => {
             merged[key] = updates[key];
           }
         });
-        console.log('useUpdateLead: Optimistic update applied', { leadId, updates, merged });
         return merged;
       });
       
@@ -233,7 +217,6 @@ export const useUpdateLead = () => {
         });
       }
       
-      console.error('useUpdateLead: Error updating lead:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון השדה',
@@ -241,14 +224,12 @@ export const useUpdateLead = () => {
       });
     },
     onSuccess: async (updatedLead, variables) => {
-      console.log('useUpdateLead: onSuccess called', { updatedLead, variables });
       
       // Update the query cache with the fresh data from the database
       // This ensures the UI shows the correct data immediately
       if (updatedLead) {
         // Update the main lead query
         queryClient.setQueryData(['lead', variables.leadId], updatedLead);
-        console.log('useUpdateLead: Updated lead query cache', ['lead', variables.leadId]);
         
         // Also update customer queries that contain this lead
         const customerQueries = queryClient.getQueriesData({ queryKey: ['customer'] });
@@ -261,7 +242,6 @@ export const useUpdateLead = () => {
               ...customerData,
               leads: updatedLeads,
             });
-            console.log('useUpdateLead: Updated customer query cache', queryKey);
           }
         });
         
@@ -270,7 +250,6 @@ export const useUpdateLead = () => {
         leadForCustomerQueries.forEach(([queryKey, data]: [any, any]) => {
           if (data?.id === variables.leadId) {
             queryClient.setQueryData(queryKey, { ...data, ...updatedLead });
-            console.log('useUpdateLead: Updated lead-for-customer query cache', queryKey);
           }
         });
       }
@@ -282,8 +261,6 @@ export const useUpdateLead = () => {
       queryClient.invalidateQueries({ queryKey: ['lead-for-customer'] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['filtered-leads'] });
-      
-      console.log('Lead update successful:', { leadId: variables.leadId, updates: variables.updates, updatedLead });
       
       toast({
         title: 'הצלחה',

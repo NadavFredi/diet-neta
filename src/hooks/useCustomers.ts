@@ -73,7 +73,6 @@ export const useCustomers = () => {
     queryKey: ['customers', user?.email],
     queryFn: async () => {
       if (!user?.email) {
-        console.warn('useCustomers: User not authenticated');
         return [];
       }
 
@@ -85,12 +84,10 @@ export const useCustomers = () => {
           .order('created_at', { ascending: false });
 
         if (customersError) {
-          console.error('Error fetching customers:', customersError);
           throw customersError;
         }
 
         if (!customersData || customersData.length === 0) {
-          console.log('No customers found in database');
           return [];
         }
 
@@ -102,7 +99,6 @@ export const useCustomers = () => {
           .in('customer_id', customerIds);
 
         if (leadsError) {
-          console.error('Error fetching lead counts:', leadsError);
           // Don't throw - continue without lead counts
         }
 
@@ -125,10 +121,8 @@ export const useCustomers = () => {
           total_leads: leadCounts[customer.id] || 0,
         })) as Customer[];
 
-        console.log(`useCustomers: Fetched ${result.length} customers`);
         return result;
       } catch (error: any) {
-        console.error('Error in useCustomers queryFn:', error);
         return [];
       }
     },

@@ -227,18 +227,6 @@ export const WorkoutPlanCard = ({
               customAttrs?.['weeklyWorkout'] ||
               (customAttrs?.data?.days ? customAttrs.data : null);
             
-            console.log('[WorkoutPlanCard] Rendering workout plan:', {
-              hasCustomAttributes: !!workoutPlan.custom_attributes,
-              hasData: !!customAttrs?.data,
-              hasWeeklyWorkoutInData: !!customAttrs?.data?.weeklyWorkout,
-              hasWeeklyWorkoutInRoot: !!customAttrs?.['weeklyWorkout'],
-              customAttributesKeys: workoutPlan.custom_attributes ? Object.keys(workoutPlan.custom_attributes) : [],
-              dataKeys: customAttrs?.data ? Object.keys(customAttrs.data) : [],
-              weeklyWorkout: weeklyWorkout,
-              hasDays: !!weeklyWorkout?.days,
-              daysCount: weeklyWorkout?.days ? Object.keys(weeklyWorkout.days).length : 0
-            });
-            
             if (!weeklyWorkout || !weeklyWorkout.days || Object.keys(weeklyWorkout.days).length === 0) {
               return (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">

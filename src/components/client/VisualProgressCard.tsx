@@ -12,6 +12,16 @@ import { Upload, X, Image as ImageIcon, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -35,6 +45,8 @@ export const VisualProgressCard: React.FC<VisualProgressCardProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -208,13 +220,17 @@ export const VisualProgressCard: React.FC<VisualProgressCardProps> = ({
   // Handle delete photo
   const handleDeletePhoto = async (path: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    setPhotoToDelete(path);
+    setDeleteDialogOpen(true);
+  };
 
-    if (!confirm('האם אתה בטוח שברצונך למחוק את התמונה?')) return;
+  const confirmDeletePhoto = async () => {
+    if (!photoToDelete) return;
 
     try {
       const { error } = await supabase.storage
         .from('client-assets')
-        .remove([path]);
+        .remove([photoToDelete]);
 
       if (error) throw error;
 
@@ -232,6 +248,9 @@ export const VisualProgressCard: React.FC<VisualProgressCardProps> = ({
         description: 'לא ניתן היה למחוק את התמונה',
         variant: 'destructive',
       });
+    } finally {
+      setPhotoToDelete(null);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -354,6 +373,32 @@ export const VisualProgressCard: React.FC<VisualProgressCardProps> = ({
         currentIndex={lightboxIndex}
         onIndexChange={setLightboxIndex}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת תמונה</AlertDialogTitle>
+            <AlertDialogDescription>
+              האם אתה בטוח שברצונך למחוק את התמונה? פעולה זו לא ניתנת לביטול.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogAction
+              onClick={confirmDeletePhoto}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              מחק
+            </AlertDialogAction>
+            <AlertDialogCancel onClick={() => {
+              setDeleteDialogOpen(false);
+              setPhotoToDelete(null);
+            }}>
+              ביטול
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

@@ -78,17 +78,6 @@ export const ClientDashboardView: React.FC = () => {
   const { workoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customer?.id || null);
   const { nutritionPlan, isLoading: isLoadingNutritionPlan } = useNutritionPlan(customer?.id || null);
 
-  // Debug: Log nutrition plan data
-  useEffect(() => {
-    if (customer?.id) {
-      console.log('[ClientDashboard] Nutrition Plan Data:', {
-        customerId: customer.id,
-        nutritionPlan,
-        isLoadingNutritionPlan,
-      });
-    }
-  }, [customer?.id, nutritionPlan, isLoadingNutritionPlan]);
-
   // Set up polling for data sync (every 5 minutes)
   useClientRealtime(customer?.id || null);
 

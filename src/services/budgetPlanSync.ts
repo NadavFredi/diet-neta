@@ -29,7 +29,6 @@ export async function syncPlansFromBudget({
   supplementPlanId?: string;
   stepsPlanId?: string;
 }> {
-  console.log('[syncPlansFromBudget] Starting sync:', { budgetId: budget.id, customerId, leadId, userId });
   const result: {
     workoutPlanId?: string;
     nutritionPlanId?: string;
@@ -47,12 +46,10 @@ export async function syncPlansFromBudget({
       .single();
     
     if (leadError) {
-      console.error('[syncPlansFromBudget] Error fetching lead:', leadError);
     }
     
     if (lead?.customer_id) {
       finalCustomerId = lead.customer_id;
-      console.log('[syncPlansFromBudget] Found customer_id from lead:', finalCustomerId);
     }
   }
 
@@ -60,12 +57,10 @@ export async function syncPlansFromBudget({
     throw new Error('Either customerId or leadId must be provided');
   }
 
-  console.log('[syncPlansFromBudget] Final customerId:', finalCustomerId, 'leadId:', leadId);
 
   // 1. Sync Workout Plan
   if (budget.workout_template_id) {
     try {
-      console.log('[syncPlansFromBudget] Creating workout plan for budget:', budget.id);
       // Fetch the workout template
       const { data: workoutTemplate, error: templateError } = await supabase
         .from('workout_templates')
@@ -74,13 +69,10 @@ export async function syncPlansFromBudget({
         .single();
 
       if (templateError) {
-        console.error('[syncPlansFromBudget] Error fetching workout template:', templateError);
         throw templateError;
       }
       
-      if (!workoutTemplate) {
-        console.warn('[syncPlansFromBudget] Workout template not found:', budget.workout_template_id);
-      } else {
+      if (workoutTemplate) {
       // First, deactivate ALL existing active workout plans for this customer/lead
       // If both customerId and leadId are provided, deactivate plans matching both
       if (finalCustomerId && leadId) {
@@ -117,7 +109,6 @@ export async function syncPlansFromBudget({
             .eq('customer_id', finalCustomerId);
           
           if (customerDeleteError) {
-            console.error('[syncPlansFromBudget] Error deleting workout plans by customer_id:', customerDeleteError);
           }
         }
         
@@ -129,11 +120,9 @@ export async function syncPlansFromBudget({
             .eq('lead_id', leadId);
           
           if (leadDeleteError) {
-            console.error('[syncPlansFromBudget] Error deleting workout plans by lead_id:', leadDeleteError);
           }
         }
       } catch (deleteError) {
-        console.error('[syncPlansFromBudget] Error deleting workout plans:', deleteError);
         // Don't throw - continue to create new plan
       }
 
@@ -169,19 +158,15 @@ export async function syncPlansFromBudget({
         .single();
 
       if (workoutError) {
-        console.error('[syncPlansFromBudget] Error creating workout plan:', workoutError);
         throw new Error(`Failed to create workout plan: ${workoutError.message}`);
       }
-      console.log('[syncPlansFromBudget] Workout plan created successfully:', workoutPlan.id);
 
         result.workoutPlanId = workoutPlan.id;
       }
     } catch (error: any) {
-      console.error('[syncPlansFromBudget] Failed to create workout plan:', error);
       // Don't throw - continue with other plans
     }
   } else {
-    console.log('[syncPlansFromBudget] Skipping workout plan - no workout_template_id in budget');
   }
 
   // 2. Sync Nutrition Plan
@@ -200,7 +185,6 @@ export async function syncPlansFromBudget({
           .eq('customer_id', finalCustomerId);
         
         if (customerDeleteError && !customerDeleteError.message?.includes('does not exist') && !customerDeleteError.message?.includes('relation')) {
-          console.error('[syncPlansFromBudget] Error deleting nutrition plans by customer_id:', customerDeleteError);
         }
       }
       
@@ -212,13 +196,9 @@ export async function syncPlansFromBudget({
           .eq('lead_id', leadId);
         
         if (leadDeleteError && !leadDeleteError.message?.includes('does not exist') && !leadDeleteError.message?.includes('relation')) {
-          console.error('[syncPlansFromBudget] Error deleting nutrition plans by lead_id:', leadDeleteError);
         }
       }
     } catch (deleteError) {
-      if (!deleteError.message?.includes('does not exist') && !deleteError.message?.includes('relation')) {
-        console.error('[syncPlansFromBudget] Error deleting nutrition plans:', deleteError);
-      }
       // Don't throw - continue to create new plan
     }
 
@@ -267,30 +247,19 @@ export async function syncPlansFromBudget({
       .single();
 
     if (nutritionError) {
-      console.error('[syncPlansFromBudget] Error creating nutrition plan:', nutritionError);
       throw new Error(`Failed to create nutrition plan: ${nutritionError.message}`);
     }
-    console.log('[syncPlansFromBudget] Nutrition plan created successfully:', nutritionPlan.id);
 
       result.nutritionPlanId = nutritionPlan?.id;
     } catch (error: any) {
-      console.error('[syncPlansFromBudget] Failed to create nutrition plan:', error);
       // Don't throw - continue with other plans
     }
   } else {
-    console.log('[syncPlansFromBudget] Skipping nutrition plan - no nutrition_template_id or nutrition_targets in budget');
   }
 
   // 3. Sync Steps Plan
   if (budget.steps_goal && budget.steps_goal > 0) {
     try {
-      console.log('[syncPlansFromBudget] Creating steps plan for budget:', budget.id);
-      console.log('[syncPlansFromBudget] Steps plan details:', {
-      stepsGoal: budget.steps_goal,
-      stepsInstructions: budget.steps_instructions,
-      customerId: finalCustomerId,
-      leadId,
-    });
 
     // First, deactivate ALL existing active steps plans for this customer/lead
     // If both customerId and leadId are provided, deactivate plans matching both
@@ -303,7 +272,6 @@ export async function syncPlansFromBudget({
         .eq('is_active', true);
       
       if (deactivateError && !deactivateError.message?.includes('does not exist') && !deactivateError.message?.includes('relation')) {
-        console.error('[syncPlansFromBudget] Error deactivating steps plans:', deactivateError);
       }
     } else if (finalCustomerId) {
       const { error: deactivateError } = await supabase
@@ -313,7 +281,6 @@ export async function syncPlansFromBudget({
         .eq('is_active', true);
       
       if (deactivateError && !deactivateError.message?.includes('does not exist') && !deactivateError.message?.includes('relation')) {
-        console.error('[syncPlansFromBudget] Error deactivating steps plans:', deactivateError);
       }
     } else if (leadId) {
       const { error: deactivateError } = await supabase
@@ -323,7 +290,6 @@ export async function syncPlansFromBudget({
         .eq('is_active', true);
       
       if (deactivateError && !deactivateError.message?.includes('does not exist') && !deactivateError.message?.includes('relation')) {
-        console.error('[syncPlansFromBudget] Error deactivating steps plans:', deactivateError);
       }
     }
 
@@ -341,7 +307,6 @@ export async function syncPlansFromBudget({
         
         if (customerDeleteError && (customerDeleteError.message?.includes('does not exist') || customerDeleteError.message?.includes('relation'))) {
           // Table doesn't exist, use fallback
-          console.error('[syncPlansFromBudget] steps_plans table does not exist! Please run migration: 20260104000007_create_steps_plans.sql');
           const { data: customer } = await supabase
             .from('customers')
             .select('daily_protocol')
@@ -360,11 +325,9 @@ export async function syncPlansFromBudget({
               .update({ daily_protocol: updatedProtocol })
               .eq('id', finalCustomerId);
             
-            console.log('[syncPlansFromBudget] Fallback: Updated daily_protocol with steps goal');
           }
           return result; // Return early if table doesn't exist
         } else if (customerDeleteError) {
-          console.error('[syncPlansFromBudget] Error deleting steps plans by customer_id:', customerDeleteError);
         }
       }
       
@@ -381,7 +344,6 @@ export async function syncPlansFromBudget({
             return result; // Return early if table doesn't exist and no customer_id
           }
         } else if (leadDeleteError) {
-          console.error('[syncPlansFromBudget] Error deleting steps plans by lead_id:', leadDeleteError);
         }
       }
     } catch (deleteError: any) {
@@ -406,12 +368,10 @@ export async function syncPlansFromBudget({
               .update({ daily_protocol: updatedProtocol })
               .eq('id', finalCustomerId);
             
-            console.log('[syncPlansFromBudget] Fallback: Updated daily_protocol with steps goal');
           }
         }
         return result; // Return early if table doesn't exist
       }
-      console.error('[syncPlansFromBudget] Error deleting steps plans:', deleteError);
       // Don't throw - continue to create new plan
     }
 
@@ -436,17 +396,9 @@ export async function syncPlansFromBudget({
       .single();
 
     if (stepsError) {
-      console.error('[syncPlansFromBudget] Error creating steps plan:', stepsError);
-      console.error('[syncPlansFromBudget] Error details:', {
-        message: stepsError.message,
-        code: stepsError.code,
-        details: stepsError.details,
-        hint: stepsError.hint,
-      });
       
       // If table doesn't exist, fallback to daily_protocol
       if (stepsError.message?.includes('does not exist') || stepsError.message?.includes('relation')) {
-        console.error('[syncPlansFromBudget] steps_plans table does not exist! Please run migration: 20260104000007_create_steps_plans.sql');
         // Fallback: update daily_protocol instead
         if (finalCustomerId) {
           const { data: customer } = await supabase
@@ -467,7 +419,6 @@ export async function syncPlansFromBudget({
               .update({ daily_protocol: updatedProtocol })
               .eq('id', finalCustomerId);
             
-            console.log('[syncPlansFromBudget] Fallback: Updated daily_protocol with steps goal');
           }
         }
         return result; // Don't throw, just return
@@ -475,22 +426,17 @@ export async function syncPlansFromBudget({
       
       throw new Error(`Failed to create steps plan: ${stepsError.message}`);
     }
-    console.log('[syncPlansFromBudget] ✅ Steps plan created successfully:', stepsPlan.id);
 
       result.stepsPlanId = stepsPlan?.id;
-      console.log('[syncPlansFromBudget] Steps plan sync completed:', result.stepsPlanId);
     } catch (error: any) {
-      console.error('[syncPlansFromBudget] Failed to create steps plan:', error);
       // Don't throw - continue with other plans
     }
   } else {
-    console.log('[syncPlansFromBudget] Skipping steps plan - no steps_goal in budget or goal is 0');
   }
 
   // 4. Sync Supplement Plan
   if (budget.supplements && budget.supplements.length > 0) {
     try {
-      console.log('[syncPlansFromBudget] Creating supplement plan for budget:', budget.id);
     // First, deactivate ALL existing active supplement plans for this customer/lead
     // If both customerId and leadId are provided, deactivate plans matching both
     if (finalCustomerId && leadId) {
@@ -527,7 +473,6 @@ export async function syncPlansFromBudget({
           .eq('customer_id', finalCustomerId);
         
         if (customerDeleteError) {
-          console.error('[syncPlansFromBudget] Error deleting supplement plans by customer_id:', customerDeleteError);
         }
       }
       
@@ -539,11 +484,9 @@ export async function syncPlansFromBudget({
           .eq('lead_id', leadId);
         
         if (leadDeleteError) {
-          console.error('[syncPlansFromBudget] Error deleting supplement plans by lead_id:', leadDeleteError);
         }
       }
     } catch (deleteError) {
-      console.error('[syncPlansFromBudget] Error deleting supplement plans:', deleteError);
       // Don't throw - continue to create new plan
     }
 
@@ -567,32 +510,16 @@ export async function syncPlansFromBudget({
       .single();
 
     if (supplementError) {
-      console.error('[syncPlansFromBudget] Error creating supplement plan:', supplementError);
       throw new Error(`Failed to create supplement plan: ${supplementError.message}`);
     }
-    console.log('[syncPlansFromBudget] Supplement plan created successfully:', supplementPlan.id);
 
       result.supplementPlanId = supplementPlan?.id;
     } catch (error: any) {
-      console.error('[syncPlansFromBudget] Failed to create supplement plan:', error);
       // Don't throw - continue with other plans
     }
   } else {
-    console.log('[syncPlansFromBudget] Skipping supplement plan - no supplements in budget');
   }
 
-  console.log('[syncPlansFromBudget] ✅ Sync completed:', {
-    workoutPlanId: result.workoutPlanId || 'none',
-    nutritionPlanId: result.nutritionPlanId || 'none',
-    supplementPlanId: result.supplementPlanId || 'none',
-    stepsPlanId: result.stepsPlanId || 'none',
-    totalPlansCreated: [
-      result.workoutPlanId,
-      result.nutritionPlanId,
-      result.supplementPlanId,
-      result.stepsPlanId,
-    ].filter(Boolean).length,
-  });
   return result;
 }
 

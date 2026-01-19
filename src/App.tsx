@@ -257,7 +257,12 @@ const App = () => (
         <Toaster />
         <Sonner />
         <DevModeProvider>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <AuthInitializer>
               <AppContent />
             </AuthInitializer>
