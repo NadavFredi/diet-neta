@@ -12,10 +12,10 @@ The frontend does NOT have access to any API keys or tokens in production:
    - Keys stored in Supabase secrets: `GREEN_API_ID_INSTANCE`, `GREEN_API_TOKEN_INSTANCE`
    - Frontend service: `greenApiServiceEdge.ts` (calls Edge Function)
 
-2. **Fillout API**: ✅ Secure
-   - Production: Routes to `fillout-api` Edge Function
-   - Keys stored in Supabase secrets: `FILLOUT_API_KEY`
-   - Frontend service: `filloutServiceEdge.ts` (calls Edge Function)
+2. **Fillout Integration**: ✅ Secure
+   - Webhook-based: All submissions stored via `receive-fillout-webhook` Edge Function
+   - Frontend service: `filloutService.ts` (queries database directly)
+   - No API keys needed: Data comes from webhook, stored in `fillout_submissions` table
 
 3. **Stripe API**: ✅ Secure
    - Production: Routes to `stripe-api` Edge Function
@@ -44,10 +44,10 @@ In production:
    - Requires: Authentication
    - Uses: `GREEN_API_ID_INSTANCE`, `GREEN_API_TOKEN_INSTANCE`
 
-2. ✅ `supabase/functions/fillout-api/index.ts`
-   - Handles: Form submissions, get submission by ID
-   - Requires: Authentication
-   - Uses: `FILLOUT_API_KEY`
+2. ✅ `supabase/functions/receive-fillout-webhook/index.ts`
+   - Handles: Receives webhooks from Fillout, stores submissions in database
+   - Requires: No authentication (webhook endpoint)
+   - Uses: Database storage only (no API keys needed)
 
 3. ✅ `supabase/functions/stripe-api/index.ts`
    - Handles: Fetch products, create payment links
@@ -62,7 +62,7 @@ In production:
 ### Remaining VITE_ References
 The following files still reference VITE_ env vars, but they are **PROTECTED**:
 - `src/services/greenApiService.ts` - Only used in local dev (production routes to Edge Function)
-- `src/services/filloutService.ts` - Only used in local dev (production routes to Edge Function)
+- `src/services/filloutService.ts` - Queries database directly (no API keys, only form IDs which are public)
 - `src/services/stripeService.ts` - Only used in local dev (production routes to Edge Function)
 - `src/lib/supabaseAdminClient.ts` - Deprecated, only for local dev
 

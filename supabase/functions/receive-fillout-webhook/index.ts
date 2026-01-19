@@ -707,50 +707,35 @@ serve(async (req) => {
       questionsCount: body.questions?.length || 0,
     });
 
-    // Get Fillout API key to check existence via API
+    // Check if submission exists in database
     const supabase = createSupabaseAdmin();
-    const filloutApiKey = Deno.env.get('FILLOUT_API_KEY') || 
-                         Deno.env.get('VITE_FILLOUT_API_KEY');
-
-    if (!filloutApiKey) {
-      console.error('[receive-fillout-webhook] Missing FILLOUT_API_KEY environment variable');
-      return errorResponse('Missing FILLOUT_API_KEY. Make sure it\'s configured in Supabase secrets or .env.local', 500);
-    }
-
-    // Check if submission exists using Fillout API (instead of DB query)
     let submissionExists = false;
     if (formId && finalSubmissionId) {
       try {
-        const filloutUrl = `https://api.fillout.com/v1/api/forms/${formId}/submissions/${finalSubmissionId}`;
-        console.log('[receive-fillout-webhook] Checking submission existence via Fillout API:', filloutUrl);
-        
-        const filloutResponse = await fetch(filloutUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${filloutApiKey}`,
-            'Content-Type': 'application/json',
-          },
-        });
+        const { data: existingSubmission, error: checkError } = await supabase
+          .from('fillout_submissions')
+          .select('id')
+          .eq('fillout_submission_id', finalSubmissionId)
+          .maybeSingle();
 
-        if (filloutResponse.ok) {
-          submissionExists = true;
-          console.log('[receive-fillout-webhook] ✅ Submission exists in Fillout');
-        } else if (filloutResponse.status === 404) {
-          submissionExists = false;
-          console.log('[receive-fillout-webhook] ✅ Submission does not exist in Fillout (404 - new submission)');
-        } else {
-          // If API call fails for other reasons, log but continue (might be a new submission)
-          const errorText = await filloutResponse.text().catch(() => 'Unknown error');
-          console.warn('[receive-fillout-webhook] ⚠️ Fillout API check failed:', filloutResponse.status, errorText);
-          submissionExists = false; // Assume new submission if check fails
+        if (checkError && checkError.code !== 'PGRST116') {
+          // PGRST116 is "not found" which is expected for new submissions
+          console.warn('[receive-fillout-webhook] ⚠️ Error checking submission existence in database:', checkError);
         }
-      } catch (apiError: any) {
-        console.error('[receive-fillout-webhook] Error checking submission existence via Fillout API:', apiError);
-        // Continue as if it's a new submission if API check fails
+
+        submissionExists = !!existingSubmission;
+        if (submissionExists) {
+          console.log('[receive-fillout-webhook] ✅ Submission exists in database');
+        } else {
+          console.log('[receive-fillout-webhook] ✅ Submission does not exist in database (new submission)');
+        }
+      } catch (dbError: any) {
+        console.error('[receive-fillout-webhook] Error checking submission existence in database:', dbError);
+        // Continue as if it's a new submission if check fails
         submissionExists = false;
       }
     } else {
-      console.warn('[receive-fillout-webhook] ⚠️ Missing formId or submissionId, cannot check via API');
+      console.warn('[receive-fillout-webhook] ⚠️ Missing formId or submissionId, cannot check in database');
       submissionExists = false;
     }
 
