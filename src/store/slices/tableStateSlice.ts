@@ -205,6 +205,23 @@ const tableStateSlice = createSlice({
       state.tables[resourceKey].activeFilters.push(filter);
     },
 
+    // Update a filter by id
+    updateFilter: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        filter: any; // ActiveFilter type
+      }>
+    ) => {
+      const { resourceKey, filter } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      state.tables[resourceKey].activeFilters = state.tables[resourceKey].activeFilters.map((item) =>
+        item.id === filter.id ? filter : item
+      );
+    },
+
     // Remove a filter
     removeFilter: (
       state,
@@ -340,6 +357,7 @@ export const {
   setColumnOrder,
   setSearchQuery,
   addFilter,
+  updateFilter,
   removeFilter,
   clearFilters,
   setActiveFilters,

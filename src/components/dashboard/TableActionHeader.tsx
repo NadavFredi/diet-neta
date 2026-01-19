@@ -24,6 +24,7 @@ import {
   toggleColumnVisibility as toggleTableColumnVisibility,
   setSearchQuery,
   addFilter as addFilterAction,
+  updateFilter as updateFilterAction,
   removeFilter as removeFilterAction,
   clearFilters as clearFiltersAction,
   selectColumnOrder,
@@ -41,7 +42,7 @@ import {
 import { GroupBadge } from './GroupBadge';
 import { GroupBySelector } from './GroupBySelector';
 import type { DataTableColumn } from '@/components/ui/DataTable';
-import type { FilterField } from '@/components/dashboard/TableFilter';
+import type { ActiveFilter, FilterField } from '@/components/dashboard/TableFilter';
 import { cn } from '@/lib/utils';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, useUpdateSavedView } from '@/hooks/useSavedViews';
@@ -88,6 +89,7 @@ interface TableActionHeaderProps {
   legacyOnSearchChange?: (value: string) => void;
   legacyActiveFilters?: any[];
   legacyOnFilterAdd?: (filter: any) => void;
+  legacyOnFilterUpdate?: (filter: any) => void;
   legacyOnFilterRemove?: (filterId: string) => void;
   legacyOnFilterClear?: () => void;
 }
@@ -119,12 +121,14 @@ export const TableActionHeader = ({
   legacyOnSearchChange,
   legacyActiveFilters,
   legacyOnFilterAdd,
+  legacyOnFilterUpdate,
   legacyOnFilterRemove,
   legacyOnFilterClear,
 }: TableActionHeaderProps) => {
   const dispatch = useAppDispatch();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGroupByOpen, setIsGroupByOpen] = useState(false);
+  const [editingFilter, setEditingFilter] = useState<ActiveFilter | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAppSelector((state) => state.auth);
@@ -181,11 +185,22 @@ export const TableActionHeader = ({
     }
   };
 
+  const handleUpdateFilter = (filter: any) => {
+    if (legacyOnFilterUpdate) {
+      legacyOnFilterUpdate(filter);
+    } else {
+      dispatch(updateFilterAction({ resourceKey, filter }));
+    }
+  };
+
   const handleRemoveFilter = (filterId: string) => {
     if (legacyOnFilterRemove) {
       legacyOnFilterRemove(filterId);
     } else {
       dispatch(removeFilterAction({ resourceKey, filterId }));
+    }
+    if (editingFilter?.id === filterId) {
+      setEditingFilter(null);
     }
   };
 
@@ -195,6 +210,7 @@ export const TableActionHeader = ({
     } else {
       dispatch(clearFiltersAction({ resourceKey }));
     }
+    setEditingFilter(null);
   };
 
   // Get column visibility from Redux for leads (legacy dashboardSlice)
@@ -470,8 +486,11 @@ export const TableActionHeader = ({
               fields={filterFields}
               activeFilters={activeFilters}
               onFilterAdd={handleAddFilter}
+              onFilterUpdate={handleUpdateFilter}
               onFilterRemove={handleRemoveFilter}
               onFilterClear={handleClearFilters}
+              editFilter={editingFilter}
+              onEditApplied={() => setEditingFilter(null)}
             />
           )}
 
@@ -524,6 +543,7 @@ export const TableActionHeader = ({
               filters={activeFilters}
               onRemove={handleRemoveFilter}
               onClearAll={handleClearFilters}
+              onEdit={setEditingFilter}
             />
           )}
 

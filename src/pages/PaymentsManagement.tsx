@@ -23,6 +23,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getPaymentFilterFields } from '@/hooks/useTableFilters';
 import type { AllPaymentRecord } from '@/hooks/useAllPayments';
 import { selectActiveFilters } from '@/store/slices/tableStateSlice';
+import { useAppSelector } from '@/store/hooks';
 
 // Status configuration - maps internal status to Hebrew display
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {

@@ -113,20 +113,39 @@ const renderContentBlocks = (content: ArticleContent, articleTitle: string) => {
             text-decoration: underline;
           }
           .article-content img {
-            max-width: 100%;
             height: auto;
             border-radius: 12px;
-            margin: 24px 0;
+            margin: 24px auto;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             display: block;
+          }
+          .article-content .ql-video-container,
+          .article-content div[style*="padding-bottom: 56.25%"],
+          .article-content div[style*="position: relative"][style*="width: 100%"] {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            margin: 24px 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          }
+          .article-content .ql-video-container iframe,
+          .article-content div[style*="padding-bottom: 56.25%"] iframe,
+          .article-content div[style*="position: relative"][style*="width: 100%"] iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            border: none;
           }
           .article-content iframe {
             border-radius: 12px;
             margin: 24px 0;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
           }
-          .article-content div[style*="padding-bottom: 56.25%"] {
-            margin: 24px 0;
+          .article-content iframe[style*="position: absolute"] {
+            margin: 0;
           }
         `}</style>
         <div 
@@ -245,6 +264,14 @@ export const ArticlePage: React.FC = () => {
   
   const coverImageInputRef = useRef<HTMLInputElement>(null);
   const quillRef = useRef<ReactQuill>(null);
+  const [resizingImage, setResizingImage] = useState<{
+    img: HTMLImageElement;
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    handle: 'se' | 'sw' | 'ne' | 'nw' | 'e' | 'w' | 'n' | 's';
+  } | null>(null);
 
   // Check if this is manager view (dashboard route) or client view (client route)
   const isManagerView = location.pathname.startsWith('/dashboard/knowledge-base');
@@ -309,6 +336,262 @@ export const ArticlePage: React.FC = () => {
     }
   }, [article, isEditing]);
 
+  // Insert image - will be resizable after insertion
+  const insertImage = React.useCallback((url: string) => {
+    const quill = quillRef.current?.getEditor();
+    if (!quill) {
+      toast({ title: 'שגיאה', description: 'עורך הטקסט לא זמין', variant: 'destructive' });
+      return;
+    }
+
+    const range = quill.getSelection(true);
+    if (!range) {
+      // If no selection, insert at end
+      const length = quill.getLength();
+      range = { index: length - 1, length: 0 };
+    }
+
+    // Insert image with default medium size and data attribute for resizing
+    const imageHtml = `<img src="${url}" data-resizable="true" style="width: 500px; height: auto; border-radius: 12px; margin: 24px auto; display: block; cursor: move; position: relative;" />`;
+    quill.clipboard.dangerouslyPasteHTML(range.index, imageHtml);
+    quill.setSelection(range.index + 1);
+    
+    // Add resize handlers after DOM update
+    setTimeout(() => {
+      setupImageResizeHandlers(quill);
+    }, 100);
+    
+    toast({ title: 'הצלחה', description: 'התמונה הוספה לתוכן. תוכל לגרור את הפינות לשינוי גודל' });
+  }, [toast]);
+
+  // Setup resize handlers for images in the editor
+  const setupImageResizeHandlers = React.useCallback((quill: any) => {
+    const editor = quill.container.querySelector('.ql-editor');
+    if (!editor) return;
+
+    // Remove existing handlers
+    const existingImages = editor.querySelectorAll('img[data-resizable="true"]');
+    existingImages.forEach((img: HTMLImageElement) => {
+      // Remove old resize handles
+      const existingHandles = img.parentElement?.querySelectorAll('.resize-handle');
+      existingHandles?.forEach(handle => handle.remove());
+    });
+
+    // Add handlers to all images
+    const images = editor.querySelectorAll('img[data-resizable="true"]');
+    images.forEach((img: HTMLImageElement) => {
+      if (img.parentElement?.querySelector('.resize-handle')) return; // Already has handles
+
+      img.style.position = 'relative';
+      img.style.display = 'block';
+      img.style.margin = '24px auto';
+      
+      // Create resize handles container
+      const handlesContainer = document.createElement('div');
+      handlesContainer.style.position = 'absolute';
+      handlesContainer.style.top = '0';
+      handlesContainer.style.left = '0';
+      handlesContainer.style.width = '100%';
+      handlesContainer.style.height = '100%';
+      handlesContainer.style.pointerEvents = 'none';
+      handlesContainer.className = 'resize-handles-container';
+
+      // Create handles for corners and edges
+      const handles = [
+        { position: 'nw', cursor: 'nwse-resize' },
+        { position: 'ne', cursor: 'nesw-resize' },
+        { position: 'sw', cursor: 'nesw-resize' },
+        { position: 'se', cursor: 'nwse-resize' },
+        { position: 'n', cursor: 'ns-resize' },
+        { position: 's', cursor: 'ns-resize' },
+        { position: 'e', cursor: 'ew-resize' },
+        { position: 'w', cursor: 'ew-resize' },
+      ];
+
+      handles.forEach(({ position, cursor }) => {
+        const handle = document.createElement('div');
+        handle.className = `resize-handle resize-handle-${position}`;
+        handle.style.position = 'absolute';
+        handle.style.width = '12px';
+        handle.style.height = '12px';
+        handle.style.backgroundColor = '#5B6FB9';
+        handle.style.border = '2px solid white';
+        handle.style.borderRadius = '50%';
+        handle.style.cursor = cursor;
+        handle.style.pointerEvents = 'all';
+        handle.style.zIndex = '1000';
+        handle.style.display = 'none'; // Hidden by default, show on hover
+
+        // Position handle
+        if (position.includes('n')) handle.style.top = '-6px';
+        if (position.includes('s')) handle.style.bottom = '-6px';
+        if (position.includes('w')) handle.style.right = '-6px';
+        if (position.includes('e')) handle.style.left = '-6px';
+        if (position === 'n' || position === 's') {
+          handle.style.left = '50%';
+          handle.style.transform = 'translateX(-50%)';
+        }
+        if (position === 'e' || position === 'w') {
+          handle.style.top = '50%';
+          handle.style.transform = 'translateY(-50%)';
+        }
+
+        handle.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleResizeStart(e, img, position as any);
+        });
+
+        handlesContainer.appendChild(handle);
+      });
+
+      // Wrap image in container if not already wrapped
+      if (!img.parentElement?.classList.contains('image-resize-wrapper')) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'image-resize-wrapper';
+        wrapper.style.position = 'relative';
+        wrapper.style.display = 'inline-block';
+        wrapper.style.margin = '24px auto';
+        wrapper.style.maxWidth = '100%';
+        img.parentNode?.insertBefore(wrapper, img);
+        wrapper.appendChild(img);
+        wrapper.appendChild(handlesContainer);
+      } else {
+        img.parentElement.appendChild(handlesContainer);
+      }
+
+      // Show handles on hover
+      img.addEventListener('mouseenter', () => {
+        handlesContainer.querySelectorAll('.resize-handle').forEach((h: Element) => {
+          (h as HTMLElement).style.display = 'block';
+        });
+      });
+
+      const parent = img.parentElement;
+      if (parent) {
+        parent.addEventListener('mouseleave', () => {
+          handlesContainer.querySelectorAll('.resize-handle').forEach((h: Element) => {
+            (h as HTMLElement).style.display = 'none';
+          });
+        });
+      }
+    });
+  }, []);
+
+  // Handle resize start
+  const handleResizeStart = React.useCallback((e: MouseEvent, img: HTMLImageElement, handle: 'se' | 'sw' | 'ne' | 'nw' | 'e' | 'w' | 'n' | 's') => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rect = img.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = rect.width;
+    const startHeight = rect.height;
+
+    setResizingImage({ img, startX, startY, startWidth, startHeight, handle });
+
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = handle.includes('n') && handle.includes('e') ? 'nesw-resize' :
+                                  handle.includes('n') && handle.includes('w') ? 'nwse-resize' :
+                                  handle.includes('s') && handle.includes('e') ? 'nwse-resize' :
+                                  handle.includes('s') && handle.includes('w') ? 'nesw-resize' :
+                                  handle === 'n' || handle === 's' ? 'ns-resize' : 'ew-resize';
+  }, []);
+
+  // Handle resize during drag
+  useEffect(() => {
+    if (!resizingImage) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const { img, startX, startY, startWidth, startHeight, handle } = resizingImage;
+      
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+
+      // Calculate new dimensions based on handle
+      if (handle.includes('e')) {
+        newWidth = startWidth + deltaX;
+      }
+      if (handle.includes('w')) {
+        newWidth = startWidth - deltaX;
+      }
+      if (handle.includes('s')) {
+        const aspectRatio = startHeight / startWidth;
+        newHeight = startHeight + deltaY;
+        if (handle === 's' || handle.includes('s')) {
+          newWidth = newHeight / aspectRatio;
+        }
+      }
+      if (handle.includes('n')) {
+        const aspectRatio = startHeight / startWidth;
+        newHeight = startHeight - deltaY;
+        if (handle === 'n' || handle.includes('n')) {
+          newWidth = newHeight / aspectRatio;
+        }
+      }
+
+      // Maintain aspect ratio for corner handles
+      if (handle.length === 2) {
+        const aspectRatio = startHeight / startWidth;
+        if (handle.includes('n') || handle.includes('s')) {
+          newWidth = newHeight / aspectRatio;
+        } else {
+          newHeight = newWidth * aspectRatio;
+        }
+      }
+
+      // Apply min/max constraints
+      newWidth = Math.max(100, Math.min(newWidth, 1200));
+      newHeight = Math.max(100, Math.min(newHeight, 1200));
+
+      // Apply new dimensions
+      img.style.width = `${newWidth}px`;
+      img.style.height = `${newHeight}px`;
+      img.style.maxWidth = 'none';
+    };
+
+    const handleMouseUp = () => {
+      setResizingImage(null);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      
+      // Update Quill content with new dimensions
+      const quill = quillRef.current?.getEditor();
+      if (quill) {
+        // Trigger change to save new dimensions
+        const html = quill.root.innerHTML;
+        setEditData(prev => ({ ...prev, content: html }));
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [resizingImage]);
+
+      // Setup resize handlers when content changes
+      useEffect(() => {
+        if (!isEditing) return;
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          // Small delay to ensure DOM is updated
+          const timeout = setTimeout(() => {
+            setupImageResizeHandlers(quill);
+          }, 100);
+          return () => clearTimeout(timeout);
+        }
+      }, [editData.content, isEditing, setupImageResizeHandlers]);
+
   // Create Quill modules with handlers
   const quillModules = useMemo(() => ({
     toolbar: {
@@ -360,14 +643,8 @@ export const ArticlePage: React.FC = () => {
                 throw new Error('לא ניתן לקבל קישור לתמונה');
               }
 
-              // Insert image into Quill editor at current cursor position
-              const range = quill.getSelection(true);
-              if (range) {
-                quill.insertEmbed(range.index, 'image', urlData.signedUrl, 'user');
-                quill.setSelection(range.index + 1);
-              }
-
-              toast({ title: 'הצלחה', description: 'התמונה הועלתה והוספה לתוכן' });
+              // Insert image directly (will be resizable)
+              insertImage(urlData.signedUrl);
             } catch (error: any) {
               toast({ title: 'שגיאה', description: error?.message || 'נכשל בהעלאת התמונה', variant: 'destructive' });
             } finally {
@@ -384,12 +661,41 @@ export const ArticlePage: React.FC = () => {
           if (embedUrl) {
             const range = quill.getSelection(true);
             if (range) {
-              // Insert video as HTML (Quill will handle it)
-              const videoHtml = `<div style="position: relative; width: 100%; padding-bottom: 56.25%; margin: 16px 0;">
-                <iframe src="${embedUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 8px;" allowfullscreen></iframe>
+              // Insert video as HTML - use a more direct approach
+              const videoHtml = `<div class="ql-video-container" style="position: relative; width: 100%; padding-bottom: 56.25%; margin: 24px 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); background: #000; border-radius: 12px; overflow: hidden;">
+                <iframe src="${embedUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen="true" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
               </div>`;
-              quill.clipboard.dangerouslyPasteHTML(range.index, videoHtml);
-              quill.setSelection(range.index + 1);
+              
+              // Directly manipulate DOM to insert video, then sync with Quill
+              const editor = quill.root;
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = videoHtml;
+              const videoContainer = tempDiv.firstChild as Node;
+              
+              if (range.index >= editor.childNodes.length) {
+                // Append to end
+                const p = document.createElement('p');
+                p.appendChild(document.createElement('br'));
+                editor.appendChild(p);
+                editor.insertBefore(videoContainer, p);
+              } else {
+                // Insert at position
+                const targetNode = editor.childNodes[range.index];
+                if (targetNode) {
+                  editor.insertBefore(videoContainer, targetNode);
+                } else {
+                  editor.appendChild(videoContainer);
+                }
+              }
+              
+              // Force Quill to recognize the change
+              quill.update('user');
+              
+              // Move cursor after video
+              const newLength = quill.getLength();
+              quill.setSelection(newLength - 1);
+              
+              toast({ title: 'הצלחה', description: 'הווידאו הוסף לתוכן' });
             }
           } else {
             toast({ title: 'שגיאה', description: 'קישור וידאו לא תקין. אנא השתמש בקישור YouTube או Vimeo', variant: 'destructive' });
@@ -730,16 +1036,61 @@ export const ArticlePage: React.FC = () => {
                     background: #f9fafb;
                     direction: rtl;
                   }
-                  .article-editor .ql-editor img {
+                  .article-editor .ql-editor .image-resize-wrapper {
+                    position: relative;
+                    display: inline-block;
+                    margin: 24px auto;
+                    max-width: 100%;
+                  }
+                  .article-editor .ql-editor .image-resize-wrapper img {
+                    max-width: none;
+                    height: auto;
+                    border-radius: 12px;
+                    margin: 0;
+                    display: block;
+                    cursor: move;
+                  }
+                  .article-editor .ql-editor .image-resize-wrapper:hover {
+                    outline: 2px solid #5B6FB9;
+                    outline-offset: 4px;
+                    border-radius: 12px;
+                  }
+                  .article-editor .ql-editor img:not(.image-resize-wrapper img) {
                     max-width: 100%;
                     height: auto;
-                    border-radius: 8px;
-                    margin: 16px 0;
+                    border-radius: 12px;
+                    margin: 24px auto;
                     display: block;
+                    cursor: pointer;
                   }
-                  .article-editor .ql-editor iframe {
-                    border-radius: 8px;
-                    margin: 16px 0;
+                  .article-editor .ql-editor img:not(.image-resize-wrapper img):hover {
+                    outline: 2px solid #5B6FB9;
+                    outline-offset: 2px;
+                  }
+                  .article-editor .ql-editor .ql-video-container {
+                    position: relative;
+                    width: 100%;
+                    padding-bottom: 56.25%;
+                    margin: 24px 0;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                    background: #000;
+                    border-radius: 12px;
+                    overflow: hidden;
+                  }
+                  .article-editor .ql-editor .ql-video-container iframe {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    border: none;
+                  }
+                  .article-editor .ql-editor div[style*="padding-bottom: 56.25%"] {
+                    margin: 24px 0;
+                  }
+                  .article-editor .ql-editor iframe:not(.ql-video-container iframe) {
+                    border-radius: 12px;
+                    margin: 24px 0;
                   }
                   .article-editor .ql-editor h1,
                   .article-editor .ql-editor h2,
@@ -772,6 +1123,7 @@ export const ArticlePage: React.FC = () => {
                 />
               </div>
             </div>
+
           </div>
         ) : (
           /* View Mode */

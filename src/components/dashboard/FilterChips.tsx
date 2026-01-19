@@ -11,11 +11,13 @@ import { ActiveFilter, OPERATOR_LABELS } from './TableFilter';
 import { formatDate } from '@/utils/dashboard';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface FilterChipsProps {
   filters: ActiveFilter[];
   onRemove: (filterId: string) => void;
   onClearAll: () => void;
+  onEdit?: (filter: ActiveFilter) => void;
   className?: string;
 }
 
@@ -23,6 +25,7 @@ export const FilterChips: React.FC<FilterChipsProps> = ({
   filters,
   onRemove,
   onClearAll,
+  onEdit,
   className,
 }) => {
   if (filters.length === 0) return null;
@@ -60,13 +63,20 @@ export const FilterChips: React.FC<FilterChipsProps> = ({
           <Badge
             key={filter.id}
             variant="secondary"
-            className="px-3 py-1.5 bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 transition-colors cursor-default"
+            className={cn(
+              "px-3 py-1.5 bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 transition-colors",
+              onEdit ? "cursor-pointer" : "cursor-default"
+            )}
+            onClick={onEdit ? () => onEdit(filter) : undefined}
           >
             <span className="font-medium">{filter.fieldLabel}</span>
             <span className="mx-1 text-indigo-600">{OPERATOR_LABELS[filter.operator]}</span>
             <span className="font-semibold">{formatFilterValue(filter)}</span>
             <button
-              onClick={() => onRemove(filter.id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove(filter.id);
+              }}
               className="mr-2 hover:bg-indigo-200 rounded-full p-0.5 transition-colors"
               aria-label="הסר סינון"
             >
@@ -86,8 +96,6 @@ export const FilterChips: React.FC<FilterChipsProps> = ({
     </div>
   );
 };
-
-
 
 
 

@@ -10,6 +10,7 @@ import { GenericColumnSettings } from '@/components/dashboard/GenericColumnSetti
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { Columns, Plus, LucideIcon } from 'lucide-react';
 import { useTableFilters, type FilterField } from '@/hooks/useTableFilters';
+import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, type ResourceKey } from '@/store/slices/tableStateSlice';
@@ -51,6 +52,7 @@ interface TablePageHeaderProps {
   // Optional: External filter management (for modals that need access to filters)
   activeFilters?: any[];
   onFilterAdd?: (filter: any) => void;
+  onFilterUpdate?: (filter: any) => void;
   onFilterRemove?: (filterId: string) => void;
   onFilterClear?: () => void;
   
@@ -80,6 +82,7 @@ export const TablePageHeader = ({
   onToggleTemplateColumn,
   activeFilters: externalActiveFilters,
   onFilterAdd: externalOnFilterAdd,
+  onFilterUpdate: externalOnFilterUpdate,
   onFilterRemove: externalOnFilterRemove,
   onFilterClear: externalOnFilterClear,
   columns,
@@ -87,6 +90,7 @@ export const TablePageHeader = ({
   const dispatch = useAppDispatch();
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [editingFilter, setEditingFilter] = useState<ActiveFilter | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAppSelector((state) => state.auth);
@@ -118,8 +122,22 @@ export const TablePageHeader = ({
   const internalFilters = useTableFilters([]);
   const activeFilters = externalActiveFilters || internalFilters.filters;
   const addFilter = externalOnFilterAdd || internalFilters.addFilter;
+  const updateFilter = externalOnFilterUpdate || internalFilters.updateFilter;
   const removeFilter = externalOnFilterRemove || internalFilters.removeFilter;
   const clearFilters = externalOnFilterClear || internalFilters.clearFilters;
+  const canEditFilters = (!!externalActiveFilters && !!externalOnFilterUpdate) || !externalActiveFilters;
+
+  const handleRemoveFilter = (filterId: string) => {
+    removeFilter(filterId);
+    if (editingFilter?.id === filterId) {
+      setEditingFilter(null);
+    }
+  };
+
+  const handleClearFilters = () => {
+    clearFilters();
+    setEditingFilter(null);
+  };
 
   // Get column visibility from Redux for leads (legacy dashboardSlice)
   const leadsColumnVisibility = resourceKey === 'leads' 
@@ -296,8 +314,11 @@ export const TablePageHeader = ({
               fields={filterFields}
               activeFilters={activeFilters}
               onFilterAdd={addFilter}
-              onFilterRemove={removeFilter}
-              onFilterClear={clearFilters}
+              onFilterUpdate={canEditFilters ? updateFilter : undefined}
+              onFilterRemove={handleRemoveFilter}
+              onFilterClear={handleClearFilters}
+              editFilter={canEditFilters ? editingFilter : null}
+              onEditApplied={() => setEditingFilter(null)}
             />
           )}
 
@@ -339,8 +360,9 @@ export const TablePageHeader = ({
           {enableFilters && activeFilters && activeFilters.length > 0 && (
             <FilterChips
               filters={activeFilters}
-              onRemove={removeFilter}
-              onClearAll={clearFilters}
+              onRemove={handleRemoveFilter}
+              onClearAll={handleClearFilters}
+              onEdit={canEditFilters ? setEditingFilter : undefined}
             />
           )}
 
@@ -353,4 +375,3 @@ export const TablePageHeader = ({
     />
   );
 };
-

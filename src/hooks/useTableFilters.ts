@@ -487,6 +487,10 @@ export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
     setFilters(newFilters);
   }, []);
 
+  const updateFilter = useCallback((updatedFilter: ActiveFilter) => {
+    setFilters((prev) => prev.map((filter) => (filter.id === updatedFilter.id ? updatedFilter : filter)));
+  }, []);
+
   // Convert new filter format to legacy format for backward compatibility
   const toLegacyFormat = useCallback(() => {
     const legacy: Record<string, any> = {};
@@ -510,10 +514,10 @@ export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
     removeFilter,
     clearFilters,
     updateFilters,
+    updateFilter,
     toLegacyFormat,
   };
 };
-
 
 
 

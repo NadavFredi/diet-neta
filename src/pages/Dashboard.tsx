@@ -115,6 +115,7 @@ const Dashboard = () => {
     removeFilter: removeFilterLocal,
     clearFilters: clearFiltersLocal,
     updateFilters: updateFiltersLocal,
+    updateFilter: updateFilterLocal,
   } = useTableFilters([]);
 
   // Get filter fields with dynamic options from data
@@ -199,6 +200,12 @@ const Dashboard = () => {
     removeFilterLocal(filterId);
     applyLeadFiltersToRedux(nextFilters);
   }, [removeFilterLocal, activeFilters, applyLeadFiltersToRedux]);
+
+  const updateFilter = useCallback((filter: ActiveFilter) => {
+    const nextFilters = activeFilters.map((item) => (item.id === filter.id ? filter : item));
+    updateFilterLocal(filter);
+    applyLeadFiltersToRedux(nextFilters);
+  }, [activeFilters, updateFilterLocal, applyLeadFiltersToRedux]);
 
   const clearFilters = useCallback(() => {
     clearFiltersLocal();
@@ -406,6 +413,7 @@ const Dashboard = () => {
                 legacyOnSearchChange={handleSearchChangeWithSource}
                 legacyActiveFilters={activeFilters}
                 legacyOnFilterAdd={addFilter}
+                legacyOnFilterUpdate={updateFilter}
                 legacyOnFilterRemove={removeFilter}
                 legacyOnFilterClear={clearFilters}
               />

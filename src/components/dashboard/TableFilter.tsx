@@ -9,7 +9,7 @@
  * - RTL support
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Filter, X, Check, Calendar, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,8 +48,11 @@ interface TableFilterProps {
   fields: FilterField[];
   activeFilters: ActiveFilter[];
   onFilterAdd: (filter: ActiveFilter) => void;
+  onFilterUpdate?: (filter: ActiveFilter) => void;
   onFilterRemove: (filterId: string) => void;
   onFilterClear: () => void;
+  editFilter?: ActiveFilter | null;
+  onEditApplied?: () => void;
   className?: string;
 }
 
@@ -79,8 +82,11 @@ export const TableFilter: React.FC<TableFilterProps> = ({
   fields,
   activeFilters,
   onFilterAdd,
+  onFilterUpdate,
   onFilterRemove,
   onFilterClear,
+  editFilter,
+  onEditApplied,
   className,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -89,6 +95,47 @@ export const TableFilter: React.FC<TableFilterProps> = ({
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date; mode?: 'single' | 'range' | 'before' | 'after' } | null>(null);
   const [valueSearchQuery, setValueSearchQuery] = useState('');
+  const [editingFilterId, setEditingFilterId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editFilter) return;
+    const field = fields.find((item) => item.id === editFilter.fieldId);
+    if (!field) return;
+    setSelectedField(field);
+    setSelectedOperator(editFilter.operator);
+    setSelectedValues(editFilter.values || []);
+    setEditingFilterId(editFilter.id);
+    setValueSearchQuery('');
+
+    if (editFilter.type === 'date') {
+      if (editFilter.operator === 'between') {
+        setDateRange({
+          mode: 'range',
+          from: editFilter.values[0] ? new Date(editFilter.values[0]) : undefined,
+          to: editFilter.values[1] ? new Date(editFilter.values[1]) : undefined,
+        });
+      } else if (editFilter.operator === 'before') {
+        setDateRange({
+          mode: 'before',
+          from: editFilter.values[0] ? new Date(editFilter.values[0]) : undefined,
+        });
+      } else if (editFilter.operator === 'after') {
+        setDateRange({
+          mode: 'after',
+          from: editFilter.values[0] ? new Date(editFilter.values[0]) : undefined,
+        });
+      } else {
+        setDateRange({
+          mode: 'single',
+          from: editFilter.values[0] ? new Date(editFilter.values[0]) : undefined,
+        });
+      }
+    } else {
+      setDateRange(null);
+    }
+
+    setIsOpen(true);
+  }, [editFilter, fields]);
 
   const handleFieldSelect = (field: FilterField) => {
     setSelectedField(field);
@@ -154,7 +201,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
     if (values.length === 0 && selectedField.type !== 'date') return;
 
     const newFilter: ActiveFilter = {
-      id: `${selectedField.id}-${Date.now()}`,
+      id: editingFilterId || `${selectedField.id}-${Date.now()}`,
       fieldId: selectedField.id,
       fieldLabel: selectedField.label,
       operator: selectedOperator,
@@ -162,14 +209,20 @@ export const TableFilter: React.FC<TableFilterProps> = ({
       type: selectedField.type,
     };
 
-    onFilterAdd(newFilter);
+    if (editingFilterId && onFilterUpdate) {
+      onFilterUpdate(newFilter);
+    } else {
+      onFilterAdd(newFilter);
+    }
     
     // Reset state
     setSelectedField(null);
     setSelectedOperator(null);
     setSelectedValues([]);
     setDateRange(null);
+    setEditingFilterId(null);
     setIsOpen(false);
+    onEditApplied?.();
   };
 
   const canApply = () => {
@@ -395,7 +448,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                   className="w-full bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
                   size="sm"
                 >
-                  הוסף סינון
+                  {editingFilterId ? 'עדכן סינון' : 'הוסף סינון'}
                 </Button>
               </div>
             </div>
@@ -405,8 +458,5 @@ export const TableFilter: React.FC<TableFilterProps> = ({
     </div>
   );
 };
-
-
-
 
 
