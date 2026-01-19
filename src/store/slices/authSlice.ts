@@ -33,23 +33,17 @@ export const initializeAuth = createAsyncThunk(
   'auth/initialize',
   async (_, { rejectWithValue }) => {
     try {
-      console.log('[Auth] Initializing auth...');
-      
       // Get session with timeout protection
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       // If there's a session error or no session, return null (not authenticated)
       if (sessionError) {
-        console.log('[Auth] Session error:', sessionError);
         return null;
       }
       
       if (!session?.user) {
-        console.log('[Auth] No active session found');
         return null;
       }
-      
-      console.log('[Auth] Session found, fetching profile for user:', session.user.id);
       
       // Fetch user profile with role
       const { data: profile, error: profileError } = await supabase
@@ -60,23 +54,18 @@ export const initializeAuth = createAsyncThunk(
       
       // If profile doesn't exist, user is not fully set up - treat as not authenticated
       if (profileError) {
-        console.warn('[Auth] Profile error:', profileError);
         // Don't sign out - just return null (user might not be set up yet)
         return null;
       }
       
       if (!profile) {
-        console.warn('[Auth] Profile not found for user:', session.user.id);
         return null;
       }
 
       if (profile.role === 'trainee' && profile.is_active === false) {
-        console.warn('[Auth] Trainee account is inactive:', profile.email);
         await supabase.auth.signOut();
         return null;
       }
-      
-      console.log('[Auth] Profile found:', { role: profile.role, email: profile.email });
       
       // For trainees, fetch customer_id (optional - might not exist yet)
       let customer_id: string | null = null;
@@ -90,14 +79,9 @@ export const initializeAuth = createAsyncThunk(
           
           if (!customerError && customer) {
             customer_id = customer.id;
-            console.log('[Auth] Trainee customer_id found:', customer_id);
-          } else if (customerError) {
-            console.warn('[Auth] Error fetching customer_id:', customerError);
-          } else {
-            console.log('[Auth] No customer record found for trainee (this is OK if not yet created)');
           }
         } catch (error) {
-          console.warn('[Auth] Exception fetching customer_id:', error);
+          // Ignore exceptions
         }
       }
       
@@ -113,10 +97,8 @@ export const initializeAuth = createAsyncThunk(
         },
       };
       
-      console.log('[Auth] Initialization successful');
       return authData;
     } catch (error: any) {
-      console.error('[Auth] Error initializing auth:', error);
       // Return null instead of throwing - this ensures isLoading is set to false
       return null;
     }
@@ -128,24 +110,18 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
     try {
-      console.log('[loginUser] Attempting login for:', email);
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
-        console.error('[loginUser] Supabase auth error:', error);
         throw error;
       }
       
       if (!data.user) {
-        console.error('[loginUser] No user returned from login');
         throw new Error('No user returned from login');
       }
-      
-      console.log('[loginUser] Auth successful, fetching profile for user:', data.user.id);
       
       // Fetch user profile with timeout protection
       const profilePromise = supabase
@@ -162,17 +138,14 @@ export const loginUser = createAsyncThunk(
       try {
         profileResult = await Promise.race([profilePromise, timeoutPromise]);
       } catch (timeoutError) {
-        console.error('[loginUser] Profile fetch timeout');
         throw new Error('Profile fetch timeout - please try again');
       }
       
       const { data: profile, error: profileError } = profileResult as any;
       
       if (profileError) {
-        console.error('[loginUser] Profile error:', profileError);
         // If profile doesn't exist, create one with default role
         if (profileError.code === 'PGRST116') {
-          console.log('[loginUser] Profile not found, creating default profile');
           const { data: newProfile, error: createError } = await supabase
             .from('profiles')
             .insert({
@@ -185,7 +158,6 @@ export const loginUser = createAsyncThunk(
             .single();
           
           if (createError) {
-            console.error('[loginUser] Error creating profile:', createError);
             throw new Error('Failed to create user profile');
           }
           
@@ -205,7 +177,6 @@ export const loginUser = createAsyncThunk(
       }
       
       if (!profile) {
-        console.error('[loginUser] Profile is null');
         throw new Error('User profile not found');
       }
 
@@ -214,16 +185,8 @@ export const loginUser = createAsyncThunk(
         throw new Error('החשבון שלך הושבת. אנא פנה למנהל.');
       }
       
-      console.log('[loginUser] Profile found:', { 
-        role: profile.role, 
-        email: profile.email,
-        full_name: profile.full_name,
-        id: profile.id
-      });
-      
       // Auto-fix: If trainee@test.com has role 'user', update it to 'trainee'
       if (profile.email === 'trainee@test.com' && profile.role === 'user') {
-        console.log('[loginUser] Auto-fixing trainee@test.com role from user to trainee');
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ role: 'trainee' })
@@ -231,9 +194,6 @@ export const loginUser = createAsyncThunk(
         
         if (!updateError) {
           profile.role = 'trainee';
-          console.log('[loginUser] Successfully updated role to trainee');
-        } else {
-          console.error('[loginUser] Failed to update role:', updateError);
         }
       }
       
@@ -243,12 +203,9 @@ export const loginUser = createAsyncThunk(
         ? (profile.role as UserRole) 
         : 'user';
       
-      console.log('[loginUser] Validated role:', userRole, '(original:', profile.role, ')');
-      
       // For trainees, fetch customer_id
       let customer_id: string | null = null;
       if (userRole === 'trainee') {
-        console.log('[loginUser] Fetching customer_id for trainee...');
         try {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
@@ -258,14 +215,9 @@ export const loginUser = createAsyncThunk(
           
           if (!customerError && customer) {
             customer_id = customer.id;
-            console.log('[loginUser] Trainee customer_id found:', customer_id);
-          } else if (customerError) {
-            console.warn('[loginUser] Error fetching customer_id:', customerError);
-          } else {
-            console.log('[loginUser] No customer record found for trainee (this is OK if not yet created)');
           }
         } catch (error) {
-          console.warn('[loginUser] Exception fetching customer_id:', error);
+          // Ignore
         }
       }
       
@@ -281,10 +233,8 @@ export const loginUser = createAsyncThunk(
         },
       };
       
-      console.log('[loginUser] Login successful, returning result:', JSON.stringify(result, null, 2));
       return result;
     } catch (error: any) {
-      console.error('[loginUser] Login failed:', error);
       return rejectWithValue(error?.message || error?.error?.message || 'Login failed');
     }
   }
@@ -295,18 +245,14 @@ export const logoutUser = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      console.log('[logoutUser] Starting logout...');
     const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('[logoutUser] Sign out error:', error);
         // Even if there's an error, we should still clear the local state
         // Return success so state gets cleared
         return;
       }
-      console.log('[logoutUser] Sign out successful');
       return;
     } catch (error: any) {
-      console.error('[logoutUser] Logout exception:', error);
       // Even on error, we want to clear local state
       // Return success so state gets cleared
       return;
@@ -357,24 +303,20 @@ const authSlice = createSlice({
         state.isLoading = false;
       })
       .addCase(loginUser.rejected, (state, action) => {
-        console.error('[authSlice] Login rejected:', action.error);
         state.isAuthenticated = false;
         state.user = null;
         state.supabaseUser = null;
         state.isLoading = false;
       })
       .addCase(logoutUser.pending, (state) => {
-        console.log('[authSlice] Logout pending...');
       })
       .addCase(logoutUser.fulfilled, (state) => {
-        console.log('[authSlice] Logout fulfilled, clearing state');
         state.isAuthenticated = false;
         state.user = null;
         state.supabaseUser = null;
         state.isLoading = false;
       })
       .addCase(logoutUser.rejected, (state) => {
-        console.log('[authSlice] Logout rejected, clearing state anyway');
         // Clear state even if logout failed
         state.isAuthenticated = false;
         state.user = null;

@@ -34,6 +34,7 @@ export const BloodTestsGalleryCard: React.FC<BloodTestsGalleryCardProps> = ({
     handleDragLeave,
     handleDrop,
     handleDelete,
+    deleteMutation,
     formatDate,
     handleDownload,
   } = useBloodTestsGalleryCard(leadId, customerId);

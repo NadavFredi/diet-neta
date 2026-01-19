@@ -58,16 +58,7 @@ const Dashboard = () => {
 
   // Safety check: Redirect trainees immediately
   useEffect(() => {
-    console.log('[Dashboard] Auth state:', {
-      isAuthenticated,
-      authIsLoading,
-      user: authUser,
-      role: authUser?.role,
-      email: authUser?.email
-    });
-
     if (authUser?.role === 'trainee') {
-      console.log('[Dashboard] Trainee detected, redirecting to /client/dashboard');
       window.location.href = '/client/dashboard';
       return;
     }
@@ -103,16 +94,6 @@ const Dashboard = () => {
 
   // Debug: Log filteredLeads when it changes
   useEffect(() => {
-    console.log('Dashboard: filteredLeads changed:', {
-      length: filteredLeads?.length || 0,
-      isArray: Array.isArray(filteredLeads),
-      isLoading,
-      data: filteredLeads?.slice(0, 2), // First 2 items for debugging
-      fullData: filteredLeads, // Full data for debugging
-    });
-    if (filteredLeads && filteredLeads.length > 0) {
-      console.log('Dashboard: First lead sample:', filteredLeads[0]);
-    }
   }, [filteredLeads, isLoading]);
 
   // Filter system - connect to Redux for leads

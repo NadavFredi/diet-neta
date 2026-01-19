@@ -125,7 +125,6 @@ export const useDashboardLogic = () => {
   // PostgreSQL does all the heavy lifting
   // =====================================================
   const refreshLeads = useCallback(async () => {
-    console.log('[useDashboardLogic] refreshLeads called');
     setIsRefreshing(true);
     dispatch(setLoading(true));
     dispatch(setError(null));
@@ -159,7 +158,6 @@ export const useDashboardLogic = () => {
       };
 
       // Fetch total count and leads in parallel
-      console.log('useDashboardLogic: Calling fetchFilteredLeads with params:', filterParams);
       const [dbLeads, totalCount] = await Promise.all([
         fetchFilteredLeads(filterParams),
         getFilteredLeadsCount({
@@ -177,18 +175,15 @@ export const useDashboardLogic = () => {
         }),
       ]);
 
-      console.log(`[useDashboardLogic] Received ${dbLeads.length} leads from service (total: ${totalCount})`);
 
       // Update total count in Redux
       dispatch(setTotalLeads(totalCount));
-      console.log('[useDashboardLogic] Total leads count updated in Redux:', totalCount);
 
       // Transform to UI format (minimal - most work done in PostgreSQL)
       const uiLeads: Lead[] = dbLeads.map((lead, index) => {
         try {
           return mapLeadToUIFormat(lead);
         } catch (error) {
-          console.error(`useDashboardLogic: Error mapping lead at index ${index}:`, error, lead);
           // Return a minimal valid lead object to prevent complete failure
           return {
             id: lead.id || `error-${index}`,
@@ -222,20 +217,15 @@ export const useDashboardLogic = () => {
           } as Lead;
         }
       });
-      console.log(`useDashboardLogic: Transformed to ${uiLeads.length} UI leads`);
 
       // Update Redux with fetched leads (source of truth)
-      console.log(`[useDashboardLogic] Dispatching ${uiLeads.length} leads to Redux`);
-      console.log(`[useDashboardLogic] First lead ID:`, uiLeads[0]?.id);
-      console.log(`[useDashboardLogic] Last lead ID:`, uiLeads[uiLeads.length - 1]?.id);
       dispatch(setLeads(uiLeads));
       dispatch(setLoading(false));
-      console.log(`[useDashboardLogic] Leads updated in Redux successfully, refreshLeads completed`);
     } catch (err: any) {
-      console.error('Error fetching leads:', err);
       dispatch(setError(err.message || 'Failed to fetch leads'));
       dispatch(setLoading(false));
       // Don't clear leads on error - keep existing data to prevent blank page
+      // This prevents the issue where leads disappear when returning to the page
       // This prevents the issue where leads disappear when returning to the page
     } finally {
       setIsRefreshing(false);
@@ -267,7 +257,6 @@ export const useDashboardLogic = () => {
   // NOTE: refreshLeads is NOT in dependencies to prevent infinite loops
   // It's a useCallback with all necessary dependencies, so it will be recreated when needed
   useEffect(() => {
-    console.log('useDashboardLogic: useEffect triggered, calling refreshLeads');
     // Always refresh leads when filters/pagination/sorting/grouping change or on mount
     refreshLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -463,12 +452,9 @@ export const useDashboardLogic = () => {
 
   const handleLogout = useCallback(async () => {
     try {
-      console.log('[useDashboardLogic] Logout initiated');
       await dispatch(logoutUser()).unwrap();
-      console.log('[useDashboardLogic] Logout successful, navigating to login');
       navigate('/login');
     } catch (error) {
-      console.error('[useDashboardLogic] Logout error:', error);
       // Navigate to login even if logout fails
       navigate('/login');
     }

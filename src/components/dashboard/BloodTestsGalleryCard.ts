@@ -149,6 +149,7 @@ export const useBloodTestsGalleryCard = (leadId: string | null, customerId: stri
     handleDragLeave,
     handleDrop,
     handleDelete,
+    deleteMutation,
     formatDate,
     handleDownload,
   };

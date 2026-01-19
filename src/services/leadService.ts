@@ -110,16 +110,11 @@ export async function fetchFilteredLeads(
     });
 
     if (error) {
-      console.error('Error fetching filtered leads:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
     
-    console.log(`fetchFilteredLeads: Received ${data?.length || 0} leads from database`);
-
     return data || [];
   } catch (error) {
-    console.error('Unexpected error in fetchFilteredLeads:', error);
     throw error;
   }
 }
@@ -147,13 +142,11 @@ export async function getFilteredLeadsCount(
     });
 
     if (error) {
-      console.error('Error fetching leads count:', error);
       throw error;
     }
 
     return data || 0;
   } catch (error) {
-    console.error('Unexpected error in getFilteredLeadsCount:', error);
     throw error;
   }
 }
@@ -170,13 +163,11 @@ export async function fetchAllLeads(): Promise<LeadFromDB[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching all leads:', error);
       throw error;
     }
 
     return data || [];
   } catch (error) {
-    console.error('Unexpected error in fetchAllLeads:', error);
     throw error;
   }
 }
@@ -190,7 +181,6 @@ export async function getLeadFilterOptions(): Promise<LeadFilterOptions> {
     const { data, error } = await supabase.rpc('get_lead_filter_options');
 
     if (error) {
-      console.error('Error fetching filter options:', error);
       throw error;
     }
 
@@ -220,7 +210,6 @@ export async function getLeadFilterOptions(): Promise<LeadFilterOptions> {
       weights: [],
     };
   } catch (error) {
-    console.error('Unexpected error in getLeadFilterOptions:', error);
     // Return empty arrays on error (graceful degradation)
     return {
       statuses: [],

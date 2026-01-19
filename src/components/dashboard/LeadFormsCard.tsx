@@ -25,36 +25,8 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
 
   // Fetch all form submissions when component mounts or leadId/email/phone changes
   useEffect(() => {
-    console.log('[LeadFormsCard] useEffect triggered:', {
-      leadId: leadId || 'NULL/UNDEFINED',
-      leadIdType: typeof leadId,
-      leadIdTruthy: !!leadId,
-      leadEmail: leadEmail || 'NULL/UNDEFINED',
-      leadPhone: leadPhone || 'NULL/UNDEFINED',
-      hasAnyIdentifier: !!(leadId || leadEmail || leadPhone),
-    });
-    
     if (leadId || leadEmail || leadPhone) {
       const formTypes = getFormTypes();
-      
-      // Debug: Log form IDs (not sensitive - these are public form identifiers)
-      console.log('[LeadFormsCard] Form IDs check:', {
-        VITE_FILLOUT_FORM_ID_DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || '❌ Missing',
-        VITE_FILLOUT_FORM_ID_INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || '❌ Missing',
-        VITE_FILLOUT_FORM_ID_CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '❌ Missing',
-        note: 'API keys are secured via Edge Functions',
-      });
-      
-      console.log('[LeadFormsCard] Fetching form submissions:', {
-        leadId: leadId || 'NULL/UNDEFINED',
-        leadIdType: typeof leadId,
-        leadIdLength: leadId?.length,
-        leadEmail: leadEmail || 'NULL/UNDEFINED',
-        leadPhone: leadPhone || 'NULL/UNDEFINED',
-        leadPhoneType: typeof leadPhone,
-        leadPhoneLength: leadPhone?.length,
-        formTypes: formTypes.map(f => ({ key: f.key, formId: f.formId, label: f.label })),
-      });
       
       formTypes
         .filter((formType) => formType.key !== 'details') // Skip details form (first row)
@@ -63,7 +35,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
           if (!formType.formId || 
               formType.formId === 'your_characterization_form_id' ||
               formType.formId.trim() === '') {
-            console.warn(`[LeadFormsCard] Skipping ${formType.label} - form ID not configured or is placeholder: "${formType.formId}"`);
             return;
           }
           
@@ -76,8 +47,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
             })
           );
         });
-    } else {
-      console.log('[LeadFormsCard] Skipping fetch - no leadId, email, or phone provided');
     }
   }, [leadId, leadEmail, leadPhone, dispatch]);
 
