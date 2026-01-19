@@ -8,7 +8,7 @@ export const useClientDashboard = () => {
   const { isImpersonating, impersonatedUserId, impersonatedCustomerId } = useAppSelector(
     (state) => state.impersonation
   );
-  const { customer, activeLead, leads, isLoading, error } = useAppSelector(
+  const { customer, leads, isLoading, error } = useAppSelector(
     (state) => state.client
   );
 
@@ -55,15 +55,14 @@ export const useClientDashboard = () => {
     }
   };
 
-  // Aggregate stats from all leads - use most recent values or average where appropriate
-  // For display, we'll use the most recent lead's values, but conceptually this is customer-level
+  // Get stats from most recent lead (weight/height still stored per lead)
+  // But displayed as customer-level data - all leads updated when changed
   const mostRecentLead = leads && leads.length > 0 ? leads[0] : null;
   
   // Calculate BMI from most recent weight/height
   const bmi = mostRecentLead?.bmi || null;
 
-  // Get stats - using most recent lead's values for display
-  // In the future, this could be aggregated/averaged across all leads
+  // Get stats - using most recent lead's values (representing current customer state)
   const stats = {
     weight: mostRecentLead?.weight || null,
     height: mostRecentLead?.height || null,
@@ -74,7 +73,6 @@ export const useClientDashboard = () => {
 
   return {
     customer,
-    activeLead,
     leads,
     isLoading,
     error,

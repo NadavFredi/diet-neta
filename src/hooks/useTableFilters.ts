@@ -30,24 +30,28 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     label: 'תאריך יצירה',
     type: 'date',
     operators: ['equals', 'before', 'after', 'between'],
+    filterKey: 'selectedDate',
   },
   {
     id: 'name',
     label: 'שם',
     type: 'text',
     operators: ['contains', 'notContains', 'equals', 'notEquals'],
+    filterKey: 'searchQuery',
   },
   {
     id: 'phone',
     label: 'טלפון',
     type: 'text',
     operators: ['contains', 'notContains', 'equals', 'notEquals'],
+    filterKey: 'searchQuery',
   },
   {
     id: 'email',
     label: 'אימייל',
     type: 'text',
     operators: ['contains', 'notContains', 'equals', 'notEquals'],
+    filterKey: 'searchQuery',
   },
   {
     id: 'status',
@@ -55,12 +59,14 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     type: 'multiselect',
     options: [...STATUS_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
+    filterKey: 'selectedStatus',
   },
   {
     id: 'age',
     label: 'גיל',
     type: 'number',
     operators: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
+    filterKey: 'selectedAge',
   },
   {
     id: 'birthDate',
@@ -73,12 +79,14 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     label: 'גובה (ס"מ)',
     type: 'number',
     operators: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
+    filterKey: 'selectedHeight',
   },
   {
     id: 'weight',
     label: 'משקל (ק"ג)',
     type: 'number',
     operators: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
+    filterKey: 'selectedWeight',
   },
   {
     id: 'fitnessGoal',
@@ -86,6 +94,7 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     type: 'multiselect',
     options: [...FITNESS_GOAL_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
+    filterKey: 'selectedFitnessGoal',
   },
   {
     id: 'activityLevel',
@@ -93,6 +102,7 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     type: 'multiselect',
     options: [...ACTIVITY_LEVEL_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
+    filterKey: 'selectedActivityLevel',
   },
   {
     id: 'preferredTime',
@@ -100,6 +110,7 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     type: 'multiselect',
     options: [...PREFERRED_TIME_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
+    filterKey: 'selectedPreferredTime',
   },
   {
     id: 'source',
@@ -107,12 +118,14 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     type: 'multiselect',
     options: [...SOURCE_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
+    filterKey: 'selectedSource',
   },
   {
     id: 'notes',
     label: 'הערות',
     type: 'text',
     operators: ['contains', 'notContains', 'equals', 'notEquals'],
+    filterKey: 'searchQuery',
   },
   {
     id: 'id',
@@ -477,44 +490,14 @@ export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
   // Convert new filter format to legacy format for backward compatibility
   const toLegacyFormat = useCallback(() => {
     const legacy: Record<string, any> = {};
-    
+
     filters.forEach(filter => {
-      if (filter.fieldId === 'createdDate') {
-        if (filter.operator === 'equals' && filter.values[0]) {
-          legacy.selectedDate = filter.values[0];
-        }
-      } else if (filter.fieldId === 'status') {
-        if (filter.operator === 'is' && filter.values.length > 0) {
-          legacy.selectedStatus = filter.values[0]; // For now, take first value
-        }
-      } else if (filter.fieldId === 'age') {
-        if (filter.operator === 'equals' && filter.values[0]) {
-          legacy.selectedAge = filter.values[0];
-        }
-      } else if (filter.fieldId === 'height') {
-        if (filter.operator === 'equals' && filter.values[0]) {
-          legacy.selectedHeight = filter.values[0];
-        }
-      } else if (filter.fieldId === 'weight') {
-        if (filter.operator === 'equals' && filter.values[0]) {
-          legacy.selectedWeight = filter.values[0];
-        }
-      } else if (filter.fieldId === 'fitnessGoal') {
-        if (filter.operator === 'is' && filter.values.length > 0) {
-          legacy.selectedFitnessGoal = filter.values[0];
-        }
-      } else if (filter.fieldId === 'activityLevel') {
-        if (filter.operator === 'is' && filter.values.length > 0) {
-          legacy.selectedActivityLevel = filter.values[0];
-        }
-      } else if (filter.fieldId === 'preferredTime') {
-        if (filter.operator === 'is' && filter.values.length > 0) {
-          legacy.selectedPreferredTime = filter.values[0];
-        }
-      } else if (filter.fieldId === 'source') {
-        if (filter.operator === 'is' && filter.values.length > 0) {
-          legacy.selectedSource = filter.values[0];
-        }
+      const fieldConfig = LEAD_FILTER_FIELDS_BASE.find((field) => field.id === filter.fieldId);
+      if (!fieldConfig?.filterKey) return;
+      if (!filter.values || filter.values.length === 0) return;
+
+      if (filter.operator === 'is' || filter.operator === 'equals' || filter.operator === 'contains') {
+        legacy[fieldConfig.filterKey] = filter.values[0];
       }
     });
 
@@ -530,8 +513,6 @@ export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
     toLegacyFormat,
   };
 };
-
-
 
 
 

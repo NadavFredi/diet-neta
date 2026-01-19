@@ -32,6 +32,7 @@ export interface FilterField {
   options?: string[]; // For select/multiselect - static options
   dynamicOptions?: string[]; // For select/multiselect - dynamically extracted from data
   operators?: FilterOperator[]; // Available operators for this field
+  filterKey?: string; // Optional key for mapping filters to backend params
 }
 
 export interface ActiveFilter {
@@ -404,7 +405,6 @@ export const TableFilter: React.FC<TableFilterProps> = ({
     </div>
   );
 };
-
 
 
 

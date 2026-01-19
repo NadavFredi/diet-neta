@@ -66,6 +66,9 @@ export interface ClientCustomer {
   email: string | null;
   created_at: string;
   updated_at: string;
+  daily_protocol?: any; // Customer-level daily protocol (stepsGoal, workoutGoal, supplements)
+  workout_history?: any; // Customer-level workout history
+  steps_history?: any; // Customer-level steps history
 }
 
 interface ClientState {
@@ -121,13 +124,12 @@ export const fetchClientData = createAsyncThunk(
       throw leadsError;
     }
 
-    // Get most recent active lead (or most recent if none active)
-    const activeLead = leads && leads.length > 0 ? leads[0] : null;
-
+    // Return customer and leads - no need for activeLead anymore
+    // Customer-level data is stored directly on customer table
     return {
       customer: customer as ClientCustomer,
       leads: (leads || []) as ClientLead[],
-      activeLead: activeLead as ClientLead | null,
+      activeLead: null, // Deprecated - keeping for backward compatibility
     };
   }
 );
@@ -168,13 +170,12 @@ export const fetchClientDataByUserId = createAsyncThunk(
       throw leadsError;
     }
 
-    // Get most recent active lead (or most recent if none active)
-    const activeLead = leads && leads.length > 0 ? leads[0] : null;
-
+    // Return customer and leads - no need for activeLead anymore
+    // Customer-level data is stored directly on customer table
     return {
       customer: customer as ClientCustomer,
       leads: (leads || []) as ClientLead[],
-      activeLead: activeLead as ClientLead | null,
+      activeLead: null, // Deprecated - keeping for backward compatibility
     };
   }
 );

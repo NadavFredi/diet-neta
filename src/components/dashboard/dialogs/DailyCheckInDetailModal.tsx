@@ -16,6 +16,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -257,53 +263,64 @@ export const DailyCheckInDetailModal = ({
             />
           </div>
 
-          {/* Body measurements section */}
-          {fieldConfig.sections.body.visible && bodyFields.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-slate-700 border-b pb-2">
-                {fieldConfig.sections.body.label}
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {bodyFields.map(([fieldId, field]) => renderField(fieldId, field))}
-              </div>
-            </div>
-          )}
+          {/* Sections as Accordions */}
+          <Accordion type="multiple" className="w-full" defaultValue={[]}>
+            {/* Body measurements section */}
+            {fieldConfig.sections.body.visible && bodyFields.length > 0 && (
+              <AccordionItem value="body">
+                <AccordionTrigger className="text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md px-3">
+                  {fieldConfig.sections.body.label}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    {bodyFields.map(([fieldId, field]) => renderField(fieldId, field))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
 
-          {/* Activity section */}
-          {fieldConfig.sections.activity.visible && activityFields.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-slate-700 border-b pb-2">
-                {fieldConfig.sections.activity.label}
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {activityFields.map(([fieldId, field]) => renderField(fieldId, field))}
-              </div>
-            </div>
-          )}
+            {/* Activity section */}
+            {fieldConfig.sections.activity.visible && activityFields.length > 0 && (
+              <AccordionItem value="activity">
+                <AccordionTrigger className="text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md px-3">
+                  {fieldConfig.sections.activity.label}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    {activityFields.map(([fieldId, field]) => renderField(fieldId, field))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
 
-          {/* Nutrition section */}
-          {fieldConfig.sections.nutrition.visible && nutritionFields.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-slate-700 border-b pb-2">
-                {fieldConfig.sections.nutrition.label}
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {nutritionFields.map(([fieldId, field]) => renderField(fieldId, field))}
-              </div>
-            </div>
-          )}
+            {/* Nutrition section */}
+            {fieldConfig.sections.nutrition.visible && nutritionFields.length > 0 && (
+              <AccordionItem value="nutrition">
+                <AccordionTrigger className="text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md px-3">
+                  {fieldConfig.sections.nutrition.label}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    {nutritionFields.map(([fieldId, field]) => renderField(fieldId, field))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
 
-          {/* Wellness section */}
-          {fieldConfig.sections.wellness.visible && wellnessFields.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-slate-700 border-b pb-2">
-                {fieldConfig.sections.wellness.label}
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {wellnessFields.map(([fieldId, field]) => renderField(fieldId, field))}
-              </div>
-            </div>
-          )}
+            {/* Wellness section */}
+            {fieldConfig.sections.wellness.visible && wellnessFields.length > 0 && (
+              <AccordionItem value="wellness">
+                <AccordionTrigger className="text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md px-3">
+                  {fieldConfig.sections.wellness.label}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    {wellnessFields.map(([fieldId, field]) => renderField(fieldId, field))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+          </Accordion>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t">

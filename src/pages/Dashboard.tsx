@@ -99,6 +99,15 @@ const Dashboard = () => {
   useEffect(() => {
   }, [filteredLeads, isLoading]);
 
+  const searchQueryFromFiltersRef = useRef<string | null>(null);
+  const manualSearchQueryRef = useRef<string>('');
+
+  useEffect(() => {
+    if (searchQueryFromFiltersRef.current === null) {
+      manualSearchQueryRef.current = searchQuery || '';
+    }
+  }, [searchQuery]);
+
   // Filter system - connect to Redux for leads
   const {
     filters: activeFilters,
@@ -113,84 +122,94 @@ const Dashboard = () => {
     return getLeadFilterFields(filteredLeads || []);
   }, [filteredLeads]);
 
-  // Convert ActiveFilter to Redux actions for leads
-  const addFilter = useCallback((filter: ActiveFilter) => {
-    // Add to local state for UI
-    addFilterLocal(filter);
+  const fieldKeyById = useMemo(() => {
+    const entries = leadFilterFields
+      .map((field) => [field.id, field.filterKey] as const)
+      .filter(([, key]) => key);
+    return new Map(entries);
+  }, [leadFilterFields]);
 
-    // Also update Redux state for data fetching
-    const { fieldId, operator, values } = filter;
+  const filterKeyActions = useMemo(() => ({
+    searchQuery: (value: string | null) => dispatch(setSearchQuery(value || '')),
+    selectedDate: (value: string | null) => dispatch(setSelectedDate(value)),
+    selectedStatus: (value: string | null) => dispatch(setSelectedStatus(value)),
+    selectedAge: (value: string | null) => dispatch(setSelectedAge(value)),
+    selectedHeight: (value: string | null) => dispatch(setSelectedHeight(value)),
+    selectedWeight: (value: string | null) => dispatch(setSelectedWeight(value)),
+    selectedFitnessGoal: (value: string | null) => dispatch(setSelectedFitnessGoal(value)),
+    selectedActivityLevel: (value: string | null) => dispatch(setSelectedActivityLevel(value)),
+    selectedPreferredTime: (value: string | null) => dispatch(setSelectedPreferredTime(value)),
+    selectedSource: (value: string | null) => dispatch(setSelectedSource(value)),
+  }), [dispatch]);
 
-    if (fieldId === 'status' && operator === 'is' && values.length > 0) {
-      // For multiselect, take first value for now (can be enhanced later)
-      // The Redux state currently supports single value
-      // TODO: Enhance to support multiple values
-      dispatch(setSelectedStatus(values[0]));
-    } else if (fieldId === 'fitnessGoal' && operator === 'is' && values.length > 0) {
-      dispatch(setSelectedFitnessGoal(values[0]));
-    } else if (fieldId === 'activityLevel' && operator === 'is' && values.length > 0) {
-      dispatch(setSelectedActivityLevel(values[0]));
-    } else if (fieldId === 'preferredTime' && operator === 'is' && values.length > 0) {
-      dispatch(setSelectedPreferredTime(values[0]));
-    } else if (fieldId === 'source' && operator === 'is' && values.length > 0) {
-      dispatch(setSelectedSource(values[0]));
-    } else if (fieldId === 'age' && operator === 'equals' && values[0]) {
-      dispatch(setSelectedAge(values[0]));
-    } else if (fieldId === 'height' && operator === 'equals' && values[0]) {
-      dispatch(setSelectedHeight(values[0]));
-    } else if (fieldId === 'weight' && operator === 'equals' && values[0]) {
-      dispatch(setSelectedWeight(values[0]));
-    } else if (fieldId === 'createdDate' && operator === 'equals' && values[0]) {
-      dispatch(setSelectedDate(values[0]));
+  const getFilterValue = useCallback((filter: ActiveFilter) => {
+    if (!filter.values || filter.values.length === 0) return null;
+
+    switch (filter.operator) {
+      case 'is':
+      case 'equals':
+      case 'contains':
+        return filter.values[0];
+      default:
+        return null;
     }
-  }, [addFilterLocal, dispatch]);
+  }, []);
+
+  const applyLeadFiltersToRedux = useCallback((filters: ActiveFilter[]) => {
+    const filterKeyValues = new Map<string, string>();
+
+    filters.forEach((filter) => {
+      const key = fieldKeyById.get(filter.fieldId);
+      if (!key) return;
+      const value = getFilterValue(filter);
+      if (value === null) return;
+      filterKeyValues.set(key, value);
+    });
+
+    Object.entries(filterKeyActions).forEach(([key, apply]) => {
+      if (key === 'searchQuery') {
+        const nextValue = filterKeyValues.get(key) || null;
+        if (nextValue !== null) {
+          searchQueryFromFiltersRef.current = nextValue;
+          apply(nextValue);
+        } else if (searchQueryFromFiltersRef.current !== null) {
+          searchQueryFromFiltersRef.current = null;
+          apply(manualSearchQueryRef.current || '');
+        }
+        return;
+      }
+
+      apply(filterKeyValues.get(key) || null);
+    });
+  }, [fieldKeyById, filterKeyActions, getFilterValue]);
+
+  useEffect(() => {
+    applyLeadFiltersToRedux(activeFilters);
+  }, [activeFilters, applyLeadFiltersToRedux]);
+
+  // Convert ActiveFilter to Redux actions for leads (dynamic mapping via field config)
+  const addFilter = useCallback((filter: ActiveFilter) => {
+    const nextFilters = [...activeFilters, filter];
+    addFilterLocal(filter);
+    applyLeadFiltersToRedux(nextFilters);
+  }, [activeFilters, addFilterLocal, applyLeadFiltersToRedux]);
 
   const removeFilter = useCallback((filterId: string) => {
-    // Remove from local state
+    const nextFilters = activeFilters.filter((filter) => filter.id !== filterId);
     removeFilterLocal(filterId);
-
-    // Find the filter to determine which Redux state to clear
-    const filter = activeFilters.find(f => f.id === filterId);
-    if (filter) {
-      const { fieldId } = filter;
-
-      if (fieldId === 'status') {
-        dispatch(setSelectedStatus(null));
-      } else if (fieldId === 'fitnessGoal') {
-        dispatch(setSelectedFitnessGoal(null));
-      } else if (fieldId === 'activityLevel') {
-        dispatch(setSelectedActivityLevel(null));
-      } else if (fieldId === 'preferredTime') {
-        dispatch(setSelectedPreferredTime(null));
-      } else if (fieldId === 'source') {
-        dispatch(setSelectedSource(null));
-      } else if (fieldId === 'age') {
-        dispatch(setSelectedAge(null));
-      } else if (fieldId === 'height') {
-        dispatch(setSelectedHeight(null));
-      } else if (fieldId === 'weight') {
-        dispatch(setSelectedWeight(null));
-      } else if (fieldId === 'createdDate') {
-        dispatch(setSelectedDate(null));
-      }
-    }
-  }, [removeFilterLocal, activeFilters, dispatch]);
+    applyLeadFiltersToRedux(nextFilters);
+  }, [removeFilterLocal, activeFilters, applyLeadFiltersToRedux]);
 
   const clearFilters = useCallback(() => {
-    // Clear local state
     clearFiltersLocal();
+    applyLeadFiltersToRedux([]);
+  }, [clearFiltersLocal, applyLeadFiltersToRedux]);
 
-    // Clear all Redux filter state
-    dispatch(setSelectedStatus(null));
-    dispatch(setSelectedFitnessGoal(null));
-    dispatch(setSelectedActivityLevel(null));
-    dispatch(setSelectedPreferredTime(null));
-    dispatch(setSelectedSource(null));
-    dispatch(setSelectedAge(null));
-    dispatch(setSelectedHeight(null));
-    dispatch(setSelectedWeight(null));
-    dispatch(setSelectedDate(null));
-  }, [clearFiltersLocal, dispatch]);
+  const handleSearchChangeWithSource = useCallback((value: string) => {
+    searchQueryFromFiltersRef.current = null;
+    manualSearchQueryRef.current = value;
+    handleSearchChange(value);
+  }, [handleSearchChange]);
 
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
@@ -200,6 +219,8 @@ const Dashboard = () => {
   const { toast } = useToast();
   const hasShownSaveSuggestion = useRef(false);
   const previousFiltersRef = useRef<string>('');
+  const lastAppliedViewIdRef = useRef<string | null>(null);
+  const lastAppliedDefaultIdRef = useRef<string | null>(null);
 
   // Memoized handler to prevent unnecessary re-renders
   const handleSaveViewClick = useCallback((resourceKey: string) => {
@@ -215,6 +236,9 @@ const Dashboard = () => {
   useEffect(() => {
     // Priority 1: Load from saved view if viewId is present
     if (viewId && savedView && !isLoadingView) {
+      if (lastAppliedViewIdRef.current === savedView.id) {
+        return;
+      }
       const filterConfig = savedView.filter_config as any;
       if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
         // Convert saved advanced filters to ActiveFilter format
@@ -226,9 +250,13 @@ const Dashboard = () => {
           values: f.values,
           type: f.type as any,
         }));
+        const hasSearchQueryFilter = savedFilters.some(
+          (filter) => fieldKeyById.get(filter.fieldId) === 'searchQuery'
+        );
         updateFiltersLocal(savedFilters);
+        applyLeadFiltersToRedux(savedFilters);
         // Also update search query if present
-        if (filterConfig.searchQuery !== undefined) {
+        if (filterConfig.searchQuery !== undefined && !hasSearchQueryFilter) {
           dispatch(setSearchQuery(filterConfig.searchQuery));
         }
         previousFiltersRef.current = JSON.stringify({
@@ -236,10 +264,14 @@ const Dashboard = () => {
           searchQuery: filterConfig.searchQuery || '',
         });
         hasShownSaveSuggestion.current = false; // Reset when loading saved view
+        lastAppliedViewIdRef.current = savedView.id;
       }
     } 
     // Priority 2: Load from default view if no viewId but default view exists and is loaded
     else if (!viewId && defaultView && !isLoadingDefaultView && !isLoadingView) {
+      if (lastAppliedDefaultIdRef.current === defaultView.id) {
+        return;
+      }
       const filterConfig = defaultView.filter_config as any;
       if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters) && filterConfig.advancedFilters.length > 0) {
         // Convert saved advanced filters to ActiveFilter format
@@ -251,9 +283,13 @@ const Dashboard = () => {
           values: f.values,
           type: f.type as any,
         }));
+        const hasSearchQueryFilter = savedFilters.some(
+          (filter) => fieldKeyById.get(filter.fieldId) === 'searchQuery'
+        );
         updateFiltersLocal(savedFilters);
+        applyLeadFiltersToRedux(savedFilters);
         // Also update search query if present
-        if (filterConfig.searchQuery !== undefined) {
+        if (filterConfig.searchQuery !== undefined && !hasSearchQueryFilter) {
           dispatch(setSearchQuery(filterConfig.searchQuery));
         }
         previousFiltersRef.current = JSON.stringify({
@@ -261,6 +297,7 @@ const Dashboard = () => {
           searchQuery: filterConfig.searchQuery || '',
         });
         hasShownSaveSuggestion.current = false;
+        lastAppliedDefaultIdRef.current = defaultView.id;
       }
     } 
     // Priority 3: Clear filters only if no viewId and no default view (or default view has no filters)
@@ -268,11 +305,21 @@ const Dashboard = () => {
       // Only clear if we haven't loaded filters yet (prevent clearing after user interaction)
       if (previousFiltersRef.current === '') {
         updateFiltersLocal([]);
+        applyLeadFiltersToRedux([]);
         previousFiltersRef.current = '';
         hasShownSaveSuggestion.current = false;
+        lastAppliedDefaultIdRef.current = null;
       }
     }
-  }, [viewId, savedView, isLoadingView, defaultView, isLoadingDefaultView, updateFiltersLocal, dispatch]);
+  }, [viewId, savedView, isLoadingView, defaultView, isLoadingDefaultView, updateFiltersLocal, applyLeadFiltersToRedux, fieldKeyById, dispatch]);
+
+  useEffect(() => {
+    if (viewId) {
+      lastAppliedDefaultIdRef.current = null;
+    } else {
+      lastAppliedViewIdRef.current = null;
+    }
+  }, [viewId]);
 
   // Show save suggestion when filters change
   useEffect(() => {
@@ -356,7 +403,7 @@ const Dashboard = () => {
                 enableSearch={true}
                 columns={leadColumns}
                 legacySearchQuery={searchQuery}
-                legacyOnSearchChange={handleSearchChange}
+                legacyOnSearchChange={handleSearchChangeWithSource}
                 legacyActiveFilters={activeFilters}
                 legacyOnFilterAdd={addFilter}
                 legacyOnFilterRemove={removeFilter}

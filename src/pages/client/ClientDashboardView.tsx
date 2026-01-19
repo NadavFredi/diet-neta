@@ -57,7 +57,7 @@ export const ClientDashboardView: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { customer, activeLead, leads, isLoading, error, stats, handleSelectLead } = useClientDashboard();
+  const { customer, leads, isLoading, error, stats, handleSelectLead } = useClientDashboard();
   const { user } = useAppSelector((state) => state.auth);
   const { isImpersonating, previousLocation } = useAppSelector((state) => state.impersonation);
   const { checkIns, selectedDate } = useAppSelector((state) => state.client);
@@ -105,21 +105,12 @@ export const ClientDashboardView: React.FC = () => {
     return { exercises, steps, nutrition };
   }, [checkIns]);
 
-  // Aggregate daily_protocol from all leads (merge, with later leads taking precedence)
+  // Use customer-level daily_protocol directly (stored on customer table)
   // MUST be called before any early returns to follow Rules of Hooks
-  // This aggregates customer-level data from all leads
   const dailyProtocol = useMemo(() => {
-    if (!leads || leads.length === 0) return {};
-    
-    // Merge all daily_protocol objects, with later (more recent) leads taking precedence
-    const merged = {};
-    leads.forEach(lead => {
-      if (lead.daily_protocol && typeof lead.daily_protocol === 'object') {
-        Object.assign(merged, lead.daily_protocol);
-      }
-    });
-    return merged;
-  }, [leads]);
+    // Customer-level daily protocol is stored directly on customer table
+    return customer?.daily_protocol || {};
+  }, [customer?.daily_protocol]);
 
   // Handle profile updates - update all leads with the same customer_id
   const handleUpdateWeight = async (newValue: string | number) => {

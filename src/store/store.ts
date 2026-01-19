@@ -50,7 +50,7 @@ export const store = configureStore({
             localStorage.removeItem('auth');
           }
         } catch (error) {
-          console.error('Error persisting auth state:', error);
+          // Silent failure
         }
       }
       

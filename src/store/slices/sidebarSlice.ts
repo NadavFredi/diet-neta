@@ -54,7 +54,7 @@ const loadSidebarState = (): Partial<SidebarState> => {
       };
     }
   } catch (error) {
-    console.warn('Failed to load sidebar state from localStorage:', error);
+    // Silent failure
   }
   return {};
 };
@@ -88,7 +88,7 @@ const saveSidebarState = (state: SidebarState) => {
       expandedSections: state.expandedSections,
     }));
   } catch (error) {
-    console.warn('Failed to save sidebar state to localStorage:', error);
+    // Silent failure
   }
 };
 

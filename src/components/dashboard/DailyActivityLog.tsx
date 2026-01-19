@@ -112,18 +112,10 @@ export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
       ) : queryError ? (
         <div className="text-center py-8 text-red-500 text-sm">
           שגיאה בטעינת הדיווחים: {queryError instanceof Error ? queryError.message : 'שגיאה לא ידועה'}
-          <div className="mt-2 text-xs text-gray-500">
-            {process.env.NODE_ENV === 'development' && JSON.stringify(queryError)}
-          </div>
         </div>
       ) : !checkIns || checkIns.length === 0 ? (
         <div className="text-center py-8 text-gray-500 text-sm">
           אין דיווחים יומיים עדיין
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-2 text-xs text-gray-400">
-              Debug: leadId={leadId || 'null'}, customerId={customerId || 'null'}
-            </div>
-          )}
         </div>
       ) : (
         <div className="overflow-x-auto">

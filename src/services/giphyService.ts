@@ -66,7 +66,6 @@ export async function fetchTrendingGifs(limit: number = 20, offset: number = 0):
     const data: GiphyResponse = await response.json();
     return data.data || [];
   } catch (error) {
-    console.error('[GiphyService] Error fetching trending GIFs:', error);
     throw error;
   }
 }
@@ -95,7 +94,6 @@ export async function searchGifs(query: string, limit: number = 20, offset: numb
     const data: GiphyResponse = await response.json();
     return data.data || [];
   } catch (error) {
-    console.error('[GiphyService] Error searching GIFs:', error);
     throw error;
   }
 }
