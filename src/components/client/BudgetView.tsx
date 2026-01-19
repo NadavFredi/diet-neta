@@ -49,19 +49,10 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   const budget = budgetAssignment?.budget;
   
   // Fetch workout plan for customer
-  const { workoutPlan, isLoading: isLoadingWorkoutPlan, fetchWorkoutPlan } = useWorkoutPlan(customerId || null);
+  const { workoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customerId || null);
   
   // Fetch nutrition plan for customer
-  const { nutritionPlan, fetchNutritionPlan } = useNutritionPlan(customerId || null);
-  
-  // Refetch plans when budget changes
-  useEffect(() => {
-    if (budget?.id) {
-      // Budget changed, refetch related plans
-      fetchWorkoutPlan();
-      fetchNutritionPlan();
-    }
-  }, [budget?.id, fetchWorkoutPlan, fetchNutritionPlan]);
+  const { nutritionPlan } = useNutritionPlan(customerId || null);
 
   if (!budgetAssignment || !budget) {
     return (

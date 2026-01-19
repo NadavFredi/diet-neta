@@ -106,26 +106,35 @@ export async function syncPlansFromBudget({
 
       // DELETE all existing workout plans for this specific budget + customer/lead combination
       // This ensures we only have one plan per budget assignment
-      // If both customerId and leadId are provided, delete plans matching both
-      if (finalCustomerId && leadId) {
-        await supabase
-          .from('workout_plans')
-          .delete()
-          .eq('budget_id', budget.id)
-          .eq('customer_id', finalCustomerId)
-          .eq('lead_id', leadId);
-      } else if (finalCustomerId) {
-        await supabase
-          .from('workout_plans')
-          .delete()
-          .eq('budget_id', budget.id)
-          .eq('customer_id', finalCustomerId);
-      } else if (leadId) {
-        await supabase
-          .from('workout_plans')
-          .delete()
-          .eq('budget_id', budget.id)
-          .eq('lead_id', leadId);
+      // Delete plans that match budget_id AND (customer_id OR lead_id)
+      // We delete separately for customer_id and lead_id to ensure all matches are removed
+      try {
+        if (finalCustomerId) {
+          const { error: customerDeleteError } = await supabase
+            .from('workout_plans')
+            .delete()
+            .eq('budget_id', budget.id)
+            .eq('customer_id', finalCustomerId);
+          
+          if (customerDeleteError) {
+            console.error('[syncPlansFromBudget] Error deleting workout plans by customer_id:', customerDeleteError);
+          }
+        }
+        
+        if (leadId) {
+          const { error: leadDeleteError } = await supabase
+            .from('workout_plans')
+            .delete()
+            .eq('budget_id', budget.id)
+            .eq('lead_id', leadId);
+          
+          if (leadDeleteError) {
+            console.error('[syncPlansFromBudget] Error deleting workout plans by lead_id:', leadDeleteError);
+          }
+        }
+      } catch (deleteError) {
+        console.error('[syncPlansFromBudget] Error deleting workout plans:', deleteError);
+        // Don't throw - continue to create new plan
       }
 
       // Create new workout plan from template
@@ -179,26 +188,37 @@ export async function syncPlansFromBudget({
   if (budget.nutrition_template_id || budget.nutrition_targets) {
     try {
     // DELETE all existing nutrition plans for this specific budget + customer/lead combination
-    // Note: We skip deactivation since nutrition_plans doesn't have is_active column yet
-    // (Migration 20260121000009 adds it, but we delete and recreate anyway)
     // This ensures we only have one plan per budget assignment
-    // If both customerId and leadId are provided, delete plans matching both
-    let deleteQuery = supabase
-      .from('nutrition_plans')
-      .delete()
-      .eq('budget_id', budget.id);
-    
-    if (finalCustomerId && leadId) {
-      deleteQuery = deleteQuery.eq('customer_id', finalCustomerId).eq('lead_id', leadId);
-    } else if (finalCustomerId) {
-      deleteQuery = deleteQuery.eq('customer_id', finalCustomerId);
-    } else if (leadId) {
-      deleteQuery = deleteQuery.eq('lead_id', leadId);
-    }
-    
-    const { error: deleteError } = await deleteQuery;
-    if (deleteError && !deleteError.message?.includes('does not exist') && !deleteError.message?.includes('relation')) {
-      console.error('[syncPlansFromBudget] Error deleting nutrition plans:', deleteError);
+    // Delete plans that match budget_id AND (customer_id OR lead_id)
+    // We delete separately for customer_id and lead_id to ensure all matches are removed
+    try {
+      if (finalCustomerId) {
+        const { error: customerDeleteError } = await supabase
+          .from('nutrition_plans')
+          .delete()
+          .eq('budget_id', budget.id)
+          .eq('customer_id', finalCustomerId);
+        
+        if (customerDeleteError && !customerDeleteError.message?.includes('does not exist') && !customerDeleteError.message?.includes('relation')) {
+          console.error('[syncPlansFromBudget] Error deleting nutrition plans by customer_id:', customerDeleteError);
+        }
+      }
+      
+      if (leadId) {
+        const { error: leadDeleteError } = await supabase
+          .from('nutrition_plans')
+          .delete()
+          .eq('budget_id', budget.id)
+          .eq('lead_id', leadId);
+        
+        if (leadDeleteError && !leadDeleteError.message?.includes('does not exist') && !leadDeleteError.message?.includes('relation')) {
+          console.error('[syncPlansFromBudget] Error deleting nutrition plans by lead_id:', leadDeleteError);
+        }
+      }
+    } catch (deleteError) {
+      if (!deleteError.message?.includes('does not exist') && !deleteError.message?.includes('relation')) {
+        console.error('[syncPlansFromBudget] Error deleting nutrition plans:', deleteError);
+      }
       // Don't throw - continue to create new plan
     }
 
@@ -309,20 +329,64 @@ export async function syncPlansFromBudget({
 
     // DELETE all existing steps plans for this specific budget + customer/lead combination
     // This ensures we only have one plan per budget assignment
-    // If both customerId and leadId are provided, delete plans matching both
-    if (finalCustomerId && leadId) {
-      const { error: deleteError } = await supabase
-        .from('steps_plans')
-        .delete()
-        .eq('budget_id', budget.id)
-        .eq('customer_id', finalCustomerId)
-        .eq('lead_id', leadId);
+    // Delete plans that match budget_id AND (customer_id OR lead_id)
+    // We delete separately for customer_id and lead_id to ensure all matches are removed
+    try {
+      if (finalCustomerId) {
+        const { error: customerDeleteError } = await supabase
+          .from('steps_plans')
+          .delete()
+          .eq('budget_id', budget.id)
+          .eq('customer_id', finalCustomerId);
+        
+        if (customerDeleteError && (customerDeleteError.message?.includes('does not exist') || customerDeleteError.message?.includes('relation'))) {
+          // Table doesn't exist, use fallback
+          console.error('[syncPlansFromBudget] steps_plans table does not exist! Please run migration: 20260104000007_create_steps_plans.sql');
+          const { data: customer } = await supabase
+            .from('customers')
+            .select('daily_protocol')
+            .eq('id', finalCustomerId)
+            .single();
+
+          if (customer) {
+            const dailyProtocol = customer.daily_protocol || {};
+            const updatedProtocol = {
+              ...dailyProtocol,
+              stepsGoal: budget.steps_goal,
+            };
+
+            await supabase
+              .from('customers')
+              .update({ daily_protocol: updatedProtocol })
+              .eq('id', finalCustomerId);
+            
+            console.log('[syncPlansFromBudget] Fallback: Updated daily_protocol with steps goal');
+          }
+          return result; // Return early if table doesn't exist
+        } else if (customerDeleteError) {
+          console.error('[syncPlansFromBudget] Error deleting steps plans by customer_id:', customerDeleteError);
+        }
+      }
       
-      if (deleteError && !deleteError.message?.includes('does not exist') && !deleteError.message?.includes('relation')) {
-        console.error('[syncPlansFromBudget] Error deleting steps plans:', deleteError);
-      } else if (deleteError && (deleteError.message?.includes('does not exist') || deleteError.message?.includes('relation'))) {
+      if (leadId) {
+        const { error: leadDeleteError } = await supabase
+          .from('steps_plans')
+          .delete()
+          .eq('budget_id', budget.id)
+          .eq('lead_id', leadId);
+        
+        if (leadDeleteError && (leadDeleteError.message?.includes('does not exist') || leadDeleteError.message?.includes('relation'))) {
+          // Table doesn't exist, use fallback (already handled above)
+          if (!finalCustomerId) {
+            return result; // Return early if table doesn't exist and no customer_id
+          }
+        } else if (leadDeleteError) {
+          console.error('[syncPlansFromBudget] Error deleting steps plans by lead_id:', leadDeleteError);
+        }
+      }
+    } catch (deleteError: any) {
+      if (deleteError?.message?.includes('does not exist') || deleteError?.message?.includes('relation')) {
         // Table doesn't exist, use fallback
-        console.error('[syncPlansFromBudget] steps_plans table does not exist! Please run migration: 20260104000007_create_steps_plans.sql');
         if (finalCustomerId) {
           const { data: customer } = await supabase
             .from('customers')
@@ -347,32 +411,8 @@ export async function syncPlansFromBudget({
         }
         return result; // Return early if table doesn't exist
       }
-    } else if (finalCustomerId) {
-      const { error: deleteError } = await supabase
-        .from('steps_plans')
-        .delete()
-        .eq('budget_id', budget.id)
-        .eq('customer_id', finalCustomerId);
-      
-      if (deleteError && !deleteError.message?.includes('does not exist') && !deleteError.message?.includes('relation')) {
-        console.error('[syncPlansFromBudget] Error deleting steps plans:', deleteError);
-      } else if (deleteError && (deleteError.message?.includes('does not exist') || deleteError.message?.includes('relation'))) {
-        console.error('[syncPlansFromBudget] steps_plans table does not exist! Please run migration: 20260104000007_create_steps_plans.sql');
-        return result; // Return early if table doesn't exist
-      }
-    } else if (leadId) {
-      const { error: deleteError } = await supabase
-        .from('steps_plans')
-        .delete()
-        .eq('budget_id', budget.id)
-        .eq('lead_id', leadId);
-      
-      if (deleteError && !deleteError.message?.includes('does not exist') && !deleteError.message?.includes('relation')) {
-        console.error('[syncPlansFromBudget] Error deleting steps plans:', deleteError);
-      } else if (deleteError && (deleteError.message?.includes('does not exist') || deleteError.message?.includes('relation'))) {
-        console.error('[syncPlansFromBudget] steps_plans table does not exist! Please run migration: 20260104000007_create_steps_plans.sql');
-        return result; // Return early if table doesn't exist
-      }
+      console.error('[syncPlansFromBudget] Error deleting steps plans:', deleteError);
+      // Don't throw - continue to create new plan
     }
 
     // Create new steps plan
@@ -476,26 +516,35 @@ export async function syncPlansFromBudget({
 
     // DELETE all existing supplement plans for this specific budget + customer/lead combination
     // This ensures we only have one plan per budget assignment
-    // If both customerId and leadId are provided, delete plans matching both
-    if (finalCustomerId && leadId) {
-      await supabase
-        .from('supplement_plans')
-        .delete()
-        .eq('budget_id', budget.id)
-        .eq('customer_id', finalCustomerId)
-        .eq('lead_id', leadId);
-    } else if (finalCustomerId) {
-      await supabase
-        .from('supplement_plans')
-        .delete()
-        .eq('budget_id', budget.id)
-        .eq('customer_id', finalCustomerId);
-    } else if (leadId) {
-      await supabase
-        .from('supplement_plans')
-        .delete()
-        .eq('budget_id', budget.id)
-        .eq('lead_id', leadId);
+    // Delete plans that match budget_id AND (customer_id OR lead_id)
+    // We delete separately for customer_id and lead_id to ensure all matches are removed
+    try {
+      if (finalCustomerId) {
+        const { error: customerDeleteError } = await supabase
+          .from('supplement_plans')
+          .delete()
+          .eq('budget_id', budget.id)
+          .eq('customer_id', finalCustomerId);
+        
+        if (customerDeleteError) {
+          console.error('[syncPlansFromBudget] Error deleting supplement plans by customer_id:', customerDeleteError);
+        }
+      }
+      
+      if (leadId) {
+        const { error: leadDeleteError } = await supabase
+          .from('supplement_plans')
+          .delete()
+          .eq('budget_id', budget.id)
+          .eq('lead_id', leadId);
+        
+        if (leadDeleteError) {
+          console.error('[syncPlansFromBudget] Error deleting supplement plans by lead_id:', leadDeleteError);
+        }
+      }
+    } catch (deleteError) {
+      console.error('[syncPlansFromBudget] Error deleting supplement plans:', deleteError);
+      // Don't throw - continue to create new plan
     }
 
     // Create new supplement plan

@@ -435,6 +435,9 @@ export const useAssignBudgetToLead = () => {
       
       // Refetch immediately to update UI
       await queryClient.refetchQueries({ queryKey: ['budgetAssignment'] });
+      
+      // Also refetch plans-history to ensure supplement and steps plans appear
+      await queryClient.refetchQueries({ queryKey: ['plans-history'] });
     },
   });
 };
@@ -540,6 +543,9 @@ export const useAssignBudgetToCustomer = () => {
       
       // Refetch immediately to update UI
       await queryClient.refetchQueries({ queryKey: ['budgetAssignment'] });
+      
+      // Also refetch plans-history to ensure supplement and steps plans appear
+      await queryClient.refetchQueries({ queryKey: ['plans-history'] });
     },
   });
 };

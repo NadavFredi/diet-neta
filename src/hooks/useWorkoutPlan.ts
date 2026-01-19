@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import type { WorkoutPlan } from '@/components/dashboard/WorkoutPlanCard';
 
@@ -7,24 +7,12 @@ export const useWorkoutPlan = (customerId?: string) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchWorkoutPlan = useCallback(async () => {
     if (!customerId) {
       setIsLoading(false);
+      setWorkoutPlan(null);
       return;
     }
-
-    fetchWorkoutPlan();
-    
-    // Set up polling to sync with budget changes (every 30 seconds)
-    const intervalId = setInterval(() => {
-      fetchWorkoutPlan();
-    }, 30000);
-    
-    return () => clearInterval(intervalId);
-  }, [customerId]);
-
-  const fetchWorkoutPlan = async () => {
-    if (!customerId) return;
 
     try {
       setIsLoading(true);
@@ -32,7 +20,10 @@ export const useWorkoutPlan = (customerId?: string) => {
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error('User not authenticated');
+        setIsLoading(false);
+        setError('User not authenticated');
+        setWorkoutPlan(null);
+        return;
       }
 
       // First, try to fetch from workout_plans table
@@ -80,6 +71,11 @@ export const useWorkoutPlan = (customerId?: string) => {
         .from('leads')
         .select('id')
         .eq('customer_id', customerId);
+      
+      if (leadsError) {
+        console.error('[useWorkoutPlan] Error fetching leads:', leadsError);
+        // Continue anyway - we can still check customer-level budget assignments
+      }
       
       const leadIds = leads?.map(l => l.id) || [];
       console.log('[useWorkoutPlan] Found leads for customer:', { customerId, leadIds });
@@ -163,6 +159,7 @@ export const useWorkoutPlan = (customerId?: string) => {
         if (templateError) {
           console.error('Error fetching workout template:', templateError);
           setWorkoutPlan(null);
+          setIsLoading(false);
           return;
         }
 
@@ -231,7 +228,24 @@ export const useWorkoutPlan = (customerId?: string) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [customerId]);
+
+  useEffect(() => {
+    if (!customerId) {
+      setIsLoading(false);
+      setWorkoutPlan(null);
+      return;
+    }
+
+    fetchWorkoutPlan();
+    
+    // Set up polling to sync with budget changes (every 30 seconds)
+    const intervalId = setInterval(() => {
+      fetchWorkoutPlan();
+    }, 30000);
+    
+    return () => clearInterval(intervalId);
+  }, [customerId, fetchWorkoutPlan]);
 
   const createWorkoutPlan = async (planData: Partial<WorkoutPlan>) => {
     try {

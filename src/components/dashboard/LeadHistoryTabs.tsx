@@ -528,9 +528,13 @@ export const LeadHistoryTabs = ({
                 </TableHeader>
                 <TableBody>
                   {workoutHistory.map((workout, index) => {
+                    // Ensure only the first active plan (by sorted order) is shown as active
+                    const firstActiveIndex = workoutHistory.findIndex((w: any) => w.is_active === true);
+                    const isActive = workout.is_active === true && index === firstActiveIndex;
+                    
                     return (
                       <TableRow
-                        key={index}
+                        key={workout.id ? `workout-${workout.id}-${index}` : `workout-${index}`}
                         onClick={async () => {
                           if (workout.id) {
                             // Fetch full plan data
@@ -555,9 +559,11 @@ export const LeadHistoryTabs = ({
                             setSelectedWorkoutPlan(workout);
                           }
                         }}
-                        className={`transition-all duration-200 cursor-pointer ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                        } hover:bg-blue-50 hover:shadow-sm border-b border-gray-100`}
+                      className={`transition-all duration-200 cursor-pointer ${
+                        isActive
+                          ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                          : index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                      } hover:bg-blue-50 hover:shadow-sm border-b border-gray-100`}
                       >
                         <TableCell className="text-xs font-semibold text-gray-900 py-3">
                           {workout.startDate ? formatDate(workout.startDate) : '-'}
@@ -565,6 +571,11 @@ export const LeadHistoryTabs = ({
                         <TableCell className="text-xs max-w-xs font-semibold text-gray-900 py-3">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="truncate">{workout.description || workout.name || '-'}</span>
+                            {isActive && (
+                              <Badge className="bg-blue-500 text-white border-0 text-xs px-2 py-0.5 font-semibold">
+                                פעיל
+                              </Badge>
+                            )}
                             {workout.budget_id && (
                               <BudgetLinkBadge budgetId={workout.budget_id} />
                             )}
@@ -601,11 +612,14 @@ export const LeadHistoryTabs = ({
             </div>
           ) : (
             <div className="space-y-2">
-              {[...(stepsHistory || [])].reverse().map((step: any, index: number) => {
-                const isCurrent = index === 0; // First item (most recent) is the active one
+              {(stepsHistory || []).map((step: any, index: number) => {
+                // Use is_active from the data, but ensure only the first active plan (by date) is shown as active
+                // Find the first active plan's index to ensure only one is marked
+                const firstActiveIndex = (stepsHistory || []).findIndex((s: any) => s.is_active === true);
+                const isCurrent = step.is_active === true && index === firstActiveIndex;
                 return (
                   <div
-                    key={`${step.weekNumber || step.week || index}-${step.startDate || step.dates || index}`}
+                    key={step.id ? `step-${step.id}-${index}` : `step-${step.weekNumber || step.week || index}-${step.startDate || step.dates || index}-${index}`}
                     onClick={async () => {
                       if (customerId) {
                         // Fetch customer's daily_protocol for steps goal
@@ -706,9 +720,14 @@ export const LeadHistoryTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {nutritionHistory.map((nutrition, index) => (
+                  {nutritionHistory.map((nutrition, index) => {
+                    // Ensure only the first active plan (by sorted order) is shown as active
+                    const firstActiveIndex = nutritionHistory.findIndex((n: any) => n.is_active === true);
+                    const isActive = nutrition.is_active === true && index === firstActiveIndex;
+                    
+                    return (
                     <TableRow
-                      key={index}
+                      key={nutrition.id ? `nutrition-${nutrition.id}-${index}` : `nutrition-${index}`}
                       onClick={async () => {
                         if (nutrition.id) {
                           // Fetch full plan data
@@ -734,7 +753,9 @@ export const LeadHistoryTabs = ({
                         }
                       }}
                       className={`transition-all duration-200 cursor-pointer ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                        isActive
+                          ? 'bg-orange-50 border-l-4 border-l-orange-500'
+                          : index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       } hover:bg-orange-50 hover:shadow-sm border-b border-gray-100`}
                     >
                       <TableCell className="text-xs font-semibold text-gray-900 py-3">
@@ -746,6 +767,11 @@ export const LeadHistoryTabs = ({
                       <TableCell className="text-xs max-w-xs font-semibold text-gray-900 py-3">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="truncate">{nutrition.description || '-'}</span>
+                          {isActive && (
+                            <Badge className="bg-orange-500 text-white border-0 text-xs px-2 py-0.5 font-semibold">
+                              פעיל
+                            </Badge>
+                          )}
                           {nutrition.budget_id && (
                             <BudgetLinkBadge budgetId={nutrition.budget_id} />
                           )}
@@ -772,7 +798,8 @@ export const LeadHistoryTabs = ({
                         </Badge>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -811,12 +838,19 @@ export const LeadHistoryTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {supplementsHistory.map((supplement, index) => (
+                  {supplementsHistory.map((supplement, index) => {
+                    // Ensure only the first active plan (by sorted order) is shown as active
+                    const firstActiveIndex = supplementsHistory.findIndex((s: any) => s.is_active === true);
+                    const isActive = supplement.is_active === true && index === firstActiveIndex;
+                    
+                    return (
                     <TableRow
-                      key={index}
+                      key={supplement.id ? `supplement-${supplement.id}-${index}` : `supplement-${index}`}
                       onClick={() => setSelectedSupplementPlan(supplement)}
                       className={`transition-all duration-200 cursor-pointer ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                        isActive
+                          ? 'bg-green-50 border-l-4 border-l-green-500'
+                          : index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       } hover:bg-green-50 hover:shadow-sm border-b border-gray-100`}
                     >
                       <TableCell className="text-xs font-semibold text-gray-900 py-3">
@@ -828,6 +862,11 @@ export const LeadHistoryTabs = ({
                       <TableCell className="text-xs max-w-xs font-semibold text-gray-900 py-3">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="truncate">{supplement.description || '-'}</span>
+                          {isActive && (
+                            <Badge className="bg-green-500 text-white border-0 text-xs px-2 py-0.5 font-semibold">
+                              פעיל
+                            </Badge>
+                          )}
                           {supplement.budget_id && (
                             <BudgetLinkBadge budgetId={supplement.budget_id} />
                           )}
@@ -850,7 +889,8 @@ export const LeadHistoryTabs = ({
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -910,7 +950,7 @@ export const LeadHistoryTabs = ({
                 <TableBody>
                   {budgetAssignments.map((assignment, index) => (
                     <TableRow
-                      key={assignment.id}
+                      key={assignment.id ? `budget-${assignment.id}-${index}` : `budget-${index}`}
                       onClick={() => handleEditBudgetFromLead(assignment)}
                       className={`transition-all duration-200 cursor-pointer ${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
