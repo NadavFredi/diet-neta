@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { UserPlus, Loader2, MessageCircle, Settings, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Loader2, MessageCircle, Eye, EyeOff } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -518,18 +518,8 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
       </Tooltip>
       <DialogContent className="sm:max-w-[500px]" dir="rtl">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>צור משתמש מתאמן</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsTemplateEditorOpen(true)}
-              disabled={isLoading || userCreated || isSendingWhatsApp}
-              className="h-7 px-2 text-xs text-gray-600 hover:text-black hover:bg-gray-50"
-            >
-              <Settings className="h-3 w-3 ml-1" />
-              ערוך טמפלייט
-            </Button>
+          <DialogTitle>
+            צור משתמש מתאמן
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">

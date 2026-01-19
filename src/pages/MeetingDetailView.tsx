@@ -273,12 +273,31 @@ const MeetingDetailView = () => {
 
   // Extract scheduling data
   const extractSchedulingData = () => {
+    // First, check for direct event_start_time and event_end_time fields (from custom webhook payloads)
+    if (meetingData.event_start_time || meetingData.event_end_time || meetingData.eventStartTime || meetingData.eventEndTime) {
+      const meetingType = meetingData['סוג פגישה'] || 
+                        meetingData.meeting_type ||
+                        meetingData['Form_name'] ||
+                        'פגישת הכרות';
+      return {
+        name: meetingType,
+        eventStartTime: meetingData.event_start_time || meetingData.eventStartTime,
+        eventEndTime: meetingData.event_end_time || meetingData.eventEndTime,
+        timezone: meetingData.timezone || null,
+        scheduledUserName: meetingData.scheduledUserName || null,
+        scheduledUserEmail: meetingData.scheduledUserEmail || null,
+        email: meetingData.email || null,
+        fullName: meetingData.fullName || null,
+      };
+    }
+
     if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
       const scheduling = meetingData.scheduling[0];
       if (scheduling.value) {
         // Check for meeting type in meeting_data first, then fall back to scheduling data
         const meetingType = meetingData['סוג פגישה'] || 
                           meetingData.meeting_type ||
+                          meetingData['Form_name'] ||
                           scheduling.name || 
                           scheduling.value.name || 
                           'פגישת הכרות';
@@ -302,6 +321,7 @@ const MeetingDetailView = () => {
       // Check for meeting type in meeting_data first, then fall back to scheduling data
       const meetingType = meetingData['סוג פגישה'] || 
                         meetingData.meeting_type ||
+                        meetingData['Form_name'] ||
                         meetingData['scheduling[0].name'] || 
                         meetingData['scheduling[0].value.name'] || 
                         'פגישת הכרות';

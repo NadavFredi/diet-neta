@@ -671,21 +671,45 @@ serve(async (req) => {
     console.log('[receive-fillout-webhook] Extracted meeting_data fields:', Object.keys(meetingData));
     console.log('[receive-fillout-webhook] Extracted meeting_data:', JSON.stringify(meetingData, null, 2));
 
+    // Extract Form_name, event_start_time, and event_end_time from top-level body
+    // These are direct fields that may come from custom webhook payloads
+    if (body.Form_name || body.form_name || body.FormName) {
+      const formNameValue = body.Form_name || body.form_name || body.FormName;
+      meetingData['Form_name'] = formNameValue;
+      meetingData['סוג פגישה'] = formNameValue;
+      meetingData.meeting_type = formNameValue;
+      console.log('[receive-fillout-webhook] ✅ Extracted Form_name:', formNameValue);
+    }
+
+    if (body.event_start_time || body.eventStartTime) {
+      const eventStartTime = body.event_start_time || body.eventStartTime;
+      meetingData.event_start_time = eventStartTime;
+      meetingData.eventStartTime = eventStartTime; // Also store camelCase variant
+      console.log('[receive-fillout-webhook] ✅ Extracted event_start_time:', eventStartTime);
+    }
+
+    if (body.event_end_time || body.eventEndTime) {
+      const eventEndTime = body.event_end_time || body.eventEndTime;
+      meetingData.event_end_time = eventEndTime;
+      meetingData.eventEndTime = eventEndTime; // Also store camelCase variant
+      console.log('[receive-fillout-webhook] ✅ Extracted event_end_time:', eventEndTime);
+    }
+
     // Add metadata
     meetingData._formId = formId;
     meetingData._submissionTime = body.submissionTime || body.submission_time || body.createdAt || body.created_at || new Date().toISOString();
-    meetingData._formName = body.formName || body.form_name || body.form?.name;
+    meetingData._formName = body.formName || body.form_name || body.Form_name || body.form?.name;
     meetingData._rawWebhookPayload = rawWebhookPayload; // Store complete raw webhook payload for debugging
 
-    // Set meeting type based on form ID
+    // Set meeting type based on form ID or Form_name
     if (isBudgetMeetingForm) {
       // Set meeting type to "תיאום תקציב" for budget meeting form
-      meetingData['סוג פגישה'] = 'תיאום תקציב';
-      meetingData['פגישת הכרות'] = 'תיאום תקציב'; // Also set the common field name
-      meetingData.meeting_type = 'תיאום תקציב';
+      meetingData['סוג פגישה'] = meetingData['סוג פגישה'] || 'תיאום תקציב';
+      meetingData['פגישת הכרות'] = meetingData['פגישת הכרות'] || 'תיאום תקציב'; // Also set the common field name
+      meetingData.meeting_type = meetingData.meeting_type || 'תיאום תקציב';
       console.log('[receive-fillout-webhook] ✅ Detected budget meeting form, setting meeting type to "תיאום תקציב"');
     } else if (shouldTriggerAutomation || isOpenMeetingForm) {
-      // Keep default for open-meeting form
+      // Keep default for open-meeting form only if Form_name wasn't provided
       if (!meetingData['סוג פגישה'] && !meetingData['פגישת הכרות']) {
         meetingData['סוג פגישה'] = 'פגישת הכרות';
         meetingData['פגישת הכרות'] = 'פגישת הכרות';

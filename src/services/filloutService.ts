@@ -45,11 +45,11 @@ export interface FormSubmissionFilters {
  */
 function convertDbSubmissionToFilloutSubmission(dbSubmission: any): FilloutSubmission {
   const submissionData = dbSubmission.submission_data || {};
-  
+
   // Extract questions from submission_data
   // The webhook stores form fields in various formats, we need to reconstruct questions array
   const questions: FilloutQuestion[] = [];
-  
+
   // Try to extract from submission_data.questions if it exists
   if (submissionData.questions && Array.isArray(submissionData.questions)) {
     submissionData.questions.forEach((q: any) => {
@@ -64,13 +64,13 @@ function convertDbSubmissionToFilloutSubmission(dbSubmission: any): FilloutSubmi
     // Reconstruct questions from flat submission_data fields
     // Skip metadata fields
     Object.keys(submissionData).forEach((key) => {
-      if (!key.startsWith('_') && 
-          key !== 'formId' && 
-          key !== 'submissionId' && 
-          key !== 'submissionTime' &&
-          key !== 'lastUpdatedAt' &&
-          key !== 'urlParameters' &&
-          key !== 'questions') {
+      if (!key.startsWith('_') &&
+        key !== 'formId' &&
+        key !== 'submissionId' &&
+        key !== 'submissionTime' &&
+        key !== 'lastUpdatedAt' &&
+        key !== 'urlParameters' &&
+        key !== 'questions') {
         questions.push({
           id: key,
           name: key,
@@ -80,7 +80,7 @@ function convertDbSubmissionToFilloutSubmission(dbSubmission: any): FilloutSubmi
       }
     });
   }
-  
+
   // Extract URL parameters
   const urlParameters: FilloutUrlParameter[] = [];
   if (submissionData.urlParameters && Array.isArray(submissionData.urlParameters)) {
@@ -92,7 +92,7 @@ function convertDbSubmissionToFilloutSubmission(dbSubmission: any): FilloutSubmi
       });
     });
   }
-  
+
   return {
     submissionId: dbSubmission.fillout_submission_id,
     submissionTime: dbSubmission.created_at || submissionData._submissionTime || submissionData.submissionTime || '',
@@ -115,7 +115,7 @@ export const getFormSubmissions = async (
       .select('*', { count: 'exact' })
       .eq('fillout_form_id', formId)
       .order('created_at', { ascending: false });
-    
+
     // Apply filters
     if (filters?.limit) {
       query = query.limit(filters.limit);
@@ -123,15 +123,15 @@ export const getFormSubmissions = async (
     if (filters?.offset) {
       query = query.range(filters.offset, filters.offset + (filters.limit || 100) - 1);
     }
-    
+
     const { data, error, count } = await query;
-    
+
     if (error) {
       throw new Error(`Failed to fetch form submissions: ${error.message}`);
     }
-    
+
     const responses = (data || []).map(convertDbSubmissionToFilloutSubmission);
-    
+
     return {
       responses,
       totalResponses: count || 0,
@@ -156,7 +156,7 @@ export const getFormSubmissionById = async (
       .eq('fillout_form_id', formId)
       .eq('fillout_submission_id', submissionId)
       .single();
-    
+
     if (error) {
       if (error.code === 'PGRST116') {
         // Not found
@@ -164,11 +164,11 @@ export const getFormSubmissionById = async (
       }
       throw new Error(`Failed to fetch form submission: ${error.message}`);
     }
-    
+
     if (!data) {
       return null;
     }
-    
+
     return convertDbSubmissionToFilloutSubmission(data);
   } catch (error: any) {
     throw error;
@@ -179,8 +179,9 @@ export const getFormSubmissionById = async (
  * Find most recent submission matching criteria
  * 
  * Matching priority:
- * 1. lead_id (most reliable)
- * 2. phone number in form questions
+ * 1. lead_id (most reliable) - if provided, searches all forms for that lead
+ * 2. formId + lead_id (if both provided)
+ * 3. phone number in form questions
  */
 export const findMostRecentSubmission = async (
   formId: string,
@@ -194,50 +195,63 @@ export const findMostRecentSubmission = async (
     let query = supabase
       .from('fillout_submissions')
       .select('*')
-      .eq('fillout_form_id', formId)
       .order('created_at', { ascending: false })
       .limit(100);
-    
-    // Priority 1: Match by lead_id
+
+    // Priority 1: Match by lead_id (if provided, search all forms for that lead)
     if (criteria.leadId) {
       query = query.eq('lead_id', criteria.leadId);
+      // If formId is also provided, filter by it too
+      if (formId && formId.trim() !== '') {
+        query = query.eq('fillout_form_id', formId);
+      }
+    } else {
+      // If no leadId, filter by formId
+      query = query.eq('fillout_form_id', formId);
     }
-    
+
     const { data, error } = await query;
-    
+
     if (error) {
       throw new Error(`Failed to find submission: ${error.message}`);
     }
-    
+
     if (!data || data.length === 0) {
       return null;
     }
-    
+
     // If leadId was provided, return the first match (already filtered)
     if (criteria.leadId) {
+      // If formId was also provided, prefer exact match, otherwise return first
+      if (formId && formId.trim() !== '') {
+        const exactMatch = data.find(s => s.fillout_form_id === formId);
+        if (exactMatch) {
+          return convertDbSubmissionToFilloutSubmission(exactMatch);
+        }
+      }
       return convertDbSubmissionToFilloutSubmission(data[0]);
     }
-    
+
     // Priority 2: Match by phone number in submission_data
     if (criteria.phone) {
       const searchPhone = String(criteria.phone).replace(/\D/g, '');
-      
+
       for (const submission of data) {
         const submissionData = submission.submission_data || {};
-        
+
         // Check all fields for phone number
         for (const key in submissionData) {
           const value = submissionData[key];
           if (typeof value === 'string') {
             const submissionPhone = value.replace(/\D/g, '');
-            if (submissionPhone === searchPhone || 
-                submissionPhone.endsWith(searchPhone) || 
-                searchPhone.endsWith(submissionPhone)) {
+            if (submissionPhone === searchPhone ||
+              submissionPhone.endsWith(searchPhone) ||
+              searchPhone.endsWith(submissionPhone)) {
               return convertDbSubmissionToFilloutSubmission(submission);
             }
           }
         }
-        
+
         // Also check questions array
         if (submissionData.questions && Array.isArray(submissionData.questions)) {
           for (const q of submissionData.questions) {
@@ -245,9 +259,9 @@ export const findMostRecentSubmission = async (
             const value = String(q.value || '');
             if ((name.includes('phone') || name.includes('טלפון')) && value) {
               const submissionPhone = value.replace(/\D/g, '');
-              if (submissionPhone === searchPhone || 
-                  submissionPhone.endsWith(searchPhone) || 
-                  searchPhone.endsWith(submissionPhone)) {
+              if (submissionPhone === searchPhone ||
+                submissionPhone.endsWith(searchPhone) ||
+                searchPhone.endsWith(submissionPhone)) {
                 return convertDbSubmissionToFilloutSubmission(submission);
               }
             }
@@ -255,9 +269,33 @@ export const findMostRecentSubmission = async (
         }
       }
     }
-    
+
     // If no match found, return null
     return null;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+/**
+ * Get all submissions for a lead (regardless of form ID)
+ * Useful for displaying all form submissions for a lead
+ */
+export const getAllSubmissionsForLead = async (
+  leadId: string
+): Promise<FilloutSubmission[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('fillout_submissions')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch submissions: ${error.message}`);
+    }
+
+    return (data || []).map(convertDbSubmissionToFilloutSubmission);
   } catch (error: any) {
     throw error;
   }

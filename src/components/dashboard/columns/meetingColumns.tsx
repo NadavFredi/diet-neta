@@ -44,6 +44,14 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
       
       // Extract scheduling data (same logic as MeetingDetailView)
       const extractSchedulingData = () => {
+        // First, check for direct event_start_time and event_end_time fields (from custom webhook payloads)
+        if (meetingData.event_start_time || meetingData.event_end_time || meetingData.eventStartTime || meetingData.eventEndTime) {
+          return {
+            eventStartTime: meetingData.event_start_time || meetingData.eventStartTime,
+            eventEndTime: meetingData.event_end_time || meetingData.eventEndTime,
+          };
+        }
+
         if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
           const scheduling = meetingData.scheduling[0];
           if (scheduling.value) {
