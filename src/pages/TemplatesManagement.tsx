@@ -12,18 +12,19 @@ import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector } from '@/store/hooks';
 import { WorkoutTemplatesDataTable } from '@/components/dashboard/WorkoutTemplatesDataTable';
-import { TEMPLATE_FILTER_FIELDS, getWorkoutTemplateFilterFields } from '@/hooks/useTableFilters';
-import { useTableFilters } from '@/hooks/useTableFilters';
+import { getWorkoutTemplateFilterFields } from '@/hooks/useTableFilters';
 import { AddWorkoutTemplateDialog } from '@/components/dashboard/dialogs/AddWorkoutTemplateDialog';
 import { EditWorkoutTemplateDialog } from '@/components/dashboard/dialogs/EditWorkoutTemplateDialog';
 import { DeleteWorkoutTemplateDialog } from '@/components/dashboard/dialogs/DeleteWorkoutTemplateDialog';
 import { useTemplatesManagement } from './TemplatesManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { workoutTemplateColumns } from '@/components/dashboard/columns/templateColumns';
+import { selectActiveFilters } from '@/store/slices/tableStateSlice';
 
 const TemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'templates'));
   const {
     templates = [],
     savedView,
@@ -34,7 +35,6 @@ const TemplatesManagement = () => {
     isEditDialogOpen,
     deleteDialogOpen,
     isSaveViewModalOpen,
-    columnVisibility,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
@@ -50,14 +50,6 @@ const TemplatesManagement = () => {
     getCurrentFilterConfig,
     deleteTemplate,
   } = useTemplatesManagement();
-
-  // Filter system for modals
-  const {
-    filters: activeFilters = [],
-    addFilter,
-    removeFilter,
-    clearFilters,
-  } = useTableFilters([]);
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);

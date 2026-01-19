@@ -26,6 +26,7 @@ import { CheckInSettingsPage } from "./pages/CheckInSettingsPage.tsx";
 import { WhatsAppAutomationsPage } from "./pages/WhatsAppAutomationsPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ClientDashboard from "./pages/client/ClientDashboard.tsx";
+import { ArticlePage } from "./pages/client/ArticlePage.tsx";
 import { InviteAccept } from "./pages/InviteAccept.tsx";
 import PrintBudgetPage from "./pages/PrintBudgetPage.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -143,6 +144,14 @@ const AppContent = () => {
             }
           />
           <Route
+            path="/dashboard/knowledge-base/article/:id"
+            element={
+              <ProtectedRoute>
+                <ArticlePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/dashboard/print/budget/:id"
             element={
               <ProtectedRoute>
@@ -235,6 +244,10 @@ const AppContent = () => {
           <Route
             path="/client/dashboard"
             element={<ClientDashboard />}
+          />
+          <Route
+            path="/client/knowledge-base/article/:id"
+            element={<ArticlePage />}
           />
           <Route path="*" element={<NotFound />} />
         </Routes>

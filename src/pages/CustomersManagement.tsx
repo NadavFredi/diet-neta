@@ -14,14 +14,13 @@ import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { useAppSelector } from '@/store/hooks';
 import { CUSTOMER_FILTER_FIELDS } from '@/hooks/useTableFilters';
-import { useTableFilters } from '@/hooks/useTableFilters';
 import { customerColumns } from '@/components/dashboard/columns/customerColumns';
 import { useCustomersManagement } from './CustomersManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
-import type { ActiveFilter } from '@/components/dashboard/TableFilter';
+import { selectActiveFilters } from '@/store/slices/tableStateSlice';
 
 const CustomersManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -46,14 +45,7 @@ const CustomersManagement = () => {
     searchQuery,
   } = useCustomersManagement();
 
-  // Filter system for modals
-  const {
-    filters: activeFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
-    updateFilters: updateFiltersLocal,
-  } = useTableFilters([]);
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'customers'));
 
   // Load advanced filters from saved view
   useEffect(() => {
@@ -61,28 +53,18 @@ const CustomersManagement = () => {
       const filterConfig = savedView.filter_config as any;
       if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
         // Convert saved advanced filters to ActiveFilter format
-        const savedFilters: ActiveFilter[] = filterConfig.advancedFilters.map((f: any) => ({
-          id: f.id,
-          fieldId: f.fieldId,
-          fieldLabel: f.fieldLabel,
-          operator: f.operator as any,
-          values: f.values,
-          type: f.type as any,
-        }));
-        updateFiltersLocal(savedFilters);
         previousFiltersRef.current = JSON.stringify({
-          filters: savedFilters,
+          filters: filterConfig.advancedFilters || [],
           searchQuery: filterConfig.searchQuery || '',
         });
         hasShownSaveSuggestion.current = false; // Reset when loading saved view
       }
     } else if (!viewId) {
       // Clear filters when no view is selected
-      updateFiltersLocal([]);
       previousFiltersRef.current = '';
       hasShownSaveSuggestion.current = false;
     }
-  }, [viewId, savedView, isLoadingView, updateFiltersLocal]);
+  }, [viewId, savedView, isLoadingView]);
 
   // Show save suggestion when filters change
   useEffect(() => {

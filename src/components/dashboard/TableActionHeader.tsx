@@ -154,18 +154,18 @@ export const TableActionHeader = ({
   const reduxSearchQuery = useAppSelector((state) => selectSearchQuery(state, resourceKey));
   const reduxActiveFilters = useAppSelector((state) => selectActiveFilters(state, resourceKey));
 
-  // Use legacy props for leads, Redux for others
-  const searchQuery = resourceKey === 'leads' && legacySearchQuery !== undefined 
+  // Use legacy props when provided, Redux otherwise
+  const searchQuery = legacySearchQuery !== undefined 
     ? legacySearchQuery 
     : reduxSearchQuery;
   
-  const activeFilters = resourceKey === 'leads' && legacyActiveFilters !== undefined
+  const activeFilters = legacyActiveFilters !== undefined
     ? legacyActiveFilters
     : reduxActiveFilters;
 
   // Handle search change
   const handleSearchChange = (value: string) => {
-    if (resourceKey === 'leads' && legacyOnSearchChange) {
+    if (legacyOnSearchChange) {
       legacyOnSearchChange(value);
     } else {
       dispatch(setSearchQuery({ resourceKey, query: value }));
@@ -174,7 +174,7 @@ export const TableActionHeader = ({
 
   // Handle filter actions
   const handleAddFilter = (filter: any) => {
-    if (resourceKey === 'leads' && legacyOnFilterAdd) {
+    if (legacyOnFilterAdd) {
       legacyOnFilterAdd(filter);
     } else {
       dispatch(addFilterAction({ resourceKey, filter }));
@@ -182,7 +182,7 @@ export const TableActionHeader = ({
   };
 
   const handleRemoveFilter = (filterId: string) => {
-    if (resourceKey === 'leads' && legacyOnFilterRemove) {
+    if (legacyOnFilterRemove) {
       legacyOnFilterRemove(filterId);
     } else {
       dispatch(removeFilterAction({ resourceKey, filterId }));
@@ -190,7 +190,7 @@ export const TableActionHeader = ({
   };
 
   const handleClearFilters = () => {
-    if (resourceKey === 'leads' && legacyOnFilterClear) {
+    if (legacyOnFilterClear) {
       legacyOnFilterClear();
     } else {
       dispatch(clearFiltersAction({ resourceKey }));
@@ -536,4 +536,3 @@ export const TableActionHeader = ({
     />
   );
 };
-

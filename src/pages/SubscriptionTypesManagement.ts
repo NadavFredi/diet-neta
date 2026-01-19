@@ -6,19 +6,22 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import {
   useSubscriptionTypes,
   useDeleteSubscriptionType,
   useCreateSubscriptionType,
   useUpdateSubscriptionType,
 } from '@/hooks/useSubscriptionTypes';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
 import type { SubscriptionType } from '@/hooks/useSubscriptionTypes';
+import { selectActiveFilters, selectSearchQuery } from '@/store/slices/tableStateSlice';
+import { applyTableFilters } from '@/utils/tableFilterUtils';
+import { getSubscriptionTypeFilterFields } from '@/hooks/useTableFilters';
 
 export interface SubscriptionTypeColumnVisibility {
   name: boolean;
@@ -35,10 +38,6 @@ export const useSubscriptionTypesManagement = () => {
   const viewId = searchParams.get('view_id');
   const { toast } = useToast();
 
-  const [hasAppliedView, setHasAppliedView] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingSubscriptionType, setEditingSubscriptionType] = useState<SubscriptionType | null>(null);
@@ -62,35 +61,17 @@ export const useSubscriptionTypesManagement = () => {
   const updateSubscriptionType = useUpdateSubscriptionType();
   const deleteSubscriptionType = useDeleteSubscriptionType();
 
+  useSyncSavedViewFilters('subscription_types', savedView, isLoadingView);
+
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'subscription_types'));
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'subscription_types'));
+
   // Auto-navigate to default view (only if defaultView exists)
   useEffect(() => {
     if (!viewId && defaultView) {
       navigate(`/dashboard/subscription-types?view_id=${defaultView.id}`, { replace: true });
     }
   }, [viewId, defaultView, navigate]);
-
-  // Reset filters
-  useEffect(() => {
-    if (!viewId) {
-      setSearchQuery('');
-      setSelectedDate(undefined);
-      setHasAppliedView(false);
-    }
-  }, [viewId]);
-
-  // Apply saved view
-  useEffect(() => {
-    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
-      const filterConfig = savedView.filter_config as any;
-      if (filterConfig.searchQuery !== undefined) {
-        setSearchQuery(filterConfig.searchQuery);
-      }
-      if (filterConfig.selectedDate !== undefined && filterConfig.selectedDate) {
-        setSelectedDate(new Date(filterConfig.selectedDate));
-      }
-      setHasAppliedView(true);
-    }
-  }, [savedView, hasAppliedView, isLoadingView, viewId]);
 
   // Filter subscription types
   const filteredSubscriptionTypes = useMemo(() => {
@@ -104,16 +85,15 @@ export const useSubscriptionTypesManagement = () => {
       });
     }
 
-    if (selectedDate) {
-      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-      filtered = filtered.filter((st) => {
-        const stDate = format(new Date(st.created_at), 'yyyy-MM-dd');
-        return stDate === selectedDateStr;
-      });
-    }
+    const filterFields = getSubscriptionTypeFilterFields(subscriptionTypes);
 
-    return filtered;
-  }, [subscriptionTypes, searchQuery, selectedDate]);
+    return applyTableFilters(
+      filtered,
+      activeFilters,
+      filterFields,
+      (subscriptionType, fieldId) => (subscriptionType as any)[fieldId]
+    );
+  }, [subscriptionTypes, searchQuery, activeFilters]);
 
   // Handlers
   const handleLogout = async () => {
@@ -123,11 +103,6 @@ export const useSubscriptionTypesManagement = () => {
     } catch (error) {
       navigate('/login');
     }
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date);
-    setDatePickerOpen(false);
   };
 
   const handleToggleColumn = (key: keyof SubscriptionTypeColumnVisibility) => {
@@ -231,7 +206,6 @@ export const useSubscriptionTypesManagement = () => {
   ) => {
     return {
       searchQuery: searchQuery || '',
-      selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
       columnVisibility: columnVisibility || {},
       columnOrder: columnOrder || [],
       columnWidths: columnWidths || {},
@@ -251,8 +225,6 @@ export const useSubscriptionTypesManagement = () => {
     
     // State
     searchQuery,
-    selectedDate,
-    datePickerOpen,
     isAddDialogOpen,
     isEditDialogOpen,
     deleteDialogOpen,
@@ -260,9 +232,6 @@ export const useSubscriptionTypesManagement = () => {
     columnVisibility,
     
     // Setters
-    setSearchQuery,
-    handleDateSelect,
-    setDatePickerOpen,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,

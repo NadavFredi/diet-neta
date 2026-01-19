@@ -12,18 +12,19 @@ import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector } from '@/store/hooks';
 import { NutritionTemplatesDataTable } from '@/components/dashboard/NutritionTemplatesDataTable';
-import { NUTRITION_TEMPLATE_FILTER_FIELDS, getNutritionTemplateFilterFields } from '@/hooks/useTableFilters';
-import { useTableFilters } from '@/hooks/useTableFilters';
+import { getNutritionTemplateFilterFields } from '@/hooks/useTableFilters';
 import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
 import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/EditNutritionTemplateDialog';
 import { DeleteNutritionTemplateDialog } from '@/components/dashboard/dialogs/DeleteNutritionTemplateDialog';
 import { useNutritionTemplatesManagement } from './NutritionTemplatesManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { nutritionTemplateColumns } from '@/components/dashboard/columns/templateColumns';
+import { selectActiveFilters } from '@/store/slices/tableStateSlice';
 
 const NutritionTemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'nutrition_templates'));
   const {
     templates,
     savedView,
@@ -34,7 +35,6 @@ const NutritionTemplatesManagement = () => {
     isEditDialogOpen,
     deleteDialogOpen,
     isSaveViewModalOpen,
-    columnVisibility,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
@@ -50,14 +50,6 @@ const NutritionTemplatesManagement = () => {
     getCurrentFilterConfig,
     deleteTemplate,
   } = useNutritionTemplatesManagement();
-
-  // Filter system for modals
-  const {
-    filters: activeFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
-  } = useTableFilters([]);
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);

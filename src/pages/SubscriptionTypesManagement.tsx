@@ -17,10 +17,11 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { AddSubscriptionTypeDialog } from '@/components/dashboard/dialogs/AddSubscriptionTypeDialog';
 import { EditSubscriptionTypeDialog } from '@/components/dashboard/dialogs/EditSubscriptionTypeDialog';
 import { DeleteSubscriptionTypeDialog } from '@/components/dashboard/dialogs/DeleteSubscriptionTypeDialog';
-import { useTableFilters, getSubscriptionTypeFilterFields } from '@/hooks/useTableFilters';
+import { getSubscriptionTypeFilterFields } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { selectActiveFilters } from '@/store/slices/tableStateSlice';
 
 const SubscriptionTypesManagement = () => {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ const SubscriptionTypesManagement = () => {
   const { data: savedView } = useSavedView(viewId);
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'subscription_types'));
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -47,17 +49,14 @@ const SubscriptionTypesManagement = () => {
     editingSubscriptionType,
     subscriptionTypeToDelete,
     isLoading,
-    searchQuery,
     isAddDialogOpen,
     isEditDialogOpen,
     deleteDialogOpen,
     isSaveViewModalOpen,
-    columnVisibility,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
-    setSearchQuery,
     handleLogout,
     handleToggleColumn,
     handleAddSubscriptionType,
@@ -72,14 +71,6 @@ const SubscriptionTypesManagement = () => {
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
-
-  // Filter system for modals
-  const {
-    filters: activeFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
-  } = useTableFilters([]);
 
   const handleEditViewClick = useCallback((view: any) => {
     setViewToEdit(view);
@@ -119,8 +110,6 @@ const SubscriptionTypesManagement = () => {
                   enableFilters={true}
                   enableGroupBy={true}
                   enableSearch={true}
-                  legacySearchQuery={searchQuery}
-                  legacyOnSearchChange={setSearchQuery}
                   columns={subscriptionTypeColumns}
                 />
                 

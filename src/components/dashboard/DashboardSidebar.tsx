@@ -5,12 +5,30 @@ import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection, setSectionExpanded } from '@/store/slices/sidebarSlice';
 import { SidebarItem } from './SidebarItem';
+import { SortableSidebarItem } from './SortableSidebarItem';
 import type { SavedView } from '@/hooks/useSavedViews';
 import { useInterfaceIconPreferences } from '@/hooks/useInterfaceIconPreferences';
 import { selectInterfaceIconPreferences } from '@/store/slices/interfaceIconPreferencesSlice';
 import { getIconByName } from '@/utils/iconUtils';
 import { EditInterfaceIconDialog } from './EditInterfaceIconDialog';
 import { FooterContent } from '@/components/layout/AppFooter';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { useInterfaceOrder, useUpdateInterfaceOrders } from '@/hooks/useInterfaceOrder';
+import { useToast } from '@/hooks/use-toast';
 
 interface NavItem {
   id: string;
@@ -111,6 +129,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeViewId = searchParams.get('view_id');
+  const { toast } = useToast();
   
   // Get sidebar state from Redux
   const { isCollapsed, expandedSections } = useAppSelector((state) => state.sidebar);
@@ -121,12 +140,106 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   // Get all preferences from Redux at component level
   const iconPreferences = useAppSelector(selectInterfaceIconPreferences);
   
+  // Fetch interface order for drag-and-drop
+  const { data: interfaceOrder } = useInterfaceOrder();
+  const updateInterfaceOrders = useUpdateInterfaceOrders();
+  
   const [editIconDialogOpen, setEditIconDialogOpen] = useState(false);
   const [editingInterface, setEditingInterface] = useState<{
     key: string;
     label: string;
     currentIconName?: string | null;
   } | null>(null);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before starting drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Sort navigation items based on user's custom order
+  const sortedNavigationItems = useMemo(() => {
+    if (!interfaceOrder || interfaceOrder.length === 0) {
+      return navigationItems;
+    }
+
+    // Create a map of interface_key to display_order
+    const orderMap = new Map<number, string>();
+    interfaceOrder.forEach((item) => {
+      if (item.display_order != null) {
+        orderMap.set(item.display_order, item.interface_key);
+      }
+    });
+
+    // Separate items with and without order
+    const itemsWithOrder: NavItem[] = [];
+    const itemsWithoutOrder: NavItem[] = [];
+
+    navigationItems.forEach((item) => {
+      const orderEntry = Array.from(orderMap.entries()).find(([_, key]) => key === item.resourceKey);
+      if (orderEntry) {
+        itemsWithOrder.push({ ...item, _order: orderEntry[0] } as NavItem & { _order: number });
+      } else {
+        itemsWithoutOrder.push(item);
+      }
+    });
+
+    // Sort by order and combine
+    itemsWithOrder.sort((a, b) => (a as any)._order - (b as any)._order);
+    return [...itemsWithOrder, ...itemsWithoutOrder].map((item) => {
+      const { _order, ...rest } = item as any;
+      return rest as NavItem;
+    });
+  }, [interfaceOrder]);
+
+  // Handle drag end for interfaces
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = sortedNavigationItems.findIndex((item) => item.id === active.id);
+    const newIndex = sortedNavigationItems.findIndex((item) => item.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // Reorder the items
+    const reorderedItems = arrayMove(sortedNavigationItems, oldIndex, newIndex);
+
+    // Update orders in database
+    try {
+      // Create order updates for ALL interfaces in the new order
+      // This ensures all interfaces get proper ordering, including those without existing preferences
+      const orders = reorderedItems.map((item, index) => ({
+        interface_key: item.resourceKey,
+        display_order: index + 1,
+      }));
+
+      await updateInterfaceOrders.mutateAsync(orders);
+      
+      toast({
+        title: 'סדר התפריט עודכן',
+        description: 'הסדר החדש נשמר בהצלחה.',
+      });
+    } catch (error: any) {
+      console.error('Error updating interface order:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'לא ניתן לעדכן את הסדר. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Get custom icon for each navigation item from Redux
   const getIconForItem = useMemo(() => {
@@ -264,28 +377,40 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
               background: #7B8FC8;
           }
         `}</style>
-          <ul className={cn(
-            'space-y-1 w-full px-2',
-            isCollapsed && 'px-1'
-          )} dir="rtl">
-          {navigationItems.map((item) => (
-              <SidebarItem
-              key={item.id}
-              item={item}
-              active={isActive(item.path)}
-              activeViewId={activeViewId}
-                isExpanded={effectiveExpandedSections[item.resourceKey] ?? false}
-                onToggle={() => handleToggleSection(item.resourceKey)}
-              onResourceClick={() => handleResourceClick(item)}
-              onViewClick={handleViewClick}
-              onSaveViewClick={onSaveViewClick}
-              onEditViewClick={onEditViewClick}
-                onEditIconClick={handleEditIconClick}
-                customIcon={getIconForItem(item)}
-                isCollapsed={isCollapsed}
-            />
-          ))}
-        </ul>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortedNavigationItems.map((item) => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className={cn(
+                'space-y-1 w-full px-2',
+                isCollapsed && 'px-1'
+              )} dir="rtl">
+                {sortedNavigationItems.map((item) => (
+                  <SortableSidebarItem
+                    key={item.id}
+                    item={item}
+                    active={isActive(item.path)}
+                    activeViewId={activeViewId}
+                    isExpanded={effectiveExpandedSections[item.resourceKey] ?? false}
+                    onToggle={() => handleToggleSection(item.resourceKey)}
+                    onResourceClick={() => handleResourceClick(item)}
+                    onViewClick={handleViewClick}
+                    onSaveViewClick={onSaveViewClick}
+                    onEditViewClick={onEditViewClick}
+                    onEditIconClick={handleEditIconClick}
+                    customIcon={getIconForItem(item)}
+                    isCollapsed={isCollapsed}
+                    isSortable={true}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
       </nav>
 
       {/* Footer - At the bottom of the sidebar */}

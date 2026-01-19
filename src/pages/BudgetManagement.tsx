@@ -19,11 +19,12 @@ import { EditBudgetDialog } from '@/components/dashboard/dialogs/EditBudgetDialo
 import { DeleteBudgetDialog } from '@/components/dashboard/dialogs/DeleteBudgetDialog';
 import { BudgetDetailsModal } from '@/components/dashboard/dialogs/BudgetDetailsModal';
 import { SendBudgetModal } from '@/components/dashboard/SendBudgetModal';
-import { useTableFilters, getBudgetFilterFields } from '@/hooks/useTableFilters';
+import { getBudgetFilterFields } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { budgetColumns } from '@/components/dashboard/BudgetsDataTable';
+import { selectActiveFilters } from '@/store/slices/tableStateSlice';
 
 const BudgetManagement = () => {
   const navigate = useNavigate();
@@ -31,9 +32,10 @@ const BudgetManagement = () => {
   const viewId = searchParams.get('view_id');
   const budgetId = searchParams.get('budget_id');
   const { defaultView } = useDefaultView('budgets');
-  const { data: savedView } = useSavedView(viewId);
+  const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'budgets'));
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -51,17 +53,14 @@ const BudgetManagement = () => {
     editingBudget,
     budgetToDelete,
     isLoading,
-    searchQuery,
     isAddDialogOpen,
     isEditDialogOpen,
     deleteDialogOpen,
     isSaveViewModalOpen,
-    columnVisibility,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
-    setSearchQuery,
     handleLogout,
     handleToggleColumn,
     handleAddBudget,
@@ -89,14 +88,6 @@ const BudgetManagement = () => {
       setViewingBudgetId(null);
     }
   }, [budgetId]);
-
-  // Filter system for modals
-  const {
-    filters: activeFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
-  } = useTableFilters([]);
 
   const handleEditViewClick = useCallback((view: any) => {
     setViewToEdit(view);
@@ -137,8 +128,6 @@ const BudgetManagement = () => {
                   enableFilters={true}
                   enableGroupBy={true}
                   enableSearch={true}
-                  legacySearchQuery={searchQuery}
-                  legacyOnSearchChange={setSearchQuery}
                   columns={budgetColumns}
                 />
                 
@@ -261,4 +250,3 @@ const BudgetManagement = () => {
 };
 
 export default BudgetManagement;
-

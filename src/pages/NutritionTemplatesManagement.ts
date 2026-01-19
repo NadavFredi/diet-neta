@@ -6,9 +6,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import {
   useNutritionTemplates,
   useDeleteNutritionTemplate,
@@ -16,10 +16,13 @@ import {
   useUpdateNutritionTemplate,
   type NutritionTemplate,
 } from '@/hooks/useNutritionTemplates';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
 import { TemplateColumnVisibility } from '@/components/dashboard/TemplateColumnSettings';
+import { selectActiveFilters, selectSearchQuery } from '@/store/slices/tableStateSlice';
+import { applyTableFilters } from '@/utils/tableFilterUtils';
+import { getNutritionTemplateFilterFields } from '@/hooks/useTableFilters';
 
 export const useNutritionTemplatesManagement = () => {
   const navigate = useNavigate();
@@ -28,10 +31,6 @@ export const useNutritionTemplatesManagement = () => {
   const viewId = searchParams.get('view_id');
   const { toast } = useToast();
 
-  const [hasAppliedView, setHasAppliedView] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<NutritionTemplate | null>(null);
@@ -57,35 +56,17 @@ export const useNutritionTemplatesManagement = () => {
   const updateTemplate = useUpdateNutritionTemplate();
   const deleteTemplate = useDeleteNutritionTemplate();
 
+  useSyncSavedViewFilters('nutrition_templates', savedView, isLoadingView);
+
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'nutrition_templates'));
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'nutrition_templates'));
+
   // Auto-navigate to default view
   useEffect(() => {
     if (!viewId && defaultView) {
       navigate(`/dashboard/nutrition-templates?view_id=${defaultView.id}`, { replace: true });
     }
   }, [viewId, defaultView, navigate]);
-
-  // Reset filters
-  useEffect(() => {
-    if (!viewId) {
-      setSearchQuery('');
-      setSelectedDate(undefined);
-      setHasAppliedView(false);
-    }
-  }, [viewId]);
-
-  // Apply saved view
-  useEffect(() => {
-    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
-      const filterConfig = savedView.filter_config as any;
-      if (filterConfig.searchQuery !== undefined) {
-        setSearchQuery(filterConfig.searchQuery);
-      }
-      if (filterConfig.selectedDate !== undefined && filterConfig.selectedDate) {
-        setSelectedDate(new Date(filterConfig.selectedDate));
-      }
-      setHasAppliedView(true);
-    }
-  }, [savedView, hasAppliedView, isLoadingView, viewId]);
 
   // Filter templates
   const filteredTemplates = useMemo(() => {
@@ -100,16 +81,35 @@ export const useNutritionTemplatesManagement = () => {
       });
     }
 
-    if (selectedDate) {
-      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-      filtered = filtered.filter((template) => {
-        const templateDate = format(new Date(template.created_at), 'yyyy-MM-dd');
-        return templateDate === selectedDateStr;
-      });
-    }
+    const filterFields = getNutritionTemplateFilterFields(templates);
 
-    return filtered;
-  }, [templates, searchQuery, selectedDate]);
+    return applyTableFilters(
+      filtered,
+      activeFilters,
+      filterFields,
+      (template, fieldId) => {
+        if (fieldId === 'is_public') return template.is_public;
+        if (fieldId === 'calories_range') {
+          const calories = template.targets?.calories;
+          if (calories === undefined || calories === null) return null;
+          if (calories < 1000) return '0-1000';
+          if (calories < 1500) return '1000-1500';
+          if (calories < 2000) return '1500-2000';
+          if (calories < 2500) return '2000-2500';
+          return '2500+';
+        }
+        if (fieldId === 'protein_range') {
+          const protein = template.targets?.protein;
+          if (protein === undefined || protein === null) return null;
+          if (protein < 100) return '0-100';
+          if (protein < 150) return '100-150';
+          if (protein < 200) return '150-200';
+          return '200+';
+        }
+        return (template as any)[fieldId];
+      }
+    );
+  }, [templates, searchQuery, activeFilters]);
 
   // Handlers
   const handleLogout = async () => {
@@ -120,11 +120,6 @@ export const useNutritionTemplatesManagement = () => {
       // Navigate to login even if logout fails
       navigate('/login');
     }
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date);
-    setDatePickerOpen(false);
   };
 
   const handleToggleColumn = (key: keyof TemplateColumnVisibility) => {
@@ -221,7 +216,6 @@ export const useNutritionTemplatesManagement = () => {
   const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
     return {
       searchQuery,
-      selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
       columnVisibility,
       columnOrder,
       columnWidths,
@@ -241,9 +235,6 @@ export const useNutritionTemplatesManagement = () => {
     isLoadingView,
     
     // State
-    searchQuery,
-    selectedDate,
-    datePickerOpen,
     isAddDialogOpen,
     isEditDialogOpen,
     deleteDialogOpen,
@@ -252,15 +243,11 @@ export const useNutritionTemplatesManagement = () => {
     columnVisibility,
     
     // Setters
-    setSearchQuery,
-    handleDateSelect,
-    setDatePickerOpen,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
     setIsSettingsOpen,
-    setSelectedHasLeads: () => {}, // Not used for nutrition templates
     
     // Handlers
     handleLogout,
@@ -277,8 +264,6 @@ export const useNutritionTemplatesManagement = () => {
     deleteTemplate,
   };
 };
-
-
 
 
 

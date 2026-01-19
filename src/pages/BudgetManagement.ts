@@ -6,9 +6,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import {
   useBudgets,
   useDeleteBudget,
@@ -16,7 +16,7 @@ import {
   useUpdateBudget,
   useBudget,
 } from '@/hooks/useBudgets';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { setGeneratingPDF, setSendingWhatsApp } from '@/store/slices/budgetSlice';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,9 @@ import { generateBudgetPDF } from '@/services/pdfService';
 import { syncPlansFromBudget, deleteAssociatedPlans } from '@/services/budgetPlanSync';
 import { supabase } from '@/lib/supabaseClient';
 import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
+import { selectActiveFilters, selectSearchQuery } from '@/store/slices/tableStateSlice';
+import { applyTableFilters } from '@/utils/tableFilterUtils';
+import { getBudgetFilterFields } from '@/hooks/useTableFilters';
 
 export interface BudgetColumnVisibility {
   name: boolean;
@@ -47,10 +50,6 @@ export const useBudgetManagement = () => {
   const viewId = searchParams.get('view_id');
   const { toast } = useToast();
 
-  const [hasAppliedView, setHasAppliedView] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
@@ -93,6 +92,11 @@ export const useBudgetManagement = () => {
   const updateBudget = useUpdateBudget();
   const deleteBudget = useDeleteBudget();
 
+  useSyncSavedViewFilters('budgets', savedView, isLoadingView);
+
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'budgets'));
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'budgets'));
+
   // Auto-navigate to default view (only if defaultView exists)
   // If no defaultView, show all budgets (no view_id)
   useEffect(() => {
@@ -101,29 +105,6 @@ export const useBudgetManagement = () => {
     }
     // If no viewId and no defaultView, stay on /dashboard/budgets (shows all budgets)
   }, [viewId, defaultView, navigate]);
-
-  // Reset filters
-  useEffect(() => {
-    if (!viewId) {
-      setSearchQuery('');
-      setSelectedDate(undefined);
-      setHasAppliedView(false);
-    }
-  }, [viewId]);
-
-  // Apply saved view
-  useEffect(() => {
-    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
-      const filterConfig = savedView.filter_config as any;
-      if (filterConfig.searchQuery !== undefined) {
-        setSearchQuery(filterConfig.searchQuery);
-      }
-      if (filterConfig.selectedDate !== undefined && filterConfig.selectedDate) {
-        setSelectedDate(new Date(filterConfig.selectedDate));
-      }
-      setHasAppliedView(true);
-    }
-  }, [savedView, hasAppliedView, isLoadingView, viewId]);
 
   // Filter budgets
   const filteredBudgets = useMemo(() => {
@@ -138,16 +119,18 @@ export const useBudgetManagement = () => {
       });
     }
 
-    if (selectedDate) {
-      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-      filtered = filtered.filter((budget) => {
-        const budgetDate = format(new Date(budget.created_at), 'yyyy-MM-dd');
-        return budgetDate === selectedDateStr;
-      });
-    }
+    const filterFields = getBudgetFilterFields(budgets);
 
-    return filtered;
-  }, [budgets, searchQuery, selectedDate]);
+    return applyTableFilters(
+      filtered,
+      activeFilters,
+      filterFields,
+      (budget, fieldId) => {
+        if (fieldId === 'is_public') return budget.is_public;
+        return (budget as any)[fieldId];
+      }
+    );
+  }, [budgets, searchQuery, activeFilters]);
 
   // Handlers
   const handleLogout = async () => {
@@ -158,11 +141,6 @@ export const useBudgetManagement = () => {
       // Navigate to login even if logout fails
       navigate('/login');
     }
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date);
-    setDatePickerOpen(false);
   };
 
   const handleToggleColumn = (key: keyof BudgetColumnVisibility) => {
@@ -363,7 +341,6 @@ export const useBudgetManagement = () => {
   ) => {
     return {
       searchQuery: searchQuery || '',
-      selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
       columnVisibility: columnVisibility || {},
       columnOrder: columnOrder || [],
       columnWidths: columnWidths || {},
@@ -384,8 +361,6 @@ export const useBudgetManagement = () => {
     
     // State
     searchQuery,
-    selectedDate,
-    datePickerOpen,
     isAddDialogOpen,
     isEditDialogOpen,
     deleteDialogOpen,
@@ -394,15 +369,11 @@ export const useBudgetManagement = () => {
     columnVisibility,
     
     // Setters
-    setSearchQuery,
-    handleDateSelect,
-    setDatePickerOpen,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
     setIsSettingsOpen,
-    setSelectedHasLeads: () => {}, // Not used for budgets
     
     // Handlers
     handleLogout,
@@ -421,4 +392,3 @@ export const useBudgetManagement = () => {
     deleteBudget,
   };
 };
-

@@ -14,7 +14,7 @@ import { useAppSelector } from '@/store/hooks';
 import { meetingColumns } from '@/components/dashboard/columns/meetingColumns';
 import { useMeetingsManagement } from './MeetingsManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
-import { MEETING_FILTER_FIELDS, getMeetingFilterFields } from '@/hooks/useTableFilters';
+import { getMeetingFilterFields } from '@/hooks/useTableFilters';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 
@@ -37,12 +37,7 @@ const MeetingsManagement = () => {
     isLoadingMeetings,
     handleLogout,
     getCurrentFilterConfig,
-    searchQuery,
     activeFilters,
-    handleSearchChange,
-    addFilter,
-    removeFilter,
-    clearFilters,
   } = useMeetingsManagement();
 
   // Auto-navigate to default view if no view_id is present
@@ -93,12 +88,6 @@ const MeetingsManagement = () => {
                   enableGroupBy={true}
                   enableSearch={true}
                   columns={meetingColumns}
-                  legacySearchQuery={searchQuery}
-                  legacyOnSearchChange={handleSearchChange}
-                  legacyActiveFilters={activeFilters}
-                  legacyOnFilterAdd={addFilter}
-                  legacyOnFilterRemove={removeFilter}
-                  legacyOnFilterClear={clearFilters}
                 />
 
                 <div className="bg-white">
@@ -146,4 +135,3 @@ const MeetingsManagement = () => {
 };
 
 export default MeetingsManagement;
-

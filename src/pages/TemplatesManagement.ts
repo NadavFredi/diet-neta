@@ -4,13 +4,13 @@
  * Handles all business logic, data fetching, and state management
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import { 
   useWorkoutTemplates, 
   useDeleteWorkoutTemplate, 
@@ -19,10 +19,13 @@ import {
   type WorkoutTemplate 
 } from '@/hooks/useWorkoutTemplates';
 import { useTemplatesWithLeads } from '@/hooks/useTemplatesWithLeads';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
 import { TemplateColumnVisibility } from '@/components/dashboard/TemplateColumnSettings';
+import { selectActiveFilters, selectSearchQuery } from '@/store/slices/tableStateSlice';
+import { applyTableFilters } from '@/utils/tableFilterUtils';
+import { getWorkoutTemplateFilterFields } from '@/hooks/useTableFilters';
 
 export const useTemplatesManagement = () => {
   const navigate = useNavigate();
@@ -31,12 +34,6 @@ export const useTemplatesManagement = () => {
   const viewId = searchParams.get('view_id');
   const { toast } = useToast();
 
-  const [hasAppliedView, setHasAppliedView] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [selectedHasLeads, setSelectedHasLeads] = useState<string>('all');
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
@@ -57,7 +54,7 @@ export const useTemplatesManagement = () => {
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { data: templates = [], isLoading } = useWorkoutTemplates({
     search: undefined,
-    goalTags: selectedTags.length > 0 ? selectedTags : undefined,
+    goalTags: undefined,
   });
   const { data: templatesWithLeadsSet = new Set<string>() } = useTemplatesWithLeads();
   
@@ -149,51 +146,17 @@ export const useTemplatesManagement = () => {
   const updateTemplate = useUpdateWorkoutTemplate();
   const deleteTemplate = useDeleteWorkoutTemplate();
 
+  useSyncSavedViewFilters('templates', savedView, isLoadingView);
+
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'templates'));
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'templates'));
+
   // Auto-navigate to default view
   useEffect(() => {
-    if (!viewId && !isLoadingDefaultView) {
-      if (defaultView) {
-        navigate(`/dashboard/templates?view_id=${defaultView.id}`, { replace: true });
-      }
+    if (!viewId && !isLoadingDefaultView && defaultView) {
+      navigate(`/dashboard/templates?view_id=${defaultView.id}`, { replace: true });
     }
-  }, [viewId, defaultView, navigate, isLoadingDefaultView]);
-
-  // Reset filters
-  useEffect(() => {
-    if (!viewId && !isLoadingDefaultView && !defaultView) {
-      setSearchQuery('');
-      setSelectedTags([]);
-      setSelectedDate(undefined);
-      setSelectedHasLeads('all');
-      setHasAppliedView(false);
-    }
-  }, [viewId, isLoadingDefaultView, defaultView]);
-
-  // Apply saved view
-  useEffect(() => {
-    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
-      const filterConfig = savedView.filter_config as any;
-      if (filterConfig.searchQuery !== undefined) {
-        setSearchQuery(filterConfig.searchQuery);
-      }
-      if (filterConfig.selectedDate !== undefined && filterConfig.selectedDate) {
-        setSelectedDate(new Date(filterConfig.selectedDate));
-      }
-      if (filterConfig.selectedTags !== undefined) {
-        setSelectedTags(filterConfig.selectedTags || []);
-      }
-      if (filterConfig.selectedHasLeads !== undefined) {
-        setSelectedHasLeads(filterConfig.selectedHasLeads || 'all');
-      }
-      if (filterConfig.columnVisibility) {
-        setColumnVisibility((prev) => ({
-          ...prev,
-          ...filterConfig.columnVisibility,
-        }));
-      }
-      setHasAppliedView(true);
-    }
-  }, [savedView, hasAppliedView, isLoadingView, viewId]);
+  }, [viewId, isLoadingDefaultView, defaultView, navigate]);
 
   // Get all unique tags
   const allTags = useMemo(() => {
@@ -230,22 +193,22 @@ export const useTemplatesManagement = () => {
       });
     }
 
-    if (selectedDate) {
-      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-      filtered = filtered.filter((template) => {
-        const templateDate = format(new Date(template.created_at), 'yyyy-MM-dd');
-        return templateDate === selectedDateStr;
-      });
-    }
+    const filterFields = getWorkoutTemplateFilterFields(templates);
 
-    if (selectedHasLeads === 'has') {
-      filtered = filtered.filter((template) => templatesWithLeadsSet.has(template.id));
-    } else if (selectedHasLeads === 'none') {
-      filtered = filtered.filter((template) => !templatesWithLeadsSet.has(template.id));
-    }
-
-    return filtered;
-  }, [templates, searchQuery, selectedDate, selectedHasLeads, templatesWithLeadsSet, templatesWithLeadsData]);
+    return applyTableFilters(
+      filtered,
+      activeFilters,
+      filterFields,
+      (template, fieldId) => {
+        if (fieldId === 'goal_tags') return template.goal_tags || [];
+        if (fieldId === 'is_public') return template.is_public;
+        if (fieldId === 'has_leads') {
+          return templatesWithLeadsSet.has(template.id) ? 'כן' : 'לא';
+        }
+        return (template as any)[fieldId];
+      }
+    );
+  }, [templates, searchQuery, templatesWithLeadsSet, templatesWithLeadsData, activeFilters]);
 
   // Handlers
   const handleLogout = async () => {
@@ -256,11 +219,6 @@ export const useTemplatesManagement = () => {
       // Navigate to login even if logout fails
       navigate('/login');
     }
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date);
-    setDatePickerOpen(false);
   };
 
   const handleToggleColumn = (key: keyof TemplateColumnVisibility) => {
@@ -350,9 +308,6 @@ export const useTemplatesManagement = () => {
   const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
     return {
       searchQuery,
-      selectedTags,
-      selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
-      selectedHasLeads,
       columnVisibility: columnVisibility as unknown as Record<string, boolean>,
       columnOrder,
       columnWidths,
@@ -373,11 +328,6 @@ export const useTemplatesManagement = () => {
     isLoadingView,
     
     // State
-    searchQuery,
-    selectedTags,
-    selectedDate,
-    selectedHasLeads,
-    datePickerOpen,
     isAddDialogOpen,
     isEditDialogOpen,
     deleteDialogOpen,
@@ -386,16 +336,11 @@ export const useTemplatesManagement = () => {
     columnVisibility,
     
     // Setters
-    setSearchQuery,
-    setSelectedTags,
-    handleDateSelect,
-    setDatePickerOpen,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
     setIsSettingsOpen,
-    setSelectedHasLeads,
     
     // Handlers
     handleLogout,
@@ -412,8 +357,6 @@ export const useTemplatesManagement = () => {
     deleteTemplate,
   };
 };
-
-
 
 
 

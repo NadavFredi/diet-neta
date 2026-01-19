@@ -236,6 +236,21 @@ const tableStateSlice = createSlice({
       state.tables[resourceKey].activeFilters = [];
     },
 
+    // Replace all filters (used for loading saved views)
+    setActiveFilters: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        filters: any[];
+      }>
+    ) => {
+      const { resourceKey, filters } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      state.tables[resourceKey].activeFilters = filters;
+    },
+
     // Set group by key (legacy - for backward compatibility)
     setGroupByKey: (
       state,
@@ -327,6 +342,7 @@ export const {
   addFilter,
   removeFilter,
   clearFilters,
+  setActiveFilters,
   setGroupByKey,
   setGroupByKeys,
   setGroupSorting,
@@ -418,5 +434,3 @@ export const selectCollapsedGroups = createSelector(
     return tableState?.collapsedGroups ?? DEFAULT_COLLAPSED_GROUPS;
   }
 );
-
-

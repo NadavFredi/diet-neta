@@ -20,8 +20,9 @@ import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useTableFilters, getPaymentFilterFields } from '@/hooks/useTableFilters';
+import { getPaymentFilterFields } from '@/hooks/useTableFilters';
 import type { AllPaymentRecord } from '@/hooks/useAllPayments';
+import { selectActiveFilters } from '@/store/slices/tableStateSlice';
 
 // Status configuration - maps internal status to Hebrew display
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -61,14 +62,7 @@ const PaymentsManagement = () => {
     savedView,
     defaultView,
   } = usePaymentsManagement();
-
-  // Filter system for modals
-  const {
-    filters: activeFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
-  } = useTableFilters([]);
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'payments'));
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);

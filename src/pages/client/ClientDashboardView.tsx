@@ -25,6 +25,7 @@ import {
   Wallet,
   Image as ImageIcon,
   Menu,
+  BookOpen,
 } from 'lucide-react';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
@@ -35,12 +36,13 @@ import { BudgetView } from '@/components/client/BudgetView';
 import { VisualProgressCard } from '@/components/client/VisualProgressCard';
 import { BloodTestsCard } from '@/components/client/BloodTestsCard.tsx';
 import { WeeklyReviewsList } from '@/components/client/WeeklyReviewsList';
+import { KnowledgeBaseArticles } from '@/components/client/KnowledgeBaseArticles';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { stopImpersonation } from '@/store/slices/impersonationSlice';
 import { setSelectedDate } from '@/store/slices/clientSlice';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
 import { useClientRealtime } from '@/hooks/useClientRealtime';
@@ -62,9 +64,18 @@ export const ClientDashboardView: React.FC = () => {
   const { isImpersonating, previousLocation } = useAppSelector((state) => state.impersonation);
   const { checkIns, selectedDate } = useAppSelector((state) => state.client);
   const { handleLogout } = useAuth();
-  const [activeTab, setActiveTab] = useState('workout');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabParam || 'workout');
   const [isMultiDayModalOpen, setIsMultiDayModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Sync activeTab with URL param
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   // Initialize selectedDate to today on mount
   useEffect(() => {
@@ -333,6 +344,21 @@ export const ClientDashboardView: React.FC = () => {
               <Activity className="h-5 w-5 flex-shrink-0" />
               <span className="text-sm font-medium">בדיקות דם</span>
             </button>
+            <button
+              onClick={() => {
+                setActiveTab('knowledgebase');
+                setIsMobileMenuOpen(false);
+              }}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
+                activeTab === 'knowledgebase'
+                  ? "bg-white text-gray-800 shadow-md font-semibold"
+                  : "text-white hover:bg-white/15 active:bg-white/20"
+              )}
+            >
+              <BookOpen className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm font-medium">מאגר ידע</span>
+            </button>
           </nav>
           <div className="flex-shrink-0 border-t border-white/10">
             <FooterContent compact hideLink smallImage />
@@ -569,6 +595,13 @@ export const ClientDashboardView: React.FC = () => {
             {activeTab === 'bloodtests' && customer?.id && (
               <div className="space-y-4 sm:space-y-6">
                 <BloodTestsCard customerId={customer.id} leads={leads} />
+              </div>
+            )}
+
+            {/* Knowledge Base Tab */}
+            {activeTab === 'knowledgebase' && (
+              <div className="space-y-4 sm:space-y-6">
+                <KnowledgeBaseArticles />
               </div>
             )}
 

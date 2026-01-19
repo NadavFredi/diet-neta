@@ -9,6 +9,7 @@ export interface SavedView {
   filter_config: Record<string, any>;
   icon_name?: string | null;
   is_default: boolean;
+  display_order?: number | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -87,11 +88,12 @@ export const useSavedViews = (resourceKey: string | null) => {
 
         const { data, error } = await supabase
           .from('saved_views')
-          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, created_by, created_at, updated_at')
           .eq('resource_key', resourceKey)
           .eq('created_by', userId)
           .order('is_default', { ascending: false })
-        .order('created_at', { ascending: false });
+          .order('display_order', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false });
 
       if (error) {
         return [];
@@ -123,7 +125,7 @@ export const useSavedView = (viewId: string | null) => {
 
         const { data, error } = await supabase
           .from('saved_views')
-          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, created_by, created_at, updated_at')
           .eq('id', viewId)
           .eq('created_by', userId)
         .single();
@@ -174,6 +176,20 @@ export const useCreateSavedView = () => {
           .eq('is_default', true);
       }
 
+      // Get max display_order for this resource to set the new view's order
+      const { data: maxOrderData } = await supabase
+        .from('saved_views')
+        .select('display_order')
+        .eq('resource_key', resourceKey)
+        .eq('created_by', userId)
+        .order('display_order', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .single();
+
+      const nextDisplayOrder = maxOrderData?.display_order != null 
+        ? maxOrderData.display_order + 1 
+        : (isDefault ? 0 : 1);
+
       const { data, error } = await supabase
         .from('saved_views')
         .insert({
@@ -181,9 +197,10 @@ export const useCreateSavedView = () => {
           view_name: viewName,
           filter_config: filterConfig,
           is_default: isDefault,
+          display_order: isDefault ? 0 : nextDisplayOrder,
           created_by: userId,
         })
-        .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+        .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, created_by, created_at, updated_at')
         .single();
 
       if (error) throw error;
@@ -245,7 +262,7 @@ export const useUpdateSavedView = () => {
         .update(updateData)
         .eq('id', viewId)
         .eq('created_by', userId)
-        .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+        .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, created_by, created_at, updated_at')
         .single();
 
       if (error) throw error;
