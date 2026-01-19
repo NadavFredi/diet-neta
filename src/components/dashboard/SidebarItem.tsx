@@ -18,8 +18,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ChevronDown, Plus, Edit2, X, GripVertical } from 'lucide-react';
-import { useSavedViews, type SavedView } from '@/hooks/useSavedViews';
+import { ChevronDown, Plus, Edit2, X, GripVertical, Copy } from 'lucide-react';
+import { useSavedViews, type SavedView, useCreateSavedView } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useToast } from '@/hooks/use-toast';
 import { DeleteViewDialog } from './DeleteViewDialog';
@@ -128,6 +128,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const [viewToDelete, setViewToDelete] = useState<{ id: string; name: string } | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const updatePageOrders = useUpdatePageOrders();
+  const createSavedView = useCreateSavedView();
 
   // Drag and drop sensors for views
   const sensors = useSensors(
@@ -227,6 +228,33 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     }
     setViewToDelete({ id: view.id, name: view.view_name });
     setDeleteDialogOpen(true);
+  };
+
+  const handleDuplicateClick = async (e: React.MouseEvent, view: SavedView) => {
+    e.stopPropagation();
+
+    try {
+      // Create a new view with the same filter config but with a modified name
+      const newViewName = `${view.view_name} (עותק)`;
+
+      await createSavedView.mutateAsync({
+        resourceKey: view.resource_key,
+        viewName: newViewName,
+        filterConfig: view.filter_config as any,
+        isDefault: false, // Duplicated views are never default
+      });
+
+      toast({
+        title: 'דף הוכפל בהצלחה',
+        description: `נוצר דף חדש: ${newViewName}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'לא ניתן לשכפל את הדף. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleResourceClick = (e: React.MouseEvent) => {
@@ -454,6 +482,27 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                   >
                     <span className="flex-1 truncate">{view.view_name}</span>
                     <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity">
+                      {!isDefaultView && (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDuplicateClick(e, view);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDuplicateClick(e as any, view);
+                            }
+                          }}
+                          className="p-1 rounded hover:bg-gray-200 text-gray-600 cursor-pointer"
+                          title="שכפל"
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </div>
+                      )}
                       {onEditViewClick && !isDefaultView && (
                         <div
                           onClick={(e) => {
@@ -616,6 +665,32 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                         >
                           <span className="flex-1 text-right truncate">{view.view_name}</span>
                           <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity flex-shrink-0">
+                            {!isDefaultView && (
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDuplicateClick(e, view);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleDuplicateClick(e as any, view);
+                                  }
+                                }}
+                                className={cn(
+                                  'p-1 rounded-md transition-colors cursor-pointer',
+                                  isViewActive
+                                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                                    : 'text-white/60 hover:text-white hover:bg-white/20'
+                                )}
+                                title="שכפל"
+                                role="button"
+                                tabIndex={0}
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </div>
+                            )}
                             {onEditViewClick && !isDefaultView && (
                               <div
                                 onClick={(e) => {

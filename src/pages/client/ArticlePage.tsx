@@ -211,48 +211,7 @@ const renderContentBlocks = (content: ArticleContent, articleTitle: string) => {
   });
 };
 
-// Quill modules configuration with custom image/video handlers
-const createQuillModules = (onImageUpload: (url: string) => void, onVideoInsert: (url: string) => void) => ({
-  toolbar: {
-    container: [
-      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      [{ 'align': [] }],
-      ['link', 'image', 'video'],
-      ['clean']
-    ],
-    handlers: {
-      image: function() {
-        const input = document.createElement('input');
-        input.setAttribute('type', 'file');
-        input.setAttribute('accept', 'image/*');
-        input.click();
-        input.onchange = async () => {
-          const file = input.files?.[0];
-          if (!file) return;
-          
-          // Upload and get URL, then call onImageUpload
-          // This will be handled by the parent component
-          const quill = (this as any).quill;
-          const range = quill.getSelection(true);
-          
-          // Create a placeholder
-          quill.insertText(range.index, '[מעלה תמונה...]', 'user');
-          
-          // Trigger upload
-          onImageUpload(file as any);
-        };
-      },
-      video: function() {
-        const url = prompt('הכנס קישור וידאו (YouTube, Vimeo וכו\'):');
-        if (url) {
-          onVideoInsert(url);
-        }
-      }
-    }
-  },
-});
+// Quill modules configuration - will be created with handlers in component
 
 const quillFormats = [
   'header',
@@ -260,8 +219,7 @@ const quillFormats = [
   'list', 'bullet',
   'align',
   'link',
-  'image',
-  'video'
+  'image'
 ];
 
 export const ArticlePage: React.FC = () => {
@@ -351,75 +309,95 @@ export const ArticlePage: React.FC = () => {
     }
   }, [article, isEditing]);
 
-  // Handle image upload from Quill toolbar
-  const handleQuillImageUpload = async (file: File) => {
-    setIsUploadingImage(true);
-    try {
-      if (!file.type.startsWith('image/')) {
-        throw new Error('קובץ התמונה אינו תקין');
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error('קובץ גדול מדי (מקסימום 10MB)');
-      }
+  // Create Quill modules with handlers
+  const quillModules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'align': [] }],
+        ['link', 'image', 'video'],
+        ['clean']
+      ],
+      handlers: {
+        image: function(this: any) {
+          const quill = this.quill;
+          const input = document.createElement('input');
+          input.setAttribute('type', 'file');
+          input.setAttribute('accept', 'image/*');
+          input.click();
+          
+          input.onchange = async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            
+            setIsUploadingImage(true);
+            try {
+              if (!file.type.startsWith('image/')) {
+                throw new Error('קובץ התמונה אינו תקין');
+              }
+              if (file.size > 10 * 1024 * 1024) {
+                throw new Error('קובץ גדול מדי (מקסימום 10MB)');
+              }
 
-      const timestamp = Date.now();
-      const fileExt = file.name.split('.').pop();
-      const fileName = `inline-${timestamp}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `knowledge-base/images/${fileName}`;
+              const timestamp = Date.now();
+              const fileExt = file.name.split('.').pop();
+              const fileName = `inline-${timestamp}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+              const filePath = `knowledge-base/images/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('client-assets')
-        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+              const { error: uploadError } = await supabase.storage
+                .from('client-assets')
+                .upload(filePath, file, { cacheControl: '3600', upsert: false });
 
-      if (uploadError) throw uploadError;
+              if (uploadError) throw uploadError;
 
-      const { data: urlData, error: urlError } = await supabase.storage
-        .from('client-assets')
-        .createSignedUrl(filePath, 31536000);
+              const { data: urlData, error: urlError } = await supabase.storage
+                .from('client-assets')
+                .createSignedUrl(filePath, 31536000);
 
-      if (urlError || !urlData?.signedUrl) {
-        throw new Error('לא ניתן לקבל קישור לתמונה');
-      }
+              if (urlError || !urlData?.signedUrl) {
+                throw new Error('לא ניתן לקבל קישור לתמונה');
+              }
 
-      // Insert image into Quill editor at current cursor position
-      const quill = quillRef.current?.getEditor();
-      if (quill) {
-        const range = quill.getSelection(true);
-        if (range) {
-          quill.deleteText(range.index, range.length);
-          quill.insertEmbed(range.index, 'image', urlData.signedUrl, 'user');
-          quill.setSelection(range.index + 1);
+              // Insert image into Quill editor at current cursor position
+              const range = quill.getSelection(true);
+              if (range) {
+                quill.insertEmbed(range.index, 'image', urlData.signedUrl, 'user');
+                quill.setSelection(range.index + 1);
+              }
+
+              toast({ title: 'הצלחה', description: 'התמונה הועלתה והוספה לתוכן' });
+            } catch (error: any) {
+              toast({ title: 'שגיאה', description: error?.message || 'נכשל בהעלאת התמונה', variant: 'destructive' });
+            } finally {
+              setIsUploadingImage(false);
+            }
+          };
+        },
+        video: function(this: any) {
+          const quill = this.quill;
+          const url = prompt('הכנס קישור וידאו (YouTube, Vimeo וכו\'):');
+          if (!url) return;
+
+          const embedUrl = getVideoEmbedUrl(url);
+          if (embedUrl) {
+            const range = quill.getSelection(true);
+            if (range) {
+              // Insert video as HTML (Quill will handle it)
+              const videoHtml = `<div style="position: relative; width: 100%; padding-bottom: 56.25%; margin: 16px 0;">
+                <iframe src="${embedUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 8px;" allowfullscreen></iframe>
+              </div>`;
+              quill.clipboard.dangerouslyPasteHTML(range.index, videoHtml);
+              quill.setSelection(range.index + 1);
+            }
+          } else {
+            toast({ title: 'שגיאה', description: 'קישור וידאו לא תקין. אנא השתמש בקישור YouTube או Vimeo', variant: 'destructive' });
+          }
         }
       }
-
-      toast({ title: 'הצלחה', description: 'התמונה הועלתה והוספה לתוכן' });
-    } catch (error: any) {
-      toast({ title: 'שגיאה', description: error?.message || 'נכשל בהעלאת התמונה', variant: 'destructive' });
-    } finally {
-      setIsUploadingImage(false);
-    }
-  };
-
-  // Handle video insertion from Quill toolbar
-  const handleQuillVideoInsert = (url: string) => {
-    const quill = quillRef.current?.getEditor();
-    if (!quill) return;
-
-    const embedUrl = getVideoEmbedUrl(url);
-    if (embedUrl) {
-      const range = quill.getSelection(true);
-      if (range) {
-        // Insert video as iframe HTML
-        const videoHtml = `<div style="position: relative; width: 100%; padding-bottom: 56.25%; margin: 16px 0;">
-          <iframe src="${embedUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 8px;" allowfullscreen></iframe>
-        </div>`;
-        quill.clipboard.dangerouslyPasteHTML(range.index, videoHtml);
-        quill.setSelection(range.index + 1);
-      }
-    } else {
-      toast({ title: 'שגיאה', description: 'קישור וידאו לא תקין. אנא השתמש בקישור YouTube או Vimeo', variant: 'destructive' });
-    }
-  };
+    },
+  }), []);
 
   const handleDelete = async () => {
     if (!article || !isManagerView) return;
@@ -786,7 +764,7 @@ export const ArticlePage: React.FC = () => {
                   ref={quillRef}
                   value={editData.content}
                   onChange={(value) => setEditData({ ...editData, content: value })}
-                  modules={createQuillModules(handleQuillImageUpload, handleQuillVideoInsert)}
+                  modules={quillModules}
                   formats={quillFormats}
                   placeholder="הקלד את תוכן המאמר כאן... לחץ על כפתור התמונה או הווידאו כדי להוסיף מדיה"
                   className="article-editor"
