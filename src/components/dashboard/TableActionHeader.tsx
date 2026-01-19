@@ -44,9 +44,10 @@ import type { DataTableColumn } from '@/components/ui/DataTable';
 import type { FilterField } from '@/components/dashboard/TableFilter';
 import { cn } from '@/lib/utils';
 import { useDefaultView } from '@/hooks/useDefaultView';
-import { useUpdateSavedView } from '@/hooks/useSavedViews';
+import { useSavedView, useUpdateSavedView } from '@/hooks/useSavedViews';
 import { useToast } from '@/hooks/use-toast';
 import type { FilterConfig } from '@/hooks/useSavedViews';
+import { useSearchParams } from 'react-router-dom';
 
 interface TableActionHeaderProps {
   // Required props
@@ -129,6 +130,9 @@ export const TableActionHeader = ({
   const { user } = useAppSelector((state) => state.auth);
   const { defaultView } = useDefaultView(resourceKey);
   const updateSavedView = useUpdateSavedView();
+  const [searchParams] = useSearchParams();
+  const viewId = searchParams.get('view_id');
+  const { data: activeView } = useSavedView(viewId);
 
   // Check if state is initialized
   const isInitialized = useAppSelector((state) => !!state.tableState.tables[resourceKey]);
@@ -301,9 +305,10 @@ export const TableActionHeader = ({
 
   // Check if filters are dirty (different from saved/default state)
   const filtersDirty = useMemo(() => {
-    if (!defaultView) return false;
+    const targetView = viewId ? activeView : defaultView;
+    if (!targetView) return false;
     
-    const savedConfig = defaultView.filter_config as FilterConfig | null;
+    const savedConfig = targetView.filter_config as FilterConfig | null;
     if (!savedConfig) return false;
     
     const savedFilters = savedConfig.advancedFilters || [];
@@ -339,14 +344,15 @@ export const TableActionHeader = ({
     
     // Filters are dirty if filters changed or search query changed
     return filtersChanged || searchQueryChanged;
-  }, [activeFilters, searchQuery, defaultView]);
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId]);
 
   // Handle saving filters to default view
   const handleSaveFilters = async () => {
-    if (!defaultView) {
+    const targetView = viewId ? activeView : defaultView;
+    if (!targetView) {
       toast({
         title: 'שגיאה',
-        description: 'לא נמצאה תצוגת ברירת מחדל',
+        description: 'לא נמצאה תצוגה פעילה',
         variant: 'destructive',
       });
       return;
@@ -355,7 +361,7 @@ export const TableActionHeader = ({
     try {
       // Build current filter config
       const currentFilterConfig: FilterConfig = {
-        ...(defaultView.filter_config as FilterConfig),
+        ...(targetView.filter_config as FilterConfig),
         searchQuery: searchQuery,
         advancedFilters: activeFilters.map(f => ({
           id: f.id,
@@ -368,12 +374,13 @@ export const TableActionHeader = ({
       };
 
       await updateSavedView.mutateAsync({
-        viewId: defaultView.id,
+        viewId: targetView.id,
         filterConfig: currentFilterConfig,
       });
 
-      // Invalidate default view query to reload filters
-      queryClient.invalidateQueries({ queryKey: ['defaultView', resourceKey, user?.id] });
+      if (targetView.is_default) {
+        queryClient.invalidateQueries({ queryKey: ['defaultView', resourceKey, user?.id] });
+      }
 
       toast({
         title: 'הצלחה',
@@ -529,5 +536,4 @@ export const TableActionHeader = ({
     />
   );
 };
-
 
