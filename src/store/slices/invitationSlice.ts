@@ -40,6 +40,27 @@ const initialState: InvitationState = {
   lastCreatedInvitation: null,
 };
 
+const decodeJwtMeta = (token: string) => {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(padded));
+    return {
+      iss: payload.iss,
+      aud: payload.aud,
+      exp: payload.exp,
+      iat: payload.iat,
+      sub: payload.sub,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const buildExpectedIssuer = (url: string) => `${url.replace(/\/$/, '')}/auth/v1`;
+
 // Create invitation for trainee user (secure, no password)
 export const createTraineeInvitation = createAsyncThunk(
   'invitation/create',
@@ -422,7 +443,15 @@ export const createTraineeUserWithPassword = createAsyncThunk(
         throw new Error('Not authenticated. Please log out and log back in.');
       }
       
+      const tokenMeta = decodeJwtMeta(session.access_token);
       console.log('[createTraineeUserWithPassword] Using session token (first 20 chars):', session.access_token.substring(0, 20));
+      console.log('[createTraineeUserWithPassword] Auth context:', {
+        supabaseUrl,
+        expectedIssuer: buildExpectedIssuer(supabaseUrl),
+        tokenMeta,
+        tokenExp: tokenMeta?.exp ? new Date(tokenMeta.exp * 1000).toISOString() : null,
+        tokenLength: session.access_token.length,
+      });
       
       const response = await fetch(`${supabaseUrl}/functions/v1/create-trainee-user`, {
         method: 'POST',

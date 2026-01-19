@@ -2,7 +2,7 @@
 -- This allows users to customize icons for main interface items (e.g., "ניהול לידים", "ניהול לקוחות")
 
 CREATE TABLE IF NOT EXISTS user_interface_preferences (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     interface_key TEXT NOT NULL, -- e.g., 'leads', 'customers', 'templates', etc.
     icon_name TEXT NOT NULL, -- e.g., 'Users', 'Dumbbell', 'LayoutDashboard', etc.
