@@ -241,7 +241,6 @@ export const PlanDetailModal = ({
       setIsEditing(false);
       onClose();
     } catch (error: any) {
-      console.error('Error saving plan:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון התוכנית',

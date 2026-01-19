@@ -37,7 +37,6 @@ export const useAllPayments = () => {
         if (error) {
           // If table doesn't exist yet, return empty array (graceful degradation)
           if (error.code === '42P01' || error.message.includes('does not exist')) {
-            console.warn('[useAllPayments] Payments table not found. Returning empty array.');
             return [];
           }
           throw error;
@@ -99,11 +98,9 @@ export const useAllPayments = () => {
       } catch (error: any) {
         // Graceful degradation if payments table doesn't exist
         if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          console.warn('[useAllPayments] Payments table not found. Returning empty array.');
           return [];
         }
         
-        console.error('[useAllPayments] Error fetching payments:', error);
         throw error;
       }
     },

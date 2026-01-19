@@ -32,6 +32,24 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     operators: ['equals', 'before', 'after', 'between'],
   },
   {
+    id: 'name',
+    label: 'שם',
+    type: 'text',
+    operators: ['contains', 'notContains', 'equals', 'notEquals'],
+  },
+  {
+    id: 'phone',
+    label: 'טלפון',
+    type: 'text',
+    operators: ['contains', 'notContains', 'equals', 'notEquals'],
+  },
+  {
+    id: 'email',
+    label: 'אימייל',
+    type: 'text',
+    operators: ['contains', 'notContains', 'equals', 'notEquals'],
+  },
+  {
     id: 'status',
     label: 'סטטוס',
     type: 'multiselect',
@@ -43,6 +61,12 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     label: 'גיל',
     type: 'number',
     operators: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
+  },
+  {
+    id: 'birthDate',
+    label: 'תאריך לידה',
+    type: 'date',
+    operators: ['equals', 'before', 'after', 'between'],
   },
   {
     id: 'height',
@@ -84,6 +108,18 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
     options: [...SOURCE_OPTIONS], // Fallback static options
     operators: ['is', 'isNot'],
   },
+  {
+    id: 'notes',
+    label: 'הערות',
+    type: 'text',
+    operators: ['contains', 'notContains', 'equals', 'notEquals'],
+  },
+  {
+    id: 'id',
+    label: 'מזהה',
+    type: 'text',
+    operators: ['equals', 'notEquals'],
+  },
 ];
 
 /**
@@ -124,10 +160,41 @@ export const CUSTOMER_FILTER_FIELDS: FilterField[] = [
     operators: ['equals', 'before', 'after', 'between'],
   },
   {
+    id: 'full_name',
+    label: 'שם',
+    type: 'text',
+    operators: ['contains', 'notContains', 'equals', 'notEquals'],
+  },
+  {
+    id: 'phone',
+    label: 'טלפון',
+    type: 'text',
+    operators: ['contains', 'notContains', 'equals', 'notEquals'],
+  },
+  {
+    id: 'email',
+    label: 'אימייל',
+    type: 'text',
+    operators: ['contains', 'notContains', 'equals', 'notEquals'],
+  },
+  {
     id: 'total_leads',
     label: 'מספר לידים',
     type: 'number',
     operators: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
+  },
+  {
+    id: 'total_spent',
+    label: 'סכום כולל',
+    type: 'number',
+    operators: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
+  },
+  {
+    id: 'membership_tier',
+    label: 'רמת חברות',
+    type: 'select',
+    options: ['New', 'Standard', 'Premium', 'VIP'],
+    operators: ['is', 'isNot'],
   },
 ];
 

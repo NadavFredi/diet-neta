@@ -92,16 +92,13 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
       // Await the save to ensure it completes
       try {
         await onSave(finalValue);
-        console.log('InlineEditableField: Save successful', finalValue);
       } catch (error) {
-        console.error('InlineEditableField: Failed to save:', error);
         // On error, revert to original value
         setEditValue(String(value));
         setIsEditing(true);
         throw error;
       }
     } catch (error) {
-      console.error('InlineEditableField: Validation error:', error);
       setEditValue(String(value));
       setIsSaving(false);
       throw error;

@@ -74,7 +74,6 @@ export const useTemplatesManagement = () => {
           .not('lead_id', 'is', null);
 
         if (plansError) {
-          console.error('Error fetching workout plans:', plansError);
           return new Map<string, Array<{ name: string; phone: string; email?: string }>>();
         }
 
@@ -104,7 +103,6 @@ export const useTemplatesManagement = () => {
           .in('id', leadIds);
 
         if (leadsError) {
-          console.error('Error fetching leads:', leadsError);
           return new Map<string, Array<{ name: string; phone: string; email?: string }>>();
         }
 
@@ -140,7 +138,6 @@ export const useTemplatesManagement = () => {
 
         return templateLeadsMap;
       } catch (err) {
-        console.error('Error in templates with leads query:', err);
         return new Map<string, Array<{ name: string; phone: string; email?: string }>>();
       }
     },
@@ -253,12 +250,9 @@ export const useTemplatesManagement = () => {
   // Handlers
   const handleLogout = async () => {
     try {
-      console.log('[TemplatesManagement] Logout initiated');
       await dispatch(logoutUser()).unwrap();
-      console.log('[TemplatesManagement] Logout successful, navigating to login');
       navigate('/login');
     } catch (error) {
-      console.error('[TemplatesManagement] Logout error:', error);
       // Navigate to login even if logout fails
       navigate('/login');
     }

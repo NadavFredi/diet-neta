@@ -202,7 +202,6 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
         description: nextActive ? 'משתמש המתאמן הופעל.' : 'משתמש המתאמן הושבת.',
       });
     } catch (error: any) {
-      console.error('[ClientHeroBar] Error updating trainee status:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון סטטוס מתאמן',

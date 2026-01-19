@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -15,6 +15,11 @@ import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, type ResourceKey } from '@/store/slices/tableStateSlice';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { cn } from '@/lib/utils';
+import { useDefaultView } from '@/hooks/useDefaultView';
+import { useUpdateSavedView } from '@/hooks/useSavedViews';
+import { useToast } from '@/hooks/use-toast';
+import type { FilterConfig } from '@/hooks/useSavedViews';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TablePageHeaderProps {
   // Required props
@@ -81,9 +86,22 @@ export const TablePageHeader = ({
   const dispatch = useAppDispatch();
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+  const { defaultView } = useDefaultView(resourceKey);
+  const updateSavedView = useUpdateSavedView();
 
-  // Use external search query if provided, otherwise use local state
-  const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : localSearchQuery;
+  // Get search query from Redux if not provided externally
+  const reduxSearchQuery = useAppSelector((state) => {
+    return state.tableState.tables[resourceKey]?.searchQuery || '';
+  });
+  
+  // Use external search query if provided, otherwise use Redux, otherwise use local state
+  const searchQuery = externalSearchQuery !== undefined 
+    ? externalSearchQuery 
+    : reduxSearchQuery || localSearchQuery;
+    
   const handleSearchChange = (value: string) => {
     if (onSearchChange) {
       onSearchChange(value);
@@ -119,6 +137,95 @@ export const TablePageHeader = ({
 
   // Get column order from Redux
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
+
+  // Check if filters are dirty (different from saved/default state)
+  const filtersDirty = useMemo(() => {
+    if (!defaultView) return false;
+    
+    const savedConfig = defaultView.filter_config as FilterConfig | null;
+    if (!savedConfig) return false;
+    
+    const savedFilters = savedConfig.advancedFilters || [];
+    const savedSearchQuery = savedConfig.searchQuery || '';
+    
+    // Normalize current filters for comparison
+    const currentFilters = (activeFilters || []).map(f => ({
+      id: f.id,
+      fieldId: f.fieldId,
+      operator: f.operator,
+      values: Array.isArray(f.values) ? [...f.values].sort() : f.values,
+      type: f.type,
+    })).sort((a, b) => a.id.localeCompare(b.id));
+    
+    // Normalize saved filters for comparison
+    const normalizedSavedFilters = (savedFilters || []).map((f: any) => ({
+      id: f.id,
+      fieldId: f.fieldId,
+      operator: f.operator,
+      values: Array.isArray(f.values) ? [...f.values].sort() : f.values,
+      type: f.type,
+    })).sort((a: any, b: any) => a.id.localeCompare(b.id));
+    
+    // Compare filters
+    const currentFiltersStr = JSON.stringify(currentFilters);
+    const savedFiltersStr = JSON.stringify(normalizedSavedFilters);
+    const filtersChanged = currentFiltersStr !== savedFiltersStr;
+    
+    // Compare search query
+    const currentSearchQuery = (searchQuery || '').trim();
+    const normalizedSavedSearchQuery = savedSearchQuery.trim();
+    const searchQueryChanged = currentSearchQuery !== normalizedSavedSearchQuery;
+    
+    // Filters are dirty if filters changed or search query changed
+    return filtersChanged || searchQueryChanged;
+  }, [activeFilters, searchQuery, defaultView]);
+
+  // Handle saving filters to default view
+  const handleSaveFilters = async () => {
+    if (!defaultView) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא נמצאה תצוגת ברירת מחדל',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Build current filter config
+      const currentFilterConfig: FilterConfig = {
+        ...(defaultView.filter_config as FilterConfig),
+        searchQuery: searchQuery,
+        advancedFilters: activeFilters.map(f => ({
+          id: f.id,
+          fieldId: f.fieldId,
+          fieldLabel: f.fieldLabel,
+          operator: f.operator,
+          values: f.values,
+          type: f.type,
+        })),
+      };
+
+      await updateSavedView.mutateAsync({
+        viewId: defaultView.id,
+        filterConfig: currentFilterConfig,
+      });
+
+      // Invalidate default view query to reload filters
+      queryClient.invalidateQueries({ queryKey: ['defaultView', resourceKey, user?.id] });
+
+      toast({
+        title: 'הצלחה',
+        description: 'המסננים נשמרו בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בשמירת המסננים. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const getColumnSettingsComponent = () => {
     // Template column settings (nutrition_templates, templates using TemplateColumnSettings)
@@ -159,7 +266,10 @@ export const TablePageHeader = ({
     <PageHeader
       title={title}
       icon={icon}
+      resourceKey={resourceKey}
       className={className}
+      filtersDirty={filtersDirty}
+      onSaveFilters={handleSaveFilters}
       actions={
         <div className="flex items-center gap-3">
           {/* Search Input */}

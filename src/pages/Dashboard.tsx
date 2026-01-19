@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadsDataTable } from '@/components/dashboard/LeadsDataTable';
@@ -16,6 +16,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { useToast } from '@/hooks/use-toast';
 
 // Custom hook to detect if screen is desktop (lg breakpoint = 1024px)
 const useIsDesktop = () => {
@@ -44,6 +45,7 @@ import {
   setSelectedHeight,
   setSelectedWeight,
   setSelectedDate,
+  setSearchQuery,
 } from '@/store/slices/dashboardSlice';
 
 const Dashboard = () => {
@@ -78,6 +80,7 @@ const Dashboard = () => {
     setIsAddLeadDialogOpen,
     getCurrentFilterConfig,
     isLoading,
+    isLoadingView,
     savedView, // Get savedView from useDashboardLogic instead of duplicate call
     refreshLeads,
     // Pagination state and handlers
@@ -102,6 +105,7 @@ const Dashboard = () => {
     addFilter: addFilterLocal,
     removeFilter: removeFilterLocal,
     clearFilters: clearFiltersLocal,
+    updateFilters: updateFiltersLocal,
   } = useTableFilters([]);
 
   // Get filter fields with dynamic options from data
@@ -193,12 +197,122 @@ const Dashboard = () => {
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
+  const { toast } = useToast();
+  const hasShownSaveSuggestion = useRef(false);
+  const previousFiltersRef = useRef<string>('');
 
   // Memoized handler to prevent unnecessary re-renders
   const handleSaveViewClick = useCallback((resourceKey: string) => {
     setSaveViewResourceKey(resourceKey);
     setIsSaveViewModalOpen(true);
+    hasShownSaveSuggestion.current = false; // Reset when user opens save modal
   }, []);
+
+  // Get default view to load filters from it
+  const { defaultView, isLoading: isLoadingDefaultView } = useDefaultView('leads');
+
+  // Load advanced filters from saved view or default view
+  useEffect(() => {
+    // Priority 1: Load from saved view if viewId is present
+    if (viewId && savedView && !isLoadingView) {
+      const filterConfig = savedView.filter_config as any;
+      if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
+        // Convert saved advanced filters to ActiveFilter format
+        const savedFilters: ActiveFilter[] = filterConfig.advancedFilters.map((f: any) => ({
+          id: f.id,
+          fieldId: f.fieldId,
+          fieldLabel: f.fieldLabel,
+          operator: f.operator as any,
+          values: f.values,
+          type: f.type as any,
+        }));
+        updateFiltersLocal(savedFilters);
+        // Also update search query if present
+        if (filterConfig.searchQuery !== undefined) {
+          dispatch(setSearchQuery(filterConfig.searchQuery));
+        }
+        previousFiltersRef.current = JSON.stringify({
+          filters: savedFilters,
+          searchQuery: filterConfig.searchQuery || '',
+        });
+        hasShownSaveSuggestion.current = false; // Reset when loading saved view
+      }
+    } 
+    // Priority 2: Load from default view if no viewId but default view exists and is loaded
+    else if (!viewId && defaultView && !isLoadingDefaultView && !isLoadingView) {
+      const filterConfig = defaultView.filter_config as any;
+      if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters) && filterConfig.advancedFilters.length > 0) {
+        // Convert saved advanced filters to ActiveFilter format
+        const savedFilters: ActiveFilter[] = filterConfig.advancedFilters.map((f: any) => ({
+          id: f.id,
+          fieldId: f.fieldId,
+          fieldLabel: f.fieldLabel,
+          operator: f.operator as any,
+          values: f.values,
+          type: f.type as any,
+        }));
+        updateFiltersLocal(savedFilters);
+        // Also update search query if present
+        if (filterConfig.searchQuery !== undefined) {
+          dispatch(setSearchQuery(filterConfig.searchQuery));
+        }
+        previousFiltersRef.current = JSON.stringify({
+          filters: savedFilters,
+          searchQuery: filterConfig.searchQuery || '',
+        });
+        hasShownSaveSuggestion.current = false;
+      }
+    } 
+    // Priority 3: Clear filters only if no viewId and no default view (or default view has no filters)
+    else if (!viewId && !isLoadingDefaultView && !isLoadingView && (!defaultView || !defaultView.filter_config?.advancedFilters || (defaultView.filter_config as any).advancedFilters?.length === 0)) {
+      // Only clear if we haven't loaded filters yet (prevent clearing after user interaction)
+      if (previousFiltersRef.current === '') {
+        updateFiltersLocal([]);
+        previousFiltersRef.current = '';
+        hasShownSaveSuggestion.current = false;
+      }
+    }
+  }, [viewId, savedView, isLoadingView, defaultView, isLoadingDefaultView, updateFiltersLocal, dispatch]);
+
+  // Show save suggestion when filters change
+  useEffect(() => {
+    // Skip if we're loading a saved view or if we've already shown the suggestion
+    if (isLoading || hasShownSaveSuggestion.current || viewId) {
+      return;
+    }
+
+    // Create a string representation of current filters for comparison
+    const currentFiltersStr = JSON.stringify({
+      filters: activeFilters,
+      searchQuery,
+    });
+
+    // Only show suggestion if filters have changed and we have active filters
+    if (
+      previousFiltersRef.current !== currentFiltersStr &&
+      previousFiltersRef.current !== '' && // Don't show on initial load
+      (activeFilters.length > 0 || searchQuery)
+    ) {
+      hasShownSaveSuggestion.current = true;
+      toast({
+        title: 'שמור תצוגה',
+        description: 'המסננים שלך שונו. האם תרצה לשמור את התצוגה הנוכחית?',
+        action: (
+          <button
+            onClick={() => {
+              handleSaveViewClick('leads');
+            }}
+            className="mr-2 px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 underline"
+          >
+            שמור תצוגה
+          </button>
+        ),
+        duration: 8000,
+      });
+    }
+
+    previousFiltersRef.current = currentFiltersStr;
+  }, [activeFilters, searchQuery, isLoading, viewId, toast, handleSaveViewClick]);
 
   const handleEditViewClick = useCallback((view: any) => {
     setViewToEdit(view);

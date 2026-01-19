@@ -104,7 +104,6 @@ export const ViewAsClientButton: React.FC<ViewAsClientButtonProps> = ({
         description: 'אתה צופה בממשק הלקוח. לחץ על "יציאה ממצב תצוגה" כדי לחזור.',
       });
     } catch (error: any) {
-      console.error('[ViewAsClientButton] Error:', error);
       toast({
         title: 'שגיאה',
         description: 'נכשל בכניסה למצב תצוגה',

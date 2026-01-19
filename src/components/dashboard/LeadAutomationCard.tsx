@@ -90,7 +90,7 @@ const loadCustomFlows = (): FlowConfig[] => {
       return JSON.parse(stored);
     }
   } catch (error) {
-    console.error('[LeadAutomationCard] Error loading custom flows:', error);
+    // Silent failure
   }
   return [];
 };
@@ -100,7 +100,7 @@ const saveCustomFlows = (flows: FlowConfig[]): void => {
   try {
     localStorage.setItem('custom_automation_flows', JSON.stringify(flows));
   } catch (error) {
-    console.error('[LeadAutomationCard] Error saving custom flows:', error);
+    // Silent failure
   }
 };
 
@@ -112,7 +112,7 @@ const loadDeletedDefaultFlows = (): string[] => {
       return JSON.parse(stored);
     }
   } catch (error) {
-    console.error('[LeadAutomationCard] Error loading deleted default flows:', error);
+    // Silent failure
   }
   return [];
 };
@@ -122,7 +122,7 @@ const saveDeletedDefaultFlows = (deletedKeys: string[]): void => {
   try {
     localStorage.setItem('deleted_default_automation_flows', JSON.stringify(deletedKeys));
   } catch (error) {
-    console.error('[LeadAutomationCard] Error saving deleted default flows:', error);
+    // Silent failure
   }
 };
 
@@ -303,15 +303,10 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
           description: result.warning || 'ההודעה נשלחה בהצלחה!',
           variant: result.warning ? 'default' : 'default',
         });
-        
-        if (result.warning) {
-          console.warn('[LeadAutomationCard]', result.warning);
-        }
       } else {
         throw new Error(result.error || 'Failed to send message');
       }
     } catch (error: any) {
-      console.error('[LeadAutomationCard] Error sending flow:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בשליחת ההודעה',
@@ -374,7 +369,6 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
         description: 'התבנית נשמרה בהצלחה',
       });
     } catch (error: any) {
-      console.error('[LeadAutomationCard] Error saving template:', error);
       toast({
         title: 'שגיאה',
         description: error || 'נכשל בשמירת התבנית',
@@ -496,10 +490,6 @@ export const LeadAutomationCard: React.FC<LeadAutomationCardProps> = ({
     ? (() => {
         const media = templates[editingFlowKey].media!;
         const mediaUrl = media.url;
-        console.log('[LeadAutomationCard] Setting editingMedia for flow:', editingFlowKey, {
-          type: media.type,
-          url: mediaUrl
-        });
         return {
           type: media.type,
           url: mediaUrl,

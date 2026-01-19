@@ -78,6 +78,65 @@ export const useBloodTests = (leadId: string | null) => {
   });
 };
 
+// Fetch blood tests for all leads of a customer
+export const useBloodTestsForCustomer = (customerId: string | null) => {
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useQuery({
+    queryKey: ['bloodTestsCustomer', customerId, user?.id],
+    queryFn: async () => {
+      if (!customerId) return [];
+      if (!user?.id) throw new Error('User not authenticated');
+
+      // First, get all lead IDs for this customer
+      const { data: leads, error: leadsError } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('customer_id', customerId);
+
+      if (leadsError) throw leadsError;
+      if (!leads || leads.length === 0) return [];
+
+      const leadIds = leads.map(lead => lead.id);
+
+      // Fetch all blood tests for all leads
+      const { data, error } = await supabase
+        .from('blood_tests')
+        .select('*')
+        .in('lead_id', leadIds)
+        .order('upload_date', { ascending: false });
+
+      if (error) throw error;
+
+      // Get signed URLs for each file
+      const testsWithUrls: BloodTestWithUrl[] = await Promise.all(
+        (data || []).map(async (test) => {
+          // Extract customer_id from file_url (format: customer_id/blood-tests/filename.pdf)
+          const pathParts = test.file_url.split('/');
+          if (pathParts.length < 3) {
+            console.error('Invalid file_url format:', test.file_url);
+            return { ...test, signedUrl: '' };
+          }
+
+          const { data: urlData } = await supabase.storage
+            .from('client-assets')
+            .createSignedUrl(test.file_url, 3600);
+
+          return {
+            ...test,
+            signedUrl: urlData?.signedUrl || '',
+          };
+        })
+      );
+
+      return testsWithUrls;
+    },
+    enabled: !!customerId && !!user?.id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
 // Upload a blood test PDF
 export const useUploadBloodTest = () => {
   const queryClient = useQueryClient();
@@ -143,6 +202,8 @@ export const useUploadBloodTest = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['bloodTests', data.lead_id] });
+      // Also invalidate customer-level queries
+      queryClient.invalidateQueries({ queryKey: ['bloodTestsCustomer'] });
     },
   });
 };
@@ -188,6 +249,8 @@ export const useDeleteBloodTest = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['bloodTests', data.leadId] });
+      // Also invalidate customer-level queries
+      queryClient.invalidateQueries({ queryKey: ['bloodTestsCustomer'] });
     },
   });
 };

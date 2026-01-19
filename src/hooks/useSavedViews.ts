@@ -91,18 +91,16 @@ export const useSavedViews = (resourceKey: string | null) => {
           .eq('resource_key', resourceKey)
           .eq('created_by', userId)
           .order('is_default', { ascending: false })
-          .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
-        if (error) {
-          console.warn('Error fetching saved views:', error);
-          return [];
-        }
-        return (data || []) as SavedView[];
-      } catch (error) {
-        console.warn('Error in useSavedViews:', error);
+      if (error) {
         return [];
       }
-    },
+      return (data || []) as SavedView[];
+    } catch (error) {
+      return [];
+    }
+  },
     enabled: !!user?.email && !!resourceKey,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -128,18 +126,16 @@ export const useSavedView = (viewId: string | null) => {
           .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
           .eq('id', viewId)
           .eq('created_by', userId)
-          .single();
+        .single();
 
-        if (error) {
-          console.warn('Error fetching saved view:', error);
-          return null;
-        }
-        return data as SavedView | null;
-      } catch (error) {
-        console.warn('Error in useSavedView:', error);
+      if (error) {
         return null;
       }
-    },
+      return data as SavedView | null;
+    } catch (error) {
+      return null;
+    }
+  },
     enabled: !!viewId && !!user?.id,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes

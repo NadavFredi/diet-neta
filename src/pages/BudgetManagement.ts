@@ -152,12 +152,9 @@ export const useBudgetManagement = () => {
   // Handlers
   const handleLogout = async () => {
     try {
-      console.log('[BudgetManagement] Logout initiated');
       await dispatch(logoutUser()).unwrap();
-      console.log('[BudgetManagement] Logout successful, navigating to login');
       navigate('/login');
     } catch (error) {
-      console.error('[BudgetManagement] Logout error:', error);
       // Navigate to login even if logout fails
       navigate('/login');
     }
@@ -201,13 +198,6 @@ export const useBudgetManagement = () => {
   ) => {
     try {
       if (editingBudget) {
-        console.log('[BudgetManagement] Updating budget:', {
-          budgetId: editingBudget.id,
-          workout_template_id: (data as any).workout_template_id,
-          nutrition_template_id: (data as any).nutrition_template_id,
-          fullData: data
-        });
-
         const updateResult = await updateBudget.mutateAsync({
           budgetId: editingBudget.id,
           name: data.name,
@@ -220,11 +210,6 @@ export const useBudgetManagement = () => {
           supplements: (data as any).supplements,
           eating_order: (data as any).eating_order ?? null,
           eating_rules: (data as any).eating_rules ?? null,
-        });
-
-        console.log('[BudgetManagement] Budget updated:', {
-          id: updateResult.id,
-          workout_template_id: updateResult.workout_template_id
         });
 
         // Update the editingBudgetId to trigger refetch and get latest data
@@ -261,7 +246,7 @@ export const useBudgetManagement = () => {
                     userId: user.id,
                   });
                 } catch (syncError) {
-                  console.error('Error syncing plans after budget update:', syncError);
+                  // Silent failure
                 }
               }
             }
@@ -355,7 +340,6 @@ export const useBudgetManagement = () => {
         description: 'קובץ PDF נוצר והורד בהצלחה',
       });
     } catch (error: any) {
-      console.error('[BudgetManagement] Error exporting PDF:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל ביצירת קובץ PDF',

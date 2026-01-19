@@ -40,7 +40,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
         const submissions = await getFormSubmissionsByTypeForLead(leadId);
         setSubmissionsByType(submissions);
       } catch (err: any) {
-        console.error('Failed to fetch form submissions:', err);
         setError(err?.message || 'Failed to fetch form submissions');
         setSubmissionsByType({});
       } finally {

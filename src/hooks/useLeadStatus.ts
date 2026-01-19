@@ -142,7 +142,6 @@ export const useLeadStatus = (leadId: string | undefined, currentStatus: string)
         .eq('id', leadId);
 
       if (error) {
-        console.error('Error updating lead status:', error);
         toast({
           title: 'שגיאה',
           description: 'נכשל בעדכון הסטטוס',
@@ -161,7 +160,6 @@ export const useLeadStatus = (leadId: string | undefined, currentStatus: string)
       
     handleClose();
     } catch (error: any) {
-      console.error('Error updating lead status:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון הסטטוס',

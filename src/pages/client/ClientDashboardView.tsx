@@ -105,25 +105,31 @@ export const ClientDashboardView: React.FC = () => {
     return { exercises, steps, nutrition };
   }, [checkIns]);
 
-  // Handle profile updates
+  // Handle profile updates - update all leads with the same customer_id
   const handleUpdateWeight = async (newValue: string | number) => {
-    if (!activeLead) return;
+    if (!leads || leads.length === 0) return;
     const weight = typeof newValue === 'number' ? newValue : parseFloat(String(newValue));
     if (isNaN(weight)) throw new Error('ערך לא תקין');
     
-    await dispatch(
-      updateClientLead({ leadId: activeLead.id, updates: { weight } })
-    ).unwrap();
+    // Update all leads for this customer
+    await Promise.all(
+      leads.map(lead => 
+        dispatch(updateClientLead({ leadId: lead.id, updates: { weight } })).unwrap()
+      )
+    );
   };
 
   const handleUpdateHeight = async (newValue: string | number) => {
-    if (!activeLead) return;
+    if (!leads || leads.length === 0) return;
     const height = typeof newValue === 'number' ? newValue : parseFloat(String(newValue));
     if (isNaN(height)) throw new Error('ערך לא תקין');
     
-    await dispatch(
-      updateClientLead({ leadId: activeLead.id, updates: { height } })
-    ).unwrap();
+    // Update all leads for this customer
+    await Promise.all(
+      leads.map(lead => 
+        dispatch(updateClientLead({ leadId: lead.id, updates: { height } })).unwrap()
+      )
+    );
   };
 
   // Show error if there's one
@@ -185,8 +191,20 @@ export const ClientDashboardView: React.FC = () => {
 
   const greeting = `שלום, ${customer.full_name || user?.email || 'לקוח'}!`;
 
-  // Get goals from daily_protocol
-  const dailyProtocol = activeLead?.daily_protocol || {};
+  // Aggregate daily_protocol from all leads (merge, with later leads taking precedence)
+  // This aggregates customer-level data from all leads
+  const dailyProtocol = useMemo(() => {
+    if (!leads || leads.length === 0) return {};
+    
+    // Merge all daily_protocol objects, with later (more recent) leads taking precedence
+    const merged = {};
+    leads.forEach(lead => {
+      if (lead.daily_protocol && typeof lead.daily_protocol === 'object') {
+        Object.assign(merged, lead.daily_protocol);
+      }
+    });
+    return merged;
+  }, [leads]);
 
   return (
     <div className="bg-[#F8FAFC] flex flex-col h-full" dir="rtl" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -534,7 +552,7 @@ export const ClientDashboardView: React.FC = () => {
               <div className="space-y-4 sm:space-y-6">
                 <WeeklyReviewsList
                   customerId={customer.id}
-                  leadId={activeLead?.id || null}
+                  leadId={null}
                 />
               </div>
             )}
@@ -542,7 +560,7 @@ export const ClientDashboardView: React.FC = () => {
             {activeTab === 'budget' && (
               <div className="space-y-4 sm:space-y-6">
                 <BudgetView
-                  leadId={activeLead?.id}
+                  leadId={null}
                   customerId={customer?.id}
                 />
               </div>
@@ -556,9 +574,9 @@ export const ClientDashboardView: React.FC = () => {
             )}
 
             {/* Blood Tests Tab */}
-            {activeTab === 'bloodtests' && customer?.id && activeLead?.id && (
+            {activeTab === 'bloodtests' && customer?.id && (
               <div className="space-y-4 sm:space-y-6">
-                <BloodTestsCard leadId={activeLead.id} customerId={customer.id} />
+                <BloodTestsCard customerId={customer.id} leads={leads} />
               </div>
             )}
 
@@ -578,7 +596,7 @@ export const ClientDashboardView: React.FC = () => {
                 open={isMultiDayModalOpen}
                 onOpenChange={setIsMultiDayModalOpen}
                 customerId={customer.id}
-                leadId={activeLead?.id || null}
+                leadId={null}
                 existingCheckIns={checkIns}
               />
             )}

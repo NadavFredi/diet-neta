@@ -4,7 +4,7 @@
  * Pure presentation component - all logic is in CustomersManagement.ts
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
@@ -19,20 +19,31 @@ import { customerColumns } from '@/components/dashboard/columns/customerColumns'
 import { useCustomersManagement } from './CustomersManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'react-router-dom';
+import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 
 const CustomersManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const viewId = searchParams.get('view_id');
+  const { toast } = useToast();
+  const hasShownSaveSuggestion = useRef(false);
+  const previousFiltersRef = useRef<string>('');
+  
   const {
     customers,
     savedView,
     isLoadingCustomers,
+    isLoadingView,
     isSaveViewModalOpen,
     handleSaveViewClick,
     setIsSaveViewModalOpen,
     handleLogout,
     getCurrentFilterConfig,
+    searchQuery,
   } = useCustomersManagement();
 
   // Filter system for modals
@@ -41,7 +52,77 @@ const CustomersManagement = () => {
     addFilter,
     removeFilter,
     clearFilters,
+    updateFilters: updateFiltersLocal,
   } = useTableFilters([]);
+
+  // Load advanced filters from saved view
+  useEffect(() => {
+    if (viewId && savedView && !isLoadingView) {
+      const filterConfig = savedView.filter_config as any;
+      if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
+        // Convert saved advanced filters to ActiveFilter format
+        const savedFilters: ActiveFilter[] = filterConfig.advancedFilters.map((f: any) => ({
+          id: f.id,
+          fieldId: f.fieldId,
+          fieldLabel: f.fieldLabel,
+          operator: f.operator as any,
+          values: f.values,
+          type: f.type as any,
+        }));
+        updateFiltersLocal(savedFilters);
+        previousFiltersRef.current = JSON.stringify({
+          filters: savedFilters,
+          searchQuery: filterConfig.searchQuery || '',
+        });
+        hasShownSaveSuggestion.current = false; // Reset when loading saved view
+      }
+    } else if (!viewId) {
+      // Clear filters when no view is selected
+      updateFiltersLocal([]);
+      previousFiltersRef.current = '';
+      hasShownSaveSuggestion.current = false;
+    }
+  }, [viewId, savedView, isLoadingView, updateFiltersLocal]);
+
+  // Show save suggestion when filters change
+  useEffect(() => {
+    // Skip if we're loading or if we've already shown the suggestion
+    if (isLoadingCustomers || hasShownSaveSuggestion.current || viewId) {
+      return;
+    }
+
+    // Create a string representation of current filters for comparison
+    const currentFiltersStr = JSON.stringify({
+      filters: activeFilters,
+      searchQuery: searchQuery || '',
+    });
+
+    // Only show suggestion if filters have changed and we have active filters
+    if (
+      previousFiltersRef.current !== currentFiltersStr &&
+      previousFiltersRef.current !== '' && // Don't show on initial load
+      (activeFilters.length > 0 || searchQuery)
+    ) {
+      hasShownSaveSuggestion.current = true;
+      toast({
+        title: 'שמור תצוגה',
+        description: 'המסננים שלך שונו. האם תרצה לשמור את התצוגה הנוכחית?',
+        action: (
+          <button
+            onClick={() => {
+              handleSaveViewClick();
+            }}
+            className="mr-2 px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 underline"
+          >
+            שמור תצוגה
+          </button>
+        ),
+        duration: 8000,
+      });
+    }
+
+    previousFiltersRef.current = currentFiltersStr;
+  }, [activeFilters, searchQuery, isLoadingCustomers, viewId, toast, handleSaveViewClick]);
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);

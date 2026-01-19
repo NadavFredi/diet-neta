@@ -336,7 +336,6 @@ export const NutritionTemplateForm = ({
         throw new Error('Invalid data structure');
       }
     } catch (error: any) {
-      console.error('Error saving nutrition data:', error);
       alert(error.message || 'שגיאה בשמירת הנתונים');
     } finally {
       setIsSubmitting(false);

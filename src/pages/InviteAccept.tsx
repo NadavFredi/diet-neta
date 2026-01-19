@@ -117,7 +117,6 @@ export const InviteAccept = () => {
               userId = newUser.user.id;
             }
           } catch (createError: any) {
-            console.error('[InviteAccept] Error creating user:', createError);
             // If user already exists, try to get their ID
             if (createError.message?.includes('already registered') || createError.message?.includes('already exists')) {
               try {
@@ -158,11 +157,6 @@ export const InviteAccept = () => {
                 .from('customers')
                 .update({ user_id: userId })
                 .eq('id', invitation.customer_id);
-              
-              console.log('[InviteAccept] Linked customer to user (initial):', {
-                customer_id: invitation.customer_id,
-                user_id: userId,
-              });
             }
 
             // Create profile with trainee role
@@ -189,7 +183,6 @@ export const InviteAccept = () => {
         // User will set their password, and we'll handle login after
         setStatus('password_setup');
       } catch (error: any) {
-        console.error('[InviteAccept] Error:', error);
         setStatus('error');
         setErrorMessage(error?.message || 'שגיאה בעת אישור ההזמנה');
       }
@@ -260,7 +253,6 @@ export const InviteAccept = () => {
               });
           }
         } catch (createError: any) {
-          console.error('[InviteAccept] Error creating user:', createError);
           setErrorMessage('שגיאה ביצירת משתמש');
           setIsSettingPassword(false);
           return;
@@ -275,7 +267,6 @@ export const InviteAccept = () => {
             },
           });
         } catch (updateError: any) {
-          console.error('[InviteAccept] Error setting password:', updateError);
           setErrorMessage('שגיאה בהגדרת הסיסמה');
           setIsSettingPassword(false);
           return;
@@ -290,19 +281,8 @@ export const InviteAccept = () => {
           .eq('id', invitation.customer_id);
         
         if (linkError) {
-          console.error('[InviteAccept] Error linking customer to user:', linkError);
           // Don't fail - the user can still log in, admin can link manually
-        } else {
-          console.log('[InviteAccept] Successfully linked customer to user:', {
-            customer_id: invitation.customer_id,
-            user_id: userId,
-          });
         }
-      } else {
-        console.warn('[InviteAccept] Cannot link customer - missing customer_id or user_id:', {
-          customer_id: invitation.customer_id,
-          user_id: userId,
-        });
       }
 
       // Update invitation status
@@ -328,7 +308,6 @@ export const InviteAccept = () => {
       });
 
       if (signInError) {
-        console.error('[InviteAccept] Error signing in:', signInError);
         setStatus('error');
         setErrorMessage('הסיסמה הוגדרה בהצלחה, אך נכשל בכניסה. אנא התחבר ידנית.');
         setIsSettingPassword(false);
@@ -342,7 +321,6 @@ export const InviteAccept = () => {
         window.location.href = '/client/dashboard';
       }, 1000);
     } catch (error: any) {
-      console.error('[InviteAccept] Error:', error);
       setErrorMessage(error?.message || 'שגיאה בהגדרת הסיסמה');
       setIsSettingPassword(false);
     }

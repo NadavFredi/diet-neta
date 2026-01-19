@@ -121,8 +121,6 @@ export const addCustomerNote = createAsyncThunk(
         insertData.attachment_url = attachmentUrl;
       }
       
-      console.log('Inserting note with data:', insertData);
-      
       const { data, error } = await supabase
         .from('customer_notes')
         .insert([insertData])
@@ -130,13 +128,9 @@ export const addCustomerNote = createAsyncThunk(
         .single();
 
       if (error) {
-        console.error('Error adding note:', error);
-        console.error('Insert data:', insertData);
         throw error;
       }
       
-      console.log('Note added successfully:', data);
-
       return { customerId, note: data as CustomerNote, tempId: tempId || `temp-${Date.now()}` };
     } catch (error) {
       return rejectWithValue({ 

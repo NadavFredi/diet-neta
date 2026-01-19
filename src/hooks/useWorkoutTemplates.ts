@@ -51,7 +51,6 @@ export const useWorkoutTemplates = (filters?: { search?: string; goalTags?: stri
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching workout templates:', error);
         // If table doesn't exist, provide a helpful error message
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התבניות לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
@@ -131,7 +130,6 @@ export const useCreateWorkoutTemplate = () => {
         .single();
 
       if (error) {
-        console.error('Error creating workout template:', error);
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התבניות לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }

@@ -110,16 +110,13 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
       // Await the save to ensure it completes
       try {
         await onSave(finalValue);
-        console.log('InlineEditableSelect: Save successful', finalValue);
       } catch (error) {
-        console.error('InlineEditableSelect: Failed to save:', error);
         // On error, revert to original value
         setEditValue(value);
         setIsEditing(true);
         throw error;
       }
     } catch (error) {
-      console.error('InlineEditableSelect: Validation error:', error);
       setEditValue(value);
       setIsSaving(false);
       throw error;

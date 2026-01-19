@@ -103,29 +103,26 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
           cacheControl: '3600',
           upsert: false,
         });
-
+  
       if (uploadError) {
-        console.error('Upload error details:', uploadError);
         throw new Error(uploadError.message || 'שגיאה בהעלאת התמונה');
       }
-
+  
       // Generate signed URL (valid for 1 year) since bucket is private
       const { data: urlData, error: urlError } = await supabase.storage
         .from('client-assets')
         .createSignedUrl(filePath, 31536000); // 1 year expiration
-
+  
       if (urlError) {
-        console.error('Error creating signed URL:', urlError);
         throw new Error(urlError.message || 'לא ניתן לקבל קישור לתמונה');
       }
-
+  
       if (urlData?.signedUrl) {
         onUpdate({ image_url: urlData.signedUrl });
       } else {
         throw new Error('לא ניתן לקבל קישור לתמונה');
       }
     } catch (error: any) {
-      console.error('Error uploading image:', error);
       const errorMessage = error?.message || error?.error?.message || 'שגיאה בהעלאת התמונה';
       alert(`שגיאה בהעלאת התמונה: ${errorMessage}`);
     } finally {
@@ -152,29 +149,26 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
           cacheControl: '3600',
           upsert: false,
         });
-
+  
       if (uploadError) {
-        console.error('Upload error details:', uploadError);
         throw new Error(uploadError.message || 'שגיאה בהעלאת הווידאו');
       }
-
+  
       // Generate signed URL (valid for 1 year) since bucket is private
       const { data: urlData, error: urlError } = await supabase.storage
         .from('client-assets')
         .createSignedUrl(filePath, 31536000); // 1 year expiration
-
+  
       if (urlError) {
-        console.error('Error creating signed URL:', urlError);
         throw new Error(urlError.message || 'לא ניתן לקבל קישור לווידאו');
       }
-
+  
       if (urlData?.signedUrl) {
         onUpdate({ video_url: urlData.signedUrl });
       } else {
         throw new Error('לא ניתן לקבל קישור לווידאו');
       }
     } catch (error: any) {
-      console.error('Error uploading video:', error);
       const errorMessage = error?.message || error?.error?.message || 'שגיאה בהעלאת הווידאו';
       alert(`שגיאה בהעלאת הווידאו: ${errorMessage}`);
     } finally {

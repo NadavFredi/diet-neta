@@ -153,7 +153,6 @@ export const TraineeSettingsModal = ({
       setNewPassword('');
       setShowPassword(false);
     } catch (error: any) {
-      console.error('[TraineeSettingsModal] Error resetting password:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל באיפוס הסיסמה או בשליחתה',
@@ -186,11 +185,6 @@ export const TraineeSettingsModal = ({
         .delete()
         .eq('id', traineeUserId);
 
-      if (profileError) {
-        console.warn('[TraineeSettingsModal] Error deleting profile:', profileError);
-        // Don't throw - auth user is already deleted
-      }
-
       toast({
         title: 'הצלחה',
         description: 'משתמש המתאמן נמחק בהצלחה',
@@ -203,7 +197,6 @@ export const TraineeSettingsModal = ({
       // Reload page to reflect changes
       window.location.reload();
     } catch (error: any) {
-      console.error('[TraineeSettingsModal] Error deleting trainee:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל במחיקת המשתמש',

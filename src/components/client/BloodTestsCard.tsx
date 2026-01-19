@@ -22,13 +22,13 @@ import {
 import { useBloodTestsCard } from './BloodTestsCard.ts';
 
 interface BloodTestsCardProps {
-  leadId: string;
   customerId: string;
+  leads?: Array<{ id: string }>;
 }
 
 export const BloodTestsCard: React.FC<BloodTestsCardProps> = ({
-  leadId,
   customerId,
+  leads,
 }) => {
   const {
     bloodTests,
@@ -44,7 +44,7 @@ export const BloodTestsCard: React.FC<BloodTestsCardProps> = ({
     handleDelete,
     handleDownload,
     formatDate,
-  } = useBloodTestsCard(leadId, customerId);
+  } = useBloodTestsCard(customerId, leads);
 
   const [testToDelete, setTestToDelete] = useState<{ id: string, fileName: string } | null>(null);
 

@@ -243,11 +243,9 @@ export const DashboardHeader = ({
                     onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('[DashboardHeader] Logout button clicked');
                       try {
                         await onLogout();
                       } catch (error) {
-                        console.error('[DashboardHeader] Logout error:', error);
                         // Force navigation to login even if logout fails
                         navigate('/login');
                       }

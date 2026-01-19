@@ -56,7 +56,6 @@ export const InlineEditableBadge = ({
       await onSave(editValue);
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to save:', error);
       setEditValue(value);
     } finally {
       setIsSaving(false);

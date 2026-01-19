@@ -59,7 +59,6 @@ export const useMeetings = () => {
           table: 'meetings',
         },
         (payload) => {
-          console.log('[useMeetings] Real-time change detected:', payload.eventType);
           // Invalidate and refetch meetings when any change occurs
           queryClient.invalidateQueries({ queryKey: ['meetings'] });
         }

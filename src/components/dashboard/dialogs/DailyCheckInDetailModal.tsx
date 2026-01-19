@@ -154,7 +154,6 @@ export const DailyCheckInDetailModal = ({
       setIsEditing(false);
       onClose();
     } catch (error: any) {
-      console.error('Error saving check-in:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון הדיווח',

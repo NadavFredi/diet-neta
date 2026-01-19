@@ -19,46 +19,24 @@ export const useClientDashboard = () => {
     const targetCustomerId = isImpersonating ? impersonatedCustomerId : user?.customer_id;
     const isTrainee = user?.role === 'trainee' || isImpersonating;
 
-    console.log('[useClientDashboard] Effect triggered:', {
-      userRole: user?.role,
-      userId: user?.id,
-      customerId: user?.customer_id,
-      isImpersonating,
-      impersonatedUserId,
-      impersonatedCustomerId,
-      targetUserId,
-      targetCustomerId,
-      isTrainee,
-    });
-    
     // When impersonating, we need both customer_id and user_id to be available
     if (isImpersonating) {
       if (targetCustomerId) {
         // Prefer customer_id when available
-        console.log('[useClientDashboard] Fetching by customer_id (impersonating):', targetCustomerId);
         dispatch(fetchClientData(targetCustomerId));
       } else if (targetUserId) {
         // Fallback to user_id if customer_id not available
-        console.log('[useClientDashboard] Fetching by user_id (impersonating, customer_id null):', targetUserId);
         dispatch(fetchClientDataByUserId(targetUserId));
-      } else {
-        console.log('[useClientDashboard] Impersonation active but no user_id or customer_id available yet, waiting...');
       }
     } else if (isTrainee && targetUserId) {
       // Regular trainee user flow
       // Try to fetch by customer_id first, if available
       if (targetCustomerId) {
-        console.log('[useClientDashboard] Fetching by customer_id:', targetCustomerId);
         dispatch(fetchClientData(targetCustomerId));
       } else {
         // Otherwise, fetch by user_id
-        console.log('[useClientDashboard] Fetching by user_id (customer_id is null):', targetUserId);
         dispatch(fetchClientDataByUserId(targetUserId));
       }
-    } else if (!isTrainee) {
-      console.log('[useClientDashboard] User is not a trainee and not impersonating, skipping fetch');
-    } else if (!targetUserId) {
-      console.log('[useClientDashboard] User ID not available yet, waiting...');
     }
   }, [
     user?.id,
@@ -77,16 +55,21 @@ export const useClientDashboard = () => {
     }
   };
 
-  // Calculate BMI
-  const bmi = activeLead?.bmi || null;
+  // Aggregate stats from all leads - use most recent values or average where appropriate
+  // For display, we'll use the most recent lead's values, but conceptually this is customer-level
+  const mostRecentLead = leads && leads.length > 0 ? leads[0] : null;
+  
+  // Calculate BMI from most recent weight/height
+  const bmi = mostRecentLead?.bmi || null;
 
-  // Get stats from active lead
+  // Get stats - using most recent lead's values for display
+  // In the future, this could be aggregated/averaged across all leads
   const stats = {
-    weight: activeLead?.weight || null,
-    height: activeLead?.height || null,
+    weight: mostRecentLead?.weight || null,
+    height: mostRecentLead?.height || null,
     bmi,
-    fitnessGoal: activeLead?.fitness_goal || null,
-    activityLevel: activeLead?.activity_level || null,
+    fitnessGoal: mostRecentLead?.fitness_goal || null,
+    activityLevel: mostRecentLead?.activity_level || null,
   };
 
   return {

@@ -41,14 +41,11 @@ export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
   const { data: checkIns, isLoading, error: queryError } = useQuery({
     queryKey: ['daily-check-ins', leadId, customerId],
     queryFn: async () => {
-      console.log('[DailyActivityLog] Fetching check-ins:', { leadId, customerId });
-      
       // Always query by customer_id (required field)
       // If we only have leadId, fetch the lead first to get customer_id
       let finalCustomerId = customerId;
       
       if (!finalCustomerId && leadId) {
-        console.log('[DailyActivityLog] Fetching customer_id from lead:', leadId);
         const { data: leadData, error: leadError } = await supabase
           .from('leads')
           .select('customer_id')
@@ -56,26 +53,21 @@ export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
           .single();
         
         if (leadError) {
-          console.error('[DailyActivityLog] Error fetching lead:', leadError);
           throw leadError;
         }
         if (!leadData?.customer_id) {
-          console.warn('[DailyActivityLog] No customer_id found for lead:', leadId);
           return [];
         }
         finalCustomerId = leadData.customer_id;
-        console.log('[DailyActivityLog] Found customer_id:', finalCustomerId);
       }
 
       if (!finalCustomerId) {
-        console.warn('[DailyActivityLog] No customer_id available');
         return [];
       }
 
       // Always query by customer_id (required field)
       // Show ALL check-ins for this customer, regardless of lead_id
       // This ensures managers can see all check-ins, even if they were saved without a specific lead_id
-      console.log('[DailyActivityLog] Querying check-ins for customer_id:', finalCustomerId);
       const { data, error } = await supabase
         .from('daily_check_ins')
         .select('*') // Select all fields to support all checklist fields
@@ -84,11 +76,9 @@ export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
         .limit(100); // Limit to last 100 check-ins
 
       if (error) {
-        console.error('[DailyActivityLog] Error fetching check-ins:', error);
         throw error;
       }
       
-      console.log('[DailyActivityLog] Found check-ins:', data?.length || 0, data);
       return (data || []) as DailyCheckIn[];
     },
     enabled: !!(leadId || customerId),

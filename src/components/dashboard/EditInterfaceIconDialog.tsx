@@ -68,7 +68,6 @@ export const EditInterfaceIconDialog = ({
       onOpenChange(false);
         onSuccess?.();
     } catch (error: any) {
-      console.error('Failed to update interface icon:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון האייקון. אנא נסה שוב.',

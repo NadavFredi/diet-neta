@@ -6,7 +6,7 @@
  * Pixel-perfect match with Leads page header design.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,6 +19,7 @@ import { PageHeader } from '@/components/dashboard/PageHeader';
 import { Columns, Plus, Settings, LucideIcon, Group } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   toggleColumnVisibility as toggleTableColumnVisibility,
   setSearchQuery,
@@ -42,6 +43,10 @@ import { GroupBySelector } from './GroupBySelector';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import type { FilterField } from '@/components/dashboard/TableFilter';
 import { cn } from '@/lib/utils';
+import { useDefaultView } from '@/hooks/useDefaultView';
+import { useUpdateSavedView } from '@/hooks/useSavedViews';
+import { useToast } from '@/hooks/use-toast';
+import type { FilterConfig } from '@/hooks/useSavedViews';
 
 interface TableActionHeaderProps {
   // Required props
@@ -119,6 +124,11 @@ export const TableActionHeader = ({
   const dispatch = useAppDispatch();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGroupByOpen, setIsGroupByOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+  const { defaultView } = useDefaultView(resourceKey);
+  const updateSavedView = useUpdateSavedView();
 
   // Check if state is initialized
   const isInitialized = useAppSelector((state) => !!state.tableState.tables[resourceKey]);
@@ -289,12 +299,103 @@ export const TableActionHeader = ({
     return null;
   };
 
+  // Check if filters are dirty (different from saved/default state)
+  const filtersDirty = useMemo(() => {
+    if (!defaultView) return false;
+    
+    const savedConfig = defaultView.filter_config as FilterConfig | null;
+    if (!savedConfig) return false;
+    
+    const savedFilters = savedConfig.advancedFilters || [];
+    const savedSearchQuery = savedConfig.searchQuery || '';
+    
+    // Normalize current filters for comparison
+    const currentFilters = (activeFilters || []).map(f => ({
+      id: f.id,
+      fieldId: f.fieldId,
+      operator: f.operator,
+      values: Array.isArray(f.values) ? [...f.values].sort() : f.values,
+      type: f.type,
+    })).sort((a, b) => a.id.localeCompare(b.id));
+    
+    // Normalize saved filters for comparison
+    const normalizedSavedFilters = (savedFilters || []).map((f: any) => ({
+      id: f.id,
+      fieldId: f.fieldId,
+      operator: f.operator,
+      values: Array.isArray(f.values) ? [...f.values].sort() : f.values,
+      type: f.type,
+    })).sort((a: any, b: any) => a.id.localeCompare(b.id));
+    
+    // Compare filters
+    const currentFiltersStr = JSON.stringify(currentFilters);
+    const savedFiltersStr = JSON.stringify(normalizedSavedFilters);
+    const filtersChanged = currentFiltersStr !== savedFiltersStr;
+    
+    // Compare search query
+    const currentSearchQuery = (searchQuery || '').trim();
+    const normalizedSavedSearchQuery = savedSearchQuery.trim();
+    const searchQueryChanged = currentSearchQuery !== normalizedSavedSearchQuery;
+    
+    // Filters are dirty if filters changed or search query changed
+    return filtersChanged || searchQueryChanged;
+  }, [activeFilters, searchQuery, defaultView]);
+
+  // Handle saving filters to default view
+  const handleSaveFilters = async () => {
+    if (!defaultView) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא נמצאה תצוגת ברירת מחדל',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Build current filter config
+      const currentFilterConfig: FilterConfig = {
+        ...(defaultView.filter_config as FilterConfig),
+        searchQuery: searchQuery,
+        advancedFilters: activeFilters.map(f => ({
+          id: f.id,
+          fieldId: f.fieldId,
+          fieldLabel: f.fieldLabel,
+          operator: f.operator,
+          values: f.values,
+          type: f.type,
+        })),
+      };
+
+      await updateSavedView.mutateAsync({
+        viewId: defaultView.id,
+        filterConfig: currentFilterConfig,
+      });
+
+      // Invalidate default view query to reload filters
+      queryClient.invalidateQueries({ queryKey: ['defaultView', resourceKey, user?.id] });
+
+      toast({
+        title: 'הצלחה',
+        description: 'המסננים נשמרו בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בשמירת המסננים. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <PageHeader
       title={title}
       icon={icon}
       resourceKey={resourceKey}
       className={className}
+      filtersDirty={filtersDirty}
+      onSaveFilters={handleSaveFilters}
       actions={
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap" dir="rtl">
           {/* Search Input - Rightmost (first in RTL flex) */}

@@ -70,7 +70,6 @@ export const useNutritionTemplates = (filters?: { search?: string; isPublic?: bo
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching nutrition templates:', error);
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התבניות לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
@@ -158,9 +157,6 @@ export const useCreateNutritionTemplate = () => {
         .single();
 
       if (error) {
-        console.error('Error creating nutrition template:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        console.error('Insert data:', JSON.stringify(insertData, null, 2));
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התבניות לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }

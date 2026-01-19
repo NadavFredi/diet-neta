@@ -114,12 +114,9 @@ export const useNutritionTemplatesManagement = () => {
   // Handlers
   const handleLogout = async () => {
     try {
-      console.log('[NutritionTemplatesManagement] Logout initiated');
       await dispatch(logoutUser()).unwrap();
-      console.log('[NutritionTemplatesManagement] Logout successful, navigating to login');
       navigate('/login');
     } catch (error) {
-      console.error('[NutritionTemplatesManagement] Logout error:', error);
       // Navigate to login even if logout fails
       navigate('/login');
     }

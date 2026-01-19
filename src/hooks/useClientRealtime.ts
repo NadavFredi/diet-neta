@@ -27,25 +27,22 @@ export const useClientRealtime = (customerId: string | null) => {
       }
       return;
     }
-
+  
     // Initial fetch
-    console.log('[useClientRealtime] Setting up polling for customer:', customerId);
     dispatch(fetchClientData(customerId));
     dispatch(fetchCheckIns(customerId));
     dispatch(fetchCustomerNotes(customerId));
-
+  
     // Set up polling interval
     intervalRef.current = setInterval(() => {
-      console.log('[useClientRealtime] Polling for updates...');
       dispatch(fetchClientData(customerId));
       dispatch(fetchCheckIns(customerId));
       dispatch(fetchCustomerNotes(customerId));
     }, POLL_INTERVAL);
-
+  
     // Cleanup on unmount or dependency change
     return () => {
       if (intervalRef.current) {
-        console.log('[useClientRealtime] Clearing polling interval');
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }

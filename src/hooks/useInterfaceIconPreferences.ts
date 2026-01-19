@@ -44,14 +44,13 @@ export const useInterfaceIconPreferences = () => {
         const { data, error } = await supabase
           .from('user_interface_preferences')
           .select('interface_key, icon_name')
-          .eq('user_id', userId);
+        .eq('user_id', userId);
 
-        if (error) {
-          console.warn('Error fetching interface icon preferences:', error);
-          return {};
-        }
+      if (error) {
+        return {};
+      }
 
-        // Convert array to object: { 'leads': 'Users', 'customers': 'UserCircle', ... }
+      // Convert array to object: { 'leads': 'Users', 'customers': 'UserCircle', ... }
         const preferences: Record<string, string> = {};
         (data || []).forEach((pref) => {
           preferences[pref.interface_key] = pref.icon_name;
@@ -59,7 +58,6 @@ export const useInterfaceIconPreferences = () => {
 
         return preferences;
       } catch (error) {
-        console.error('Error fetching interface icon preferences:', error);
         return {};
       }
     },

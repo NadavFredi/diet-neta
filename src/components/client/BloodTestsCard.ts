@@ -5,14 +5,15 @@
  */
 
 import { useState, useRef } from 'react';
-import { useBloodTests, useUploadBloodTest, useDeleteBloodTest } from '@/hooks/useBloodTests';
+import { useBloodTests, useBloodTestsForCustomer, useUploadBloodTest, useDeleteBloodTest } from '@/hooks/useBloodTests';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 
-export const useBloodTestsCard = (leadId: string, customerId: string) => {
+export const useBloodTestsCard = (customerId: string, leads?: Array<{ id: string }>) => {
   const { toast } = useToast();
-  const { data: bloodTests = [], isLoading } = useBloodTests(leadId);
+  // Fetch blood tests from all customer leads
+  const { data: bloodTests = [], isLoading } = useBloodTestsForCustomer(customerId);
   const uploadMutation = useUploadBloodTest();
   const deleteMutation = useDeleteBloodTest();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -20,7 +21,16 @@ export const useBloodTestsCard = (leadId: string, customerId: string) => {
 
   // Handle file upload
   const handleFileUpload = async (file: File) => {
-    if (!leadId || !customerId) return;
+    // Use the first/most recent lead for uploads (if available)
+    const leadIdForUpload = leads && leads.length > 0 ? leads[0].id : null;
+    if (!leadIdForUpload || !customerId) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא נמצא lead לעדכון',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Validate file type (PDF only)
     if (file.type !== 'application/pdf') {
@@ -44,7 +54,7 @@ export const useBloodTestsCard = (leadId: string, customerId: string) => {
 
     try {
       await uploadMutation.mutateAsync({
-        leadId,
+        leadId: leadIdForUpload,
         file,
         customerId,
       });

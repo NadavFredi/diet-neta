@@ -8,12 +8,13 @@
 
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, Save } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectInterfaceIconPreference } from '@/store/slices/interfaceIconPreferencesSlice';
 import { useInterfaceIconPreferences } from '@/hooks/useInterfaceIconPreferences';
 import { getIconByName, getDefaultIconForResourceKey } from '@/utils/iconUtils';
 import { EditInterfaceIconDialog } from './EditInterfaceIconDialog';
+import { Button } from '@/components/ui/button';
 
 interface PageHeaderProps {
   title: string;
@@ -25,6 +26,8 @@ interface PageHeaderProps {
   resourceKey?: string; // Interface resource key (e.g., 'leads', 'customers')
   className?: string;
   onIconEditSuccess?: () => void;
+  filtersDirty?: boolean; // Whether filters have been modified
+  onSaveFilters?: () => void; // Callback to save filters
 }
 
 export const PageHeader = ({ 
@@ -37,6 +40,8 @@ export const PageHeader = ({
   resourceKey,
   className,
   onIconEditSuccess,
+  filtersDirty = false,
+  onSaveFilters,
 }: PageHeaderProps) => {
   // Sync preferences on mount
   useInterfaceIconPreferences();
@@ -176,7 +181,22 @@ export const PageHeader = ({
         {/* Bottom Row: Filters / Search (Optional) */}
         {filters && (
           <div className="mt-4 pt-4 border-t border-gray-200">
-            {filters}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1">
+                {filters}
+              </div>
+              {filtersDirty && onSaveFilters && (
+                <Button
+                  onClick={onSaveFilters}
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-2 flex-shrink-0"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>שמור מסננים</span>
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>

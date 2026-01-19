@@ -197,7 +197,6 @@ export const CustomerHistoryTabs = ({ customerId }: CustomerHistoryTabsProps) =>
                                 description: 'הסטטוס עודכן בהצלחה',
                               });
                             } catch (error: any) {
-                              console.error('Failed to update workout plan status:', error);
                               toast({
                                 title: 'שגיאה',
                                 description: error?.message || 'נכשל בעדכון הסטטוס',
