@@ -13,7 +13,7 @@ import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, type FilterConfig } from '@/hooks/useSavedViews';
 import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
-import { selectActiveFilters, selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
+import { selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
 
 export const usePaymentsManagement = () => {
   const dispatch = useAppDispatch();
@@ -23,7 +23,6 @@ export const usePaymentsManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'payments'));
-  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'payments'));
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'payments'));
 
   const { data: payments, isLoading: isLoadingPayments, error } = useAllPayments({
@@ -49,6 +48,7 @@ export const usePaymentsManagement = () => {
   const getCurrentFilterConfig = (filters: ActiveFilter[]): FilterConfig => {
     return {
       searchQuery: searchQuery || '',
+      filterGroup,
       advancedFilters: filters.map((filter) => ({
         id: filter.id,
         fieldId: filter.fieldId,

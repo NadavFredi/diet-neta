@@ -19,9 +19,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
 import type { SubscriptionType } from '@/hooks/useSubscriptionTypes';
-import { selectActiveFilters, selectSearchQuery } from '@/store/slices/tableStateSlice';
-import { applyTableFilters } from '@/utils/tableFilterUtils';
-import { getSubscriptionTypeFilterFields } from '@/hooks/useTableFilters';
+import { selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
 
 export interface SubscriptionTypeColumnVisibility {
   name: boolean;
@@ -54,17 +52,17 @@ export const useSubscriptionTypesManagement = () => {
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('subscription_types');
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'subscription_types'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'subscription_types'));
   const { data: subscriptionTypes = [], isLoading } = useSubscriptionTypes({
-    search: undefined,
+    search: searchQuery,
+    filterGroup,
   });
   const createSubscriptionType = useCreateSubscriptionType();
   const updateSubscriptionType = useUpdateSubscriptionType();
   const deleteSubscriptionType = useDeleteSubscriptionType();
 
   useSyncSavedViewFilters('subscription_types', savedView, isLoadingView);
-
-  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'subscription_types'));
-  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'subscription_types'));
 
   // Auto-navigate to default view (only if defaultView exists)
   useEffect(() => {
@@ -74,26 +72,7 @@ export const useSubscriptionTypesManagement = () => {
   }, [viewId, defaultView, navigate]);
 
   // Filter subscription types
-  const filteredSubscriptionTypes = useMemo(() => {
-    let filtered = subscriptionTypes;
-
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      filtered = filtered.filter((st) => {
-        const nameMatch = st.name?.toLowerCase().includes(searchLower);
-        return nameMatch;
-      });
-    }
-
-    const filterFields = getSubscriptionTypeFilterFields(subscriptionTypes);
-
-    return applyTableFilters(
-      filtered,
-      activeFilters,
-      filterFields,
-      (subscriptionType, fieldId) => (subscriptionType as any)[fieldId]
-    );
-  }, [subscriptionTypes, searchQuery, activeFilters]);
+  const filteredSubscriptionTypes = useMemo(() => subscriptionTypes, [subscriptionTypes]);
 
   // Handlers
   const handleLogout = async () => {
@@ -206,6 +185,7 @@ export const useSubscriptionTypesManagement = () => {
   ) => {
     return {
       searchQuery: searchQuery || '',
+      filterGroup,
       columnVisibility: columnVisibility || {},
       columnOrder: columnOrder || [],
       columnWidths: columnWidths || {},

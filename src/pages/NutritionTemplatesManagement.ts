@@ -20,9 +20,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
 import { TemplateColumnVisibility } from '@/components/dashboard/TemplateColumnSettings';
-import { selectActiveFilters, selectSearchQuery } from '@/store/slices/tableStateSlice';
-import { applyTableFilters } from '@/utils/tableFilterUtils';
-import { getNutritionTemplateFilterFields } from '@/hooks/useTableFilters';
+import { selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
 
 export const useNutritionTemplatesManagement = () => {
   const navigate = useNavigate();
@@ -49,17 +47,17 @@ export const useNutritionTemplatesManagement = () => {
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('nutrition_templates');
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'nutrition_templates'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'nutrition_templates'));
   const { data: templates = [], isLoading } = useNutritionTemplates({
-    search: undefined,
+    search: searchQuery,
+    filterGroup,
   });
   const createTemplate = useCreateNutritionTemplate();
   const updateTemplate = useUpdateNutritionTemplate();
   const deleteTemplate = useDeleteNutritionTemplate();
 
   useSyncSavedViewFilters('nutrition_templates', savedView, isLoadingView);
-
-  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'nutrition_templates'));
-  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'nutrition_templates'));
 
   // Auto-navigate to default view
   useEffect(() => {
@@ -69,47 +67,7 @@ export const useNutritionTemplatesManagement = () => {
   }, [viewId, defaultView, navigate]);
 
   // Filter templates
-  const filteredTemplates = useMemo(() => {
-    let filtered = templates;
-
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      filtered = filtered.filter((template) => {
-        const nameMatch = template.name?.toLowerCase().includes(searchLower);
-        const descMatch = template.description?.toLowerCase().includes(searchLower);
-        return nameMatch || descMatch;
-      });
-    }
-
-    const filterFields = getNutritionTemplateFilterFields(templates);
-
-    return applyTableFilters(
-      filtered,
-      activeFilters,
-      filterFields,
-      (template, fieldId) => {
-        if (fieldId === 'is_public') return template.is_public;
-        if (fieldId === 'calories_range') {
-          const calories = template.targets?.calories;
-          if (calories === undefined || calories === null) return null;
-          if (calories < 1000) return '0-1000';
-          if (calories < 1500) return '1000-1500';
-          if (calories < 2000) return '1500-2000';
-          if (calories < 2500) return '2000-2500';
-          return '2500+';
-        }
-        if (fieldId === 'protein_range') {
-          const protein = template.targets?.protein;
-          if (protein === undefined || protein === null) return null;
-          if (protein < 100) return '0-100';
-          if (protein < 150) return '100-150';
-          if (protein < 200) return '150-200';
-          return '200+';
-        }
-        return (template as any)[fieldId];
-      }
-    );
-  }, [templates, searchQuery, activeFilters]);
+  const filteredTemplates = useMemo(() => templates, [templates]);
 
   // Handlers
   const handleLogout = async () => {
@@ -216,6 +174,7 @@ export const useNutritionTemplatesManagement = () => {
   const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
     return {
       searchQuery,
+      filterGroup,
       columnVisibility,
       columnOrder,
       columnWidths,
@@ -264,8 +223,4 @@ export const useNutritionTemplatesManagement = () => {
     deleteTemplate,
   };
 };
-
-
-
-
 

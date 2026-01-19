@@ -24,9 +24,7 @@ import { generateBudgetPDF } from '@/services/pdfService';
 import { syncPlansFromBudget, deleteAssociatedPlans } from '@/services/budgetPlanSync';
 import { supabase } from '@/lib/supabaseClient';
 import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
-import { selectActiveFilters, selectSearchQuery } from '@/store/slices/tableStateSlice';
-import { applyTableFilters } from '@/utils/tableFilterUtils';
-import { getBudgetFilterFields } from '@/hooks/useTableFilters';
+import { selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
 
 export interface BudgetColumnVisibility {
   name: boolean;
@@ -85,17 +83,17 @@ export const useBudgetManagement = () => {
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('budgets');
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'budgets'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'budgets'));
   const { data: budgets = [], isLoading } = useBudgets({
-    search: undefined,
+    search: searchQuery,
+    filterGroup,
   });
   const createBudget = useCreateBudget();
   const updateBudget = useUpdateBudget();
   const deleteBudget = useDeleteBudget();
 
   useSyncSavedViewFilters('budgets', savedView, isLoadingView);
-
-  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'budgets'));
-  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'budgets'));
 
   // Auto-navigate to default view (only if defaultView exists)
   // If no defaultView, show all budgets (no view_id)
@@ -107,30 +105,7 @@ export const useBudgetManagement = () => {
   }, [viewId, defaultView, navigate]);
 
   // Filter budgets
-  const filteredBudgets = useMemo(() => {
-    let filtered = budgets;
-
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      filtered = filtered.filter((budget) => {
-        const nameMatch = budget.name?.toLowerCase().includes(searchLower);
-        const descMatch = budget.description?.toLowerCase().includes(searchLower);
-        return nameMatch || descMatch;
-      });
-    }
-
-    const filterFields = getBudgetFilterFields(budgets);
-
-    return applyTableFilters(
-      filtered,
-      activeFilters,
-      filterFields,
-      (budget, fieldId) => {
-        if (fieldId === 'is_public') return budget.is_public;
-        return (budget as any)[fieldId];
-      }
-    );
-  }, [budgets, searchQuery, activeFilters]);
+  const filteredBudgets = useMemo(() => budgets, [budgets]);
 
   // Handlers
   const handleLogout = async () => {
@@ -341,6 +316,7 @@ export const useBudgetManagement = () => {
   ) => {
     return {
       searchQuery: searchQuery || '',
+      filterGroup,
       columnVisibility: columnVisibility || {},
       columnOrder: columnOrder || [],
       columnWidths: columnWidths || {},

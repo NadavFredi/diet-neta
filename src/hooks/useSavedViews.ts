@@ -11,6 +11,7 @@ export interface SavedView {
   icon_name?: string | null;
   is_default: boolean;
   display_order?: number | null;
+  folder_id?: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -90,7 +91,7 @@ export const useSavedViews = (resourceKey: string | null) => {
 
         const { data, error } = await supabase
           .from('saved_views')
-          .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, created_by, created_at, updated_at')
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, folder_id, created_by, created_at, updated_at')
           .eq('resource_key', resourceKey)
           .eq('created_by', userId)
           .order('is_default', { ascending: false })
@@ -127,7 +128,7 @@ export const useSavedView = (viewId: string | null) => {
 
         const { data, error } = await supabase
           .from('saved_views')
-          .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, created_by, created_at, updated_at')
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, folder_id, created_by, created_at, updated_at')
           .eq('id', viewId)
           .eq('created_by', userId)
         .single();
@@ -202,7 +203,7 @@ export const useCreateSavedView = () => {
           display_order: isDefault ? 0 : nextDisplayOrder,
           created_by: userId,
         })
-        .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, created_by, created_at, updated_at')
+        .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, folder_id, created_by, created_at, updated_at')
         .single();
 
       if (error) throw error;
@@ -264,7 +265,7 @@ export const useUpdateSavedView = () => {
         .update(updateData)
         .eq('id', viewId)
         .eq('created_by', userId)
-        .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, created_by, created_at, updated_at')
+        .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, folder_id, created_by, created_at, updated_at')
         .single();
 
       if (error) throw error;
@@ -298,6 +299,49 @@ export const useDeleteSavedView = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['savedViews', variables.resourceKey] });
+    },
+  });
+};
+
+// Update a page's folder assignment
+export const useUpdatePageFolder = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useMutation({
+    mutationFn: async ({
+      viewId,
+      folderId,
+    }: {
+      viewId: string;
+      folderId: string | null; // null means remove from folder
+    }) => {
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const userId = user.id;
+
+      // Get the resource_key from the view first
+      const { data: view } = await supabase
+        .from('saved_views')
+        .select('resource_key')
+        .eq('id', viewId)
+        .eq('created_by', userId)
+        .single();
+
+      if (!view) throw new Error('View not found');
+
+      const { error } = await supabase
+        .from('saved_views')
+        .update({ folder_id: folderId })
+        .eq('id', viewId)
+        .eq('created_by', userId);
+
+      if (error) throw error;
+
+      return view.resource_key;
+    },
+    onSuccess: (resourceKey) => {
+      queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey] });
     },
   });
 };

@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { X, Plus, FolderPlus } from 'lucide-react';
-import { TableFilter, type ActiveFilter, type FilterField, type FilterGroup } from '@/components/dashboard/TableFilter';
+import { TableFilter, type ActiveFilter, type FilterField, type FilterGroup, OPERATOR_LABELS } from '@/components/dashboard/TableFilter';
 import {
   addFilterToGroup,
   addGroupToGroup,
@@ -147,7 +147,7 @@ export const FilterGroupDialog = ({
                 }}
               >
                 <span className="font-medium">{filter.fieldLabel}</span>
-                <span className="mx-1 text-indigo-600">{filter.operator}</span>
+                <span className="mx-1 text-indigo-600">{OPERATOR_LABELS[filter.operator]}</span>
                 <span className="font-semibold">{filter.values.join(', ')}</span>
                 <button
                   onClick={(event) => {

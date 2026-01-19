@@ -18,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ChevronDown, Plus, Edit2, X, GripVertical, Copy } from 'lucide-react';
+import { ChevronDown, Plus, Edit2, X, GripVertical, Copy, Folder, ArrowUpDown, ArrowUp, ArrowDown, FolderPlus } from 'lucide-react';
 import { useSavedViews, type SavedView, useCreateSavedView } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useToast } from '@/hooks/use-toast';
@@ -40,7 +40,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { SortableViewItem } from './SortableViewItem';
+import { SortableFolderItem } from './SortableFolderItem';
 import { useUpdatePageOrders } from '@/hooks/usePageOrder';
+import { useFolders, useUpdateFolderOrders, useDeleteFolder, type InterfaceFolder } from '@/hooks/useFolders';
+import { CreateFolderDialog } from './CreateFolderDialog';
+import { AssignPageToFolderDialog } from './AssignPageToFolderDialog';
 
 interface NavItem {
   id: string;
@@ -127,8 +131,18 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [viewToDelete, setViewToDelete] = useState<{ id: string; name: string } | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
+  const [assignPageDialogOpen, setAssignPageDialogOpen] = useState(false);
+  const [pageToAssign, setPageToAssign] = useState<SavedView | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null); // null = use display_order, 'asc'/'desc' = sort by name
   const updatePageOrders = useUpdatePageOrders();
   const createSavedView = useCreateSavedView();
+
+  // Fetch folders for this interface
+  const { data: folders = [] } = useFolders(shouldFetchData ? item.resourceKey : null);
+  const updateFolderOrders = useUpdateFolderOrders();
+  const deleteFolder = useDeleteFolder();
 
   // Drag and drop sensors for views
   const sensors = useSensors(
@@ -142,7 +156,58 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     })
   );
 
-  // Handle drag end for views/pages
+  // Handle drag end for folders
+  const handleFolderDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const activeId = typeof active.id === 'string' && active.id.startsWith('folder-')
+      ? active.id.replace('folder-', '')
+      : null;
+    const overId = typeof over.id === 'string' && over.id.startsWith('folder-')
+      ? over.id.replace('folder-', '')
+      : null;
+
+    if (!activeId || !overId) return;
+
+    const oldIndex = sortedFolders.findIndex((folder) => folder.id === activeId);
+    const newIndex = sortedFolders.findIndex((folder) => folder.id === overId);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // Reorder the folders
+    const reorderedFolders = arrayMove(sortedFolders, oldIndex, newIndex);
+
+    // Update orders in database
+    try {
+      const orders = reorderedFolders.map((folder, index) => ({
+        folder_id: folder.id,
+        display_order: index + 1,
+      }));
+
+      if (orders.length > 0) {
+        await updateFolderOrders.mutateAsync(orders);
+
+        toast({
+          title: 'סדר התיקיות עודכן',
+          description: 'הסדר החדש נשמר בהצלחה.',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא ניתן לעדכן את הסדר. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Handle drag end for views/pages (only within same folder/root level)
   const handleViewDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -150,24 +215,37 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       return;
     }
 
-    const oldIndex = viewsToDisplay.findIndex((view) => view.id === active.id);
-    const newIndex = viewsToDisplay.findIndex((view) => view.id === over.id);
+    // Get pages in the same context (same folder or root level)
+    const activeView = allViews.find((view) => view.id === active.id);
+    const overView = allViews.find((view) => view.id === over.id);
+
+    if (!activeView || !overView) return;
+
+    // Only allow reordering within the same folder context
+    if (activeView.folder_id !== overView.folder_id) {
+      return;
+    }
+
+    const contextPages = allViews.filter(
+      (view) => view.folder_id === activeView.folder_id && !view.is_default
+    );
+
+    const oldIndex = contextPages.findIndex((view) => view.id === active.id);
+    const newIndex = contextPages.findIndex((view) => view.id === over.id);
 
     if (oldIndex === -1 || newIndex === -1) {
       return;
     }
 
     // Reorder the views
-    const reorderedViews = arrayMove(viewsToDisplay, oldIndex, newIndex);
+    const reorderedViews = arrayMove(contextPages, oldIndex, newIndex);
 
     // Update orders in database
     try {
-      const orders = reorderedViews
-        .filter((view) => !view.is_default) // Skip default view in ordering
-        .map((view, index) => ({
-          view_id: view.id,
-          display_order: index + 1,
-        }));
+      const orders = reorderedViews.map((view, index) => ({
+        view_id: view.id,
+        display_order: index + 1,
+      }));
 
       if (orders.length > 0) {
         await updatePageOrders.mutateAsync(orders);
@@ -361,41 +439,128 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         {!isCollapsed && (
           <>
             <span className="flex-1 text-right">{item.label}</span>
-            {supportsViews && onSaveViewClick && (
-              <div
-                className={cn(
-                  'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
-                  'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
-                  isMainInterfaceActive
-                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSaveViewClick(item.resourceKey);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onSaveViewClick(item.resourceKey);
-                  }
-                }}
-                title="הוסף דף חדש"
-                role="button"
-                tabIndex={0}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </div>
-            )}
             {supportsViews && (
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 flex-shrink-0 transition-transform duration-200',
-                  isExpanded ? 'rotate-0' : '-rotate-90',
-                  isMainInterfaceActive ? 'text-gray-700' : 'text-white/60'
+              <div className="flex items-center gap-1">
+                {/* Sort controls */}
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {sortOrder === null && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSortOrder('asc');
+                      }}
+                      className={cn(
+                        'p-1 rounded-md transition-colors',
+                        isMainInterfaceActive
+                          ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                          : 'text-white/60 hover:text-white hover:bg-white/10'
+                      )}
+                      title="מיין לפי שם (א-ב)"
+                    >
+                      <ArrowUpDown className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {sortOrder === 'asc' && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSortOrder('desc');
+                      }}
+                      className={cn(
+                        'p-1 rounded-md transition-colors',
+                        isMainInterfaceActive
+                          ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                          : 'text-white/60 hover:text-white hover:bg-white/10'
+                      )}
+                      title="מיין לפי שם (ב-א)"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {sortOrder === 'desc' && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSortOrder(null);
+                      }}
+                      className={cn(
+                        'p-1 rounded-md transition-colors',
+                        isMainInterfaceActive
+                          ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                          : 'text-white/60 hover:text-white hover:bg-white/10'
+                      )}
+                      title="בטל מיון (החזר לסדר ידני)"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                {/* Create folder button */}
+                <div
+                  className={cn(
+                    'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
+                    'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
+                    isMainInterfaceActive
+                      ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                      : 'text-white/60 hover:text-white hover:bg-white/10'
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCreateFolderDialogOpen(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setCreateFolderDialogOpen(true);
+                    }
+                  }}
+                  title="צור תיקייה חדשה"
+                  role="button"
+                  tabIndex={0}
+                >
+                  <FolderPlus className="h-3.5 w-3.5" />
+                </div>
+                {/* Create page button */}
+                {onSaveViewClick && (
+                  <div
+                    className={cn(
+                      'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
+                      'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
+                      isMainInterfaceActive
+                        ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSaveViewClick(item.resourceKey);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSaveViewClick(item.resourceKey);
+                      }
+                    }}
+                    title="הוסף דף חדש"
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </div>
                 )}
-              />
+                {/* Expand/collapse button */}
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+                    isExpanded ? 'rotate-0' : '-rotate-90',
+                    isMainInterfaceActive ? 'text-gray-700' : 'text-white/60'
+                  )}
+                />
+              </div>
             )}
           </>
         )}
@@ -405,155 +570,318 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
 
   // Sub-views list - show if we have any views (from savedViews or defaultView)
   const hasViews = supportsViews && (savedViews.length > 0 || defaultView);
-  // Ensure defaultView is always included in the list to display and sorted by display_order
-  const viewsToDisplay = useMemo(() => {
+
+  // Get all views (including default)
+  const allViews = useMemo(() => {
     if (!supportsViews) return [];
 
-    let allViews: SavedView[] = [];
-
-    // Always include defaultView if it exists
+    let views: SavedView[] = [];
     if (defaultView) {
       const hasDefaultInList = savedViews.some(view => view.id === defaultView.id);
       if (!hasDefaultInList) {
-        allViews = [defaultView, ...savedViews];
+        views = [defaultView, ...savedViews];
       } else {
-        allViews = [...savedViews];
+        views = [...savedViews];
       }
     } else {
-      allViews = [...savedViews];
+      views = [...savedViews];
     }
 
-    // Sort by display_order: default view (order 0) first, then others by display_order
-    return allViews.sort((a, b) => {
+    // Sort by name if sortOrder is set, otherwise by display_order
+    if (sortOrder === 'asc' || sortOrder === 'desc') {
+      return views.sort((a, b) => {
+        if (a.is_default) return -1;
+        if (b.is_default) return 1;
+        const comparison = a.view_name.localeCompare(b.view_name, 'he');
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    // Default: sort by display_order
+    return views.sort((a, b) => {
       if (a.is_default) return -1;
       if (b.is_default) return 1;
       const orderA = a.display_order ?? 999;
       const orderB = b.display_order ?? 999;
       return orderA - orderB;
     });
-  }, [savedViews, defaultView, supportsViews]);
+  }, [savedViews, defaultView, supportsViews, sortOrder]);
 
-  const subViewsList = hasViews && (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleViewDragEnd}
-    >
-      <SortableContext
-        items={viewsToDisplay.map((view) => view.id)}
-        strategy={verticalListSortingStrategy}
+  // Sort folders
+  const sortedFolders = useMemo(() => {
+    if (sortOrder === 'asc' || sortOrder === 'desc') {
+      const sorted = [...folders].sort((a, b) => {
+        const comparison = a.name.localeCompare(b.name, 'he');
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+      return sorted;
+    }
+
+    // Default: sort by display_order
+    return [...folders].sort((a, b) => {
+      const orderA = a.display_order ?? 999;
+      const orderB = b.display_order ?? 999;
+      return orderA - orderB;
+    });
+  }, [folders, sortOrder]);
+
+  // Group views by folder - default view is always separate and first
+  const viewsByFolder = useMemo(() => {
+    const grouped: Record<string, SavedView[]> = {};
+    const rootViews: SavedView[] = [];
+    let defaultViewItem: SavedView | null = null;
+
+    allViews.forEach((view) => {
+      if (view.is_default) {
+        defaultViewItem = view;
+        return; // Skip default view - it will be rendered separately first
+      }
+
+      if (view.folder_id) {
+        if (!grouped[view.folder_id]) {
+          grouped[view.folder_id] = [];
+        }
+        grouped[view.folder_id].push(view);
+      } else {
+        rootViews.push(view);
+      }
+    });
+
+    return { grouped, rootViews, defaultView: defaultViewItem };
+  }, [allViews]);
+
+  // Render a single page/view
+  const renderPage = (view: SavedView, isInPopover = false) => {
+    const isViewActive = activeViewId === view.id ||
+      (shouldHighlightDefaultView && view.id === defaultView?.id);
+    const isDefaultView = view.is_default;
+
+    return (
+      <SortableViewItem
+        key={view.id}
+        view={view}
+        isActive={isViewActive}
+        isDefaultView={isDefaultView}
       >
-        <div className="space-y-1 mt-2">
-          {viewsToDisplay.map((view) => {
-            // View is active if: it matches activeViewId OR it's the default view and we're on a profile route
-            const isViewActive = activeViewId === view.id ||
-              (shouldHighlightDefaultView && view.id === defaultView?.id);
-            const isDefaultView = view.is_default;
-            return (
-              <SortableViewItem
-                key={view.id}
-                view={view}
-                isActive={isViewActive}
-                isDefaultView={isDefaultView}
-              >
-                <div
-                  className={cn(
-                    'group/view-item relative flex items-center',
-                    // Child items use rounded pill with margins (nested look)
-                    'mx-5'
-                  )}
-                >
-                  <button
-                    onClick={() => {
-                      // Always use the base resource path, not the current location
-                      // This ensures clicking a view from a detail page navigates to the list with that view
-                      onViewClick(view, item.path);
-                      setPopoverOpen(false);
+        <div
+          className={cn(
+            'group/view-item relative flex items-center',
+            'mx-5'
+          )}
+        >
+          <button
+            onClick={() => {
+              onViewClick(view, item.path);
+              setPopoverOpen(false);
+            }}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
+              'text-right w-full rounded-lg',
+              isViewActive
+                ? 'text-gray-800 bg-white shadow-sm font-semibold'
+                : isInPopover
+                  ? 'text-gray-700 hover:bg-white/10'
+                  : 'text-white/80 hover:bg-white/10'
+            )}
+          >
+            <span className="flex-1 truncate">{view.view_name}</span>
+            <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity">
+              {!isDefaultView && (
+                <>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDuplicateClick(e, view);
                     }}
                     className={cn(
-                      'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
-                      'text-right w-full',
-                      // Child (Level 1+) - Same rectangular style as parent but with margins
-                      'rounded-lg',
+                      'p-1 rounded cursor-pointer transition-colors',
                       isViewActive
-                        ? 'text-gray-800 bg-white shadow-sm font-semibold'
-                        : 'text-gray-700 hover:bg-white/10'
+                        ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                        : 'text-white/90 hover:text-white hover:bg-white/20'
                     )}
+                    title="שכפל"
                   >
-                    <span className="flex-1 truncate">{view.view_name}</span>
-                    <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity">
-                      {!isDefaultView && (
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDuplicateClick(e, view);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleDuplicateClick(e as any, view);
-                            }
-                          }}
-                          className="p-1 rounded hover:bg-gray-200 text-gray-600 cursor-pointer"
-                          title="שכפל"
-                          role="button"
-                          tabIndex={0}
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </div>
+                    <Copy className="h-3.5 w-3.5" />
+                  </div>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPageToAssign(view);
+                      setAssignPageDialogOpen(true);
+                    }}
+                    className={cn(
+                      'p-1 rounded cursor-pointer transition-colors',
+                      isViewActive
+                        ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                        : 'text-white/90 hover:text-white hover:bg-white/20'
+                    )}
+                    title="העבר לתיקייה"
+                  >
+                    <Folder className="h-3.5 w-3.5" />
+                  </div>
+                  {onEditViewClick && (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditViewClick(view);
+                      }}
+                      className={cn(
+                        'p-1 rounded cursor-pointer transition-colors',
+                        isViewActive
+                          ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                          : 'text-white/90 hover:text-white hover:bg-white/20'
                       )}
-                      {onEditViewClick && !isDefaultView && (
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEditViewClick(view);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              onEditViewClick(view);
-                            }
-                          }}
-                          className="p-1 rounded hover:bg-gray-200 text-gray-600 cursor-pointer"
-                          title="ערוך"
-                          role="button"
-                          tabIndex={0}
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </div>
-                      )}
-                      {!isDefaultView && (
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(e, view);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleDeleteClick(e as any, view);
-                            }
-                          }}
-                          className="p-1 rounded hover:bg-red-100 text-red-600 cursor-pointer"
-                          title="מחק"
-                          role="button"
-                          tabIndex={0}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </div>
-                      )}
+                      title="ערוך"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
                     </div>
-                  </button>
-                </div>
-              </SortableViewItem>
-            );
-          })}
+                  )}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(e, view);
+                    }}
+                    className={cn(
+                      'p-1 rounded cursor-pointer transition-colors',
+                      isViewActive
+                        ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
+                        : 'text-white/90 hover:text-white hover:bg-red-500/20'
+                    )}
+                    title="מחק"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </div>
+                </>
+              )}
+            </div>
+          </button>
         </div>
-      </SortableContext>
-    </DndContext>
+      </SortableViewItem>
+    );
+  };
+
+  // Render a folder with its pages
+  const renderFolder = (folder: InterfaceFolder) => {
+    const folderPages = viewsByFolder.grouped[folder.id] || [];
+    const isExpanded = expandedFolders.has(folder.id);
+
+    return (
+      <SortableFolderItem key={folder.id} folder={folder}>
+        <div className="mx-5 mb-1">
+          <button
+            onClick={() => {
+              const newExpanded = new Set(expandedFolders);
+              if (isExpanded) {
+                newExpanded.delete(folder.id);
+              } else {
+                newExpanded.add(folder.id);
+              }
+              setExpandedFolders(newExpanded);
+            }}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
+              'text-right w-full rounded-lg',
+              'text-white/80 hover:bg-white/10'
+            )}
+          >
+            <Folder className="h-4 w-4 flex-shrink-0" />
+            <span className="flex-1 truncate">{folder.name}</span>
+            <div className="flex items-center gap-1 opacity-0 group-hover/folder-drag:opacity-100 transition-opacity">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteFolder.mutate(folder.id, {
+                    onSuccess: () => {
+                      toast({
+                        title: 'תיקייה נמחקה',
+                        description: `תיקייה "${folder.name}" נמחקה בהצלחה.`,
+                      });
+                    },
+                  });
+                }}
+                className="p-1 rounded hover:bg-red-100 text-red-600 cursor-pointer"
+                title="מחק תיקייה"
+              >
+                <X className="h-3.5 w-3.5" />
+              </div>
+            </div>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+                isExpanded ? 'rotate-0' : '-rotate-90'
+              )}
+            />
+          </button>
+
+          {isExpanded && folderPages.length > 0 && (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleViewDragEnd}
+            >
+              <SortableContext
+                items={folderPages.map((view) => view.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-1 mt-1 mr-8">
+                  {folderPages.map((view) => renderPage(view, false))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </div>
+      </SortableFolderItem>
+    );
+  };
+
+  const subViewsList = hasViews && (
+    <>
+      {/* Default view always appears first, before folders */}
+      {viewsByFolder.defaultView && (
+        <div className="space-y-1 mt-2">
+          {renderPage(viewsByFolder.defaultView, false)}
+        </div>
+      )}
+
+      {/* Folders */}
+      {sortedFolders.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleFolderDragEnd}
+        >
+          <SortableContext
+            items={sortedFolders.map((folder) => `folder-${folder.id}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className={cn("space-y-1 mt-2", viewsByFolder.defaultView && "mt-1")}>
+              {sortedFolders.map((folder) => renderFolder(folder))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
+
+      {/* Root-level pages (not in folders, excluding default) */}
+      {viewsByFolder.rootViews.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleViewDragEnd}
+        >
+          <SortableContext
+            items={viewsByFolder.rootViews.map((view) => view.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className={cn(
+              "space-y-1 mt-2",
+              (sortedFolders.length > 0 || viewsByFolder.defaultView) && "mt-1"
+            )}>
+              {viewsByFolder.rootViews.map((view) => renderPage(view, false))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
+    </>
   );
 
   // Wrapper with tooltip for collapsed mode
@@ -583,7 +911,61 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                 <div className="font-semibold text-sm text-gray-900 mb-2">
                   {item.label}
                 </div>
-                {subViewsList}
+                <div className="max-h-[400px] overflow-y-auto">
+                  {/* Default view always appears first */}
+                  {viewsByFolder.defaultView && (
+                    <div className="space-y-1 mb-2">
+                      {renderPage(viewsByFolder.defaultView, true)}
+                    </div>
+                  )}
+
+                  {sortedFolders.length > 0 && (
+                    <div className={cn("space-y-1 mb-2", viewsByFolder.defaultView && "mt-1")}>
+                      {sortedFolders.map((folder) => {
+                        const folderPages = viewsByFolder.grouped[folder.id] || [];
+                        const isFolderExpanded = expandedFolders.has(folder.id);
+                        return (
+                          <div key={folder.id} className="mb-1">
+                            <button
+                              onClick={() => {
+                                const newExpanded = new Set(expandedFolders);
+                                if (isFolderExpanded) {
+                                  newExpanded.delete(folder.id);
+                                } else {
+                                  newExpanded.add(folder.id);
+                                }
+                                setExpandedFolders(newExpanded);
+                              }}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md w-full text-right"
+                            >
+                              <Folder className="h-4 w-4" />
+                              <span className="flex-1 truncate">{folder.name}</span>
+                              <ChevronDown
+                                className={cn(
+                                  'h-4 w-4 transition-transform duration-200',
+                                  isFolderExpanded ? 'rotate-0' : '-rotate-90'
+                                )}
+                              />
+                            </button>
+                            {isFolderExpanded && folderPages.length > 0 && (
+                              <div className="mr-4 mt-1 space-y-1">
+                                {folderPages.map((view) => renderPage(view, true))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {viewsByFolder.rootViews.length > 0 && (
+                    <div className={cn(
+                      "space-y-1",
+                      (sortedFolders.length > 0 || viewsByFolder.defaultView) && "mt-1"
+                    )}>
+                      {viewsByFolder.rootViews.map((view) => renderPage(view, true))}
+                    </div>
+                  )}
+                </div>
                 {onSaveViewClick && (
                   <button
                     onClick={() => {
@@ -622,136 +1004,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       <li className="w-full group">
         {buttonContent}
         {supportsViews && isExpanded && hasViews && (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleViewDragEnd}
-          >
-            <SortableContext
-              items={viewsToDisplay.map((view) => view.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="mt-1 space-y-1">
-                {viewsToDisplay.map((view) => {
-                  // View is active if: it matches activeViewId OR it's the default view and we're on a profile route
-                  const isViewActive = activeViewId === view.id ||
-                    (shouldHighlightDefaultView && view.id === defaultView?.id);
-                  const isDefaultView = view.is_default;
-                  return (
-                    <SortableViewItem
-                      key={view.id}
-                      view={view}
-                      isActive={isViewActive}
-                      isDefaultView={isDefaultView}
-                    >
-                      <div
-                        className={cn(
-                          'group/view-item relative flex items-center',
-                          // Child items use same rectangular style as parent but with margins (shorter width to show nesting)
-                          'mx-5'
-                        )}
-                      >
-                        <button
-                          onClick={() => onViewClick(view, item.path)}
-                          className={cn(
-                            'flex items-center gap-2.5 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
-                            'relative w-full',
-                            // Child (Level 1+) - Same rectangular style as parent but with margins
-                            'rounded-lg',
-                            isViewActive
-                              ? 'text-gray-800 bg-white shadow-sm font-semibold'
-                              : 'text-white/80 hover:bg-white/10'
-                          )}
-                        >
-                          <span className="flex-1 text-right truncate">{view.view_name}</span>
-                          <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity flex-shrink-0">
-                            {!isDefaultView && (
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDuplicateClick(e, view);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleDuplicateClick(e as any, view);
-                                  }
-                                }}
-                                className={cn(
-                                  'p-1 rounded-md transition-colors cursor-pointer',
-                                  isViewActive
-                                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                                    : 'text-white/60 hover:text-white hover:bg-white/20'
-                                )}
-                                title="שכפל"
-                                role="button"
-                                tabIndex={0}
-                              >
-                                <Copy className="h-3.5 w-3.5" />
-                              </div>
-                            )}
-                            {onEditViewClick && !isDefaultView && (
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onEditViewClick(view);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    onEditViewClick(view);
-                                  }
-                                }}
-                                className={cn(
-                                  'p-1 rounded-md transition-colors cursor-pointer',
-                                  isViewActive
-                                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                                    : 'text-white/60 hover:text-white hover:bg-white/20'
-                                )}
-                                title="ערוך"
-                                role="button"
-                                tabIndex={0}
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </div>
-                            )}
-                            {!isDefaultView && (
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteClick(e, view);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleDeleteClick(e as any, view);
-                                  }
-                                }}
-                                className={cn(
-                                  'p-1 rounded-md transition-colors cursor-pointer',
-                                  isViewActive
-                                    ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
-                                    : 'text-white/60 hover:text-white hover:bg-white/20'
-                                )}
-                                title="מחק"
-                                role="button"
-                                tabIndex={0}
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                      </div>
-                    </SortableViewItem>
-                  );
-                })}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <div className="mt-1">
+            {subViewsList}
+          </div>
         )}
       </li>
       <DeleteViewDialog
@@ -763,6 +1018,25 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         viewToDelete={viewToDelete}
         resourceKey={item.resourceKey}
       />
+      {supportsViews && (
+        <>
+          <CreateFolderDialog
+            isOpen={createFolderDialogOpen}
+            onOpenChange={setCreateFolderDialogOpen}
+            interfaceKey={item.resourceKey}
+          />
+          {pageToAssign && (
+            <AssignPageToFolderDialog
+              isOpen={assignPageDialogOpen}
+              onOpenChange={(open) => {
+                setAssignPageDialogOpen(open);
+                if (!open) setPageToAssign(null);
+              }}
+              page={pageToAssign}
+            />
+          )}
+        </>
+      )}
     </>
   );
 };

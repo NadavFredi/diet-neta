@@ -38,11 +38,17 @@ export const useAllPayments = (filters?: { search?: string; filterGroup?: Filter
           currency: { column: 'currency', type: 'multiselect' },
           product_name: { column: 'product_name', type: 'text' },
           customer_name: { column: 'customer.full_name', type: 'text' },
-          lead_id: { column: 'lead_id', type: 'text' },
+          lead_id_text: {
+            custom: (filter, negate) => {
+              const value = filter.values[0];
+              if (!value) return [];
+              return [[{ column: 'lead_id::text', operator: 'ilike', value: `%${value}%`, negate }]];
+            },
+          },
         };
 
         const searchGroup = filters?.search
-          ? createSearchGroup(filters.search, ['product_name', 'customer_name', 'lead_id'])
+          ? createSearchGroup(filters.search, ['product_name', 'customer_name', 'lead_id_text'])
           : null;
         const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
 

@@ -12,7 +12,7 @@ import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
-import { selectActiveFilters, selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
+import { selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
 
 export const useCustomersManagement = () => {
   const navigate = useNavigate();
@@ -25,7 +25,6 @@ export const useCustomersManagement = () => {
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('customers');
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'customers'));
-  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'customers'));
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'customers'));
 
   const { data: customers = [], isLoading: isLoadingCustomers } = useCustomers({
@@ -60,6 +59,7 @@ export const useCustomersManagement = () => {
   const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
     return {
       searchQuery,
+      filterGroup,
       columnOrder,
       columnWidths,
       sortBy,
@@ -88,7 +88,4 @@ export const useCustomersManagement = () => {
     getCurrentFilterConfig,
   };
 };
-
-
-
 

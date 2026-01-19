@@ -16,6 +16,8 @@ import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, type ResourceKey } from '@/store/slices/tableStateSlice';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { isAdvancedFilterGroup } from '@/utils/filterGroupUtils';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, useUpdateSavedView } from '@/hooks/useSavedViews';
 import { useToast } from '@/hooks/use-toast';
@@ -175,6 +177,7 @@ export const TablePageHeader = ({
     if (!savedConfig) return false;
     
     const savedFilters = savedConfig.advancedFilters || [];
+    const savedFilterGroup = savedConfig.filterGroup || null;
     const savedSearchQuery = savedConfig.searchQuery || '';
     
     // Normalize current filters for comparison
@@ -195,10 +198,11 @@ export const TablePageHeader = ({
       type: f.type,
     })).sort((a: any, b: any) => a.id.localeCompare(b.id));
     
-    // Compare filters
-    const currentFiltersStr = JSON.stringify(currentFilters);
-    const savedFiltersStr = JSON.stringify(normalizedSavedFilters);
-    const filtersChanged = currentFiltersStr !== savedFiltersStr;
+    const currentFilterGroupStr = filterGroup ? JSON.stringify(filterGroup) : '';
+    const savedFilterGroupStr = savedFilterGroup ? JSON.stringify(savedFilterGroup) : '';
+    const filtersChanged = savedFilterGroup
+      ? currentFilterGroupStr !== savedFilterGroupStr
+      : JSON.stringify(currentFilters) !== JSON.stringify(normalizedSavedFilters);
     
     // Compare search query
     const currentSearchQuery = (searchQuery || '').trim();
@@ -207,7 +211,7 @@ export const TablePageHeader = ({
     
     // Filters are dirty if filters changed or search query changed
     return filtersChanged || searchQueryChanged;
-  }, [activeFilters, searchQuery, defaultView, activeView, viewId]);
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup]);
 
   // Handle saving filters to default view
   const handleSaveFilters = async () => {
@@ -226,6 +230,7 @@ export const TablePageHeader = ({
       const currentFilterConfig: FilterConfig = {
         ...(targetView.filter_config as FilterConfig),
         searchQuery: searchQuery,
+        filterGroup: filterGroup,
         advancedFilters: activeFilters.map(f => ({
           id: f.id,
           fieldId: f.fieldId,
@@ -372,6 +377,12 @@ export const TablePageHeader = ({
               onClearAll={handleClearFilters}
               onEdit={canEditFilters ? setEditingFilter : undefined}
             />
+          )}
+
+          {filterGroup && isAdvancedFilterGroup(filterGroup) && (
+            <Badge variant="secondary" className="w-fit bg-indigo-50 text-indigo-700 border border-indigo-200">
+              סינון מתקדם פעיל
+            </Badge>
           )}
 
           {/* Results Count */}

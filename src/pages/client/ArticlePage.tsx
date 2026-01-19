@@ -26,26 +26,26 @@ import 'react-quill/dist/quill.snow.css';
 // Helper to parse video URL and get embed URL
 const getVideoEmbedUrl = (url: string): string | null => {
   if (!url) return null;
-  
+
   // YouTube
   const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
   const youtubeMatch = url.match(youtubeRegex);
   if (youtubeMatch) {
     return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
   }
-  
+
   // Vimeo
   const vimeoRegex = /(?:vimeo\.com\/)(?:.*\/)?(\d+)/;
   const vimeoMatch = url.match(vimeoRegex);
   if (vimeoMatch) {
     return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
   }
-  
+
   // Direct video URL (mp4, webm, etc.)
   if (url.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i)) {
     return url;
   }
-  
+
   return null;
 };
 
@@ -134,7 +134,7 @@ const renderContentBlocks = (blocks: ContentBlock[], articleTitle: string = '') 
             margin: 0;
           }
         `}</style>
-        <div 
+        <div
           className="article-content"
           dangerouslySetInnerHTML={{ __html: blocks[0].content || '' }}
         />
@@ -234,7 +234,7 @@ export const ArticlePage: React.FC = () => {
   const queryClient = useQueryClient();
   const deleteMutation = useDeleteExternalArticle();
   const updateMutation = useUpdateExternalArticle();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -245,13 +245,13 @@ export const ArticlePage: React.FC = () => {
     content: '',
     status: 'draft' as 'draft' | 'published',
   });
-  
+
   const [imageSizeDialogOpen, setImageSizeDialogOpen] = useState(false);
   const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
   const [editingImageElement, setEditingImageElement] = useState<HTMLImageElement | null>(null);
   const [imageWidth, setImageWidth] = useState<string>('500');
   const [imageSizeType, setImageSizeType] = useState<'small' | 'medium' | 'large' | 'full' | 'custom'>('medium');
-  
+
   const coverImageInputRef = useRef<HTMLInputElement>(null);
   const quillRef = useRef<ReactQuill>(null);
 
@@ -274,11 +274,11 @@ export const ArticlePage: React.FC = () => {
     enabled: !!id,
   });
 
-  // Initialize edit data when article loads or edit mode is enabled
+  // Initialize edit data when article loads or when entering edit mode
   useEffect(() => {
     if (article && isEditing) {
       const normalized = normalizeContent(article.content);
-      
+
       // Convert blocks to HTML: combine text blocks and embed images/videos as HTML
       let htmlContent = '';
       normalized.blocks.forEach((block) => {
@@ -301,7 +301,8 @@ export const ArticlePage: React.FC = () => {
           }
         }
       });
-      
+
+      // Initialize edit data with article data when entering edit mode
       setEditData({
         title: article.title || '',
         cover_image: article.cover_image,
@@ -314,9 +315,9 @@ export const ArticlePage: React.FC = () => {
   // Setup image click handlers in edit mode
   useEffect(() => {
     if (!isEditing) return;
-    
+
     let cleanup: (() => void) | null = null;
-    
+
     // Use a small delay to ensure editor is ready
     const timeout = setTimeout(() => {
       const quill = quillRef.current?.getEditor();
@@ -330,15 +331,15 @@ export const ArticlePage: React.FC = () => {
         if (target.tagName === 'IMG' && (target.hasAttribute('data-editable') || target.hasAttribute('data-resizable'))) {
           e.preventDefault();
           e.stopPropagation();
-          
+
           // Get current width - check both style and computed style
           const styleWidth = target.style.width || '';
           const computedStyle = window.getComputedStyle(target);
           const computedWidth = computedStyle.width;
-          
+
           let widthValue = '500';
           let sizeType: 'small' | 'medium' | 'large' | 'full' | 'custom' = 'medium';
-          
+
           // Check if it's full width (100%)
           if (styleWidth.includes('100%')) {
             sizeType = 'full';
@@ -349,7 +350,7 @@ export const ArticlePage: React.FC = () => {
             if (widthMatch) {
               widthValue = widthMatch[1];
               const widthNum = parseInt(widthValue);
-              
+
               // Determine size type based on predefined sizes
               if (widthNum >= 250 && widthNum < 400) {
                 sizeType = 'small';
@@ -362,7 +363,7 @@ export const ArticlePage: React.FC = () => {
               }
             }
           }
-          
+
           setEditingImageElement(target);
           setImageWidth(widthValue);
           setImageSizeType(sizeType);
@@ -372,7 +373,7 @@ export const ArticlePage: React.FC = () => {
       };
 
       editor.addEventListener('click', handleImageClick, true); // Use capture phase
-      
+
       cleanup = () => {
         editor.removeEventListener('click', handleImageClick, true);
       };
@@ -387,7 +388,7 @@ export const ArticlePage: React.FC = () => {
   // Apply image size
   const applyImageSize = () => {
     const width = imageSizeType === 'full' ? '100%' : `${imageWidth}px`;
-    
+
     if (pendingImageUrl) {
       // Insert new image
       const quill = quillRef.current?.getEditor();
@@ -448,23 +449,23 @@ export const ArticlePage: React.FC = () => {
       container: [
         [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
         ['bold', 'italic', 'underline', 'strike'],
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
         [{ 'align': [] }],
         ['link', 'image', 'video'],
         ['clean']
       ],
       handlers: {
-        image: function(this: any) {
+        image: function (this: any) {
           const quill = this.quill;
           const input = document.createElement('input');
           input.setAttribute('type', 'file');
           input.setAttribute('accept', 'image/*');
           input.click();
-          
+
           input.onchange = async () => {
             const file = input.files?.[0];
             if (!file) return;
-            
+
             setIsUploadingImage(true);
             try {
               if (!file.type.startsWith('image/')) {
@@ -506,53 +507,69 @@ export const ArticlePage: React.FC = () => {
             }
           };
         },
-        video: function(this: any) {
+        video: function (this: any) {
           const quill = this.quill;
           const url = prompt('הכנס קישור וידאו (YouTube, Vimeo וכו\'):');
           if (!url) return;
 
           const embedUrl = getVideoEmbedUrl(url);
-          if (embedUrl) {
-            const range = quill.getSelection(true);
-            if (range) {
-              // Insert video as HTML
-              const videoHtml = `<div class="ql-video-container" style="position: relative; width: 100%; padding-bottom: 56.25%; margin: 24px 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); background: #000; border-radius: 12px; overflow: hidden;">
-                <iframe src="${embedUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen="true" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
-              </div>`;
-              
-              // Directly manipulate DOM to insert video, then sync with Quill
-              const editor = quill.root;
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = videoHtml;
-              const videoContainer = tempDiv.firstChild as Node;
-              
-              if (range.index >= editor.childNodes.length) {
-                const p = document.createElement('p');
-                p.appendChild(document.createElement('br'));
-                editor.appendChild(p);
-                editor.insertBefore(videoContainer, p);
-              } else {
-                const targetNode = editor.childNodes[range.index];
-                if (targetNode) {
-                  editor.insertBefore(videoContainer, targetNode);
-                } else {
-                  editor.appendChild(videoContainer);
-                }
-              }
-              
-              quill.update('user');
-              const newLength = quill.getLength();
-              quill.setSelection(newLength - 1);
-              
-              toast({ title: 'הצלחה', description: 'הווידאו הוסף לתוכן' });
-            }
-          } else {
+          if (!embedUrl) {
             toast({ title: 'שגיאה', description: 'קישור וידאו לא תקין. אנא השתמש בקישור YouTube או Vimeo', variant: 'destructive' });
+            return;
+          }
+
+          try {
+            const range = quill.getSelection(true) || { index: quill.getLength() - 1, length: 0 };
+
+            // Create video container element
+            const videoContainer = document.createElement('div');
+            videoContainer.className = 'ql-video-container';
+            videoContainer.style.cssText = 'position: relative; width: 100%; padding-bottom: 56.25%; margin: 24px 0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); background: #000; border-radius: 12px; overflow: hidden; display: block; min-height: 200px;';
+
+            const iframe = document.createElement('iframe');
+            iframe.src = embedUrl;
+            iframe.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; display: block;';
+            iframe.setAttribute('allowfullscreen', 'true');
+            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+
+            videoContainer.appendChild(iframe);
+
+            // Insert into Quill editor
+            const editor = quill.root;
+            const targetNode = editor.childNodes[range.index];
+
+            if (targetNode) {
+              editor.insertBefore(videoContainer, targetNode);
+            } else {
+              // Append to end
+              const p = document.createElement('p');
+              p.appendChild(document.createElement('br'));
+              editor.appendChild(p);
+              editor.insertBefore(videoContainer, p);
+            }
+
+            // Force Quill to update and sync
+            quill.update('user');
+
+            // Update React state with new HTML
+            setTimeout(() => {
+              const html = quill.root.innerHTML;
+              setEditData(prev => ({ ...prev, content: html }));
+              toast({ title: 'הצלחה', description: 'הווידאו הוסף לתוכן' });
+            }, 50);
+
+            // Move cursor after video
+            const newLength = quill.getLength();
+            quill.setSelection(newLength - 1);
+
+          } catch (error: any) {
+            console.error('Error inserting video:', error);
+            toast({ title: 'שגיאה', description: 'נכשל בהוספת הווידאו', variant: 'destructive' });
           }
         }
       }
     },
-  }), []);
+  }), [toast]);
 
   const handleDelete = async () => {
     if (!article || !isManagerView) return;
@@ -705,7 +722,7 @@ export const ArticlePage: React.FC = () => {
   }
 
   return (
-      <div className="min-h-screen bg-gray-50" dir="rtl">
+    <div className="min-h-screen bg-gray-50" dir="rtl">
       {/* Header with back button and actions */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -920,22 +937,31 @@ export const ArticlePage: React.FC = () => {
                     outline-offset: 4px;
                   }
                   .article-editor .ql-editor .ql-video-container {
-                    position: relative;
-                    width: 100%;
-                    padding-bottom: 56.25%;
-                    margin: 24px 0;
+                    position: relative !important;
+                    width: 100% !important;
+                    padding-bottom: 56.25% !important;
+                    margin: 24px 0 !important;
                     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-                    background: #000;
-                    border-radius: 12px;
-                    overflow: hidden;
+                    background: #000 !important;
+                    border-radius: 12px !important;
+                    overflow: hidden !important;
+                    display: block !important;
+                    min-height: 200px !important;
                   }
                   .article-editor .ql-editor .ql-video-container iframe {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    border: none;
+                    position: absolute !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                    border: none !important;
+                    display: block !important;
+                  }
+                  .article-editor .ql-editor div[style*="padding-bottom: 56.25%"] {
+                    position: relative !important;
+                    width: 100% !important;
+                    margin: 24px 0 !important;
+                    display: block !important;
                   }
                   .article-editor .ql-editor h1,
                   .article-editor .ql-editor h2,
@@ -1016,19 +1042,19 @@ export const ArticlePage: React.FC = () => {
           <DialogHeader>
             <DialogTitle>{pendingImageUrl ? 'בחר גודל תמונה' : 'שנה גודל תמונה'}</DialogTitle>
             <DialogDescription>
-              {pendingImageUrl 
-                ? 'בחר את הגודל שבו התמונה תוצג במאמר' 
+              {pendingImageUrl
+                ? 'בחר את הגודל שבו התמונה תוצג במאמר'
                 : 'בחר את הגודל החדש לתמונה'}
             </DialogDescription>
           </DialogHeader>
-          
+
           {pendingImageUrl && (
             <div className="mb-4">
-              <img 
-                src={pendingImageUrl} 
-                alt="תצוגה מקדימה" 
-                className="w-full rounded-lg border border-gray-200" 
-                style={{ 
+              <img
+                src={pendingImageUrl}
+                alt="תצוגה מקדימה"
+                className="w-full rounded-lg border border-gray-200"
+                style={{
                   width: imageSizeType === 'full' ? '100%' : `${imageWidth}px`,
                   maxWidth: '100%',
                   height: 'auto'

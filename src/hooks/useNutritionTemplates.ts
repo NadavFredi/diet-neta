@@ -62,7 +62,7 @@ export const useNutritionTemplates = (filters?: { search?: string; filterGroup?:
             const value = filter.values[0];
             if (!value) return [];
             const [minStr, maxStr] = value.split('-');
-            const column = "targets->>calories";
+            const column = 'calories_value';
             if (value.endsWith('+')) {
               const min = Number(value.replace('+', ''));
               return [[{ column, operator: 'gte', value: min, negate }]];
@@ -86,7 +86,7 @@ export const useNutritionTemplates = (filters?: { search?: string; filterGroup?:
             const value = filter.values[0];
             if (!value) return [];
             const [minStr, maxStr] = value.split('-');
-            const column = "targets->>protein";
+            const column = 'protein_value';
             if (value.endsWith('+')) {
               const min = Number(value.replace('+', ''));
               return [[{ column, operator: 'gte', value: min, negate }]];
@@ -117,7 +117,7 @@ export const useNutritionTemplates = (filters?: { search?: string; filterGroup?:
             id: `public-${userId}`,
             fieldId: 'is_public',
             fieldLabel: 'is_public',
-            operator: 'equals',
+            operator: 'is',
             values: ['כן'],
             type: 'select',
           },
@@ -125,9 +125,9 @@ export const useNutritionTemplates = (filters?: { search?: string; filterGroup?:
             id: `owner-${userId}`,
             fieldId: 'created_by',
             fieldLabel: 'created_by',
-            operator: 'equals',
+            operator: 'is',
             values: [userId],
-            type: 'text',
+            type: 'select',
           },
         ],
       };
@@ -136,7 +136,7 @@ export const useNutritionTemplates = (filters?: { search?: string; filterGroup?:
       const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
 
       let query = supabase
-        .from('nutrition_templates')
+        .from('nutrition_templates_with_ranges')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -330,8 +330,6 @@ export const useDeleteNutritionTemplate = () => {
     },
   });
 };
-
-
 
 
 

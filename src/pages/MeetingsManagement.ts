@@ -22,7 +22,6 @@ import {
   initializeTableState,
 } from '@/store/slices/tableStateSlice';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
-import { getMeetingFilterFields } from '@/hooks/useTableFilters';
 
 export const useMeetingsManagement = () => {
   const navigate = useNavigate();
@@ -76,6 +75,7 @@ export const useMeetingsManagement = () => {
   const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
     return {
       searchQuery: searchQuery || '',
+      filterGroup,
       columnOrder,
       columnWidths,
       sortBy,

@@ -35,18 +35,7 @@ const useIsDesktop = () => {
 
   return isDesktop;
 };
-import {
-  setSelectedStatus,
-  setSelectedFitnessGoal,
-  setSelectedActivityLevel,
-  setSelectedPreferredTime,
-  setSelectedSource,
-  setSelectedAge,
-  setSelectedHeight,
-  setSelectedWeight,
-  setSelectedDate,
-  setSearchQuery,
-} from '@/store/slices/dashboardSlice';
+import { setSearchQuery } from '@/store/slices/dashboardSlice';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -237,7 +226,7 @@ const Dashboard = () => {
 
     // Create a string representation of current filters for comparison
     const currentFiltersStr = JSON.stringify({
-      filters: activeFilters,
+      filters: filterGroup,
       searchQuery,
     });
 
@@ -266,7 +255,7 @@ const Dashboard = () => {
     }
 
     previousFiltersRef.current = currentFiltersStr;
-  }, [activeFilters, searchQuery, isLoading, viewId, toast, handleSaveViewClick]);
+  }, [activeFilters, filterGroup, searchQuery, isLoading, viewId, toast, handleSaveViewClick]);
 
   const handleEditViewClick = useCallback((view: any) => {
     setViewToEdit(view);

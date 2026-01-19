@@ -21,6 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { DateRangePicker } from './DateRangePicker';
 import { cn } from '@/lib/utils';
 import { FilterGroupDialog } from '@/components/dashboard/FilterGroupDialog';
+import { isAdvancedFilterGroup } from '@/utils/filterGroupUtils';
 
 export type FilterOperator = 'is' | 'isNot' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'before' | 'after' | 'between';
 
@@ -115,6 +116,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date; mode?: 'single' | 'range' | 'before' | 'after' } | null>(null);
   const [valueSearchQuery, setValueSearchQuery] = useState('');
   const [editingFilterId, setEditingFilterId] = useState<string | null>(null);
+  const isAdvancedGroup = isAdvancedFilterGroup(filterGroup);
 
   useEffect(() => {
     if (!editFilter) return;
@@ -273,6 +275,11 @@ export const TableFilter: React.FC<TableFilterProps> = ({
           >
             <Filter className="h-4 w-4" />
             <span>{buttonLabel || 'סינון'}</span>
+            {isAdvancedGroup && (
+              <Badge variant="secondary" className="text-[11px] px-2 py-0.5 bg-indigo-100 text-indigo-700">
+                מתקדם
+              </Badge>
+            )}
           </Button>
         </PopoverTrigger>
         <PopoverContent 
