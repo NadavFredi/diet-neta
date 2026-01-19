@@ -41,31 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-// Flow configs for template labels (same as LeadAutomationCard)
-const DEFAULT_FLOW_CONFIGS = [
-  {
-    key: 'customer_journey_start',
-    label: 'תחילת מסע לקוח ותיאום פגישה',
-  },
-  {
-    key: 'intro_questionnaire',
-    label: 'שליחת שאלון הכרות לאחר קביעת שיחה',
-  },
-];
-
-// Load custom flows from localStorage
-const loadCustomFlows = (): Array<{ key: string; label: string }> => {
-  try {
-    const stored = localStorage.getItem('custom_automation_flows');
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('[CreateTraineeButton] Error loading custom flows:', error);
-  }
-  return [];
-};
+import { getActiveFlows, getFlowLabel } from '@/utils/whatsappAutomationFlows';
 
 interface CreateTraineeButtonProps {
   customerId: string;
@@ -104,23 +80,6 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   const [templates, setTemplates] = useState<Record<string, any>>({});
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  // Helper function to get flow label (check custom flows, then default)
-  const getFlowLabel = (flowKey: string, defaultLabel: string): string => {
-    try {
-      const stored = localStorage.getItem('custom_automation_flows');
-      if (stored) {
-        const customFlows: Array<{ key: string; label: string }> = JSON.parse(stored);
-        const customFlow = customFlows.find(f => f.key === flowKey);
-        if (customFlow) {
-          return customFlow.label;
-        }
-      }
-    } catch (error) {
-      console.error('[CreateTraineeButton] Error loading custom flows:', error);
-    }
-    return defaultLabel;
-  };
 
   const traineeFlowLabel = getFlowLabel('trainee_user_credentials', 'פרטי כניסה למתאמן');
 
@@ -172,12 +131,26 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
   }, [messageTemplate]);
 
   // Load WhatsApp templates from automation flows
+  // Only load templates that are active in the WhatsApp automations page
   useEffect(() => {
     const loadTemplates = async () => {
       setIsLoadingTemplates(true);
       try {
-        const result = await dispatch(fetchTemplates()).unwrap();
-        setTemplates(result);
+        const allTemplates = await dispatch(fetchTemplates()).unwrap();
+        
+        // Get only active flows (same as WhatsApp automations page)
+        const activeFlows = getActiveFlows();
+        const activeFlowKeys = new Set(activeFlows.map(f => f.key));
+        
+        // Filter templates to only include active flows
+        const filteredTemplates: Record<string, any> = {};
+        Object.entries(allTemplates).forEach(([key, template]) => {
+          if (activeFlowKeys.has(key)) {
+            filteredTemplates[key] = template;
+          }
+        });
+        
+        setTemplates(filteredTemplates);
       } catch (error) {
         console.error('[CreateTraineeButton] Error loading templates:', error);
       } finally {
@@ -623,10 +596,8 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
                 <SelectContent>
                   <SelectItem value="default">תבנית ברירת מחדל (פרטי כניסה)</SelectItem>
                   {Object.entries(templates).map(([key, template]) => {
-                    // Get flow label from DEFAULT_FLOW_CONFIGS, custom flows, or use key
-                    const allFlows = [...DEFAULT_FLOW_CONFIGS, ...loadCustomFlows()];
-                    const flowConfig = allFlows.find(f => f.key === key);
-                    const label = flowConfig?.label || key;
+                    // Get flow label from active flows (same as WhatsApp automations page)
+                    const label = getFlowLabel(key, key);
                     return (
                       <SelectItem key={key} value={key}>
                         {label}

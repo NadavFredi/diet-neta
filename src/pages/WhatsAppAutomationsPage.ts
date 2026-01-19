@@ -10,52 +10,13 @@ import { fetchTemplates, saveTemplate } from '@/store/slices/automationSlice';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import type { WhatsAppAutomation } from '@/components/dashboard/columns/whatsappAutomationColumns';
-
-interface FlowConfig {
-  key: string;
-  label: string;
-  icon?: React.ReactNode;
-}
-
-const DEFAULT_FLOW_CONFIGS: FlowConfig[] = [
-  {
-    key: 'customer_journey_start',
-    label: 'תחילת מסע לקוח ותיאום פגישה',
-  },
-  {
-    key: 'intro_questionnaire',
-    label: 'אוטומטי שליחת שאלון הכרות לאחר קביעת שיחה',
-  },
-  {
-    key: 'budget',
-    label: 'שליחת תקציב',
-  },
-  {
-    key: 'payment_request',
-    label: 'בקשת תשלום',
-  },
-  {
-    key: 'trainee_user_credentials',
-    label: 'שליחת פרטי משתמש חניך',
-  },
-  {
-    key: 'weekly_review',
-    label: 'סיכום שבועי ויעדים',
-  },
-];
-
-// Load custom flows from localStorage
-const loadCustomFlows = (): FlowConfig[] => {
-  try {
-    const stored = localStorage.getItem('custom_automation_flows');
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('[WhatsAppAutomationsPage] Error loading custom flows:', error);
-  }
-  return [];
-};
+import { 
+  DEFAULT_FLOW_CONFIGS, 
+  loadCustomFlows, 
+  loadDeletedDefaultFlows,
+  getActiveFlows,
+  type FlowConfig 
+} from '@/utils/whatsappAutomationFlows';
 
 // Save custom flows to localStorage
 const saveCustomFlows = (flows: FlowConfig[]): void => {
@@ -64,19 +25,6 @@ const saveCustomFlows = (flows: FlowConfig[]): void => {
   } catch (error) {
     console.error('[WhatsAppAutomationsPage] Error saving custom flows:', error);
   }
-};
-
-// Load deleted default flows from localStorage
-const loadDeletedDefaultFlows = (): string[] => {
-  try {
-    const stored = localStorage.getItem('deleted_default_automation_flows');
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('[WhatsAppAutomationsPage] Error loading deleted default flows:', error);
-  }
-  return [];
 };
 
 // Save deleted default flows to localStorage
@@ -111,6 +59,7 @@ export const useWhatsAppAutomationsPage = () => {
 
   // Combine default and custom flows, filtering out deleted default flows
   // Custom flows override default flows with the same key
+  // Uses same logic as getActiveFlows() but reacts to state changes
   const allFlows = useMemo(() => {
     const activeDefaultFlows = DEFAULT_FLOW_CONFIGS.filter(flow => !deletedDefaultFlows.includes(flow.key));
     const defaultFlowKeys = new Set(activeDefaultFlows.map(f => f.key));
