@@ -288,7 +288,20 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         eating_rules: eatingRules || null,
       };
       
+      console.log('[BudgetForm] Submitting budget data:', {
+        mode,
+        budgetId: initialData?.id,
+        workout_template_id: budgetData.workout_template_id,
+        nutrition_template_id: budgetData.nutrition_template_id,
+        fullData: budgetData
+      });
+      
       const savedBudget = await onSave(budgetData);
+      
+      console.log('[BudgetForm] Budget saved successfully:', {
+        budgetId: savedBudget?.id || initialData?.id,
+        workout_template_id: (savedBudget as Budget | undefined)?.workout_template_id
+      });
       
       // Get the budget ID - use initialData.id for edit mode, or savedBudget.id if returned
       const budgetId = (mode === 'edit' && initialData?.id) ? initialData.id : (savedBudget as Budget | undefined)?.id;

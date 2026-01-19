@@ -34,6 +34,7 @@ export const EditBudgetDialog = ({
         </DialogHeader>
         <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
           <BudgetForm
+            key={editingBudget?.id} // Force re-initialization when budget changes
             mode="edit"
             initialData={editingBudget}
             onSave={onSave}

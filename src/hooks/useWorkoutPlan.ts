@@ -64,7 +64,25 @@ export const useWorkoutPlan = (customerId?: string) => {
       }
 
       // If no workout plan found, try to fetch from budget assignment
-      const { data: budgetAssignment, error: budgetError } = await supabase
+      // Budgets can be assigned to either customer_id OR lead_id
+      // If assigned to lead_id, we need to find the lead for this customer
+      console.log('[useWorkoutPlan] No workout plan found, checking budget assignment for customer:', customerId);
+      
+      // First, try to find the lead(s) for this customer
+      const { data: leads, error: leadsError } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('customer_id', customerId);
+      
+      const leadIds = leads?.map(l => l.id) || [];
+      console.log('[useWorkoutPlan] Found leads for customer:', { customerId, leadIds });
+      
+      // Check for budget assignments by customer_id OR lead_id
+      // Try customer_id first
+      let budgetAssignment = null;
+      let budgetError = null;
+      
+      const { data: customerAssignment, error: customerError } = await supabase
         .from('budget_assignments')
         .select(`
           *,
@@ -81,10 +99,49 @@ export const useWorkoutPlan = (customerId?: string) => {
         .order('assigned_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      
+      if (customerAssignment) {
+        budgetAssignment = customerAssignment;
+      } else if (leadIds.length > 0) {
+        // If no customer assignment, check lead assignments
+        const { data: leadAssignment, error: leadErr } = await supabase
+          .from('budget_assignments')
+          .select(`
+            *,
+            budget:budgets(
+              id,
+              name,
+              description,
+              workout_template_id,
+              created_at
+            )
+          `)
+          .in('lead_id', leadIds)
+          .eq('is_active', true)
+          .order('assigned_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (leadAssignment) {
+          budgetAssignment = leadAssignment;
+        }
+        budgetError = leadErr;
+      } else {
+        budgetError = customerError;
+      }
 
       if (budgetError && budgetError.code !== 'PGRST116') {
-        console.error('Error fetching budget assignment:', budgetError);
+        console.error('[useWorkoutPlan] Error fetching budget assignment:', budgetError);
       }
+
+      console.log('[useWorkoutPlan] Budget assignment result:', {
+        found: !!budgetAssignment,
+        budgetId: budgetAssignment?.budget?.id,
+        workoutTemplateId: budgetAssignment?.budget?.workout_template_id,
+        assignedToCustomer: budgetAssignment?.customer_id === customerId,
+        assignedToLead: !!budgetAssignment?.lead_id,
+        leadId: budgetAssignment?.lead_id
+      });
 
       if (budgetAssignment?.budget?.workout_template_id) {
         const budget = budgetAssignment.budget as any;
@@ -103,6 +160,24 @@ export const useWorkoutPlan = (customerId?: string) => {
         }
 
         if (workoutTemplate) {
+          console.log('[useWorkoutPlan] Found workout template:', {
+            templateId: workoutTemplate.id,
+            templateName: workoutTemplate.name,
+            routine_data: workoutTemplate.routine_data,
+            hasWeeklyWorkout: !!workoutTemplate.routine_data?.weeklyWorkout
+          });
+
+          // Extract weekly workout data - match PrintBudgetPage structure
+          // PrintBudgetPage uses: workoutTemplate.routine_data.weeklyWorkout
+          const weeklyWorkoutData = workoutTemplate.routine_data?.weeklyWorkout;
+
+          console.log('[useWorkoutPlan] Extracted weekly workout data:', {
+            hasData: !!weeklyWorkoutData,
+            hasDays: !!weeklyWorkoutData?.days,
+            daysCount: weeklyWorkoutData?.days ? Object.keys(weeklyWorkoutData.days).length : 0,
+            generalGoals: weeklyWorkoutData?.generalGoals
+          });
+
           // Convert workout template to WorkoutPlan format
           const convertedPlan: WorkoutPlan = {
             id: `template-${workoutTemplate.id}`, // Use a synthetic ID
@@ -117,17 +192,26 @@ export const useWorkoutPlan = (customerId?: string) => {
             intervals: 0, // Not available in template
             custom_attributes: {
               schema: [],
-              data: {
-                weeklyWorkout: workoutTemplate.routine_data?.weeklyWorkout || workoutTemplate.routine_data || {}
-              }
+              data: weeklyWorkoutData ? {
+                weeklyWorkout: weeklyWorkoutData
+              } : {}
             },
             is_active: true,
             created_at: workoutTemplate.created_at,
             updated_at: workoutTemplate.updated_at,
           };
 
+          console.log('[useWorkoutPlan] Converted plan:', {
+            id: convertedPlan.id,
+            hasWeeklyWorkout: !!convertedPlan.custom_attributes.data.weeklyWorkout,
+            days: convertedPlan.custom_attributes.data.weeklyWorkout?.days,
+            daysCount: convertedPlan.custom_attributes.data.weeklyWorkout?.days ? Object.keys(convertedPlan.custom_attributes.data.weeklyWorkout.days).length : 0
+          });
+
           setWorkoutPlan(convertedPlan);
           return;
+        } else {
+          console.log('[useWorkoutPlan] Workout template not found for template ID:', budget.workout_template_id);
         }
       }
 

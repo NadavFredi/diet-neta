@@ -14,6 +14,7 @@ import {
   useDeleteBudget,
   useCreateBudget,
   useUpdateBudget,
+  useBudget,
 } from '@/hooks/useBudgets';
 import { useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
@@ -52,7 +53,17 @@ export const useBudgetManagement = () => {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
+  
+  // Fetch budget data when editingBudgetId is set (ensures fresh data)
+  const { data: editingBudget, refetch: refetchEditingBudget } = useBudget(editingBudgetId);
+  
+  // Refetch budget when dialog opens to ensure fresh data
+  useEffect(() => {
+    if (editingBudgetId) {
+      refetchEditingBudget();
+    }
+  }, [editingBudgetId, refetchEditingBudget]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [budgetToDelete, setBudgetToDelete] = useState<Budget | null>(null);
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
@@ -165,12 +176,12 @@ export const useBudgetManagement = () => {
   };
 
   const handleAddBudget = () => {
-    setEditingBudget(null);
+    setEditingBudgetId(null);
     setIsAddDialogOpen(true);
   };
 
   const handleEditBudget = (budget: Budget) => {
-    setEditingBudget(budget);
+    setEditingBudgetId(budget.id);
     setIsEditDialogOpen(true);
   };
 
@@ -190,10 +201,35 @@ export const useBudgetManagement = () => {
   ) => {
     try {
       if (editingBudget) {
-        await updateBudget.mutateAsync({
+        console.log('[BudgetManagement] Updating budget:', {
           budgetId: editingBudget.id,
-          ...data,
+          workout_template_id: (data as any).workout_template_id,
+          nutrition_template_id: (data as any).nutrition_template_id,
+          fullData: data
         });
+
+        const updateResult = await updateBudget.mutateAsync({
+          budgetId: editingBudget.id,
+          name: data.name,
+          description: data.description,
+          nutrition_template_id: (data as any).nutrition_template_id ?? null,
+          nutrition_targets: (data as any).nutrition_targets,
+          steps_goal: (data as any).steps_goal,
+          steps_instructions: (data as any).steps_instructions ?? null,
+          workout_template_id: (data as any).workout_template_id ?? null,
+          supplements: (data as any).supplements,
+          eating_order: (data as any).eating_order ?? null,
+          eating_rules: (data as any).eating_rules ?? null,
+        });
+
+        console.log('[BudgetManagement] Budget updated:', {
+          id: updateResult.id,
+          workout_template_id: updateResult.workout_template_id
+        });
+
+        // Update the editingBudgetId to trigger refetch and get latest data
+        // The useBudget hook will automatically refetch when the ID changes
+        setEditingBudgetId(updateResult.id);
         
         // If budget templates changed, sync plans for existing assignments
         // (Budget is a template - changes should propagate to all assigned customers)
@@ -237,7 +273,7 @@ export const useBudgetManagement = () => {
           description: 'התקציב עודכן בהצלחה',
         });
         setIsEditDialogOpen(false);
-        setEditingBudget(null);
+        setEditingBudgetId(null);
       } else {
         const newBudget = await createBudget.mutateAsync({
           name: data.name!,

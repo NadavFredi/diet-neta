@@ -129,6 +129,8 @@ export async function syncPlansFromBudget({
       }
 
       // Create new workout plan from template
+      // Ensure custom_attributes structure matches what WorkoutPlanCard expects
+      const weeklyWorkoutData = workoutTemplate.routine_data?.weeklyWorkout;
       const planData = {
         user_id: userId,
         customer_id: finalCustomerId || null,
@@ -140,7 +142,13 @@ export async function syncPlansFromBudget({
         strength: workoutTemplate.routine_data?.weeklyWorkout?.strength || 0,
         cardio: workoutTemplate.routine_data?.weeklyWorkout?.cardio || 0,
         intervals: workoutTemplate.routine_data?.weeklyWorkout?.intervals || 0,
-        custom_attributes: workoutTemplate.routine_data || { schema: [], data: {} },
+        // Store in consistent format: data.weeklyWorkout (matches useWorkoutPlan fallback conversion)
+        custom_attributes: {
+          schema: [],
+          data: weeklyWorkoutData ? {
+            weeklyWorkout: weeklyWorkoutData
+          } : (workoutTemplate.routine_data || {})
+        },
         is_active: true,
         created_by: userId,
       };
@@ -170,51 +178,28 @@ export async function syncPlansFromBudget({
   // 2. Sync Nutrition Plan
   if (budget.nutrition_template_id || budget.nutrition_targets) {
     try {
-    // First, deactivate ALL existing active nutrition plans for this customer/lead
-    // If both customerId and leadId are provided, deactivate plans matching both
-    if (finalCustomerId && leadId) {
-      await supabase
-        .from('nutrition_plans')
-        .update({ is_active: false })
-        .eq('customer_id', finalCustomerId)
-        .eq('lead_id', leadId)
-        .eq('is_active', true);
-    } else if (finalCustomerId) {
-      await supabase
-        .from('nutrition_plans')
-        .update({ is_active: false })
-        .eq('customer_id', finalCustomerId)
-        .eq('is_active', true);
-    } else if (leadId) {
-      await supabase
-        .from('nutrition_plans')
-        .update({ is_active: false })
-        .eq('lead_id', leadId)
-        .eq('is_active', true);
-    }
-
     // DELETE all existing nutrition plans for this specific budget + customer/lead combination
+    // Note: We skip deactivation since nutrition_plans doesn't have is_active column yet
+    // (Migration 20260121000009 adds it, but we delete and recreate anyway)
     // This ensures we only have one plan per budget assignment
     // If both customerId and leadId are provided, delete plans matching both
+    let deleteQuery = supabase
+      .from('nutrition_plans')
+      .delete()
+      .eq('budget_id', budget.id);
+    
     if (finalCustomerId && leadId) {
-      await supabase
-        .from('nutrition_plans')
-        .delete()
-        .eq('budget_id', budget.id)
-        .eq('customer_id', finalCustomerId)
-        .eq('lead_id', leadId);
+      deleteQuery = deleteQuery.eq('customer_id', finalCustomerId).eq('lead_id', leadId);
     } else if (finalCustomerId) {
-      await supabase
-        .from('nutrition_plans')
-        .delete()
-        .eq('budget_id', budget.id)
-        .eq('customer_id', finalCustomerId);
+      deleteQuery = deleteQuery.eq('customer_id', finalCustomerId);
     } else if (leadId) {
-      await supabase
-        .from('nutrition_plans')
-        .delete()
-        .eq('budget_id', budget.id)
-        .eq('lead_id', leadId);
+      deleteQuery = deleteQuery.eq('lead_id', leadId);
+    }
+    
+    const { error: deleteError } = await deleteQuery;
+    if (deleteError && !deleteError.message?.includes('does not exist') && !deleteError.message?.includes('relation')) {
+      console.error('[syncPlansFromBudget] Error deleting nutrition plans:', deleteError);
+      // Don't throw - continue to create new plan
     }
 
     let nutritionTargets = budget.nutrition_targets;
@@ -233,7 +218,7 @@ export async function syncPlansFromBudget({
     }
 
     // Create new nutrition plan
-    const planData = {
+    const planData: any = {
       user_id: userId,
       customer_id: finalCustomerId || null,
       lead_id: leadId || null,
@@ -250,6 +235,10 @@ export async function syncPlansFromBudget({
       },
       created_by: userId,
     };
+    
+    // Add is_active if column exists (after migration 20260121000009)
+    // Supabase will ignore this field if column doesn't exist
+    planData.is_active = true;
 
     const { data: nutritionPlan, error: nutritionError } = await supabase
       .from('nutrition_plans')

@@ -217,11 +217,29 @@ export const WorkoutPlanCard = ({
 
           {/* Weekly Schedule */}
           {(() => {
-            // Get weekly workout data - check both possible locations
-            const weeklyWorkout = workoutPlan.custom_attributes?.data?.weeklyWorkout || 
-                                 workoutPlan.custom_attributes?.data;
+            // Get weekly workout data - check multiple possible locations
+            // 1. custom_attributes.data.weeklyWorkout (from useWorkoutPlan fallback conversion)
+            // 2. custom_attributes.weeklyWorkout (from budgetPlanSync direct storage - legacy)
+            // 3. custom_attributes.data (if weeklyWorkout is at root of data)
+            const customAttrs = workoutPlan.custom_attributes as any;
+            const weeklyWorkout = 
+              customAttrs?.data?.weeklyWorkout || 
+              customAttrs?.['weeklyWorkout'] ||
+              (customAttrs?.data?.days ? customAttrs.data : null);
             
-            if (!weeklyWorkout || !weeklyWorkout.days) {
+            console.log('[WorkoutPlanCard] Rendering workout plan:', {
+              hasCustomAttributes: !!workoutPlan.custom_attributes,
+              hasData: !!customAttrs?.data,
+              hasWeeklyWorkoutInData: !!customAttrs?.data?.weeklyWorkout,
+              hasWeeklyWorkoutInRoot: !!customAttrs?.['weeklyWorkout'],
+              customAttributesKeys: workoutPlan.custom_attributes ? Object.keys(workoutPlan.custom_attributes) : [],
+              dataKeys: customAttrs?.data ? Object.keys(customAttrs.data) : [],
+              weeklyWorkout: weeklyWorkout,
+              hasDays: !!weeklyWorkout?.days,
+              daysCount: weeklyWorkout?.days ? Object.keys(weeklyWorkout.days).length : 0
+            });
+            
+            if (!weeklyWorkout || !weeklyWorkout.days || Object.keys(weeklyWorkout.days).length === 0) {
               return (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <p className="text-gray-600 text-center">אין תוכנית שבועית זמינה</p>

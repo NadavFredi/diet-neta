@@ -5,7 +5,7 @@
  * Used in ActionDashboard for the active lead interaction.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -176,7 +176,14 @@ export const LeadHistoryTabs = ({
   
   // Fetch budget data when sendingBudgetId or editingBudgetId is set
   const { data: sendingBudget } = useBudget(sendingBudgetId);
-  const { data: editingBudget } = useBudget(editingBudgetId);
+  const { data: editingBudget, refetch: refetchEditingBudget } = useBudget(editingBudgetId);
+  
+  // Refetch budget when dialog opens to ensure fresh data
+  useEffect(() => {
+    if (editingBudgetId) {
+      refetchEditingBudget();
+    }
+  }, [editingBudgetId, refetchEditingBudget]);
   const updateBudget = useUpdateBudget();
   const createBudget = useCreateBudget();
   
@@ -279,9 +286,30 @@ export const LeadHistoryTabs = ({
     if (!editingBudget) return;
 
     try {
-      await updateBudget.mutateAsync({
+      console.log('[LeadHistoryTabs] Saving budget:', {
         budgetId: editingBudget.id,
-        ...data,
+        workout_template_id: data.workout_template_id,
+        nutrition_template_id: data.nutrition_template_id,
+        fullData: data
+      });
+
+      const updateResult = await updateBudget.mutateAsync({
+        budgetId: editingBudget.id,
+        name: data.name,
+        description: data.description ?? null,
+        nutrition_template_id: data.nutrition_template_id ?? null,
+        nutrition_targets: data.nutrition_targets,
+        steps_goal: data.steps_goal,
+        steps_instructions: data.steps_instructions ?? null,
+        workout_template_id: data.workout_template_id ?? null,
+        supplements: data.supplements || [],
+        eating_order: data.eating_order ?? null,
+        eating_rules: data.eating_rules ?? null,
+      });
+
+      console.log('[LeadHistoryTabs] Budget saved successfully:', {
+        id: updateResult.id,
+        workout_template_id: updateResult.workout_template_id
       });
 
       toast({
@@ -289,12 +317,24 @@ export const LeadHistoryTabs = ({
         description: 'התקציב עודכן בהצלחה',
       });
 
-      queryClient.invalidateQueries({ queryKey: ['budgets'] });
-      queryClient.invalidateQueries({ queryKey: ['budget', editingBudget.id] });
-      queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      // Invalidate all relevant queries to ensure UI updates
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+        queryClient.invalidateQueries({ queryKey: ['budget', editingBudget.id] }),
+        queryClient.invalidateQueries({ queryKey: ['budget', updateResult.id] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+        queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+      ]);
+
+      // Refetch to ensure we have the latest data
+      await queryClient.refetchQueries({ queryKey: ['budgets'] });
+      await queryClient.refetchQueries({ queryKey: ['budget', editingBudget.id] });
+
       setEditingBudgetId(null);
       setCurrentAssignment(null);
     } catch (error: any) {
+      console.error('[LeadHistoryTabs] Error saving budget:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון התקציב',

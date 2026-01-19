@@ -112,23 +112,23 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-w-[1400px] w-[98vw] h-[90vh] max-h-[90vh] flex flex-col p-0 lg:max-w-[1400px] md:max-w-[95vw] sm:max-w-[95vw]" dir="rtl">
-        <div className="px-6 pt-4 pb-3 border-b flex-shrink-0">
+      <DialogContent className="max-w-[1400px] w-[98vw] max-h-[85vh] flex flex-col p-0 lg:max-w-[1400px] md:max-w-[95vw] sm:max-w-[95vw]" dir="rtl">
+        <div className="px-6 pt-3 pb-2 border-b flex-shrink-0">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gray-900">הוסף ליד חדש</DialogTitle>
-            <DialogDescription className="text-sm text-gray-600 mt-1">
+            <DialogDescription className="text-sm text-gray-600 mt-0.5">
               מלא את הפרטים הבאים כדי להוסיף ליד חדש למערכת
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-3">
-          <div className="grid grid-cols-1 xl:grid-cols-3 lg:grid-cols-3 md:grid-cols-2 gap-4 xl:gap-5">
+        <div className="flex-1 overflow-y-auto px-6 pt-2 pb-0">
+          <div className="grid grid-cols-1 xl:grid-cols-3 lg:grid-cols-3 md:grid-cols-2 gap-3 xl:gap-4">
           {/* Personal Information Section */}
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold text-gray-900 border-b pb-1.5">מידע אישי</h3>
+          <div className="space-y-2">
+            <h3 className="text-base font-semibold text-gray-900 border-b pb-1">מידע אישי</h3>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="full_name" className="text-right text-sm">
                 שם מלא <span className="text-red-500">*</span>
               </Label>
@@ -141,7 +141,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="phone" className="text-right text-sm">
                 מספר טלפון <span className="text-red-500">*</span>
               </Label>
@@ -156,7 +156,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="email" className="text-right text-sm">
                 אימייל
               </Label>
@@ -171,8 +171,8 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
                 <Label htmlFor="city" className="text-right text-sm">
                   עיר
                 </Label>
@@ -185,7 +185,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <Label htmlFor="age" className="text-right text-sm">
                   גיל
                 </Label>
@@ -205,8 +205,8 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
                 <Label htmlFor="gender" className="text-right text-sm">
                   מגדר
                 </Label>
@@ -225,7 +225,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <Label htmlFor="period" className="text-right text-sm">
                   מקבלת מחזור
                 </Label>
@@ -249,10 +249,10 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
           </div>
 
           {/* Status & Fitness Information Section */}
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold text-gray-900 border-b pb-1.5">סטטוס וכושר</h3>
+          <div className="space-y-2">
+            <h3 className="text-base font-semibold text-gray-900 border-b pb-1">סטטוס וכושר</h3>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="status_main" className="text-right text-sm">
                 סטטוס ראשי
               </Label>
@@ -271,7 +271,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
             </div>
 
             {hasSubStatuses && selectedCategoryData?.subStatuses && (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <Label htmlFor="status_sub" className="text-right text-sm">
                   סטטוס משני
                 </Label>
@@ -297,7 +297,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
               </div>
             )}
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="source" className="text-right text-sm">
                 מקור
               </Label>
@@ -318,7 +318,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
               </Select>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="fitness_goal" className="text-right text-sm">
                 מטרת כושר
               </Label>
@@ -339,7 +339,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
               </Select>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="activity_level" className="text-right text-sm">
                 רמת פעילות
               </Label>
@@ -360,7 +360,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
               </Select>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="preferred_time" className="text-right text-sm">
                 זמן מועדף
               </Label>
@@ -383,11 +383,11 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
           </div>
 
           {/* Physical Metrics Section */}
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold text-gray-900 border-b pb-1.5">מדדים פיזיים</h3>
+          <div className="space-y-2">
+            <h3 className="text-base font-semibold text-gray-900 border-b pb-1">מדדים פיזיים</h3>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
                 <Label htmlFor="height" className="text-right text-sm">
                   גובה (ס"מ)
                 </Label>
@@ -404,7 +404,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <Label htmlFor="weight" className="text-right text-sm">
                   משקל (ק"ג)
                 </Label>
@@ -423,10 +423,10 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
             </div>
 
             {/* Subscription & Budget Section */}
-            <div className="space-y-3 pt-2">
-              <h3 className="text-base font-semibold text-gray-900 border-b pb-1.5">מנוי ותקציב</h3>
+            <div className="space-y-2 pt-1">
+              <h3 className="text-base font-semibold text-gray-900 border-b pb-1">מנוי ותקציב</h3>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <Label htmlFor="subscription_type_id" className="text-right text-sm">
                   סוג מנוי (אופציונלי)
                 </Label>
@@ -458,13 +458,13 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                   </SelectContent>
                 </Select>
                 {formData.subscription_type_id && (
-                  <p className="text-xs text-gray-600 text-right mt-1">
+                  <p className="text-xs text-gray-600 text-right mt-0.5">
                     המנוי יווצר אוטומטית עם הליד
                   </p>
                 )}
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <Label htmlFor="budget_id" className="text-right text-sm">
                   קישור תקציב (אופציונלי)
                 </Label>
@@ -492,7 +492,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                   </SelectContent>
                 </Select>
                 {formData.budget_id && (
-                  <p className="text-xs text-gray-600 text-right mt-1">
+                  <p className="text-xs text-gray-600 text-right mt-0.5">
                     התקציב יוקצה אוטומטית לליד
                   </p>
                 )}
@@ -500,7 +500,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
             </div>
 
             {/* Notes Section */}
-            <div className="space-y-1.5 pt-2">
+            <div className="space-y-1 pt-1 pb-0">
               <Label htmlFor="notes" className="text-right text-sm">
                 הערות
               </Label>
@@ -509,8 +509,8 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                 value={formData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 placeholder="הכנס הערות נוספות..."
-                className="text-right min-h-[80px]"
-                rows={3}
+                className="text-right min-h-[50px]"
+                rows={2}
               />
             </div>
           </div>
@@ -518,7 +518,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-start gap-3 px-6 py-3 border-t bg-gray-50 flex-shrink-0" dir="rtl">
+        <div className="flex items-center justify-start gap-3 px-6 py-2 border-t bg-gray-50 flex-shrink-0 mt-0" dir="rtl">
           <Button
             onClick={handleFormSubmit}
             disabled={isSubmitting}

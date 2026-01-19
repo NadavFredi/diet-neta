@@ -254,6 +254,17 @@ export const useUpdateBudget = () => {
         }
       });
 
+      // Explicitly ensure workout_template_id is included if provided (even if null)
+      if ('workout_template_id' in updates) {
+        updateData.workout_template_id = updates.workout_template_id ?? null;
+      }
+
+      console.log('[useUpdateBudget] Updating budget:', {
+        budgetId,
+        updateData,
+        workout_template_id: updateData.workout_template_id
+      });
+
       const { data, error } = await supabase
         .from('budgets')
         .update(updateData)
@@ -262,7 +273,16 @@ export const useUpdateBudget = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useUpdateBudget] Error updating budget:', error);
+        throw error;
+      }
+
+      console.log('[useUpdateBudget] Budget updated successfully:', {
+        id: data.id,
+        workout_template_id: data.workout_template_id
+      });
+
       return data as Budget;
     },
     onSuccess: (data) => {
