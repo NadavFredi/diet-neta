@@ -292,6 +292,28 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
   const nutritionFields = useMemo(() => getSortedFieldsForSection('nutrition'), [getSortedFieldsForSection]);
   const wellnessFields = useMemo(() => getSortedFieldsForSection('wellness'), [getSortedFieldsForSection]);
 
+  // Debug: Log visible fields to help diagnose missing fields (only in development)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && fieldConfig && !isLoadingConfig) {
+      const allVisibleFields = Object.entries(fieldConfig.fields)
+        .filter(([_, field]) => field.visible)
+        .map(([fieldId, field]) => ({ fieldId, label: field.label, section: field.section }));
+      const totalVisible = allVisibleFields.length;
+      const renderedCount = bodyFields.length + activityFields.length + nutritionFields.length + wellnessFields.length;
+      
+      if (totalVisible !== renderedCount) {
+        console.warn(`DailyCheckInView - Field count mismatch: ${totalVisible} visible in config, ${renderedCount} being rendered`);
+        console.log('All visible fields:', allVisibleFields);
+        console.log('Rendered fields:', {
+          body: bodyFields.map(([id]) => id),
+          activity: activityFields.map(([id]) => id),
+          nutrition: nutritionFields.map(([id]) => id),
+          wellness: wellnessFields.map(([id]) => id),
+        });
+      }
+    }
+  }, [fieldConfig, isLoadingConfig, bodyFields, activityFields, nutritionFields, wellnessFields]);
+
   const handleSubmit = () => {
     if (!isFormValid) return;
 
@@ -341,7 +363,7 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
     ? format(new Date(selectedDate), 'd בMMMM yyyy', { locale: he })
     : format(new Date(), 'd בMMMM yyyy', { locale: he });
 
-  // Field value and setter mapping
+  // Field value and setter mapping - includes all standard fields
   const fieldValueMap: Record<string, number | null> = {
     weight,
     bellyCircumference,
@@ -382,6 +404,15 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
     hungerLevel: setHungerLevel,
     energyLevel: setEnergyLevel,
     sleepHours: setSleepHours,
+  };
+
+  // Helper to safely get field value and setter
+  const getFieldValue = (fieldId: string): number | null => {
+    return fieldValueMap[fieldId] ?? null;
+  };
+
+  const getFieldSetter = (fieldId: string): ((value: number | null) => void) | undefined => {
+    return fieldSetterMap[fieldId];
   };
 
   // Calculate input indices - count visible fields before each section
@@ -437,9 +468,15 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
               <AccordionContent className="px-2 py-2 bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {bodyFields.map(([fieldId, field]) => {
-                    const value = fieldValueMap[fieldId] ?? null;
-                    const onChange = fieldSetterMap[fieldId];
+                    const value = getFieldValue(fieldId);
+                    const onChange = getFieldSetter(fieldId);
                     const idx = inputIndex++;
+                    
+                    // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
+                    if (!onChange) {
+                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
+                      return null;
+                    }
                     
                     return (
                       <CompactInputCell
@@ -474,9 +511,15 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
               <AccordionContent className="px-2 py-2 bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                   {activityFields.map(([fieldId, field]) => {
-                    const value = fieldValueMap[fieldId] ?? null;
-                    const onChange = fieldSetterMap[fieldId];
+                    const value = getFieldValue(fieldId);
+                    const onChange = getFieldSetter(fieldId);
                     const idx = inputIndex++;
+                    
+                    // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
+                    if (!onChange) {
+                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
+                      return null;
+                    }
                     
                     return (
                       <CompactInputCell
@@ -510,9 +553,15 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
               <AccordionContent className="px-2 py-2 bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                   {nutritionFields.map(([fieldId, field]) => {
-                    const value = fieldValueMap[fieldId] ?? null;
-                    const onChange = fieldSetterMap[fieldId];
+                    const value = getFieldValue(fieldId);
+                    const onChange = getFieldSetter(fieldId);
                     const idx = inputIndex++;
+                    
+                    // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
+                    if (!onChange) {
+                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
+                      return null;
+                    }
                     
                     return (
                       <CompactInputCell
@@ -548,9 +597,15 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
               <AccordionContent className="px-2 py-2 bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                   {wellnessFields.map(([fieldId, field]) => {
-                    const value = fieldValueMap[fieldId] ?? null;
-                    const onChange = fieldSetterMap[fieldId];
+                    const value = getFieldValue(fieldId);
+                    const onChange = getFieldSetter(fieldId);
                     const idx = inputIndex++;
+                    
+                    // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
+                    if (!onChange) {
+                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
+                      return null;
+                    }
                     
                     // Slider fields: stressLevel, hungerLevel, energyLevel
                     if (fieldId === 'stressLevel' || fieldId === 'hungerLevel' || fieldId === 'energyLevel') {

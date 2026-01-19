@@ -203,30 +203,44 @@ export const WorkoutPlanCard = ({
 
       <CardContent className="space-y-6">
         {/* Workout Plan Section - Print Budget Design */}
-        {workoutPlan.custom_attributes?.data?.weeklyWorkout && (
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center gap-2 mb-4">
-              <Dumbbell className="h-5 w-5 text-green-600" />
-              <h3 className="text-xl font-bold text-gray-800">תוכנית אימונים</h3>
-            </div>
-            
-            <div className="mb-4">
-              {workoutPlan.description && (
-                <p className="font-semibold text-gray-700 mb-2">{workoutPlan.description}</p>
-              )}
-              {/* Goal tags could be added here if available in workoutPlan */}
-            </div>
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center gap-2 mb-4">
+            <Dumbbell className="h-5 w-5 text-green-600" />
+            <h3 className="text-xl font-bold text-gray-800">תוכנית אימונים</h3>
+          </div>
+          
+          <div className="mb-4">
+            {workoutPlan.description && (
+              <p className="font-semibold text-gray-700 mb-2">{workoutPlan.description}</p>
+            )}
+          </div>
 
-            {/* Weekly Schedule */}
+          {/* Weekly Schedule */}
+          {(() => {
+            // Get weekly workout data - check both possible locations
+            const weeklyWorkout = workoutPlan.custom_attributes?.data?.weeklyWorkout || 
+                                 workoutPlan.custom_attributes?.data;
+            
+            if (!weeklyWorkout || !weeklyWorkout.days) {
+              return (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-gray-600 text-center">אין תוכנית שבועית זמינה</p>
+                </div>
+              );
+            }
+
+            return (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-semibold text-green-800 mb-3">לוח זמנים שבועי</h4>
-              {workoutPlan.custom_attributes.data.weeklyWorkout.generalGoals && (
+              <div className="bg-green-100 border border-green-200 rounded p-2 mb-3">
+                <h4 className="font-semibold text-green-900">לוח זמנים שבועי</h4>
+              </div>
+              {weeklyWorkout.generalGoals && (
                 <p className="text-sm text-green-700 mb-3 bg-green-100 p-2 rounded">
-                  <strong>מטרות כלליות:</strong> {workoutPlan.custom_attributes.data.weeklyWorkout.generalGoals}
+                  <strong>מטרות כלליות:</strong> {weeklyWorkout.generalGoals}
                 </p>
               )}
               <div className="space-y-4 text-sm">
-                {Object.entries(workoutPlan.custom_attributes.data.weeklyWorkout.days || {}).map(([dayKey, dayData]: [string, any]) => {
+                {Object.entries(weeklyWorkout.days).map(([dayKey, dayData]: [string, any]) => {
                   if (!dayData || !dayData.isActive || !dayData.exercises || dayData.exercises.length === 0) {
                     return null;
                   }
@@ -242,97 +256,104 @@ export const WorkoutPlanCard = ({
                   };
                   
                   return (
-                    <div key={dayKey} className="bg-white rounded p-3 border border-green-200">
-                      <p className="font-semibold text-green-900 mb-3">{dayLabels[dayKey] || dayKey}</p>
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse" dir="rtl">
-                          <thead>
-                            <tr className="border-b border-gray-300 bg-gray-50">
-                              <th className="p-4 text-right text-sm font-semibold text-gray-700 w-40">תמונה</th>
-                              <th className="p-4 text-right text-sm font-semibold text-gray-700 w-20">סטים</th>
-                              <th className="p-4 text-right text-sm font-semibold text-gray-700 w-24">חזרות</th>
-                              <th className="p-4 text-right text-sm font-semibold text-gray-700">תרגיל</th>
-                              <th className="p-4 text-right text-sm font-semibold text-gray-700 w-12">מס'</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {dayData.exercises.map((exercise: any, idx: number) => {
-                              // Generate exercise identifier (A, B, C1, C2, etc.)
-                              const getExerciseId = (index: number): string => {
-                                const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-                                const letter = letters[Math.floor(index / 2)] || String.fromCharCode(65 + index);
-                                const subIndex = index % 2;
-                                return subIndex === 0 ? letter : `${letter}${subIndex + 1}`;
-                              };
-                              
-                              const exerciseId = getExerciseId(idx);
-                              
-                              // Normalize image_url and video_url - handle both empty strings and null/undefined
-                              const imageUrl = exercise.image_url && exercise.image_url.trim() ? exercise.image_url.trim() : null;
-                              const videoUrl = exercise.video_url && exercise.video_url.trim() ? exercise.video_url.trim() : null;
-                              
-                              return (
-                                <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
-                                  <td className="p-4 text-center">
-                                    {imageUrl ? (
-                                      <img
-                                        src={imageUrl}
-                                        alt={exercise.name || 'תרגיל'}
-                                        className="w-32 h-32 object-cover mx-auto border border-gray-300 rounded"
-                                        onError={(e) => {
-                                          // Fallback if image fails to load - hide the broken image
-                                          const target = e.target as HTMLImageElement;
-                                          target.style.display = 'none';
-                                        }}
-                                      />
-                                    ) : (
-                                      <div className="w-32 h-32 bg-gray-100 border border-gray-300 rounded mx-auto flex items-center justify-center">
-                                        <span className="text-sm text-gray-400">אין תמונה</span>
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="p-4 text-center text-gray-700 text-base">
-                                    {exercise.sets || '—'}
-                                  </td>
-                                  <td className="p-4 text-center text-gray-700 text-base">
-                                    {exercise.reps || '—'}
-                                  </td>
-                                  <td className="p-4 text-right">
-                                    {videoUrl ? (
-                                      <a
-                                        href={videoUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="font-medium text-blue-600 hover:text-blue-800 underline"
-                                        style={{ textDecorationColor: '#9333ea' }}
-                                      >
-                                        {exercise.name || 'תרגיל ללא שם'}
-                                      </a>
-                                    ) : (
-                                      <span className="font-medium text-gray-800">
-                                        {exercise.name || 'תרגיל ללא שם'}
-                                      </span>
-                                    )}
-                                    {exercise.notes && (
-                                      <span className="text-gray-600 text-xs block mt-1">({exercise.notes})</span>
-                                    )}
-                                  </td>
-                                  <td className="p-4 text-center text-gray-500 font-medium text-base">
-                                    {exerciseId}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                    <div key={dayKey} className="bg-white rounded border border-green-200">
+                      {/* Day Header - Green Bar */}
+                      <div className="bg-green-50 border-b border-green-200 p-3">
+                        <p className="font-semibold text-green-900">{dayLabels[dayKey] || dayKey}</p>
+                      </div>
+                      {/* Day Content */}
+                      <div className="p-3">
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse" dir="rtl">
+                            <thead>
+                              <tr className="border-b border-gray-300 bg-gray-50">
+                                <th className="p-4 text-right text-sm font-semibold text-gray-700 w-40">תמונה</th>
+                                <th className="p-4 text-right text-sm font-semibold text-gray-700 w-20">סטים</th>
+                                <th className="p-4 text-right text-sm font-semibold text-gray-700 w-24">חזרות</th>
+                                <th className="p-4 text-right text-sm font-semibold text-gray-700">תרגיל</th>
+                                <th className="p-4 text-right text-sm font-semibold text-gray-700 w-12">מס'</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {dayData.exercises.map((exercise: any, idx: number) => {
+                                // Generate exercise identifier (A, B, C1, C2, etc.)
+                                const getExerciseId = (index: number): string => {
+                                  const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+                                  const letter = letters[Math.floor(index / 2)] || String.fromCharCode(65 + index);
+                                  const subIndex = index % 2;
+                                  return subIndex === 0 ? letter : `${letter}${subIndex + 1}`;
+                                };
+                                
+                                const exerciseId = getExerciseId(idx);
+                                
+                                // Normalize image_url and video_url - handle both empty strings and null/undefined
+                                const imageUrl = exercise.image_url && exercise.image_url.trim() ? exercise.image_url.trim() : null;
+                                const videoUrl = exercise.video_url && exercise.video_url.trim() ? exercise.video_url.trim() : null;
+                                
+                                return (
+                                  <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
+                                    <td className="p-4 text-center">
+                                      {imageUrl ? (
+                                        <img
+                                          src={imageUrl}
+                                          alt={exercise.name || 'תרגיל'}
+                                          className="w-32 h-32 object-cover mx-auto border border-gray-300 rounded"
+                                          onError={(e) => {
+                                            // Fallback if image fails to load - hide the broken image
+                                            const target = e.target as HTMLImageElement;
+                                            target.style.display = 'none';
+                                          }}
+                                        />
+                                      ) : (
+                                        <div className="w-32 h-32 bg-gray-100 border border-gray-300 rounded mx-auto flex items-center justify-center">
+                                          <span className="text-sm text-gray-400">אין תמונה</span>
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="p-4 text-center text-gray-700 text-base">
+                                      {exercise.sets || '—'}
+                                    </td>
+                                    <td className="p-4 text-center text-gray-700 text-base">
+                                      {exercise.reps || '—'}
+                                    </td>
+                                    <td className="p-4 text-right">
+                                      {videoUrl ? (
+                                        <a
+                                          href={videoUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="font-medium text-blue-600 hover:text-blue-800 underline"
+                                          style={{ textDecorationColor: '#9333ea' }}
+                                        >
+                                          {exercise.name || 'תרגיל ללא שם'}
+                                        </a>
+                                      ) : (
+                                        <span className="font-medium text-gray-800">
+                                          {exercise.name || 'תרגיל ללא שם'}
+                                        </span>
+                                      )}
+                                      {exercise.notes && (
+                                        <span className="text-gray-600 text-xs block mt-1">({exercise.notes})</span>
+                                      )}
+                                    </td>
+                                    <td className="p-4 text-center text-gray-500 font-medium text-base">
+                                      {exerciseId}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
             </div>
-          </div>
-        )}
+            );
+          })()}
+        </div>
 
         {/* Metrics Grid - Hidden in view-only mode (client portal) */}
         {isEditable && (

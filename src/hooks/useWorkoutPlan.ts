@@ -28,7 +28,8 @@ export const useWorkoutPlan = (customerId?: string) => {
         throw new Error('User not authenticated');
       }
 
-      const { data, error: fetchError } = await supabase
+      // First, try to fetch from workout_plans table
+      const { data: workoutPlanData, error: workoutPlanError } = await supabase
         .from('workout_plans')
         .select('*, budget_id')
         .eq('customer_id', customerId)
@@ -37,34 +38,105 @@ export const useWorkoutPlan = (customerId?: string) => {
         .limit(1)
         .maybeSingle();
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError;
+      if (workoutPlanError && workoutPlanError.code !== 'PGRST116') {
+        throw workoutPlanError;
       }
 
-      if (data) {
+      if (workoutPlanData) {
         setWorkoutPlan({
-          id: data.id,
-          user_id: data.user_id,
-          lead_id: data.lead_id,
-          template_id: data.template_id,
-          budget_id: data.budget_id,
-          start_date: data.start_date,
-          description: data.description || '',
-          strength: data.strength || 0,
-          cardio: data.cardio || 0,
-          intervals: data.intervals || 0,
-          custom_attributes: data.custom_attributes || { schema: [], data: {} },
-          is_active: data.is_active ?? true,
-          deleted_at: data.deleted_at,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
+          id: workoutPlanData.id,
+          user_id: workoutPlanData.user_id,
+          lead_id: workoutPlanData.lead_id,
+          template_id: workoutPlanData.template_id,
+          budget_id: workoutPlanData.budget_id,
+          start_date: workoutPlanData.start_date,
+          description: workoutPlanData.description || '',
+          strength: workoutPlanData.strength || 0,
+          cardio: workoutPlanData.cardio || 0,
+          intervals: workoutPlanData.intervals || 0,
+          custom_attributes: workoutPlanData.custom_attributes || { schema: [], data: {} },
+          is_active: workoutPlanData.is_active ?? true,
+          deleted_at: workoutPlanData.deleted_at,
+          created_at: workoutPlanData.created_at,
+          updated_at: workoutPlanData.updated_at,
         });
-      } else {
-        setWorkoutPlan(null);
+        return;
       }
+
+      // If no workout plan found, try to fetch from budget assignment
+      const { data: budgetAssignment, error: budgetError } = await supabase
+        .from('budget_assignments')
+        .select(`
+          *,
+          budget:budgets(
+            id,
+            name,
+            description,
+            workout_template_id,
+            created_at
+          )
+        `)
+        .eq('customer_id', customerId)
+        .eq('is_active', true)
+        .order('assigned_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (budgetError && budgetError.code !== 'PGRST116') {
+        console.error('Error fetching budget assignment:', budgetError);
+      }
+
+      if (budgetAssignment?.budget?.workout_template_id) {
+        const budget = budgetAssignment.budget as any;
+        
+        // Fetch the workout template
+        const { data: workoutTemplate, error: templateError } = await supabase
+          .from('workout_templates')
+          .select('*')
+          .eq('id', budget.workout_template_id)
+          .single();
+
+        if (templateError) {
+          console.error('Error fetching workout template:', templateError);
+          setWorkoutPlan(null);
+          return;
+        }
+
+        if (workoutTemplate) {
+          // Convert workout template to WorkoutPlan format
+          const convertedPlan: WorkoutPlan = {
+            id: `template-${workoutTemplate.id}`, // Use a synthetic ID
+            user_id: workoutTemplate.created_by || user.id,
+            customer_id: customerId,
+            template_id: workoutTemplate.id,
+            budget_id: budget.id,
+            start_date: budgetAssignment.assigned_at || new Date().toISOString(),
+            description: workoutTemplate.description || workoutTemplate.name || '',
+            strength: 0, // Not available in template
+            cardio: 0, // Not available in template
+            intervals: 0, // Not available in template
+            custom_attributes: {
+              schema: [],
+              data: {
+                weeklyWorkout: workoutTemplate.routine_data?.weeklyWorkout || workoutTemplate.routine_data || {}
+              }
+            },
+            is_active: true,
+            created_at: workoutTemplate.created_at,
+            updated_at: workoutTemplate.updated_at,
+          };
+
+          setWorkoutPlan(convertedPlan);
+          return;
+        }
+      }
+
+      // No workout plan or template found
+      setWorkoutPlan(null);
     } catch (err) {
       console.error('Error fetching workout plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch workout plan');
+      setWorkoutPlan(null);
     } finally {
       setIsLoading(false);
     }

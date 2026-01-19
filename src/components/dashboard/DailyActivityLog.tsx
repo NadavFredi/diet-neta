@@ -21,16 +21,8 @@ import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Activity } from 'lucide-react';
 
-interface DailyCheckIn {
-  id: string;
-  check_in_date: string;
-  weight: number | null;
-  calories_daily: number | null;
-  protein_daily: number | null;
-  fiber_daily: number | null;
-  steps_actual: number | null;
-  energy_level: number | null;
-}
+// Use the full DailyCheckIn type from the store
+import type { DailyCheckIn } from '@/store/slices/clientSlice';
 
 interface DailyActivityLogProps {
   leadId?: string | null;
@@ -86,7 +78,7 @@ export const DailyActivityLog: React.FC<DailyActivityLogProps> = ({
       console.log('[DailyActivityLog] Querying check-ins for customer_id:', finalCustomerId);
       const { data, error } = await supabase
         .from('daily_check_ins')
-        .select('id, check_in_date, weight, calories_daily, protein_daily, fiber_daily, steps_actual, energy_level, lead_id')
+        .select('*') // Select all fields to support all checklist fields
         .eq('customer_id', finalCustomerId)
         .order('check_in_date', { ascending: false })
         .limit(100); // Limit to last 100 check-ins
