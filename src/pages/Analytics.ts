@@ -42,21 +42,15 @@ export interface AnalyticsData {
   scheduledMeetings: number;
 }
 
-export const useAnalytics = (dateRange?: { from?: Date; to?: Date }) => {
+export const useAnalytics = (dateRange?: { from?: Date; to?: Date } | null) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Build date filter for queries
   const dateFilter = useMemo(() => {
-    if (!dateRange?.from || !dateRange?.to) {
-      // Default to last 30 days if no range provided
-      const to = new Date();
-      const from = new Date();
-      from.setDate(from.getDate() - 30);
-      return {
-        from: startOfDay(from).toISOString(),
-        to: endOfDay(to).toISOString(),
-      };
+    // If dateRange is null or undefined, don't filter by date (show all data)
+    if (!dateRange || !dateRange.from || !dateRange.to) {
+      return null; // null means no date filter - show all data
     }
     return {
       from: startOfDay(dateRange.from).toISOString(),
@@ -66,54 +60,89 @@ export const useAnalytics = (dateRange?: { from?: Date; to?: Date }) => {
 
   // Fetch all analytics data
   const { data: analyticsData, isLoading: isLoadingData, error: dataError } = useQuery({
-    queryKey: ['analytics', dateFilter],
+    queryKey: ['analytics', dateFilter ? `${dateFilter.from}-${dateFilter.to}` : 'all'],
     queryFn: async (): Promise<AnalyticsData> => {
       setIsLoading(true);
       setError(null);
 
       try {
-        // Fetch Leads
-        const { data: leads, error: leadsError } = await supabase
+        // Build base query for Leads
+        let leadsQuery = supabase
           .from('leads')
-          .select('id, created_at, status_main, source, customer:customers(id)')
-          .gte('created_at', dateFilter.from)
-          .lte('created_at', dateFilter.to);
+          .select('id, created_at, status_main, source, customer:customers(id)');
+        
+        // Apply date filter only if dateFilter exists
+        if (dateFilter) {
+          leadsQuery = leadsQuery
+            .gte('created_at', dateFilter.from)
+            .lte('created_at', dateFilter.to);
+        }
+        
+        const { data: leads, error: leadsError } = await leadsQuery;
 
         if (leadsError) throw leadsError;
 
-        // Fetch Customers
-        const { data: customers, error: customersError } = await supabase
+        // Build base query for Customers
+        let customersQuery = supabase
           .from('customers')
-          .select('id, created_at')
-          .gte('created_at', dateFilter.from)
-          .lte('created_at', dateFilter.to);
+          .select('id, created_at');
+        
+        // Apply date filter only if dateFilter exists
+        if (dateFilter) {
+          customersQuery = customersQuery
+            .gte('created_at', dateFilter.from)
+            .lte('created_at', dateFilter.to);
+        }
+        
+        const { data: customers, error: customersError } = await customersQuery;
 
         if (customersError) throw customersError;
 
-        // Fetch Payments
-        const { data: payments, error: paymentsError } = await supabase
+        // Build base query for Payments
+        let paymentsQuery = supabase
           .from('payments')
-          .select('id, created_at, amount, status, product_name')
-          .gte('created_at', dateFilter.from)
-          .lte('created_at', dateFilter.to);
+          .select('id, created_at, amount, status, product_name');
+        
+        // Apply date filter only if dateFilter exists
+        if (dateFilter) {
+          paymentsQuery = paymentsQuery
+            .gte('created_at', dateFilter.from)
+            .lte('created_at', dateFilter.to);
+        }
+        
+        const { data: payments, error: paymentsError } = await paymentsQuery;
 
         if (paymentsError) throw paymentsError;
 
-        // Fetch Collections
-        const { data: collections, error: collectionsError } = await supabase
+        // Build base query for Collections
+        let collectionsQuery = supabase
           .from('collections')
-          .select('id, created_at, total_amount, status')
-          .gte('created_at', dateFilter.from)
-          .lte('created_at', dateFilter.to);
+          .select('id, created_at, total_amount, status');
+        
+        // Apply date filter only if dateFilter exists
+        if (dateFilter) {
+          collectionsQuery = collectionsQuery
+            .gte('created_at', dateFilter.from)
+            .lte('created_at', dateFilter.to);
+        }
+        
+        const { data: collections, error: collectionsError } = await collectionsQuery;
 
         if (collectionsError) throw collectionsError;
 
-        // Fetch Meetings
-        const { data: meetings, error: meetingsError } = await supabase
+        // Build base query for Meetings
+        let meetingsQuery = supabase
           .from('meetings')
-          .select('id, created_at, meeting_data')
-          .gte('created_at', dateFilter.from)
-          .lte('created_at', dateFilter.to);
+          .select('id, created_at, meeting_data');
+        
+        // Apply date filter only if dateFilter exists
+        if (dateFilter) {
+          meetingsQuery = meetingsQuery
+            .gte('created_at', dateFilter.from)
+            .lte('created_at', dateFilter.to);
+        }
+        
+        const { data: meetings, error: meetingsError } = await meetingsQuery;
 
         if (meetingsError) throw meetingsError;
 

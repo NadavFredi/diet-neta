@@ -1010,7 +1010,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         </div>
 
         {/* Row 2: 3-Column Grid - WhatsApp Automation, Fillout Forms, Payment Center */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4 items-stretch">
           {/* Card 4: WhatsApp Automation - Compact Version */}
           <LeadAutomationCard
             customer={customer}

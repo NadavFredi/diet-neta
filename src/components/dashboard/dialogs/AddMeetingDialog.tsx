@@ -23,11 +23,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { he } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface AddMeetingDialogProps {
   isOpen: boolean;
@@ -51,6 +56,7 @@ export const AddMeetingDialog = ({
 
   // Get today's date in YYYY-MM-DD format for default
   const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to midnight
   const todayStr = format(today, 'yyyy-MM-dd');
   const defaultTime = format(today, 'HH:mm');
 
@@ -64,10 +70,13 @@ export const AddMeetingDialog = ({
     meeting_type: '',
   });
 
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(today);
+
   // Reset form when dialog opens/closes or IDs change
   useEffect(() => {
     if (isOpen) {
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const todayStr = format(today, 'yyyy-MM-dd');
       const defaultTime = format(today, 'HH:mm');
       
@@ -80,8 +89,17 @@ export const AddMeetingDialog = ({
         status: 'פעיל',
         meeting_type: '',
       });
+      setSelectedDate(today);
     }
   }, [isOpen, leadId, customerId]);
+
+  // Update formData when selectedDate changes
+  useEffect(() => {
+    if (selectedDate) {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      setFormData((prev) => ({ ...prev, meeting_date: dateStr }));
+    }
+  }, [selectedDate]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -226,13 +244,64 @@ export const AddMeetingDialog = ({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="meeting_date">תאריך פגישה *</Label>
-            <Input
-              id="meeting_date"
-              type="date"
-              value={formData.meeting_date}
-              onChange={(e) => handleInputChange('meeting_date', e.target.value)}
-              disabled={isSubmitting}
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-right font-normal",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                  disabled={isSubmitting}
+                >
+                  <CalendarIcon className="ml-2 h-4 w-4 text-[#5B6FB9]" />
+                  {selectedDate ? (
+                    format(selectedDate, 'dd/MM/yyyy', { locale: he })
+                  ) : (
+                    <span>בחר תאריך</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start" dir="rtl">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  locale={he}
+                  className="rounded-lg border-0 shadow-lg"
+                  classNames={{
+                    months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                    month: "space-y-4 p-4",
+                    caption: "flex justify-center pt-1 relative items-center mb-4",
+                    caption_label: "text-sm font-semibold text-gray-900",
+                    nav: "space-x-1 flex items-center",
+                    nav_button: cn(
+                      "h-8 w-8 bg-transparent p-0 opacity-70 hover:opacity-100 hover:bg-gray-100 rounded-md transition-colors"
+                    ),
+                    nav_button_previous: "absolute left-1",
+                    nav_button_next: "absolute right-1",
+                    table: "w-full border-collapse space-y-1",
+                    head_row: "flex mb-2",
+                    head_cell: "text-gray-500 rounded-md w-10 font-medium text-xs",
+                    row: "flex w-full mt-1",
+                    cell: "h-10 w-10 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                    day: cn(
+                      "h-10 w-10 p-0 font-normal rounded-md transition-all hover:bg-gray-100 aria-selected:opacity-100"
+                    ),
+                    day_range_end: "day-range-end",
+                    day_selected:
+                      "bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]/90 hover:text-white focus:bg-[#5B6FB9] focus:text-white font-semibold shadow-md",
+                    day_today: "bg-blue-50 text-[#5B6FB9] font-semibold",
+                    day_outside:
+                      "day-outside text-gray-400 opacity-50 aria-selected:bg-gray-100 aria-selected:text-gray-500 aria-selected:opacity-30",
+                    day_disabled: "text-gray-300 opacity-50 cursor-not-allowed",
+                    day_range_middle:
+                      "aria-selected:bg-blue-100 aria-selected:text-blue-900",
+                    day_hidden: "invisible",
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">

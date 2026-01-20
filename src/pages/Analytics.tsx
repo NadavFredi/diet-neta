@@ -10,10 +10,11 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { useAnalytics } from './Analytics';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
-import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, TrendingUp, Users, CreditCard, Calendar, DollarSign, BarChart3 } from 'lucide-react';
+import { CalendarIcon, Users, Calendar, DollarSign } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import { format, parseISO } from 'date-fns';
@@ -33,14 +34,15 @@ const Analytics = () => {
     dispatch(logoutUser());
     navigate('/login');
   }, [dispatch, navigate]);
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>(() => {
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | null>(() => {
     const to = new Date();
     const from = new Date();
     from.setDate(from.getDate() - 30);
     return { from, to };
   });
+  const [showAllData, setShowAllData] = useState(false);
 
-  const { analyticsData, isLoading, error } = useAnalytics(dateRange);
+  const { analyticsData, isLoading, error } = useAnalytics(showAllData ? null : dateRange || undefined);
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -533,15 +535,127 @@ const Analytics = () => {
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">אנליטיקה ודוחות</h1>
                 <p className="text-gray-600 text-sm md:text-base">סקירה מקיפה של כל הנתונים והסטטיסטיקות</p>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-gray-700">טווח תאריכים</label>
-                  <DateRangePicker
-                    mode="range"
-                    dateRange={dateRange}
-                    onDateRangeChange={(range) => setDateRange(range || {})}
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="showAllData"
+                    checked={showAllData}
+                    onChange={(e) => {
+                      setShowAllData(e.target.checked);
+                      if (e.target.checked) {
+                        setDateRange(null);
+                      } else {
+                        // Reset to default 30 days
+                        const to = new Date();
+                        const from = new Date();
+                        from.setDate(from.getDate() - 30);
+                        setDateRange({ from, to });
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
+                  <label htmlFor="showAllData" className="text-sm font-medium text-gray-700 cursor-pointer">
+                    הצג את כל הנתונים
+                  </label>
                 </div>
+                {!showAllData && (
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">טווח תאריכים</label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-[280px] justify-start text-right font-normal",
+                              !dateRange && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="ml-2 h-4 w-4" />
+                            {dateRange?.from ? (
+                              dateRange.to ? (
+                                <>
+                                  {format(dateRange.from, "dd/MM/yyyy", { locale: he })} -{" "}
+                                  {format(dateRange.to, "dd/MM/yyyy", { locale: he })}
+                                </>
+                              ) : (
+                                format(dateRange.from, "dd/MM/yyyy", { locale: he })
+                              )
+                            ) : (
+                              <span>בחר טווח תאריכים</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end" dir="rtl">
+                          <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={(range) => {
+                              if (range?.from && range?.to) {
+                                setDateRange(range);
+                              } else if (range?.from) {
+                                setDateRange({ from: range.from, to: undefined });
+                              }
+                            }}
+                            numberOfMonths={2}
+                            locale={he}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const to = new Date();
+                          const from = new Date();
+                          from.setDate(from.getDate() - 7);
+                          setDateRange({ from, to });
+                        }}
+                      >
+                        7 ימים
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const to = new Date();
+                          const from = new Date();
+                          from.setDate(from.getDate() - 30);
+                          setDateRange({ from, to });
+                        }}
+                      >
+                        30 ימים
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const to = new Date();
+                          const from = new Date();
+                          from.setDate(from.getDate() - 90);
+                          setDateRange({ from, to });
+                        }}
+                      >
+                        90 ימים
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const to = new Date();
+                          const from = new Date();
+                          from.setFullYear(from.getFullYear() - 1);
+                          setDateRange({ from, to });
+                        }}
+                      >
+                        שנה אחרונה
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
