@@ -101,11 +101,11 @@ export const FilterChips: React.FC<FilterChipsProps> = ({
       >
         <div className="flex items-center gap-2 text-xs text-slate-600">
           <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200">
-            {group.operator === 'and' ? 'AND' : 'OR'}
+            {group.operator === 'and' ? 'וגם' : 'או'}
           </span>
           {group.not && (
             <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-              NOT
+              לא
             </span>
           )}
         </div>
@@ -158,7 +158,6 @@ export const FilterChips: React.FC<FilterChipsProps> = ({
     </div>
   );
 };
-
 
 
 

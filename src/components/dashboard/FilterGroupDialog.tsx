@@ -96,8 +96,8 @@ export const FilterGroupDialog = ({
                 <SelectValue placeholder="בחר תנאי" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="and">AND (הכל)</SelectItem>
-                <SelectItem value="or">OR (לפחות אחד)</SelectItem>
+                <SelectItem value="and">וגם (הכל)</SelectItem>
+                <SelectItem value="or">או (לפחות אחד)</SelectItem>
               </SelectContent>
             </Select>
             <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -105,7 +105,7 @@ export const FilterGroupDialog = ({
                 checked={!!group.not}
                 onCheckedChange={(value) => handleUpdateGroup(group.id, { not: value })}
               />
-              <span>לא (NOT)</span>
+              <span>לא</span>
             </div>
           </div>
           <div className="flex items-center gap-2">

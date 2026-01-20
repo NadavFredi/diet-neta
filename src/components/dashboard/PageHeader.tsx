@@ -181,7 +181,7 @@ export const PageHeader = ({
         {/* Bottom Row: Filters / Search (Optional) */}
         {filters && (
           <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 {filters}
               </div>
