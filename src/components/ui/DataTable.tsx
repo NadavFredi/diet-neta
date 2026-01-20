@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import { format } from 'date-fns';
+import { he } from 'date-fns/locale';
 import {
   useReactTable,
   getCoreRowModel,
@@ -140,17 +142,17 @@ function getHeaderText(header: any): string {
 function smartTruncate(text: string, maxLength: number = 20): { display: string; isTruncated: boolean } {
   // Be more generous - only truncate if text is significantly longer
   const effectiveMaxLength = Math.max(maxLength, text.length * 0.9); // Allow up to 90% of text
-  
+
   if (text.length <= effectiveMaxLength) {
     return { display: text, isTruncated: false };
   }
-  
+
   // Try to preserve first 2-3 words, but be more generous
   const words = text.split(/\s+/);
   let display = '';
   let wordCount = 0;
   const targetWordCount = words.length <= 3 ? words.length : 3;
-  
+
   for (const word of words) {
     if (wordCount < targetWordCount && (display.length + word.length + 1) <= maxLength) {
       display += (display ? ' ' : '') + word;
@@ -159,12 +161,12 @@ function smartTruncate(text: string, maxLength: number = 20): { display: string;
       break;
     }
   }
-  
+
   // Only add ellipsis if we actually truncated
   if (display.length < text.length && display.length > 0) {
     return { display: display + '...', isTruncated: true };
   }
-  
+
   // Fallback: show as much as possible
   return { display: text.substring(0, maxLength - 3) + '...', isTruncated: true };
 }
@@ -201,15 +203,15 @@ function SortableHeader<T>({
   const canHide = column?.columnDef.enableHiding !== false;
   const meta = column?.columnDef.meta;
   const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
-    const columnWidth = header.getSize();
+  const columnWidth = header.getSize();
   const [isHovered, setIsHovered] = useState(false);
 
   const headerText = getHeaderText(header);
   // Let CSS handle truncation naturally - only use JS truncation for very long text (>50 chars)
   // This allows text to use maximum available space
   const isVeryLong = headerText.length > 50;
-  const { display: displayText, isTruncated } = isVeryLong 
-    ? smartTruncate(headerText, 50) 
+  const { display: displayText, isTruncated } = isVeryLong
+    ? smartTruncate(headerText, 50)
     : { display: headerText, isTruncated: false };
 
   const style = {
@@ -241,9 +243,9 @@ function SortableHeader<T>({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div 
-        className="flex items-center h-full relative" 
-        style={{ 
+      <div
+        className="flex items-center h-full relative"
+        style={{
           flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
           justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
           alignItems: 'center',
@@ -253,9 +255,9 @@ function SortableHeader<T>({
         }}
       >
         {/* Header Text - Smart shrinking: allow flex to shrink, CSS handles truncation */}
-        <span 
+        <span
           className="truncate"
-          style={{ 
+          style={{
             flex: '1 1 0%', // Take available space, can shrink
             minWidth: 0, // Critical: allow flex to shrink below content size
             overflow: 'hidden',
@@ -270,9 +272,9 @@ function SortableHeader<T>({
         </span>
 
         {/* Icons - Gliding layout, can overlay text edge if narrow */}
-        <div 
+        <div
           className="flex items-center flex-shrink-0"
-          style={{ 
+          style={{
             gap: '2px',
             position: 'relative',
             zIndex: 1, // Allow icons to overlay text if needed
@@ -280,13 +282,13 @@ function SortableHeader<T>({
         >
           {/* Sort Icon - appears immediately after text */}
           {canSort && (
-            <span 
+            <span
               className="flex-shrink-0 text-slate-600"
-              style={{ 
-                width: '14px', 
-                height: '14px', 
-                display: 'flex', 
-                alignItems: 'center', 
+              style={{
+                width: '14px',
+                height: '14px',
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
               }}
@@ -298,7 +300,7 @@ function SortableHeader<T>({
               {getSortIcon(header.id)}
             </span>
           )}
-          
+
           {/* Hide Column Button - Shows on Hover, can overlay if narrow */}
           {canHide && isHovered && (
             <button
@@ -306,12 +308,12 @@ function SortableHeader<T>({
               className="flex-shrink-0 rounded hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
               title="הסתר עמודה"
               aria-label="הסתר עמודה"
-              style={{ 
-                width: '16px', 
-                height: '16px', 
+              style={{
+                width: '16px',
+                height: '16px',
                 padding: '0',
-                display: 'flex', 
-                alignItems: 'center', 
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
               }}
@@ -330,12 +332,12 @@ function SortableHeader<T>({
             )}
             title="גרור לשינוי סדר"
             onClick={(e) => e.stopPropagation()}
-            style={{ 
-              width: '16px', 
-              height: '16px', 
+            style={{
+              width: '16px',
+              height: '16px',
               padding: '0',
-              display: 'flex', 
-              alignItems: 'center', 
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
@@ -351,7 +353,7 @@ function SortableHeader<T>({
               'absolute top-0 bottom-0 w-1 cursor-col-resize transition-all z-10',
               dir === 'rtl' ? 'left-0' : 'right-0',
               isResizing
-                ? 'bg-blue-500 w-0.5' 
+                ? 'bg-blue-500 w-0.5'
                 : 'bg-transparent hover:bg-blue-400/60'
             )}
             onMouseDown={(e) => {
@@ -363,14 +365,14 @@ function SortableHeader<T>({
             }}
             title="גרור לשינוי רוחב"
           >
-            <GripVertical 
+            <GripVertical
               className={cn(
                 "absolute top-1/2 -translate-y-1/2 h-4 w-4 transition-opacity",
-                isResizing 
-                  ? "text-blue-500 opacity-100" 
+                isResizing
+                  ? "text-blue-500 opacity-100"
                   : "text-gray-400 opacity-0 group-hover:opacity-100"
-              )} 
-              style={{ [dir === 'rtl' ? 'left' : 'right']: '-1.5px' }} 
+              )}
+              style={{ [dir === 'rtl' ? 'left' : 'right']: '-1.5px' }}
             />
           </div>
         )}
@@ -405,7 +407,7 @@ export function DataTable<T extends Record<string, any>>({
 }: DataTableProps<T>) {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
-  
+
   // For server-side sorting, sync sorting state from props
   // For client-side sorting, use local state
   const serverSortingState = useMemo<SortingState>(() => {
@@ -417,9 +419,9 @@ export function DataTable<T extends Record<string, any>>({
     }
     return [];
   }, [serverSideSorting, externalSortBy, externalSortOrder]);
-  
+
   const [sorting, setSorting] = useState<SortingState>([]);
-  
+
   // Sync sorting state with server-side sorting props
   useEffect(() => {
     if (serverSideSorting && externalSortBy) {
@@ -532,7 +534,7 @@ export function DataTable<T extends Record<string, any>>({
   const groupByKeys = resourceKey ? useAppSelector((state) => selectGroupByKeys(state, resourceKey)) : DEFAULT_GROUP_BY_KEYS;
   const groupSorting = resourceKey ? useAppSelector((state) => selectGroupSorting(state, resourceKey)) : DEFAULT_GROUP_SORTING;
   const collapsedGroups = resourceKey ? useAppSelector((state) => selectCollapsedGroups(state, resourceKey)) : DEFAULT_COLLAPSED_GROUPS;
-  
+
   // Convert collapsedGroups array to Set for efficient lookup
   const collapsedGroupsSet = useMemo(() => new Set(collapsedGroups), [collapsedGroups]);
 
@@ -593,7 +595,7 @@ export function DataTable<T extends Record<string, any>>({
       if (!table) return;
 
       const newSizing: Record<string, number> = {};
-      
+
       // Create a temporary measurement container
       const measureDiv = document.createElement('div');
       measureDiv.style.position = 'absolute';
@@ -622,7 +624,7 @@ export function DataTable<T extends Record<string, any>>({
             const value = col.accessorFn(row);
             cellText = value !== null && value !== undefined ? String(value) : '';
           }
-          
+
           measureDiv.textContent = cellText;
           measureDiv.style.fontWeight = '400'; // Normal weight for cells
           const cellWidth = measureDiv.offsetWidth;
@@ -664,12 +666,12 @@ export function DataTable<T extends Record<string, any>>({
       requestAnimationFrame(measureColumns);
     }, 100);
 
-      return () => clearTimeout(timeoutId);
-    }, [data, columns, hasMeasured, effectiveColumnSizing, resourceKey, dispatch]);
+    return () => clearTimeout(timeoutId);
+  }, [data, columns, hasMeasured, effectiveColumnSizing, resourceKey, dispatch]);
   // Use Redux state for column order if resourceKey is provided, otherwise use local state
   const [localColumnOrder, setLocalColumnOrder] = useState<string[]>(() => {
     if (initialColumnOrder) {
-      const validOrder = initialColumnOrder.filter((id) => 
+      const validOrder = initialColumnOrder.filter((id) =>
         columns.some((col) => col.id === id)
       );
       const missingColumns = columns
@@ -701,7 +703,7 @@ export function DataTable<T extends Record<string, any>>({
         initialVisibility[col.id] = col.enableHiding !== false;
       }
     });
-    
+
     // Only initialize if columnVisibility is empty (first render)
     if (Object.keys(columnVisibility).length === 0) {
       // This will be handled by the local state setter below if needed
@@ -711,15 +713,15 @@ export function DataTable<T extends Record<string, any>>({
   // Local state for column visibility (backward compatibility only)
   const [localColumnVisibility, setLocalColumnVisibility] = useState<VisibilityState>(() => {
     if (resourceKey) return {}; // Redux manages this
-    
+
     const initialVisibility: VisibilityState = {};
-        columns.forEach((col) => {
+    columns.forEach((col) => {
       if (initialColumnVisibility && col.id in initialColumnVisibility) {
         initialVisibility[col.id] = initialColumnVisibility[col.id];
-          } else {
+      } else {
         initialVisibility[col.id] = col.enableHiding !== false;
-          }
-        });
+      }
+    });
     return initialVisibility;
   });
 
@@ -764,46 +766,46 @@ export function DataTable<T extends Record<string, any>>({
 
     const selectionColumn: ColumnDef<T> | null = enableRowSelection
       ? {
-          id: SELECTION_COLUMN_ID,
-          header: () => (
-            <div className="flex items-center justify-center">
+        id: SELECTION_COLUMN_ID,
+        header: () => (
+          <div className="flex items-center justify-center">
+            <Checkbox
+              checked={selectAllAcrossPages ? true : allPageSelected ? true : somePageSelected ? 'indeterminate' : false}
+              onCheckedChange={(value) => handleToggleAllPage(value === true)}
+              aria-label="בחר הכל בעמוד"
+              onClick={(event) => event.stopPropagation()}
+            />
+          </div>
+        ),
+        cell: ({ row }: any) => {
+          const rowId = getRowIdValue(row.original);
+          const checked = selectAllAcrossPages ? true : selectedRowIds.has(rowId);
+          return (
+            <div className="flex items-center justify-center" onClick={(event) => event.stopPropagation()}>
               <Checkbox
-                checked={selectAllAcrossPages ? true : allPageSelected ? true : somePageSelected ? 'indeterminate' : false}
-                onCheckedChange={(value) => handleToggleAllPage(value === true)}
-                aria-label="בחר הכל בעמוד"
-                onClick={(event) => event.stopPropagation()}
+                checked={checked}
+                onCheckedChange={(value) => handleToggleRow(rowId, value === true)}
+                aria-label="בחר שורה"
+                disabled={!rowId}
               />
             </div>
-          ),
-          cell: ({ row }: any) => {
-            const rowId = getRowIdValue(row.original);
-            const checked = selectAllAcrossPages ? true : selectedRowIds.has(rowId);
-            return (
-              <div className="flex items-center justify-center" onClick={(event) => event.stopPropagation()}>
-                <Checkbox
-                  checked={checked}
-                  onCheckedChange={(value) => handleToggleRow(rowId, value === true)}
-                  aria-label="בחר שורה"
-                  disabled={!rowId}
-                />
-              </div>
-            );
-          },
-          enableSorting: false,
-          enableResizing: false,
-          enableHiding: false,
-          size: 48,
-          meta: {
-            align: 'center',
-            isSelection: true,
-          },
-        }
+          );
+        },
+        enableSorting: false,
+        enableResizing: false,
+        enableHiding: false,
+        size: 48,
+        meta: {
+          align: 'center',
+          isSelection: true,
+        },
+      }
       : null;
 
     const dataColumns = orderedColumns.map((col) => {
       // Use provided size or calculate based on weighted width
       let defaultSize = col.size;
-      
+
       if (!defaultSize) {
         // Special cases for compact columns
         if (col.id === 'id' || col.id === 'actions') {
@@ -816,7 +818,7 @@ export function DataTable<T extends Record<string, any>>({
           // Calculate natural width needed: text width + icon space + padding
           const textWidth = headerLength * charWidth;
           const naturalWidth = textWidth + iconSpace + 16; // 16px for padding
-          
+
           // Use natural width, but ensure minimum readability
           defaultSize = Math.max(baseWidth, Math.min(naturalWidth, 280));
         }
@@ -920,7 +922,7 @@ export function DataTable<T extends Record<string, any>>({
     // For server-side sorting, check external sortBy/sortOrder props
     // For client-side sorting, use table's sorting state
     let sortDirection: false | 'asc' | 'desc' = false;
-    
+
     if (serverSideSorting && externalSortBy === columnId) {
       // Server-side sorting: use props
       sortDirection = externalSortOrder === 'ASC' ? 'asc' : 'desc';
@@ -979,9 +981,9 @@ export function DataTable<T extends Record<string, any>>({
           dispatch(setColumnSizingAction({ resourceKey, columnId, size: newWidth }));
         } else {
           setLocalColumnSizing((prev) => ({
-          ...prev,
-          [columnId]: newWidth,
-        }));
+            ...prev,
+            [columnId]: newWidth,
+          }));
         }
       };
 
@@ -1008,7 +1010,7 @@ export function DataTable<T extends Record<string, any>>({
       const oldIndex = columnOrder.indexOf(active.id as string);
       const newIndex = columnOrder.indexOf(over.id as string);
       const newOrder = arrayMove(columnOrder, oldIndex, newIndex);
-      
+
       if (resourceKey) {
         dispatch(setColumnOrderAction({ resourceKey, order: newOrder }));
       } else {
@@ -1022,9 +1024,9 @@ export function DataTable<T extends Record<string, any>>({
       dispatch(toggleColumnVisibilityAction({ resourceKey, columnId }));
     } else {
       setLocalColumnVisibility((prev) => ({
-      ...prev,
-      [columnId]: !prev[columnId],
-    }));
+        ...prev,
+        [columnId]: !prev[columnId],
+      }));
     }
   };
 
@@ -1033,9 +1035,9 @@ export function DataTable<T extends Record<string, any>>({
       dispatch(setColumnVisibilityAction({ resourceKey, columnId, visible: false }));
     } else {
       setLocalColumnVisibility((prev) => ({
-      ...prev,
-      [columnId]: false,
-    }));
+        ...prev,
+        [columnId]: false,
+      }));
     }
   };
 
@@ -1051,7 +1053,7 @@ export function DataTable<T extends Record<string, any>>({
     if (!columnId) return null;
     const column = columns.find((col) => col.id === columnId);
     if (!column) return columnId; // Fallback to columnId if column not found
-    
+
     // Use accessorKey if available, otherwise use accessorFn result or fallback to columnId
     if (column.accessorKey) {
       return column.accessorKey as string;
@@ -1064,21 +1066,21 @@ export function DataTable<T extends Record<string, any>>({
   const groupedData = useMemo(() => {
     // Check if multi-level grouping is active
     const hasMultiLevelGrouping = groupByKeys[0] || groupByKeys[1];
-    
+
     if (!hasMultiLevelGrouping && !groupByKey) {
       return null;
     }
-    
+
     if (!table || !data || data.length === 0) {
       return null;
     }
-    
+
     // Use the table's row model to get processed (sorted/filtered) data
     const processedData = table.getRowModel().rows.map((row: any) => row.original);
     if (processedData.length === 0) {
       return null;
     }
-    
+
     // Use multi-level grouping if active
     if (hasMultiLevelGrouping) {
       // Resolve column IDs to actual field names for grouping
@@ -1088,7 +1090,7 @@ export function DataTable<T extends Record<string, any>>({
       ];
       return groupDataByKeys(processedData, resolvedKeys, groupSorting);
     }
-    
+
     // Fallback to legacy single-level grouping
     if (groupByKey) {
       const resolvedKey = resolveColumnToField(groupByKey);
@@ -1096,7 +1098,7 @@ export function DataTable<T extends Record<string, any>>({
         return groupDataByKey(processedData, resolvedKey);
       }
     }
-    
+
     return null;
   }, [data, groupByKey, groupByKeys, groupSorting, table, resolveColumnToField]);
 
@@ -1105,8 +1107,8 @@ export function DataTable<T extends Record<string, any>>({
     resolveColumnToField(groupByKeys[0]),
     resolveColumnToField(groupByKeys[1]),
   ] as [string | null, string | null], [groupByKeys, resolveColumnToField]);
-  
-  const resolvedGroupByKey = useMemo(() => 
+
+  const resolvedGroupByKey = useMemo(() =>
     groupByKey ? resolveColumnToField(groupByKey) : null,
     [groupByKey, resolveColumnToField]
   );
@@ -1252,7 +1254,7 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       )}
       {/* Table with Horizontal Scroll */}
-      <div 
+      <div
         ref={tableRef}
         className="w-full overflow-x-auto overflow-y-visible"
         style={{
@@ -1318,17 +1320,17 @@ export function DataTable<T extends Record<string, any>>({
             handleResizeStart={handleResizeStart}
             getCellContent={getCellContent}
             onHideColumn={handleHideColumn}
-              isResizing={isResizing}
-              columnSizing={derivedColumnSizing}
-              groupedData={paginatedGroupedData || groupedData}
-              groupByKey={resolvedGroupByKey}
-              groupByKeys={resolvedGroupByKeys}
-              originalGroupByKey={groupByKey || null}
-              originalGroupByKeys={groupByKeys}
-              columns={columns}
-              collapsedGroupsSet={collapsedGroupsSet}
-              onToggleGroup={handleToggleGroup}
-              getGroupColumnHeader={getGroupColumnHeader}
+            isResizing={isResizing}
+            columnSizing={derivedColumnSizing}
+            groupedData={paginatedGroupedData || groupedData}
+            groupByKey={resolvedGroupByKey}
+            groupByKeys={resolvedGroupByKeys}
+            originalGroupByKey={groupByKey || null}
+            originalGroupByKeys={groupByKeys}
+            columns={columns}
+            collapsedGroupsSet={collapsedGroupsSet}
+            onToggleGroup={handleToggleGroup}
+            getGroupColumnHeader={getGroupColumnHeader}
           />
         )}
       </div>
@@ -1417,10 +1419,10 @@ function TableContent<T>({
   const getGroupColumnHeaderText = (columnId: string | null, isLevel2: boolean = false) => {
     if (!columnId) return '';
     // Use original column ID for display (not the resolved field name)
-    const originalColumnId = isLevel2 
+    const originalColumnId = isLevel2
       ? (originalGroupByKeys?.[1] || columnId)
       : (originalGroupByKeys?.[0] || originalGroupByKey || columnId);
-    
+
     const column = columns.find((col) => col.id === originalColumnId);
     if (!column) {
       // Fallback: try to find by accessorKey
@@ -1431,6 +1433,55 @@ function TableContent<T>({
       return columnId;
     }
     return typeof column.header === 'string' ? column.header : columnId;
+  };
+
+  // Helper function to check if a column is a date column
+  const isDateColumn = (columnId: string | null, isLevel2: boolean = false): boolean => {
+    if (!columnId) return false;
+    // Use original column ID for checking (not the resolved field name)
+    const originalColumnId = isLevel2
+      ? (originalGroupByKeys?.[1] || columnId)
+      : (originalGroupByKeys?.[0] || originalGroupByKey || columnId);
+
+    const column = columns.find((col) => col.id === originalColumnId || col.accessorKey === columnId);
+    if (!column) {
+      // Check by column ID pattern
+      const checkId = originalColumnId || columnId;
+      return checkId.toLowerCase().includes('date') ||
+        checkId.toLowerCase().includes('created') ||
+        checkId.toLowerCase().includes('updated') ||
+        checkId.toLowerCase().includes('time');
+    }
+    // Check column ID and accessorKey
+    const colId = column.id.toLowerCase();
+    const accessorKey = (column.accessorKey as string)?.toLowerCase() || '';
+    return colId.includes('date') || colId.includes('created') || colId.includes('updated') || colId.includes('time') ||
+      accessorKey.includes('date') || accessorKey.includes('created') || accessorKey.includes('updated') || accessorKey.includes('time');
+  };
+
+  // Helper function to format date values in group headers
+  const formatGroupValue = (value: any, columnId: string | null, isLevel2: boolean = false): string => {
+    if (value === null || value === undefined || value === 'ללא ערך') {
+      return 'ללא ערך';
+    }
+
+    // Check if this is a date column (use original column ID for detection)
+    if (!isDateColumn(columnId, isLevel2)) {
+      return String(value);
+    }
+
+    // Try to parse and format the date
+    try {
+      const dateValue = typeof value === 'string' ? new Date(value) : value;
+      if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+        // Format: "HH:mm | dd/MM/yyyy" (matching payment column format in rows)
+        return format(dateValue, 'HH:mm | dd/MM/yyyy', { locale: he });
+      }
+    } catch (error) {
+      // If parsing fails, return the original value
+    }
+
+    return String(value);
   };
   // Calculate total width using pixel-based sizing
   const totalWidth = tableColumns.reduce((sum, col) => {
@@ -1443,10 +1494,10 @@ function TableContent<T>({
       <thead>
         {table.getHeaderGroups().map((headerGroup: any) => {
           const headers = headerGroup.headers;
-          
+
           const headerContent = headers.map((header: any) => {
             const width = columnSizing[header.id] || header.getSize() || 150;
-            
+
             const column = table.getColumn(header.id);
             const meta = column?.columnDef.meta;
 
@@ -1496,8 +1547,8 @@ function TableContent<T>({
             // Let CSS handle truncation naturally - only use JS truncation for very long text (>50 chars)
             // This allows text to use maximum available space
             const isVeryLong = headerText.length > 50;
-            const { display: displayText, isTruncated } = isVeryLong 
-              ? smartTruncate(headerText, 50) 
+            const { display: displayText, isTruncated } = isVeryLong
+              ? smartTruncate(headerText, 50)
               : { display: headerText, isTruncated: false };
 
             const handleHideClick = (e: React.MouseEvent) => {
@@ -1523,9 +1574,9 @@ function TableContent<T>({
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
               >
-                <div 
-                  className="flex items-center h-full relative" 
-                  style={{ 
+                <div
+                  className="flex items-center h-full relative"
+                  style={{
                     flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
                     justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
                     alignItems: 'center',
@@ -1535,9 +1586,9 @@ function TableContent<T>({
                   }}
                 >
                   {/* Header Text - Smart shrinking: allow flex to shrink, CSS handles truncation */}
-                  <span 
+                  <span
                     className="truncate"
-                    style={{ 
+                    style={{
                       flex: '1 1 0%', // Take available space, can shrink
                       minWidth: 0, // Critical: allow flex to shrink below content size
                       overflow: 'hidden',
@@ -1552,9 +1603,9 @@ function TableContent<T>({
                   </span>
 
                   {/* Icons - Gliding layout, can overlay text edge if narrow */}
-                  <div 
+                  <div
                     className="flex items-center flex-shrink-0"
-                    style={{ 
+                    style={{
                       gap: '2px',
                       position: 'relative',
                       zIndex: 1, // Allow icons to overlay text if needed
@@ -1562,13 +1613,13 @@ function TableContent<T>({
                   >
                     {/* Sort Icon - appears immediately after text */}
                     {canSort && (
-                      <span 
+                      <span
                         className="flex-shrink-0 text-slate-600"
-                        style={{ 
-                          width: '14px', 
-                          height: '14px', 
-                          display: 'flex', 
-                          alignItems: 'center', 
+                        style={{
+                          width: '14px',
+                          height: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
                         }}
@@ -1580,7 +1631,7 @@ function TableContent<T>({
                         {getSortIcon(header.id)}
                       </span>
                     )}
-                    
+
                     {/* Hide Column Button - Shows on Hover, can overlay if narrow */}
                     {canHide && isHovered && (
                       <button
@@ -1588,12 +1639,12 @@ function TableContent<T>({
                         className="flex-shrink-0 rounded hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
                         title="הסתר עמודה"
                         aria-label="הסתר עמודה"
-                        style={{ 
-                          width: '16px', 
-                          height: '16px', 
+                        style={{
+                          width: '16px',
+                          height: '16px',
                           padding: '0',
-                          display: 'flex', 
-                          alignItems: 'center', 
+                          display: 'flex',
+                          alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
                         }}
@@ -1609,8 +1660,8 @@ function TableContent<T>({
                       className={cn(
                         'absolute top-0 bottom-0 w-1 cursor-col-resize transition-all z-10',
                         dir === 'rtl' ? 'left-0' : 'right-0',
-                        isResizing === header.id 
-                          ? 'bg-blue-500 w-0.5' 
+                        isResizing === header.id
+                          ? 'bg-blue-500 w-0.5'
                           : 'bg-transparent hover:bg-blue-400/60'
                       )}
                       onMouseDown={(e) => {
@@ -1622,14 +1673,14 @@ function TableContent<T>({
                       }}
                       title="גרור לשינוי רוחב"
                     >
-                      <GripVertical 
+                      <GripVertical
                         className={cn(
                           "absolute top-1/2 -translate-y-1/2 h-4 w-4 transition-opacity",
-                          isResizing === header.id 
-                            ? "text-blue-500 opacity-100" 
+                          isResizing === header.id
+                            ? "text-blue-500 opacity-100"
                             : "text-gray-400 opacity-0 group-hover:opacity-100"
-                        )} 
-                        style={{ [dir === 'rtl' ? 'left' : 'right']: '-1.5px' }} 
+                        )}
+                        style={{ [dir === 'rtl' ? 'left' : 'right']: '-1.5px' }}
                       />
                     </div>
                   )}
@@ -1748,7 +1799,7 @@ function TableContent<T>({
                           )}
                         </div>
                         <span className="text-sm font-bold text-slate-900">
-                          {level1Header}: {level1Group.level1Key}
+                          {level1Header}: {formatGroupValue(level1Group.level1Key, groupByKeys[0], false)}
                         </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
                           {totalItems} {totalItems === 1 ? 'ליד' : 'לידים'}
@@ -1790,7 +1841,7 @@ function TableContent<T>({
                                 )}
                               </div>
                               <span className="text-sm font-semibold text-slate-700">
-                                {item.header}: {item.group.groupKey}
+                                {item.header}: {formatGroupValue(item.group.groupKey, groupByKeys[1], true)}
                               </span>
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
                                 {item.group.items.length} {item.group.items.length === 1 ? 'ליד' : 'לידים'}
@@ -1904,7 +1955,7 @@ function TableContent<T>({
                           )}
                         </div>
                         <span className="text-sm font-bold text-slate-900">
-                          {getGroupColumnHeader(originalGroupByKey || groupByKey)}: {group.groupKey}
+                          {getGroupColumnHeader(originalGroupByKey || groupByKey)}: {formatGroupValue(group.groupKey, groupByKey, false)}
                         </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
                           {group.items.length} {group.items.length === 1 ? 'ליד' : 'לידים'}
@@ -1999,8 +2050,8 @@ function TableContent<T>({
                     className={cn(
                       'px-2 py-4 text-sm transition-colors overflow-hidden',
                       `text-${align}`,
-                      isNumeric 
-                        ? 'font-mono tabular-nums text-gray-900' 
+                      isNumeric
+                        ? 'font-mono tabular-nums text-gray-900'
                         : 'text-gray-900',
                       (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
                         ? 'text-gray-600'

@@ -351,11 +351,12 @@ export const createTraineeUserWithPassword = createAsyncThunk(
         throw new Error('Unauthorized: Only admins and managers can create trainee users');
       }
 
-      // Check if user already exists
+      // Check if user already exists (only active users)
       const { data: existingProfile } = await supabase
         .from('profiles')
-        .select('id, role, email')
+        .select('id, role, email, is_active')
         .eq('email', email)
+        .eq('is_active', true)
         .maybeSingle();
 
       if (existingProfile) {

@@ -185,11 +185,12 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         }
   
         if (customer?.user_id) {
-          // Customer has a user account - check if it's a trainee
+          // Customer has a user account - check if it's a trainee and active
           const { data: profile } = await supabase
             .from('profiles')
             .select('id, role, is_active')
             .eq('id', customer.user_id)
+            .eq('is_active', true)
             .maybeSingle();
 
           if (profile && profile.role === 'trainee') {
@@ -202,11 +203,12 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
             }
           }
         } else if (customerEmail) {
-          // Check if a user exists with this email
+          // Check if a user exists with this email (only active users)
           const { data: profile } = await supabase
             .from('profiles')
             .select('id, role, is_active')
             .eq('email', customerEmail)
+            .eq('is_active', true)
             .maybeSingle();
 
           if (profile && profile.role === 'trainee') {
@@ -296,14 +298,15 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         return;
       }
       
-      // Check if user already exists
+      // Check if user already exists (only active users)
       if (errorMessage.includes('already exists') || errorMessage.includes('already been registered')) {
         // User exists - fetch their user ID and show "Watch as User" button
         try {
           const { data: existingProfile } = await supabase
             .from('profiles')
-            .select('id, role, email')
+            .select('id, role, email, is_active')
             .eq('email', email)
+            .eq('is_active', true)
             .maybeSingle();
           
           if (existingProfile && existingProfile.id) {
