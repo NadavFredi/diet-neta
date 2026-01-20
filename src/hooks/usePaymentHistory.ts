@@ -19,6 +19,7 @@ export interface PaymentRecord {
   transaction_id?: string;
   customer_id?: string;
   lead_id?: string | null;
+  collection_id?: string | null;
 }
 
 export const usePaymentHistory = (customerId: string, leadId?: string | null) => {
@@ -72,6 +73,7 @@ export const usePaymentHistory = (customerId: string, leadId?: string | null) =>
           transaction_id: record.transaction_id || record.stripe_payment_id || record.id,
           customer_id: record.customer_id,
           lead_id: record.lead_id || null,
+          collection_id: record.collection_id || null,
         })) as PaymentRecord[];
       } catch (error: any) {
         // Graceful degradation if payments table doesn't exist

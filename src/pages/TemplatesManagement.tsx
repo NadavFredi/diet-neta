@@ -36,6 +36,33 @@ const TemplatesManagement = () => {
   // Group pagination state (separate from record pagination)
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize] = useState(50);
+
+  const {
+    templates = [],
+    savedView,
+    editingTemplate,
+    templateToDelete,
+    isLoading,
+    isAddDialogOpen,
+    isEditDialogOpen,
+    deleteDialogOpen,
+    isSaveViewModalOpen,
+    setIsAddDialogOpen,
+    setIsEditDialogOpen,
+    setDeleteDialogOpen,
+    setIsSaveViewModalOpen,
+    handleLogout,
+    handleToggleColumn,
+    handleAddTemplate,
+    handleEditTemplate,
+    handleSaveTemplate,
+    handleDeleteClick,
+    handleConfirmDelete,
+    handleBulkDelete,
+    handleSaveViewClick,
+    getCurrentFilterConfig,
+    deleteTemplate,
+  } = useTemplatesManagement();
   
   // Calculate total groups when grouping is active
   const totalGroups = useMemo(() => {
@@ -66,33 +93,6 @@ const TemplatesManagement = () => {
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     dispatch(setPageSize({ resourceKey: 'templates', pageSize: newPageSize }));
   }, [dispatch]);
-
-  const {
-    templates = [],
-    savedView,
-    editingTemplate,
-    templateToDelete,
-    isLoading,
-    isAddDialogOpen,
-    isEditDialogOpen,
-    deleteDialogOpen,
-    isSaveViewModalOpen,
-    setIsAddDialogOpen,
-    setIsEditDialogOpen,
-    setDeleteDialogOpen,
-    setIsSaveViewModalOpen,
-    handleLogout,
-    handleToggleColumn,
-    handleAddTemplate,
-    handleEditTemplate,
-    handleSaveTemplate,
-    handleDeleteClick,
-    handleConfirmDelete,
-    handleBulkDelete,
-    handleSaveViewClick,
-    getCurrentFilterConfig,
-    deleteTemplate,
-  } = useTemplatesManagement();
 
   // Generate filter fields with all renderable columns
   const workoutTemplateFilterFields = useMemo(() => {

@@ -19,7 +19,7 @@ export const useBulkDeleteRecords = ({
   return useMutation({
     mutationFn: async (ids: string[]) => {
       if (!ids.length) return { deletedCount: 0 };
-      let query = supabase.from(table).delete().in('id', ids);
+      let query = supabase.from(table).delete().in('id', ids).select();
       if (createdByField && user?.id) {
         query = query.eq(createdByField, user.id);
       }

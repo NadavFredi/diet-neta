@@ -33,6 +33,33 @@ const NutritionTemplatesManagement = () => {
   const pageSize = useAppSelector((state) => selectPageSize(state, 'nutrition_templates'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
   
+  const {
+    templates,
+    savedView,
+    editingTemplate,
+    templateToDelete,
+    isLoading,
+    isAddDialogOpen,
+    isEditDialogOpen,
+    deleteDialogOpen,
+    isSaveViewModalOpen,
+    setIsAddDialogOpen,
+    setIsEditDialogOpen,
+    setDeleteDialogOpen,
+    setIsSaveViewModalOpen,
+    handleLogout,
+    handleToggleColumn,
+    handleAddTemplate,
+    handleEditTemplate,
+    handleSaveTemplate,
+    handleDeleteClick,
+    handleConfirmDelete,
+    handleBulkDelete,
+    handleSaveViewClick,
+    getCurrentFilterConfig,
+    deleteTemplate,
+  } = useNutritionTemplatesManagement();
+  
   // Group pagination state (separate from record pagination)
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize] = useState(50);
@@ -66,33 +93,6 @@ const NutritionTemplatesManagement = () => {
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     dispatch(setPageSize({ resourceKey: 'nutrition_templates', pageSize: newPageSize }));
   }, [dispatch]);
-  
-  const {
-    templates,
-    savedView,
-    editingTemplate,
-    templateToDelete,
-    isLoading,
-    isAddDialogOpen,
-    isEditDialogOpen,
-    deleteDialogOpen,
-    isSaveViewModalOpen,
-    setIsAddDialogOpen,
-    setIsEditDialogOpen,
-    setDeleteDialogOpen,
-    setIsSaveViewModalOpen,
-    handleLogout,
-    handleToggleColumn,
-    handleAddTemplate,
-    handleEditTemplate,
-    handleSaveTemplate,
-    handleDeleteClick,
-    handleConfirmDelete,
-    handleBulkDelete,
-    handleSaveViewClick,
-    getCurrentFilterConfig,
-    deleteTemplate,
-  } = useNutritionTemplatesManagement();
 
   // Generate filter fields with all renderable columns
   const nutritionTemplateFilterFields = useMemo(() => {

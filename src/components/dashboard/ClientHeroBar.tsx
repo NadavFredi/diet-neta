@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard, Settings, MoreVertical, Trash2, Plus, UserCheck, UserX, Calendar } from 'lucide-react';
+import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard, Settings, MoreVertical, Trash2, Plus, UserCheck, UserX } from 'lucide-react';
 
 // WhatsApp Icon Component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -416,42 +416,6 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
             <p>שלח וואטסאפ</p>
           </TooltipContent>
         </Tooltip>
-
-        {/* Calendar Button - View Meetings */}
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon"
-              onClick={() => setIsMeetingsModalOpen(true)}
-              variant="outline"
-              className="h-8 w-8 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors flex-shrink-0"
-            >
-              <Calendar className="h-4 w-4" strokeWidth={2.5} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="center" dir="rtl">
-            <p>צפה בכל הפגישות</p>
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Payments Button - Hidden on very small screens */}
-        {customer && onPaymentHistoryClick && (
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                onClick={onPaymentHistoryClick}
-                variant="outline"
-                className="hidden sm:flex h-8 w-8 bg-white hover:bg-[#5B6FB9] hover:text-white text-gray-700 border border-gray-200 hover:border-[#5B6FB9] rounded-lg transition-colors flex-shrink-0"
-              >
-                <CreditCard className="h-4 w-4" strokeWidth={2.5} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" align="center" dir="rtl">
-              <p>צפה בהיסטוריית תשלומים</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
 
         {/* Trainee Settings Button - Hidden on mobile */}
         {customer && customer.user_id && (user?.role === 'admin' || user?.role === 'user') && onTraineeSettingsClick && (

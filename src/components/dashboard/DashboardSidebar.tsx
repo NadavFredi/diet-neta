@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send } from 'lucide-react';
+import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection, setSectionExpanded } from '@/store/slices/sidebarSlice';
@@ -87,6 +87,13 @@ const navigationItems: NavItem[] = [
     label: 'תשלומים',
     icon: CreditCard,
     path: '/dashboard/payments',
+  },
+  {
+    id: 'collections',
+    resourceKey: 'collections',
+    label: 'גבייה',
+    icon: Receipt,
+    path: '/dashboard/collections',
   },
   {
     id: 'subscription-types',
@@ -275,7 +282,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
 
     const activeItem = navigationItems.find(item => isActive(item.path));
     if (activeItem) {
-      const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'meetings'].includes(activeItem.resourceKey);
+      const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings'].includes(activeItem.resourceKey);
       // Only auto-expand if it supports views and isn't already expanded
       if (supportsViews && !expandedSections[activeItem.resourceKey]) {
         // Collapse all sections first
@@ -319,6 +326,10 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     if (path === '/dashboard/payments') {
       // Active for payments page
       return location.pathname === '/dashboard/payments';
+    }
+    if (path === '/dashboard/collections') {
+      // Active for collections page
+      return location.pathname === '/dashboard/collections';
     }
     if (path === '/dashboard/whatsapp-automations') {
       // Active for WhatsApp automations page

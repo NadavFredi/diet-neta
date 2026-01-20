@@ -34,15 +34,22 @@ import {
   SOURCE_OPTIONS 
 } from '@/utils/dashboard';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
+import { cn } from '@/lib/utils';
 import { WeeklyReviewWrapper } from './WeeklyReviewWrapper';
 import { LeadAutomationCard } from './LeadAutomationCard';
 import { LeadFormsCard } from './LeadFormsCard';
 import { ReadOnlyField } from './ReadOnlyField';
 import { LeadPaymentCard } from './LeadPaymentCard';
+import { CollectionsCard } from './CollectionsCard';
 import { usePlansHistory } from '@/hooks/usePlansHistory';
 import { ProgressGalleryCard } from './ProgressGalleryCard';
 import { BloodTestsGalleryCard } from './BloodTestsGalleryCard.tsx';
 import { CreateSubscriptionModal } from './dialogs/CreateSubscriptionModal';
+import { useMeetings } from '@/hooks/useMeetings';
+import { usePaymentHistory } from '@/hooks/usePaymentHistory';
+import { CreditCard } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useNavigate } from 'react-router-dom';
 
 interface LeadData {
   id: string;
@@ -88,6 +95,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   getStatusColor,
 }) => {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  const navigate = useNavigate();
   const [isCreateSubscriptionModalOpen, setIsCreateSubscriptionModalOpen] = useState(false);
 
   // Refs for Subscription card editable fields
@@ -120,6 +128,169 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   // Fetch plans history from plan tables (must be called before early returns)
   const leadId = activeLead?.id;
   const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
+
+  // Fetch meetings and payments data
+  const { data: allMeetings = [] } = useMeetings();
+  const { data: paymentHistory = [] } = usePaymentHistory(customer?.id || '', leadId || null);
+
+  // Filter meetings by lead_id or customer_id
+  const leadMeetings = useMemo(() => {
+    if (!leadId && !customer?.id) return [];
+    
+    return allMeetings.filter((meeting) => {
+      // Match by lead_id first, then fallback to customer_id
+      if (leadId && meeting.lead_id === leadId) return true;
+      if (customer?.id && meeting.customer_id === customer.id) return true;
+      return false;
+    });
+  }, [allMeetings, leadId, customer?.id]);
+
+  // Sort meetings by date (most recent first)
+  const sortedMeetings = useMemo(() => {
+    return [...leadMeetings].sort((a, b) => {
+      const dateA = a.meeting_data?.date || a.meeting_data?.['תאריך'] || a.created_at;
+      const dateB = b.meeting_data?.date || b.meeting_data?.['תאריך'] || b.created_at;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
+  }, [leadMeetings]);
+
+  // Helper function to extract meeting date
+  const getMeetingDate = (meeting: any) => {
+    const meetingData = meeting.meeting_data || {};
+    const schedulingData = (() => {
+      if (meetingData.event_start_time || meetingData.event_end_time) {
+        return { eventStartTime: meetingData.event_start_time || meetingData.eventStartTime };
+      }
+      if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
+        const scheduling = meetingData.scheduling[0];
+        if (scheduling.value) {
+          return { eventStartTime: scheduling.value.eventStartTime };
+        }
+      }
+      return null;
+    })();
+    
+    if (schedulingData?.eventStartTime) {
+      try {
+        const date = new Date(schedulingData.eventStartTime);
+        if (!isNaN(date.getTime())) {
+          return formatDate(date.toISOString());
+        }
+      } catch (e) {
+        // Silent failure
+      }
+    }
+    
+    return meetingData.date || 
+           meetingData.meeting_date || 
+           meetingData['תאריך'] || 
+           meetingData['תאריך פגישה'] ||
+           formatDate(meeting.created_at);
+  };
+
+  // Helper function to extract meeting time
+  const getMeetingTime = (meeting: any) => {
+    const meetingData = meeting.meeting_data || {};
+    const schedulingData = (() => {
+      if (meetingData.event_start_time || meetingData.event_end_time) {
+        return {
+          eventStartTime: meetingData.event_start_time || meetingData.eventStartTime,
+          eventEndTime: meetingData.event_end_time || meetingData.eventEndTime,
+        };
+      }
+      if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
+        const scheduling = meetingData.scheduling[0];
+        if (scheduling.value) {
+          return {
+            eventStartTime: scheduling.value.eventStartTime,
+            eventEndTime: scheduling.value.eventEndTime,
+          };
+        }
+      }
+      return null;
+    })();
+    
+    if (schedulingData?.eventStartTime) {
+      try {
+        const startDate = new Date(schedulingData.eventStartTime);
+        if (!isNaN(startDate.getTime())) {
+          const hours = startDate.getHours().toString().padStart(2, '0');
+          const minutes = startDate.getMinutes().toString().padStart(2, '0');
+          const startTime = `${hours}:${minutes}`;
+          
+          if (schedulingData.eventEndTime) {
+            try {
+              const endDate = new Date(schedulingData.eventEndTime);
+              if (!isNaN(endDate.getTime())) {
+                const endHours = endDate.getHours().toString().padStart(2, '0');
+                const endMinutes = endDate.getMinutes().toString().padStart(2, '0');
+                const endTime = `${endHours}:${endMinutes}`;
+                return `${startTime} - ${endTime}`;
+              }
+            } catch (e) {
+              // Silent failure
+            }
+          }
+          return startTime;
+        }
+      } catch (e) {
+        // Silent failure
+      }
+    }
+    return '-';
+  };
+
+  // Helper function to get meeting status
+  const getMeetingStatus = (meeting: any) => {
+    const meetingData = meeting.meeting_data || {};
+    return meetingData.status || meetingData['סטטוס'] || 'פעיל';
+  };
+
+  // Helper function to get status badge color
+  const getMeetingStatusColor = (status: string) => {
+    const statusStr = String(status);
+    if (statusStr.includes('בוטל') || statusStr.includes('מבוטל')) return 'bg-red-50 text-red-700 border-red-200';
+    if (statusStr.includes('הושלם') || statusStr.includes('הושלם')) return 'bg-green-50 text-green-700 border-green-200';
+    if (statusStr.includes('מתוכנן') || statusStr.includes('תוכנן')) return 'bg-blue-50 text-blue-700 border-blue-200';
+    return 'bg-gray-50 text-gray-700 border-gray-200';
+  };
+
+  // Sort payments by date (most recent first) - already sorted by usePaymentHistory
+  const sortedPayments = useMemo(() => {
+    return [...paymentHistory];
+  }, [paymentHistory]);
+
+  // Helper function to get payment status badge color
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'bg-green-50 text-green-700 border-green-200';
+      case 'pending':
+        return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'refunded':
+        return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'failed':
+        return 'bg-red-50 text-red-700 border-red-200';
+      default:
+        return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
+
+  // Helper function to format payment status in Hebrew
+  const formatPaymentStatus = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'שולם';
+      case 'pending':
+        return 'ממתין';
+      case 'refunded':
+        return 'הוחזר';
+      case 'failed':
+        return 'נכשל';
+      default:
+        return status;
+    }
+  };
 
   // Callback hooks (must be called before early returns)
   const handleSubscriptionFieldEditingChange = useCallback((fieldId: string, isEditing: boolean) => {
@@ -747,6 +918,117 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             customerEmail={customer?.email || activeLead.email || null}
             customerId={customer?.id || null}
             leadId={activeLead?.id || null}
+          />
+        </div>
+
+        {/* Row 2.5: Meetings, Payments & Collections - 3-Column Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
+          {/* Meetings Card */}
+          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
+            <CardHeaderWithActions
+              icon={CalendarIcon}
+              iconBgColor="bg-blue-100"
+              iconColor="text-blue-600"
+              title="פגישות"
+              isEditing={false}
+              onSave={() => {}}
+              onCancel={() => {}}
+            />
+            <div className="flex-1 overflow-auto max-h-[300px]">
+              {sortedMeetings.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  אין פגישות
+                </div>
+              ) : (
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">שעה</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedMeetings.map((meeting) => (
+                      <TableRow
+                        key={meeting.id}
+                        onClick={() => navigate(`/dashboard/meetings/${meeting.id}`)}
+                        className="cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100"
+                      >
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 text-right align-middle">
+                          {getMeetingDate(meeting)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-700 text-right align-middle">
+                          {getMeetingTime(meeting)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-right align-middle">
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 inline-flex", getMeetingStatusColor(getMeetingStatus(meeting)))}>
+                            {getMeetingStatus(meeting)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </Card>
+
+          {/* Payments Card */}
+          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
+            <CardHeaderWithActions
+              icon={CreditCard}
+              iconBgColor="bg-green-100"
+              iconColor="text-green-600"
+              title="תשלומים"
+              isEditing={false}
+              onSave={() => {}}
+              onCancel={() => {}}
+            />
+            <div className="flex-1 overflow-auto max-h-[300px]">
+              {sortedPayments.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  אין תשלומים
+                </div>
+              ) : (
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedPayments.map((payment) => (
+                      <TableRow
+                        key={payment.id}
+                        onClick={() => navigate(`/dashboard/payments/${payment.id}`)}
+                        className="cursor-pointer hover:bg-green-50 transition-colors border-b border-gray-100"
+                      >
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 text-right align-middle">
+                          {formatDate(payment.date)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 font-semibold text-right align-middle">
+                          ₪{payment.amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-right align-middle">
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 inline-flex", getPaymentStatusColor(payment.status))}>
+                            {formatPaymentStatus(payment.status)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </Card>
+
+          {/* Collections Card */}
+          <CollectionsCard
+            leadId={leadId}
+            customerId={customer?.id}
           />
         </div>
 
