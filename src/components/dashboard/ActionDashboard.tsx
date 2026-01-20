@@ -47,9 +47,11 @@ import { BloodTestsGalleryCard } from './BloodTestsGalleryCard.tsx';
 import { CreateSubscriptionModal } from './dialogs/CreateSubscriptionModal';
 import { useMeetings } from '@/hooks/useMeetings';
 import { usePaymentHistory } from '@/hooks/usePaymentHistory';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useNavigate } from 'react-router-dom';
+import { AddPaymentDialog } from './dialogs/AddPaymentDialog';
+import { AddMeetingDialog } from './dialogs/AddMeetingDialog';
 
 interface LeadData {
   id: string;
@@ -97,6 +99,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const navigate = useNavigate();
   const [isCreateSubscriptionModalOpen, setIsCreateSubscriptionModalOpen] = useState(false);
+  const [isAddPaymentDialogOpen, setIsAddPaymentDialogOpen] = useState(false);
+  const [isAddMeetingDialogOpen, setIsAddMeetingDialogOpen] = useState(false);
 
   // Refs for Subscription card editable fields
   const joinDateRef = useRef<InlineEditableFieldRef>(null);
@@ -925,15 +929,24 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Meetings Card */}
           <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
-            <CardHeaderWithActions
-              icon={CalendarIcon}
-              iconBgColor="bg-blue-100"
-              iconColor="text-blue-600"
-              title="פגישות"
-              isEditing={false}
-              onSave={() => {}}
-              onCancel={() => {}}
-            />
+            <div className="pb-3 border-b border-slate-100 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-100">
+                    <CalendarIcon className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">פגישות</h3>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setIsAddMeetingDialogOpen(true)}
+                  className="h-8 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  צור פגישה
+                </Button>
+              </div>
+            </div>
             <div className="flex-1 overflow-auto max-h-[300px]">
               {sortedMeetings.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">
@@ -976,15 +989,24 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
           {/* Payments Card */}
           <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
-            <CardHeaderWithActions
-              icon={CreditCard}
-              iconBgColor="bg-green-100"
-              iconColor="text-green-600"
-              title="תשלומים"
-              isEditing={false}
-              onSave={() => {}}
-              onCancel={() => {}}
-            />
+            <div className="pb-3 border-b border-slate-100 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-green-100">
+                    <CreditCard className="h-4 w-4 text-green-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">תשלומים</h3>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setIsAddPaymentDialogOpen(true)}
+                  className="h-8 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  צור תשלום
+                </Button>
+              </div>
+            </div>
             <div className="flex-1 overflow-auto max-h-[300px]">
               {sortedPayments.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">
@@ -1107,6 +1129,28 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           } catch (error: any) {
             // Error creating subscription
           }
+        }}
+      />
+
+      {/* Add Payment Dialog */}
+      <AddPaymentDialog
+        isOpen={isAddPaymentDialogOpen}
+        onOpenChange={setIsAddPaymentDialogOpen}
+        leadId={leadId}
+        customerId={customer?.id}
+        onPaymentCreated={() => {
+          // Payments will refresh automatically via query invalidation
+        }}
+      />
+
+      {/* Add Meeting Dialog */}
+      <AddMeetingDialog
+        isOpen={isAddMeetingDialogOpen}
+        onOpenChange={setIsAddMeetingDialogOpen}
+        leadId={leadId}
+        customerId={customer?.id}
+        onMeetingCreated={() => {
+          // Meetings will refresh automatically via query invalidation
         }}
       />
     </div>

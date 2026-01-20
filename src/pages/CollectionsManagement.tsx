@@ -63,28 +63,6 @@ const CollectionsManagement = () => {
     setIsEditViewModalOpen(true);
   }, []);
 
-  // Calculate total groups when grouping is active
-  const totalGroups = useMemo(() => {
-    if (!isGroupingActive || !filteredCollections || filteredCollections.length === 0) {
-      return 0;
-    }
-    
-    // Group the data to count groups
-    const groupedData = groupDataByKeys(filteredCollections, groupByKeys, { level1: null, level2: null });
-    return getTotalGroupsCount(groupedData);
-  }, [isGroupingActive, filteredCollections, groupByKeys]);
-  
-  // Reset group pagination when grouping changes
-  useEffect(() => {
-    if (isGroupingActive) {
-      setGroupCurrentPage(1);
-    }
-  }, [isGroupingActive, groupByKeys]);
-  
-  const handleGroupPageChange = useCallback((page: number) => {
-    setGroupCurrentPage(page);
-  }, []);
-
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'collections'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'collections'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'collections'));
