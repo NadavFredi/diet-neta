@@ -1399,6 +1399,24 @@ function TableContent<T>({
             const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
             const [isHovered, setIsHovered] = useState(false);
 
+            if (meta?.isSelection) {
+              return (
+                <th
+                  key={header.id}
+                  className="relative h-16 px-1"
+                  style={{
+                    width: `${width}px`,
+                    minWidth: `${width}px`,
+                    maxWidth: `${width}px`,
+                  }}
+                >
+                  <div className="flex items-center justify-center h-full">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </div>
+                </th>
+              );
+            }
+
             const headerText = getHeaderText(header);
             // Let CSS handle truncation naturally - only use JS truncation for very long text (>50 chars)
             // This allows text to use maximum available space

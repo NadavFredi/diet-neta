@@ -342,7 +342,11 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     } else if (isCollapsed) {
       // In collapsed mode, open popover for resources with views
       setPopoverOpen(true);
+      // Also navigate to make it active on first click
+      onResourceClick();
     } else {
+      // Navigate to resource to make it active on first click
+      onResourceClick();
       // If we have a default view but section is not expanded, expand it
       if (defaultView && !isExpanded) {
         onToggle();
