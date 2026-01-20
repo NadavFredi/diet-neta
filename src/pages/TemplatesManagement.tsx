@@ -25,12 +25,7 @@ const TemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'templates'));
-  
-  // Generate filter fields with all renderable columns
-  const workoutTemplateFilterFields = useMemo(() => {
-    return getWorkoutTemplateFilterFields(templates || [], workoutTemplateColumns);
-  }, [templates]);
-  
+
   const {
     templates = [],
     savedView,
@@ -57,6 +52,11 @@ const TemplatesManagement = () => {
     getCurrentFilterConfig,
     deleteTemplate,
   } = useTemplatesManagement();
+
+  // Generate filter fields with all renderable columns
+  const workoutTemplateFilterFields = useMemo(() => {
+    return getWorkoutTemplateFilterFields(templates || [], workoutTemplateColumns);
+  }, [templates]);
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);

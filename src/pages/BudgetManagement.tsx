@@ -36,11 +36,6 @@ const BudgetManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'budgets'));
-  
-  // Generate filter fields with all renderable columns
-  const budgetFilterFields = useMemo(() => {
-    return getBudgetFilterFields(budgets || [], budgetColumns);
-  }, [budgets]);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -81,6 +76,11 @@ const BudgetManagement = () => {
     handleSendWhatsApp,
     sendingBudget,
   } = useBudgetManagement();
+
+  // Generate filter fields with all renderable columns
+  const budgetFilterFields = useMemo(() => {
+    return getBudgetFilterFields(budgets || [], budgetColumns);
+  }, [budgets]);
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
@@ -126,7 +126,7 @@ const BudgetManagement = () => {
                   dataCount={budgets.length}
                   singularLabel="תקציב"
                   pluralLabel="תקציבים"
-                  filterFields={useMemo(() => getBudgetFilterFields(budgets || [], budgetColumns), [budgets])}
+                  filterFields={budgetFilterFields}
                   searchPlaceholder="חיפוש לפי שם או תיאור..."
                   addButtonLabel="הוסף תקציב"
                   onAddClick={handleAddBudget}
