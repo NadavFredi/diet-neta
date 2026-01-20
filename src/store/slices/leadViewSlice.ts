@@ -6,7 +6,7 @@
  * - Customer notes (customer-centric, unified across leads)
  */
 
-import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import { supabase } from '@/lib/supabaseClient';
 
 // ============================================
@@ -121,8 +121,6 @@ export const addCustomerNote = createAsyncThunk(
         insertData.attachment_url = attachmentUrl;
       }
       
-      console.log('Inserting note with data:', insertData);
-      
       const { data, error } = await supabase
         .from('customer_notes')
         .insert([insertData])
@@ -130,13 +128,9 @@ export const addCustomerNote = createAsyncThunk(
         .single();
 
       if (error) {
-        console.error('Error adding note:', error);
-        console.error('Insert data:', insertData);
         throw error;
       }
       
-      console.log('Note added successfully:', data);
-
       return { customerId, note: data as CustomerNote, tempId: tempId || `temp-${Date.now()}` };
     } catch (error) {
       return rejectWithValue({ 
@@ -474,11 +468,25 @@ export const selectActiveSidebar = (state: { leadView: LeadViewState }): Sidebar
   return state.leadView.leftSidebar;
 };
 
-export const selectCustomerNotes = (customerId: string | null | undefined) => 
-  (state: { leadView: LeadViewState }): CustomerNote[] => {
-    if (!customerId) return [];
-    return state.leadView.notes[customerId] || [];
-  };
+// Stable default values to prevent unnecessary re-renders
+const DEFAULT_NOTES: CustomerNote[] = [];
+
+// Memoized selector factory for customer notes
+// This creates a memoized selector that returns stable references
+export const selectCustomerNotes = (customerId: string | null | undefined) => {
+  return createSelector(
+    [
+      (state: { leadView: LeadViewState }) => state.leadView.notes,
+      (_state: { leadView: LeadViewState }) => customerId,
+    ],
+    (notes, id): CustomerNote[] => {
+      if (!id) return DEFAULT_NOTES;
+      const customerNotes = notes[id];
+      // Return the actual array if it exists, otherwise return stable default
+      return customerNotes ?? DEFAULT_NOTES;
+    }
+  );
+};
 
 export const selectIsLoadingNotes = (customerId: string | null | undefined) => 
   (state: { leadView: LeadViewState }): boolean => {

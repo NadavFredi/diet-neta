@@ -17,6 +17,9 @@ import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.t
 import BudgetManagement from "./pages/BudgetManagement.tsx";
 import SubscriptionTypesManagement from "./pages/SubscriptionTypesManagement.tsx";
 import PaymentsManagement from "./pages/PaymentsManagement.tsx";
+import PaymentDetailView from "./pages/PaymentDetailView.tsx";
+import CollectionsManagement from "./pages/CollectionsManagement.tsx";
+import CollectionDetailView from "./pages/CollectionDetailView.tsx";
 import KnowledgeBaseManagement from "./pages/KnowledgeBaseManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
 import MeetingsManagement from "./pages/MeetingsManagement.tsx";
@@ -24,8 +27,10 @@ import MeetingDetailView from "./pages/MeetingDetailView.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
 import { CheckInSettingsPage } from "./pages/CheckInSettingsPage.tsx";
 import { WhatsAppAutomationsPage } from "./pages/WhatsAppAutomationsPage.tsx";
+import Analytics from "./pages/Analytics.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ClientDashboard from "./pages/client/ClientDashboard.tsx";
+import { ArticlePage } from "./pages/client/ArticlePage.tsx";
 import { InviteAccept } from "./pages/InviteAccept.tsx";
 import PrintBudgetPage from "./pages/PrintBudgetPage.tsx";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -59,7 +64,9 @@ const AppContent = () => {
     location.pathname.startsWith('/leads/') ||
     location.pathname.startsWith('/dashboard/customers/') ||
     location.pathname.startsWith('/profile/') ||
-    location.pathname.startsWith('/dashboard/meetings/');
+    location.pathname.startsWith('/dashboard/meetings/') ||
+    location.pathname.startsWith('/dashboard/payments/') ||
+    location.pathname.startsWith('/dashboard/collections/');
 
   // Hide footer when the dashboard sidebar panel is visible
   const isDashboardSidebarRoute =
@@ -135,10 +142,42 @@ const AppContent = () => {
             }
           />
           <Route
+            path="/dashboard/payments/:id"
+            element={
+              <ProtectedRoute>
+                <PaymentDetailView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/collections"
+            element={
+              <ProtectedRoute>
+                <CollectionsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/collections/:id"
+            element={
+              <ProtectedRoute>
+                <CollectionDetailView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/dashboard/knowledge-base"
             element={
               <ProtectedRoute>
                 <KnowledgeBaseManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/knowledge-base/article/:id"
+            element={
+              <ProtectedRoute>
+                <ArticlePage />
               </ProtectedRoute>
             }
           />
@@ -163,6 +202,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <WhatsAppAutomationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/analytics"
+            element={
+              <ProtectedRoute>
+                <Analytics />
               </ProtectedRoute>
             }
           />
@@ -236,6 +283,10 @@ const AppContent = () => {
             path="/client/dashboard"
             element={<ClientDashboard />}
           />
+          <Route
+            path="/client/knowledge-base/article/:id"
+            element={<ArticlePage />}
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
@@ -257,7 +308,12 @@ const App = () => (
         <Toaster />
         <Sonner />
         <DevModeProvider>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <AuthInitializer>
               <AppContent />
             </AuthInitializer>

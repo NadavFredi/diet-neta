@@ -6,7 +6,7 @@
  */
 
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
-import { Edit, Plus } from 'lucide-react';
+import { Edit, Plus, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -51,11 +51,42 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newOptionValue, setNewOptionValue] = useState('');
   const [isSelectOpen, setIsSelectOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const newOptionInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Combine existing options with current value if it's not in the list
   const allOptions = [...new Set([...options, value].filter(Boolean))];
+  
+  // Filter options based on search query
+  const filteredOptions = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return allOptions;
+    }
+    const query = searchQuery.toLowerCase();
+    return allOptions.filter(option => 
+      option.toLowerCase().includes(query) ||
+      (formatValue && formatValue(option).toLowerCase().includes(query))
+    );
+  }, [allOptions, searchQuery, formatValue]);
+  
+  // Reset search when dropdown closes
+  useEffect(() => {
+    if (!isSelectOpen) {
+      setSearchQuery('');
+    }
+  }, [isSelectOpen]);
+  
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isSelectOpen && searchInputRef.current && filteredOptions.length > 5) {
+      // Only focus if there are many options (more than 5)
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isSelectOpen, filteredOptions.length]);
 
   useEffect(() => {
     if (isEditing && !isAddingNew && inputRef.current) {
@@ -80,6 +111,7 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
     setIsAddingNew(false);
     setNewOptionValue('');
     setIsSelectOpen(false);
+    setSearchQuery('');
   }, [value]);
 
   const handleSave = useCallback(async () => {
@@ -110,16 +142,13 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
       // Await the save to ensure it completes
       try {
         await onSave(finalValue);
-        console.log('InlineEditableSelect: Save successful', finalValue);
       } catch (error) {
-        console.error('InlineEditableSelect: Failed to save:', error);
         // On error, revert to original value
         setEditValue(value);
         setIsEditing(true);
         throw error;
       }
     } catch (error) {
-      console.error('InlineEditableSelect: Validation error:', error);
       setEditValue(value);
       setIsSaving(false);
       throw error;
@@ -230,6 +259,8 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
                       // Just update the local value, don't save yet
                       // User will save with Enter key or save button
                       setEditValue(value);
+                      // Clear search when an option is selected
+                      setSearchQuery('');
                     }
                   }}
                   disabled={isSaving || isAddingNew}
@@ -257,21 +288,64 @@ export const InlineEditableSelect = forwardRef<InlineEditableSelectRef, InlineEd
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent dir="rtl">
-                    {allOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {formatValue ? formatValue(option) : option}
-                      </SelectItem>
-                    ))}
-                    <SelectItem 
-                      value="__add_new__"
-                      className="text-blue-600 font-semibold"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Plus className="h-3 w-3" />
-                        הוסף ערך חדש
+                  <SelectContent dir="rtl" className="p-0">
+                    {/* Search input - only show if there are more than 5 options */}
+                    {allOptions.length > 5 && (
+                      <div className="sticky top-0 z-10 border-b border-border bg-popover p-2">
+                        <div className="relative flex items-center">
+                          <Search className="absolute right-2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            ref={searchInputRef}
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              setSearchQuery(e.target.value);
+                            }}
+                            onKeyDown={(e) => {
+                              e.stopPropagation();
+                              // Prevent Enter from closing the dropdown
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                // Select first filtered option if available
+                                if (filteredOptions.length > 0 && filteredOptions[0] !== '__add_new__') {
+                                  setEditValue(filteredOptions[0]);
+                                  setSearchQuery('');
+                                }
+                              }
+                            }}
+                            placeholder="חפש..."
+                            className="h-8 pr-8 pl-2 text-sm"
+                            dir="rtl"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
                       </div>
-                    </SelectItem>
+                    )}
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {filteredOptions.length === 0 && searchQuery ? (
+                        <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                          לא נמצאו תוצאות
+                        </div>
+                      ) : (
+                        <>
+                          {filteredOptions.map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {formatValue ? formatValue(option) : option}
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
+                      <SelectItem 
+                        value="__add_new__"
+                        className="text-blue-600 font-semibold"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Plus className="h-3 w-3" />
+                          הוסף ערך חדש
+                        </div>
+                      </SelectItem>
+                    </div>
                   </SelectContent>
                 </Select>
             </div>

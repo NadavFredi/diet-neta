@@ -302,14 +302,6 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
       const renderedCount = bodyFields.length + activityFields.length + nutritionFields.length + wellnessFields.length;
       
       if (totalVisible !== renderedCount) {
-        console.warn(`DailyCheckInView - Field count mismatch: ${totalVisible} visible in config, ${renderedCount} being rendered`);
-        console.log('All visible fields:', allVisibleFields);
-        console.log('Rendered fields:', {
-          body: bodyFields.map(([id]) => id),
-          activity: activityFields.map(([id]) => id),
-          nutrition: nutritionFields.map(([id]) => id),
-          wellness: wellnessFields.map(([id]) => id),
-        });
       }
     }
   }, [fieldConfig, isLoadingConfig, bodyFields, activityFields, nutritionFields, wellnessFields]);
@@ -474,7 +466,6 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     
                     // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
                     if (!onChange) {
-                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
                       return null;
                     }
                     
@@ -517,7 +508,6 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     
                     // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
                     if (!onChange) {
-                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
                       return null;
                     }
                     
@@ -559,7 +549,6 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     
                     // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
                     if (!onChange) {
-                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
                       return null;
                     }
                     
@@ -603,7 +592,6 @@ export const DailyCheckInView: React.FC<DailyCheckInViewProps> = ({ customerId, 
                     
                     // Skip rendering if field doesn't have a setter (custom fields not yet supported in DB)
                     if (!onChange) {
-                      console.warn(`Field ${fieldId} is configured but not supported in the component`);
                       return null;
                     }
                     

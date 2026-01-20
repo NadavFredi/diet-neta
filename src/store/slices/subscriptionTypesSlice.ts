@@ -55,7 +55,6 @@ export const fetchSubscriptionTypes = createAsyncThunk(
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching subscription types:', error);
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת סוגי המנויים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }

@@ -76,7 +76,7 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
         }
       }
     } catch (error) {
-      console.error('[SendBudgetModal] Error loading custom flows:', error);
+      // Silent failure
     }
     return defaultLabel;
   };
@@ -113,9 +113,8 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
                 buttons: [],
                 media: null
               })).unwrap();
-              console.log('[SendBudgetModal] Migrated budget template from localStorage to database');
             } catch (error) {
-              console.error('[SendBudgetModal] Error migrating template:', error);
+              // Silent failure
             }
           }
         }
@@ -157,7 +156,7 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
           }
         }
       } catch (error) {
-        console.error('[SendBudgetModal] Error fetching customer:', error);
+        // Silent failure
       } finally {
         setIsLoadingCustomer(false);
       }
@@ -221,7 +220,6 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
         });
       }
     } catch (error: any) {
-      console.error('[SendBudgetModal] Error sending message:', error);
       toast({
         title: 'שגיאה',
         description: error.message || 'נכשל בשליחת ההודעה',
@@ -254,7 +252,6 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
         description: 'תבנית ההודעה נשמרה',
       });
     } catch (error) {
-      console.error('[SendBudgetModal] Error saving template to database:', error);
       // Still save locally even if DB save fails
       setTemplate(newTemplate);
       localStorage.setItem('budgetMessageTemplate', newTemplate);

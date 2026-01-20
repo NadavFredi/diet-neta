@@ -4,11 +4,11 @@
  * Handles all business logic, data fetching, and state management
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import {
   useNutritionTemplates,
   useDeleteNutritionTemplate,
@@ -16,10 +16,20 @@ import {
   useUpdateNutritionTemplate,
   type NutritionTemplate,
 } from '@/hooks/useNutritionTemplates';
-import { useAppDispatch } from '@/store/hooks';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
 import { TemplateColumnVisibility } from '@/components/dashboard/TemplateColumnSettings';
+import { 
+  selectFilterGroup, 
+  selectSearchQuery, 
+  selectCurrentPage,
+  selectPageSize,
+  selectGroupByKeys,
+  setCurrentPage,
+  setPageSize,
+} from '@/store/slices/tableStateSlice';
 
 export const useNutritionTemplatesManagement = () => {
   const navigate = useNavigate();
@@ -28,10 +38,6 @@ export const useNutritionTemplatesManagement = () => {
   const viewId = searchParams.get('view_id');
   const { toast } = useToast();
 
-  const [hasAppliedView, setHasAppliedView] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<NutritionTemplate | null>(null);
@@ -50,12 +56,46 @@ export const useNutritionTemplatesManagement = () => {
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('nutrition_templates');
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'nutrition_templates'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'nutrition_templates'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'nutrition_templates'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'nutrition_templates'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'nutrition_templates'));
+  
   const { data: templates = [], isLoading } = useNutritionTemplates({
-    search: undefined,
+    search: searchQuery,
+    filterGroup,
+    page: currentPage,
+    pageSize,
+    groupByLevel1: groupByKeys[0] || null,
+    groupByLevel2: groupByKeys[1] || null,
   });
+  
+  // Reset to page 1 when filters, search, or grouping change
+  const prevFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const currentFilters = JSON.stringify({ 
+      searchQuery, 
+      filterGroup,
+      groupByKeys: [groupByKeys[0], groupByKeys[1]],
+    });
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters) {
+      if (currentPage !== 1) {
+        dispatch(setCurrentPage({ resourceKey: 'nutrition_templates', page: 1 }));
+      }
+    }
+    prevFiltersRef.current = currentFilters;
+  }, [searchQuery, filterGroup, groupByKeys, currentPage, dispatch]);
   const createTemplate = useCreateNutritionTemplate();
   const updateTemplate = useUpdateNutritionTemplate();
   const deleteTemplate = useDeleteNutritionTemplate();
+  const bulkDeleteTemplates = useBulkDeleteRecords({
+    table: 'nutrition_templates',
+    invalidateKeys: [['nutritionTemplates']],
+    createdByField: 'created_by',
+  });
+
+  useSyncSavedViewFilters('nutrition_templates', savedView, isLoadingView);
 
   // Auto-navigate to default view
   useEffect(() => {
@@ -64,70 +104,18 @@ export const useNutritionTemplatesManagement = () => {
     }
   }, [viewId, defaultView, navigate]);
 
-  // Reset filters
-  useEffect(() => {
-    if (!viewId) {
-      setSearchQuery('');
-      setSelectedDate(undefined);
-      setHasAppliedView(false);
-    }
-  }, [viewId]);
-
-  // Apply saved view
-  useEffect(() => {
-    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
-      const filterConfig = savedView.filter_config as any;
-      if (filterConfig.searchQuery !== undefined) {
-        setSearchQuery(filterConfig.searchQuery);
-      }
-      if (filterConfig.selectedDate !== undefined && filterConfig.selectedDate) {
-        setSelectedDate(new Date(filterConfig.selectedDate));
-      }
-      setHasAppliedView(true);
-    }
-  }, [savedView, hasAppliedView, isLoadingView, viewId]);
-
   // Filter templates
-  const filteredTemplates = useMemo(() => {
-    let filtered = templates;
-
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      filtered = filtered.filter((template) => {
-        const nameMatch = template.name?.toLowerCase().includes(searchLower);
-        const descMatch = template.description?.toLowerCase().includes(searchLower);
-        return nameMatch || descMatch;
-      });
-    }
-
-    if (selectedDate) {
-      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-      filtered = filtered.filter((template) => {
-        const templateDate = format(new Date(template.created_at), 'yyyy-MM-dd');
-        return templateDate === selectedDateStr;
-      });
-    }
-
-    return filtered;
-  }, [templates, searchQuery, selectedDate]);
+  const filteredTemplates = useMemo(() => templates, [templates]);
 
   // Handlers
   const handleLogout = async () => {
     try {
-      console.log('[NutritionTemplatesManagement] Logout initiated');
       await dispatch(logoutUser()).unwrap();
-      console.log('[NutritionTemplatesManagement] Logout successful, navigating to login');
       navigate('/login');
     } catch (error) {
-      console.error('[NutritionTemplatesManagement] Logout error:', error);
       // Navigate to login even if logout fails
       navigate('/login');
     }
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date);
-    setDatePickerOpen(false);
   };
 
   const handleToggleColumn = (key: keyof TemplateColumnVisibility) => {
@@ -217,6 +205,14 @@ export const useNutritionTemplatesManagement = () => {
     }
   };
 
+  const handleBulkDelete = async (payload: { ids: string[] }) => {
+    await bulkDeleteTemplates.mutateAsync(payload.ids);
+    toast({
+      title: 'הצלחה',
+      description: 'התבניות נמחקו בהצלחה',
+    });
+  };
+
   const handleSaveViewClick = () => {
     setIsSaveViewModalOpen(true);
   };
@@ -224,7 +220,7 @@ export const useNutritionTemplatesManagement = () => {
   const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
     return {
       searchQuery,
-      selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
+      filterGroup,
       columnVisibility,
       columnOrder,
       columnWidths,
@@ -244,9 +240,6 @@ export const useNutritionTemplatesManagement = () => {
     isLoadingView,
     
     // State
-    searchQuery,
-    selectedDate,
-    datePickerOpen,
     isAddDialogOpen,
     isEditDialogOpen,
     deleteDialogOpen,
@@ -255,15 +248,11 @@ export const useNutritionTemplatesManagement = () => {
     columnVisibility,
     
     // Setters
-    setSearchQuery,
-    handleDateSelect,
-    setDatePickerOpen,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
     setIsSettingsOpen,
-    setSelectedHasLeads: () => {}, // Not used for nutrition templates
     
     // Handlers
     handleLogout,
@@ -273,6 +262,7 @@ export const useNutritionTemplatesManagement = () => {
     handleSaveTemplate,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,
     
@@ -280,10 +270,3 @@ export const useNutritionTemplatesManagement = () => {
     deleteTemplate,
   };
 };
-
-
-
-
-
-
-

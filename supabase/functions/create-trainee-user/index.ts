@@ -54,16 +54,8 @@ serve(async (req) => {
     let body;
     try {
       body = await parseJsonBody(req);
-      console.log('[create-trainee-user] Request body received:', {
-        email: body.email,
-        customerId: body.customerId,
-        leadId: body.leadId,
-        invitedBy: body.invitedBy,
-        hasPassword: !!body.password,
-        passwordLength: body.password?.length,
-      });
+
     } catch (parseError: any) {
-      console.error('[create-trainee-user] JSON parse error:', parseError);
       return errorResponse('Invalid request body: ' + (parseError.message || 'Failed to parse JSON'), 400);
     }
 
@@ -81,14 +73,30 @@ serve(async (req) => {
       return errorResponse('Password must be at least 6 characters', 400);
     }
 
-    // Check if user already exists
-    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUserData = existingUser?.users?.find(u => u.email === email);
+    // Check if user already exists in auth (case-insensitive email check)
+    // Use getUserByEmail if available, otherwise list all users
+    let existingUserData = null;
+    try {
+      const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
+      // Case-insensitive email comparison
+      existingUserData = existingUser?.users?.find(
+        u => u.email?.toLowerCase() === email.toLowerCase()
+      );
+
+    } catch (listError: any) {
+      // Continue - will try to create user and handle error if it exists
+    }
 
     let userId: string;
 
     if (existingUserData) {
-      // User exists - update password and role
+      // Check if the user profile exists and is active
+      const { data: existingProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id, role, is_active')
+        .eq('id', existingUserData.id)
+        .maybeSingle();
+
       userId = existingUserData.id;
       
       // Update password
@@ -101,25 +109,41 @@ serve(async (req) => {
         return errorResponse(`Failed to update password: ${updatePasswordError.message}`, 400);
       }
 
-      // Update profile role to trainee
-      const { error: profileUpdateError } = await supabaseAdmin
-        .from('profiles')
-        .update({ role: 'trainee' })
-        .eq('id', userId);
+      // If profile doesn't exist, create it; otherwise update it
+      if (!existingProfile) {
+        // Create profile with trainee role
+        const { error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .insert({
+            id: userId,
+            email,
+            role: 'trainee',
+            customer_id: customerId,
+            is_active: true,
+          });
 
-      if (profileUpdateError) {
-        console.error('Profile update error:', profileUpdateError);
-        // Continue even if profile update fails
+        if (profileError) {
+          // Continue even if profile creation fails
+        }
+      } else {
+        // Update profile role to trainee and ensure it's active (reactivate if inactive)
+        const { error: profileUpdateError } = await supabaseAdmin
+          .from('profiles')
+          .update({ role: 'trainee', is_active: true })
+          .eq('id', userId);
+
+        if (profileUpdateError) {
+          // Continue even if profile update fails
+        }
       }
 
-      // Update customer record with user_id for existing users
+      // Update customer record with user_id
       const { error: customerUpdateError } = await supabaseAdmin
         .from('customers')
         .update({ user_id: userId })
         .eq('id', customerId);
 
       if (customerUpdateError) {
-        console.error('Customer update error:', customerUpdateError);
         // Continue even if customer update fails (non-critical)
       }
     } else {
@@ -134,6 +158,97 @@ serve(async (req) => {
       });
 
       if (createError || !newUser.user) {
+        // If error is about email already existing, try to find and reactivate the user
+        const errorMsg = createError?.message?.toLowerCase() || '';
+        const isEmailExistsError = 
+          errorMsg.includes('already been registered') || 
+          errorMsg.includes('already exists') ||
+          errorMsg.includes('user already registered') ||
+          errorMsg.includes('email address has already been registered') ||
+          errorMsg.includes('duplicate') ||
+          errorMsg.includes('email') && errorMsg.includes('registered');
+        
+        if (isEmailExistsError) {
+          
+          // Try to find the user by listing all users again
+          try {
+            const { data: allUsers } = await supabaseAdmin.auth.admin.listUsers();
+            const foundUser = allUsers?.users?.find(
+              u => u.email?.toLowerCase() === email.toLowerCase()
+            );
+            
+            if (foundUser) {
+              userId = foundUser.id;
+              
+              // Update password
+              const { error: updatePasswordError } = await supabaseAdmin.auth.admin.updateUserById(
+                userId,
+                { password }
+              );
+
+              if (updatePasswordError) {
+                return errorResponse(`Failed to update password: ${updatePasswordError.message}`, 400);
+              }
+
+              // Check and update/create profile
+              const { data: existingProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('id, role, is_active')
+                .eq('id', userId)
+                .maybeSingle();
+
+              if (!existingProfile) {
+                // Create profile
+                const { error: profileError } = await supabaseAdmin
+                  .from('profiles')
+                  .insert({
+                    id: userId,
+                    email,
+                    role: 'trainee',
+                    customer_id: customerId,
+                    is_active: true,
+                  });
+
+                if (profileError) {
+                }
+              } else {
+                // Update profile
+                const { error: profileUpdateError } = await supabaseAdmin
+                  .from('profiles')
+                  .update({ role: 'trainee', is_active: true })
+                  .eq('id', userId);
+
+                if (profileUpdateError) {
+                }
+              }
+
+              // Update customer record
+              const { error: customerUpdateError } = await supabaseAdmin
+                .from('customers')
+                .update({ user_id: userId })
+                .eq('id', customerId);
+
+              if (customerUpdateError) {
+              }
+
+              // Log audit event
+              await supabaseAdmin.from('invitation_audit_log').insert({
+                invitation_id: null,
+                action: 'created_with_password',
+                performed_by: invitedBy || user.id,
+                metadata: { email, customerId, leadId, method: 'direct_password', userId, reactivated: true },
+              });
+
+              return successResponse({
+                userId,
+                email,
+                isNewUser: false,
+              });
+            }
+          } catch (findError: any) {
+          }
+        }
+        
         return errorResponse(`Failed to create user: ${createError?.message || 'Unknown error'}`, 400);
       }
 
@@ -147,10 +262,10 @@ serve(async (req) => {
           email,
           role: 'trainee',
           customer_id: customerId,
+          is_active: true,
         });
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
         // Continue even if profile creation fails (it might already exist)
       }
 
@@ -161,7 +276,6 @@ serve(async (req) => {
         .eq('id', customerId);
 
       if (customerUpdateError) {
-        console.error('Customer update error:', customerUpdateError);
         // Continue even if customer update fails (non-critical)
       }
     }
@@ -180,12 +294,8 @@ serve(async (req) => {
       isNewUser: !existingUserData,
     });
   } catch (error: any) {
-    console.error('[create-trainee-user] Error:', error);
-    console.error('[create-trainee-user] Error stack:', error.stack);
-    console.error('[create-trainee-user] Error details:', JSON.stringify(error, null, 2));
-    
+
     const errorMessage = error.message || 'Failed to create trainee user';
-    console.error('[create-trainee-user] Returning error response:', errorMessage);
     
     return errorResponse(errorMessage, 400);
   }

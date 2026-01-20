@@ -152,7 +152,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         
         setTemplates(filteredTemplates);
       } catch (error) {
-        console.error('[CreateTraineeButton] Error loading templates:', error);
+        // Silent failure
       } finally {
         setIsLoadingTemplates(false);
       }
@@ -178,19 +178,19 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
           .select('user_id, email')
           .eq('id', customerId)
           .maybeSingle();
-
+  
         if (error) {
-          console.error('[CreateTraineeButton] Error checking customer:', error);
           setIsCheckingUser(false);
           return;
         }
-
+  
         if (customer?.user_id) {
-          // Customer has a user account - check if it's a trainee
+          // Customer has a user account - check if it's a trainee and active
           const { data: profile } = await supabase
             .from('profiles')
             .select('id, role, is_active')
             .eq('id', customer.user_id)
+            .eq('is_active', true)
             .maybeSingle();
 
           if (profile && profile.role === 'trainee') {
@@ -203,11 +203,12 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
             }
           }
         } else if (customerEmail) {
-          // Check if a user exists with this email
+          // Check if a user exists with this email (only active users)
           const { data: profile } = await supabase
             .from('profiles')
             .select('id, role, is_active')
             .eq('email', customerEmail)
+            .eq('is_active', true)
             .maybeSingle();
 
           if (profile && profile.role === 'trainee') {
@@ -217,7 +218,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
           }
         }
       } catch (error) {
-        console.error('[CreateTraineeButton] Error checking existing user:', error);
+        // Silent failure
       } finally {
         setIsCheckingUser(false);
       }
@@ -279,8 +280,6 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         });
       }
     } catch (error: any) {
-      console.error('[CreateTraineeButton] Error:', error);
-      
       const errorMessage = error?.message || '';
       
       // Check if session is invalid - prompt to re-login
@@ -299,14 +298,15 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         return;
       }
       
-      // Check if user already exists
+      // Check if user already exists (only active users)
       if (errorMessage.includes('already exists') || errorMessage.includes('already been registered')) {
         // User exists - fetch their user ID and show "Watch as User" button
         try {
           const { data: existingProfile } = await supabase
             .from('profiles')
-            .select('id, role, email')
+            .select('id, role, email, is_active')
             .eq('email', email)
+            .eq('is_active', true)
             .maybeSingle();
           
           if (existingProfile && existingProfile.id) {
@@ -319,7 +319,7 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
             return;
           }
         } catch (fetchError) {
-          console.error('[CreateTraineeButton] Error fetching existing user:', fetchError);
+          // Silent failure
         }
       }
       
@@ -379,7 +379,6 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         description: 'אתה צופה בממשק הלקוח. לחץ על "יציאה ממצב תצוגה" כדי לחזור.',
       });
     } catch (error: any) {
-      console.error('[CreateTraineeButton] Error starting impersonation:', error);
       toast({
         title: 'שגיאה',
         description: 'נכשל בכניסה למצב תצוגה',
@@ -440,7 +439,6 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
         throw new Error(result.error || 'Failed to send WhatsApp message');
       }
     } catch (error: any) {
-      console.error('[CreateTraineeButton] WhatsApp error:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בשליחת הודעת WhatsApp',
@@ -684,7 +682,6 @@ export const CreateTraineeButton: React.FC<CreateTraineeButtonProps> = ({
             setMessageTemplate(template);
             localStorage.setItem('traineeUserMessageTemplate', template);
           } catch (error) {
-            console.error('[CreateTraineeButton] Error saving template to database:', error);
             // Still save locally even if DB save fails
             setMessageTemplate(template);
             localStorage.setItem('traineeUserMessageTemplate', template);

@@ -172,7 +172,6 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
           phoneNumber: leadPhone,
         })
       ).catch((err) => {
-        console.error('[FormSubmissionSidebar] Error fetching submission:', err);
       });
     }
   }, [leadId, leadEmail, leadPhone, formType.key, dispatch]);
@@ -297,20 +296,19 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
       }
 
       await onUpdateLead(updates);
-
-      toast({
-        title: 'הצלחה',
-        description: `עודכנו ${Object.keys(updates).length} שדות בהצלחה`,
-        variant: 'default',
-      });
-    } catch (error: any) {
-      console.error('[FormSubmissionSidebar] Error updating lead:', error);
-      toast({
-        title: 'שגיאה',
-        description: error?.message || 'נכשל בעדכון השדות',
-        variant: 'destructive',
-      });
-    } finally {
+  
+        toast({
+          title: 'הצלחה',
+          description: `עודכנו ${Object.keys(updates).length} שדות בהצלחה`,
+          variant: 'default',
+        });
+      } catch (error: any) {
+        toast({
+          title: 'שגיאה',
+          description: error?.message || 'נכשל בעדכון השדות',
+          variant: 'destructive',
+        });
+      } finally {
       setIsUpdating(false);
     }
   };

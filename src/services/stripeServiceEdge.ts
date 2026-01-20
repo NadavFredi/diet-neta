@@ -94,7 +94,6 @@ export const fetchStripeProducts = async (): Promise<StripeProductsResponse> => 
       products: result.data.products || [],
     };
   } catch (error: any) {
-    console.error('[Stripe] Error fetching products:', error);
     return {
       success: false,
       error: error?.message || 'Failed to fetch Stripe products',
@@ -150,7 +149,6 @@ export const createStripePaymentLink = async (
       paymentLinkId: result.data.paymentLinkId,
     };
   } catch (error: any) {
-    console.error('[Stripe] Error creating payment link:', error);
     return {
       success: false,
       error: error?.message || 'Failed to create Stripe payment link',

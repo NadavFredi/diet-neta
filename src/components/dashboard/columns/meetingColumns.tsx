@@ -86,7 +86,7 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
             dateValue = formatDate(startDate.toISOString());
           }
         } catch (e) {
-          console.error('[MeetingColumns] Error parsing start time:', e);
+          // Silent failure
         }
       }
       
@@ -179,7 +179,7 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
             meetingStartTime = `${hours}:${minutes}`;
           }
         } catch (e) {
-          console.error('[MeetingColumns] Error parsing start time:', e);
+          // Silent failure
         }
       }
 
@@ -192,7 +192,7 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
             meetingEndTime = `${hours}:${minutes}`;
           }
         } catch (e) {
-          console.error('[MeetingColumns] Error parsing end time:', e);
+          // Silent failure
         }
       }
 

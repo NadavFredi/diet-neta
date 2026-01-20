@@ -1,16 +1,34 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send } from 'lucide-react';
+import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection, setSectionExpanded } from '@/store/slices/sidebarSlice';
 import { SidebarItem } from './SidebarItem';
+import { SortableSidebarItem } from './SortableSidebarItem';
 import type { SavedView } from '@/hooks/useSavedViews';
 import { useInterfaceIconPreferences } from '@/hooks/useInterfaceIconPreferences';
 import { selectInterfaceIconPreferences } from '@/store/slices/interfaceIconPreferencesSlice';
 import { getIconByName } from '@/utils/iconUtils';
 import { EditInterfaceIconDialog } from './EditInterfaceIconDialog';
 import { FooterContent } from '@/components/layout/AppFooter';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { useInterfaceOrder, useUpdateInterfaceOrders } from '@/hooks/useInterfaceOrder';
+import { useToast } from '@/hooks/use-toast';
 
 interface NavItem {
   id: string;
@@ -24,14 +42,14 @@ const navigationItems: NavItem[] = [
   {
     id: 'leads',
     resourceKey: 'leads',
-    label: 'ניהול לידים',
+    label: 'לידים',
     icon: UserPlus,
     path: '/dashboard',
   },
   {
     id: 'customers',
     resourceKey: 'customers',
-    label: 'ניהול לקוחות',
+    label: 'לקוחות',
     icon: Users,
     path: '/dashboard/customers',
   },
@@ -71,6 +89,13 @@ const navigationItems: NavItem[] = [
     path: '/dashboard/payments',
   },
   {
+    id: 'collections',
+    resourceKey: 'collections',
+    label: 'גבייה',
+    icon: Receipt,
+    path: '/dashboard/collections',
+  },
+  {
     id: 'subscription-types',
     resourceKey: 'subscription_types',
     label: 'סוגי מנויים',
@@ -98,6 +123,13 @@ const navigationItems: NavItem[] = [
     icon: Send,
     path: '/dashboard/whatsapp-automations',
   },
+  {
+    id: 'analytics',
+    resourceKey: 'analytics',
+    label: 'אנליטיקה',
+    icon: BarChart3,
+    path: '/dashboard/analytics',
+  },
 ];
 
 interface DashboardSidebarProps {
@@ -111,22 +143,116 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeViewId = searchParams.get('view_id');
-  
+  const { toast } = useToast();
+
   // Get sidebar state from Redux
   const { isCollapsed, expandedSections } = useAppSelector((state) => state.sidebar);
-  
+
   // Fetch preferences on mount to sync with database (populates Redux)
   useInterfaceIconPreferences();
-  
+
   // Get all preferences from Redux at component level
   const iconPreferences = useAppSelector(selectInterfaceIconPreferences);
-  
+
+  // Fetch interface order for drag-and-drop
+  const { data: interfaceOrder } = useInterfaceOrder();
+  const updateInterfaceOrders = useUpdateInterfaceOrders();
+
   const [editIconDialogOpen, setEditIconDialogOpen] = useState(false);
   const [editingInterface, setEditingInterface] = useState<{
     key: string;
     label: string;
     currentIconName?: string | null;
   } | null>(null);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before starting drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Sort navigation items based on user's custom order
+  const sortedNavigationItems = useMemo(() => {
+    if (!interfaceOrder || interfaceOrder.length === 0) {
+      return navigationItems;
+    }
+
+    // Create a map of interface_key to display_order
+    const orderMap = new Map<number, string>();
+    interfaceOrder.forEach((item) => {
+      if (item.display_order != null) {
+        orderMap.set(item.display_order, item.interface_key);
+      }
+    });
+
+    // Separate items with and without order
+    const itemsWithOrder: NavItem[] = [];
+    const itemsWithoutOrder: NavItem[] = [];
+
+    navigationItems.forEach((item) => {
+      const orderEntry = Array.from(orderMap.entries()).find(([_, key]) => key === item.resourceKey);
+      if (orderEntry) {
+        itemsWithOrder.push({ ...item, _order: orderEntry[0] } as NavItem & { _order: number });
+      } else {
+        itemsWithoutOrder.push(item);
+      }
+    });
+
+    // Sort by order and combine
+    itemsWithOrder.sort((a, b) => (a as any)._order - (b as any)._order);
+    return [...itemsWithOrder, ...itemsWithoutOrder].map((item) => {
+      const { _order, ...rest } = item as any;
+      return rest as NavItem;
+    });
+  }, [interfaceOrder]);
+
+  // Handle drag end for interfaces
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = sortedNavigationItems.findIndex((item) => item.id === active.id);
+    const newIndex = sortedNavigationItems.findIndex((item) => item.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // Reorder the items
+    const reorderedItems = arrayMove(sortedNavigationItems, oldIndex, newIndex);
+
+    // Update orders in database
+    try {
+      // Create order updates for ALL interfaces in the new order
+      // This ensures all interfaces get proper ordering, including those without existing preferences
+      const orders = reorderedItems.map((item, index) => ({
+        interface_key: item.resourceKey,
+        display_order: index + 1,
+      }));
+
+      await updateInterfaceOrders.mutateAsync(orders);
+
+      toast({
+        title: 'סדר התפריט עודכן',
+        description: 'הסדר החדש נשמר בהצלחה.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'לא ניתן לעדכן את הסדר. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Get custom icon for each navigation item from Redux
   const getIconForItem = useMemo(() => {
@@ -152,17 +278,17 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   };
 
   // When sidebar is collapsed, also collapse all sections
-  const effectiveExpandedSections = isCollapsed 
+  const effectiveExpandedSections = isCollapsed
     ? Object.keys(expandedSections).reduce((acc, key) => ({ ...acc, [key]: false }), {} as Record<string, boolean>)
     : expandedSections;
 
   // Auto-expand the section for the current route when navigating
   useEffect(() => {
     if (isCollapsed) return; // Don't auto-expand if sidebar is collapsed
-    
+
     const activeItem = navigationItems.find(item => isActive(item.path));
     if (activeItem) {
-      const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'meetings'].includes(activeItem.resourceKey);
+      const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings'].includes(activeItem.resourceKey);
       // Only auto-expand if it supports views and isn't already expanded
       if (supportsViews && !expandedSections[activeItem.resourceKey]) {
         // Collapse all sections first
@@ -180,24 +306,24 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   const isActive = (path: string) => {
     if (path === '/dashboard') {
       // Active for dashboard and lead profile routes (not customer routes)
-      return location.pathname === '/dashboard' || 
-             location.pathname.startsWith('/leads/') ||
-             location.pathname.startsWith('/profile/lead/') ||
-             (location.pathname.startsWith('/profile/') && 
-              !location.pathname.startsWith('/profile/lead/') && 
-              location.pathname.split('/').length === 3); // /profile/:customerId (lead route)
+      return location.pathname === '/dashboard' ||
+        location.pathname.startsWith('/leads/') ||
+        location.pathname.startsWith('/profile/lead/') ||
+        (location.pathname.startsWith('/profile/') &&
+          !location.pathname.startsWith('/profile/lead/') &&
+          location.pathname.split('/').length === 3); // /profile/:customerId (lead route)
     }
     if (path === '/dashboard/customers') {
       // Active for customers list and customer profile routes (not lead routes)
-      return location.pathname === '/dashboard/customers' || 
-             (location.pathname.startsWith('/dashboard/customers/') && 
-              !location.pathname.startsWith('/profile/lead/') &&
-              !location.pathname.startsWith('/leads/'));
+      return location.pathname === '/dashboard/customers' ||
+        (location.pathname.startsWith('/dashboard/customers/') &&
+          !location.pathname.startsWith('/profile/lead/') &&
+          !location.pathname.startsWith('/leads/'));
     }
     if (path === '/dashboard/meetings') {
       // Active for meetings list and meeting detail routes
-      return location.pathname === '/dashboard/meetings' || 
-             location.pathname.startsWith('/dashboard/meetings/');
+      return location.pathname === '/dashboard/meetings' ||
+        location.pathname.startsWith('/dashboard/meetings/');
     }
     if (path === '/dashboard/subscription-types') {
       // Active for subscription types list
@@ -207,9 +333,17 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
       // Active for payments page
       return location.pathname === '/dashboard/payments';
     }
+    if (path === '/dashboard/collections') {
+      // Active for collections page
+      return location.pathname === '/dashboard/collections';
+    }
     if (path === '/dashboard/whatsapp-automations') {
       // Active for WhatsApp automations page
       return location.pathname === '/dashboard/whatsapp-automations';
+    }
+    if (path === '/dashboard/analytics') {
+      // Active for analytics page
+      return location.pathname === '/dashboard/analytics';
     }
     return location.pathname === path || location.pathname.startsWith(path);
   };
@@ -237,17 +371,17 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     <>
       {/* Navigation Content - This will be rendered inside the header */}
       <div className="flex-1 flex flex-col min-h-0">
-        <nav 
+        <nav
           className="flex-1 py-4 overflow-y-auto text-base transition-all duration-300"
-      dir="rtl"
+          dir="rtl"
           style={{
-          scrollbarWidth: 'thin',
+            scrollbarWidth: 'thin',
             scrollbarColor: '#6B7FB8 #5B6FB9',
-        }}
+          }}
           role="navigation"
           aria-label="תפריט ניווט ראשי"
-      >
-        <style>{`
+        >
+          <style>{`
           nav::-webkit-scrollbar {
               width: 8px;
           }
@@ -264,34 +398,46 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
               background: #7B8FC8;
           }
         `}</style>
-          <ul className={cn(
-            'space-y-1 w-full px-2',
-            isCollapsed && 'px-1'
-          )} dir="rtl">
-          {navigationItems.map((item) => (
-              <SidebarItem
-              key={item.id}
-              item={item}
-              active={isActive(item.path)}
-              activeViewId={activeViewId}
-                isExpanded={effectiveExpandedSections[item.resourceKey] ?? false}
-                onToggle={() => handleToggleSection(item.resourceKey)}
-              onResourceClick={() => handleResourceClick(item)}
-              onViewClick={handleViewClick}
-              onSaveViewClick={onSaveViewClick}
-              onEditViewClick={onEditViewClick}
-                onEditIconClick={handleEditIconClick}
-                customIcon={getIconForItem(item)}
-                isCollapsed={isCollapsed}
-            />
-          ))}
-        </ul>
-      </nav>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortedNavigationItems.map((item) => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className={cn(
+                'space-y-1 w-full px-2',
+                isCollapsed && 'px-1'
+              )} dir="rtl">
+                {sortedNavigationItems.map((item) => (
+                  <SortableSidebarItem
+                    key={item.id}
+                    item={item}
+                    active={isActive(item.path)}
+                    activeViewId={activeViewId}
+                    isExpanded={effectiveExpandedSections[item.resourceKey] ?? false}
+                    onToggle={() => handleToggleSection(item.resourceKey)}
+                    onResourceClick={() => handleResourceClick(item)}
+                    onViewClick={handleViewClick}
+                    onSaveViewClick={onSaveViewClick}
+                    onEditViewClick={onEditViewClick}
+                    onEditIconClick={handleEditIconClick}
+                    customIcon={getIconForItem(item)}
+                    isCollapsed={isCollapsed}
+                    isSortable={true}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+        </nav>
 
-      {/* Footer - At the bottom of the sidebar */}
-      <div className={cn("flex-shrink-0", !isCollapsed && "border-t border-white/10", isCollapsed && "p-0")}>
-        <FooterContent compact hideLink smallImage isCollapsed={isCollapsed} />
-      </div>
+        {/* Footer - At the bottom of the sidebar */}
+        <div className={cn("flex-shrink-0", !isCollapsed && "border-t border-white/10", isCollapsed && "p-0")}>
+          <FooterContent compact hideLink smallImage isCollapsed={isCollapsed} />
+        </div>
 
       </div>
 

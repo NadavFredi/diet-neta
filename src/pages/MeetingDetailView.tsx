@@ -8,8 +8,8 @@
  * - Three vertical panels: Client Details, Meeting Details, Notes (using CustomerNotesSidebar)
  */
 
-import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { ClientHero } from '@/components/dashboard/ClientHero';
@@ -19,7 +19,7 @@ import { LeadSidebarContainer } from '@/components/dashboard/LeadSidebarContaine
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useMeeting } from '@/hooks/useMeetings';
+import { useMeeting, useDeleteMeeting } from '@/hooks/useMeetings';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
@@ -28,6 +28,7 @@ import {
   Clock, 
   User, 
   Handshake,
+  Trash2,
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,17 @@ import { useUpdateLead } from '@/hooks/useUpdateLead';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { selectCustomerNotes, fetchCustomerNotes } from '@/store/slices/leadViewSlice';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 // Meeting type configuration
 const MEETING_TYPES = {
@@ -72,10 +84,13 @@ type MeetingTypeKey = keyof typeof MEETING_TYPES;
 const MeetingDetailView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const { data: meeting, isLoading } = useMeeting(id || null);
+  const deleteMeeting = useDeleteMeeting();
+  const { toast } = useToast();
 
   // Get customer from meeting
   const customerId = meeting?.customer_id || meeting?.lead?.customer_id;
@@ -117,7 +132,14 @@ const MeetingDetailView = () => {
   const sortedLeads = allLeads || [];
 
   const handleBack = () => {
-    navigate('/dashboard/meetings');
+    // Check if we have a return URL from location state (e.g., from lead page)
+    const returnTo = (location.state as any)?.returnTo;
+    if (returnTo && returnTo.startsWith('/leads/')) {
+      navigate(returnTo);
+    } else {
+      // Default to meetings list page
+      navigate('/dashboard/meetings');
+    }
   };
 
   const handleLogout = async () => {
@@ -125,7 +147,6 @@ const MeetingDetailView = () => {
       await dispatch(logoutUser()).unwrap();
       navigate('/login');
     } catch (error) {
-      console.error('[MeetingDetailView] Logout error:', error);
       navigate('/login');
     }
   };
@@ -167,6 +188,27 @@ const MeetingDetailView = () => {
     }
   };
 
+  const handleDeleteMeeting = async () => {
+    if (!meeting?.id) return;
+
+    try {
+      await deleteMeeting.mutateAsync(meeting.id);
+      toast({
+        title: 'הצלחה',
+        description: 'הפגישה נמחקה בהצלחה',
+      });
+      setIsDeleteDialogOpen(false);
+      // Navigate back to meetings list
+      navigate('/dashboard/meetings');
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת הפגישה',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const statusStr = String(status);
     if (statusStr.includes('בוטל') || statusStr.includes('מבוטל')) return 'bg-red-50 text-red-700 border-red-200';
@@ -183,9 +225,15 @@ const MeetingDetailView = () => {
   const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
   const [isTraineeSettingsOpen, setIsTraineeSettingsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Get notes count for the customer
-  const notes = useAppSelector(selectCustomerNotes(customer?.id));
+  // Memoize the selector to prevent creating a new selector on every render
+  const customerNotesSelector = useMemo(
+    () => selectCustomerNotes(customer?.id),
+    [customer?.id]
+  );
+  const notes = useAppSelector(customerNotesSelector);
   const notesCount = notes?.length || 0;
 
   // Fetch notes when customer changes - MUST be before early returns
@@ -357,7 +405,6 @@ const MeetingDetailView = () => {
         meetingStartTime = `${hours}:${minutes}`;
       }
     } catch (e) {
-      console.error('[MeetingDetailView] Error parsing start time:', e);
     }
   }
 
@@ -370,7 +417,6 @@ const MeetingDetailView = () => {
         meetingEndTime = `${hours}:${minutes}`;
       }
     } catch (e) {
-      console.error('[MeetingDetailView] Error parsing end time:', e);
     }
   }
 
@@ -580,11 +626,21 @@ const MeetingDetailView = () => {
 
                     {/* Right Panel: Meeting Details */}
                     <Card className="p-4 border border-slate-200 rounded-xl shadow-sm bg-white" style={{ minWidth: 0 }}>
-                      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                          <Calendar className="h-4 w-4 text-blue-600" />
+                      <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <Calendar className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <h3 className="text-sm font-bold text-gray-900">פרטי פגישה</h3>
                         </div>
-                        <h3 className="text-sm font-bold text-gray-900">פרטי פגישה</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsDeleteDialogOpen(true)}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                       <div className="space-y-3">
                         <div>
@@ -637,6 +693,28 @@ const MeetingDetailView = () => {
             </main>
           </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת פגישה</AlertDialogTitle>
+            <AlertDialogDescription>
+              האם אתה בטוח שברצונך למחוק פגישה זו? פעולה זו אינה ניתנת לביטול.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMeeting.isPending}>ביטול</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMeeting}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMeeting.isPending}
+            >
+              {deleteMeeting.isPending ? 'מוחק...' : 'מחק'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

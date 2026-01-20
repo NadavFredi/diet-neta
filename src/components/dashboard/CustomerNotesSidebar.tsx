@@ -5,7 +5,7 @@
  * Customer-centric: Shows notes for the customer, unified across all their leads.
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -54,9 +54,23 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
   const { toast } = useToast();
   const { closeNotes } = useLeadSidebar();
   
-  const allNotes = useAppSelector(selectCustomerNotes(customerId));
-  const isLoading = useAppSelector(selectIsLoadingNotes(customerId));
-  const error = useAppSelector(selectNotesError(customerId));
+  // Memoize selectors to prevent creating new selectors on every render
+  const customerNotesSelector = useMemo(
+    () => selectCustomerNotes(customerId),
+    [customerId]
+  );
+  const isLoadingNotesSelector = useMemo(
+    () => selectIsLoadingNotes(customerId),
+    [customerId]
+  );
+  const notesErrorSelector = useMemo(
+    () => selectNotesError(customerId),
+    [customerId]
+  );
+  
+  const allNotes = useAppSelector(customerNotesSelector);
+  const isLoading = useAppSelector(isLoadingNotesSelector);
+  const error = useAppSelector(notesErrorSelector);
   
   // Track the selected lead ID from the dropdown (null = "All Notes")
   // Always default to null (show all notes) when panel opens
@@ -199,7 +213,6 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
 
       return filePath;
     } catch (error: any) {
-      console.error('Error uploading attachment:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'לא ניתן היה להעלות את הקובץ',
@@ -220,7 +233,6 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
 
       if (error) throw error;
     } catch (error: any) {
-      console.error('Error deleting attachment:', error);
       toast({
         title: 'שגיאה',
         description: 'לא ניתן היה למחוק את הקובץ',
@@ -239,7 +251,6 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
       if (error) throw error;
       return data?.signedUrl || null;
     } catch (error) {
-      console.error('Error getting attachment URL:', error);
       return null;
     }
   };
@@ -280,16 +291,6 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
         leadId = activeLeadId || mostRecentLeadId || null;
       }
       
-      console.log('Adding note with:', { 
-        customerId, 
-        leadId, 
-        selectedLeadIdForFilter, 
-        activeLeadId, 
-        mostRecentLeadId,
-        content: newNoteContent.trim(),
-        attachmentUrl
-      });
-      
       await dispatch(
         addCustomerNote({ 
           customerId, 
@@ -318,7 +319,6 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
         description: 'ההערה נשמרה והופיעה בהיסטוריה',
       });
     } catch (error: any) {
-      console.error('Error adding note:', error);
       const errorMessage = error?.message || error?.error || 'לא ניתן היה להוסיף את ההערה';
       toast({
         title: 'שגיאה',
@@ -1043,7 +1043,6 @@ const AttachmentDisplay: React.FC<AttachmentDisplayProps> = ({
         if (error) throw error;
         setSignedUrl(data?.signedUrl || null);
       } catch (error) {
-        console.error('Error loading attachment URL:', error);
       } finally {
         setIsLoading(false);
       }

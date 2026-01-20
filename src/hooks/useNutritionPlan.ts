@@ -83,7 +83,6 @@ export const useNutritionPlan = (customerId?: string) => {
         setNutritionPlan(null);
       }
     } catch (err) {
-      console.error('Error fetching nutrition plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch nutrition plan');
     } finally {
       setIsLoading(false);
@@ -146,7 +145,6 @@ export const useNutritionPlan = (customerId?: string) => {
         return newPlan;
       }
     } catch (err) {
-      console.error('Error creating nutrition plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to create nutrition plan');
       throw err;
     }
@@ -195,7 +193,6 @@ export const useNutritionPlan = (customerId?: string) => {
         return updatedPlan;
       }
     } catch (err) {
-      console.error('Error updating nutrition plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to update nutrition plan');
       throw err;
     }
@@ -218,7 +215,6 @@ export const useNutritionPlan = (customerId?: string) => {
 
       setNutritionPlan(null);
     } catch (err) {
-      console.error('Error deleting nutrition plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete nutrition plan');
       throw err;
     }

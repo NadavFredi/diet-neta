@@ -66,6 +66,9 @@ export interface ClientCustomer {
   email: string | null;
   created_at: string;
   updated_at: string;
+  daily_protocol?: any; // Customer-level daily protocol (stepsGoal, workoutGoal, supplements)
+  workout_history?: any; // Customer-level workout history
+  steps_history?: any; // Customer-level steps history
 }
 
 interface ClientState {
@@ -94,7 +97,6 @@ const initialState: ClientState = {
 export const fetchClientData = createAsyncThunk(
   'client/fetchData',
   async (customerId: string) => {
-    console.log('[fetchClientData] Fetching customer data for customer_id:', customerId);
     
     // Fetch customer
     const { data: customer, error: customerError } = await supabase
@@ -104,12 +106,10 @@ export const fetchClientData = createAsyncThunk(
       .maybeSingle();
 
     if (customerError) {
-      console.error('[fetchClientData] Error fetching customer:', customerError);
       throw customerError;
     }
 
     if (!customer) {
-      console.warn('[fetchClientData] Customer not found for customer_id:', customerId);
       throw new Error('Customer not found');
     }
 
@@ -121,23 +121,15 @@ export const fetchClientData = createAsyncThunk(
       .order('created_at', { ascending: false });
 
     if (leadsError) {
-      console.error('[fetchClientData] Error fetching leads:', leadsError);
       throw leadsError;
     }
 
-    // Get most recent active lead (or most recent if none active)
-    const activeLead = leads && leads.length > 0 ? leads[0] : null;
-
-    console.log('[fetchClientData] Successfully fetched:', {
-      customer: customer.id,
-      leadsCount: leads?.length || 0,
-      activeLeadId: activeLead?.id || null
-    });
-
+    // Return customer and leads - no need for activeLead anymore
+    // Customer-level data is stored directly on customer table
     return {
       customer: customer as ClientCustomer,
       leads: (leads || []) as ClientLead[],
-      activeLead: activeLead as ClientLead | null,
+      activeLead: null, // Deprecated - keeping for backward compatibility
     };
   }
 );
@@ -146,7 +138,6 @@ export const fetchClientData = createAsyncThunk(
 export const fetchClientDataByUserId = createAsyncThunk(
   'client/fetchDataByUserId',
   async (userId: string) => {
-    console.log('[fetchClientDataByUserId] Fetching customer data for user_id:', userId);
     
     // Fetch customer by user_id
     const { data: customer, error: customerError } = await supabase
@@ -156,12 +147,10 @@ export const fetchClientDataByUserId = createAsyncThunk(
       .maybeSingle();
 
     if (customerError) {
-      console.error('[fetchClientDataByUserId] Error fetching customer:', customerError);
       throw customerError;
     }
 
     if (!customer) {
-      console.warn('[fetchClientDataByUserId] Customer not found for user_id:', userId);
       // Return empty state instead of throwing - allows UI to show "no customer" message
       return {
         customer: null,
@@ -178,23 +167,15 @@ export const fetchClientDataByUserId = createAsyncThunk(
       .order('created_at', { ascending: false });
 
     if (leadsError) {
-      console.error('[fetchClientDataByUserId] Error fetching leads:', leadsError);
       throw leadsError;
     }
 
-    // Get most recent active lead (or most recent if none active)
-    const activeLead = leads && leads.length > 0 ? leads[0] : null;
-
-    console.log('[fetchClientDataByUserId] Successfully fetched:', {
-      customer: customer.id,
-      leadsCount: leads?.length || 0,
-      activeLeadId: activeLead?.id || null
-    });
-
+    // Return customer and leads - no need for activeLead anymore
+    // Customer-level data is stored directly on customer table
     return {
       customer: customer as ClientCustomer,
       leads: (leads || []) as ClientLead[],
-      activeLead: activeLead as ClientLead | null,
+      activeLead: null, // Deprecated - keeping for backward compatibility
     };
   }
 );
@@ -203,7 +184,6 @@ export const fetchClientDataByUserId = createAsyncThunk(
 export const fetchCheckIns = createAsyncThunk(
   'client/fetchCheckIns',
   async (customerId: string) => {
-    console.log('[fetchCheckIns] Fetching check-ins for customer_id:', customerId);
     
     const { data, error } = await supabase
       .from('daily_check_ins')
@@ -213,11 +193,9 @@ export const fetchCheckIns = createAsyncThunk(
       .limit(30); // Last 30 days
 
     if (error) {
-      console.error('[fetchCheckIns] Error fetching check-ins:', error);
       throw error;
     }
 
-    console.log('[fetchCheckIns] Successfully fetched', data?.length || 0, 'check-ins');
     return (data || []) as DailyCheckIn[];
   }
 );
@@ -259,7 +237,6 @@ export const upsertCheckIn = createAsyncThunk(
                 customer.full_name || 'לקוח',
                 data.check_in_date
               ).catch((err) => {
-                console.error('[ClientSlice] Failed to create check-in notification:', err);
               });
             }
           });
@@ -308,7 +285,6 @@ export const batchUpsertCheckIns = createAsyncThunk(
                 customerMap.get(checkIn.customer_id) || 'לקוח',
                 checkIn.check_in_date
               ).catch((err) => {
-                console.error('[ClientSlice] Failed to create batch check-in notification:', err);
               });
             });
           });
@@ -350,7 +326,7 @@ export const updateClientLead = createAsyncThunk(
             leadId,
             customerName,
             updates.weight
-          ).catch((err) => console.error('[ClientSlice] Failed to create weight notification:', err));
+          ).catch((err) => {});
         } else {
           // Generic profile update
           const updatedFields = Object.keys(updates).join(', ');
@@ -359,7 +335,7 @@ export const updateClientLead = createAsyncThunk(
             leadId,
             customerName,
             updatedFields
-          ).catch((err) => console.error('[ClientSlice] Failed to create profile notification:', err));
+          ).catch((err) => {});
         }
       });
     }
@@ -398,7 +374,7 @@ export const updateClientCustomer = createAsyncThunk(
           null,
           customerName,
           updatedFields
-        ).catch((err) => console.error('[ClientSlice] Failed to create profile notification:', err));
+        ).catch((err) => {});
       });
     }
     
@@ -436,7 +412,6 @@ const clientSlice = createSlice({
       .addCase(fetchClientData.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error.message || 'Failed to fetch client data';
-        console.error('[clientSlice] fetchClientData rejected:', action.error);
       })
       // Fetch client data by user_id
       .addCase(fetchClientDataByUserId.pending, (state) => {
@@ -452,7 +427,6 @@ const clientSlice = createSlice({
       .addCase(fetchClientDataByUserId.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error.message || 'Failed to fetch client data';
-        console.error('[clientSlice] fetchClientDataByUserId rejected:', action.error);
       })
       // Fetch check-ins
       .addCase(fetchCheckIns.pending, (state) => {
@@ -466,7 +440,6 @@ const clientSlice = createSlice({
       .addCase(fetchCheckIns.rejected, (state, action) => {
         state.isLoadingCheckIns = false;
         state.error = action.error.message || 'Failed to fetch check-ins';
-        console.error('[clientSlice] fetchCheckIns rejected:', action.error);
       })
       // Upsert check-in
       .addCase(upsertCheckIn.fulfilled, (state, action) => {

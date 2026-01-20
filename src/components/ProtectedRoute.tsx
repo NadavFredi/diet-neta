@@ -12,15 +12,6 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth);
 
-  // Debug logging
-  console.log('[ProtectedRoute] State:', { 
-    isAuthenticated, 
-    isLoading, 
-    user, 
-    role: user?.role,
-    email: user?.email 
-  });
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -38,7 +29,6 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   // Redirect trainees to client dashboard immediately
   if (user?.role === 'trainee') {
-    console.log('[ProtectedRoute] Trainee detected, redirecting to /client/dashboard');
     // Use window.location for immediate redirect to prevent any rendering of manager dashboard
     if (typeof window !== 'undefined') {
       window.location.href = '/client/dashboard';

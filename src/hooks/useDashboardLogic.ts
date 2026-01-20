@@ -37,6 +37,7 @@ import {
   setSortOrder,
 } from '@/store/slices/dashboardSlice';
 import { fetchFilteredLeads, getFilteredLeadsCount, mapLeadToUIFormat, type LeadFilterParams } from '@/services/leadService';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import type { ColumnVisibility as ColumnVisibilityType } from '@/utils/dashboard';
 import {
@@ -44,7 +45,7 @@ import {
   selectGroupSorting,
 } from '@/store/slices/tableStateSlice';
 
-export const useDashboardLogic = () => {
+export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -125,7 +126,6 @@ export const useDashboardLogic = () => {
   // PostgreSQL does all the heavy lifting
   // =====================================================
   const refreshLeads = useCallback(async () => {
-    console.log('[useDashboardLogic] refreshLeads called');
     setIsRefreshing(true);
     dispatch(setLoading(true));
     dispatch(setError(null));
@@ -137,16 +137,7 @@ export const useDashboardLogic = () => {
       // Build filter params from Redux state
       const filterParams: LeadFilterParams = {
         searchQuery: debouncedSearchQuery || null, // Use debounced search
-        createdDate: selectedDate || null,
-        statusMain: selectedStatus || null,
-        statusSub: null, // Can be added if needed
-        age: selectedAge || null,
-        height: selectedHeight || null,
-        weight: selectedWeight || null,
-        fitnessGoal: selectedFitnessGoal || null,
-        activityLevel: selectedActivityLevel || null,
-        preferredTime: selectedPreferredTime || null,
-        source: selectedSource || null,
+        filterGroup: options?.filterGroup || null,
         // Pagination
         limit: pageSize,
         offset: offset,
@@ -158,37 +149,47 @@ export const useDashboardLogic = () => {
         groupByLevel2: groupByKeys[1] || null,
       };
 
+      if (!options?.filterGroup) {
+        filterParams.createdDate = selectedDate || null;
+        filterParams.statusMain = selectedStatus || null;
+        filterParams.statusSub = null;
+        filterParams.age = selectedAge || null;
+        filterParams.height = selectedHeight || null;
+        filterParams.weight = selectedWeight || null;
+        filterParams.fitnessGoal = selectedFitnessGoal || null;
+        filterParams.activityLevel = selectedActivityLevel || null;
+        filterParams.preferredTime = selectedPreferredTime || null;
+        filterParams.source = selectedSource || null;
+      }
+
       // Fetch total count and leads in parallel
-      console.log('useDashboardLogic: Calling fetchFilteredLeads with params:', filterParams);
       const [dbLeads, totalCount] = await Promise.all([
         fetchFilteredLeads(filterParams),
         getFilteredLeadsCount({
           searchQuery: debouncedSearchQuery || null,
-          createdDate: selectedDate || null,
-          statusMain: selectedStatus || null,
+          filterGroup: options?.filterGroup || null,
+          createdDate: options?.filterGroup ? null : (selectedDate || null),
+          statusMain: options?.filterGroup ? null : (selectedStatus || null),
           statusSub: null,
-          age: selectedAge || null,
-          height: selectedHeight || null,
-          weight: selectedWeight || null,
-          fitnessGoal: selectedFitnessGoal || null,
-          activityLevel: selectedActivityLevel || null,
-          preferredTime: selectedPreferredTime || null,
-          source: selectedSource || null,
+          age: options?.filterGroup ? null : (selectedAge || null),
+          height: options?.filterGroup ? null : (selectedHeight || null),
+          weight: options?.filterGroup ? null : (selectedWeight || null),
+          fitnessGoal: options?.filterGroup ? null : (selectedFitnessGoal || null),
+          activityLevel: options?.filterGroup ? null : (selectedActivityLevel || null),
+          preferredTime: options?.filterGroup ? null : (selectedPreferredTime || null),
+          source: options?.filterGroup ? null : (selectedSource || null),
         }),
       ]);
 
-      console.log(`[useDashboardLogic] Received ${dbLeads.length} leads from service (total: ${totalCount})`);
 
       // Update total count in Redux
       dispatch(setTotalLeads(totalCount));
-      console.log('[useDashboardLogic] Total leads count updated in Redux:', totalCount);
 
       // Transform to UI format (minimal - most work done in PostgreSQL)
       const uiLeads: Lead[] = dbLeads.map((lead, index) => {
         try {
           return mapLeadToUIFormat(lead);
         } catch (error) {
-          console.error(`useDashboardLogic: Error mapping lead at index ${index}:`, error, lead);
           // Return a minimal valid lead object to prevent complete failure
           return {
             id: lead.id || `error-${index}`,
@@ -222,26 +223,22 @@ export const useDashboardLogic = () => {
           } as Lead;
         }
       });
-      console.log(`useDashboardLogic: Transformed to ${uiLeads.length} UI leads`);
 
       // Update Redux with fetched leads (source of truth)
-      console.log(`[useDashboardLogic] Dispatching ${uiLeads.length} leads to Redux`);
-      console.log(`[useDashboardLogic] First lead ID:`, uiLeads[0]?.id);
-      console.log(`[useDashboardLogic] Last lead ID:`, uiLeads[uiLeads.length - 1]?.id);
       dispatch(setLeads(uiLeads));
       dispatch(setLoading(false));
-      console.log(`[useDashboardLogic] Leads updated in Redux successfully, refreshLeads completed`);
     } catch (err: any) {
-      console.error('Error fetching leads:', err);
       dispatch(setError(err.message || 'Failed to fetch leads'));
       dispatch(setLoading(false));
       // Don't clear leads on error - keep existing data to prevent blank page
+      // This prevents the issue where leads disappear when returning to the page
       // This prevents the issue where leads disappear when returning to the page
     } finally {
       setIsRefreshing(false);
     }
   }, [
     debouncedSearchQuery, // Use debounced search
+    options?.filterGroup,
     selectedDate,
     selectedStatus,
     selectedAge,
@@ -262,18 +259,58 @@ export const useDashboardLogic = () => {
     dispatch,
   ]);
 
+  // Reset pagination to page 1 when filters or grouping change
+  const prevFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const currentFilters = JSON.stringify({ 
+      debouncedSearchQuery, 
+      filterGroup: options?.filterGroup,
+      selectedDate,
+      selectedStatus,
+      selectedAge,
+      selectedHeight,
+      selectedWeight,
+      selectedFitnessGoal,
+      selectedActivityLevel,
+      selectedPreferredTime,
+      selectedSource,
+      groupByKeys: [groupByKeys[0], groupByKeys[1]],
+    });
+    
+    // If filters or grouping changed (and not on initial load), reset to page 1
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters && currentPage !== 1) {
+      dispatch(setCurrentPage(1));
+    }
+    prevFiltersRef.current = currentFilters;
+  }, [
+    debouncedSearchQuery,
+    options?.filterGroup,
+    selectedDate,
+    selectedStatus,
+    selectedAge,
+    selectedHeight,
+    selectedWeight,
+    selectedFitnessGoal,
+    selectedActivityLevel,
+    selectedPreferredTime,
+    selectedSource,
+    groupByKeys,
+    currentPage,
+    dispatch,
+  ]);
+
   // Fetch leads on mount and when filters/pagination/sorting/grouping change
   // Single useEffect to prevent duplicate calls
   // NOTE: refreshLeads is NOT in dependencies to prevent infinite loops
   // It's a useCallback with all necessary dependencies, so it will be recreated when needed
   useEffect(() => {
-    console.log('useDashboardLogic: useEffect triggered, calling refreshLeads');
     // Always refresh leads when filters/pagination/sorting/grouping change or on mount
     refreshLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     // Filter dependencies (using debounced search)
     debouncedSearchQuery,
+    options?.filterGroup,
     selectedDate,
     selectedStatus,
     selectedAge,
@@ -438,6 +475,7 @@ export const useDashboardLogic = () => {
       columnWidths,
       sortBy,
       sortOrder,
+      filterGroup: options?.filterGroup || undefined,
       advancedFilters,
     };
   }, [
@@ -452,6 +490,7 @@ export const useDashboardLogic = () => {
     selectedPreferredTime,
     selectedSource,
     columnVisibility,
+    options?.filterGroup,
   ]);
 
   // =====================================================
@@ -463,12 +502,9 @@ export const useDashboardLogic = () => {
 
   const handleLogout = useCallback(async () => {
     try {
-      console.log('[useDashboardLogic] Logout initiated');
       await dispatch(logoutUser()).unwrap();
-      console.log('[useDashboardLogic] Logout successful, navigating to login');
       navigate('/login');
     } catch (error) {
-      console.error('[useDashboardLogic] Logout error:', error);
       // Navigate to login even if logout fails
       navigate('/login');
     }

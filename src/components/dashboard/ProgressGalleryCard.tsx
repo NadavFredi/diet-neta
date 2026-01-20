@@ -13,6 +13,16 @@ import { Image as ImageIcon, Loader2, Upload, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useAppSelector } from '@/store/hooks';
@@ -39,6 +49,8 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check if user is a manager (admin or user role)
@@ -63,7 +75,6 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
       if (error) {
         // If storage is not available, just return empty array
         if (error.message?.includes('name resolution failed') || error.message?.includes('503')) {
-          console.warn('Storage service not available');
           setPhotos([]);
           setIsLoading(false);
           return;
@@ -88,7 +99,6 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
 
       setPhotos(photosWithUrls);
     } catch (error: any) {
-      console.error('Error fetching progress photos:', error);
       // Don't show error toast for empty folder (expected case) or storage unavailable
       if (error?.message?.includes('not found') || error?.statusCode === '404' || 
           error?.message?.includes('name resolution failed') || error?.message?.includes('503')) {
@@ -155,7 +165,6 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
       // Refresh photos list
       await fetchPhotos();
     } catch (error: any) {
-      console.error('Error uploading photo:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'לא ניתן היה להעלות את התמונה',
@@ -209,12 +218,17 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
 
     if (!isManager) return;
 
-    if (!confirm('האם אתה בטוח שברצונך למחוק את התמונה?')) return;
+    setPhotoToDelete(path);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeletePhoto = async () => {
+    if (!photoToDelete || !isManager) return;
 
     try {
       const { error } = await supabase.storage
         .from('client-assets')
-        .remove([path]);
+        .remove([photoToDelete]);
 
       if (error) throw error;
 
@@ -226,12 +240,14 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
       // Refresh photos list
       await fetchPhotos();
     } catch (error: any) {
-      console.error('Error deleting photo:', error);
       toast({
         title: 'שגיאה',
         description: 'לא ניתן היה למחוק את התמונה',
         variant: 'destructive',
       });
+    } finally {
+      setPhotoToDelete(null);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -368,6 +384,32 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
         currentIndex={lightboxIndex}
         onIndexChange={setLightboxIndex}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת תמונה</AlertDialogTitle>
+            <AlertDialogDescription>
+              האם אתה בטוח שברצונך למחוק את התמונה? פעולה זו לא ניתנת לביטול.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogAction
+              onClick={confirmDeletePhoto}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              מחק
+            </AlertDialogAction>
+            <AlertDialogCancel onClick={() => {
+              setDeleteDialogOpen(false);
+              setPhotoToDelete(null);
+            }}>
+              ביטול
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

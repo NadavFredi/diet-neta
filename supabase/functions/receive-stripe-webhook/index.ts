@@ -21,15 +21,10 @@ interface StripeEvent {
 }
 
 serve(async (req) => {
-  console.log('[receive-stripe-webhook] Function called:', {
-    method: req.method,
-    url: req.url,
-  });
 
   // Handle CORS preflight
   const corsResponse = handleCors(req);
   if (corsResponse) {
-    console.log('[receive-stripe-webhook] Handling OPTIONS request');
     return corsResponse;
   }
 
@@ -52,14 +47,8 @@ serve(async (req) => {
     try {
       event = JSON.parse(rawBody);
     } catch (parseError) {
-      console.error('[receive-stripe-webhook] Failed to parse JSON:', parseError);
       return errorResponse('Invalid JSON in request body', 400);
     }
-
-    console.log('[receive-stripe-webhook] Received Stripe event:', {
-      id: event.id,
-      type: event.type,
-    });
 
     const supabase = createSupabaseAdmin();
     const eventType = event.type;
@@ -68,7 +57,6 @@ serve(async (req) => {
     // Handle different Stripe event types
     switch (eventType) {
       case 'payment_intent.succeeded': {
-        console.log('[receive-stripe-webhook] Processing payment_intent.succeeded');
         
         // Extract data from payment intent
         const stripePaymentId = paymentIntent.id;
@@ -85,7 +73,6 @@ serve(async (req) => {
         const receiptUrl = paymentIntent.charges?.data?.[0]?.receipt_url || null;
 
         if (!customerId) {
-          console.warn('[receive-stripe-webhook] No customer_id in metadata, cannot save payment');
           // Still return success to Stripe (we don't want to retry)
           return successResponse({ message: 'Payment succeeded but no customer_id provided' });
         }
@@ -99,7 +86,6 @@ serve(async (req) => {
 
         if (existingPayment) {
           // Update existing payment
-          console.log('[receive-stripe-webhook] Payment already exists, updating status');
           const { error: updateError } = await supabase
             .from('payments')
             .update({
@@ -110,11 +96,9 @@ serve(async (req) => {
             .eq('id', existingPayment.id);
 
           if (updateError) {
-            console.error('[receive-stripe-webhook] Error updating payment:', updateError);
             return errorResponse(`Failed to update payment: ${updateError.message}`, 500);
           }
 
-          console.log('[receive-stripe-webhook] Payment updated successfully');
           return successResponse({ message: 'Payment updated', paymentId: existingPayment.id });
         }
 
@@ -131,7 +115,6 @@ serve(async (req) => {
           receipt_url: receiptUrl,
         };
 
-        console.log('[receive-stripe-webhook] Creating payment record:', paymentData);
 
         const { data: newPayment, error: insertError } = await supabase
           .from('payments')
@@ -140,16 +123,13 @@ serve(async (req) => {
           .single();
 
         if (insertError) {
-          console.error('[receive-stripe-webhook] Error creating payment:', insertError);
           return errorResponse(`Failed to create payment: ${insertError.message}`, 500);
         }
 
-        console.log('[receive-stripe-webhook] Payment created successfully:', newPayment.id);
         return successResponse({ message: 'Payment created', paymentId: newPayment.id });
       }
 
       case 'payment_intent.payment_failed': {
-        console.log('[receive-stripe-webhook] Processing payment_intent.payment_failed');
         
         const stripePaymentId = paymentIntent.id;
         const metadata = paymentIntent.metadata || {};
@@ -176,7 +156,6 @@ serve(async (req) => {
             .eq('id', existingPayment.id);
 
           if (updateError) {
-            console.error('[receive-stripe-webhook] Error updating failed payment:', updateError);
             return errorResponse(`Failed to update payment: ${updateError.message}`, 500);
           }
         } else {
@@ -202,7 +181,6 @@ serve(async (req) => {
             .insert(paymentData);
 
           if (insertError) {
-            console.error('[receive-stripe-webhook] Error creating failed payment:', insertError);
           }
         }
 
@@ -210,7 +188,6 @@ serve(async (req) => {
       }
 
       case 'charge.refunded': {
-        console.log('[receive-stripe-webhook] Processing charge.refunded');
         
         const charge = paymentIntent;
         const paymentIntentId = charge.payment_intent;
@@ -236,9 +213,7 @@ serve(async (req) => {
             .eq('id', payment.id);
 
           if (updateError) {
-            console.error('[receive-stripe-webhook] Error updating refunded payment:', updateError);
           } else {
-            console.log('[receive-stripe-webhook] Payment marked as refunded');
           }
         }
 
@@ -247,11 +222,9 @@ serve(async (req) => {
 
       default:
         // Ignore other event types (we can add more handlers later)
-        console.log(`[receive-stripe-webhook] Unhandled event type: ${eventType}`);
         return successResponse({ message: `Event ${eventType} received but not processed` });
     }
   } catch (error: any) {
-    console.error('[receive-stripe-webhook] Unexpected error:', error);
     return errorResponse(`Internal server error: ${error.message}`, 500);
   }
 });

@@ -18,12 +18,33 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ChevronDown, Plus, Edit2, X } from 'lucide-react';
-import { useSavedViews, type SavedView } from '@/hooks/useSavedViews';
+import { ChevronDown, Plus, Edit2, X, GripVertical, Copy, Folder, ArrowUpDown, ArrowUp, ArrowDown, FolderPlus } from 'lucide-react';
+import { useSavedViews, type SavedView, useCreateSavedView } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useToast } from '@/hooks/use-toast';
 import { DeleteViewDialog } from './DeleteViewDialog';
 import { getResourceKeyFromPath } from '@/utils/resourceUtils';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { SortableViewItem } from './SortableViewItem';
+import { SortableFolderItem } from './SortableFolderItem';
+import { useUpdatePageOrders } from '@/hooks/usePageOrder';
+import { useFolders, useUpdateFolderOrders, useDeleteFolder, type InterfaceFolder } from '@/hooks/useFolders';
+import { CreateFolderDialog } from './CreateFolderDialog';
+import { AssignPageToFolderDialog } from './AssignPageToFolderDialog';
 
 interface NavItem {
   id: string;
@@ -47,6 +68,11 @@ interface SidebarItemProps {
   customIcon?: React.ComponentType<{ className?: string }>;
   isCollapsed: boolean;
   level?: number; // Nesting level: 0 = parent, 1+ = child
+  dragHandleProps?: {
+    attributes: any;
+    listeners: any;
+  };
+  isSortable?: boolean;
 }
 
 export const SidebarItem: React.FC<SidebarItemProps> = ({
@@ -63,30 +89,33 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   customIcon,
   isCollapsed,
   level = 0, // Default to parent level
+  dragHandleProps,
+  isSortable = false,
 }) => {
   const Icon = customIcon || item.icon;
   const [lastClickTime, setLastClickTime] = useState(0);
 
   const location = useLocation();
   const currentResourceKey = getResourceKeyFromPath(location.pathname);
-  
-  const supportsViews = item.resourceKey === 'leads' || 
-    item.resourceKey === 'customers' || 
-    item.resourceKey === 'templates' || 
+
+  const supportsViews = item.resourceKey === 'leads' ||
+    item.resourceKey === 'customers' ||
+    item.resourceKey === 'templates' ||
     item.resourceKey === 'nutrition_templates' ||
     item.resourceKey === 'budgets' ||
     item.resourceKey === 'payments' ||
+    item.resourceKey === 'collections' ||
     item.resourceKey === 'meetings';
-  
+
   // Only fetch saved views and default view for:
   // 1. The current resource (when on that page) - always fetch
   // 2. The expanded item (when sidebar section is expanded) - fetch to show sub-views
   // This prevents fetching saved views for all 7 resources when only on "leads" page
   const shouldFetchData = supportsViews && (
-    item.resourceKey === currentResourceKey || 
+    item.resourceKey === currentResourceKey ||
     (isExpanded && item.resourceKey !== currentResourceKey)
   );
-  
+
   const { defaultView } = useDefaultView(shouldFetchData ? item.resourceKey : null);
   const savedViewsQuery = useSavedViews(shouldFetchData ? item.resourceKey : null);
   // Combine saved views with default view if it exists and isn't already in the list
@@ -103,33 +132,165 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [viewToDelete, setViewToDelete] = useState<{ id: string; name: string } | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
+  const [assignPageDialogOpen, setAssignPageDialogOpen] = useState(false);
+  const [pageToAssign, setPageToAssign] = useState<SavedView | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null); // null = use display_order, 'asc'/'desc' = sort by name
+  const updatePageOrders = useUpdatePageOrders();
+  const createSavedView = useCreateSavedView();
+
+  // Fetch folders for this interface
+  const { data: folders = [] } = useFolders(shouldFetchData ? item.resourceKey : null);
+  const updateFolderOrders = useUpdateFolderOrders();
+  const deleteFolder = useDeleteFolder();
+
+  // Drag and drop sensors for views
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end for folders
+  const handleFolderDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const activeId = typeof active.id === 'string' && active.id.startsWith('folder-')
+      ? active.id.replace('folder-', '')
+      : null;
+    const overId = typeof over.id === 'string' && over.id.startsWith('folder-')
+      ? over.id.replace('folder-', '')
+      : null;
+
+    if (!activeId || !overId) return;
+
+    const oldIndex = sortedFolders.findIndex((folder) => folder.id === activeId);
+    const newIndex = sortedFolders.findIndex((folder) => folder.id === overId);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // Reorder the folders
+    const reorderedFolders = arrayMove(sortedFolders, oldIndex, newIndex);
+
+    // Update orders in database
+    try {
+      const orders = reorderedFolders.map((folder, index) => ({
+        folder_id: folder.id,
+        display_order: index + 1,
+      }));
+
+      if (orders.length > 0) {
+        await updateFolderOrders.mutateAsync(orders);
+
+        toast({
+          title: 'סדר התיקיות עודכן',
+          description: 'הסדר החדש נשמר בהצלחה.',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא ניתן לעדכן את הסדר. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Handle drag end for views/pages (only within same folder/root level)
+  const handleViewDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    // Get pages in the same context (same folder or root level)
+    const activeView = allViews.find((view) => view.id === active.id);
+    const overView = allViews.find((view) => view.id === over.id);
+
+    if (!activeView || !overView) return;
+
+    // Only allow reordering within the same folder context
+    if (activeView.folder_id !== overView.folder_id) {
+      return;
+    }
+
+    const contextPages = allViews.filter(
+      (view) => view.folder_id === activeView.folder_id && !view.is_default
+    );
+
+    const oldIndex = contextPages.findIndex((view) => view.id === active.id);
+    const newIndex = contextPages.findIndex((view) => view.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // Reorder the views
+    const reorderedViews = arrayMove(contextPages, oldIndex, newIndex);
+
+    // Update orders in database
+    try {
+      const orders = reorderedViews.map((view, index) => ({
+        view_id: view.id,
+        display_order: index + 1,
+      }));
+
+      if (orders.length > 0) {
+        await updatePageOrders.mutateAsync(orders);
+
+        toast({
+          title: 'סדר הדפים עודכן',
+          description: 'הסדר החדש נשמר בהצלחה.',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא ניתן לעדכן את הסדר. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Check if we're on a profile route for THIS specific resource type
   let isProfileRoute = false;
   if (item.resourceKey === 'leads') {
     // For leads: check if we're on a lead profile route
     // Routes: /leads/:id, /profile/lead/:leadId, /profile/:customerId (when it's a lead)
-    isProfileRoute = location.pathname.startsWith('/leads/') || 
-                     location.pathname.startsWith('/profile/lead/') ||
-                     (location.pathname.startsWith('/profile/') && 
-                      !location.pathname.startsWith('/profile/lead/') && 
-                      location.pathname.split('/').length === 3); // /profile/:customerId
+    isProfileRoute = location.pathname.startsWith('/leads/') ||
+      location.pathname.startsWith('/profile/lead/') ||
+      (location.pathname.startsWith('/profile/') &&
+        !location.pathname.startsWith('/profile/lead/') &&
+        location.pathname.split('/').length === 3); // /profile/:customerId
   } else if (item.resourceKey === 'customers') {
     // For customers: check if we're on a customer profile route ONLY
     // Route: /dashboard/customers/:id (not /profile routes which are for leads)
-    isProfileRoute = location.pathname.startsWith('/dashboard/customers/') && 
-                     location.pathname.split('/').length === 4; // /dashboard/customers/:id
+    isProfileRoute = location.pathname.startsWith('/dashboard/customers/') &&
+      location.pathname.split('/').length === 4; // /dashboard/customers/:id
   } else if (item.resourceKey === 'meetings') {
     // For meetings: check if we're on a meeting detail route
     // Route: /dashboard/meetings/:id
-    isProfileRoute = location.pathname.startsWith('/dashboard/meetings/') && 
-                     location.pathname.split('/').length === 4; // /dashboard/meetings/:id
+    isProfileRoute = location.pathname.startsWith('/dashboard/meetings/') &&
+      location.pathname.split('/').length === 4; // /dashboard/meetings/:id
   }
-  
+
   // If on profile route for THIS resource and no view_id, consider default view as active
   const shouldHighlightDefaultView = isProfileRoute && !activeViewId && defaultView;
 
-  const hasActiveView = supportsViews && activeViewId && 
+  const hasActiveView = supportsViews && activeViewId &&
     savedViews.some(view => view.id === activeViewId);
   // Main interface is active if: active route AND (has specific view OR no view_id specified)
   const isMainInterfaceActive = active && (hasActiveView || !activeViewId);
@@ -148,6 +309,33 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     setDeleteDialogOpen(true);
   };
 
+  const handleDuplicateClick = async (e: React.MouseEvent, view: SavedView) => {
+    e.stopPropagation();
+
+    try {
+      // Create a new view with the same filter config but with a modified name
+      const newViewName = `${view.view_name} (עותק)`;
+
+      await createSavedView.mutateAsync({
+        resourceKey: view.resource_key,
+        viewName: newViewName,
+        filterConfig: view.filter_config as any,
+        isDefault: false, // Duplicated views are never default
+      });
+
+      toast({
+        title: 'דף הוכפל בהצלחה',
+        description: `נוצר דף חדש: ${newViewName}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'לא ניתן לשכפל את הדף. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleResourceClick = (e: React.MouseEvent) => {
     if (!supportsViews) {
       e.stopPropagation();
@@ -155,7 +343,11 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     } else if (isCollapsed) {
       // In collapsed mode, open popover for resources with views
       setPopoverOpen(true);
+      // Also navigate to make it active on first click
+      onResourceClick();
     } else {
+      // Navigate to resource to make it active on first click
+      onResourceClick();
       // If we have a default view but section is not expanded, expand it
       if (defaultView && !isExpanded) {
         onToggle();
@@ -196,6 +388,26 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         aria-label={item.label}
         aria-expanded={supportsViews ? isExpanded : undefined}
       >
+        {/* Drag handle inside button - positioned relative to button container */}
+        {isSortable && dragHandleProps && !isCollapsed && (
+          <div
+            {...dragHandleProps.attributes}
+            {...dragHandleProps.listeners}
+            className={cn(
+              'absolute right-0 cursor-grab active:cursor-grabbing',
+              'p-1 rounded hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity',
+              'flex items-center justify-center z-10'
+            )}
+            style={{ marginLeft: '8px' }}
+            title="גרור לשינוי סדר"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className={cn(
+              'h-4 w-4',
+              isMainInterfaceActive ? 'text-gray-600' : 'text-white/60'
+            )} />
+          </div>
+        )}
         <div
           onClick={(e) => {
             e.stopPropagation();
@@ -210,7 +422,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
               setTimeout(() => setLastClickTime(0), 300);
             }
           }}
-          className="relative cursor-pointer group/icon"
+          className="relative cursor-pointer group/icon pr-4"
           title="לחץ פעמיים לערוך אייקון"
           role="button"
           tabIndex={0}
@@ -232,150 +444,480 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         {!isCollapsed && (
           <>
             <span className="flex-1 text-right">{item.label}</span>
-            {supportsViews && onSaveViewClick && (
-              <div
-                className={cn(
-                  'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
-                  'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
-                  isMainInterfaceActive
-                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSaveViewClick(item.resourceKey);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onSaveViewClick(item.resourceKey);
-                  }
-                }}
-                title="הוסף דף חדש"
-                role="button"
-                tabIndex={0}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </div>
-            )}
             {supportsViews && (
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 flex-shrink-0 transition-transform duration-200',
-                  isExpanded ? 'rotate-0' : '-rotate-90',
-                  isMainInterfaceActive ? 'text-gray-700' : 'text-white/60'
+              <div className="flex items-center gap-1 relative">
+                {/* Sort controls placeholder - maintains spacing */}
+                <div className="w-0 overflow-hidden group-hover:w-auto transition-all duration-200" />
+                {/* Create folder button - hidden and takes 0 space when not hovered */}
+                <div
+                  className={cn(
+                    'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
+                    'w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0',
+                    isMainInterfaceActive
+                      ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                      : 'text-white/60 hover:text-white hover:bg-white/10'
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCreateFolderDialogOpen(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setCreateFolderDialogOpen(true);
+                    }
+                  }}
+                  title="צור תיקייה חדשה"
+                  role="button"
+                  tabIndex={0}
+                >
+                  <FolderPlus className="h-3.5 w-3.5" />
+                </div>
+                {/* Create page button - hidden and takes 0 space when not hovered */}
+                {onSaveViewClick && (
+                  <div
+                    className={cn(
+                      'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
+                      'w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0',
+                      isMainInterfaceActive
+                        ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSaveViewClick(item.resourceKey);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSaveViewClick(item.resourceKey);
+                      }
+                    }}
+                    title="הוסף דף חדש"
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </div>
                 )}
-              />
+                {/* Expand/collapse button - always visible */}
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+                    isExpanded ? 'rotate-0' : '-rotate-90',
+                    isMainInterfaceActive ? 'text-gray-700' : 'text-white/60'
+                  )}
+                />
+              </div>
             )}
           </>
         )}
       </button>
+      {/* Sort controls - positioned outside button to avoid nesting, aligned between label and action buttons */}
+      {!isCollapsed && supportsViews && (
+        <div className="absolute top-1/2 -translate-y-1/2 flex items-center gap-0.5 w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0 transition-all duration-200 z-20 pointer-events-none"
+          style={{ 
+            right: 'calc(100% - 100px)' // Position to align with action buttons area
+          }}
+        >
+          <div className="flex items-center gap-0.5 pointer-events-auto">
+            {sortOrder === null && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSortOrder('asc');
+                }}
+                className={cn(
+                  'p-1 rounded-md transition-colors',
+                  isMainInterfaceActive
+                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                )}
+                title="מיין לפי שם (א-ב)"
+              >
+                <ArrowUpDown className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {sortOrder === 'asc' && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSortOrder('desc');
+                }}
+                className={cn(
+                  'p-1 rounded-md transition-colors',
+                  isMainInterfaceActive
+                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                )}
+                title="מיין לפי שם (ב-א)"
+              >
+                <ArrowDown className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {sortOrder === 'desc' && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSortOrder(null);
+                }}
+                className={cn(
+                  'p-1 rounded-md transition-colors',
+                  isMainInterfaceActive
+                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                )}
+                title="בטל מיון (החזר לסדר ידני)"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 
   // Sub-views list - show if we have any views (from savedViews or defaultView)
   const hasViews = supportsViews && (savedViews.length > 0 || defaultView);
-  // Ensure defaultView is always included in the list to display
-  const viewsToDisplay = useMemo(() => {
+
+  // Get all views (including default)
+  const allViews = useMemo(() => {
     if (!supportsViews) return [];
-    
-    // Always include defaultView if it exists and isn't already in savedViews
+
+    let views: SavedView[] = [];
     if (defaultView) {
       const hasDefaultInList = savedViews.some(view => view.id === defaultView.id);
       if (!hasDefaultInList) {
-        // Default view not in list yet, add it at the beginning
-        return [defaultView, ...savedViews];
+        views = [defaultView, ...savedViews];
+      } else {
+        views = [...savedViews];
       }
+    } else {
+      views = [...savedViews];
     }
-    
-    // Return savedViews (which should already include defaultView if it was fetched)
-    return savedViews;
-  }, [savedViews, defaultView, supportsViews]);
-  
-  const subViewsList = hasViews && (
-    <div className="space-y-1 mt-2">
-      {viewsToDisplay.map((view) => {
-        // View is active if: it matches activeViewId OR it's the default view and we're on a profile route
-        const isViewActive = activeViewId === view.id || 
-                            (shouldHighlightDefaultView && view.id === defaultView?.id);
-        const isDefaultView = view.is_default;
-        return (
-          <div
-            key={view.id}
+
+    // Sort by name if sortOrder is set, otherwise by display_order
+    if (sortOrder === 'asc' || sortOrder === 'desc') {
+      return views.sort((a, b) => {
+        if (a.is_default) return -1;
+        if (b.is_default) return 1;
+        const comparison = a.view_name.localeCompare(b.view_name, 'he');
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    // Default: sort by display_order
+    return views.sort((a, b) => {
+      if (a.is_default) return -1;
+      if (b.is_default) return 1;
+      const orderA = a.display_order ?? 999;
+      const orderB = b.display_order ?? 999;
+      return orderA - orderB;
+    });
+  }, [savedViews, defaultView, supportsViews, sortOrder]);
+
+  // Sort folders
+  const sortedFolders = useMemo(() => {
+    if (sortOrder === 'asc' || sortOrder === 'desc') {
+      const sorted = [...folders].sort((a, b) => {
+        const comparison = a.name.localeCompare(b.name, 'he');
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+      return sorted;
+    }
+
+    // Default: sort by display_order
+    return [...folders].sort((a, b) => {
+      const orderA = a.display_order ?? 999;
+      const orderB = b.display_order ?? 999;
+      return orderA - orderB;
+    });
+  }, [folders, sortOrder]);
+
+  // Group views by folder - default view is always separate and first
+  const viewsByFolder = useMemo(() => {
+    const grouped: Record<string, SavedView[]> = {};
+    const rootViews: SavedView[] = [];
+    let defaultViewItem: SavedView | null = null;
+
+    allViews.forEach((view) => {
+      if (view.is_default) {
+        defaultViewItem = view;
+        return; // Skip default view - it will be rendered separately first
+      }
+
+      if (view.folder_id) {
+        if (!grouped[view.folder_id]) {
+          grouped[view.folder_id] = [];
+        }
+        grouped[view.folder_id].push(view);
+      } else {
+        rootViews.push(view);
+      }
+    });
+
+    return { grouped, rootViews, defaultView: defaultViewItem };
+  }, [allViews]);
+
+  // Render a single page/view
+  const renderPage = (view: SavedView, isInPopover = false, isInFolder = false) => {
+    const isViewActive = activeViewId === view.id ||
+      (shouldHighlightDefaultView && view.id === defaultView?.id);
+    const isDefaultView = view.is_default;
+
+    return (
+      <SortableViewItem
+        key={view.id}
+        view={view}
+        isActive={isViewActive}
+        isDefaultView={isDefaultView}
+      >
+        <div
+          className={cn(
+            'group/view-item relative flex items-center',
+            !isInFolder && 'mx-5'
+          )}
+        >
+          <button
+            onClick={() => {
+              onViewClick(view, item.path);
+              setPopoverOpen(false);
+            }}
             className={cn(
-              'group/view-item relative flex items-center',
-              // Child items use rounded pill with margins (nested look)
-              'mx-5'
+              'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
+              'text-right w-full rounded-lg',
+              isViewActive
+                ? 'text-gray-800 bg-white shadow-sm font-semibold'
+                : isInPopover
+                  ? 'text-gray-700 hover:bg-white/10'
+                  : isInFolder
+                    ? 'text-white bg-white/5 hover:bg-white/10'
+                    : 'text-white/80 hover:bg-white/10'
             )}
           >
-            <button
-              onClick={() => {
-                // Always use the base resource path, not the current location
-                // This ensures clicking a view from a detail page navigates to the list with that view
-                onViewClick(view, item.path);
-                setPopoverOpen(false);
-              }}
-              className={cn(
-                'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
-                'text-right w-full',
-                // Child (Level 1+) - Same rectangular style as parent but with margins
-                'rounded-lg',
-                isViewActive
-                  ? 'text-gray-800 bg-white shadow-sm font-semibold'
-                  : 'text-gray-700 hover:bg-white/10'
-              )}
-            >
-              <span className="flex-1 truncate">{view.view_name}</span>
-              <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity">
-                {onEditViewClick && !isDefaultView && (
+            <span className="flex-1 truncate">{view.view_name}</span>
+            <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity">
+              {!isDefaultView && (
+                <>
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEditViewClick(view);
+                      handleDuplicateClick(e, view);
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
+                    className={cn(
+                      'p-1 rounded cursor-pointer transition-colors',
+                      isViewActive
+                        ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                        : 'text-white/90 hover:text-white hover:bg-white/20'
+                    )}
+                    title="שכפל"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </div>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPageToAssign(view);
+                      setAssignPageDialogOpen(true);
+                    }}
+                    className={cn(
+                      'p-1 rounded cursor-pointer transition-colors',
+                      isViewActive
+                        ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                        : 'text-white/90 hover:text-white hover:bg-white/20'
+                    )}
+                    title="העבר לתיקייה"
+                  >
+                    <Folder className="h-3.5 w-3.5" />
+                  </div>
+                  {onEditViewClick && (
+                    <div
+                      onClick={(e) => {
                         e.stopPropagation();
                         onEditViewClick(view);
-                      }
-                    }}
-                    className="p-1 rounded hover:bg-gray-200 text-gray-600 cursor-pointer"
-                    title="ערוך"
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </div>
-                )}
-                {!isDefaultView && (
+                      }}
+                      className={cn(
+                        'p-1 rounded cursor-pointer transition-colors',
+                        isViewActive
+                          ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                          : 'text-white/90 hover:text-white hover:bg-white/20'
+                      )}
+                      title="ערוך"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </div>
+                  )}
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteClick(e, view);
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleDeleteClick(e as any, view);
-                      }
-                    }}
-                    className="p-1 rounded hover:bg-red-100 text-red-600 cursor-pointer"
+                    className={cn(
+                      'p-1 rounded cursor-pointer transition-colors',
+                      isViewActive
+                        ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
+                        : 'text-white/90 hover:text-white hover:bg-red-500/20'
+                    )}
                     title="מחק"
-                    role="button"
-                    tabIndex={0}
                   >
                     <X className="h-3.5 w-3.5" />
                   </div>
+                </>
+              )}
+            </div>
+          </button>
+        </div>
+      </SortableViewItem>
+    );
+  };
+
+  // Render a folder with its pages
+  const renderFolder = (folder: InterfaceFolder) => {
+    const folderPages = viewsByFolder.grouped[folder.id] || [];
+    const isExpanded = expandedFolders.has(folder.id);
+    // Check if any page inside this folder is active
+    const hasActivePage = folderPages.some(view =>
+      activeViewId === view.id ||
+      (shouldHighlightDefaultView && view.id === defaultView?.id)
+    );
+
+    return (
+      <SortableFolderItem key={folder.id} folder={folder} isActive={hasActivePage}>
+        <div className="mx-5 mb-1">
+          <button
+            onClick={() => {
+              const newExpanded = new Set(expandedFolders);
+              if (isExpanded) {
+                newExpanded.delete(folder.id);
+              } else {
+                newExpanded.add(folder.id);
+              }
+              setExpandedFolders(newExpanded);
+            }}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
+              'text-right w-full rounded-lg',
+              hasActivePage
+                ? 'text-gray-800 bg-white shadow-sm font-semibold'
+                : 'text-white bg-white/5 hover:bg-white/10'
+            )}
+          >
+            <Folder className={cn(
+              'h-4 w-4 flex-shrink-0',
+              hasActivePage ? 'text-gray-800' : 'text-white'
+            )} />
+            <span className={cn(
+              'flex-1 truncate',
+              hasActivePage ? 'text-gray-800' : 'text-white'
+            )}>{folder.name}</span>
+            <div className="flex items-center gap-1 opacity-0 group-hover/folder-drag:opacity-100 transition-opacity">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteFolder.mutate(folder.id, {
+                    onSuccess: () => {
+                      toast({
+                        title: 'תיקייה נמחקה',
+                        description: `תיקייה "${folder.name}" נמחקה בהצלחה.`,
+                      });
+                    },
+                  });
+                }}
+                className={cn(
+                  'p-1 rounded cursor-pointer transition-colors',
+                  hasActivePage
+                    ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
+                    : 'text-white/90 hover:text-white hover:bg-red-500/20'
                 )}
+                title="מחק תיקייה"
+              >
+                <X className="h-3.5 w-3.5" />
               </div>
-            </button>
-          </div>
-        );
-      })}
-    </div>
+            </div>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+                hasActivePage ? 'text-gray-700' : 'text-white/80',
+                isExpanded ? 'rotate-0' : '-rotate-90'
+              )}
+            />
+          </button>
+
+          {isExpanded && folderPages.length > 0 && (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleViewDragEnd}
+            >
+              <SortableContext
+                items={folderPages.map((view) => view.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-1 mt-1">
+                  {folderPages.map((view) => renderPage(view, false, true))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </div>
+      </SortableFolderItem>
+    );
+  };
+
+  const subViewsList = hasViews && (
+    <>
+      {/* Default view always appears first, before folders */}
+      {viewsByFolder.defaultView && (
+        <div className="space-y-1 mt-2">
+          {renderPage(viewsByFolder.defaultView, false)}
+        </div>
+      )}
+
+      {/* Folders */}
+      {sortedFolders.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleFolderDragEnd}
+        >
+          <SortableContext
+            items={sortedFolders.map((folder) => `folder-${folder.id}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className={cn("space-y-1 mt-2", viewsByFolder.defaultView && "mt-1")}>
+              {sortedFolders.map((folder) => renderFolder(folder))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
+
+      {/* Root-level pages (not in folders, excluding default) */}
+      {viewsByFolder.rootViews.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleViewDragEnd}
+        >
+          <SortableContext
+            items={viewsByFolder.rootViews.map((view) => view.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className={cn(
+              "space-y-1 mt-2",
+              (sortedFolders.length > 0 || viewsByFolder.defaultView) && "mt-1"
+            )}>
+              {viewsByFolder.rootViews.map((view) => renderPage(view, false))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
+    </>
   );
 
   // Wrapper with tooltip for collapsed mode
@@ -405,7 +947,61 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                 <div className="font-semibold text-sm text-gray-900 mb-2">
                   {item.label}
                 </div>
-                {subViewsList}
+                <div className="max-h-[400px] overflow-y-auto">
+                  {/* Default view always appears first */}
+                  {viewsByFolder.defaultView && (
+                    <div className="space-y-1 mb-2">
+                      {renderPage(viewsByFolder.defaultView, true)}
+                    </div>
+                  )}
+
+                  {sortedFolders.length > 0 && (
+                    <div className={cn("space-y-1 mb-2", viewsByFolder.defaultView && "mt-1")}>
+                      {sortedFolders.map((folder) => {
+                        const folderPages = viewsByFolder.grouped[folder.id] || [];
+                        const isFolderExpanded = expandedFolders.has(folder.id);
+                        return (
+                          <div key={folder.id} className="mb-1">
+                            <button
+                              onClick={() => {
+                                const newExpanded = new Set(expandedFolders);
+                                if (isFolderExpanded) {
+                                  newExpanded.delete(folder.id);
+                                } else {
+                                  newExpanded.add(folder.id);
+                                }
+                                setExpandedFolders(newExpanded);
+                              }}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md w-full text-right"
+                            >
+                              <Folder className="h-4 w-4 text-gray-700" />
+                              <span className="flex-1 truncate text-gray-700">{folder.name}</span>
+                              <ChevronDown
+                                className={cn(
+                                  'h-4 w-4 transition-transform duration-200 text-gray-700',
+                                  isFolderExpanded ? 'rotate-0' : '-rotate-90'
+                                )}
+                              />
+                            </button>
+                            {isFolderExpanded && folderPages.length > 0 && (
+                              <div className="mt-1 space-y-1">
+                                {folderPages.map((view) => renderPage(view, true, true))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {viewsByFolder.rootViews.length > 0 && (
+                    <div className={cn(
+                      "space-y-1",
+                      (sortedFolders.length > 0 || viewsByFolder.defaultView) && "mt-1"
+                    )}>
+                      {viewsByFolder.rootViews.map((view) => renderPage(view, true))}
+                    </div>
+                  )}
+                </div>
                 {onSaveViewClick && (
                   <button
                     onClick={() => {
@@ -444,92 +1040,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       <li className="w-full group">
         {buttonContent}
         {supportsViews && isExpanded && hasViews && (
-          <div className="mt-1 space-y-1">
-            {viewsToDisplay.map((view) => {
-              // View is active if: it matches activeViewId OR it's the default view and we're on a profile route
-              const isViewActive = activeViewId === view.id || 
-                                  (shouldHighlightDefaultView && view.id === defaultView?.id);
-              const isDefaultView = view.is_default;
-              return (
-                <div
-                  key={view.id}
-                  className={cn(
-                    'group/view-item relative flex items-center',
-                    // Child items use same rectangular style as parent but with margins (shorter width to show nesting)
-                    'mx-5'
-                  )}
-                >
-                  <button
-                    onClick={() => onViewClick(view, item.path)}
-                    className={cn(
-                      'flex items-center gap-2.5 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
-                      'relative w-full',
-                      // Child (Level 1+) - Same rectangular style as parent but with margins
-                      'rounded-lg',
-                      isViewActive
-                        ? 'text-gray-800 bg-white shadow-sm font-semibold'
-                        : 'text-white/80 hover:bg-white/10'
-                    )}
-                  >
-                    <span className="flex-1 text-right truncate">{view.view_name}</span>
-                    <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity flex-shrink-0">
-                      {onEditViewClick && !isDefaultView && (
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEditViewClick(view);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              onEditViewClick(view);
-                            }
-                          }}
-                          className={cn(
-                            'p-1 rounded-md transition-colors cursor-pointer',
-                            isViewActive
-                              ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                              : 'text-white/60 hover:text-white hover:bg-white/20'
-                          )}
-                          title="ערוך"
-                          role="button"
-                          tabIndex={0}
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </div>
-                      )}
-                      {!isDefaultView && (
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(e, view);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleDeleteClick(e as any, view);
-                            }
-                          }}
-                          className={cn(
-                            'p-1 rounded-md transition-colors cursor-pointer',
-                            isViewActive
-                              ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
-                              : 'text-white/60 hover:text-white hover:bg-white/20'
-                          )}
-                          title="מחק"
-                          role="button"
-                          tabIndex={0}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                </div>
-              );
-            })}
+          <div className="mt-1">
+            {subViewsList}
           </div>
         )}
       </li>
@@ -542,6 +1054,25 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         viewToDelete={viewToDelete}
         resourceKey={item.resourceKey}
       />
+      {supportsViews && (
+        <>
+          <CreateFolderDialog
+            isOpen={createFolderDialogOpen}
+            onOpenChange={setCreateFolderDialogOpen}
+            interfaceKey={item.resourceKey}
+          />
+          {pageToAssign && (
+            <AssignPageToFolderDialog
+              isOpen={assignPageDialogOpen}
+              onOpenChange={(open) => {
+                setAssignPageDialogOpen(open);
+                if (!open) setPageToAssign(null);
+              }}
+              page={pageToAssign}
+            />
+          )}
+        </>
+      )}
     </>
   );
 };

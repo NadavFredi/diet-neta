@@ -81,7 +81,7 @@ function SortableGroupLevel({
 
   const getGroupableColumns = () => {
     return columns.filter((col) => {
-      const excludeIds = ['id', 'actions'];
+      const excludeIds = ['actions'];
       return !excludeIds.includes(col.id) && col.enableHiding !== false;
     });
   };

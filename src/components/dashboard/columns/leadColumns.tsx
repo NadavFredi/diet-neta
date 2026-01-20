@@ -2,7 +2,6 @@ import { type ColumnDef } from '@tanstack/react-table';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { formatDate } from '@/utils/dashboard';
 import type { DataTableColumn } from '@/components/ui/DataTable';
-import { DevModeId } from '@/components/ui/DevModeId';
 
 /**
  * Strict column definitions for Leads table.
@@ -227,23 +226,6 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       );
     },
   },
-  // Hidden columns (placed at the end)
-  {
-    id: 'id',
-    header: 'מזהה',
-    accessorKey: 'id',
-    enableSorting: true,
-    enableResizing: true,
-    enableHiding: true,
-    size: 90,
-    meta: {
-      align: 'right',
-    },
-    cell: ({ getValue }) => {
-      const value = getValue() as string;
-      return <DevModeId id={value} />;
-    },
-  },
   {
     id: 'email',
     header: 'אימייל',
@@ -308,7 +290,6 @@ export const leadColumns: DataTableColumn<Lead>[] = [
  * Only includes columns that exist in leadColumns.
  */
 export const defaultLeadColumnVisibility: Record<string, boolean> = {
-  id: false, // Hidden by default - only visible in dev mode (press D+E+V)
   name: true,
   status: true,
   phone: true,

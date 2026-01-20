@@ -28,7 +28,7 @@ BEGIN
         WHERE profiles.id = auth.uid()
         AND profiles.role IN (''admin'', ''user'')
       ) AND
-      (storage.foldername(name))[1] = ''workout-exercises''
+      name LIKE ''workout-exercises/%''
     )';
 
     -- RLS Policy: Allow managers/admins to view workout exercise media
@@ -40,14 +40,12 @@ BEGIN
     TO authenticated
     USING (
       bucket_id = ''client-assets'' AND
-      (
-        EXISTS (
-          SELECT 1 FROM profiles
-          WHERE profiles.id = auth.uid()
-          AND profiles.role IN (''admin'', ''user'')
-        ) AND
-        (storage.foldername(name))[1] = ''workout-exercises''
-      )
+      EXISTS (
+        SELECT 1 FROM profiles
+        WHERE profiles.id = auth.uid()
+        AND profiles.role IN (''admin'', ''user'')
+      ) AND
+      name LIKE ''workout-exercises/%''
     )';
 
     -- RLS Policy: Allow managers/admins to delete workout exercise media
@@ -64,7 +62,7 @@ BEGIN
         WHERE profiles.id = auth.uid()
         AND profiles.role IN (''admin'', ''user'')
       ) AND
-      (storage.foldername(name))[1] = ''workout-exercises''
+      name LIKE ''workout-exercises/%''
     )';
 
     RAISE NOTICE 'Workout exercises storage RLS policies created successfully';

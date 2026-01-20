@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 
 export interface Customer {
   id: string;
@@ -65,71 +68,112 @@ export interface CustomerWithLeads extends Customer {
   }>;
 }
 
-// Fetch all customers with lead counts
-export const useCustomers = () => {
+// Fetch all customers with lead counts (with pagination)
+export const useCustomers = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
+}) => {
   const { user } = useAppSelector((state) => state.auth);
+  const page = filters?.page ?? 1;
+  const pageSize = filters?.pageSize ?? 100;
 
   return useQuery({
-    queryKey: ['customers', user?.email],
+    queryKey: ['customers', filters, user?.email], // filters includes groupByLevel1 and groupByLevel2, so query will refetch when grouping changes
     queryFn: async () => {
       if (!user?.email) {
-        console.warn('useCustomers: User not authenticated');
-        return [];
+        return { data: [], totalCount: 0 };
       }
 
       try {
-        // Fetch all customers
-        const { data: customersData, error: customersError } = await supabase
-          .from('customers')
-          .select('*')
-          .order('created_at', { ascending: false });
+        const fieldConfigs: FilterFieldConfigMap = {
+          created_at: { column: 'created_at', type: 'date' },
+          full_name: { column: 'full_name', type: 'text' },
+          phone: { column: 'phone', type: 'text' },
+          email: { column: 'email', type: 'text' },
+          total_leads: { column: 'total_leads', type: 'number' },
+          total_spent: { column: 'total_spent', type: 'number' },
+          membership_tier: { column: 'membership_tier', type: 'select' },
+        };
+
+        const searchGroup = filters?.search ? createSearchGroup(filters.search, ['full_name', 'phone', 'email']) : null;
+        const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
+
+        // Get total count first (for pagination)
+        let countQuery = supabase
+          .from('customers_with_lead_counts')
+          .select('*', { count: 'exact', head: true });
+
+        if (combinedGroup) {
+          countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
+        }
+
+        const { count, error: countError } = await countQuery;
+
+        if (countError) {
+          throw countError;
+        }
+
+        const totalCount = count ?? 0;
+
+        // Map groupBy columns to database columns
+        const groupByMap: Record<string, string> = {
+          full_name: 'full_name',
+          phone: 'phone',
+          email: 'email',
+          total_leads: 'total_leads',
+          total_spent: 'total_spent',
+          membership_tier: 'membership_tier',
+          created_at: 'created_at',
+        };
+
+        // When grouping is active, fetch ALL matching records (no pagination)
+        // This ensures grouping works correctly across all data, not just the current page
+        const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
+        
+        let query = supabase
+          .from('customers_with_lead_counts')
+          .select('*');
+
+        // Only apply pagination if grouping is NOT active
+        if (!isGroupingActive) {
+          const from = (page - 1) * pageSize;
+          const to = from + pageSize - 1;
+          query = query.range(from, to);
+        }
+
+        // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+        if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+          query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+        }
+        if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+          query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+        }
+        
+        // Apply default sorting if no grouping
+        if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+          query = query.order('created_at', { ascending: false });
+        }
+
+        if (combinedGroup) {
+          query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
+        }
+
+        const { data: customersData, error: customersError } = await query;
 
         if (customersError) {
-          console.error('Error fetching customers:', customersError);
           throw customersError;
         }
 
-        if (!customersData || customersData.length === 0) {
-          console.log('No customers found in database');
-          return [];
-        }
-
-        // Fetch lead counts for all customers in one query
-        const customerIds = customersData.map((c: any) => c.id);
-        const { data: leadsData, error: leadsError } = await supabase
-          .from('leads')
-          .select('customer_id')
-          .in('customer_id', customerIds);
-
-        if (leadsError) {
-          console.error('Error fetching lead counts:', leadsError);
-          // Don't throw - continue without lead counts
-        }
-
-        // Count leads per customer
-        const leadCounts = (leadsData || []).reduce((acc: Record<string, number>, lead: any) => {
-          const customerId = lead.customer_id;
-          acc[customerId] = (acc[customerId] || 0) + 1;
-          return acc;
-        }, {});
-
-        // Transform the data to include total_leads
-        const result = customersData.map((customer: any) => ({
-          id: customer.id,
-          full_name: customer.full_name,
-          phone: customer.phone,
-          email: customer.email,
-          user_id: customer.user_id || null, // Include user_id for trainee account link
-          created_at: customer.created_at,
-          updated_at: customer.updated_at,
-          total_leads: leadCounts[customer.id] || 0,
-        })) as Customer[];
-
-        console.log(`useCustomers: Fetched ${result.length} customers`);
-        return result;
+        return {
+          data: (customersData || []) as Customer[],
+          totalCount,
+        };
       } catch (error: any) {
-        console.error('Error in useCustomers queryFn:', error);
-        return [];
+        return { data: [], totalCount: 0 };
       }
     },
     enabled: !!user?.email,

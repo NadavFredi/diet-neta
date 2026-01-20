@@ -62,7 +62,6 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({
       await onSave(editValue);
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to save notes:', error);
       setEditValue(value);
     } finally {
       setIsSaving(false);

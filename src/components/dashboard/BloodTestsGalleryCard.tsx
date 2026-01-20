@@ -6,10 +6,20 @@
  * For manager/CRM view - shows PDFs from blood_tests table
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText, Loader2, Download, Upload, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useBloodTestsGalleryCard } from './BloodTestsGalleryCard.ts';
 import { cn } from '@/lib/utils';
 
@@ -34,9 +44,12 @@ export const BloodTestsGalleryCard: React.FC<BloodTestsGalleryCardProps> = ({
     handleDragLeave,
     handleDrop,
     handleDelete,
+    deleteMutation,
     formatDate,
     handleDownload,
   } = useBloodTestsGalleryCard(leadId, customerId);
+
+  const [testToDelete, setTestToDelete] = useState<{ id: string, fileName: string } | null>(null);
 
   if (!leadId) {
     return null;
@@ -145,7 +158,10 @@ export const BloodTestsGalleryCard: React.FC<BloodTestsGalleryCardProps> = ({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={(e) => handleDelete(test.id, test.file_name, e)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTestToDelete({ id: test.id, fileName: test.file_name });
+                      }}
                       disabled={deleteMutation.isPending}
                       className="h-8 w-8 text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                       title="מחיקה"
@@ -163,6 +179,33 @@ export const BloodTestsGalleryCard: React.FC<BloodTestsGalleryCardProps> = ({
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={!!testToDelete} onOpenChange={(open) => !open && setTestToDelete(null)}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת בדיקת דם</AlertDialogTitle>
+            <AlertDialogDescription>
+              האם אתה בטוח שברצונך למחוק את הקובץ {testToDelete?.fileName}? פעולה זו לא ניתנת לביטול.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogAction
+              onClick={() => {
+                if (testToDelete) {
+                  handleDelete(testToDelete.id);
+                  setTestToDelete(null);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              מחק
+            </AlertDialogAction>
+            <AlertDialogCancel onClick={() => setTestToDelete(null)}>
+              ביטול
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

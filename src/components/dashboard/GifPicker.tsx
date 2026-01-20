@@ -70,7 +70,6 @@ export const GifPicker: React.FC<GifPickerProps> = ({ onSelect, onClose }) => {
 
       setHasMore(fetchedGifs.length >= 20);
     } catch (err: any) {
-      console.error('[GifPicker] Error fetching GIFs:', err);
       setError(err.message || 'נכשל בטעינת GIFs');
       if (reset) {
         setGifs([]);

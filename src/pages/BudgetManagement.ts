@@ -4,11 +4,11 @@
  * Handles all business logic, data fetching, and state management
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import {
   useBudgets,
   useDeleteBudget,
@@ -16,7 +16,8 @@ import {
   useUpdateBudget,
   useBudget,
 } from '@/hooks/useBudgets';
-import { useAppDispatch } from '@/store/hooks';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { setGeneratingPDF, setSendingWhatsApp } from '@/store/slices/budgetSlice';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +25,15 @@ import { generateBudgetPDF } from '@/services/pdfService';
 import { syncPlansFromBudget, deleteAssociatedPlans } from '@/services/budgetPlanSync';
 import { supabase } from '@/lib/supabaseClient';
 import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
+import { 
+  selectFilterGroup, 
+  selectSearchQuery, 
+  selectCurrentPage,
+  selectPageSize,
+  selectGroupByKeys,
+  setCurrentPage,
+  setPageSize,
+} from '@/store/slices/tableStateSlice';
 
 export interface BudgetColumnVisibility {
   name: boolean;
@@ -47,10 +57,6 @@ export const useBudgetManagement = () => {
   const viewId = searchParams.get('view_id');
   const { toast } = useToast();
 
-  const [hasAppliedView, setHasAppliedView] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
@@ -86,12 +92,47 @@ export const useBudgetManagement = () => {
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('budgets');
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'budgets'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'budgets'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'budgets'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'budgets'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'budgets'));
+  
   const { data: budgets = [], isLoading } = useBudgets({
-    search: undefined,
+    search: searchQuery,
+    filterGroup,
+    page: currentPage,
+    pageSize,
+    groupByLevel1: groupByKeys[0] || null,
+    groupByLevel2: groupByKeys[1] || null,
   });
+  
+  // Reset to page 1 when filters, search, or grouping change
+  const prevFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const currentFilters = JSON.stringify({ 
+      searchQuery, 
+      filterGroup,
+      groupByKeys: [groupByKeys[0], groupByKeys[1]],
+    });
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters) {
+      if (currentPage !== 1) {
+        dispatch(setCurrentPage({ resourceKey: 'budgets', page: 1 }));
+      }
+    }
+    prevFiltersRef.current = currentFilters;
+  }, [searchQuery, filterGroup, groupByKeys, currentPage, dispatch]);
+  
   const createBudget = useCreateBudget();
   const updateBudget = useUpdateBudget();
   const deleteBudget = useDeleteBudget();
+  const bulkDeleteBudgets = useBulkDeleteRecords({
+    table: 'budgets',
+    invalidateKeys: [['budgets']],
+    createdByField: 'created_by',
+  });
+
+  useSyncSavedViewFilters('budgets', savedView, isLoadingView);
 
   // Auto-navigate to default view (only if defaultView exists)
   // If no defaultView, show all budgets (no view_id)
@@ -102,70 +143,18 @@ export const useBudgetManagement = () => {
     // If no viewId and no defaultView, stay on /dashboard/budgets (shows all budgets)
   }, [viewId, defaultView, navigate]);
 
-  // Reset filters
-  useEffect(() => {
-    if (!viewId) {
-      setSearchQuery('');
-      setSelectedDate(undefined);
-      setHasAppliedView(false);
-    }
-  }, [viewId]);
-
-  // Apply saved view
-  useEffect(() => {
-    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
-      const filterConfig = savedView.filter_config as any;
-      if (filterConfig.searchQuery !== undefined) {
-        setSearchQuery(filterConfig.searchQuery);
-      }
-      if (filterConfig.selectedDate !== undefined && filterConfig.selectedDate) {
-        setSelectedDate(new Date(filterConfig.selectedDate));
-      }
-      setHasAppliedView(true);
-    }
-  }, [savedView, hasAppliedView, isLoadingView, viewId]);
-
   // Filter budgets
-  const filteredBudgets = useMemo(() => {
-    let filtered = budgets;
-
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      filtered = filtered.filter((budget) => {
-        const nameMatch = budget.name?.toLowerCase().includes(searchLower);
-        const descMatch = budget.description?.toLowerCase().includes(searchLower);
-        return nameMatch || descMatch;
-      });
-    }
-
-    if (selectedDate) {
-      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-      filtered = filtered.filter((budget) => {
-        const budgetDate = format(new Date(budget.created_at), 'yyyy-MM-dd');
-        return budgetDate === selectedDateStr;
-      });
-    }
-
-    return filtered;
-  }, [budgets, searchQuery, selectedDate]);
+  const filteredBudgets = useMemo(() => budgets, [budgets]);
 
   // Handlers
   const handleLogout = async () => {
     try {
-      console.log('[BudgetManagement] Logout initiated');
       await dispatch(logoutUser()).unwrap();
-      console.log('[BudgetManagement] Logout successful, navigating to login');
       navigate('/login');
     } catch (error) {
-      console.error('[BudgetManagement] Logout error:', error);
       // Navigate to login even if logout fails
       navigate('/login');
     }
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date);
-    setDatePickerOpen(false);
   };
 
   const handleToggleColumn = (key: keyof BudgetColumnVisibility) => {
@@ -201,13 +190,6 @@ export const useBudgetManagement = () => {
   ) => {
     try {
       if (editingBudget) {
-        console.log('[BudgetManagement] Updating budget:', {
-          budgetId: editingBudget.id,
-          workout_template_id: (data as any).workout_template_id,
-          nutrition_template_id: (data as any).nutrition_template_id,
-          fullData: data
-        });
-
         const updateResult = await updateBudget.mutateAsync({
           budgetId: editingBudget.id,
           name: data.name,
@@ -220,11 +202,6 @@ export const useBudgetManagement = () => {
           supplements: (data as any).supplements,
           eating_order: (data as any).eating_order ?? null,
           eating_rules: (data as any).eating_rules ?? null,
-        });
-
-        console.log('[BudgetManagement] Budget updated:', {
-          id: updateResult.id,
-          workout_template_id: updateResult.workout_template_id
         });
 
         // Update the editingBudgetId to trigger refetch and get latest data
@@ -261,7 +238,7 @@ export const useBudgetManagement = () => {
                     userId: user.id,
                   });
                 } catch (syncError) {
-                  console.error('Error syncing plans after budget update:', syncError);
+                  // Silent failure
                 }
               }
             }
@@ -342,6 +319,14 @@ export const useBudgetManagement = () => {
     }
   };
 
+  const handleBulkDelete = async (payload: { ids: string[] }) => {
+    await bulkDeleteBudgets.mutateAsync(payload.ids);
+    toast({
+      title: 'הצלחה',
+      description: 'התקציבים נמחקו בהצלחה',
+    });
+  };
+
   const handleSaveViewClick = () => {
     setIsSaveViewModalOpen(true);
   };
@@ -355,7 +340,6 @@ export const useBudgetManagement = () => {
         description: 'קובץ PDF נוצר והורד בהצלחה',
       });
     } catch (error: any) {
-      console.error('[BudgetManagement] Error exporting PDF:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל ביצירת קובץ PDF',
@@ -379,7 +363,7 @@ export const useBudgetManagement = () => {
   ) => {
     return {
       searchQuery: searchQuery || '',
-      selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
+      filterGroup,
       columnVisibility: columnVisibility || {},
       columnOrder: columnOrder || [],
       columnWidths: columnWidths || {},
@@ -400,8 +384,6 @@ export const useBudgetManagement = () => {
     
     // State
     searchQuery,
-    selectedDate,
-    datePickerOpen,
     isAddDialogOpen,
     isEditDialogOpen,
     deleteDialogOpen,
@@ -410,15 +392,11 @@ export const useBudgetManagement = () => {
     columnVisibility,
     
     // Setters
-    setSearchQuery,
-    handleDateSelect,
-    setDatePickerOpen,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
     setIsSettingsOpen,
-    setSelectedHasLeads: () => {}, // Not used for budgets
     
     // Handlers
     handleLogout,
@@ -428,6 +406,7 @@ export const useBudgetManagement = () => {
     handleSaveBudget,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     handleExportPDF,
     handleSendWhatsApp,
@@ -437,4 +416,3 @@ export const useBudgetManagement = () => {
     deleteBudget,
   };
 };
-

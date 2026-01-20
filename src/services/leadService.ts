@@ -7,6 +7,9 @@
  */
 
 import { supabase } from '@/lib/supabaseClient';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 
 // =====================================================
 // Types (matching database schema)
@@ -24,6 +27,7 @@ export interface LeadFilterParams {
   activityLevel?: string | null;
   preferredTime?: string | null;
   source?: string | null;
+  filterGroup?: FilterGroup | null;
   // Pagination
   limit?: number;
   offset?: number;
@@ -75,6 +79,44 @@ export interface LeadFilterOptions {
   weights: string[];
 }
 
+const leadFieldConfigs: FilterFieldConfigMap = {
+  createdDate: { column: 'created_date_formatted', type: 'date' },
+  birthDate: { column: 'birth_date_formatted', type: 'date' },
+  name: { column: 'customer_name', type: 'text' },
+  phone: { column: 'customer_phone', type: 'text' },
+  email: { column: 'customer_email', type: 'text' },
+  status: { column: 'status_main', type: 'select' },
+  age: { column: 'age', type: 'number' },
+  height: { column: 'height', type: 'number' },
+  weight: { column: 'weight', type: 'number' },
+  fitnessGoal: { column: 'fitness_goal', type: 'select' },
+  activityLevel: { column: 'activity_level', type: 'select' },
+  preferredTime: { column: 'preferred_time', type: 'select' },
+  source: { column: 'source', type: 'select' },
+  notes: { column: 'notes', type: 'text' },
+  id: { column: 'id', type: 'text' },
+  customer_name: { column: 'customer_name', type: 'text' },
+  customer_phone: { column: 'customer_phone', type: 'text' },
+  customer_email: { column: 'customer_email', type: 'text' },
+  status_main: { column: 'status_main', type: 'text' },
+  fitness_goal: { column: 'fitness_goal', type: 'text' },
+  activity_level: { column: 'activity_level', type: 'text' },
+  preferred_time: { column: 'preferred_time', type: 'text' },
+  source_text: { column: 'source', type: 'text' },
+};
+
+const leadSearchColumns = [
+  'customer_name',
+  'customer_phone',
+  'customer_email',
+  'status_main',
+  'fitness_goal',
+  'activity_level',
+  'preferred_time',
+  'source_text',
+  'notes',
+];
+
 // =====================================================
 // Service Functions
 // =====================================================
@@ -87,41 +129,102 @@ export async function fetchFilteredLeads(
   filters: LeadFilterParams
 ): Promise<LeadFromDB[]> {
   try {
-    const { data, error } = await supabase.rpc('get_filtered_leads', {
-      p_limit_count: filters.limit || 100,
-      p_offset_count: filters.offset || 0,
-      p_search_query: filters.searchQuery || null,
-      p_date: filters.createdDate || null,
-      p_status_main: filters.statusMain || null,
-      p_status_sub: filters.statusSub || null,
-      p_age: filters.age || null,
-      p_height: filters.height || null,
-      p_weight: filters.weight || null,
-      p_fitness_goal: filters.fitnessGoal || null,
-      p_activity_level: filters.activityLevel || null,
-      p_preferred_time: filters.preferredTime || null,
-      p_source: filters.source || null,
-      // Sorting parameters
-      p_sort_by: filters.sortBy || 'created_at',
-      p_sort_order: filters.sortOrder || 'DESC',
-      // Grouping parameters
-      p_group_by_level1: filters.groupByLevel1 || null,
-      p_group_by_level2: filters.groupByLevel2 || null,
-    });
+    const limit = filters.limit || 100;
+    const offset = filters.offset || 0;
+
+    const searchGroup = filters.searchQuery ? createSearchGroup(filters.searchQuery, leadSearchColumns) : null;
+    const combinedGroup = mergeFilterGroups(filters.filterGroup || null, searchGroup);
+
+    // When grouping is active, fetch ALL matching records (no pagination)
+    // This ensures grouping works correctly across all data, not just the current page
+    const isGroupingActive = !!(filters.groupByLevel1 || filters.groupByLevel2);
+
+    let query = supabase
+      .from('v_leads_with_customer')
+      .select('*');
+
+    // Only apply pagination if grouping is NOT active
+    if (!isGroupingActive) {
+      query = query.range(offset, offset + limit - 1);
+    }
+
+    if (combinedGroup) {
+      query = applyFilterGroupToQuery(query, combinedGroup, leadFieldConfigs);
+    }
+
+    const groupByMap: Record<string, string> = {
+      status: 'status_main',
+      status_main: 'status_main',
+      source: 'source',
+      fitnessGoal: 'fitness_goal',
+      fitness_goal: 'fitness_goal',
+      activityLevel: 'activity_level',
+      activity_level: 'activity_level',
+      preferredTime: 'preferred_time',
+      preferred_time: 'preferred_time',
+      name: 'customer_name',
+      customer_name: 'customer_name',
+      age: 'age',
+      height: 'height',
+      weight: 'weight',
+    };
+
+    const sortMap: Record<string, string> = {
+      createdDate: 'created_at',
+      created_at: 'created_at',
+      name: 'customer_name',
+      customer_name: 'customer_name',
+      status: 'status_main',
+      status_main: 'status_main',
+      phone: 'customer_phone',
+      customer_phone: 'customer_phone',
+      source: 'source',
+      fitnessGoal: 'fitness_goal',
+      activityLevel: 'activity_level',
+      preferredTime: 'preferred_time',
+      age: 'age',
+      height: 'height',
+      weight: 'weight',
+    };
+
+    const sortBy = sortMap[filters.sortBy || 'created_at'] || 'created_at';
+    const sortAscending = (filters.sortOrder || 'DESC') === 'ASC';
+
+    if (filters.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+      query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+    }
+    if (filters.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+      query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+    }
+    query = query.order(sortBy, { ascending: sortAscending });
+
+    const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching filtered leads:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
     
-    console.log(`fetchFilteredLeads: Received ${data?.length || 0} leads from database`);
-
     return data || [];
   } catch (error) {
-    console.error('Unexpected error in fetchFilteredLeads:', error);
     throw error;
   }
+}
+
+export async function fetchLeadIdsByFilter(filters: LeadFilterParams): Promise<string[]> {
+  const searchGroup = filters.searchQuery ? createSearchGroup(filters.searchQuery, leadSearchColumns) : null;
+  const combinedGroup = mergeFilterGroups(filters.filterGroup || null, searchGroup);
+
+  let query = supabase
+    .from('v_leads_with_customer')
+    .select('id');
+
+  if (combinedGroup) {
+    query = applyFilterGroupToQuery(query, combinedGroup, leadFieldConfigs);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map((row: { id: string }) => row.id);
 }
 
 /**
@@ -132,28 +235,63 @@ export async function getFilteredLeadsCount(
   filters: Omit<LeadFilterParams, 'limit' | 'offset' | 'sortBy' | 'sortOrder' | 'groupByLevel1' | 'groupByLevel2'>
 ): Promise<number> {
   try {
-    const { data, error } = await supabase.rpc('get_filtered_leads_count', {
-      p_search_query: filters.searchQuery || null,
-      p_date: filters.createdDate || null,
-      p_status_main: filters.statusMain || null,
-      p_status_sub: filters.statusSub || null,
-      p_age: filters.age || null,
-      p_height: filters.height || null,
-      p_weight: filters.weight || null,
-      p_fitness_goal: filters.fitnessGoal || null,
-      p_activity_level: filters.activityLevel || null,
-      p_preferred_time: filters.preferredTime || null,
-      p_source: filters.source || null,
-    });
+    const leadFieldConfigs: FilterFieldConfigMap = {
+      createdDate: { column: 'created_date_formatted', type: 'date' },
+      birthDate: { column: 'birth_date_formatted', type: 'date' },
+      name: { column: 'customer_name', type: 'text' },
+      phone: { column: 'customer_phone', type: 'text' },
+      email: { column: 'customer_email', type: 'text' },
+      status: { column: 'status_main', type: 'select' },
+      age: { column: 'age', type: 'number' },
+      height: { column: 'height', type: 'number' },
+      weight: { column: 'weight', type: 'number' },
+      fitnessGoal: { column: 'fitness_goal', type: 'select' },
+      activityLevel: { column: 'activity_level', type: 'select' },
+      preferredTime: { column: 'preferred_time', type: 'select' },
+      source: { column: 'source', type: 'select' },
+      notes: { column: 'notes', type: 'text' },
+      id: { column: 'id', type: 'text' },
+      customer_name: { column: 'customer_name', type: 'text' },
+      customer_phone: { column: 'customer_phone', type: 'text' },
+      customer_email: { column: 'customer_email', type: 'text' },
+      status_main: { column: 'status_main', type: 'text' },
+      fitness_goal: { column: 'fitness_goal', type: 'text' },
+      activity_level: { column: 'activity_level', type: 'text' },
+      preferred_time: { column: 'preferred_time', type: 'text' },
+      source_text: { column: 'source', type: 'text' },
+    };
+
+    const searchColumns = [
+      'customer_name',
+      'customer_phone',
+      'customer_email',
+      'status_main',
+      'fitness_goal',
+      'activity_level',
+      'preferred_time',
+      'source_text',
+      'notes',
+    ];
+
+    const searchGroup = filters.searchQuery ? createSearchGroup(filters.searchQuery, searchColumns) : null;
+    const combinedGroup = mergeFilterGroups(filters.filterGroup || null, searchGroup);
+
+    let query = supabase
+      .from('v_leads_with_customer')
+      .select('id', { count: 'exact', head: true });
+
+    if (combinedGroup) {
+      query = applyFilterGroupToQuery(query, combinedGroup, leadFieldConfigs);
+    }
+
+    const { count, error } = await query;
 
     if (error) {
-      console.error('Error fetching leads count:', error);
       throw error;
     }
 
-    return data || 0;
+    return count || 0;
   } catch (error) {
-    console.error('Unexpected error in getFilteredLeadsCount:', error);
     throw error;
   }
 }
@@ -170,13 +308,11 @@ export async function fetchAllLeads(): Promise<LeadFromDB[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching all leads:', error);
       throw error;
     }
 
     return data || [];
   } catch (error) {
-    console.error('Unexpected error in fetchAllLeads:', error);
     throw error;
   }
 }
@@ -190,7 +326,6 @@ export async function getLeadFilterOptions(): Promise<LeadFilterOptions> {
     const { data, error } = await supabase.rpc('get_lead_filter_options');
 
     if (error) {
-      console.error('Error fetching filter options:', error);
       throw error;
     }
 
@@ -220,7 +355,6 @@ export async function getLeadFilterOptions(): Promise<LeadFilterOptions> {
       weights: [],
     };
   } catch (error) {
-    console.error('Unexpected error in getLeadFilterOptions:', error);
     // Return empty arrays on error (graceful degradation)
     return {
       statuses: [],

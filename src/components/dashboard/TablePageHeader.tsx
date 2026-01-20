@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -10,11 +10,20 @@ import { GenericColumnSettings } from '@/components/dashboard/GenericColumnSetti
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { Columns, Plus, LucideIcon } from 'lucide-react';
 import { useTableFilters, type FilterField } from '@/hooks/useTableFilters';
+import type { ActiveFilter, FilterGroup } from '@/components/dashboard/TableFilter';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, type ResourceKey } from '@/store/slices/tableStateSlice';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { getFilterGroupSignature, isAdvancedFilterGroup } from '@/utils/filterGroupUtils';
+import { useDefaultView } from '@/hooks/useDefaultView';
+import { useSavedView, useUpdateSavedView } from '@/hooks/useSavedViews';
+import { useToast } from '@/hooks/use-toast';
+import type { FilterConfig } from '@/hooks/useSavedViews';
+import { useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TablePageHeaderProps {
   // Required props
@@ -44,9 +53,12 @@ interface TablePageHeaderProps {
   
   // Optional: External filter management (for modals that need access to filters)
   activeFilters?: any[];
+  filterGroup?: FilterGroup;
   onFilterAdd?: (filter: any) => void;
+  onFilterUpdate?: (filter: any) => void;
   onFilterRemove?: (filterId: string) => void;
   onFilterClear?: () => void;
+  onFilterGroupChange?: (group: FilterGroup) => void;
   
   // For generic column settings (when not using template column settings)
   columns?: DataTableColumn<any>[];
@@ -73,17 +85,37 @@ export const TablePageHeader = ({
   templateColumnVisibility,
   onToggleTemplateColumn,
   activeFilters: externalActiveFilters,
+  filterGroup: externalFilterGroup,
   onFilterAdd: externalOnFilterAdd,
+  onFilterUpdate: externalOnFilterUpdate,
   onFilterRemove: externalOnFilterRemove,
   onFilterClear: externalOnFilterClear,
+  onFilterGroupChange: externalOnFilterGroupChange,
   columns,
 }: TablePageHeaderProps) => {
   const dispatch = useAppDispatch();
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [editingFilter, setEditingFilter] = useState<ActiveFilter | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+  const { defaultView } = useDefaultView(resourceKey);
+  const updateSavedView = useUpdateSavedView();
+  const [searchParams] = useSearchParams();
+  const viewId = searchParams.get('view_id');
+  const { data: activeView } = useSavedView(viewId);
 
-  // Use external search query if provided, otherwise use local state
-  const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : localSearchQuery;
+  // Get search query from Redux if not provided externally
+  const reduxSearchQuery = useAppSelector((state) => {
+    return state.tableState.tables[resourceKey]?.searchQuery || '';
+  });
+  
+  // Use external search query if provided, otherwise use Redux, otherwise use local state
+  const searchQuery = externalSearchQuery !== undefined 
+    ? externalSearchQuery 
+    : reduxSearchQuery || localSearchQuery;
+    
   const handleSearchChange = (value: string) => {
     if (onSearchChange) {
       onSearchChange(value);
@@ -95,9 +127,25 @@ export const TablePageHeader = ({
   // Use external filters if provided, otherwise use table filters hook
   const internalFilters = useTableFilters([]);
   const activeFilters = externalActiveFilters || internalFilters.filters;
+  const filterGroup = externalFilterGroup || internalFilters.filterGroup;
   const addFilter = externalOnFilterAdd || internalFilters.addFilter;
+  const updateFilter = externalOnFilterUpdate || internalFilters.updateFilter;
   const removeFilter = externalOnFilterRemove || internalFilters.removeFilter;
   const clearFilters = externalOnFilterClear || internalFilters.clearFilters;
+  const handleFilterGroupChange = externalOnFilterGroupChange || internalFilters.setFilterGroup;
+  const canEditFilters = (!!externalActiveFilters && !!externalOnFilterUpdate) || !externalActiveFilters;
+
+  const handleRemoveFilter = (filterId: string) => {
+    removeFilter(filterId);
+    if (editingFilter?.id === filterId) {
+      setEditingFilter(null);
+    }
+  };
+
+  const handleClearFilters = () => {
+    clearFilters();
+    setEditingFilter(null);
+  };
 
   // Get column visibility from Redux for leads (legacy dashboardSlice)
   const leadsColumnVisibility = resourceKey === 'leads' 
@@ -119,6 +167,104 @@ export const TablePageHeader = ({
 
   // Get column order from Redux
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
+
+  // Check if filters are dirty (different from saved/default state)
+  const filtersDirty = useMemo(() => {
+    const targetView = viewId ? activeView : defaultView;
+    if (!targetView) return false;
+    
+    const savedConfig = targetView.filter_config as FilterConfig | null;
+    if (!savedConfig) return false;
+    
+    const savedFilters = savedConfig.advancedFilters || [];
+    const savedFilterGroup = savedConfig.filterGroup || null;
+    const savedSearchQuery = savedConfig.searchQuery || '';
+    
+    // Normalize current filters for comparison
+    const currentFilters = (activeFilters || []).map(f => ({
+      id: f.id,
+      fieldId: f.fieldId,
+      operator: f.operator,
+      values: Array.isArray(f.values) ? [...f.values].sort() : f.values,
+      type: f.type,
+    })).sort((a, b) => a.id.localeCompare(b.id));
+    
+    // Normalize saved filters for comparison
+    const normalizedSavedFilters = (savedFilters || []).map((f: any) => ({
+      id: f.id,
+      fieldId: f.fieldId,
+      operator: f.operator,
+      values: Array.isArray(f.values) ? [...f.values].sort() : f.values,
+      type: f.type,
+    })).sort((a: any, b: any) => a.id.localeCompare(b.id));
+    
+    const currentFilterGroupStr = getFilterGroupSignature(filterGroup || undefined);
+    const savedFilterGroupStr = getFilterGroupSignature(savedFilterGroup || undefined);
+    const filtersChanged = savedFilterGroup
+      ? currentFilterGroupStr !== savedFilterGroupStr
+      : JSON.stringify(currentFilters) !== JSON.stringify(normalizedSavedFilters);
+    
+    // Compare search query
+    const currentSearchQuery = (searchQuery || '').trim();
+    const normalizedSavedSearchQuery = savedSearchQuery.trim();
+    const searchQueryChanged = currentSearchQuery !== normalizedSavedSearchQuery;
+    
+    // Filters are dirty if filters changed or search query changed
+    return filtersChanged || searchQueryChanged;
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup]);
+
+  // Handle saving filters to default view
+  const handleSaveFilters = async () => {
+    const targetView = viewId ? activeView : defaultView;
+    if (!targetView) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא נמצאה תצוגה פעילה',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Build current filter config
+      const currentFilterConfig: FilterConfig = {
+        ...(targetView.filter_config as FilterConfig),
+        searchQuery: searchQuery,
+        filterGroup: filterGroup,
+        advancedFilters: activeFilters.map(f => ({
+          id: f.id,
+          fieldId: f.fieldId,
+          fieldLabel: f.fieldLabel,
+          operator: f.operator,
+          values: f.values,
+          type: f.type,
+        })),
+      };
+
+      await updateSavedView.mutateAsync({
+        viewId: targetView.id,
+        filterConfig: currentFilterConfig,
+      });
+
+      if (targetView.is_default) {
+        queryClient.invalidateQueries({ queryKey: ['defaultView', resourceKey, user?.id] });
+      } else if (viewId) {
+        queryClient.invalidateQueries({ queryKey: ['savedView', viewId, user?.id] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey, user?.id] });
+
+      toast({
+        title: 'הצלחה',
+        description: 'המסננים נשמרו בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בשמירת המסננים. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const getColumnSettingsComponent = () => {
     // Template column settings (nutrition_templates, templates using TemplateColumnSettings)
@@ -159,7 +305,10 @@ export const TablePageHeader = ({
     <PageHeader
       title={title}
       icon={icon}
+      resourceKey={resourceKey}
       className={className}
+      filtersDirty={filtersDirty}
+      onSaveFilters={handleSaveFilters}
       actions={
         <div className="flex items-center gap-3">
           {/* Search Input */}
@@ -179,8 +328,13 @@ export const TablePageHeader = ({
               fields={filterFields}
               activeFilters={activeFilters}
               onFilterAdd={addFilter}
-              onFilterRemove={removeFilter}
-              onFilterClear={clearFilters}
+              onFilterUpdate={canEditFilters ? updateFilter : undefined}
+              onFilterRemove={handleRemoveFilter}
+              onFilterClear={handleClearFilters}
+              filterGroup={filterGroup}
+              onFilterGroupChange={handleFilterGroupChange}
+              editFilter={canEditFilters ? editingFilter : null}
+              onEditApplied={() => setEditingFilter(null)}
             />
           )}
 
@@ -222,9 +376,17 @@ export const TablePageHeader = ({
           {enableFilters && activeFilters && activeFilters.length > 0 && (
             <FilterChips
               filters={activeFilters}
-              onRemove={removeFilter}
-              onClearAll={clearFilters}
+              filterGroup={filterGroup}
+              onRemove={handleRemoveFilter}
+              onClearAll={handleClearFilters}
+              onEdit={canEditFilters ? setEditingFilter : undefined}
             />
+          )}
+
+          {filterGroup && isAdvancedFilterGroup(filterGroup) && (
+            <Badge variant="secondary" className="w-fit bg-indigo-50 text-indigo-700 border border-indigo-200">
+              סינון מתקדם פעיל
+            </Badge>
           )}
 
           {/* Results Count */}
@@ -236,5 +398,3 @@ export const TablePageHeader = ({
     />
   );
 };
-
-

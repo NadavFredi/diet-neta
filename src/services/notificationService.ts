@@ -47,7 +47,6 @@ export const fetchNotifications = async (limit: number = 50): Promise<Notificati
       .limit(limit);
 
     if (notificationsError) {
-      console.error('[NotificationService] Error fetching notifications:', notificationsError);
       throw notificationsError;
     }
 
@@ -56,7 +55,6 @@ export const fetchNotifications = async (limit: number = 50): Promise<Notificati
       .rpc('get_unread_notification_count');
 
     if (countError) {
-      console.error('[NotificationService] Error fetching unread count:', countError);
       // Fallback: count manually
       const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
       return {
@@ -70,7 +68,6 @@ export const fetchNotifications = async (limit: number = 50): Promise<Notificati
       unreadCount: unreadData || 0,
     };
   } catch (error: any) {
-    console.error('[NotificationService] Unexpected error:', error);
     throw error;
   }
 };
@@ -85,11 +82,9 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
     });
 
     if (error) {
-      console.error('[NotificationService] Error marking notification as read:', error);
       throw error;
     }
   } catch (error: any) {
-    console.error('[NotificationService] Unexpected error:', error);
     throw error;
   }
 };
@@ -102,11 +97,9 @@ export const markAllNotificationsAsRead = async (): Promise<void> => {
     const { error } = await supabase.rpc('mark_all_notifications_read');
 
     if (error) {
-      console.error('[NotificationService] Error marking all notifications as read:', error);
       throw error;
     }
   } catch (error: any) {
-    console.error('[NotificationService] Unexpected error:', error);
     throw error;
   }
 };
@@ -119,13 +112,29 @@ export const getUnreadCount = async (): Promise<number> => {
     const { data, error } = await supabase.rpc('get_unread_notification_count');
 
     if (error) {
-      console.error('[NotificationService] Error fetching unread count:', error);
       return 0;
     }
 
     return data || 0;
   } catch (error: any) {
-    console.error('[NotificationService] Unexpected error:', error);
     return 0;
+  }
+};
+
+/**
+ * Delete a notification
+ */
+export const deleteNotification = async (notificationId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId);
+
+    if (error) {
+      throw error;
+    }
+  } catch (error: any) {
+    throw error;
   }
 };

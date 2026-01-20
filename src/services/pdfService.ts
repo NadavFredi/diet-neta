@@ -99,7 +99,6 @@ export const generateBudgetPDF = async (budget: Budget): Promise<void> => {
     // Clean up
     document.body.removeChild(pdfContainer);
   } catch (error) {
-    console.error('[pdfService] Error generating PDF:', error);
     throw new Error('שגיאה ביצירת קובץ PDF. אנא נסה שוב.');
   }
 };

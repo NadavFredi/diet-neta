@@ -15,6 +15,7 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadCount,
+  deleteNotification,
 } from '@/services/notificationService';
 
 interface NotificationState {
@@ -62,6 +63,14 @@ export const refreshUnreadCount = createAsyncThunk(
   'notifications/refreshUnreadCount',
   async () => {
     return await getUnreadCount();
+  }
+);
+
+export const deleteNotificationById = createAsyncThunk(
+  'notifications/delete',
+  async (notificationId: string) => {
+    await deleteNotification(notificationId);
+    return notificationId;
   }
 );
 
@@ -157,6 +166,19 @@ const notificationSlice = createSlice({
     builder
       .addCase(refreshUnreadCount.fulfilled, (state, action) => {
         state.unreadCount = action.payload;
+      });
+
+    // Delete notification
+    builder
+      .addCase(deleteNotificationById.fulfilled, (state, action) => {
+        const notification = state.notifications.find(n => n.id === action.payload);
+        if (notification && !notification.is_read) {
+          state.unreadCount = Math.max(0, state.unreadCount - 1);
+        }
+        state.notifications = state.notifications.filter(n => n.id !== action.payload);
+      })
+      .addCase(deleteNotificationById.rejected, (state, action) => {
+        state.error = action.error.message || 'Failed to delete notification';
       });
   },
 });

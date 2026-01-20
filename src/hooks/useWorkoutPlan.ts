@@ -64,7 +64,6 @@ export const useWorkoutPlan = (customerId?: string) => {
       // If no workout plan found, try to fetch from budget assignment
       // Budgets can be assigned to either customer_id OR lead_id
       // If assigned to lead_id, we need to find the lead for this customer
-      console.log('[useWorkoutPlan] No workout plan found, checking budget assignment for customer:', customerId);
       
       // First, try to find the lead(s) for this customer
       const { data: leads, error: leadsError } = await supabase
@@ -73,12 +72,10 @@ export const useWorkoutPlan = (customerId?: string) => {
         .eq('customer_id', customerId);
       
       if (leadsError) {
-        console.error('[useWorkoutPlan] Error fetching leads:', leadsError);
         // Continue anyway - we can still check customer-level budget assignments
       }
       
       const leadIds = leads?.map(l => l.id) || [];
-      console.log('[useWorkoutPlan] Found leads for customer:', { customerId, leadIds });
       
       // Check for budget assignments by customer_id OR lead_id
       // Try customer_id first
@@ -134,17 +131,8 @@ export const useWorkoutPlan = (customerId?: string) => {
       }
 
       if (budgetError && budgetError.code !== 'PGRST116') {
-        console.error('[useWorkoutPlan] Error fetching budget assignment:', budgetError);
       }
 
-      console.log('[useWorkoutPlan] Budget assignment result:', {
-        found: !!budgetAssignment,
-        budgetId: budgetAssignment?.budget?.id,
-        workoutTemplateId: budgetAssignment?.budget?.workout_template_id,
-        assignedToCustomer: budgetAssignment?.customer_id === customerId,
-        assignedToLead: !!budgetAssignment?.lead_id,
-        leadId: budgetAssignment?.lead_id
-      });
 
       if (budgetAssignment?.budget?.workout_template_id) {
         const budget = budgetAssignment.budget as any;
@@ -157,30 +145,17 @@ export const useWorkoutPlan = (customerId?: string) => {
           .single();
 
         if (templateError) {
-          console.error('Error fetching workout template:', templateError);
           setWorkoutPlan(null);
           setIsLoading(false);
           return;
         }
 
         if (workoutTemplate) {
-          console.log('[useWorkoutPlan] Found workout template:', {
-            templateId: workoutTemplate.id,
-            templateName: workoutTemplate.name,
-            routine_data: workoutTemplate.routine_data,
-            hasWeeklyWorkout: !!workoutTemplate.routine_data?.weeklyWorkout
-          });
 
           // Extract weekly workout data - match PrintBudgetPage structure
           // PrintBudgetPage uses: workoutTemplate.routine_data.weeklyWorkout
           const weeklyWorkoutData = workoutTemplate.routine_data?.weeklyWorkout;
 
-          console.log('[useWorkoutPlan] Extracted weekly workout data:', {
-            hasData: !!weeklyWorkoutData,
-            hasDays: !!weeklyWorkoutData?.days,
-            daysCount: weeklyWorkoutData?.days ? Object.keys(weeklyWorkoutData.days).length : 0,
-            generalGoals: weeklyWorkoutData?.generalGoals
-          });
 
           // Convert workout template to WorkoutPlan format
           const convertedPlan: WorkoutPlan = {
@@ -205,24 +180,16 @@ export const useWorkoutPlan = (customerId?: string) => {
             updated_at: workoutTemplate.updated_at,
           };
 
-          console.log('[useWorkoutPlan] Converted plan:', {
-            id: convertedPlan.id,
-            hasWeeklyWorkout: !!convertedPlan.custom_attributes.data.weeklyWorkout,
-            days: convertedPlan.custom_attributes.data.weeklyWorkout?.days,
-            daysCount: convertedPlan.custom_attributes.data.weeklyWorkout?.days ? Object.keys(convertedPlan.custom_attributes.data.weeklyWorkout.days).length : 0
-          });
 
           setWorkoutPlan(convertedPlan);
           return;
         } else {
-          console.log('[useWorkoutPlan] Workout template not found for template ID:', budget.workout_template_id);
         }
       }
 
       // No workout plan or template found
       setWorkoutPlan(null);
     } catch (err) {
-      console.error('Error fetching workout plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch workout plan');
       setWorkoutPlan(null);
     } finally {
@@ -299,7 +266,6 @@ export const useWorkoutPlan = (customerId?: string) => {
         return newPlan;
       }
     } catch (err) {
-      console.error('Error creating workout plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to create workout plan');
       throw err;
     }
@@ -350,7 +316,6 @@ export const useWorkoutPlan = (customerId?: string) => {
         return updatedPlan;
       }
     } catch (err) {
-      console.error('Error updating workout plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to update workout plan');
       throw err;
     }
@@ -377,7 +342,6 @@ export const useWorkoutPlan = (customerId?: string) => {
 
       setWorkoutPlan(null);
     } catch (err) {
-      console.error('Error deleting workout plan:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete workout plan');
       throw err;
     }
@@ -417,7 +381,6 @@ export const useWorkoutPlan = (customerId?: string) => {
         updated_at: plan.updated_at,
       }));
     } catch (err) {
-      console.error('Error fetching workout plan history:', err);
       return [];
     }
   };

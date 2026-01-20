@@ -4,32 +4,102 @@
  * Pure presentation component - all logic is in SubscriptionTypesManagement.ts
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
-import { useAppSelector } from '@/store/hooks';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { SubscriptionTypesDataTable, subscriptionTypeColumns } from '@/components/dashboard/SubscriptionTypesDataTable';
 import { useSubscriptionTypesManagement } from './SubscriptionTypesManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { AddSubscriptionTypeDialog } from '@/components/dashboard/dialogs/AddSubscriptionTypeDialog';
 import { EditSubscriptionTypeDialog } from '@/components/dashboard/dialogs/EditSubscriptionTypeDialog';
 import { DeleteSubscriptionTypeDialog } from '@/components/dashboard/dialogs/DeleteSubscriptionTypeDialog';
-import { useTableFilters, getSubscriptionTypeFilterFields } from '@/hooks/useTableFilters';
+import { getSubscriptionTypeFilterFields } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { selectActiveFilters, selectGroupByKeys, selectCurrentPage, selectPageSize, setCurrentPage, setPageSize } from '@/store/slices/tableStateSlice';
+import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
+import { Pagination } from '@/components/dashboard/Pagination';
 
 const SubscriptionTypesManagement = () => {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
   const { defaultView } = useDefaultView('subscription_types');
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'subscription_types'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'subscription_types'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'subscription_types'));
+  const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
+  
+  // Group pagination state (separate from record pagination)
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const [groupPageSize] = useState(50);
   const { data: savedView } = useSavedView(viewId);
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'subscription_types'));
+  
+  // Get subscription types data first before using it in useMemo
+  const {
+    subscriptionTypes,
+    editingSubscriptionType,
+    subscriptionTypeToDelete,
+    isLoading,
+    isAddDialogOpen,
+    isEditDialogOpen,
+    deleteDialogOpen,
+    isSaveViewModalOpen,
+    setIsAddDialogOpen,
+    setIsEditDialogOpen,
+    setDeleteDialogOpen,
+    setIsSaveViewModalOpen,
+    handleLogout,
+    handleToggleColumn,
+    handleAddSubscriptionType,
+    handleEditSubscriptionType,
+    handleSaveSubscriptionType,
+    handleDeleteClick,
+    handleConfirmDelete,
+    handleBulkDelete,
+    handleSaveViewClick,
+    getCurrentFilterConfig,
+    deleteSubscriptionType,
+  } = useSubscriptionTypesManagement();
+
+  // Calculate total groups when grouping is active
+  const totalGroups = useMemo(() => {
+    if (!isGroupingActive || !subscriptionTypes || subscriptionTypes.length === 0) {
+      return 0;
+    }
+    
+    // Group the data to count groups
+    const groupedData = groupDataByKeys(subscriptionTypes, groupByKeys, { level1: null, level2: null });
+    return getTotalGroupsCount(groupedData);
+  }, [isGroupingActive, subscriptionTypes, groupByKeys]);
+  
+  // Reset group pagination when grouping changes
+  useEffect(() => {
+    if (isGroupingActive) {
+      setGroupCurrentPage(1);
+    }
+  }, [isGroupingActive, groupByKeys]);
+
+  const handleGroupPageChange = useCallback((page: number) => {
+    setGroupCurrentPage(page);
+  }, []);
+  
+  const handlePageChange = useCallback((page: number) => {
+    dispatch(setCurrentPage({ resourceKey: 'subscription_types', page }));
+  }, [dispatch]);
+  
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    dispatch(setPageSize({ resourceKey: 'subscription_types', pageSize: newPageSize }));
+  }, [dispatch]);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -42,44 +112,14 @@ const SubscriptionTypesManagement = () => {
   const pageTitle = viewId && savedView?.view_name 
     ? savedView.view_name 
     : 'כל סוגי המנויים';
-  const {
-    subscriptionTypes,
-    editingSubscriptionType,
-    subscriptionTypeToDelete,
-    isLoading,
-    searchQuery,
-    isAddDialogOpen,
-    isEditDialogOpen,
-    deleteDialogOpen,
-    isSaveViewModalOpen,
-    columnVisibility,
-    setIsAddDialogOpen,
-    setIsEditDialogOpen,
-    setDeleteDialogOpen,
-    setIsSaveViewModalOpen,
-    setSearchQuery,
-    handleLogout,
-    handleToggleColumn,
-    handleAddSubscriptionType,
-    handleEditSubscriptionType,
-    handleSaveSubscriptionType,
-    handleDeleteClick,
-    handleConfirmDelete,
-    handleSaveViewClick,
-    getCurrentFilterConfig,
-    deleteSubscriptionType,
-  } = useSubscriptionTypesManagement();
+
+  // Generate filter fields with all renderable columns
+  const subscriptionTypeFilterFields = useMemo(() => {
+    return getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns);
+  }, [subscriptionTypes]);
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
-
-  // Filter system for modals
-  const {
-    filters: activeFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
-  } = useTableFilters([]);
 
   const handleEditViewClick = useCallback((view: any) => {
     setViewToEdit(view);
@@ -111,7 +151,7 @@ const SubscriptionTypesManagement = () => {
                   dataCount={subscriptionTypes.length}
                   singularLabel="סוג מנוי"
                   pluralLabel="סוגי מנויים"
-                  filterFields={getSubscriptionTypeFilterFields(subscriptionTypes)}
+                  filterFields={useMemo(() => getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns), [subscriptionTypes])}
                   searchPlaceholder="חיפוש לפי שם..."
                   addButtonLabel="הוסף סוג מנוי"
                   onAddClick={handleAddSubscriptionType}
@@ -119,8 +159,6 @@ const SubscriptionTypesManagement = () => {
                   enableFilters={true}
                   enableGroupBy={true}
                   enableSearch={true}
-                  legacySearchQuery={searchQuery}
-                  legacyOnSearchChange={setSearchQuery}
                   columns={subscriptionTypeColumns}
                 />
                 
@@ -131,11 +169,27 @@ const SubscriptionTypesManagement = () => {
                       <p>טוען נתונים...</p>
                     </div>
                   ) : subscriptionTypes && subscriptionTypes.length > 0 ? (
-                    <SubscriptionTypesDataTable
-                      subscriptionTypes={subscriptionTypes}
-                      onEdit={handleEditSubscriptionType}
-                      onDelete={handleDeleteClick}
-                    />
+                    <>
+                      <SubscriptionTypesDataTable
+                        subscriptionTypes={subscriptionTypes}
+                        onEdit={handleEditSubscriptionType}
+                        onDelete={handleDeleteClick}
+                        onBulkDelete={handleBulkDelete}
+                        groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                        groupPageSize={isGroupingActive ? groupPageSize : undefined}
+                      />
+                      {/* Pagination Footer */}
+                      {subscriptionTypes && subscriptionTypes.length > 0 && (
+                        <Pagination
+                          currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                          pageSize={isGroupingActive ? groupPageSize : pageSize}
+                          totalItems={isGroupingActive ? totalGroups : subscriptionTypes.length}
+                          onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                          onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                          isLoading={isLoading}
+                        />
+                      )}
+                    </>
                   ) : (
                     <div className="p-8 text-center text-gray-500">
                       <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
@@ -193,7 +247,7 @@ const SubscriptionTypesManagement = () => {
         onOpenChange={setIsEditViewModalOpen}
         view={viewToEdit}
         currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={getSubscriptionTypeFilterFields(subscriptionTypes)}
+        filterFields={getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns)}
         onSuccess={() => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);

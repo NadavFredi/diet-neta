@@ -8,6 +8,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 
 // =====================================================
 // Types
@@ -32,7 +35,14 @@ export interface SubscriptionType {
 // =====================================================
 
 // Fetch all subscription types
-export const useSubscriptionTypes = (filters?: { search?: string }) => {
+export const useSubscriptionTypes = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
+}) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
@@ -40,20 +50,57 @@ export const useSubscriptionTypes = (filters?: { search?: string }) => {
     queryFn: async () => {
       if (!user?.id) throw new Error('User not authenticated');
 
+      const fieldConfigs: FilterFieldConfigMap = {
+        created_at: { column: 'created_at', type: 'date' },
+        name: { column: 'name', type: 'text' },
+      };
+
+      const page = filters?.page ?? 1;
+      const pageSize = filters?.pageSize ?? 100;
+      
+      const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name']) : null;
+      const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
+
+      // When grouping is active, fetch ALL matching records (no pagination)
+      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
+      
+      // Map groupBy columns to database columns
+      const groupByMap: Record<string, string> = {
+        name: 'name',
+        created_at: 'created_at',
+      };
+
       let query = supabase
         .from('subscription_types')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
 
-      // Apply search filter
-      if (filters?.search) {
-        query = query.ilike('name', `%${filters.search}%`);
+      // Only apply pagination if grouping is NOT active
+      if (!isGroupingActive) {
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+      if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+        query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+      }
+      if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+        query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+      }
+      
+      // Apply default sorting if no grouping
+      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      if (combinedGroup) {
+        query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching subscription types:', error);
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת סוגי המנויים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
@@ -129,7 +176,6 @@ export const useCreateSubscriptionType = () => {
         .single();
 
       if (error) {
-        console.error('Error creating subscription type:', error);
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת סוגי המנויים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }

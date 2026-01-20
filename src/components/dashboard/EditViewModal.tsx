@@ -11,19 +11,34 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUpdateSavedView, type FilterConfig, type SavedView } from '@/hooks/useSavedViews';
 import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
 import { TableFilter } from '@/components/dashboard/TableFilter';
 import { FilterChips } from '@/components/dashboard/FilterChips';
-import { Loader2, Settings, X, Columns, Filter, ArrowUpDown } from 'lucide-react';
+import { Loader2, Settings, Columns, Filter, ArrowUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getColumnLabel, COLUMN_ORDER } from '@/utils/dashboard';
 import type { ColumnVisibility } from '@/utils/dashboard';
-import type { ActiveFilter, FilterField } from '@/components/dashboard/TableFilter';
-import { LEAD_FILTER_FIELDS, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import type { ActiveFilter, FilterField, FilterGroup } from '@/components/dashboard/TableFilter';
+import { LEAD_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import {
+  addFilterToGroup,
+  createRootGroup,
+  flattenFilterGroup,
+  removeFilterFromGroup,
+  updateFilterInGroup,
+} from '@/utils/filterGroupUtils';
+
+const normalizeFilterConfig = (config: FilterConfig): FilterConfig => {
+  const group = config.filterGroup || createRootGroup(config.advancedFilters || []);
+  return {
+    ...config,
+    filterGroup: group,
+    advancedFilters: flattenFilterGroup(group),
+    columnVisibility: config.columnVisibility || {},
+  };
+};
 
 interface EditViewModalProps {
   isOpen: boolean;
@@ -43,7 +58,7 @@ export const EditViewModal = ({
   onSuccess,
 }: EditViewModalProps) => {
   const [viewName, setViewName] = useState('');
-  const [filterConfig, setFilterConfig] = useState<FilterConfig>(currentFilterConfig);
+  const [filterConfig, setFilterConfig] = useState<FilterConfig>(() => normalizeFilterConfig(currentFilterConfig));
   const [activeTab, setActiveTab] = useState('general');
   const updateView = useUpdateSavedView();
   const { toast } = useToast();
@@ -53,10 +68,7 @@ export const EditViewModal = ({
     if (isOpen && view) {
       setViewName(view.view_name);
       const savedConfig = view.filter_config as FilterConfig || currentFilterConfig;
-      setFilterConfig({
-        ...savedConfig,
-        columnVisibility: savedConfig.columnVisibility || {},
-      });
+      setFilterConfig(normalizeFilterConfig(savedConfig));
     }
   }, [isOpen, view, currentFilterConfig]);
 
@@ -85,8 +97,12 @@ export const EditViewModal = ({
     return visibility as ColumnVisibility;
   }, [filterConfig.columnVisibility]);
 
+  const filterGroup: FilterGroup | undefined = filterConfig.filterGroup;
+
   // Get active filters
-  const activeFilters: ActiveFilter[] = filterConfig.advancedFilters || [];
+  const activeFilters: ActiveFilter[] = filterGroup
+    ? flattenFilterGroup(filterGroup)
+    : (filterConfig.advancedFilters || []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +142,6 @@ export const EditViewModal = ({
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      console.error('Failed to update view:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון התצוגה. אנא נסה שוב.',
@@ -153,23 +168,54 @@ export const EditViewModal = ({
   };
 
   const handleAddFilter = (filter: ActiveFilter) => {
-    setFilterConfig(prev => ({
-      ...prev,
-      advancedFilters: [...(prev.advancedFilters || []), filter],
-    }));
+    setFilterConfig(prev => {
+      const baseGroup = prev.filterGroup || createRootGroup(prev.advancedFilters || []);
+      const nextGroup = addFilterToGroup(baseGroup, filter);
+      return {
+        ...prev,
+        filterGroup: nextGroup,
+        advancedFilters: flattenFilterGroup(nextGroup),
+      };
+    });
   };
 
   const handleRemoveFilter = (filterId: string) => {
-    setFilterConfig(prev => ({
-      ...prev,
-      advancedFilters: (prev.advancedFilters || []).filter(f => f.id !== filterId),
-    }));
+    setFilterConfig(prev => {
+      const baseGroup = prev.filterGroup || createRootGroup(prev.advancedFilters || []);
+      const nextGroup = removeFilterFromGroup(baseGroup, filterId);
+      return {
+        ...prev,
+        filterGroup: nextGroup,
+        advancedFilters: flattenFilterGroup(nextGroup),
+      };
+    });
   };
 
   const handleClearFilters = () => {
     setFilterConfig(prev => ({
       ...prev,
+      filterGroup: prev.filterGroup ? { ...prev.filterGroup, children: [] } : createRootGroup([]),
       advancedFilters: [],
+    }));
+  };
+
+  const handleUpdateFilter = (filter: ActiveFilter) => {
+    setFilterConfig(prev => {
+      const baseGroup = prev.filterGroup || createRootGroup(prev.advancedFilters || []);
+      const nextGroup = updateFilterInGroup(baseGroup, filter);
+      return {
+        ...prev,
+        filterGroup: nextGroup,
+        advancedFilters: flattenFilterGroup(nextGroup),
+      };
+    });
+  };
+
+  const handleFilterGroupChange = (group: FilterGroup) => {
+    setFilterConfig(prev => ({
+      ...prev,
+      filterGroup: group,
+      advancedFilters: flattenFilterGroup(group),
     }));
   };
 
@@ -182,7 +228,7 @@ export const EditViewModal = ({
   };
 
   const handleUpdateFromCurrent = () => {
-    setFilterConfig(currentFilterConfig);
+    setFilterConfig(normalizeFilterConfig(currentFilterConfig));
     toast({
       title: 'עודכן',
       description: 'ההגדרות עודכנו עם המצב הנוכחי של הטבלה',
@@ -307,6 +353,7 @@ export const EditViewModal = ({
                   <div className="border rounded-lg p-3 bg-gray-50">
                     <FilterChips
                       filters={activeFilters}
+                      filterGroup={filterGroup}
                       onRemove={handleRemoveFilter}
                       onClearAll={handleClearFilters}
                     />
@@ -322,8 +369,11 @@ export const EditViewModal = ({
                     fields={filterFields}
                     activeFilters={activeFilters}
                     onFilterAdd={handleAddFilter}
+                    onFilterUpdate={handleUpdateFilter}
                     onFilterRemove={handleRemoveFilter}
                     onFilterClear={handleClearFilters}
+                    filterGroup={filterGroup}
+                    onFilterGroupChange={handleFilterGroupChange}
                   />
                 </div>
               </div>
@@ -409,9 +459,6 @@ export const EditViewModal = ({
     </Dialog>
   );
 };
-
-
-
 
 
 

@@ -125,7 +125,6 @@ export const useUnifiedProfileView = () => {
         .eq('id', selectedInterestId)
         .single();
       if (error) throw error;
-      console.log('[UnifiedProfileView] Fetched lead data:', { id: data?.id, age: data?.age, birth_date: data?.birth_date });
       return data as LeadData;
     },
     enabled: !!selectedInterestId,

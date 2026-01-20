@@ -79,7 +79,7 @@ export const GenericColumnSettings = <T extends Record<string, any>>({
       const headerText = typeof col.header === 'string' ? col.header : col.id;
       return headerText.toLowerCase().includes(query) || col.id.toLowerCase().includes(query);
     });
-  }, [columnOrder, columns, searchQuery]);
+  }, [columnOrder, columns, searchQuery, resourceKey]);
 
   return (
     <div className="space-y-4">

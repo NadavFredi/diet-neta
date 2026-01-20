@@ -4,21 +4,31 @@
  * Handles all business logic, data fetching, and state management
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import {
   useSubscriptionTypes,
   useDeleteSubscriptionType,
   useCreateSubscriptionType,
   useUpdateSubscriptionType,
 } from '@/hooks/useSubscriptionTypes';
-import { useAppDispatch } from '@/store/hooks';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
 import type { SubscriptionType } from '@/hooks/useSubscriptionTypes';
+import { 
+  selectFilterGroup, 
+  selectSearchQuery, 
+  selectCurrentPage,
+  selectPageSize,
+  selectGroupByKeys,
+  setCurrentPage,
+  setPageSize,
+} from '@/store/slices/tableStateSlice';
 
 export interface SubscriptionTypeColumnVisibility {
   name: boolean;
@@ -35,10 +45,6 @@ export const useSubscriptionTypesManagement = () => {
   const viewId = searchParams.get('view_id');
   const { toast } = useToast();
 
-  const [hasAppliedView, setHasAppliedView] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingSubscriptionType, setEditingSubscriptionType] = useState<SubscriptionType | null>(null);
@@ -55,12 +61,46 @@ export const useSubscriptionTypesManagement = () => {
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('subscription_types');
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'subscription_types'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'subscription_types'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'subscription_types'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'subscription_types'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'subscription_types'));
+  
   const { data: subscriptionTypes = [], isLoading } = useSubscriptionTypes({
-    search: undefined,
+    search: searchQuery,
+    filterGroup,
+    page: currentPage,
+    pageSize,
+    groupByLevel1: groupByKeys[0] || null,
+    groupByLevel2: groupByKeys[1] || null,
   });
+  
+  // Reset to page 1 when filters, search, or grouping change
+  const prevFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const currentFilters = JSON.stringify({ 
+      searchQuery, 
+      filterGroup,
+      groupByKeys: [groupByKeys[0], groupByKeys[1]],
+    });
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters) {
+      if (currentPage !== 1) {
+        dispatch(setCurrentPage({ resourceKey: 'subscription_types', page: 1 }));
+      }
+    }
+    prevFiltersRef.current = currentFilters;
+  }, [searchQuery, filterGroup, groupByKeys, currentPage, dispatch]);
   const createSubscriptionType = useCreateSubscriptionType();
   const updateSubscriptionType = useUpdateSubscriptionType();
   const deleteSubscriptionType = useDeleteSubscriptionType();
+  const bulkDeleteSubscriptionTypes = useBulkDeleteRecords({
+    table: 'subscription_types',
+    invalidateKeys: [['subscriptionTypes']],
+    createdByField: 'created_by',
+  });
+
+  useSyncSavedViewFilters('subscription_types', savedView, isLoadingView);
 
   // Auto-navigate to default view (only if defaultView exists)
   useEffect(() => {
@@ -69,51 +109,8 @@ export const useSubscriptionTypesManagement = () => {
     }
   }, [viewId, defaultView, navigate]);
 
-  // Reset filters
-  useEffect(() => {
-    if (!viewId) {
-      setSearchQuery('');
-      setSelectedDate(undefined);
-      setHasAppliedView(false);
-    }
-  }, [viewId]);
-
-  // Apply saved view
-  useEffect(() => {
-    if (viewId && savedView && !hasAppliedView && !isLoadingView) {
-      const filterConfig = savedView.filter_config as any;
-      if (filterConfig.searchQuery !== undefined) {
-        setSearchQuery(filterConfig.searchQuery);
-      }
-      if (filterConfig.selectedDate !== undefined && filterConfig.selectedDate) {
-        setSelectedDate(new Date(filterConfig.selectedDate));
-      }
-      setHasAppliedView(true);
-    }
-  }, [savedView, hasAppliedView, isLoadingView, viewId]);
-
   // Filter subscription types
-  const filteredSubscriptionTypes = useMemo(() => {
-    let filtered = subscriptionTypes;
-
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      filtered = filtered.filter((st) => {
-        const nameMatch = st.name?.toLowerCase().includes(searchLower);
-        return nameMatch;
-      });
-    }
-
-    if (selectedDate) {
-      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-      filtered = filtered.filter((st) => {
-        const stDate = format(new Date(st.created_at), 'yyyy-MM-dd');
-        return stDate === selectedDateStr;
-      });
-    }
-
-    return filtered;
-  }, [subscriptionTypes, searchQuery, selectedDate]);
+  const filteredSubscriptionTypes = useMemo(() => subscriptionTypes, [subscriptionTypes]);
 
   // Handlers
   const handleLogout = async () => {
@@ -121,14 +118,8 @@ export const useSubscriptionTypesManagement = () => {
       await dispatch(logoutUser()).unwrap();
       navigate('/login');
     } catch (error) {
-      console.error('[SubscriptionTypesManagement] Logout error:', error);
       navigate('/login');
     }
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date);
-    setDatePickerOpen(false);
   };
 
   const handleToggleColumn = (key: keyof SubscriptionTypeColumnVisibility) => {
@@ -219,6 +210,14 @@ export const useSubscriptionTypesManagement = () => {
     }
   };
 
+  const handleBulkDelete = async (payload: { ids: string[] }) => {
+    await bulkDeleteSubscriptionTypes.mutateAsync(payload.ids);
+    toast({
+      title: 'הצלחה',
+      description: 'סוגי המנוי נמחקו בהצלחה',
+    });
+  };
+
   const handleSaveViewClick = () => {
     setIsSaveViewModalOpen(true);
   };
@@ -232,7 +231,7 @@ export const useSubscriptionTypesManagement = () => {
   ) => {
     return {
       searchQuery: searchQuery || '',
-      selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
+      filterGroup,
       columnVisibility: columnVisibility || {},
       columnOrder: columnOrder || [],
       columnWidths: columnWidths || {},
@@ -252,8 +251,6 @@ export const useSubscriptionTypesManagement = () => {
     
     // State
     searchQuery,
-    selectedDate,
-    datePickerOpen,
     isAddDialogOpen,
     isEditDialogOpen,
     deleteDialogOpen,
@@ -261,9 +258,6 @@ export const useSubscriptionTypesManagement = () => {
     columnVisibility,
     
     // Setters
-    setSearchQuery,
-    handleDateSelect,
-    setDatePickerOpen,
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
@@ -277,6 +271,7 @@ export const useSubscriptionTypesManagement = () => {
     handleSaveSubscriptionType,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,
     

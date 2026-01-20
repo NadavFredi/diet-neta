@@ -17,10 +17,8 @@ export const useAuth = () => {
 
   const handleLogin = async (email: string, password: string) => {
     setIsSubmitting(true);
-    console.log('[useAuth] Starting login for:', email);
     try {
       const result = await dispatch(loginUser({ email, password })).unwrap();
-      console.log('[useAuth] Login successful:', result);
       
       toast({
         title: 'התחברות בוצעה בהצלחה',
@@ -29,29 +27,20 @@ export const useAuth = () => {
 
       // Redirect immediately - use window.location for reliable navigation
       // The loginUser thunk already updated the Redux state
-      console.log('[useAuth] Login successful, user data:', {
-        role: result.user.role,
-        email: result.user.email,
-        full_name: result.user.full_name,
-        customer_id: result.user.customer_id
-      });
       
       // Use window.location for immediate, reliable navigation
       // This bypasses any React Router state issues
       if (result.user.role === 'trainee') {
-        console.log('[useAuth] Trainee detected, navigating to /client/dashboard');
         // Small delay to ensure Redux state is fully updated
         setTimeout(() => {
           window.location.href = '/client/dashboard';
         }, 100);
       } else {
-        console.log('[useAuth] Coach/Admin detected, navigating to /dashboard');
         setTimeout(() => {
           window.location.href = '/dashboard';
         }, 100);
       }
     } catch (error: any) {
-      console.error('[useAuth] Login error:', error);
       // Handle both regular errors and rejected thunk errors
       // When using rejectWithValue, error is in error.payload
       // When throwing normally, error is in error.message
@@ -67,7 +56,6 @@ export const useAuth = () => {
         errorMessage = error;
       }
       
-      console.error('[useAuth] Error message:', errorMessage);
       toast({
         title: 'שגיאה בהתחברות',
         description: errorMessage,

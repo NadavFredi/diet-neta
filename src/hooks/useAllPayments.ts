@@ -7,6 +7,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 
 export interface AllPaymentRecord {
   id: string;
@@ -23,55 +26,55 @@ export interface AllPaymentRecord {
   lead_name?: string | null;
 }
 
-export const useAllPayments = () => {
+export const useAllPayments = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
   return useQuery({
-    queryKey: ['all-payments'],
+    queryKey: ['all-payments', filters],
     queryFn: async (): Promise<AllPaymentRecord[]> => {
       try {
-        // Query payments table
-        const { data, error } = await supabase
+        const fieldConfigs: FilterFieldConfigMap = {
+          created_at: { column: 'created_at', type: 'date' },
+          status: { column: 'status', type: 'multiselect' },
+          amount: { column: 'amount', type: 'number' },
+          currency: { column: 'currency', type: 'multiselect' },
+          product_name: { column: 'product_name', type: 'text' },
+          customer_name: { column: 'customer.full_name', type: 'text' },
+          lead_id_text: {
+            custom: (filter, negate) => {
+              const value = filter.values[0];
+              if (!value) return [];
+              return [[{ column: 'lead_id::text', operator: 'ilike', value: `%${value}%`, negate }]];
+            },
+          },
+        };
+
+        const searchGroup = filters?.search
+          ? createSearchGroup(filters.search, ['product_name', 'customer_name', 'lead_id_text'])
+          : null;
+        const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
+
+        let query = supabase
           .from('payments')
-          .select('*')
+          .select(
+            `
+            *,
+            customer:customers(full_name),
+            lead:leads(id, customer:customers(full_name))
+          `
+          )
           .order('created_at', { ascending: false });
+
+        if (combinedGroup) {
+          query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           // If table doesn't exist yet, return empty array (graceful degradation)
           if (error.code === '42P01' || error.message.includes('does not exist')) {
-            console.warn('[useAllPayments] Payments table not found. Returning empty array.');
             return [];
           }
           throw error;
-        }
-
-        // Get unique customer IDs and lead IDs
-        const customerIds = [...new Set((data || []).map((p: any) => p.customer_id).filter(Boolean))];
-        const leadIds = [...new Set((data || []).map((p: any) => p.lead_id).filter(Boolean))];
-
-        // Fetch customer names
-        let customerNamesMap: Record<string, string> = {};
-        if (customerIds.length > 0) {
-          const { data: customersData, error: customersError } = await supabase
-            .from('customers')
-            .select('id, full_name')
-            .in('id', customerIds);
-
-          if (!customersError && customersData) {
-            customersData.forEach((customer: any) => {
-              if (customer.full_name) {
-                customerNamesMap[customer.id] = customer.full_name;
-              }
-            });
-          }
-        }
-
-        // Fetch lead names (leads don't have a direct name, but we can show lead ID or customer name from lead)
-        // For now, we'll just show lead ID if available
-        let leadNamesMap: Record<string, string> = {};
-        if (leadIds.length > 0) {
-          // Leads don't have a direct name field, so we'll just mark them as having a lead
-          leadIds.forEach((leadId) => {
-            leadNamesMap[leadId] = `ליד ${leadId.slice(0, 8)}`;
-          });
         }
 
         // Map Hebrew status to English for internal use
@@ -92,18 +95,17 @@ export const useAllPayments = () => {
           receipt_url: record.receipt_url || null,
           transaction_id: record.transaction_id || record.stripe_payment_id || record.id,
           customer_id: record.customer_id,
-          customer_name: customerNamesMap[record.customer_id] || null,
+          customer_name: record.customer?.full_name || null,
           lead_id: record.lead_id || null,
-          lead_name: record.lead_id ? leadNamesMap[record.lead_id] || null : null,
+          // Use the lead's customer name if available, otherwise fall back to ID
+          lead_name: record.lead?.customer?.full_name || (record.lead_id ? `ליד ${record.lead_id.slice(0, 8)}` : null),
         })) as AllPaymentRecord[];
       } catch (error: any) {
         // Graceful degradation if payments table doesn't exist
         if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          console.warn('[useAllPayments] Payments table not found. Returning empty array.');
           return [];
         }
         
-        console.error('[useAllPayments] Error fetching payments:', error);
         throw error;
       }
     },

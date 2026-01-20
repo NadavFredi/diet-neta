@@ -103,29 +103,26 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
           cacheControl: '3600',
           upsert: false,
         });
-
+  
       if (uploadError) {
-        console.error('Upload error details:', uploadError);
         throw new Error(uploadError.message || 'שגיאה בהעלאת התמונה');
       }
-
+  
       // Generate signed URL (valid for 1 year) since bucket is private
       const { data: urlData, error: urlError } = await supabase.storage
         .from('client-assets')
         .createSignedUrl(filePath, 31536000); // 1 year expiration
-
+  
       if (urlError) {
-        console.error('Error creating signed URL:', urlError);
         throw new Error(urlError.message || 'לא ניתן לקבל קישור לתמונה');
       }
-
+  
       if (urlData?.signedUrl) {
         onUpdate({ image_url: urlData.signedUrl });
       } else {
         throw new Error('לא ניתן לקבל קישור לתמונה');
       }
     } catch (error: any) {
-      console.error('Error uploading image:', error);
       const errorMessage = error?.message || error?.error?.message || 'שגיאה בהעלאת התמונה';
       alert(`שגיאה בהעלאת התמונה: ${errorMessage}`);
     } finally {
@@ -152,29 +149,26 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
           cacheControl: '3600',
           upsert: false,
         });
-
+  
       if (uploadError) {
-        console.error('Upload error details:', uploadError);
         throw new Error(uploadError.message || 'שגיאה בהעלאת הווידאו');
       }
-
+  
       // Generate signed URL (valid for 1 year) since bucket is private
       const { data: urlData, error: urlError } = await supabase.storage
         .from('client-assets')
         .createSignedUrl(filePath, 31536000); // 1 year expiration
-
+  
       if (urlError) {
-        console.error('Error creating signed URL:', urlError);
         throw new Error(urlError.message || 'לא ניתן לקבל קישור לווידאו');
       }
-
+  
       if (urlData?.signedUrl) {
         onUpdate({ video_url: urlData.signedUrl });
       } else {
         throw new Error('לא ניתן לקבל קישור לווידאו');
       }
     } catch (error: any) {
-      console.error('Error uploading video:', error);
       const errorMessage = error?.message || error?.error?.message || 'שגיאה בהעלאת הווידאו';
       alert(`שגיאה בהעלאת הווידאו: ${errorMessage}`);
     } finally {
@@ -215,40 +209,59 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
         ref={setNodeRef}
         style={style}
         className={cn(
-          'p-2 mb-1.5 bg-white border border-gray-200 hover:border-blue-300 cursor-grab active:cursor-grabbing',
+          'p-3 mb-2 bg-white border border-gray-200 hover:border-blue-400 hover:shadow-md cursor-grab active:cursor-grabbing transition-all duration-200 shadow-sm',
           isDragging && 'opacity-50'
         )}
         dir="rtl"
       >
-        <div className="flex items-start gap-1.5">
+        <div className="flex items-start gap-3 pr-1">
           <div
             {...attributes}
             {...listeners}
-            className="mt-0.5 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+            className="mt-1 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 flex-shrink-0"
           >
-            <GripVertical className="h-3.5 w-3.5" />
+            <GripVertical className="h-4 w-4" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-1.5">
-              <Input
-                value={exercise.name}
-                onChange={(e) => onUpdate({ name: e.target.value })}
-                className="h-6 text-xs font-medium border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
-                placeholder="שם התרגיל"
-                dir="rtl"
-              />
-              <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <Input
+                  value={exercise.name}
+                  onChange={(e) => onUpdate({ name: e.target.value })}
+                  className="h-7 text-sm font-semibold border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-gray-900 placeholder:text-gray-400 w-full"
+                  placeholder="שם התרגיל"
+                  dir="rtl"
+                  style={{ 
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    textOverflow: 'clip'
+                  }}
+                  onFocus={(e) => {
+                    // For RTL, ensure we can see the full text by scrolling to start
+                    const input = e.target as HTMLInputElement;
+                    // Set selection to end to ensure cursor is visible
+                    setTimeout(() => {
+                      input.setSelectionRange(0, input.value.length);
+                      // For RTL, scroll to show the beginning of text
+                      if (input.dir === 'rtl') {
+                        input.scrollLeft = 0;
+                      }
+                    }, 0);
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
                 {/* Image Upload Button */}
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-5 w-5 p-0 text-gray-400 hover:text-blue-600"
+                      className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                       disabled={isUploading}
                     >
-                      <Image className={cn('h-3 w-3', exercise.image_url && 'text-blue-600')} />
+                      <Image className={cn('h-3.5 w-3.5', exercise.image_url && 'text-blue-600')} />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-64 p-3" dir="rtl" onClick={(e) => e.stopPropagation()}>
@@ -296,11 +309,11 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-5 w-5 p-0 text-gray-400 hover:text-blue-600"
+                      className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                       disabled={isUploading}
                     >
-                      <Video className={cn('h-3 w-3', exercise.video_url && 'text-blue-600')} />
+                      <Video className={cn('h-3.5 w-3.5', exercise.video_url && 'text-blue-600')} />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-64 p-3" dir="rtl" onClick={(e) => e.stopPropagation()}>
@@ -345,75 +358,78 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-5 w-5 p-0 text-gray-400 hover:text-red-600"
+                  className="h-6 w-6 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                   onClick={onRemove}
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-gray-600">
-              <Input
-                type="number"
-                value={exercise.sets}
-                onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 0 })}
-                className="h-5 w-10 text-center border-gray-200 text-xs px-1"
-                dir="ltr"
-              />
-              <span className="text-xs">סטים</span>
-              <span className="text-gray-300 text-xs">×</span>
-              <Input
-                type="number"
-                value={exercise.reps}
-                onChange={(e) => onUpdate({ reps: parseInt(e.target.value) || 0 })}
-                className="h-5 w-10 text-center border-gray-200 text-xs px-1"
-                dir="ltr"
-              />
-              <span className="text-xs">חזרות</span>
+            <div className="flex items-center gap-2 text-xs text-gray-700 flex-wrap">
+              <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md border border-gray-200">
+                <Input
+                  type="number"
+                  value={exercise.sets}
+                  onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 0 })}
+                  className="h-6 w-12 text-center border-gray-300 text-xs font-medium bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                  dir="ltr"
+                />
+                <span className="text-xs font-medium whitespace-nowrap">סטים</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md border border-gray-200">
+                <Input
+                  type="number"
+                  value={exercise.reps}
+                  onChange={(e) => onUpdate({ reps: parseInt(e.target.value) || 0 })}
+                  className="h-6 w-12 text-center border-gray-300 text-xs font-medium bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                  dir="ltr"
+                />
+                <span className="text-xs font-medium whitespace-nowrap">חזרות</span>
+              </div>
             </div>
             
             {/* Media Thumbnails */}
             {(exercise.image_url || exercise.video_url) && (
-              <div className="flex items-center gap-1.5 mt-1.5">
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 {exercise.image_url && (
                   <div className="relative group">
                     <img
                       src={exercise.image_url}
                       alt={exercise.name}
-                      className="h-12 w-12 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                      className="h-14 w-14 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-400 hover:opacity-90 transition-all shadow-sm"
                       onClick={() => setIsImageModalOpen(true)}
                     />
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute -top-1 -right-1 h-4 w-4 p-0 bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute -top-1 -right-1 h-5 w-5 p-0 bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-md"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRemoveImage();
                       }}
                     >
-                      <X className="h-2.5 w-2.5" />
+                      <X className="h-3 w-3" />
                     </Button>
                   </div>
                 )}
                 {exercise.video_url && (
                   <div className="relative group">
                     <div
-                      className="h-12 w-12 rounded border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 flex items-center justify-center"
+                      className="h-14 w-14 rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-400 hover:opacity-90 transition-all bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-sm"
                       onClick={() => setIsVideoModalOpen(true)}
                     >
-                      <PlayCircle className="h-5 w-5 text-gray-600" />
+                      <PlayCircle className="h-6 w-6 text-gray-700" />
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute -top-1 -right-1 h-4 w-4 p-0 bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute -top-1 -right-1 h-5 w-5 p-0 bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-md"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRemoveVideo();
                       }}
                     >
-                      <X className="h-2.5 w-2.5" />
+                      <X className="h-3 w-3" />
                     </Button>
                   </div>
                 )}

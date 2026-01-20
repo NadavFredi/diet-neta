@@ -16,7 +16,6 @@ export default defineConfig(({ mode }) => ({
         rewrite: (path) => path.replace(/^\/api\/green-api/, ''),
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, res) => {
-            console.log('proxy error', err);
           });
         },
       },
@@ -27,7 +26,6 @@ export default defineConfig(({ mode }) => ({
         rewrite: (path) => path.replace(/^\/supabase/, ''),
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, res) => {
-            console.log('Supabase proxy error', err);
           });
         },
       },

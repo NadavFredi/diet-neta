@@ -107,12 +107,8 @@ export const useBloodTestsGalleryCard = (leadId: string | null, customerId: stri
   };
 
   // Handle delete (for managers)
-  const handleDelete = (testId: string, fileName: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-
+  const handleDelete = (testId: string) => {
     if (!isManager) return;
-
-    if (!confirm(`האם אתה בטוח שברצונך למחוק את הקובץ "${fileName}"?`)) return;
 
     deleteMutation.mutate(testId, {
       onSuccess: () => {
@@ -149,6 +145,7 @@ export const useBloodTestsGalleryCard = (leadId: string | null, customerId: stri
     handleDragLeave,
     handleDrop,
     handleDelete,
+    deleteMutation,
     formatDate,
     handleDownload,
   };

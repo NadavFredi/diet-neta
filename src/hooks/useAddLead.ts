@@ -241,7 +241,6 @@ export const useAddLead = () => {
           .single();
 
         if (subTypeError) {
-          console.error('Error fetching subscription type:', subTypeError);
           toast({
             title: 'אזהרה',
             description: 'שגיאה בטעינת סוג המנוי. הליד יווצר ללא מנוי.',
@@ -294,7 +293,6 @@ export const useAddLead = () => {
         .single();
 
       if (leadError) {
-        console.error('Error adding lead:', leadError);
         let errorMessage = 'נכשל בהוספת הליד';
         if (leadError.message?.includes('schema cache')) {
           errorMessage = 'הטבלה לא נמצאה. אנא ודא שהמיגרציה רצה בהצלחה.';
@@ -320,9 +318,7 @@ export const useAddLead = () => {
             leadId: newLead.id,
             notes: 'הוקצה בעת יצירת הליד',
           });
-          console.log('[useAddLead] Budget assigned successfully to new lead');
         } catch (budgetError: any) {
-          console.error('[useAddLead] Error assigning budget:', budgetError);
           // Don't fail the entire operation if budget assignment fails
           toast({
             title: 'אזהרה',
@@ -337,29 +333,18 @@ export const useAddLead = () => {
         description: 'הליד נוסף בהצלחה',
       });
 
-      console.log('[useAddLead] Lead created successfully, invalidating queries...');
-      console.log('[useAddLead] New lead ID:', newLead.id);
-      console.log('[useAddLead] Customer ID:', customerId);
-
       // Invalidate customer and leads queries to refresh cache
-      console.log('[useAddLead] Invalidating customer query...');
       await queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
-      console.log('[useAddLead] Invalidating customers query (all customers)...');
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      console.log('[useAddLead] Invalidating leads query...');
       await queryClient.invalidateQueries({ queryKey: ['leads'] });
-      console.log('[useAddLead] Invalidating filtered-leads query...');
       await queryClient.invalidateQueries({ queryKey: ['filtered-leads'] });
-      console.log('[useAddLead] All queries invalidated successfully');
       
       // Note: Leads list refresh is handled by parent component via onLeadCreated callback
 
       // Reset form (dialog will be closed by parent component)
       resetForm();
-      console.log('[useAddLead] Form reset, returning success');
       return true;
     } catch (err: any) {
-      console.error('Unexpected error adding lead:', err);
       toast({
         title: 'שגיאה',
         description: err?.message || 'אירעה שגיאה בלתי צפויה',

@@ -29,16 +29,11 @@ export async function createTestPayment(customerId: string, leadId?: string | nu
       .single();
 
     if (error) {
-      console.error('❌ Error creating payment:', error);
       return { success: false, error };
     }
 
-    console.log('✅ Payment created successfully!', data);
-    console.log('💡 Refresh the page and click "תשלומים" button to see it');
-    
     return { success: true, payment: data };
   } catch (error: any) {
-    console.error('❌ Unexpected error:', error);
     return { success: false, error: error.message };
   }
 }

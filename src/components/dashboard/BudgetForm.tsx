@@ -109,7 +109,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   // Debug: Log assignment state
   useEffect(() => {
     if (enableAssignment && mode === 'create') {
-      console.log('[BudgetForm] Assignment section should be visible', { enableAssignment, mode });
     }
   }, [enableAssignment, mode]);
   const { data: nutritionTemplates = [] } = useNutritionTemplates();
@@ -146,7 +145,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         .maybeSingle();
       
       if (error) {
-        console.error('Error fetching lead assignment:', error);
         return null;
       }
       return data?.lead_id || null;
@@ -288,20 +286,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         eating_rules: eatingRules || null,
       };
       
-      console.log('[BudgetForm] Submitting budget data:', {
-        mode,
-        budgetId: initialData?.id,
-        workout_template_id: budgetData.workout_template_id,
-        nutrition_template_id: budgetData.nutrition_template_id,
-        fullData: budgetData
-      });
-      
       const savedBudget = await onSave(budgetData);
-      
-      console.log('[BudgetForm] Budget saved successfully:', {
-        budgetId: savedBudget?.id || initialData?.id,
-        workout_template_id: (savedBudget as Budget | undefined)?.workout_template_id
-      });
       
       // Get the budget ID - use initialData.id for edit mode, or savedBudget.id if returned
       const budgetId = (mode === 'edit' && initialData?.id) ? initialData.id : (savedBudget as Budget | undefined)?.id;
@@ -309,8 +294,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       // Handle lead assignment (works in both create and edit modes)
       if (budgetId && selectedLeadId) {
         try {
-          console.log('[BudgetForm] Assigning budget to lead:', { budgetId, leadId: selectedLeadId });
-          
           // Use the same assignment hook that's used from the lead page
           // This ensures the same sync logic is applied
           await assignToLead.mutateAsync({
@@ -341,7 +324,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
             description: 'התקציב הוקצה לליד בהצלחה. תכניות אימונים, תזונה ותוספים נוצרו אוטומטית.',
           });
         } catch (error: any) {
-          console.error('[BudgetForm] Error assigning budget to lead:', error);
           toast({
             title: 'שגיאה',
             description: error?.message || 'נכשל בהקצאת התקציב לליד',
@@ -351,8 +333,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       } else if (budgetId && !selectedLeadId && currentLeadAssignment) {
         // If lead was unselected, deactivate the assignment
         try {
-          console.log('[BudgetForm] Removing lead assignment:', { budgetId, leadId: currentLeadAssignment });
-          
           await supabase
             .from('budget_assignments')
             .update({ is_active: false })
@@ -376,12 +356,12 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           
           queryClient.refetchQueries({ queryKey: ['plans-history'] });
         } catch (error: any) {
-          console.error('[BudgetForm] Error removing lead assignment:', error);
+          // Silent failure
         }
       }
       
     } catch (error) {
-      console.error('Error saving budget:', error);
+      // Silent failure
     } finally {
       setIsSubmitting(false);
     }

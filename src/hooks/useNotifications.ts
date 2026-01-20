@@ -12,6 +12,7 @@ import {
   markAllAsRead,
   refreshUnreadCount,
   addNotification,
+  deleteNotificationById,
 } from '@/store/slices/notificationSlice';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -58,6 +59,14 @@ export const useNotifications = () => {
     await dispatch(markAllAsRead());
   }, [dispatch]);
 
+  const handleDeleteNotification = useCallback(
+    async (notificationId: string, e: React.MouseEvent) => {
+      e.stopPropagation(); // Prevent triggering the notification click
+      await dispatch(deleteNotificationById(notificationId));
+    },
+    [dispatch]
+  );
+
   const handleNotificationClick = useCallback(
     (notification: { action_url: string | null; id: string }) => {
       // Mark as read
@@ -95,6 +104,7 @@ export const useNotifications = () => {
     error,
     handleMarkAsRead,
     handleMarkAllAsRead,
+    handleDeleteNotification,
     handleNotificationClick,
     formatRelativeTime,
     refreshNotifications,

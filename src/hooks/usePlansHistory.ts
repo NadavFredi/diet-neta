@@ -18,7 +18,6 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
   return useQuery<PlansHistory>({
     queryKey: ['plans-history', customerId, leadId],
     queryFn: async () => {
-      console.log('[usePlansHistory] Fetching plans for:', { customerId, leadId });
       const workoutHistory: any[] = [];
       const nutritionHistory: any[] = [];
       const supplementsHistory: any[] = [];
@@ -107,48 +106,12 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
       const { data: stepsPlans, error: stepsError } = stepsResult;
 
       if (workoutError) {
-        console.error('Error fetching workout plans:', workoutError);
       }
       if (nutritionError) {
-        console.error('Error fetching nutrition plans:', nutritionError);
       }
       if (supplementError) {
-        console.error('Error fetching supplement plans:', supplementError);
       }
       if (stepsError) {
-        console.error('[usePlansHistory] Error fetching steps plans:', stepsError);
-        // If table doesn't exist, log but don't fail
-        if (stepsError.message?.includes('does not exist') || stepsError.message?.includes('relation')) {
-          console.warn('[usePlansHistory] steps_plans table does not exist. Please run migration: 20260104000007_create_steps_plans.sql');
-        }
-      }
-
-      console.log('[usePlansHistory] Plans fetched:', {
-        workout: workoutPlans?.length || 0,
-        nutrition: nutritionPlans?.length || 0,
-        supplements: supplementPlans?.length || 0,
-        steps: stepsPlans?.length || 0,
-      });
-      
-      // Debug: Log supplement and steps plans details
-      if (supplementPlans && supplementPlans.length > 0) {
-        console.log('[usePlansHistory] Supplement plans details:', supplementPlans.map((p: any) => ({
-          id: p.id,
-          budget_id: p.budget_id,
-          customer_id: p.customer_id,
-          lead_id: p.lead_id,
-          created_at: p.created_at,
-        })));
-      }
-      
-      if (stepsPlans && stepsPlans.length > 0) {
-        console.log('[usePlansHistory] Steps plans details:', stepsPlans.map((p: any) => ({
-          id: p.id,
-          budget_id: p.budget_id,
-          customer_id: p.customer_id,
-          lead_id: p.lead_id,
-          created_at: p.created_at,
-        })));
       }
 
       // Get active budget assignment to determine which plans are active
@@ -550,12 +513,6 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
         supplementsHistory,
         stepsHistory,
       };
-      console.log('[usePlansHistory] Final result:', {
-        workout: result.workoutHistory.length,
-        nutrition: result.nutritionHistory.length,
-        supplements: result.supplementsHistory.length,
-        steps: result.stepsHistory.length,
-      });
       return result;
     },
     enabled: !!(customerId || leadId),

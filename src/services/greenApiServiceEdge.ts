@@ -29,6 +29,29 @@ export interface GreenApiResponse {
 }
 
 /**
+ * Format URLs in message to make them more visible and clickable
+ * WhatsApp automatically detects URLs, but we format them for better appearance
+ */
+export const formatUrlsInMessage = (text: string): string => {
+  if (!text) return text;
+  
+  // URL regex pattern - matches http://, https://, or www. URLs
+  const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  
+  return text.replace(urlPattern, (url) => {
+    // Ensure URL starts with http:// or https://
+    let formattedUrl = url.trim();
+    if (formattedUrl.startsWith('www.')) {
+      formattedUrl = 'https://' + formattedUrl;
+    }
+    
+    // Ensure URL is on its own line for better visibility in WhatsApp
+    // This makes the link more prominent and easier to click
+    return `\n${formattedUrl}\n`;
+  });
+};
+
+/**
  * Clean HTML tags and format text for WhatsApp
  */
 export const cleanWhatsAppMessage = (text: string): string => {
@@ -50,6 +73,13 @@ export const cleanWhatsAppMessage = (text: string): string => {
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
   cleaned = cleaned.trim();
   cleaned = cleaned.split('\n').map(line => line.trimEnd()).join('\n');
+  
+  // Format URLs to make them more visible
+  cleaned = formatUrlsInMessage(cleaned);
+  
+  // Clean up excessive newlines after URL formatting
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  cleaned = cleaned.trim();
   
   return cleaned;
 };
@@ -76,14 +106,6 @@ export const replacePlaceholders = (
 export const sendWhatsAppMessage = async (
   params: SendMessageParams
 ): Promise<GreenApiResponse> => {
-  console.log('[GreenAPI] sendWhatsAppMessage called with params:', {
-    phoneNumber: params.phoneNumber,
-    messageLength: params.message?.length,
-    hasButtons: !!params.buttons,
-    hasMedia: !!params.media,
-    mediaType: params.media?.type,
-  });
-  
   try {
     // Validate button count (max 3)
     if (params.buttons && params.buttons.length > 3) {
@@ -151,7 +173,6 @@ export const sendWhatsAppMessage = async (
     const result = await response.json();
 
     if (!response.ok) {
-      console.error('[GreenAPI] Edge Function error:', result);
       return {
         success: false,
         error: result.error || `Failed to send message: ${response.status}`,
@@ -160,25 +181,17 @@ export const sendWhatsAppMessage = async (
 
     // Validate response has idMessage
     if (!result.data?.idMessage) {
-      console.error('[GreenAPI] Response missing idMessage:', result);
       return {
         success: false,
         error: 'Message failed to send: Response missing idMessage. This usually means the message was not queued by WhatsApp.',
       };
     }
 
-    console.log('[GreenAPI] Message successfully queued:', {
-      idMessage: result.data.idMessage,
-      phoneNumber: params.phoneNumber,
-    });
-
     return {
       success: true,
       data: result.data,
     };
   } catch (error: any) {
-    console.error('[GreenAPI] Error sending message:', error);
-    
     // Check if it's a CORS error
     if (error?.message?.includes('CORS') || error?.message?.includes('Failed to fetch')) {
       return {

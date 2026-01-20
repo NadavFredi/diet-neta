@@ -20,15 +20,10 @@ interface CreatePaymentRequest {
 }
 
 serve(async (req) => {
-  console.log('[create-payment] Function called:', {
-    method: req.method,
-    url: req.url,
-  });
 
   // Handle CORS preflight
   const corsResponse = handleCors(req);
   if (corsResponse) {
-    console.log('[create-payment] Handling OPTIONS request');
     return corsResponse;
   }
 
@@ -52,15 +47,12 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
-      console.error('[create-payment] Auth error:', authError);
       return errorResponse('Invalid or expired token', 401);
     }
 
-    console.log('[create-payment] Authenticated user:', user.id);
 
     // Parse request body
     const body: CreatePaymentRequest = await req.json();
-    console.log('[create-payment] Request body:', body);
 
     // Validate required fields
     if (!body.customer_id) {
@@ -87,7 +79,6 @@ serve(async (req) => {
       .single();
 
     if (customerError || !customer) {
-      console.error('[create-payment] Customer not found:', customerError);
       return errorResponse('Customer not found', 404);
     }
 
@@ -100,7 +91,6 @@ serve(async (req) => {
         .single();
 
       if (leadError || !lead) {
-        console.error('[create-payment] Lead not found:', leadError);
         return errorResponse('Lead not found', 404);
       }
 
@@ -125,7 +115,6 @@ serve(async (req) => {
       created_by: user.id,
     };
 
-    console.log('[create-payment] Inserting payment:', paymentData);
 
     // Insert payment record
     const { data: payment, error: insertError } = await supabase
@@ -135,11 +124,9 @@ serve(async (req) => {
       .single();
 
     if (insertError) {
-      console.error('[create-payment] Insert error:', insertError);
       return errorResponse(`Failed to create payment: ${insertError.message}`, 500);
     }
 
-    console.log('[create-payment] Payment created successfully:', payment.id);
 
     return successResponse({
       success: true,
@@ -159,7 +146,6 @@ serve(async (req) => {
       },
     });
   } catch (error: any) {
-    console.error('[create-payment] Unexpected error:', error);
     return errorResponse(
       error.message || 'Internal server error',
       500

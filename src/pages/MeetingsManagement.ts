@@ -4,15 +4,23 @@
  * Handles all business logic, data fetching, and state management
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useMeetings } from '@/hooks/useMeetings';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
+import { useSavedView } from '@/hooks/useSavedViews';
+import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import {
   selectSearchQuery,
+  selectFilterGroup,
   selectActiveFilters,
+  selectCurrentPage,
+  selectPageSize,
+  selectGroupByKeys,
+  setCurrentPage,
+  setPageSize,
   setSearchQuery,
   addFilter as addFilterAction,
   removeFilter as removeFilterAction,
@@ -20,22 +28,59 @@ import {
   initializeTableState,
 } from '@/store/slices/tableStateSlice';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
+import { useToast } from '@/hooks/use-toast';
 
 export const useMeetingsManagement = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
+  const viewId = searchParams.get('view_id');
+  const { toast } = useToast();
   
-  const { data: meetings = [], isLoading: isLoadingMeetings } = useMeetings();
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'meetings'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'meetings'));
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'meetings'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'meetings'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'meetings'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'meetings'));
+
+  const { data: meetings = [], isLoading: isLoadingMeetings } = useMeetings({
+    search: searchQuery,
+    filterGroup,
+    page: currentPage,
+    pageSize,
+    groupByLevel1: groupByKeys[0] || null,
+    groupByLevel2: groupByKeys[1] || null,
+  });
+  
+  // Reset to page 1 when filters, search, or grouping change
+  const prevFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const currentFilters = JSON.stringify({ 
+      searchQuery, 
+      filterGroup,
+      groupByKeys: [groupByKeys[0], groupByKeys[1]],
+    });
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters) {
+      if (currentPage !== 1) {
+        dispatch(setCurrentPage({ resourceKey: 'meetings', page: 1 }));
+      }
+    }
+    prevFiltersRef.current = currentFilters;
+  }, [searchQuery, filterGroup, groupByKeys, currentPage, dispatch]);
+  const bulkDeleteMeetings = useBulkDeleteRecords({
+    table: 'meetings',
+    invalidateKeys: [['meetings']],
+    // No createdByField restriction - admins/users can delete all meetings per RLS policy
+  });
+  const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
+
+  useSyncSavedViewFilters('meetings', savedView, isLoadingView);
 
   // Initialize table state for meetings
   useEffect(() => {
     dispatch(initializeTableState({ resourceKey: 'meetings' }));
   }, [dispatch]);
-
-  // Get search query and filters from Redux
-  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'meetings'));
-  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'meetings'));
 
   // Handlers
   const handleLogout = async () => {
@@ -43,13 +88,12 @@ export const useMeetingsManagement = () => {
       await dispatch(logoutUser()).unwrap();
       navigate('/login');
     } catch (error) {
-      console.error('[MeetingsManagement] Logout error:', error);
       navigate('/login');
     }
   };
 
   const handleSearchChange = (value: string) => {
-    dispatch(setSearchQuery({ resourceKey: 'meetings', searchQuery: value }));
+    dispatch(setSearchQuery({ resourceKey: 'meetings', query: value }));
   };
 
   const addFilter = (filter: ActiveFilter) => {
@@ -66,6 +110,8 @@ export const useMeetingsManagement = () => {
 
   const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
     return {
+      searchQuery: searchQuery || '',
+      filterGroup,
       columnOrder,
       columnWidths,
       sortBy,
@@ -75,132 +121,23 @@ export const useMeetingsManagement = () => {
   };
 
   // Filter meetings based on search query and active filters
-  const filteredMeetings = useMemo(() => {
-    let result = [...meetings];
+  const filteredMeetings = useMemo(() => meetings, [meetings]);
 
-    // Apply search query
-    if (searchQuery && searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter((meeting) => {
-        const customerName = meeting.customer?.full_name?.toLowerCase() || '';
-        const phone = meeting.customer?.phone?.toLowerCase() || '';
-        const meetingData = meeting.meeting_data || {};
-        const meetingDate = String(meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'] || '').toLowerCase();
-        const status = String(meetingData.status || meetingData['סטטוס'] || '').toLowerCase();
-        
-        return (
-          customerName.includes(query) ||
-          phone.includes(query) ||
-          meetingDate.includes(query) ||
-          status.includes(query)
-        );
+  const handleBulkDelete = async (payload: { ids: string[] }) => {
+    try {
+      await bulkDeleteMeetings.mutateAsync(payload.ids);
+      toast({
+        title: 'הצלחה',
+        description: 'הפגישות נמחקו בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת הפגישות',
+        variant: 'destructive',
       });
     }
-
-    // Apply active filters
-    if (activeFilters && activeFilters.length > 0) {
-      activeFilters.forEach((filter) => {
-        switch (filter.fieldId) {
-          case 'created_at':
-            // Filter by creation date
-            if (filter.operator === 'equals' && filter.values && filter.values[0]) {
-              const filterDate = format(new Date(filter.values[0]), 'yyyy-MM-dd');
-              result = result.filter((meeting) => {
-                const meetingDate = format(new Date(meeting.created_at), 'yyyy-MM-dd');
-                return meetingDate === filterDate;
-              });
-            } else if (filter.operator === 'before' && filter.values && filter.values[0]) {
-              const filterDate = new Date(filter.values[0]);
-              result = result.filter((meeting) => new Date(meeting.created_at) < filterDate);
-            } else if (filter.operator === 'after' && filter.values && filter.values[0]) {
-              const filterDate = new Date(filter.values[0]);
-              result = result.filter((meeting) => new Date(meeting.created_at) > filterDate);
-            } else if (filter.operator === 'between' && filter.values && filter.values[0] && filter.values[1]) {
-              const filterDateStart = new Date(filter.values[0]);
-              const filterDateEnd = new Date(filter.values[1]);
-              result = result.filter((meeting) => {
-                const meetingDate = new Date(meeting.created_at);
-                return meetingDate >= filterDateStart && meetingDate <= filterDateEnd;
-              });
-            }
-            break;
-          case 'meeting_date':
-            // Filter by meeting date (from meeting_data)
-            if (filter.operator === 'equals' && filter.values && filter.values[0]) {
-              const filterDate = format(new Date(filter.values[0]), 'yyyy-MM-dd');
-              result = result.filter((meeting) => {
-                const meetingData = meeting.meeting_data || {};
-                const meetingDateValue = meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'];
-                if (!meetingDateValue) return false;
-                try {
-                  const meetingDate = format(new Date(meetingDateValue), 'yyyy-MM-dd');
-                  return meetingDate === filterDate;
-                } catch {
-                  return false;
-                }
-              });
-            } else if (filter.operator === 'before' && filter.values && filter.values[0]) {
-              const filterDate = new Date(filter.values[0]);
-              result = result.filter((meeting) => {
-                const meetingData = meeting.meeting_data || {};
-                const meetingDateValue = meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'];
-                if (!meetingDateValue) return false;
-                try {
-                  return new Date(meetingDateValue) < filterDate;
-                } catch {
-                  return false;
-                }
-              });
-            } else if (filter.operator === 'after' && filter.values && filter.values[0]) {
-              const filterDate = new Date(filter.values[0]);
-              result = result.filter((meeting) => {
-                const meetingData = meeting.meeting_data || {};
-                const meetingDateValue = meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'];
-                if (!meetingDateValue) return false;
-                try {
-                  return new Date(meetingDateValue) > filterDate;
-                } catch {
-                  return false;
-                }
-              });
-            } else if (filter.operator === 'between' && filter.values && filter.values[0] && filter.values[1]) {
-              const filterDateStart = new Date(filter.values[0]);
-              const filterDateEnd = new Date(filter.values[1]);
-              result = result.filter((meeting) => {
-                const meetingData = meeting.meeting_data || {};
-                const meetingDateValue = meetingData.date || meetingData.meeting_date || meetingData['תאריך'] || meetingData['תאריך פגישה'];
-                if (!meetingDateValue) return false;
-                try {
-                  const meetingDate = new Date(meetingDateValue);
-                  return meetingDate >= filterDateStart && meetingDate <= filterDateEnd;
-                } catch {
-                  return false;
-                }
-              });
-            }
-            break;
-          case 'status':
-            // Filter by status
-            if (filter.operator === 'is' && filter.values && filter.values.length > 0) {
-              result = result.filter((meeting) => {
-                const meetingData = meeting.meeting_data || {};
-                const status = String(meetingData.status || meetingData['סטטוס'] || '');
-                return filter.values.includes(status);
-              });
-            } else if (filter.operator === 'isNot' && filter.values && filter.values.length > 0) {
-              result = result.filter((meeting) => {
-                const meetingData = meeting.meeting_data || {};
-                const status = String(meetingData.status || meetingData['סטטוס'] || '');
-                return !filter.values.includes(status);
-              });
-            }
-            break;
-        }
-      });
-    }
-
-    return result;
-  }, [meetings, searchQuery, activeFilters]);
+  };
 
   return {
     meetings,
@@ -209,11 +146,11 @@ export const useMeetingsManagement = () => {
     handleLogout,
     getCurrentFilterConfig,
     searchQuery,
-    activeFilters,
     handleSearchChange,
     addFilter,
     removeFilter,
     clearFilters,
+    handleBulkDelete,
+    activeFilters,
   };
 };
-

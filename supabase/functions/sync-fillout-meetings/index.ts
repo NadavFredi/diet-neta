@@ -30,7 +30,6 @@ interface FilloutFormSubmissionsResponse {
 }
 
 serve(async (req) => {
-  console.log('[sync-fillout-meetings] Function called');
 
   // Handle CORS preflight
   const corsResponse = handleCors(req);
@@ -57,7 +56,6 @@ serve(async (req) => {
           body: bodyText,
         });
       } catch (e) {
-        console.log('[sync-fillout-meetings] Could not parse body, trying query params');
       }
     }
     
@@ -75,7 +73,6 @@ serve(async (req) => {
     // Default to the known form ID if not provided (from the form editor URL)
     if (!formId) {
       formId = 'n5VwsjFk5ous'; // Default form ID for open-meeting form
-      console.log('[sync-fillout-meetings] Using default form ID:', formId);
     }
     
     // Always sync both meeting forms (open-meeting and budget-meeting)
@@ -97,8 +94,6 @@ serve(async (req) => {
     // If formId starts with "-", it's likely a slug, not an ID
     // Fillout form IDs are typically alphanumeric strings, not starting with "-"
     if (formId.startsWith('-')) {
-      console.warn('[sync-fillout-meetings] Form ID appears to be a slug, not an ID:', formId);
-      console.warn('[sync-fillout-meetings] Using default form ID instead: n5VwsjFk5ous');
       formId = 'n5VwsjFk5ous'; // Use the actual form ID
       if (!formIdsToSync.includes(formId)) {
         formIdsToSync.unshift(formId); // Add to beginning
@@ -106,11 +101,9 @@ serve(async (req) => {
     }
     
     if (formIdsToSync.length === 0) {
-      console.error('[sync-fillout-meetings] No valid form IDs to sync');
       return errorResponse('Missing form_id parameter. Please provide the Fillout form ID. You can find it in your Fillout form editor URL (the part after /editor/).', 400);
     }
     
-    console.log('[sync-fillout-meetings] Syncing meeting forms:', formIdsToSync);
 
     // Try multiple possible environment variable names
     // Note: VITE_ prefix is typically stripped in edge functions, but we check both
@@ -119,15 +112,11 @@ serve(async (req) => {
                          Deno.env.get('FILLOUT_API_KEY');
     
     if (!filloutApiKey) {
-      console.error('[sync-fillout-meetings] Missing FILLOUT_API_KEY environment variable');
       const envKeys = Object.keys(Deno.env.toObject());
       const filloutKeys = envKeys.filter(k => k.toUpperCase().includes('FILLOUT'));
-      console.log('[sync-fillout-meetings] Available Fillout-related env vars:', filloutKeys);
-      console.log('[sync-fillout-meetings] All env vars (first 20):', envKeys.slice(0, 20));
+
       return errorResponse('Missing FILLOUT_API_KEY. Make sure it\'s in .env.local as FILLOUT_API_KEY or VITE_FILLOUT_API_KEY and restart functions with: npm run functions:local', 500);
     }
-    
-    console.log('[sync-fillout-meetings] FILLOUT_API_KEY found (length:', filloutApiKey.length, ')');
 
     const supabase = createSupabaseAdmin();
     let totalSynced = 0;
@@ -136,12 +125,9 @@ serve(async (req) => {
 
     // Process each form ID
     for (const currentFormId of formIdsToSync) {
-      console.log('[sync-fillout-meetings] Syncing form:', currentFormId);
-      console.log('[sync-fillout-meetings] API key present:', !!filloutApiKey);
 
       // Fetch submissions from Fillout API
       const filloutUrl = `https://api.fillout.com/v1/api/forms/${currentFormId}/submissions?limit=100`;
-      console.log('[sync-fillout-meetings] Fetching from Fillout API:', filloutUrl);
       
       let filloutResponse;
       try {
@@ -153,37 +139,29 @@ serve(async (req) => {
           },
         });
       } catch (fetchError: any) {
-        console.error('[sync-fillout-meetings] Network error fetching from Fillout:', fetchError);
         allErrors.push(`Network error for form ${currentFormId}: ${fetchError.message}`);
         continue; // Skip this form and continue with next
       }
 
       if (!filloutResponse.ok) {
         const errorText = await filloutResponse.text();
-        console.error('[sync-fillout-meetings] Fillout API error:', {
-          status: filloutResponse.status,
-          statusText: filloutResponse.statusText,
-          error: errorText,
-          formId: currentFormId,
-        });
+
         allErrors.push(`Fillout API error for form ${currentFormId} (${filloutResponse.status}): ${errorText}`);
         continue; // Skip this form and continue with next
       }
 
       const filloutData: FilloutFormSubmissionsResponse = await filloutResponse.json();
-      console.log('[sync-fillout-meetings] Fetched submissions for form', currentFormId, ':', filloutData.totalResponses);
       
       // Log the first submission structure to understand the format
       if (filloutData.responses && filloutData.responses.length > 0) {
-        console.log('[sync-fillout-meetings] First submission structure:', JSON.stringify(filloutData.responses[0], null, 2));
-        console.log('[sync-fillout-meetings] First submission keys:', Object.keys(filloutData.responses[0]));
+
+
         if (filloutData.responses[0].questions) {
-          console.log('[sync-fillout-meetings] First submission questions:', JSON.stringify(filloutData.responses[0].questions, null, 2));
+
         }
       }
 
       if (!filloutData.responses || filloutData.responses.length === 0) {
-        console.log('[sync-fillout-meetings] No submissions found for form:', currentFormId);
         continue; // Skip this form and continue with next
       }
 
@@ -204,7 +182,6 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existing) {
-          console.log('[sync-fillout-meetings] Meeting already exists, checking if update needed:', submission.submissionId);
           
           // Check if meeting_data only has metadata (needs backfill)
           const existingData = existing.meeting_data || {};
@@ -217,9 +194,7 @@ serve(async (req) => {
           );
           
           if (hasOnlyMetadata) {
-            console.log('[sync-fillout-meetings] Meeting has only metadata, will update with full data');
           } else {
-            console.log('[sync-fillout-meetings] Meeting already has full data, skipping update');
             totalSkipped++;
             continue;
           }
@@ -262,10 +237,8 @@ serve(async (req) => {
         const meetingData: Record<string, any> = {};
         
         // Log submission structure for debugging
-        console.log(`[sync-fillout-meetings] Processing submission ${submission.submissionId}`);
-        console.log(`[sync-fillout-meetings] Submission keys:`, Object.keys(submission));
-        console.log(`[sync-fillout-meetings] Full submission:`, JSON.stringify(submission, null, 2));
-        
+
+
         // Helper function to recursively extract all fields from nested objects
         const extractNestedFields = (obj: any, prefix: string = '', depth: number = 0): void => {
           if (depth > 5) return; // Prevent infinite recursion
@@ -311,7 +284,7 @@ serve(async (req) => {
               const storageKey = depth === 0 ? key : fullKey;
               if (!meetingData[storageKey] || depth === 0) { // Prefer top-level values
                 meetingData[storageKey] = value;
-                console.log(`[sync-fillout-meetings] Stored nested field: ${storageKey} = ${JSON.stringify(value)}`);
+
               }
             } else if (typeof value === 'object' && value !== null) {
               // Recursively process nested objects
@@ -322,10 +295,8 @@ serve(async (req) => {
         
         // Helper function to extract question data
         const extractQuestions = (questions: any[], source: string) => {
-          console.log(`[sync-fillout-meetings] Extracting questions from ${source}, count:`, questions.length);
           questions.forEach((question: any, index: number) => {
-            console.log(`[sync-fillout-meetings] Question ${index}:`, JSON.stringify(question));
-            
+
             // Try multiple possible field names for the key
             const key = question.name || 
                        question.id || 
@@ -347,13 +318,12 @@ serve(async (req) => {
             
             if (key && value !== null && value !== undefined) {
               meetingData[key] = value;
-              console.log(`[sync-fillout-meetings] Stored field: ${key} = ${JSON.stringify(value)}`);
+
             } else {
               // If question object has nested structure, extract it recursively
               if (typeof question === 'object' && question !== null) {
                 extractNestedFields(question, key, 0);
               }
-              console.log(`[sync-fillout-meetings] Skipped question ${index} - missing key or value`);
             }
           });
         };
@@ -378,19 +348,18 @@ serve(async (req) => {
         
         // Try direct data object (if questions are properties of data - flat structure)
         if (submission.data && typeof submission.data === 'object' && !Array.isArray(submission.data)) {
-          console.log('[sync-fillout-meetings] Checking submission.data for direct fields');
           Object.keys(submission.data).forEach((key) => {
             // Skip metadata fields and arrays (already processed)
             if (!key.startsWith('_') && 
-                key !== 'formId' && 
-                key !== 'submissionId' && 
-                key !== 'submissionTime' && 
-                key !== 'lastUpdatedAt' &&
-                key !== 'questions' &&
+                key === 'formId' && 
+                key === 'submissionId' && 
+                key === 'submissionTime' && 
+                key === 'lastUpdatedAt' &&
+                key === 'questions' &&
                 !Array.isArray(submission.data[key]) &&
                 typeof submission.data[key] !== 'object') {
               meetingData[key] = submission.data[key];
-              console.log(`[sync-fillout-meetings] Stored direct field from submission.data: ${key} = ${JSON.stringify(submission.data[key])}`);
+
             }
           });
         }
@@ -410,17 +379,14 @@ serve(async (req) => {
               submission[key] !== null &&
               submission[key] !== undefined) {
             meetingData[key] = submission[key];
-            console.log(`[sync-fillout-meetings] Stored top-level field: ${key} = ${JSON.stringify(submission[key])}`);
+
           }
         });
         
         // Final pass: Recursively extract ALL fields from the entire submission (except metadata)
         // This catches any nested structures we might have missed
-        console.log('[sync-fillout-meetings] Performing final recursive extraction from entire submission...');
         extractNestedFields(submission, '', 0);
-        
-        console.log(`[sync-fillout-meetings] Extracted meeting_data fields for ${submission.submissionId}:`, Object.keys(meetingData));
-        console.log(`[sync-fillout-meetings] Extracted meeting_data for ${submission.submissionId}:`, JSON.stringify(meetingData, null, 2));
+
 
         // Add metadata
         meetingData._formId = currentFormId;
@@ -433,7 +399,6 @@ serve(async (req) => {
           meetingData['סוג פגישה'] = 'תיאום תקציב';
           meetingData['פגישת הכרות'] = 'תיאום תקציב'; // Also set the common field name
           meetingData.meeting_type = 'תיאום תקציב';
-          console.log('[sync-fillout-meetings] ✅ Detected budget meeting form, setting meeting type to "תיאום תקציב"');
         } else {
           // Keep default for open-meeting form
           if (!meetingData['סוג פגישה'] && !meetingData['פגישת הכרות']) {
@@ -455,10 +420,8 @@ serve(async (req) => {
             .eq('id', existing.id);
 
           if (updateError) {
-            console.error('[sync-fillout-meetings] Error updating meeting:', updateError);
             allErrors.push(`Failed to update meeting for submission ${submission.submissionId}: ${updateError.message}`);
           } else {
-            console.log('[sync-fillout-meetings] Updated meeting for submission:', submission.submissionId);
             totalSynced++;
           }
         } else {
@@ -473,15 +436,12 @@ serve(async (req) => {
             });
 
           if (insertError) {
-            console.error('[sync-fillout-meetings] Error creating meeting:', insertError);
             allErrors.push(`Failed to create meeting for submission ${submission.submissionId}: ${insertError.message}`);
           } else {
-            console.log('[sync-fillout-meetings] Created meeting for submission:', submission.submissionId);
             totalSynced++;
           }
         }
       } catch (error: any) {
-        console.error('[sync-fillout-meetings] Error processing submission:', error);
         allErrors.push(`Error processing submission ${submission.submissionId}: ${error.message}`);
       }
     } // End of submissions loop
@@ -495,8 +455,6 @@ serve(async (req) => {
       errors: allErrors.length > 0 ? allErrors : undefined,
     });
   } catch (error: any) {
-    console.error('[sync-fillout-meetings] Unexpected error:', error);
     return errorResponse(`Internal server error: ${error.message}`, 500);
   }
 });
-

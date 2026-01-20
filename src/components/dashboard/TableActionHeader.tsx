@@ -6,7 +6,7 @@
  * Pixel-perfect match with Leads page header design.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,15 +19,19 @@ import { PageHeader } from '@/components/dashboard/PageHeader';
 import { Columns, Plus, Settings, LucideIcon, Group } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   toggleColumnVisibility as toggleTableColumnVisibility,
   setSearchQuery,
   addFilter as addFilterAction,
+  updateFilter as updateFilterAction,
   removeFilter as removeFilterAction,
   clearFilters as clearFiltersAction,
+  setActiveFilters,
   selectColumnOrder,
   selectSearchQuery,
   selectActiveFilters,
+  selectFilterGroup,
   selectGroupByKey,
   selectGroupByKeys,
   selectGroupSorting,
@@ -40,8 +44,15 @@ import {
 import { GroupBadge } from './GroupBadge';
 import { GroupBySelector } from './GroupBySelector';
 import type { DataTableColumn } from '@/components/ui/DataTable';
-import type { FilterField } from '@/components/dashboard/TableFilter';
+import type { ActiveFilter, FilterField, FilterGroup } from '@/components/dashboard/TableFilter';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { getFilterGroupSignature, isAdvancedFilterGroup } from '@/utils/filterGroupUtils';
+import { useDefaultView } from '@/hooks/useDefaultView';
+import { useSavedView, useUpdateSavedView } from '@/hooks/useSavedViews';
+import { useToast } from '@/hooks/use-toast';
+import type { FilterConfig } from '@/hooks/useSavedViews';
+import { useSearchParams } from 'react-router-dom';
 
 interface TableActionHeaderProps {
   // Required props
@@ -81,9 +92,12 @@ interface TableActionHeaderProps {
   legacySearchQuery?: string;
   legacyOnSearchChange?: (value: string) => void;
   legacyActiveFilters?: any[];
+  legacyFilterGroup?: FilterGroup;
   legacyOnFilterAdd?: (filter: any) => void;
+  legacyOnFilterUpdate?: (filter: any) => void;
   legacyOnFilterRemove?: (filterId: string) => void;
   legacyOnFilterClear?: () => void;
+  legacyOnFilterGroupChange?: (group: FilterGroup) => void;
 }
 
 export const TableActionHeader = ({
@@ -112,13 +126,25 @@ export const TableActionHeader = ({
   legacySearchQuery,
   legacyOnSearchChange,
   legacyActiveFilters,
+  legacyFilterGroup,
   legacyOnFilterAdd,
+  legacyOnFilterUpdate,
   legacyOnFilterRemove,
   legacyOnFilterClear,
+  legacyOnFilterGroupChange,
 }: TableActionHeaderProps) => {
   const dispatch = useAppDispatch();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGroupByOpen, setIsGroupByOpen] = useState(false);
+  const [editingFilter, setEditingFilter] = useState<ActiveFilter | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+  const { defaultView } = useDefaultView(resourceKey);
+  const updateSavedView = useUpdateSavedView();
+  const [searchParams] = useSearchParams();
+  const viewId = searchParams.get('view_id');
+  const { data: activeView } = useSavedView(viewId);
 
   // Check if state is initialized
   const isInitialized = useAppSelector((state) => !!state.tableState.tables[resourceKey]);
@@ -139,19 +165,24 @@ export const TableActionHeader = ({
   // Get state from Redux (or use legacy props for leads)
   const reduxSearchQuery = useAppSelector((state) => selectSearchQuery(state, resourceKey));
   const reduxActiveFilters = useAppSelector((state) => selectActiveFilters(state, resourceKey));
+  const reduxFilterGroup = useAppSelector((state) => selectFilterGroup(state, resourceKey));
 
-  // Use legacy props for leads, Redux for others
-  const searchQuery = resourceKey === 'leads' && legacySearchQuery !== undefined 
+  // Use legacy props when provided, Redux otherwise
+  const searchQuery = legacySearchQuery !== undefined 
     ? legacySearchQuery 
     : reduxSearchQuery;
   
-  const activeFilters = resourceKey === 'leads' && legacyActiveFilters !== undefined
+  const activeFilters = legacyActiveFilters !== undefined
     ? legacyActiveFilters
     : reduxActiveFilters;
 
+  const filterGroup = legacyFilterGroup !== undefined
+    ? legacyFilterGroup
+    : reduxFilterGroup;
+
   // Handle search change
   const handleSearchChange = (value: string) => {
-    if (resourceKey === 'leads' && legacyOnSearchChange) {
+    if (legacyOnSearchChange) {
       legacyOnSearchChange(value);
     } else {
       dispatch(setSearchQuery({ resourceKey, query: value }));
@@ -160,26 +191,46 @@ export const TableActionHeader = ({
 
   // Handle filter actions
   const handleAddFilter = (filter: any) => {
-    if (resourceKey === 'leads' && legacyOnFilterAdd) {
+    if (legacyOnFilterAdd) {
       legacyOnFilterAdd(filter);
     } else {
       dispatch(addFilterAction({ resourceKey, filter }));
     }
   };
 
+  const handleUpdateFilter = (filter: any) => {
+    if (legacyOnFilterUpdate) {
+      legacyOnFilterUpdate(filter);
+    } else {
+      dispatch(updateFilterAction({ resourceKey, filter }));
+    }
+  };
+
   const handleRemoveFilter = (filterId: string) => {
-    if (resourceKey === 'leads' && legacyOnFilterRemove) {
+    if (legacyOnFilterRemove) {
       legacyOnFilterRemove(filterId);
     } else {
       dispatch(removeFilterAction({ resourceKey, filterId }));
     }
+    if (editingFilter?.id === filterId) {
+      setEditingFilter(null);
+    }
   };
 
   const handleClearFilters = () => {
-    if (resourceKey === 'leads' && legacyOnFilterClear) {
+    if (legacyOnFilterClear) {
       legacyOnFilterClear();
     } else {
       dispatch(clearFiltersAction({ resourceKey }));
+    }
+    setEditingFilter(null);
+  };
+
+  const handleFilterGroupChange = (group: FilterGroup) => {
+    if (legacyOnFilterGroupChange) {
+      legacyOnFilterGroupChange(group);
+    } else {
+      dispatch(setActiveFilters({ resourceKey, filters: group }));
     }
   };
 
@@ -245,10 +296,10 @@ export const TableActionHeader = ({
     if (!columns || columns.length === 0) {
       return [];
     }
-    // Filter out columns that shouldn't be grouped (like actions, IDs, etc.)
+    // Filter out columns that shouldn't be grouped (like actions, etc.)
     return columns.filter((col) => {
       // Exclude certain column types from grouping
-      const excludeIds = ['id', 'actions'];
+      const excludeIds = ['actions'];
       return !excludeIds.includes(col.id) && col.enableHiding !== false;
     });
   };
@@ -289,12 +340,112 @@ export const TableActionHeader = ({
     return null;
   };
 
+  // Check if filters are dirty (different from saved/default state)
+  const filtersDirty = useMemo(() => {
+    const targetView = viewId ? activeView : defaultView;
+    if (!targetView) return false;
+    
+    const savedConfig = targetView.filter_config as FilterConfig | null;
+    if (!savedConfig) return false;
+    
+    const savedFilters = savedConfig.advancedFilters || [];
+    const savedFilterGroup = savedConfig.filterGroup || null;
+    const savedSearchQuery = savedConfig.searchQuery || '';
+    
+    // Normalize current filters for comparison
+    const currentFilters = (activeFilters || []).map(f => ({
+      id: f.id,
+      fieldId: f.fieldId,
+      operator: f.operator,
+      values: Array.isArray(f.values) ? [...f.values].sort() : f.values,
+      type: f.type,
+    })).sort((a, b) => a.id.localeCompare(b.id));
+    
+    // Normalize saved filters for comparison
+    const normalizedSavedFilters = (savedFilters || []).map((f: any) => ({
+      id: f.id,
+      fieldId: f.fieldId,
+      operator: f.operator,
+      values: Array.isArray(f.values) ? [...f.values].sort() : f.values,
+      type: f.type,
+    })).sort((a: any, b: any) => a.id.localeCompare(b.id));
+    
+    const currentFilterGroupStr = getFilterGroupSignature(filterGroup || undefined);
+    const savedFilterGroupStr = getFilterGroupSignature(savedFilterGroup || undefined);
+    const filtersChanged = savedFilterGroup
+      ? currentFilterGroupStr !== savedFilterGroupStr
+      : JSON.stringify(currentFilters) !== JSON.stringify(normalizedSavedFilters);
+    
+    // Compare search query
+    const currentSearchQuery = (searchQuery || '').trim();
+    const normalizedSavedSearchQuery = savedSearchQuery.trim();
+    const searchQueryChanged = currentSearchQuery !== normalizedSavedSearchQuery;
+    
+    // Filters are dirty if filters changed or search query changed
+    return filtersChanged || searchQueryChanged;
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup]);
+
+  // Handle saving filters to default view
+  const handleSaveFilters = async () => {
+    const targetView = viewId ? activeView : defaultView;
+    if (!targetView) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא נמצאה תצוגה פעילה',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Build current filter config
+      const currentFilterConfig: FilterConfig = {
+        ...(targetView.filter_config as FilterConfig),
+        searchQuery: searchQuery,
+        filterGroup: filterGroup,
+        advancedFilters: activeFilters.map(f => ({
+          id: f.id,
+          fieldId: f.fieldId,
+          fieldLabel: f.fieldLabel,
+          operator: f.operator,
+          values: f.values,
+          type: f.type,
+        })),
+      };
+
+      await updateSavedView.mutateAsync({
+        viewId: targetView.id,
+        filterConfig: currentFilterConfig,
+      });
+
+      if (targetView.is_default) {
+        queryClient.invalidateQueries({ queryKey: ['defaultView', resourceKey, user?.id] });
+      } else if (viewId) {
+        queryClient.invalidateQueries({ queryKey: ['savedView', viewId, user?.id] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey, user?.id] });
+
+      toast({
+        title: 'הצלחה',
+        description: 'המסננים נשמרו בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בשמירת המסננים. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <PageHeader
       title={title}
       icon={icon}
       resourceKey={resourceKey}
       className={className}
+      filtersDirty={filtersDirty}
+      onSaveFilters={handleSaveFilters}
       actions={
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap" dir="rtl">
           {/* Search Input - Rightmost (first in RTL flex) */}
@@ -362,8 +513,13 @@ export const TableActionHeader = ({
               fields={filterFields}
               activeFilters={activeFilters}
               onFilterAdd={handleAddFilter}
+              onFilterUpdate={handleUpdateFilter}
               onFilterRemove={handleRemoveFilter}
               onFilterClear={handleClearFilters}
+              filterGroup={filterGroup}
+              onFilterGroupChange={handleFilterGroupChange}
+              editFilter={editingFilter}
+              onEditApplied={() => setEditingFilter(null)}
             />
           )}
 
@@ -410,12 +566,20 @@ export const TableActionHeader = ({
             />
           )}
 
+          {filterGroup && isAdvancedFilterGroup(filterGroup) && (
+            <Badge variant="secondary" className="w-fit bg-indigo-50 text-indigo-700 border border-indigo-200">
+              סינון מתקדם פעיל
+            </Badge>
+          )}
+
           {/* Active Filter Chips */}
           {enableFilters && activeFilters && activeFilters.length > 0 && (
             <FilterChips
               filters={activeFilters}
+              filterGroup={filterGroup}
               onRemove={handleRemoveFilter}
               onClearAll={handleClearFilters}
+              onEdit={setEditingFilter}
             />
           )}
 
@@ -428,5 +592,3 @@ export const TableActionHeader = ({
     />
   );
 };
-
-

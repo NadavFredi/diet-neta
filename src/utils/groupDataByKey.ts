@@ -161,3 +161,24 @@ export function groupDataByKeys<T extends Record<string, any>>(
   return [];
 }
 
+/**
+ * Calculate total number of groups from grouped data
+ * Supports both single-level and multi-level grouping
+ */
+export function getTotalGroupsCount<T>(
+  groupedData: GroupedData<T>[] | MultiLevelGroupedData<T>[] | null
+): number {
+  if (!groupedData || groupedData.length === 0) {
+    return 0;
+  }
+
+  // Check if it's multi-level grouping
+  if (groupedData.length > 0 && 'level1Key' in groupedData[0]) {
+    // Multi-level grouping: count level1 groups
+    return groupedData.length;
+  }
+
+  // Single-level grouping: count groups
+  return groupedData.length;
+}
+

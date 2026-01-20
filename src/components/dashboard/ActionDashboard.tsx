@@ -13,12 +13,12 @@ import { Button } from '@/components/ui/button';
 import { InlineEditableField, type InlineEditableFieldRef } from './InlineEditableField';
 import { InlineEditableSelect, type InlineEditableSelectRef } from './InlineEditableSelect';
 import { CardHeaderWithActions } from './CardHeaderWithActions';
-import { 
-  Target, 
-  Activity, 
-  Clock, 
-  MapPin, 
-  Wallet, 
+import {
+  Target,
+  Activity,
+  Clock,
+  MapPin,
+  Wallet,
   Dumbbell,
   Flame,
   FileText,
@@ -28,21 +28,42 @@ import {
   Save,
   X
 } from 'lucide-react';
-import { formatDate } from '@/utils/dashboard';
-import { 
-  FITNESS_GOAL_OPTIONS, 
-  SOURCE_OPTIONS 
+import { formatDate, calculateCurrentWeekFromJoinDate } from '@/utils/dashboard';
+import {
+  FITNESS_GOAL_OPTIONS,
+  SOURCE_OPTIONS
 } from '@/utils/dashboard';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
+import { cn } from '@/lib/utils';
 import { WeeklyReviewWrapper } from './WeeklyReviewWrapper';
 import { LeadAutomationCard } from './LeadAutomationCard';
 import { LeadFormsCard } from './LeadFormsCard';
 import { ReadOnlyField } from './ReadOnlyField';
 import { LeadPaymentCard } from './LeadPaymentCard';
+import { CollectionsCard } from './CollectionsCard';
 import { usePlansHistory } from '@/hooks/usePlansHistory';
 import { ProgressGalleryCard } from './ProgressGalleryCard';
 import { BloodTestsGalleryCard } from './BloodTestsGalleryCard.tsx';
 import { CreateSubscriptionModal } from './dialogs/CreateSubscriptionModal';
+import { useMeetings, useDeleteMeeting } from '@/hooks/useMeetings';
+import { usePaymentHistory, useDeletePayment } from '@/hooks/usePaymentHistory';
+import { CreditCard, Plus, Trash2 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { AddPaymentDialog } from './dialogs/AddPaymentDialog';
+import { AddMeetingDialog } from './dialogs/AddMeetingDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface LeadData {
   id: string;
@@ -88,7 +109,22 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   getStatusColor,
 }) => {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
   const [isCreateSubscriptionModalOpen, setIsCreateSubscriptionModalOpen] = useState(false);
+  const [isAddPaymentDialogOpen, setIsAddPaymentDialogOpen] = useState(false);
+  const [isAddMeetingDialogOpen, setIsAddMeetingDialogOpen] = useState(false);
+
+  // Selection state for meetings and payments
+  const [selectedMeetings, setSelectedMeetings] = useState<Set<string>>(new Set());
+  const [selectedPayments, setSelectedPayments] = useState<Set<string>>(new Set());
+  const [isDeleteMeetingsDialogOpen, setIsDeleteMeetingsDialogOpen] = useState(false);
+  const [isDeletePaymentsDialogOpen, setIsDeletePaymentsDialogOpen] = useState(false);
+
+  // Delete hooks
+  const deleteMeeting = useDeleteMeeting();
+  const deletePayment = useDeletePayment();
 
   // Refs for Subscription card editable fields
   const joinDateRef = useRef<InlineEditableFieldRef>(null);
@@ -120,6 +156,255 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   // Fetch plans history from plan tables (must be called before early returns)
   const leadId = activeLead?.id;
   const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
+
+  // Fetch meetings and payments data
+  const { data: allMeetings = [] } = useMeetings();
+  const { data: paymentHistory = [] } = usePaymentHistory(customer?.id || '', leadId || null);
+
+  // Filter meetings by lead_id or customer_id
+  const leadMeetings = useMemo(() => {
+    if (!leadId && !customer?.id) return [];
+
+    return allMeetings.filter((meeting) => {
+      // Match by lead_id first, then fallback to customer_id
+      if (leadId && meeting.lead_id === leadId) return true;
+      if (customer?.id && meeting.customer_id === customer.id) return true;
+      return false;
+    });
+  }, [allMeetings, leadId, customer?.id]);
+
+  // Sort meetings by date (most recent first)
+  const sortedMeetings = useMemo(() => {
+    return [...leadMeetings].sort((a, b) => {
+      const dateA = a.meeting_data?.date || a.meeting_data?.['תאריך'] || a.created_at;
+      const dateB = b.meeting_data?.date || b.meeting_data?.['תאריך'] || b.created_at;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
+  }, [leadMeetings]);
+
+  // Helper function to extract meeting date
+  const getMeetingDate = (meeting: any) => {
+    const meetingData = meeting.meeting_data || {};
+    const schedulingData = (() => {
+      if (meetingData.event_start_time || meetingData.event_end_time) {
+        return { eventStartTime: meetingData.event_start_time || meetingData.eventStartTime };
+      }
+      if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
+        const scheduling = meetingData.scheduling[0];
+        if (scheduling.value) {
+          return { eventStartTime: scheduling.value.eventStartTime };
+        }
+      }
+      return null;
+    })();
+
+    if (schedulingData?.eventStartTime) {
+      try {
+        const date = new Date(schedulingData.eventStartTime);
+        if (!isNaN(date.getTime())) {
+          return formatDate(date.toISOString());
+        }
+      } catch (e) {
+        // Silent failure
+      }
+    }
+
+    return meetingData.date ||
+      meetingData.meeting_date ||
+      meetingData['תאריך'] ||
+      meetingData['תאריך פגישה'] ||
+      formatDate(meeting.created_at);
+  };
+
+  // Helper function to extract meeting time
+  const getMeetingTime = (meeting: any) => {
+    const meetingData = meeting.meeting_data || {};
+    const schedulingData = (() => {
+      if (meetingData.event_start_time || meetingData.event_end_time) {
+        return {
+          eventStartTime: meetingData.event_start_time || meetingData.eventStartTime,
+          eventEndTime: meetingData.event_end_time || meetingData.eventEndTime,
+        };
+      }
+      if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
+        const scheduling = meetingData.scheduling[0];
+        if (scheduling.value) {
+          return {
+            eventStartTime: scheduling.value.eventStartTime,
+            eventEndTime: scheduling.value.eventEndTime,
+          };
+        }
+      }
+      return null;
+    })();
+
+    if (schedulingData?.eventStartTime) {
+      try {
+        const startDate = new Date(schedulingData.eventStartTime);
+        if (!isNaN(startDate.getTime())) {
+          const hours = startDate.getHours().toString().padStart(2, '0');
+          const minutes = startDate.getMinutes().toString().padStart(2, '0');
+          const startTime = `${hours}:${minutes}`;
+
+          if (schedulingData.eventEndTime) {
+            try {
+              const endDate = new Date(schedulingData.eventEndTime);
+              if (!isNaN(endDate.getTime())) {
+                const endHours = endDate.getHours().toString().padStart(2, '0');
+                const endMinutes = endDate.getMinutes().toString().padStart(2, '0');
+                const endTime = `${endHours}:${endMinutes}`;
+                return `${startTime} - ${endTime}`;
+              }
+            } catch (e) {
+              // Silent failure
+            }
+          }
+          return startTime;
+        }
+      } catch (e) {
+        // Silent failure
+      }
+    }
+    return '-';
+  };
+
+  // Helper function to get meeting status
+  const getMeetingStatus = (meeting: any) => {
+    const meetingData = meeting.meeting_data || {};
+    return meetingData.status || meetingData['סטטוס'] || 'פעיל';
+  };
+
+  // Helper function to get status badge color
+  const getMeetingStatusColor = (status: string) => {
+    const statusStr = String(status);
+    if (statusStr.includes('בוטל') || statusStr.includes('מבוטל')) return 'bg-red-50 text-red-700 border-red-200';
+    if (statusStr.includes('הושלם') || statusStr.includes('הושלם')) return 'bg-green-50 text-green-700 border-green-200';
+    if (statusStr.includes('מתוכנן') || statusStr.includes('תוכנן')) return 'bg-blue-50 text-blue-700 border-blue-200';
+    return 'bg-gray-50 text-gray-700 border-gray-200';
+  };
+
+  // Sort payments by date (most recent first) - already sorted by usePaymentHistory
+  const sortedPayments = useMemo(() => {
+    return [...paymentHistory];
+  }, [paymentHistory]);
+
+  // Helper function to get payment status badge color
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'bg-green-50 text-green-700 border-green-200';
+      case 'pending':
+        return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'refunded':
+        return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'failed':
+        return 'bg-red-50 text-red-700 border-red-200';
+      default:
+        return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
+
+  // Helper function to format payment status in Hebrew
+  const formatPaymentStatus = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'שולם';
+      case 'pending':
+        return 'ממתין';
+      case 'refunded':
+        return 'הוחזר';
+      case 'failed':
+        return 'נכשל';
+      default:
+        return status;
+    }
+  };
+
+  // Meeting selection handlers
+  const handleMeetingToggle = (meetingId: string, checked: boolean) => {
+    setSelectedMeetings((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(meetingId);
+      } else {
+        next.delete(meetingId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllMeetings = (checked: boolean) => {
+    if (checked) {
+      setSelectedMeetings(new Set(sortedMeetings.map((m) => m.id)));
+    } else {
+      setSelectedMeetings(new Set());
+    }
+  };
+
+  const handleDeleteMeetings = async () => {
+    if (selectedMeetings.size === 0) return;
+
+    try {
+      await Promise.all(
+        Array.from(selectedMeetings).map((id) => deleteMeeting.mutateAsync(id))
+      );
+      setSelectedMeetings(new Set());
+      setIsDeleteMeetingsDialogOpen(false);
+      toast({
+        title: 'הצלחה',
+        description: `נמחקו ${selectedMeetings.size} פגישות בהצלחה`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת הפגישות',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Payment selection handlers
+  const handlePaymentToggle = (paymentId: string, checked: boolean) => {
+    setSelectedPayments((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(paymentId);
+      } else {
+        next.delete(paymentId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllPayments = (checked: boolean) => {
+    if (checked) {
+      setSelectedPayments(new Set(sortedPayments.map((p) => p.id)));
+    } else {
+      setSelectedPayments(new Set());
+    }
+  };
+
+  const handleDeletePayments = async () => {
+    if (selectedPayments.size === 0) return;
+
+    try {
+      await Promise.all(
+        Array.from(selectedPayments).map((id) => deletePayment.mutateAsync(id))
+      );
+      setSelectedPayments(new Set());
+      setIsDeletePaymentsDialogOpen(false);
+      toast({
+        title: 'הצלחה',
+        description: `נמחקו ${selectedPayments.size} תשלומים בהצלחה`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת התשלומים',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Callback hooks (must be called before early returns)
   const handleSubscriptionFieldEditingChange = useCallback((fieldId: string, isEditing: boolean) => {
@@ -281,6 +566,12 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.stepsHistory, activeLead?.steps_history]);
 
+  // Calculate current week from join date (must be called before early returns)
+  const calculatedCurrentWeek = useMemo(() => {
+    if (!activeLead?.join_date) return 0;
+    return calculateCurrentWeekFromJoinDate(activeLead.join_date);
+  }, [activeLead?.join_date]);
+
   // NOW we can do early returns after all hooks are called
   if (isLoading) {
     return (
@@ -305,6 +596,12 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   }
 
   const subscriptionData = activeLead.subscription_data || {};
+
+  // Use calculated week if available, otherwise fall back to stored value
+  const currentWeekValue = calculatedCurrentWeek > 0
+    ? calculatedCurrentWeek
+    : (subscriptionData.currentWeekInProgram || 0);
+
   // Use status_sub first, then status_main, then default
   // This matches the database structure and ensures correct display
   const displayStatus = activeLead.status_sub || activeLead.status_main || 'ללא סטטוס';
@@ -330,7 +627,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   };
 
   const age = getAge();
-  
+
   // Calculate BMI if height and weight are available
   const calculateBMI = (height: number | null, weight: number | null): number | null => {
     if (!height || !weight || height === 0) return null;
@@ -408,7 +705,18 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 label="תאריך הצטרפות"
                 value={activeLead.join_date || ''}
                 onSave={async (newValue) => {
-                  await onUpdateLead({ join_date: String(newValue) });
+                  const newJoinDate = String(newValue);
+                  // Calculate new current week from the new join date
+                  const newCurrentWeek = calculateCurrentWeekFromJoinDate(newJoinDate);
+                  // Update both join_date and current week in subscription_data
+                  const updatedSubscription = {
+                    ...subscriptionData,
+                    currentWeekInProgram: newCurrentWeek > 0 ? newCurrentWeek : (subscriptionData.currentWeekInProgram || 0),
+                  };
+                  await onUpdateLead({
+                    join_date: newJoinDate,
+                    subscription_data: updatedSubscription
+                  });
                 }}
                 type="date"
                 formatValue={(val) => formatDate(String(val))}
@@ -419,7 +727,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               <InlineEditableField
                 ref={currentWeekRef}
                 label="שבוע נוכחי"
-                value={subscriptionData.currentWeekInProgram || 0}
+                value={currentWeekValue}
                 onSave={async (newValue) => {
                   const updatedSubscription = {
                     ...subscriptionData,
@@ -522,25 +830,25 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 ]}
                 onSave={async (newValue) => {
                   const mainCategory = STATUS_CATEGORIES.find(cat => cat.label === newValue);
-                  const subCategory = STATUS_CATEGORIES.find(cat => 
+                  const subCategory = STATUS_CATEGORIES.find(cat =>
                     cat.subStatuses?.some(sub => sub.label === newValue)
                   );
-                  
+
                   if (mainCategory) {
-                    await onUpdateLead({ 
+                    await onUpdateLead({
                       status_main: mainCategory.label,
-                      status_sub: null 
+                      status_sub: null
                     });
                   } else if (subCategory) {
                     const subStatus = subCategory.subStatuses?.find(sub => sub.label === newValue);
-                    await onUpdateLead({ 
+                    await onUpdateLead({
                       status_main: subCategory.label,
-                      status_sub: subStatus?.label || newValue 
+                      status_sub: subStatus?.label || newValue
                     });
                   } else {
-                    await onUpdateLead({ 
+                    await onUpdateLead({
                       status_main: newValue,
-                      status_sub: null 
+                      status_sub: null
                     });
                   }
                 }}
@@ -702,7 +1010,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         </div>
 
         {/* Row 2: 3-Column Grid - WhatsApp Automation, Fillout Forms, Payment Center */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4 items-stretch">
           {/* Card 4: WhatsApp Automation - Compact Version */}
           <LeadAutomationCard
             customer={customer}
@@ -712,10 +1020,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           />
 
           {/* Card 5: Fillout Forms */}
-          <LeadFormsCard 
+          <LeadFormsCard
             leadId={activeLead?.id || null} // Pass lead ID for URL parameter matching
-            leadEmail={customer?.email || activeLead?.email || null} 
+            leadEmail={customer?.email || activeLead?.email || null}
             leadPhone={activeLead?.phone || customer?.phone || null}
+            leadName={customer?.full_name || activeLead?.name || null}
           />
 
           {/* Card 6: Stripe Payment Center */}
@@ -725,6 +1034,181 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             customerEmail={customer?.email || activeLead.email || null}
             customerId={customer?.id || null}
             leadId={activeLead?.id || null}
+          />
+        </div>
+
+        {/* Row 2.5: Meetings, Payments & Collections - 3-Column Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
+          {/* Meetings Card */}
+          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
+            <div className="pb-3 border-b border-slate-100 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-100">
+                    <CalendarIcon className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">פגישות</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedMeetings.size > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={() => setIsDeleteMeetingsDialogOpen(true)}
+                      className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      מחק ({selectedMeetings.size})
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => setIsAddMeetingDialogOpen(true)}
+                    className="h-8 text-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    צור פגישה
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto max-h-[300px]">
+              {sortedMeetings.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  אין פגישות
+                </div>
+              ) : (
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">שעה</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedMeetings.map((meeting) => (
+                      <TableRow
+                        key={meeting.id}
+                        onClick={() => navigate(`/dashboard/meetings/${meeting.id}`, {
+                          state: { returnTo: location.pathname }
+                        })}
+                        className="cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100"
+                      >
+                        <TableCell
+                          className="text-xs py-3 px-3 text-right align-middle w-12"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={selectedMeetings.has(meeting.id)}
+                            onCheckedChange={(checked) => handleMeetingToggle(meeting.id, checked === true)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 text-right align-middle">
+                          {getMeetingDate(meeting)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-700 text-right align-middle">
+                          {getMeetingTime(meeting)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-right align-middle">
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 inline-flex", getMeetingStatusColor(getMeetingStatus(meeting)))}>
+                            {getMeetingStatus(meeting)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </Card>
+
+          {/* Payments Card */}
+          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
+            <div className="pb-3 border-b border-slate-100 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-green-100">
+                    <CreditCard className="h-4 w-4 text-green-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">תשלומים</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedPayments.size > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={() => setIsDeletePaymentsDialogOpen(true)}
+                      className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      מחק ({selectedPayments.size})
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => setIsAddPaymentDialogOpen(true)}
+                    className="h-8 text-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    צור תשלום
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto max-h-[300px]">
+              {sortedPayments.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  אין תשלומים
+                </div>
+              ) : (
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedPayments.map((payment) => (
+                      <TableRow
+                        key={payment.id}
+                        onClick={() => navigate(`/dashboard/payments/${payment.id}`, {
+                          state: { returnTo: location.pathname }
+                        })}
+                        className="cursor-pointer hover:bg-green-50 transition-colors border-b border-gray-100"
+                      >
+                        <TableCell
+                          className="text-xs py-3 px-3 text-right align-middle w-12"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={selectedPayments.has(payment.id)}
+                            onCheckedChange={(checked) => handlePaymentToggle(payment.id, checked === true)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 text-right align-middle">
+                          {formatDate(payment.date)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 font-semibold text-right align-middle">
+                          ₪{payment.amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-right align-middle">
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 inline-flex", getPaymentStatusColor(payment.status))}>
+                            {formatPaymentStatus(payment.status)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </Card>
+
+          {/* Collections Card */}
+          <CollectionsCard
+            leadId={leadId}
+            customerId={customer?.id}
           />
         </div>
 
@@ -753,7 +1237,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             onAddSupplementsPlan={() => {
               // Supplements plan creation - placeholder for future implementation
             }}
-            onAssignBudget={onAssignBudget || (() => {})}
+            onAssignBudget={onAssignBudget || (() => { })}
           />
         </div>
       </div>
@@ -766,11 +1250,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           try {
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
-            
+
             // Calculate expiration date based on duration_unit
             const expirationDate = new Date(today);
             const durationUnit = subscriptionType.duration_unit || 'months';
-            
+
             switch (durationUnit) {
               case 'days':
                 expirationDate.setDate(expirationDate.getDate() + subscriptionType.duration);
@@ -784,7 +1268,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 break;
             }
             const expirationDateStr = expirationDate.toISOString().split('T')[0];
-            
+
             // Create a NEW subscription_data object (copy values, not reference)
             // This ensures one-way relationship - template changes don't affect leads
             const updatedSubscription = {
@@ -795,7 +1279,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               expirationDate: expirationDateStr, // Calculate expiration date
               status: 'פעיל', // Set status to Active by default
             };
-            
+
             await onUpdateLead({
               join_date: todayStr,
               subscription_data: updatedSubscription,
@@ -805,6 +1289,72 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           }
         }}
       />
+
+      {/* Add Payment Dialog */}
+      <AddPaymentDialog
+        isOpen={isAddPaymentDialogOpen}
+        onOpenChange={setIsAddPaymentDialogOpen}
+        leadId={leadId}
+        customerId={customer?.id}
+        onPaymentCreated={() => {
+          // Payments will refresh automatically via query invalidation
+        }}
+      />
+
+      {/* Add Meeting Dialog */}
+      <AddMeetingDialog
+        isOpen={isAddMeetingDialogOpen}
+        onOpenChange={setIsAddMeetingDialogOpen}
+        leadId={leadId}
+        customerId={customer?.id}
+        onMeetingCreated={() => {
+          // Meetings will refresh automatically via query invalidation
+        }}
+      />
+
+      {/* Delete Meetings Confirmation Dialog */}
+      <AlertDialog open={isDeleteMeetingsDialogOpen} onOpenChange={setIsDeleteMeetingsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת פגישות</AlertDialogTitle>
+            <AlertDialogDescription>
+              את/ה עומד/ת למחוק {selectedMeetings.size} פגישות. פעולה זו אינה ניתנת לשחזור.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={handleDeleteMeetings}
+              className="bg-red-600 hover:bg-red-600/90 text-white"
+              disabled={deleteMeeting.isPending}
+            >
+              {deleteMeeting.isPending ? 'מוחק...' : 'אישור מחיקה'}
+            </AlertDialogAction>
+            <AlertDialogCancel disabled={deleteMeeting.isPending}>ביטול</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Payments Confirmation Dialog */}
+      <AlertDialog open={isDeletePaymentsDialogOpen} onOpenChange={setIsDeletePaymentsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת תשלומים</AlertDialogTitle>
+            <AlertDialogDescription>
+              את/ה עומד/ת למחוק {selectedPayments.size} תשלומים. פעולה זו אינה ניתנת לשחזור.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={handleDeletePayments}
+              className="bg-red-600 hover:bg-red-600/90 text-white"
+              disabled={deletePayment.isPending}
+            >
+              {deletePayment.isPending ? 'מוחק...' : 'אישור מחיקה'}
+            </AlertDialogAction>
+            <AlertDialogCancel disabled={deletePayment.isPending}>ביטול</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -5,7 +5,7 @@
  * Shows: Name, Phone, Email in primary row with expandable section for additional details.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Phone, MessageCircle, Mail, ArrowRight, ChevronDown, History, MessageSquare, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -96,7 +96,12 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
   const { isHistoryOpen, isNotesOpen, toggleHistory, toggleNotes } = useLeadSidebar();
 
   // Get notes count for the customer
-  const notes = useAppSelector(selectCustomerNotes(customer?.id));
+  // Memoize the selector to prevent creating a new selector on every render
+  const customerNotesSelector = useMemo(
+    () => selectCustomerNotes(customer?.id),
+    [customer?.id]
+  );
+  const notes = useAppSelector(customerNotesSelector);
   const notesCount = notes?.length || 0;
 
   const { user } = useAppSelector((state) => state.auth);

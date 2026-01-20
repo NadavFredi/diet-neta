@@ -286,13 +286,6 @@ export const LeadHistoryTabs = ({
     if (!editingBudget) return;
 
     try {
-      console.log('[LeadHistoryTabs] Saving budget:', {
-        budgetId: editingBudget.id,
-        workout_template_id: data.workout_template_id,
-        nutrition_template_id: data.nutrition_template_id,
-        fullData: data
-      });
-
       const updateResult = await updateBudget.mutateAsync({
         budgetId: editingBudget.id,
         name: data.name,
@@ -305,11 +298,6 @@ export const LeadHistoryTabs = ({
         supplements: data.supplements || [],
         eating_order: data.eating_order ?? null,
         eating_rules: data.eating_rules ?? null,
-      });
-
-      console.log('[LeadHistoryTabs] Budget saved successfully:', {
-        id: updateResult.id,
-        workout_template_id: updateResult.workout_template_id
       });
 
       toast({
@@ -334,7 +322,6 @@ export const LeadHistoryTabs = ({
       setEditingBudgetId(null);
       setCurrentAssignment(null);
     } catch (error: any) {
-      console.error('[LeadHistoryTabs] Error saving budget:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון התקציב',
@@ -1041,7 +1028,7 @@ export const LeadHistoryTabs = ({
                                           setCustomerPhone(customer.phone);
                                         }
                                       } catch (error) {
-                                        console.error('Error fetching customer phone:', error);
+                                        // Silent failure
                                       }
                                     }
                                     // Open send budget modal

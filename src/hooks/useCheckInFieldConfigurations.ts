@@ -148,7 +148,6 @@ export const useCheckInFieldConfigurations = (customerId?: string | null) => {
         setConfiguration(DEFAULT_CHECK_IN_CONFIG);
       }
     } catch (err) {
-      console.error('Error fetching check-in field configuration:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch configuration');
       setConfiguration(DEFAULT_CHECK_IN_CONFIG); // Fallback to defaults
     } finally {
@@ -187,7 +186,6 @@ export const useCheckInFieldConfigurations = (customerId?: string | null) => {
       setConfiguration(config);
       return true;
     } catch (err) {
-      console.error('Error saving check-in field configuration:', err);
       setError(err instanceof Error ? err.message : 'Failed to save configuration');
       throw err;
     }

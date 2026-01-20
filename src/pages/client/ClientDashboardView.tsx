@@ -25,6 +25,7 @@ import {
   Wallet,
   Image as ImageIcon,
   Menu,
+  BookOpen,
 } from 'lucide-react';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
@@ -35,15 +36,15 @@ import { BudgetView } from '@/components/client/BudgetView';
 import { VisualProgressCard } from '@/components/client/VisualProgressCard';
 import { BloodTestsCard } from '@/components/client/BloodTestsCard.tsx';
 import { WeeklyReviewsList } from '@/components/client/WeeklyReviewsList';
+import { KnowledgeBaseArticles } from '@/components/client/KnowledgeBaseArticles';
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { stopImpersonation } from '@/store/slices/impersonationSlice';
 import { setSelectedDate } from '@/store/slices/clientSlice';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
-import { AddNutritionPlanDialog } from '@/components/dashboard/dialogs/AddNutritionPlanDialog';
 import { useClientRealtime } from '@/hooks/useClientRealtime';
 import { useToast } from '@/hooks/use-toast';
 import { updateClientLead } from '@/store/slices/clientSlice';
@@ -58,15 +59,23 @@ export const ClientDashboardView: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { customer, activeLead, leads, isLoading, error, stats, handleSelectLead } = useClientDashboard();
+  const { customer, leads, isLoading, error, stats, handleSelectLead } = useClientDashboard();
   const { user } = useAppSelector((state) => state.auth);
   const { isImpersonating, previousLocation } = useAppSelector((state) => state.impersonation);
   const { checkIns, selectedDate } = useAppSelector((state) => state.client);
   const { handleLogout } = useAuth();
-  const [activeTab, setActiveTab] = useState('workout');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabParam || 'workout');
   const [isMultiDayModalOpen, setIsMultiDayModalOpen] = useState(false);
-  const [isNutritionPlanDialogOpen, setIsNutritionPlanDialogOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Sync activeTab with URL param
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   // Initialize selectedDate to today on mount
   useEffect(() => {
@@ -78,18 +87,7 @@ export const ClientDashboardView: React.FC = () => {
 
   // Fetch workout and nutrition plans for customer
   const { workoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customer?.id || null);
-  const { nutritionPlan, createNutritionPlan, fetchNutritionPlan, isLoading: isLoadingNutritionPlan } = useNutritionPlan(customer?.id || null);
-
-  // Debug: Log nutrition plan data
-  useEffect(() => {
-    if (customer?.id) {
-      console.log('[ClientDashboard] Nutrition Plan Data:', {
-        customerId: customer.id,
-        nutritionPlan,
-        isLoadingNutritionPlan,
-      });
-    }
-  }, [customer?.id, nutritionPlan, isLoadingNutritionPlan]);
+  const { nutritionPlan, isLoading: isLoadingNutritionPlan } = useNutritionPlan(customer?.id || null);
 
   // Set up polling for data sync (every 5 minutes)
   useClientRealtime(customer?.id || null);
@@ -118,25 +116,38 @@ export const ClientDashboardView: React.FC = () => {
     return { exercises, steps, nutrition };
   }, [checkIns]);
 
-  // Handle profile updates
+  // Use customer-level daily_protocol directly (stored on customer table)
+  // MUST be called before any early returns to follow Rules of Hooks
+  const dailyProtocol = useMemo(() => {
+    // Customer-level daily protocol is stored directly on customer table
+    return customer?.daily_protocol || {};
+  }, [customer?.daily_protocol]);
+
+  // Handle profile updates - update all leads with the same customer_id
   const handleUpdateWeight = async (newValue: string | number) => {
-    if (!activeLead) return;
+    if (!leads || leads.length === 0) return;
     const weight = typeof newValue === 'number' ? newValue : parseFloat(String(newValue));
     if (isNaN(weight)) throw new Error('ערך לא תקין');
     
-    await dispatch(
-      updateClientLead({ leadId: activeLead.id, updates: { weight } })
-    ).unwrap();
+    // Update all leads for this customer
+    await Promise.all(
+      leads.map(lead => 
+        dispatch(updateClientLead({ leadId: lead.id, updates: { weight } })).unwrap()
+      )
+    );
   };
 
   const handleUpdateHeight = async (newValue: string | number) => {
-    if (!activeLead) return;
+    if (!leads || leads.length === 0) return;
     const height = typeof newValue === 'number' ? newValue : parseFloat(String(newValue));
     if (isNaN(height)) throw new Error('ערך לא תקין');
     
-    await dispatch(
-      updateClientLead({ leadId: activeLead.id, updates: { height } })
-    ).unwrap();
+    // Update all leads for this customer
+    await Promise.all(
+      leads.map(lead => 
+        dispatch(updateClientLead({ leadId: lead.id, updates: { height } })).unwrap()
+      )
+    );
   };
 
   // Show error if there's one
@@ -197,9 +208,6 @@ export const ClientDashboardView: React.FC = () => {
   }
 
   const greeting = `שלום, ${customer.full_name || user?.email || 'לקוח'}!`;
-
-  // Get goals from daily_protocol
-  const dailyProtocol = activeLead?.daily_protocol || {};
 
   return (
     <div className="bg-[#F8FAFC] flex flex-col h-full" dir="rtl" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -335,6 +343,21 @@ export const ClientDashboardView: React.FC = () => {
             >
               <Activity className="h-5 w-5 flex-shrink-0" />
               <span className="text-sm font-medium">בדיקות דם</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('knowledgebase');
+                setIsMobileMenuOpen(false);
+              }}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
+                activeTab === 'knowledgebase'
+                  ? "bg-white text-gray-800 shadow-md font-semibold"
+                  : "text-white hover:bg-white/15 active:bg-white/20"
+              )}
+            >
+              <BookOpen className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm font-medium">מאגר ידע</span>
             </button>
           </nav>
           <div className="flex-shrink-0 border-t border-white/10">
@@ -507,25 +530,15 @@ export const ClientDashboardView: React.FC = () => {
                     isEditable={false}
                   />
                 ) : (
-                  <Card className="border border-slate-200 shadow-sm">
+                  <Card className="border border-slate-200 shadow-sm rounded-3xl">
                     <CardContent className="p-12 text-center">
                       <Flame className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                       <p className="text-base font-medium text-gray-500 mb-2">
                         אין תוכנית תזונה פעילה
                       </p>
-                      <p className="text-sm text-gray-400 mb-6">
-                        צור תוכנית תזונה חדשה עבור הלקוח
+                      <p className="text-sm text-gray-400">
+                        המאמן שלך יוסיף תוכנית תזונה כאן
                       </p>
-                      <Button
-                        onClick={() => {
-                          console.log('[ClientDashboard] Opening nutrition plan dialog for customer:', customer?.id);
-                          setIsNutritionPlanDialogOpen(true);
-                        }}
-                        className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white shadow-sm"
-                      >
-                        <Flame className="h-4 w-4 ml-2" />
-                        צור תוכנית תזונה
-                      </Button>
                     </CardContent>
                   </Card>
                 )}
@@ -557,7 +570,7 @@ export const ClientDashboardView: React.FC = () => {
               <div className="space-y-4 sm:space-y-6">
                 <WeeklyReviewsList
                   customerId={customer.id}
-                  leadId={activeLead?.id || null}
+                  leadId={null}
                 />
               </div>
             )}
@@ -565,7 +578,7 @@ export const ClientDashboardView: React.FC = () => {
             {activeTab === 'budget' && (
               <div className="space-y-4 sm:space-y-6">
                 <BudgetView
-                  leadId={activeLead?.id}
+                  leadId={null}
                   customerId={customer?.id}
                 />
               </div>
@@ -579,9 +592,16 @@ export const ClientDashboardView: React.FC = () => {
             )}
 
             {/* Blood Tests Tab */}
-            {activeTab === 'bloodtests' && customer?.id && activeLead?.id && (
+            {activeTab === 'bloodtests' && customer?.id && (
               <div className="space-y-4 sm:space-y-6">
-                <BloodTestsCard leadId={activeLead.id} customerId={customer.id} />
+                <BloodTestsCard customerId={customer.id} leads={leads} />
+              </div>
+            )}
+
+            {/* Knowledge Base Tab */}
+            {activeTab === 'knowledgebase' && (
+              <div className="space-y-4 sm:space-y-6">
+                <KnowledgeBaseArticles />
               </div>
             )}
 
@@ -601,54 +621,13 @@ export const ClientDashboardView: React.FC = () => {
                 open={isMultiDayModalOpen}
                 onOpenChange={setIsMultiDayModalOpen}
                 customerId={customer.id}
-                leadId={activeLead?.id || null}
+                leadId={null}
                 existingCheckIns={checkIns}
               />
             )}
           </div>
         </div>
       </div>
-
-      {/* Nutrition Plan Creation Dialog */}
-      {customer && (
-        <AddNutritionPlanDialog
-          isOpen={isNutritionPlanDialogOpen}
-          onOpenChange={setIsNutritionPlanDialogOpen}
-          onSave={async (data) => {
-            try {
-              const leadId = activeLead?.id || undefined;
-              const planData = {
-                lead_id: leadId,
-                start_date: new Date().toISOString(),
-                description: '',
-                targets: data || {
-                  calories: 2000,
-                  protein: 150,
-                  carbs: 200,
-                  fat: 65,
-                  fiber: 30,
-                },
-              };
-              await createNutritionPlan(planData);
-              await fetchNutritionPlan(); // Refetch to update UI
-              toast({
-                title: 'הצלחה',
-                description: 'תוכנית התזונה נוצרה בהצלחה',
-              });
-              setIsNutritionPlanDialogOpen(false);
-            } catch (error: any) {
-              console.error('Failed to create nutrition plan:', error);
-              toast({
-                title: 'שגיאה',
-                description: error?.message || 'נכשל ביצירת תוכנית התזונה',
-                variant: 'destructive',
-              });
-            }
-          }}
-          customerId={customer.id}
-          leadId={activeLead?.id}
-        />
-      )}
     </div>
   );
 };

@@ -73,6 +73,5 @@ export const clearGreenApiConfigCache = (): void => {
  * @deprecated This function should not be used - all API calls go through Edge Functions
  */
 export const getGreenApiConfig = async (): Promise<GreenApiConfig | null> => {
-  console.warn('[GreenAPI] getGreenApiConfig is deprecated. All API calls should go through Edge Functions.');
   return null;
 };

@@ -4,21 +4,31 @@
  * Pure presentation component - all logic is in BloodTestsCard.ts
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload, FileText, Loader2, Trash2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useBloodTestsCard } from './BloodTestsCard.ts';
 
 interface BloodTestsCardProps {
-  leadId: string;
   customerId: string;
+  leads?: Array<{ id: string }>;
 }
 
 export const BloodTestsCard: React.FC<BloodTestsCardProps> = ({
-  leadId,
   customerId,
+  leads,
 }) => {
   const {
     bloodTests,
@@ -34,7 +44,9 @@ export const BloodTestsCard: React.FC<BloodTestsCardProps> = ({
     handleDelete,
     handleDownload,
     formatDate,
-  } = useBloodTestsCard(leadId, customerId);
+  } = useBloodTestsCard(customerId, leads);
+
+  const [testToDelete, setTestToDelete] = useState<{ id: string, fileName: string } | null>(null);
 
   return (
     <Card className="border border-slate-200 shadow-sm rounded-xl bg-white">
@@ -131,7 +143,10 @@ export const BloodTestsCard: React.FC<BloodTestsCardProps> = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={(e) => handleDelete(test.id, test.file_name, e)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTestToDelete({ id: test.id, fileName: test.file_name });
+                    }}
                     disabled={deleteMutation.isPending}
                     className="h-8 w-8 text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                     title="מחיקה"
@@ -148,6 +163,33 @@ export const BloodTestsCard: React.FC<BloodTestsCardProps> = ({
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={!!testToDelete} onOpenChange={(open) => !open && setTestToDelete(null)}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת בדיקת דם</AlertDialogTitle>
+            <AlertDialogDescription>
+              האם אתה בטוח שברצונך למחוק את הקובץ "{testToDelete?.fileName}"? פעולה זו לא ניתנת לביטול.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogAction
+              onClick={() => {
+                if (testToDelete) {
+                  handleDelete(testToDelete.id);
+                  setTestToDelete(null);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              מחק
+            </AlertDialogAction>
+            <AlertDialogCancel onClick={() => setTestToDelete(null)}>
+              ביטול
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

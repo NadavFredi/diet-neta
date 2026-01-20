@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 
 export interface WorkoutTemplate {
   id: string;
@@ -18,40 +21,103 @@ export interface WorkoutTemplate {
 // This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all templates (public + user's own)
-export const useWorkoutTemplates = (filters?: { search?: string; goalTags?: string[]; isPublic?: boolean }) => {
+export const useWorkoutTemplates = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
+}) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['workoutTemplates', filters, user?.id],
+    queryKey: ['workoutTemplates', filters, user?.id], // filters includes groupByLevel1 and groupByLevel2
     queryFn: async () => {
       if (!user?.id) throw new Error('User not authenticated');
 
       const userId = user.id; // Use user.id from Redux instead of API call
+      const page = filters?.page ?? 1;
+      const pageSize = filters?.pageSize ?? 100;
+      
+      const fieldConfigs: FilterFieldConfigMap = {
+        created_at: { column: 'created_at', type: 'date' },
+        goal_tags: { column: 'goal_tags', type: 'multiselect', isArray: true },
+        is_public: { column: 'is_public', type: 'select', valueMap: (value) => (value === 'כן' ? true : value === 'לא' ? false : value) },
+        has_leads: { column: 'has_leads', type: 'select', valueMap: (value) => (value === 'כן' ? true : value === 'לא' ? false : value) },
+        name: { column: 'name', type: 'text' },
+        description: { column: 'description', type: 'text' },
+      };
+
+      const accessGroup: FilterGroup = {
+        id: `access-${userId}`,
+        operator: 'or',
+        children: [
+          {
+            id: `public-${userId}`,
+            fieldId: 'is_public',
+            fieldLabel: 'is_public',
+            operator: 'is',
+            values: ['כן'],
+            type: 'select',
+          },
+          {
+            id: `owner-${userId}`,
+            fieldId: 'created_by',
+            fieldLabel: 'created_by',
+            operator: 'is',
+            values: [userId],
+            type: 'select',
+          },
+        ],
+      };
+
+      const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name', 'description']) : null;
+      const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
+
+      // When grouping is active, fetch ALL matching records (no pagination)
+      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
+      
+      // Map groupBy columns to database columns
+      const groupByMap: Record<string, string> = {
+        name: 'name',
+        description: 'description',
+        is_public: 'is_public',
+        has_leads: 'has_leads',
+        created_at: 'created_at',
+      };
+
       let query = supabase
-        .from('workout_templates')
-        .select('*')
-        .or(`is_public.eq.true,created_by.eq.${userId}`)
-        .order('created_at', { ascending: false });
+        .from('workout_templates_with_leads')
+        .select('*');
 
-      // Apply search filter
-      if (filters?.search) {
-        query = query.ilike('name', `%${filters.search}%`);
+      // Only apply pagination if grouping is NOT active
+      if (!isGroupingActive) {
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
       }
 
-      // Apply goal tags filter
-      if (filters?.goalTags && filters.goalTags.length > 0) {
-        query = query.contains('goal_tags', filters.goalTags);
+      // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+      if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+        query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+      }
+      if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+        query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+      }
+      
+      // Apply default sorting if no grouping
+      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+        query = query.order('created_at', { ascending: false });
       }
 
-      // Apply public filter
-      if (filters?.isPublic !== undefined) {
-        query = query.eq('is_public', filters.isPublic);
+      if (combinedGroup) {
+        query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching workout templates:', error);
         // If table doesn't exist, provide a helpful error message
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התבניות לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
@@ -131,7 +197,6 @@ export const useCreateWorkoutTemplate = () => {
         .single();
 
       if (error) {
-        console.error('Error creating workout template:', error);
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התבניות לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
@@ -219,4 +284,3 @@ export const useDeleteWorkoutTemplate = () => {
     },
   });
 };
-

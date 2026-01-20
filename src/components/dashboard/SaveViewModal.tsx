@@ -54,8 +54,6 @@ export const SaveViewModal = ({
     }
 
     try {
-      console.log('Saving view with:', { resourceKey, viewName: viewName.trim(), filterConfig });
-      
       await createView.mutateAsync({
         resourceKey,
         viewName: viewName.trim(),
@@ -72,8 +70,6 @@ export const SaveViewModal = ({
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      console.error('Failed to save view:', error);
-      
       // Handle duplicate view name error
       let errorMessage = 'נכשל בשמירת התצוגה. אנא נסה שוב.';
       if (error?.message?.includes('unique_view_name_per_resource_user') || 

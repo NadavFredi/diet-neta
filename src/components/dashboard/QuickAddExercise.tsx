@@ -115,7 +115,7 @@ export const QuickAddExercise = ({ onSelect }: QuickAddExerciseProps) => {
               {category.label}
             </div>
             {category.exercises.map((exercise, index) => (
-              <SelectItem key={`${categoryKey}-${exercise}-${index}`} value={exercise} dir="rtl">
+              <SelectItem key={`${categoryKey}-${index}-${exercise}`} value={exercise} dir="rtl">
                 {exercise}
               </SelectItem>
             ))}

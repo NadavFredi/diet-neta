@@ -5,7 +5,7 @@
  * Handles Hebrew status values and maps them to internal status types.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 
 export interface PaymentRecord {
@@ -19,6 +19,7 @@ export interface PaymentRecord {
   transaction_id?: string;
   customer_id?: string;
   lead_id?: string | null;
+  collection_id?: string | null;
 }
 
 export const usePaymentHistory = (customerId: string, leadId?: string | null) => {
@@ -47,7 +48,6 @@ export const usePaymentHistory = (customerId: string, leadId?: string | null) =>
         if (error) {
           // If table doesn't exist yet, return empty array (graceful degradation)
           if (error.code === '42P01' || error.message.includes('does not exist')) {
-            console.warn('[usePaymentHistory] Payments table not found. Returning empty array.');
             return [];
           }
           throw error;
@@ -73,20 +73,38 @@ export const usePaymentHistory = (customerId: string, leadId?: string | null) =>
           transaction_id: record.transaction_id || record.stripe_payment_id || record.id,
           customer_id: record.customer_id,
           lead_id: record.lead_id || null,
+          collection_id: record.collection_id || null,
         })) as PaymentRecord[];
       } catch (error: any) {
         // Graceful degradation if payments table doesn't exist
         if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          console.warn('[usePaymentHistory] Payments table not found. Returning empty array.');
           return [];
         }
         
-        console.error('[usePaymentHistory] Error fetching payments:', error);
         throw error;
       }
     },
     enabled: !!customerId,
     retry: false, // Don't retry if table doesn't exist
+  });
+};
+
+// Delete a payment
+export const useDeletePayment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', paymentId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payment-history'] });
+    },
   });
 };
 

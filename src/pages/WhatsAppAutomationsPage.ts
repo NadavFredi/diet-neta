@@ -23,7 +23,7 @@ const saveCustomFlows = (flows: FlowConfig[]): void => {
   try {
     localStorage.setItem('custom_automation_flows', JSON.stringify(flows));
   } catch (error) {
-    console.error('[WhatsAppAutomationsPage] Error saving custom flows:', error);
+    // Silent failure
   }
 };
 
@@ -32,7 +32,7 @@ const saveDeletedDefaultFlows = (deletedKeys: string[]): void => {
   try {
     localStorage.setItem('deleted_default_automation_flows', JSON.stringify(deletedKeys));
   } catch (error) {
-    console.error('[WhatsAppAutomationsPage] Error saving deleted default flows:', error);
+    // Silent failure
   }
 };
 
@@ -86,16 +86,6 @@ export const useWhatsAppAutomationsPage = () => {
       const template = templates[flow.key];
       const hasContent = !!(template?.template_content?.trim());
       
-      // Debug logging for missing templates
-      if (!hasContent && (flow.key === 'budget' || flow.key === 'weekly_review')) {
-        console.log(`[WhatsAppAutomationsPage] Template ${flow.key} status:`, {
-          exists: !!template,
-          hasContent,
-          contentLength: template?.template_content?.length || 0,
-          contentPreview: template?.template_content?.substring(0, 50) || 'empty'
-        });
-      }
-      
       return {
         key: flow.key,
         label: flow.label,
@@ -135,10 +125,9 @@ export const useWhatsAppAutomationsPage = () => {
                   buttons: [],
                   media: null
                 })).unwrap();
-                console.log(`[WhatsAppAutomationsPage] Migrated template from localStorage: ${flowKey}`);
                 hasMigrations = true;
               } catch (error) {
-                console.error(`[WhatsAppAutomationsPage] Error migrating template ${flowKey}:`, error);
+                // Silent failure
               }
             }
           }
@@ -236,7 +225,6 @@ export const useWhatsAppAutomationsPage = () => {
         description: 'התבנית נשמרה בהצלחה',
       });
     } catch (error: any) {
-      console.error('[WhatsAppAutomationsPage] Error saving template:', error);
       toast({
         title: 'שגיאה',
         description: error || 'נכשל בשמירת התבנית',

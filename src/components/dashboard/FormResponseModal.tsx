@@ -48,14 +48,6 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
   // Fetch submission when modal opens
   const fetchData = React.useCallback(() => {
     if (leadId || leadEmail || leadPhone) {
-      console.log('[FormResponseModal] Fetching submission:', {
-        formType: formType.key,
-        formId: formType.formId,
-        leadId,
-        leadEmail,
-        leadPhone,
-      });
-      
       dispatch(
         fetchFormSubmission({
           formType: formType.key as 'details' | 'intro' | 'characterization',
@@ -64,7 +56,6 @@ export const FormResponseModal: React.FC<FormResponseModalProps> = ({
           phoneNumber: leadPhone,
         })
       ).catch((err) => {
-        console.error('[FormResponseModal] Error fetching submission:', err);
       });
     }
   }, [leadId, leadEmail, leadPhone, formType.key, formType.formId, dispatch]);

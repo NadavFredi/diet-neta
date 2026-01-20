@@ -26,10 +26,6 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
       const storedUrl = localStorage.getItem('supabase_url');
       
       if (storedUrl && storedUrl !== currentUrl) {
-        console.log('[AuthInitializer] Supabase URL changed, clearing session...', {
-          stored: storedUrl,
-          current: currentUrl
-        });
         // Clear session if URL changed
         await supabase.auth.signOut();
         localStorage.removeItem('supabase_url');
@@ -44,19 +40,15 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
       await checkSupabaseUrlMismatch();
       // Prevent multiple simultaneous calls
       if (isInitializing) {
-        console.log('[AuthInitializer] Already initializing, skipping...');
         return;
       }
       
       setIsInitializing(true);
       
       try {
-        console.log('[AuthInitializer] Starting auth initialization...');
-        
         // Set a fallback timeout to ensure we don't hang forever
         timeoutId = setTimeout(() => {
           if (isMounted) {
-            console.warn('[AuthInitializer] Auth initialization timeout after 10s - forcing completion');
             dispatch(forceLoadingComplete());
             setIsInitializing(false);
             setHasInitialized(true);
@@ -64,21 +56,17 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
         }, 10000); // 10 second timeout
         
         initPromise = dispatch(initializeAuth());
-        const result = await initPromise;
+        await initPromise;
         
         // Clear timeout if we completed successfully
         clearTimeout(timeoutId);
         setIsInitializing(false);
         setHasInitialized(true);
         
-        if (isMounted) {
-          console.log('[AuthInitializer] Auth initialization complete:', result.type);
-        }
       } catch (error) {
         clearTimeout(timeoutId);
         setIsInitializing(false);
         setHasInitialized(true);
-        console.error('[AuthInitializer] Error during initialization:', error);
         // Force loading to false on error
         dispatch(forceLoadingComplete());
       }
@@ -95,11 +83,8 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
       async (event, session) => {
         if (!isMounted) return;
         
-        console.log('[AuthInitializer] Auth state changed:', event);
-        
         // Don't re-initialize if we're already initializing or if loginUser is handling it
         if (isInitializing) {
-          console.log('[AuthInitializer] Skipping auth state change - already initializing');
           return;
         }
         

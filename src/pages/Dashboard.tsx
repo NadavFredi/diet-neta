@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadsDataTable } from '@/components/dashboard/LeadsDataTable';
@@ -12,10 +12,15 @@ import { useDashboardLogic } from '@/hooks/useDashboardLogic';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { useTableFilters, getLeadFilterFields, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { fetchLeadIdsByFilter } from '@/services/leadService';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { selectGroupByKeys } from '@/store/slices/tableStateSlice';
+import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabaseClient';
 
 // Custom hook to detect if screen is desktop (lg breakpoint = 1024px)
 const useIsDesktop = () => {
@@ -34,17 +39,7 @@ const useIsDesktop = () => {
 
   return isDesktop;
 };
-import {
-  setSelectedStatus,
-  setSelectedFitnessGoal,
-  setSelectedActivityLevel,
-  setSelectedPreferredTime,
-  setSelectedSource,
-  setSelectedAge,
-  setSelectedHeight,
-  setSelectedWeight,
-  setSelectedDate,
-} from '@/store/slices/dashboardSlice';
+import { setSearchQuery } from '@/store/slices/dashboardSlice';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -55,25 +50,34 @@ const Dashboard = () => {
   const sidebarWidth = useSidebarWidth();
   const isDesktop = useIsDesktop();
   const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
+  const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
+  
+  // Group pagination state (separate from record pagination)
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const [groupPageSize] = useState(50);
 
   // Safety check: Redirect trainees immediately
   useEffect(() => {
-    console.log('[Dashboard] Auth state:', {
-      isAuthenticated,
-      authIsLoading,
-      user: authUser,
-      role: authUser?.role,
-      email: authUser?.email
-    });
-
     if (authUser?.role === 'trainee') {
-      console.log('[Dashboard] Trainee detected, redirecting to /client/dashboard');
       window.location.href = '/client/dashboard';
       return;
     }
   }, [authUser, isAuthenticated, authIsLoading]);
 
   // Auto-navigate to default view is handled in useDashboardLogic
+
+  // Filter system for leads (advanced filter groups)
+  const {
+    filterGroup,
+    filters: activeFilters,
+    addFilter: addFilterLocal,
+    removeFilter: removeFilterLocal,
+    clearFilters: clearFiltersLocal,
+    updateFilters: updateFiltersLocal,
+    updateFilter: updateFilterLocal,
+    setFilterGroup,
+  } = useTableFilters([]);
 
   const {
     filteredLeads,
@@ -87,6 +91,7 @@ const Dashboard = () => {
     setIsAddLeadDialogOpen,
     getCurrentFilterConfig,
     isLoading,
+    isLoadingView,
     savedView, // Get savedView from useDashboardLogic instead of duplicate call
     refreshLeads,
     // Pagination state and handlers
@@ -99,125 +104,216 @@ const Dashboard = () => {
     sortBy,
     sortOrder,
     handleSortChange,
-  } = useDashboardLogic();
+  } = useDashboardLogic({ filterGroup });
 
   // Debug: Log filteredLeads when it changes
   useEffect(() => {
-    console.log('Dashboard: filteredLeads changed:', {
-      length: filteredLeads?.length || 0,
-      isArray: Array.isArray(filteredLeads),
-      isLoading,
-      data: filteredLeads?.slice(0, 2), // First 2 items for debugging
-      fullData: filteredLeads, // Full data for debugging
-    });
-    if (filteredLeads && filteredLeads.length > 0) {
-      console.log('Dashboard: First lead sample:', filteredLeads[0]);
-    }
   }, [filteredLeads, isLoading]);
 
-  // Filter system - connect to Redux for leads
-  const {
-    filters: activeFilters,
-    addFilter: addFilterLocal,
-    removeFilter: removeFilterLocal,
-    clearFilters: clearFiltersLocal,
-  } = useTableFilters([]);
-
-  // Get filter fields with dynamic options from data
+  // Get filter fields with dynamic options from data - now includes all renderable columns
   const leadFilterFields = useMemo(() => {
-    return getLeadFilterFields(filteredLeads || []);
+    return getLeadFilterFields(filteredLeads || [], leadColumns);
   }, [filteredLeads]);
-
-  // Convert ActiveFilter to Redux actions for leads
-  const addFilter = useCallback((filter: ActiveFilter) => {
-    // Add to local state for UI
-    addFilterLocal(filter);
-
-    // Also update Redux state for data fetching
-    const { fieldId, operator, values } = filter;
-
-    if (fieldId === 'status' && operator === 'is' && values.length > 0) {
-      // For multiselect, take first value for now (can be enhanced later)
-      // The Redux state currently supports single value
-      // TODO: Enhance to support multiple values
-      dispatch(setSelectedStatus(values[0]));
-    } else if (fieldId === 'fitnessGoal' && operator === 'is' && values.length > 0) {
-      dispatch(setSelectedFitnessGoal(values[0]));
-    } else if (fieldId === 'activityLevel' && operator === 'is' && values.length > 0) {
-      dispatch(setSelectedActivityLevel(values[0]));
-    } else if (fieldId === 'preferredTime' && operator === 'is' && values.length > 0) {
-      dispatch(setSelectedPreferredTime(values[0]));
-    } else if (fieldId === 'source' && operator === 'is' && values.length > 0) {
-      dispatch(setSelectedSource(values[0]));
-    } else if (fieldId === 'age' && operator === 'equals' && values[0]) {
-      dispatch(setSelectedAge(values[0]));
-    } else if (fieldId === 'height' && operator === 'equals' && values[0]) {
-      dispatch(setSelectedHeight(values[0]));
-    } else if (fieldId === 'weight' && operator === 'equals' && values[0]) {
-      dispatch(setSelectedWeight(values[0]));
-    } else if (fieldId === 'createdDate' && operator === 'equals' && values[0]) {
-      dispatch(setSelectedDate(values[0]));
+  
+  // Calculate total groups when grouping is active (after filteredLeads is defined)
+  const totalGroups = useMemo(() => {
+    if (!isGroupingActive || !filteredLeads || filteredLeads.length === 0) {
+      return 0;
     }
-  }, [addFilterLocal, dispatch]);
+    
+    // Group the data to count groups
+    const groupedData = groupDataByKeys(filteredLeads, groupByKeys, { level1: null, level2: null });
+    return getTotalGroupsCount(groupedData);
+  }, [isGroupingActive, filteredLeads, groupByKeys]);
+  
+  // Reset group pagination when grouping changes
+  useEffect(() => {
+    if (isGroupingActive) {
+      setGroupCurrentPage(1);
+    }
+  }, [isGroupingActive, groupByKeys]);
+  
+  const handleGroupPageChange = useCallback((page: number) => {
+    setGroupCurrentPage(page);
+  }, []);
+
+  const addFilter = useCallback((filter: ActiveFilter) => {
+    addFilterLocal(filter);
+  }, [addFilterLocal]);
 
   const removeFilter = useCallback((filterId: string) => {
-    // Remove from local state
     removeFilterLocal(filterId);
+  }, [removeFilterLocal]);
 
-    // Find the filter to determine which Redux state to clear
-    const filter = activeFilters.find(f => f.id === filterId);
-    if (filter) {
-      const { fieldId } = filter;
-
-      if (fieldId === 'status') {
-        dispatch(setSelectedStatus(null));
-      } else if (fieldId === 'fitnessGoal') {
-        dispatch(setSelectedFitnessGoal(null));
-      } else if (fieldId === 'activityLevel') {
-        dispatch(setSelectedActivityLevel(null));
-      } else if (fieldId === 'preferredTime') {
-        dispatch(setSelectedPreferredTime(null));
-      } else if (fieldId === 'source') {
-        dispatch(setSelectedSource(null));
-      } else if (fieldId === 'age') {
-        dispatch(setSelectedAge(null));
-      } else if (fieldId === 'height') {
-        dispatch(setSelectedHeight(null));
-      } else if (fieldId === 'weight') {
-        dispatch(setSelectedWeight(null));
-      } else if (fieldId === 'createdDate') {
-        dispatch(setSelectedDate(null));
-      }
-    }
-  }, [removeFilterLocal, activeFilters, dispatch]);
+  const updateFilter = useCallback((filter: ActiveFilter) => {
+    updateFilterLocal(filter);
+  }, [updateFilterLocal]);
 
   const clearFilters = useCallback(() => {
-    // Clear local state
     clearFiltersLocal();
+  }, [clearFiltersLocal]);
 
-    // Clear all Redux filter state
-    dispatch(setSelectedStatus(null));
-    dispatch(setSelectedFitnessGoal(null));
-    dispatch(setSelectedActivityLevel(null));
-    dispatch(setSelectedPreferredTime(null));
-    dispatch(setSelectedSource(null));
-    dispatch(setSelectedAge(null));
-    dispatch(setSelectedHeight(null));
-    dispatch(setSelectedWeight(null));
-    dispatch(setSelectedDate(null));
-  }, [clearFiltersLocal, dispatch]);
+  const handleSearchChangeWithSource = useCallback((value: string) => {
+    handleSearchChange(value);
+  }, [handleSearchChange]);
+
+  const { toast } = useToast();
+
+  const handleBulkDelete = useCallback(
+    async (payload: { ids: string[]; selectAllAcrossPages: boolean }) => {
+      const idsToDelete = payload.selectAllAcrossPages
+        ? await fetchLeadIdsByFilter({ searchQuery, filterGroup })
+        : payload.ids;
+
+      if (!idsToDelete.length) return;
+
+      const chunkSize = 100;
+      for (let i = 0; i < idsToDelete.length; i += chunkSize) {
+        const chunk = idsToDelete.slice(i, i + chunkSize);
+        const { error } = await supabase.from('leads').delete().in('id', chunk);
+        if (error) throw error;
+      }
+
+      toast({
+        title: 'הצלחה',
+        description: 'הלידים נמחקו בהצלחה',
+      });
+
+      refreshLeads();
+    },
+    [searchQuery, filterGroup, toast, refreshLeads]
+  );
 
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
+  const hasShownSaveSuggestion = useRef(false);
+  const previousFiltersRef = useRef<string>('');
+  const lastAppliedViewIdRef = useRef<string | null>(null);
+  const lastAppliedDefaultIdRef = useRef<string | null>(null);
 
   // Memoized handler to prevent unnecessary re-renders
   const handleSaveViewClick = useCallback((resourceKey: string) => {
     setSaveViewResourceKey(resourceKey);
     setIsSaveViewModalOpen(true);
+    hasShownSaveSuggestion.current = false; // Reset when user opens save modal
   }, []);
+
+  // Get default view to load filters from it
+  const { defaultView, isLoading: isLoadingDefaultView } = useDefaultView('leads');
+
+  // Load advanced filters from saved view or default view
+  useEffect(() => {
+    const applyFilterConfig = (filterConfig: any) => {
+      if (!filterConfig) return;
+
+      if (filterConfig.filterGroup) {
+        setFilterGroup(filterConfig.filterGroup);
+      } else if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
+        const savedFilters: ActiveFilter[] = filterConfig.advancedFilters.map((f: any) => ({
+          id: f.id,
+          fieldId: f.fieldId,
+          fieldLabel: f.fieldLabel,
+          operator: f.operator as any,
+          values: f.values,
+          type: f.type as any,
+        }));
+        updateFiltersLocal(savedFilters);
+      }
+
+      if (filterConfig.searchQuery !== undefined) {
+        dispatch(setSearchQuery(filterConfig.searchQuery));
+      }
+
+      previousFiltersRef.current = JSON.stringify({
+        filters: filterConfig.filterGroup || filterConfig.advancedFilters || [],
+        searchQuery: filterConfig.searchQuery || '',
+      });
+      hasShownSaveSuggestion.current = false;
+    };
+
+    if (viewId && savedView && !isLoadingView) {
+      if (lastAppliedViewIdRef.current === savedView.id) {
+        return;
+      }
+      applyFilterConfig(savedView.filter_config);
+      lastAppliedViewIdRef.current = savedView.id;
+      return;
+    }
+
+    if (!viewId && defaultView && !isLoadingDefaultView && !isLoadingView) {
+      if (lastAppliedDefaultIdRef.current === defaultView.id) {
+        return;
+      }
+      applyFilterConfig(defaultView.filter_config);
+      lastAppliedDefaultIdRef.current = defaultView.id;
+      return;
+    }
+
+    if (
+      !viewId &&
+      !isLoadingDefaultView &&
+      !isLoadingView &&
+      (!defaultView || !defaultView.filter_config?.advancedFilters || (defaultView.filter_config as any).advancedFilters?.length === 0)
+    ) {
+      if (previousFiltersRef.current === '') {
+        clearFiltersLocal();
+        previousFiltersRef.current = '';
+        hasShownSaveSuggestion.current = false;
+        lastAppliedDefaultIdRef.current = null;
+      }
+    }
+  }, [viewId, savedView, isLoadingView, defaultView, isLoadingDefaultView, updateFiltersLocal, clearFiltersLocal, dispatch, setFilterGroup]);
+
+  useEffect(() => {
+    if (viewId) {
+      lastAppliedDefaultIdRef.current = null;
+    } else {
+      lastAppliedViewIdRef.current = null;
+    }
+  }, [viewId]);
+
+  // Show save suggestion when filters change
+  useEffect(() => {
+    // Skip if we're loading a saved view or if we've already shown the suggestion
+    if (isLoading || hasShownSaveSuggestion.current || viewId) {
+      return;
+    }
+
+    // Create a string representation of current filters for comparison
+    const currentFiltersStr = JSON.stringify({
+      filters: filterGroup,
+      searchQuery,
+    });
+
+    // Only show suggestion if filters have changed and we have active filters
+    if (
+      previousFiltersRef.current !== currentFiltersStr &&
+      previousFiltersRef.current !== '' && // Don't show on initial load
+      (activeFilters.length > 0 || searchQuery)
+    ) {
+      hasShownSaveSuggestion.current = true;
+      toast({
+        title: 'שמור תצוגה',
+        description: 'המסננים שלך שונו. האם תרצה לשמור את התצוגה הנוכחית?',
+        action: (
+          <button
+            onClick={() => {
+              handleSaveViewClick('leads');
+            }}
+            className="mr-2 px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 underline"
+          >
+            שמור תצוגה
+          </button>
+        ),
+        duration: 8000,
+      });
+    }
+
+    previousFiltersRef.current = currentFiltersStr;
+  }, [activeFilters, filterGroup, searchQuery, isLoading, viewId, toast, handleSaveViewClick]);
 
   const handleEditViewClick = useCallback((view: any) => {
     setViewToEdit(view);
@@ -261,11 +357,14 @@ const Dashboard = () => {
                 enableSearch={true}
                 columns={leadColumns}
                 legacySearchQuery={searchQuery}
-                legacyOnSearchChange={handleSearchChange}
+                legacyOnSearchChange={handleSearchChangeWithSource}
                 legacyActiveFilters={activeFilters}
+                legacyFilterGroup={filterGroup}
                 legacyOnFilterAdd={addFilter}
+                legacyOnFilterUpdate={updateFilter}
                 legacyOnFilterRemove={removeFilter}
                 legacyOnFilterClear={clearFilters}
+                legacyOnFilterGroupChange={setFilterGroup}
               />
 
               {/* Table Section - Data Area */}
@@ -283,15 +382,19 @@ const Dashboard = () => {
                       onSortChange={handleSortChange}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
+                      totalCount={totalLeads}
+                      onBulkDelete={handleBulkDelete}
+                      groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                      groupPageSize={isGroupingActive ? groupPageSize : undefined}
                     />
                     {/* Pagination Footer */}
                     {totalLeads > 0 && (
                       <Pagination
-                        currentPage={currentPage}
-                        pageSize={pageSize}
-                        totalItems={totalLeads}
-                        onPageChange={handlePageChange}
-                        onPageSizeChange={handlePageSizeChange}
+                        currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                        pageSize={isGroupingActive ? groupPageSize : pageSize}
+                        totalItems={isGroupingActive ? totalGroups : totalLeads}
+                        onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                        onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                         isLoading={isLoading}
                       />
                     )}

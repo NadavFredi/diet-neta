@@ -221,7 +221,6 @@ export const fetchLeads = createAsyncThunk(
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching leads:', error);
         return rejectWithValue(error.message);
       }
 
@@ -267,7 +266,6 @@ export const fetchLeads = createAsyncThunk(
               customerId: dbLead.customer_id,
             } as Lead;
           } catch (err) {
-            console.error(`Error mapping lead ${dbLead.id}:`, err);
             return null;
           }
         })
@@ -275,7 +273,6 @@ export const fetchLeads = createAsyncThunk(
 
       return mappedLeads;
     } catch (err) {
-      console.error('Unexpected error fetching leads:', err);
       return rejectWithValue('Failed to fetch leads');
     }
   }
@@ -965,11 +962,6 @@ const safeInitialState = {
   ...initialState,
   columnVisibility: cleanColumnVisibility(initialState.columnVisibility),
 };
-
-console.log('dashboardSlice: Initial state:', {
-  leadsCount: safeInitialState.leads.length,
-  columnVisibility: safeInitialState.columnVisibility,
-});
 
 const dashboardSlice = createSlice({
   name: 'dashboard',

@@ -48,7 +48,6 @@ export const DeleteBudgetDialog = ({
       setLoadingPlans(true);
       getAssociatedPlans(budgetToDelete.id)
         .then(setAssociatedPlans)
-        .catch(console.error)
         .finally(() => setLoadingPlans(false));
       setDeletePlans(false);
     }

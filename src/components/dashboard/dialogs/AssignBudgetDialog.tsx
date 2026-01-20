@@ -96,12 +96,6 @@ export const AssignBudgetDialog = ({
         finalCustomerId = leadData?.customer_id || null;
       }
 
-      console.log('[AssignBudgetDialog] Starting budget assignment:', {
-        budgetId: selectedBudgetId,
-        leadId,
-        customerId: finalCustomerId,
-      });
-
       // The mutation's onSuccess will handle query invalidation, but we also do it here
       // to ensure immediate UI update after sync completes
       if (leadId) {
@@ -119,14 +113,8 @@ export const AssignBudgetDialog = ({
       }
 
       // Wait for plans to be created (sync happens inside mutation)
-      console.log('[AssignBudgetDialog] Waiting for plans to be created...');
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      console.log('[AssignBudgetDialog] Invalidating queries for:', { 
-        finalCustomerId, 
-        leadId,
-        queryKey: ['plans-history', finalCustomerId, leadId || undefined]
-      });
 
       // Invalidate queries to refresh data - ensure all plan types are refreshed
       // Use the exact query keys that usePlansHistory uses: ['plans-history', customerId, leadId]
@@ -143,8 +131,6 @@ export const AssignBudgetDialog = ({
         queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
       ]);
       
-      console.log('[AssignBudgetDialog] Refetching plans-history query...');
-      
       // Force refetch the specific plans-history query with correct parameters
       // This ensures the UI updates immediately
       await queryClient.refetchQueries({ 
@@ -152,7 +138,6 @@ export const AssignBudgetDialog = ({
         exact: false 
       });
       
-      console.log('[AssignBudgetDialog] Query invalidation and refetch completed');
 
       toast({
         title: 'הצלחה',

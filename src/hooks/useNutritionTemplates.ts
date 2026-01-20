@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 
 export interface NutritionTargets {
   calories: number;
@@ -42,35 +45,147 @@ export interface NutritionTemplate {
 // This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all templates (public + user's own)
-export const useNutritionTemplates = (filters?: { search?: string; isPublic?: boolean }) => {
+export const useNutritionTemplates = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
+}) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['nutritionTemplates', filters, user?.id],
+    queryKey: ['nutritionTemplates', filters, user?.id], // filters includes groupByLevel1 and groupByLevel2
     queryFn: async () => {
       if (!user?.id) throw new Error('User not authenticated');
 
       const userId = user.id; // Use user.id from Redux instead of API call
-      let query = supabase
-        .from('nutrition_templates')
-        .select('*')
-        .or(`is_public.eq.true,created_by.eq.${userId}`)
-        .order('created_at', { ascending: false });
+      const page = filters?.page ?? 1;
+      const pageSize = filters?.pageSize ?? 100;
+      const fieldConfigs: FilterFieldConfigMap = {
+        created_at: { column: 'created_at', type: 'date' },
+        is_public: { column: 'is_public', type: 'select', valueMap: (value) => (value === 'כן' ? true : value === 'לא' ? false : value) },
+        calories_range: {
+          custom: (filter, negate) => {
+            const value = filter.values[0];
+            if (!value) return [];
+            const [minStr, maxStr] = value.split('-');
+            const column = 'calories_value';
+            if (value.endsWith('+')) {
+              const min = Number(value.replace('+', ''));
+              return [[{ column, operator: 'gte', value: min, negate }]];
+            }
+            const min = Number(minStr);
+            const max = Number(maxStr);
+            if (!negate) {
+              return [[
+                { column, operator: 'gte', value: min },
+                { column, operator: 'lte', value: max },
+              ]];
+            }
+            return [
+              [{ column, operator: 'lt', value: min }],
+              [{ column, operator: 'gt', value: max }],
+            ];
+          },
+        },
+        protein_range: {
+          custom: (filter, negate) => {
+            const value = filter.values[0];
+            if (!value) return [];
+            const [minStr, maxStr] = value.split('-');
+            const column = 'protein_value';
+            if (value.endsWith('+')) {
+              const min = Number(value.replace('+', ''));
+              return [[{ column, operator: 'gte', value: min, negate }]];
+            }
+            const min = Number(minStr);
+            const max = Number(maxStr);
+            if (!negate) {
+              return [[
+                { column, operator: 'gte', value: min },
+                { column, operator: 'lte', value: max },
+              ]];
+            }
+            return [
+              [{ column, operator: 'lt', value: min }],
+              [{ column, operator: 'gt', value: max }],
+            ];
+          },
+        },
+        name: { column: 'name', type: 'text' },
+        description: { column: 'description', type: 'text' },
+      };
 
-      // Apply search filter
-      if (filters?.search) {
-        query = query.ilike('name', `%${filters.search}%`);
+      const accessGroup: FilterGroup = {
+        id: `access-${userId}`,
+        operator: 'or',
+        children: [
+          {
+            id: `public-${userId}`,
+            fieldId: 'is_public',
+            fieldLabel: 'is_public',
+            operator: 'is',
+            values: ['כן'],
+            type: 'select',
+          },
+          {
+            id: `owner-${userId}`,
+            fieldId: 'created_by',
+            fieldLabel: 'created_by',
+            operator: 'is',
+            values: [userId],
+            type: 'select',
+          },
+        ],
+      };
+
+      const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name', 'description']) : null;
+      const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
+
+      // When grouping is active, fetch ALL matching records (no pagination)
+      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
+      
+      // Map groupBy columns to database columns
+      const groupByMap: Record<string, string> = {
+        name: 'name',
+        description: 'description',
+        is_public: 'is_public',
+        created_at: 'created_at',
+      };
+
+      let query = supabase
+        .from('nutrition_templates_with_ranges')
+        .select('*');
+
+      // Only apply pagination if grouping is NOT active
+      if (!isGroupingActive) {
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
       }
 
-      // Apply public filter
-      if (filters?.isPublic !== undefined) {
-        query = query.eq('is_public', filters.isPublic);
+      // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+      if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+        query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+      }
+      if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+        query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+      }
+      
+      // Apply default sorting if no grouping
+      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      if (combinedGroup) {
+        query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching nutrition templates:', error);
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התבניות לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
@@ -158,9 +273,6 @@ export const useCreateNutritionTemplate = () => {
         .single();
 
       if (error) {
-        console.error('Error creating nutrition template:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        console.error('Insert data:', JSON.stringify(insertData, null, 2));
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
           throw new Error('טבלת התבניות לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
@@ -257,9 +369,6 @@ export const useDeleteNutritionTemplate = () => {
     },
   });
 };
-
-
-
 
 
 

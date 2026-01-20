@@ -222,7 +222,6 @@ serve(async (req) => {
         return errorResponse(`Unknown action: ${action}`, 400);
     }
   } catch (error: any) {
-    console.error('[admin-user] Error:', error);
     return errorResponse(error.message || 'Internal server error', 500);
   }
 });

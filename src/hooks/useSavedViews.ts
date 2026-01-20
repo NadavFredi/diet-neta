@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
 
 export interface SavedView {
   id: string;
@@ -9,6 +10,8 @@ export interface SavedView {
   filter_config: Record<string, any>;
   icon_name?: string | null;
   is_default: boolean;
+  display_order?: number | null;
+  folder_id?: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -41,6 +44,7 @@ export interface FilterConfig {
     values: string[];
     type: string;
   }>;
+  filterGroup?: FilterGroup;
 }
 
 // Helper function to get or create user ID from email
@@ -87,22 +91,21 @@ export const useSavedViews = (resourceKey: string | null) => {
 
         const { data, error } = await supabase
           .from('saved_views')
-          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, folder_id, created_by, created_at, updated_at')
           .eq('resource_key', resourceKey)
           .eq('created_by', userId)
           .order('is_default', { ascending: false })
+          .order('display_order', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.warn('Error fetching saved views:', error);
-          return [];
-        }
-        return (data || []) as SavedView[];
-      } catch (error) {
-        console.warn('Error in useSavedViews:', error);
+      if (error) {
         return [];
       }
-    },
+      return (data || []) as SavedView[];
+    } catch (error) {
+      return [];
+    }
+  },
     enabled: !!user?.email && !!resourceKey,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -125,21 +128,19 @@ export const useSavedView = (viewId: string | null) => {
 
         const { data, error } = await supabase
           .from('saved_views')
-          .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+          .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, folder_id, created_by, created_at, updated_at')
           .eq('id', viewId)
           .eq('created_by', userId)
-          .single();
+        .single();
 
-        if (error) {
-          console.warn('Error fetching saved view:', error);
-          return null;
-        }
-        return data as SavedView | null;
-      } catch (error) {
-        console.warn('Error in useSavedView:', error);
+      if (error) {
         return null;
       }
-    },
+      return data as SavedView | null;
+    } catch (error) {
+      return null;
+    }
+  },
     enabled: !!viewId && !!user?.id,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -178,6 +179,20 @@ export const useCreateSavedView = () => {
           .eq('is_default', true);
       }
 
+      // Get max display_order for this resource to set the new view's order
+      const { data: maxOrderData } = await supabase
+        .from('saved_views')
+        .select('display_order')
+        .eq('resource_key', resourceKey)
+        .eq('created_by', userId)
+        .order('display_order', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .single();
+
+      const nextDisplayOrder = maxOrderData?.display_order != null 
+        ? maxOrderData.display_order + 1 
+        : (isDefault ? 0 : 1);
+
       const { data, error } = await supabase
         .from('saved_views')
         .insert({
@@ -185,9 +200,10 @@ export const useCreateSavedView = () => {
           view_name: viewName,
           filter_config: filterConfig,
           is_default: isDefault,
+          display_order: isDefault ? 0 : nextDisplayOrder,
           created_by: userId,
         })
-        .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+        .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, folder_id, created_by, created_at, updated_at')
         .single();
 
       if (error) throw error;
@@ -249,7 +265,7 @@ export const useUpdateSavedView = () => {
         .update(updateData)
         .eq('id', viewId)
         .eq('created_by', userId)
-        .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
+        .select('id, resource_key, view_name, filter_config, icon_name, is_default, display_order, folder_id, created_by, created_at, updated_at')
         .single();
 
       if (error) throw error;
@@ -287,3 +303,45 @@ export const useDeleteSavedView = () => {
   });
 };
 
+// Update a page's folder assignment
+export const useUpdatePageFolder = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useMutation({
+    mutationFn: async ({
+      viewId,
+      folderId,
+    }: {
+      viewId: string;
+      folderId: string | null; // null means remove from folder
+    }) => {
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const userId = user.id;
+
+      // Get the resource_key from the view first
+      const { data: view } = await supabase
+        .from('saved_views')
+        .select('resource_key')
+        .eq('id', viewId)
+        .eq('created_by', userId)
+        .single();
+
+      if (!view) throw new Error('View not found');
+
+      const { error } = await supabase
+        .from('saved_views')
+        .update({ folder_id: folderId })
+        .eq('id', viewId)
+        .eq('created_by', userId);
+
+      if (error) throw error;
+
+      return view.resource_key;
+    },
+    onSuccess: (resourceKey) => {
+      queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey] });
+    },
+  });
+};

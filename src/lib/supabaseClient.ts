@@ -27,24 +27,14 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
     // This allows local Supabase to work when app is accessed via network IP
     const protocol = window.location.protocol;
     supabaseUrl = `${protocol}//${currentHost}:${currentPort}/supabase-proxy`;
-    console.log('[Supabase Client] Auto-detected network access (DEV mode), using proxy:', supabaseUrl);
   }
 }
 
 // Debug logging
 if (import.meta.env.DEV) {
-  console.log('[Supabase Client] Configuration (DEV):', {
-    url: supabaseUrl,
-    isLocal: supabaseUrl.includes('127.0.0.1') || supabaseUrl.includes('localhost'),
-    isCloud: supabaseUrl.includes('supabase.co'),
-    mode: import.meta.env.MODE,
-  });
+  // Configuration logged only in dev if needed
 } else {
   // Production logging (minimal, for debugging if needed)
-  console.log('[Supabase Client] Initialized (PRODUCTION):', {
-    isCloud: supabaseUrl.includes('supabase.co'),
-    urlPrefix: supabaseUrl.substring(0, 30) + '...', // Only show prefix for security
-  });
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

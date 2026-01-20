@@ -94,10 +94,9 @@ export const StepsPlanDialog = ({
         title: 'הצלחה',
         description: 'יעד הצעדים עודכן בהצלחה',
       });
-
+  
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error saving steps plan:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון יעד הצעדים',

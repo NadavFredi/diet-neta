@@ -47,6 +47,8 @@ interface WeeklyReviewData {
   target_fat: number | null;
   target_fiber: number | null;
   target_steps: number | null;
+  target_weight: number | null;
+  target_waist: number | null;
   actual_calories_avg: number | null;
   actual_protein_avg: number | null;
   actual_carbs_avg: number | null;
@@ -314,7 +316,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     queryFn: async () => {
       let query = supabase
         .from('weekly_reviews')
-        .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+        .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, target_weight, target_waist, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
         .eq('week_start_date', weekStartStr)
         .maybeSingle();
 
@@ -362,6 +364,12 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
   const [targetSteps, setTargetSteps] = useState<string>(
     existingReview?.target_steps?.toString() || targets.steps?.toString() || ''
   );
+  const [targetWeight, setTargetWeight] = useState<string>(
+    existingReview?.target_weight?.toString() || ''
+  );
+  const [targetWaist, setTargetWaist] = useState<string>(
+    existingReview?.target_waist?.toString() || ''
+  );
   
   // Editable actual values
   const [actualCalories, setActualCalories] = useState<string>(
@@ -401,6 +409,8 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       setTargetFat(existingReview.target_fat?.toString() || targets.fat?.toString() || '');
       setTargetFiber(existingReview.target_fiber?.toString() || targets.fiber?.toString() || '');
       setTargetSteps(existingReview.target_steps?.toString() || targets.steps?.toString() || '');
+      setTargetWeight(existingReview.target_weight?.toString() || '');
+      setTargetWaist(existingReview.target_waist?.toString() || '');
       
       // Update editable actuals
       setActualCalories(existingReview.actual_calories_avg?.toString() || calculatedAverages.calories?.toString() || '');
@@ -423,6 +433,8 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       setTargetFat(targets.fat?.toString() || '');
       setTargetFiber(targets.fiber?.toString() || '');
       setTargetSteps(targets.steps?.toString() || '');
+      setTargetWeight('');
+      setTargetWaist('');
       
       // Initialize editable actuals from calculated averages
       setActualCalories(calculatedAverages.calories?.toString() || '');
@@ -470,7 +482,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           .from('weekly_reviews')
           .update(reviewData)
           .eq('id', existingReview.id)
-          .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+          .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, target_weight, target_waist, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
           .maybeSingle();
         if (error) throw error;
         // If update returned null (record doesn't exist), fall through to create new
@@ -483,7 +495,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           .from('weekly_reviews')
           .update(reviewData)
           .eq('id', existingReview.id)
-          .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+          .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, target_weight, target_waist, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
           .maybeSingle();
         if (error) throw error;
         // If update returned null (record doesn't exist), fall through to create new
@@ -513,7 +525,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
             .from('weekly_reviews')
             .update(reviewData)
             .eq('id', existingCheck.id)
-            .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+            .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, target_weight, target_waist, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
             .maybeSingle();
           if (updateError) throw updateError;
           // If update returned null (record doesn't exist), fall through to create new
@@ -526,14 +538,14 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           const { data: created, error: insertError } = await supabase
             .from('weekly_reviews')
             .insert(reviewData)
-            .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+            .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, target_weight, target_waist, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
             .single();
           if (insertError) {
             // If unique constraint violation, try to fetch and update
             if (insertError.code === '23505') {
               let conflictQuery = supabase
                 .from('weekly_reviews')
-                .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+                .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, target_weight, target_waist, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
                 .eq('week_start_date', reviewData.week_start_date);
               
               if (leadId) {
@@ -549,7 +561,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                   .from('weekly_reviews')
                   .update(reviewData)
                   .eq('id', conflictReview.id)
-                  .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
+                  .select('id, week_start_date, week_end_date, target_calories, target_protein, target_carbs, target_fat, target_fiber, target_steps, target_weight, target_waist, actual_calories_avg, actual_protein_avg, actual_carbs_avg, actual_fat_avg, actual_fiber_avg, actual_calories_weekly_avg, weekly_avg_weight, waist_measurement, trainer_summary, action_plan, updated_steps_goal, updated_calories_target, lead_id, customer_id, created_by, created_at, updated_at')
                   .maybeSingle();
                 if (updateError) throw updateError;
                 // If update returned null, fall through to insert
@@ -632,6 +644,8 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       target_fat: parseNumber(targetFat),
       target_fiber: parseNumber(targetFiber),
       target_steps: parseNumber(targetSteps),
+      target_weight: parseNumber(targetWeight),
+      target_waist: parseNumber(targetWaist),
       actual_calories_avg: parseNumber(actualCalories),
       actual_protein_avg: parseNumber(actualProtein),
       actual_carbs_avg: parseNumber(actualCarbs),
@@ -665,6 +679,8 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     targetFat,
     targetFiber,
     targetSteps,
+    targetWeight,
+    targetWaist,
     actualCalories,
     actualProtein,
     actualCarbs,
@@ -1013,7 +1029,20 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
               </tr>
               <tr className="border-b">
                 <td className="p-2 text-gray-900">משקל ממוצע</td>
-                <td className="p-2 text-gray-500">-</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={targetWeight}
+                      onChange={(e) => setTargetWeight(e.target.value)}
+                      className="h-8 w-16 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">ק"ג</span>
+                  </div>
+                </td>
                 <td className="p-2">
                   <div className="flex items-center gap-1">
                     <Input
@@ -1028,11 +1057,30 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                     <span className="text-xs text-gray-500">ק"ג</span>
                   </div>
                 </td>
-                <td className="p-2 text-gray-500">-</td>
+                <td className={cn(
+                  "p-2 font-medium",
+                  targetWeight && actualWeight
+                    ? (parseFloat(actualWeight) <= parseFloat(targetWeight) ? "text-emerald-600" : "text-amber-600")
+                    : "text-gray-500"
+                )}>
+                  {calculateDelta(parseNumber(targetWeight), parseNumber(actualWeight))}
+                </td>
               </tr>
               <tr>
                 <td className="p-2 text-gray-900">היקף מותן</td>
-                <td className="p-2 text-gray-500">-</td>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={targetWaist}
+                      onChange={(e) => setTargetWaist(e.target.value)}
+                      className="h-8 w-16 text-sm"
+                      placeholder="-"
+                      dir="rtl"
+                    />
+                    <span className="text-xs text-gray-500">ס"מ</span>
+                  </div>
+                </td>
                 <td className="p-2">
                   <div className="flex items-center gap-1">
                     <Input
@@ -1046,7 +1094,14 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                     <span className="text-xs text-gray-500">ס"מ</span>
                   </div>
                 </td>
-                <td className="p-2 text-gray-500">-</td>
+                <td className={cn(
+                  "p-2 font-medium",
+                  targetWaist && actualWaist
+                    ? (parseFloat(actualWaist) <= parseFloat(targetWaist) ? "text-emerald-600" : "text-amber-600")
+                    : "text-gray-500"
+                )}>
+                  {calculateDelta(parseNumber(targetWaist), parseNumber(actualWaist))}
+                </td>
               </tr>
             </tbody>
           </table>

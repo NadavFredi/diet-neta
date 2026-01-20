@@ -339,7 +339,6 @@ const initializeActivityEntries = (initialData?: NutritionTemplate | { activity_
       };
     });
     
-    console.log('[useNutritionBuilder] Initialized activityEntries from initialData:', entries);
     return entries;
   }
   
@@ -351,7 +350,6 @@ const initializeActivityEntries = (initialData?: NutritionTemplate | { activity_
     { id: '4', activityType: 'ריצה קלה/ג\'וגינג', mets: 7.5, minutesPerWeek: 0 },
     { id: '5', activityType: 'ריצה מהירה/שחייה מהירה/ספינינג', mets: 10.0, minutesPerWeek: 0 },
   ];
-  console.log('[useNutritionBuilder] Using default activityEntries:', defaultEntries);
   return defaultEntries;
 };
 
