@@ -259,6 +259,46 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     dispatch,
   ]);
 
+  // Reset pagination to page 1 when filters or grouping change
+  const prevFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const currentFilters = JSON.stringify({ 
+      debouncedSearchQuery, 
+      filterGroup: options?.filterGroup,
+      selectedDate,
+      selectedStatus,
+      selectedAge,
+      selectedHeight,
+      selectedWeight,
+      selectedFitnessGoal,
+      selectedActivityLevel,
+      selectedPreferredTime,
+      selectedSource,
+      groupByKeys: [groupByKeys[0], groupByKeys[1]],
+    });
+    
+    // If filters or grouping changed (and not on initial load), reset to page 1
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters && currentPage !== 1) {
+      dispatch(setCurrentPage(1));
+    }
+    prevFiltersRef.current = currentFilters;
+  }, [
+    debouncedSearchQuery,
+    options?.filterGroup,
+    selectedDate,
+    selectedStatus,
+    selectedAge,
+    selectedHeight,
+    selectedWeight,
+    selectedFitnessGoal,
+    selectedActivityLevel,
+    selectedPreferredTime,
+    selectedSource,
+    groupByKeys,
+    currentPage,
+    dispatch,
+  ]);
+
   // Fetch leads on mount and when filters/pagination/sorting/grouping change
   // Single useEffect to prevent duplicate calls
   // NOTE: refreshLeads is NOT in dependencies to prevent infinite loops

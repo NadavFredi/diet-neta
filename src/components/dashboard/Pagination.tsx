@@ -21,7 +21,7 @@ interface PaginationProps {
   pageSize: number;
   totalItems: number;
   onPageChange: (page: number) => void;
-  onPageSizeChange: (pageSize: number) => void;
+  onPageSizeChange?: (pageSize: number) => void; // Optional - hide page size selector when undefined
   className?: string;
   isLoading?: boolean;
 }
@@ -113,22 +113,24 @@ export const Pagination = ({
     >
       {/* Page size selector and info */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">שורות לדף:</span>
-          <Select
-            value={String(pageSize)}
-            onValueChange={(value) => onPageSizeChange(parseInt(value, 10))}
-            disabled={isLoading}
-          >
-            <SelectTrigger className="h-8 w-20">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {onPageSizeChange && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">שורות לדף:</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(value) => onPageSizeChange(parseInt(value, 10))}
+              disabled={isLoading}
+            >
+              <SelectTrigger className="h-8 w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className="text-sm text-gray-600">
           {totalItems === 0 ? (

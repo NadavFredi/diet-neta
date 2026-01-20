@@ -21,7 +21,9 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
-import { selectActiveFilters } from '@/store/slices/tableStateSlice';
+import { selectActiveFilters, selectGroupByKeys } from '@/store/slices/tableStateSlice';
+import { groupDataByKeys, getTotalGroupsCount, type MultiLevelGroupedData } from '@/utils/groupDataByKey';
+import { useMemo, useState } from 'react';
 
 const CustomersManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -54,6 +56,34 @@ const CustomersManagement = () => {
   } = useCustomersManagement();
 
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'customers'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'customers'));
+  const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
+  
+  // Group pagination state (separate from record pagination)
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const [groupPageSize] = useState(50);
+  
+  // Calculate total groups when grouping is active
+  const totalGroups = useMemo(() => {
+    if (!isGroupingActive || !filteredCustomers || filteredCustomers.length === 0) {
+      return 0;
+    }
+    
+    // Group the data to count groups
+    const groupedData = groupDataByKeys(filteredCustomers, groupByKeys, { level1: null, level2: null });
+    return getTotalGroupsCount(groupedData);
+  }, [isGroupingActive, filteredCustomers, groupByKeys]);
+  
+  // Reset group pagination when grouping changes
+  useEffect(() => {
+    if (isGroupingActive) {
+      setGroupCurrentPage(1);
+    }
+  }, [isGroupingActive, groupByKeys]);
+  
+  const handleGroupPageChange = useCallback((page: number) => {
+    setGroupCurrentPage(page);
+  }, []);
 
   // Generate filter fields with all renderable columns
   const customerFilterFields = useMemo(() => {
@@ -181,15 +211,20 @@ const CustomersManagement = () => {
                   </div>
                 ) : filteredCustomers && Array.isArray(filteredCustomers) && filteredCustomers.length > 0 ? (
                   <>
-                    <CustomersDataTable customers={filteredCustomers} onBulkDelete={handleBulkDelete} />
+                    <CustomersDataTable 
+                      customers={filteredCustomers} 
+                      onBulkDelete={handleBulkDelete}
+                      groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                      groupPageSize={isGroupingActive ? groupPageSize : undefined}
+                    />
                     {/* Pagination Footer */}
                     {totalCustomers > 0 && (
                       <Pagination
-                        currentPage={currentPage}
-                        pageSize={pageSize}
-                        totalItems={totalCustomers}
-                        onPageChange={handlePageChange}
-                        onPageSizeChange={handlePageSizeChange}
+                        currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                        pageSize={isGroupingActive ? groupPageSize : pageSize}
+                        totalItems={isGroupingActive ? totalGroups : totalCustomers}
+                        onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                        onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                         isLoading={isLoadingCustomers}
                       />
                     )}

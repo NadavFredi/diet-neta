@@ -118,6 +118,9 @@ export interface DataTableProps<T> {
   totalCount?: number;
   selectionLabel?: string;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  // Group pagination (when grouping is active, paginate groups instead of records)
+  groupCurrentPage?: number;
+  groupPageSize?: number;
 }
 
 // Helper function to get header text and smart truncate
@@ -397,6 +400,8 @@ export function DataTable<T extends Record<string, any>>({
   totalCount,
   selectionLabel = 'רשומות',
   onBulkDelete,
+  groupCurrentPage,
+  groupPageSize = 50,
 }: DataTableProps<T>) {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
@@ -1073,6 +1078,22 @@ export function DataTable<T extends Record<string, any>>({
     return null;
   }, [data, groupByKey, groupByKeys, groupSorting, table]);
 
+  // Paginate groups when grouping is active
+  const paginatedGroupedData = useMemo(() => {
+    if (!groupedData || !groupCurrentPage) {
+      return groupedData;
+    }
+
+    const startIndex = (groupCurrentPage - 1) * groupPageSize;
+    const endIndex = startIndex + groupPageSize;
+
+    if (Array.isArray(groupedData)) {
+      return groupedData.slice(startIndex, endIndex);
+    }
+
+    return groupedData;
+  }, [groupedData, groupCurrentPage, groupPageSize]);
+
   // Get column header text for group by column
   const getGroupColumnHeader = (columnId: string | null) => {
     if (!columnId) return '';
@@ -1241,7 +1262,7 @@ export function DataTable<T extends Record<string, any>>({
               onHideColumn={handleHideColumn}
               isResizing={isResizing}
               columnSizing={derivedColumnSizing}
-              groupedData={groupedData}
+              groupedData={paginatedGroupedData || groupedData}
               groupByKey={groupByKey}
               groupByKeys={groupByKeys}
               columns={columns}
@@ -1264,7 +1285,7 @@ export function DataTable<T extends Record<string, any>>({
             onHideColumn={handleHideColumn}
               isResizing={isResizing}
               columnSizing={derivedColumnSizing}
-              groupedData={groupedData}
+              groupedData={paginatedGroupedData || groupedData}
               groupByKey={groupByKey}
               groupByKeys={groupByKeys}
               columns={columns}

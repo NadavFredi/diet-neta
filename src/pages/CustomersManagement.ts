@@ -19,6 +19,7 @@ import {
   selectCurrentPage, 
   selectPageSize, 
   selectTotalCount,
+  selectGroupByKeys,
   setCurrentPage,
   setPageSize,
   setTotalCount,
@@ -40,12 +41,15 @@ export const useCustomersManagement = () => {
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'customers'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'customers'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'customers'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'customers'));
 
   const { data: customersResult, isLoading: isLoadingCustomers } = useCustomers({
     search: searchQuery,
     filterGroup,
     page: currentPage,
     pageSize,
+    groupByLevel1: groupByKeys[0] || null,
+    groupByLevel2: groupByKeys[1] || null,
   });
 
   const customers = customersResult?.data ?? [];
@@ -58,16 +62,22 @@ export const useCustomersManagement = () => {
     }
   }, [customersResult?.totalCount, dispatch]);
 
-  // Reset to page 1 when filters or search change (but not on initial load)
+  // Reset to page 1 when filters, search, or grouping change (but not on initial load)
   const prevFiltersRef = useRef<string>('');
   useEffect(() => {
-    const currentFilters = JSON.stringify({ searchQuery, filterGroup });
+    const currentFilters = JSON.stringify({ 
+      searchQuery, 
+      filterGroup,
+      groupByKeys: [groupByKeys[0], groupByKeys[1]],
+    });
     if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters) {
-      // Filters changed, reset to page 1
-      dispatch(setCurrentPage({ resourceKey: 'customers', page: 1 }));
+      // Filters or grouping changed, reset to page 1
+      if (currentPage !== 1) {
+        dispatch(setCurrentPage({ resourceKey: 'customers', page: 1 }));
+      }
     }
     prevFiltersRef.current = currentFilters;
-  }, [searchQuery, filterGroup, dispatch]);
+  }, [searchQuery, filterGroup, groupByKeys, currentPage, dispatch]);
   const bulkDeleteCustomers = useBulkDeleteRecords({
     table: 'customers',
     invalidateKeys: [['customers']],

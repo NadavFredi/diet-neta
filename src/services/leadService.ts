@@ -135,10 +135,18 @@ export async function fetchFilteredLeads(
     const searchGroup = filters.searchQuery ? createSearchGroup(filters.searchQuery, leadSearchColumns) : null;
     const combinedGroup = mergeFilterGroups(filters.filterGroup || null, searchGroup);
 
+    // When grouping is active, fetch ALL matching records (no pagination)
+    // This ensures grouping works correctly across all data, not just the current page
+    const isGroupingActive = !!(filters.groupByLevel1 || filters.groupByLevel2);
+
     let query = supabase
       .from('v_leads_with_customer')
-      .select('*')
-      .range(offset, offset + limit - 1);
+      .select('*');
+
+    // Only apply pagination if grouping is NOT active
+    if (!isGroupingActive) {
+      query = query.range(offset, offset + limit - 1);
+    }
 
     if (combinedGroup) {
       query = applyFilterGroupToQuery(query, combinedGroup, leadFieldConfigs);

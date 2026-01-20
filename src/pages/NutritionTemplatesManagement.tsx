@@ -26,11 +26,6 @@ const NutritionTemplatesManagement = () => {
   const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'nutrition_templates'));
   
-  // Generate filter fields with all renderable columns
-  const nutritionTemplateFilterFields = useMemo(() => {
-    return getNutritionTemplateFilterFields(templates || [], nutritionTemplateColumns);
-  }, [templates]);
-  
   const {
     templates,
     savedView,
@@ -57,6 +52,11 @@ const NutritionTemplatesManagement = () => {
     getCurrentFilterConfig,
     deleteTemplate,
   } = useNutritionTemplatesManagement();
+
+  // Generate filter fields with all renderable columns
+  const nutritionTemplateFilterFields = useMemo(() => {
+    return getNutritionTemplateFilterFields(templates || [], nutritionTemplateColumns);
+  }, [templates]);
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
@@ -157,7 +157,7 @@ const NutritionTemplatesManagement = () => {
         onOpenChange={setIsEditViewModalOpen}
         view={viewToEdit}
         currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={getNutritionTemplateFilterFields(templates)}
+        filterFields={getNutritionTemplateFilterFields(templates, nutritionTemplateColumns)}
         onSuccess={() => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);

@@ -13,6 +13,8 @@ interface LeadsDataTableProps {
   sortOrder?: 'ASC' | 'DESC';
   totalCount?: number;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  groupCurrentPage?: number;
+  groupPageSize?: number;
 }
 
 export const LeadsDataTable = ({ 
@@ -23,6 +25,8 @@ export const LeadsDataTable = ({
   sortOrder: externalSortOrder,
   totalCount,
   onBulkDelete,
+  groupCurrentPage,
+  groupPageSize,
 }: LeadsDataTableProps) => {
   // Get sorting state from Redux if not provided as props
   const reduxSortBy = useAppSelector((state) => state.dashboard.sortBy);
@@ -96,6 +100,8 @@ export const LeadsDataTable = ({
       totalCount={totalCount}
       onBulkDelete={onBulkDelete}
       selectionLabel="לידים"
+      groupCurrentPage={groupCurrentPage}
+      groupPageSize={groupPageSize}
     />
   );
 };

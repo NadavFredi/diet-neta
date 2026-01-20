@@ -17,6 +17,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { selectGroupByKeys } from '@/store/slices/tableStateSlice';
+import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -48,6 +50,12 @@ const Dashboard = () => {
   const sidebarWidth = useSidebarWidth();
   const isDesktop = useIsDesktop();
   const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
+  const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
+  
+  // Group pagination state (separate from record pagination)
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const [groupPageSize] = useState(50);
 
   // Safety check: Redirect trainees immediately
   useEffect(() => {
@@ -106,6 +114,28 @@ const Dashboard = () => {
   const leadFilterFields = useMemo(() => {
     return getLeadFilterFields(filteredLeads || [], leadColumns);
   }, [filteredLeads]);
+  
+  // Calculate total groups when grouping is active (after filteredLeads is defined)
+  const totalGroups = useMemo(() => {
+    if (!isGroupingActive || !filteredLeads || filteredLeads.length === 0) {
+      return 0;
+    }
+    
+    // Group the data to count groups
+    const groupedData = groupDataByKeys(filteredLeads, groupByKeys, { level1: null, level2: null });
+    return getTotalGroupsCount(groupedData);
+  }, [isGroupingActive, filteredLeads, groupByKeys]);
+  
+  // Reset group pagination when grouping changes
+  useEffect(() => {
+    if (isGroupingActive) {
+      setGroupCurrentPage(1);
+    }
+  }, [isGroupingActive, groupByKeys]);
+  
+  const handleGroupPageChange = useCallback((page: number) => {
+    setGroupCurrentPage(page);
+  }, []);
 
   const addFilter = useCallback((filter: ActiveFilter) => {
     addFilterLocal(filter);
@@ -354,15 +384,17 @@ const Dashboard = () => {
                       sortOrder={sortOrder}
                       totalCount={totalLeads}
                       onBulkDelete={handleBulkDelete}
+                      groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                      groupPageSize={isGroupingActive ? groupPageSize : undefined}
                     />
                     {/* Pagination Footer */}
                     {totalLeads > 0 && (
                       <Pagination
-                        currentPage={currentPage}
-                        pageSize={pageSize}
-                        totalItems={totalLeads}
-                        onPageChange={handlePageChange}
-                        onPageSizeChange={handlePageSizeChange}
+                        currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                        pageSize={isGroupingActive ? groupPageSize : pageSize}
+                        totalItems={isGroupingActive ? totalGroups : totalLeads}
+                        onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                        onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                         isLoading={isLoading}
                       />
                     )}

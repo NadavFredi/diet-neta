@@ -6,9 +6,16 @@ import { customerColumns } from './columns/customerColumns';
 interface CustomersDataTableProps {
   customers: Customer[];
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  groupCurrentPage?: number;
+  groupPageSize?: number;
 }
 
-export const CustomersDataTable = ({ customers, onBulkDelete }: CustomersDataTableProps) => {
+export const CustomersDataTable = ({ 
+  customers, 
+  onBulkDelete,
+  groupCurrentPage,
+  groupPageSize,
+}: CustomersDataTableProps) => {
   const navigate = useNavigate();
 
   const handleRowClick = (customer: Customer) => {
@@ -29,6 +36,8 @@ export const CustomersDataTable = ({ customers, onBulkDelete }: CustomersDataTab
       totalCount={customers.length}
       onBulkDelete={onBulkDelete}
       selectionLabel="לקוחות"
+      groupCurrentPage={groupCurrentPage}
+      groupPageSize={groupPageSize}
     />
   );
 };

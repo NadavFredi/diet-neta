@@ -74,13 +74,15 @@ export const useCustomers = (filters?: {
   filterGroup?: FilterGroup | null;
   page?: number;
   pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
 }) => {
   const { user } = useAppSelector((state) => state.auth);
   const page = filters?.page ?? 1;
   const pageSize = filters?.pageSize ?? 100;
 
   return useQuery({
-    queryKey: ['customers', filters, user?.email],
+    queryKey: ['customers', filters, user?.email], // filters includes groupByLevel1 and groupByLevel2, so query will refetch when grouping changes
     queryFn: async () => {
       if (!user?.email) {
         return { data: [], totalCount: 0 };
@@ -117,15 +119,44 @@ export const useCustomers = (filters?: {
 
         const totalCount = count ?? 0;
 
-        // Get paginated data
-        const from = (page - 1) * pageSize;
-        const to = from + pageSize - 1;
+        // Map groupBy columns to database columns
+        const groupByMap: Record<string, string> = {
+          full_name: 'full_name',
+          phone: 'phone',
+          email: 'email',
+          total_leads: 'total_leads',
+          total_spent: 'total_spent',
+          membership_tier: 'membership_tier',
+          created_at: 'created_at',
+        };
 
+        // When grouping is active, fetch ALL matching records (no pagination)
+        // This ensures grouping works correctly across all data, not just the current page
+        const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
+        
         let query = supabase
           .from('customers_with_lead_counts')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .range(from, to);
+          .select('*');
+
+        // Only apply pagination if grouping is NOT active
+        if (!isGroupingActive) {
+          const from = (page - 1) * pageSize;
+          const to = from + pageSize - 1;
+          query = query.range(from, to);
+        }
+
+        // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+        if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+          query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+        }
+        if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+          query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+        }
+        
+        // Apply default sorting if no grouping
+        if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+          query = query.order('created_at', { ascending: false });
+        }
 
         if (combinedGroup) {
           query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
