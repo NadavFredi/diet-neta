@@ -1,6 +1,6 @@
 /**
  * Script to generate random test data for local database
- * Creates 180 customers and 300 leads with random data
+ * Creates 180 customers, 300 leads, meetings, and payments with random data
  * 
  * Run with: node scripts/generate_random_data.js
  */
@@ -67,6 +67,25 @@ const statusSubOptions = {
 
 // Membership tiers
 const membershipTiers = ['New', 'Standard', 'Premium', 'VIP'];
+
+// Payment statuses (Hebrew)
+const paymentStatuses = ['שולם', 'ממתין', 'הוחזר', 'נכשל'];
+
+// Payment products
+const paymentProducts = [
+  'חבילת תזונה חודשית',
+  'חבילת תזונה 3 חודשים',
+  'חבילת תזונה 6 חודשים',
+  'חבילת תזונה שנתית',
+  'ייעוץ תזונתי חד פעמי',
+  'תוכנית אימונים',
+  'מעקב שבועי',
+  'חבילת VIP'
+];
+
+// Meeting types/statuses
+const meetingTypes = ['פגישת ייעוץ', 'פגישת מעקב', 'פגישת התחלה', 'פגישת סיכום'];
+const meetingStatuses = ['מתוכנן', 'הושלם', 'בוטל', 'נדחה'];
 
 // Generate random phone number
 function generatePhoneNumber() {
@@ -152,13 +171,25 @@ function generateSubscriptionData() {
 }
 
 // Generate customers
+// Note: In the real system, customers are created/upserted when leads are created
+// (check by phone number, create if doesn't exist). For mock data, we create
+// customers first, then leads that link to them.
 async function generateCustomers(count) {
   console.log(`\n📦 Creating ${count} customers...`);
+  console.log(`   (In real system: customers are created/upserted when leads are created, based on phone number)`);
   const customers = [];
+  const usedPhones = new Set(); // Track phone numbers to ensure uniqueness
   
   for (let i = 0; i < count; i++) {
     const fullName = generateFullName();
-    const phone = generatePhoneNumber();
+    
+    // Generate unique phone number (phone is unique in customers table)
+    let phone = generatePhoneNumber();
+    while (usedPhones.has(phone)) {
+      phone = generatePhoneNumber();
+    }
+    usedPhones.add(phone);
+    
     const email = generateEmail(
       firstNames[Math.floor(Math.random() * firstNames.length)],
       lastNames[Math.floor(Math.random() * lastNames.length)],
@@ -177,7 +208,7 @@ async function generateCustomers(count) {
     
     const customer = {
       full_name: fullName,
-      phone: phone,
+      phone: phone, // Unique identifier - used to find/create customer when creating leads
       email: email,
       membership_tier: membershipTier,
       total_spent: parseFloat(totalSpent.toFixed(2)),
@@ -230,12 +261,18 @@ async function generateCustomers(count) {
 }
 
 // Generate leads
+// Note: In the real system, when creating a lead:
+// 1. Check if customer exists by phone number
+// 2. If exists, use that customer_id (and update customer info if needed)
+// 3. If doesn't exist, create new customer first, then create lead
+// For mock data, we link leads to pre-existing customers
 async function generateLeads(count, customers) {
   console.log(`📋 Creating ${count} leads...`);
+  console.log(`   (In real system: customer is found/created by phone when lead is created)`);
   
   const leads = [];
   
-  // Some customers will have multiple leads
+  // Some customers will have multiple leads (same customer, multiple opportunities)
   // Distribution: ~60% have 1 lead, ~30% have 2 leads, ~10% have 3+ leads
   const leadDistribution = [];
   for (let i = 0; i < customers.length; i++) {
@@ -327,7 +364,7 @@ async function generateLeads(count, customers) {
       console.error(`❌ Error inserting batch ${i / batchSize + 1}:`, error.message);
       // Try inserting one by one for this batch
       for (const lead of batch) {
-        const { error: singleError } = await supabaseAdmin
+        const { data: singleData, error: singleError } = await supabaseAdmin
           .from('leads')
           .insert(lead)
           .select('id')
@@ -336,10 +373,15 @@ async function generateLeads(count, customers) {
         if (singleError) {
           console.error(`  ⚠️  Failed to insert lead for customer ${lead.customer_id}:`, singleError.message);
         } else {
+          lead.id = singleData.id;
           inserted++;
         }
       }
     } else {
+      // Add IDs back to lead objects
+      batch.forEach((lead, idx) => {
+        lead.id = data[idx].id;
+      });
       inserted += data.length;
       console.log(`  ✅ Inserted batch ${Math.floor(i / batchSize) + 1}: ${data.length} leads (Total: ${inserted}/${count})`);
     }
@@ -349,13 +391,241 @@ async function generateLeads(count, customers) {
   return leads;
 }
 
+// Generate meeting data JSONB structure
+function generateMeetingData(lead, customer) {
+  const meetingDate = randomDate(new Date(2023, 0, 1), new Date());
+  const meetingType = meetingTypes[Math.floor(Math.random() * meetingTypes.length)];
+  const status = meetingStatuses[Math.floor(Math.random() * meetingStatuses.length)];
+  
+  return {
+    'תאריך': meetingDate.toISOString().split('T')[0],
+    'תאריך פגישה': meetingDate.toISOString().split('T')[0],
+    'date': meetingDate.toISOString().split('T')[0],
+    'meeting_date': meetingDate.toISOString(),
+    'סוג פגישה': meetingType,
+    'meeting_type': meetingType,
+    'סטטוס': status,
+    'status': status,
+    'שם': customer.full_name,
+    'name': customer.full_name,
+    'טלפון': customer.phone,
+    'phone': customer.phone,
+    'אימייל': customer.email || '',
+    'email': customer.email || '',
+    'הערות': Math.random() < 0.4 ? ['פגישה מוצלחת', 'צריך מעקב', 'התחלת תהליך', 'התקדמות טובה'][Math.floor(Math.random() * 4)] : '',
+    'notes': Math.random() < 0.4 ? 'Meeting notes here' : '',
+    'מטרה': lead.fitness_goal || '',
+    'goal': lead.fitness_goal || '',
+    'משקל נוכחי': lead.weight || '',
+    'current_weight': lead.weight || '',
+    'משקל יעד': lead.weight ? (lead.weight - 5 + Math.random() * 10).toFixed(1) : '',
+    'target_weight': lead.weight ? (lead.weight - 5 + Math.random() * 10).toFixed(1) : ''
+  };
+}
+
+// Generate meetings
+async function generateMeetings(leads, customers) {
+  console.log(`📅 Creating meetings...`);
+  
+  // Create meetings for 60% of leads (some leads have multiple meetings)
+  const meetings = [];
+  const leadsWithMeetings = new Set();
+  
+  // First pass: 60% of leads get at least one meeting
+  for (const lead of leads) {
+    if (!lead.id || !lead.customer_id) continue; // Skip leads without IDs
+    
+    if (Math.random() < 0.6) {
+      leadsWithMeetings.add(lead.id);
+      const customer = customers.find(c => c.id === lead.customer_id);
+      if (!customer) continue;
+      
+      const meetingData = generateMeetingData(lead, customer);
+      const meetingDate = new Date(meetingData.date);
+      
+      meetings.push({
+        lead_id: lead.id,
+        customer_id: lead.customer_id,
+        fillout_submission_id: `fillout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${meetings.length}`,
+        meeting_data: meetingData,
+        created_at: randomDate(meetingDate, new Date()).toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    }
+  }
+  
+  // Second pass: 20% of leads with meetings get a second meeting
+  const leadsArray = Array.from(leadsWithMeetings);
+  for (let i = 0; i < leadsArray.length; i++) {
+    if (Math.random() < 0.2) {
+      const leadId = leadsArray[i];
+      const lead = leads.find(l => l.id === leadId);
+      if (!lead) continue;
+      
+      const customer = customers.find(c => c.id === lead.customer_id);
+      if (!customer) continue;
+      
+      const meetingData = generateMeetingData(lead, customer);
+      const meetingDate = new Date(meetingData.date);
+      
+      meetings.push({
+        lead_id: lead.id,
+        customer_id: lead.customer_id,
+        fillout_submission_id: `fillout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${meetings.length}`,
+        meeting_data: meetingData,
+        created_at: randomDate(meetingDate, new Date()).toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    }
+  }
+  
+  // Insert in batches of 50
+  const batchSize = 50;
+  let inserted = 0;
+  
+  for (let i = 0; i < meetings.length; i += batchSize) {
+    const batch = meetings.slice(i, i + batchSize);
+    const { data, error } = await supabaseAdmin
+      .from('meetings')
+      .insert(batch)
+      .select('id');
+    
+    if (error) {
+      console.error(`❌ Error inserting batch ${Math.floor(i / batchSize) + 1}:`, error.message);
+      // Try inserting one by one for this batch
+      for (const meeting of batch) {
+        const { error: singleError } = await supabaseAdmin
+          .from('meetings')
+          .insert(meeting)
+          .select('id')
+          .single();
+        
+        if (singleError) {
+          console.error(`  ⚠️  Failed to insert meeting for lead ${meeting.lead_id}:`, singleError.message);
+        } else {
+          inserted++;
+        }
+      }
+    } else {
+      inserted += data.length;
+      console.log(`  ✅ Inserted batch ${Math.floor(i / batchSize) + 1}: ${data.length} meetings (Total: ${inserted}/${meetings.length})`);
+    }
+  }
+  
+  console.log(`✅ Created ${inserted} meetings\n`);
+  return meetings;
+}
+
+// Generate payments
+async function generatePayments(customers, leads) {
+  console.log(`💳 Creating payments...`);
+  
+  const payments = [];
+  
+  // Create payments for 70% of customers
+  // Some customers have multiple payments
+  for (const customer of customers) {
+    if (Math.random() < 0.7) {
+      // Find a lead for this customer
+      const customerLeads = leads.filter(l => l.customer_id === customer.id);
+      const lead = customerLeads.length > 0 ? customerLeads[Math.floor(Math.random() * customerLeads.length)] : null;
+      
+      // Generate 1-3 payments per customer
+      const numPayments = Math.floor(Math.random() * 3) + 1;
+      
+      for (let i = 0; i < numPayments; i++) {
+        const product = paymentProducts[Math.floor(Math.random() * paymentProducts.length)];
+        const status = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
+        
+        // Generate amount based on product
+        let amount = 0;
+        if (product.includes('חודשית')) {
+          amount = 500 + Math.random() * 500; // 500-1000
+        } else if (product.includes('3 חודשים')) {
+          amount = 1200 + Math.random() * 800; // 1200-2000
+        } else if (product.includes('6 חודשים')) {
+          amount = 2000 + Math.random() * 1000; // 2000-3000
+        } else if (product.includes('שנתית')) {
+          amount = 3500 + Math.random() * 1500; // 3500-5000
+        } else if (product.includes('VIP')) {
+          amount = 5000 + Math.random() * 5000; // 5000-10000
+        } else {
+          amount = 200 + Math.random() * 800; // 200-1000
+        }
+        
+        const paymentDate = randomDate(new Date(2023, 0, 1), new Date());
+        
+        const payment = {
+          customer_id: customer.id,
+          lead_id: lead ? lead.id : null,
+          product_name: product,
+          amount: parseFloat(amount.toFixed(2)),
+          currency: 'ILS',
+          status: status,
+          stripe_payment_id: status === 'שולם' ? `pi_${Math.random().toString(36).substr(2, 24)}` : null,
+          transaction_id: status === 'שולם' || status === 'ממתין' ? `txn_${Math.random().toString(36).substr(2, 16)}` : null,
+          receipt_url: status === 'שולם' ? `https://example.com/receipts/${Math.random().toString(36).substr(2, 16)}.pdf` : null,
+          notes: Math.random() < 0.3 ? ['תשלום ראשון', 'תשלום חודשי', 'תשלום חד פעמי', 'החזר'][Math.floor(Math.random() * 4)] : null,
+          created_at: paymentDate.toISOString(),
+          updated_at: paymentDate.toISOString()
+        };
+        
+        payments.push(payment);
+      }
+    }
+  }
+  
+  // Insert in batches of 50
+  const batchSize = 50;
+  let inserted = 0;
+  
+  for (let i = 0; i < payments.length; i += batchSize) {
+    const batch = payments.slice(i, i + batchSize);
+    const { data, error } = await supabaseAdmin
+      .from('payments')
+      .insert(batch)
+      .select('id');
+    
+    if (error) {
+      console.error(`❌ Error inserting batch ${Math.floor(i / batchSize) + 1}:`, error.message);
+      // Try inserting one by one for this batch
+      for (const payment of batch) {
+        const { error: singleError } = await supabaseAdmin
+          .from('payments')
+          .insert(payment)
+          .select('id')
+          .single();
+        
+        if (singleError) {
+          console.error(`  ⚠️  Failed to insert payment for customer ${payment.customer_id}:`, singleError.message);
+        } else {
+          inserted++;
+        }
+      }
+    } else {
+      inserted += data.length;
+      console.log(`  ✅ Inserted batch ${Math.floor(i / batchSize) + 1}: ${data.length} payments (Total: ${inserted}/${payments.length})`);
+    }
+  }
+  
+  console.log(`✅ Created ${inserted} payments\n`);
+  return payments;
+}
+
 // Main function
+// Note: System logic - When creating a lead:
+//   1. Check if customer exists by phone number
+//   2. If exists: use existing customer_id (update customer info if needed)
+//   3. If doesn't exist: create new customer first, then create lead
+// For mock data, we create customers first, then leads that link to them.
 async function generateRandomData() {
   console.log('🚀 Starting random data generation...');
-  console.log('📊 Target: 180 customers, 300 leads\n');
+  console.log('📊 Target: 180 customers, 300 leads, meetings, and payments\n');
+  console.log('💡 Note: In production, customers are created/upserted when leads are created (by phone number)\n');
   
   try {
     // Step 1: Generate customers
+    // Each customer has a unique phone number (used as identifier in real system)
     const customers = await generateCustomers(180);
     
     if (customers.length === 0) {
@@ -364,13 +634,28 @@ async function generateRandomData() {
     }
     
     // Step 2: Generate leads
-    await generateLeads(300, customers);
+    // Leads are linked to customers via customer_id
+    // Multiple leads can belong to the same customer (same phone = same customer)
+    const leads = await generateLeads(300, customers);
+    
+    if (leads.length === 0) {
+      console.error('❌ Failed to create any leads. Aborting.');
+      return;
+    }
+    
+    // Step 3: Generate meetings
+    const meetings = await generateMeetings(leads, customers);
+    
+    // Step 4: Generate payments
+    const payments = await generatePayments(customers, leads);
     
     console.log('========================================');
     console.log('✅ DATA GENERATION COMPLETE');
     console.log('========================================\n');
     console.log(`📦 Customers created: ${customers.length}`);
-    console.log(`📋 Leads created: 300\n`);
+    console.log(`📋 Leads created: ${leads.length}`);
+    console.log(`📅 Meetings created: ${meetings.length}`);
+    console.log(`💳 Payments created: ${payments.length}\n`);
     console.log('You can now check your local database!');
     console.log('========================================\n');
     
