@@ -23,7 +23,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
 import { selectActiveFilters, selectGroupByKeys } from '@/store/slices/tableStateSlice';
 import { groupDataByKeys, getTotalGroupsCount, type MultiLevelGroupedData } from '@/utils/groupDataByKey';
-import { useMemo, useState } from 'react';
 
 const CustomersManagement = () => {
   const { user } = useAppSelector((state) => state.auth);

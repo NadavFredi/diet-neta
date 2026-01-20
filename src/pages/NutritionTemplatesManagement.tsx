@@ -4,13 +4,13 @@
  * Pure presentation component - all logic is in NutritionTemplatesManagement.ts
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
-import { useAppSelector } from '@/store/hooks';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { NutritionTemplatesDataTable } from '@/components/dashboard/NutritionTemplatesDataTable';
 import { getNutritionTemplateFilterFields } from '@/hooks/useTableFilters';
 import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
@@ -19,12 +19,53 @@ import { DeleteNutritionTemplateDialog } from '@/components/dashboard/dialogs/De
 import { useNutritionTemplatesManagement } from './NutritionTemplatesManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { nutritionTemplateColumns } from '@/components/dashboard/columns/templateColumns';
-import { selectActiveFilters } from '@/store/slices/tableStateSlice';
+import { selectActiveFilters, selectGroupByKeys, selectCurrentPage, selectPageSize, setCurrentPage, setPageSize } from '@/store/slices/tableStateSlice';
+import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
+import { Pagination } from '@/components/dashboard/Pagination';
 
 const NutritionTemplatesManagement = () => {
+  const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'nutrition_templates'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'nutrition_templates'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'nutrition_templates'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'nutrition_templates'));
+  const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
+  
+  // Group pagination state (separate from record pagination)
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const [groupPageSize] = useState(50);
+  
+  // Calculate total groups when grouping is active
+  const totalGroups = useMemo(() => {
+    if (!isGroupingActive || !templates || templates.length === 0) {
+      return 0;
+    }
+    
+    // Group the data to count groups
+    const groupedData = groupDataByKeys(templates, groupByKeys, { level1: null, level2: null });
+    return getTotalGroupsCount(groupedData);
+  }, [isGroupingActive, templates, groupByKeys]);
+  
+  // Reset group pagination when grouping changes
+  useEffect(() => {
+    if (isGroupingActive) {
+      setGroupCurrentPage(1);
+    }
+  }, [isGroupingActive, groupByKeys]);
+  
+  const handleGroupPageChange = useCallback((page: number) => {
+    setGroupCurrentPage(page);
+  }, []);
+  
+  const handlePageChange = useCallback((page: number) => {
+    dispatch(setCurrentPage({ resourceKey: 'nutrition_templates', page }));
+  }, [dispatch]);
+  
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    dispatch(setPageSize({ resourceKey: 'nutrition_templates', pageSize: newPageSize }));
+  }, [dispatch]);
   
   const {
     templates,
@@ -105,12 +146,27 @@ const NutritionTemplatesManagement = () => {
                   {isLoading ? (
                     <div className="p-8 text-center text-gray-500">טוען...</div>
                   ) : (
-                    <NutritionTemplatesDataTable
-                      templates={templates}
-                      onEdit={handleEditTemplate}
-                      onDelete={handleDeleteClick}
-                      onBulkDelete={handleBulkDelete}
-                    />
+                    <>
+                      <NutritionTemplatesDataTable
+                        templates={templates}
+                        onEdit={handleEditTemplate}
+                        onDelete={handleDeleteClick}
+                        onBulkDelete={handleBulkDelete}
+                        groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                        groupPageSize={isGroupingActive ? groupPageSize : undefined}
+                      />
+                      {/* Pagination Footer */}
+                      {templates && templates.length > 0 && (
+                        <Pagination
+                          currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                          pageSize={isGroupingActive ? groupPageSize : pageSize}
+                          totalItems={isGroupingActive ? totalGroups : templates.length}
+                          onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                          onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                          isLoading={isLoading}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </div>

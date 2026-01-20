@@ -4,7 +4,7 @@
  * Handles all business logic, data fetching, and state management
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
@@ -21,7 +21,15 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
 import { TemplateColumnVisibility } from '@/components/dashboard/TemplateColumnSettings';
-import { selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
+import { 
+  selectFilterGroup, 
+  selectSearchQuery, 
+  selectCurrentPage,
+  selectPageSize,
+  selectGroupByKeys,
+  setCurrentPage,
+  setPageSize,
+} from '@/store/slices/tableStateSlice';
 
 export const useTemplatesManagement = () => {
   const navigate = useNavigate();
@@ -50,10 +58,34 @@ export const useTemplatesManagement = () => {
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'templates'));
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'templates'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'templates'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'templates'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'templates'));
+  
   const { data: templates = [], isLoading } = useWorkoutTemplates({
     search: searchQuery,
     filterGroup,
+    page: currentPage,
+    pageSize,
+    groupByLevel1: groupByKeys[0] || null,
+    groupByLevel2: groupByKeys[1] || null,
   });
+  
+  // Reset to page 1 when filters, search, or grouping change
+  const prevFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const currentFilters = JSON.stringify({ 
+      searchQuery, 
+      filterGroup,
+      groupByKeys: [groupByKeys[0], groupByKeys[1]],
+    });
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters) {
+      if (currentPage !== 1) {
+        dispatch(setCurrentPage({ resourceKey: 'templates', page: 1 }));
+      }
+    }
+    prevFiltersRef.current = currentFilters;
+  }, [searchQuery, filterGroup, groupByKeys, currentPage, dispatch]);
   
   const createTemplate = useCreateWorkoutTemplate();
   const updateTemplate = useUpdateWorkoutTemplate();

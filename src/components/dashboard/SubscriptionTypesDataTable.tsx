@@ -33,6 +33,8 @@ interface SubscriptionTypesDataTableProps {
   onEdit: (subscriptionType: SubscriptionType) => void;
   onDelete: (subscriptionType: SubscriptionType) => void;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  groupCurrentPage?: number;
+  groupPageSize?: number;
 }
 
 export const subscriptionTypeColumns: DataTableColumn<SubscriptionType>[] = [
@@ -105,6 +107,8 @@ export const SubscriptionTypesDataTable = ({
   onEdit,
   onDelete,
   onBulkDelete,
+  groupCurrentPage,
+  groupPageSize,
 }: SubscriptionTypesDataTableProps) => {
   const columns = useMemo(() => {
     return subscriptionTypeColumns.map((col) => {
@@ -177,6 +181,8 @@ export const SubscriptionTypesDataTable = ({
       totalCount={subscriptionTypes.length}
       onBulkDelete={onBulkDelete}
       selectionLabel="סוגי מנוי"
+      groupCurrentPage={groupCurrentPage}
+      groupPageSize={groupPageSize}
     />
   );
 };

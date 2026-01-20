@@ -4,7 +4,7 @@
  * Handles all business logic, data fetching, and state management
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
@@ -25,7 +25,15 @@ import { generateBudgetPDF } from '@/services/pdfService';
 import { syncPlansFromBudget, deleteAssociatedPlans } from '@/services/budgetPlanSync';
 import { supabase } from '@/lib/supabaseClient';
 import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
-import { selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
+import { 
+  selectFilterGroup, 
+  selectSearchQuery, 
+  selectCurrentPage,
+  selectPageSize,
+  selectGroupByKeys,
+  setCurrentPage,
+  setPageSize,
+} from '@/store/slices/tableStateSlice';
 
 export interface BudgetColumnVisibility {
   name: boolean;
@@ -86,10 +94,35 @@ export const useBudgetManagement = () => {
   const { defaultView } = useDefaultView('budgets');
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'budgets'));
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'budgets'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'budgets'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'budgets'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'budgets'));
+  
   const { data: budgets = [], isLoading } = useBudgets({
     search: searchQuery,
     filterGroup,
+    page: currentPage,
+    pageSize,
+    groupByLevel1: groupByKeys[0] || null,
+    groupByLevel2: groupByKeys[1] || null,
   });
+  
+  // Reset to page 1 when filters, search, or grouping change
+  const prevFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const currentFilters = JSON.stringify({ 
+      searchQuery, 
+      filterGroup,
+      groupByKeys: [groupByKeys[0], groupByKeys[1]],
+    });
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters) {
+      if (currentPage !== 1) {
+        dispatch(setCurrentPage({ resourceKey: 'budgets', page: 1 }));
+      }
+    }
+    prevFiltersRef.current = currentFilters;
+  }, [searchQuery, filterGroup, groupByKeys, currentPage, dispatch]);
+  
   const createBudget = useCreateBudget();
   const updateBudget = useUpdateBudget();
   const deleteBudget = useDeleteBudget();

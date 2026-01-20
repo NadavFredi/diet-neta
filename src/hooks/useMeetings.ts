@@ -58,7 +58,14 @@ const buildDateDnf = (filter: ActiveFilter, column: string, negate: boolean): Fi
   return [];
 };
 
-export const useMeetings = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
+export const useMeetings = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
+}) => {
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -110,6 +117,9 @@ export const useMeetings = (filters?: { search?: string; filterGroup?: FilterGro
         },
       };
 
+      const page = filters?.page ?? 1;
+      const pageSize = filters?.pageSize ?? 100;
+      
       const searchGroup = filters?.search
         ? createSearchGroup(filters.search, [
             'customer_name',
@@ -120,6 +130,17 @@ export const useMeetings = (filters?: { search?: string; filterGroup?: FilterGro
         : null;
       const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
 
+      // When grouping is active, fetch ALL matching records (no pagination)
+      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
+      
+      // Map groupBy columns to database columns
+      const groupByMap: Record<string, string> = {
+        created_at: 'created_at',
+        status: 'meeting_data->>status',
+        meeting_date: 'meeting_data->>date',
+        customer_name: 'customer.full_name',
+      };
+
       let query = supabase
         .from('meetings')
         .select(
@@ -128,8 +149,27 @@ export const useMeetings = (filters?: { search?: string; filterGroup?: FilterGro
           lead:leads(id, customer_id),
           customer:customers(id, full_name, phone, email)
         `
-        )
-        .order('created_at', { ascending: false });
+        );
+
+      // Only apply pagination if grouping is NOT active
+      if (!isGroupingActive) {
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+      if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+        query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+      }
+      if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+        query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+      }
+      
+      // Apply default sorting if no grouping
+      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+        query = query.order('created_at', { ascending: false });
+      }
 
       if (combinedGroup) {
         query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);

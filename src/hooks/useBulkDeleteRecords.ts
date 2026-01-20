@@ -18,13 +18,18 @@ export const useBulkDeleteRecords = ({
 
   return useMutation({
     mutationFn: async (ids: string[]) => {
-      if (!ids.length) return;
+      if (!ids.length) return { deletedCount: 0 };
       let query = supabase.from(table).delete().in('id', ids);
       if (createdByField && user?.id) {
         query = query.eq(createdByField, user.id);
       }
-      const { error } = await query;
+      const { data, error } = await query;
       if (error) throw error;
+      const deletedCount = data?.length || 0;
+      if (deletedCount === 0 && ids.length > 0) {
+        throw new Error('לא נמצאו רשומות למחיקה. ייתכן שאין הרשאה למחוק רשומות אלה.');
+      }
+      return { deletedCount };
     },
     onSuccess: () => {
       invalidateKeys.forEach((key) => {

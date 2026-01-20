@@ -18,7 +18,14 @@ import { syncPlansFromBudget } from '@/services/budgetPlanSync';
 // This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all budgets (public + user's own)
-export const useBudgets = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
+export const useBudgets = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
+}) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
@@ -57,8 +64,22 @@ export const useBudgets = (filters?: { search?: string; filterGroup?: FilterGrou
         ],
       };
 
+      const page = filters?.page ?? 1;
+      const pageSize = filters?.pageSize ?? 100;
+      
       const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name']) : null;
       const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
+
+      // When grouping is active, fetch ALL matching records (no pagination)
+      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
+      
+      // Map groupBy columns to database columns
+      const groupByMap: Record<string, string> = {
+        name: 'name',
+        is_public: 'is_public',
+        created_at: 'created_at',
+        steps_goal: 'steps_goal',
+      };
 
       let query = supabase
         .from('budgets')
@@ -66,8 +87,27 @@ export const useBudgets = (filters?: { search?: string; filterGroup?: FilterGrou
           *,
           workout_template:workout_templates(id, name),
           nutrition_template:nutrition_templates(id, name)
-        `)
-        .order('created_at', { ascending: false });
+        `);
+
+      // Only apply pagination if grouping is NOT active
+      if (!isGroupingActive) {
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+      if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+        query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+      }
+      if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+        query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+      }
+      
+      // Apply default sorting if no grouping
+      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+        query = query.order('created_at', { ascending: false });
+      }
 
       if (combinedGroup) {
         query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);

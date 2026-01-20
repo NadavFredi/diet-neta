@@ -10,6 +10,8 @@ interface WorkoutTemplatesDataTableProps {
   onEdit: (template: WorkoutTemplate) => void;
   onDelete: (template: WorkoutTemplate) => void;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  groupCurrentPage?: number;
+  groupPageSize?: number;
 }
 
 export const WorkoutTemplatesDataTable = ({
@@ -17,6 +19,8 @@ export const WorkoutTemplatesDataTable = ({
   onEdit,
   onDelete,
   onBulkDelete,
+  groupCurrentPage,
+  groupPageSize,
 }: WorkoutTemplatesDataTableProps) => {
   // CRITICAL: Pass ALL columns from schema to DataTable
   // This ensures the column visibility popover shows ALL available Workout Template columns
@@ -84,6 +88,8 @@ export const WorkoutTemplatesDataTable = ({
       totalCount={templates.length}
       onBulkDelete={onBulkDelete}
       selectionLabel="תבניות אימון"
+      groupCurrentPage={groupCurrentPage}
+      groupPageSize={groupPageSize}
     />
   );
 };

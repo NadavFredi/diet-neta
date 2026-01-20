@@ -45,15 +45,24 @@ export interface NutritionTemplate {
 // This eliminates redundant API calls to getUser() and profiles table
 
 // Fetch all templates (public + user's own)
-export const useNutritionTemplates = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
+export const useNutritionTemplates = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
+}) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['nutritionTemplates', filters, user?.id],
+    queryKey: ['nutritionTemplates', filters, user?.id], // filters includes groupByLevel1 and groupByLevel2
     queryFn: async () => {
       if (!user?.id) throw new Error('User not authenticated');
 
       const userId = user.id; // Use user.id from Redux instead of API call
+      const page = filters?.page ?? 1;
+      const pageSize = filters?.pageSize ?? 100;
       const fieldConfigs: FilterFieldConfigMap = {
         created_at: { column: 'created_at', type: 'date' },
         is_public: { column: 'is_public', type: 'select', valueMap: (value) => (value === 'כן' ? true : value === 'לא' ? false : value) },
@@ -135,10 +144,40 @@ export const useNutritionTemplates = (filters?: { search?: string; filterGroup?:
       const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name', 'description']) : null;
       const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
 
+      // When grouping is active, fetch ALL matching records (no pagination)
+      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
+      
+      // Map groupBy columns to database columns
+      const groupByMap: Record<string, string> = {
+        name: 'name',
+        description: 'description',
+        is_public: 'is_public',
+        created_at: 'created_at',
+      };
+
       let query = supabase
         .from('nutrition_templates_with_ranges')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
+
+      // Only apply pagination if grouping is NOT active
+      if (!isGroupingActive) {
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+      if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+        query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+      }
+      if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+        query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+      }
+      
+      // Apply default sorting if no grouping
+      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+        query = query.order('created_at', { ascending: false });
+      }
 
       if (combinedGroup) {
         query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);

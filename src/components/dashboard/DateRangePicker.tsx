@@ -4,7 +4,7 @@
  * Supports: Specific Date, Range (Start-End), Before, After
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,12 +20,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+export type FilterOperator = 'is' | 'isNot' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'before' | 'after' | 'between';
+
 interface DateRangePickerProps {
   mode: 'single' | 'range' | 'before' | 'after';
   date?: Date;
   dateRange?: { from?: Date; to?: Date };
   onDateChange: (date: Date | undefined) => void;
   onDateRangeChange: (range: { from?: Date; to?: Date } | undefined) => void;
+  operator?: FilterOperator; // Optional operator to control mode selector visibility
 }
 
 export const DateRangePicker: React.FC<DateRangePickerProps> = ({
@@ -34,9 +37,19 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   dateRange,
   onDateChange,
   onDateRangeChange,
+  operator,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMode, setCurrentMode] = useState<'single' | 'range' | 'before' | 'after'>(mode);
+
+  // Update current mode when mode prop changes
+  useEffect(() => {
+    setCurrentMode(mode);
+  }, [mode]);
+
+  // Determine if mode selector should be shown
+  // Hide it when operator is specified (controlled by parent filter)
+  const showModeSelector = !operator;
 
   const handleModeChange = (newMode: 'single' | 'range' | 'before' | 'after') => {
     setCurrentMode(newMode);
@@ -48,35 +61,53 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   };
 
   const getDisplayText = (): string => {
+    // Handle operator-based display
+    if (operator === 'between') {
+      return dateRange?.from && dateRange?.to 
+        ? `${format(dateRange.from, 'dd/MM/yyyy', { locale: he })} - ${format(dateRange.to, 'dd/MM/yyyy', { locale: he })}`
+        : 'בחר טווח תאריכים';
+    }
+    if (operator === 'before' || operator === 'after') {
+      return dateRange?.from 
+        ? format(dateRange.from, 'dd/MM/yyyy', { locale: he })
+        : 'בחר תאריך';
+    }
+    if (operator === 'equals') {
+      return date 
+        ? format(date, 'dd/MM/yyyy', { locale: he })
+        : 'בחר תאריך';
+    }
+    
+    // Handle mode-based display (when operator is not specified)
     if (currentMode === 'single' && date) {
       return format(date, 'dd/MM/yyyy', { locale: he });
     }
     if (currentMode === 'range' && dateRange?.from && dateRange?.to) {
       return `${format(dateRange.from, 'dd/MM/yyyy', { locale: he })} - ${format(dateRange.to, 'dd/MM/yyyy', { locale: he })}`;
     }
-    if (currentMode === 'before' && dateRange?.from) {
-      return `לפני ${format(dateRange.from, 'dd/MM/yyyy', { locale: he })}`;
+    if ((currentMode === 'before' || currentMode === 'after') && dateRange?.from) {
+      return format(dateRange.from, 'dd/MM/yyyy', { locale: he });
     }
-    if (currentMode === 'after' && dateRange?.from) {
-      return `אחרי ${format(dateRange.from, 'dd/MM/yyyy', { locale: he })}`;
-    }
+    
     return 'בחר תאריך';
   };
 
   return (
     <div className="space-y-3" dir="rtl">
-      {/* Mode Selector */}
-      <Select value={currentMode} onValueChange={handleModeChange}>
-        <SelectTrigger className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent dir="rtl">
-          <SelectItem value="single">תאריך ספציפי</SelectItem>
-          <SelectItem value="range">טווח תאריכים</SelectItem>
-          <SelectItem value="before">לפני תאריך</SelectItem>
-          <SelectItem value="after">אחרי תאריך</SelectItem>
-        </SelectContent>
-      </Select>
+      {/* Mode Selector - Only show when operator is not specified */}
+      {showModeSelector && (
+        <Select value={currentMode} onValueChange={handleModeChange}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent dir="rtl">
+            <SelectItem value="single">תאריך ספציפי</SelectItem>
+            <SelectItem value="range">טווח תאריכים</SelectItem>
+            <SelectItem value="before">לפני תאריך</SelectItem>
+            <SelectItem value="after">אחרי תאריך</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
 
       {/* Calendar */}
       <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -93,19 +124,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="end" dir="rtl">
-          {currentMode === 'single' && (
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={(selectedDate) => {
-                onDateChange(selectedDate);
-                setIsOpen(false);
-              }}
-              locale={he}
-              initialFocus
-            />
-          )}
-          {currentMode === 'range' && (
+          {/* Range mode - for 'between' operator */}
+          {(operator === 'between' || (currentMode === 'range' && !operator)) && (
             <Calendar
               mode="range"
               selected={dateRange}
@@ -120,12 +140,21 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               numberOfMonths={2}
             />
           )}
-          {(currentMode === 'before' || currentMode === 'after') && (
+          
+          {/* Single date mode - for 'equals', 'before', 'after' operators or single mode */}
+          {((operator === 'equals' || operator === 'before' || operator === 'after') || 
+            (currentMode === 'single' && !operator) ||
+            (currentMode === 'before' && !operator) ||
+            (currentMode === 'after' && !operator)) && (
             <Calendar
               mode="single"
-              selected={dateRange?.from}
+              selected={operator === 'equals' ? date : dateRange?.from}
               onSelect={(selectedDate) => {
-                onDateRangeChange({ from: selectedDate });
+                if (operator === 'before' || operator === 'after') {
+                  onDateRangeChange({ from: selectedDate });
+                } else {
+                  onDateChange(selectedDate);
+                }
                 if (selectedDate) {
                   setIsOpen(false);
                 }

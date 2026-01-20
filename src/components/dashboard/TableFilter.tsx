@@ -174,14 +174,18 @@ export const TableFilter: React.FC<TableFilterProps> = ({
 
   const handleOperatorSelect = (operator: FilterOperator) => {
     setSelectedOperator(operator);
-    if (operator === 'between' && selectedField?.type === 'date') {
-      setDateRange({ mode: 'range' });
-    } else if (operator === 'before' && selectedField?.type === 'date') {
-      setDateRange({ mode: 'before' });
-    } else if (operator === 'after' && selectedField?.type === 'date') {
-      setDateRange({ mode: 'after' });
-    } else if (selectedField?.type === 'date') {
-      setDateRange({ mode: 'single' });
+    if (selectedField?.type === 'date') {
+      if (operator === 'between') {
+        setDateRange({ mode: 'range' });
+      } else if (operator === 'before') {
+        setDateRange({ mode: 'before', from: dateRange?.from });
+      } else if (operator === 'after') {
+        setDateRange({ mode: 'after', from: dateRange?.from });
+      } else if (operator === 'equals') {
+        setDateRange({ mode: 'single', from: dateRange?.from });
+      } else {
+        setDateRange({ mode: 'single' });
+      }
     }
   };
 
@@ -203,17 +207,24 @@ export const TableFilter: React.FC<TableFilterProps> = ({
     let values: string[] = [];
     
     if (selectedField.type === 'date' && dateRange) {
-      if (dateRange.mode === 'single' && dateRange.from) {
+      if (selectedOperator === 'between') {
+        if (dateRange.from && dateRange.to) {
+          values = [
+            dateRange.from.toISOString().split('T')[0],
+            dateRange.to.toISOString().split('T')[0]
+          ];
+        }
+      } else if (selectedOperator === 'before' || selectedOperator === 'after' || selectedOperator === 'equals') {
+        if (dateRange.from) {
+          values = [dateRange.from.toISOString().split('T')[0]];
+        }
+      } else if (dateRange.mode === 'single' && dateRange.from) {
         values = [dateRange.from.toISOString().split('T')[0]];
       } else if (dateRange.mode === 'range' && dateRange.from && dateRange.to) {
         values = [
           dateRange.from.toISOString().split('T')[0],
           dateRange.to.toISOString().split('T')[0]
         ];
-      } else if (dateRange.mode === 'before' && dateRange.from) {
-        values = [dateRange.from.toISOString().split('T')[0]];
-      } else if (dateRange.mode === 'after' && dateRange.from) {
-        values = [dateRange.from.toISOString().split('T')[0]];
       }
     } else {
       values = selectedValues;
@@ -250,6 +261,9 @@ export const TableFilter: React.FC<TableFilterProps> = ({
     if (!selectedField || !selectedOperator) return false;
     
     if (selectedField.type === 'date') {
+      if (selectedOperator === 'between') {
+        return dateRange?.from !== undefined && dateRange?.to !== undefined;
+      }
       return dateRange?.from !== undefined;
     }
     
@@ -380,10 +394,33 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                     {selectedField.type === 'date' && (
                       <DateRangePicker
                         mode={dateRange?.mode || 'single'}
-                        date={dateRange?.from}
-                        dateRange={dateRange?.from && dateRange?.to ? { from: dateRange.from, to: dateRange.to } : undefined}
-                        onDateChange={(date) => setDateRange(prev => ({ ...prev, from: date }))}
-                        onDateRangeChange={(range) => setDateRange(prev => ({ ...prev, from: range?.from, to: range?.to }))}
+                        date={selectedOperator === 'equals' ? dateRange?.from : undefined}
+                        dateRange={
+                          selectedOperator === 'between' 
+                            ? { from: dateRange?.from, to: dateRange?.to }
+                            : (selectedOperator === 'before' || selectedOperator === 'after')
+                            ? { from: dateRange?.from }
+                            : undefined
+                        }
+                        onDateChange={(date) => {
+                          if (selectedOperator === 'equals') {
+                            setDateRange(prev => ({ ...prev, from: date, mode: 'single' }));
+                          } else if (selectedOperator === 'before' || selectedOperator === 'after') {
+                            setDateRange(prev => ({ ...prev, from: date, mode: selectedOperator }));
+                          } else {
+                            setDateRange(prev => ({ ...prev, from: date, mode: 'single' }));
+                          }
+                        }}
+                        onDateRangeChange={(range) => {
+                          if (selectedOperator === 'between') {
+                            setDateRange(prev => ({ ...prev, from: range?.from, to: range?.to, mode: 'range' }));
+                          } else if (selectedOperator === 'before' || selectedOperator === 'after') {
+                            setDateRange(prev => ({ ...prev, from: range?.from, mode: selectedOperator }));
+                          } else {
+                            setDateRange(prev => ({ ...prev, from: range?.from, to: range?.to }));
+                          }
+                        }}
+                        operator={selectedOperator}
                       />
                     )}
 

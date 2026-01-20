@@ -10,7 +10,7 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
-import { useAppSelector } from '@/store/hooks';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { BudgetsDataTable } from '@/components/dashboard/BudgetsDataTable';
 import { useBudgetManagement } from './BudgetManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
@@ -24,7 +24,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { budgetColumns } from '@/components/dashboard/BudgetsDataTable';
-import { selectActiveFilters } from '@/store/slices/tableStateSlice';
+import { selectActiveFilters, selectGroupByKeys, selectCurrentPage, selectPageSize, setCurrentPage, setPageSize } from '@/store/slices/tableStateSlice';
+import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
+import { Pagination } from '@/components/dashboard/Pagination';
 
 const BudgetManagement = () => {
   const navigate = useNavigate();
@@ -33,9 +35,48 @@ const BudgetManagement = () => {
   const budgetId = searchParams.get('budget_id');
   const { defaultView } = useDefaultView('budgets');
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
+  const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'budgets'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'budgets'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'budgets'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'budgets'));
+  const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
+  
+  // Group pagination state (separate from record pagination)
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const [groupPageSize] = useState(50);
+  
+  // Calculate total groups when grouping is active
+  const totalGroups = useMemo(() => {
+    if (!isGroupingActive || !budgets || budgets.length === 0) {
+      return 0;
+    }
+    
+    // Group the data to count groups
+    const groupedData = groupDataByKeys(budgets, groupByKeys, { level1: null, level2: null });
+    return getTotalGroupsCount(groupedData);
+  }, [isGroupingActive, budgets, groupByKeys]);
+  
+  // Reset group pagination when grouping changes
+  useEffect(() => {
+    if (isGroupingActive) {
+      setGroupCurrentPage(1);
+    }
+  }, [isGroupingActive, groupByKeys]);
+  
+  const handleGroupPageChange = useCallback((page: number) => {
+    setGroupCurrentPage(page);
+  }, []);
+  
+  const handlePageChange = useCallback((page: number) => {
+    dispatch(setCurrentPage({ resourceKey: 'budgets', page }));
+  }, [dispatch]);
+  
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    dispatch(setPageSize({ resourceKey: 'budgets', pageSize: newPageSize }));
+  }, [dispatch]);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -144,21 +185,36 @@ const BudgetManagement = () => {
                       <p>טוען נתונים...</p>
                     </div>
                   ) : budgets && budgets.length > 0 ? (
-                    <BudgetsDataTable
-                      budgets={budgets}
-                      onEdit={handleEditBudget}
-                      onDelete={handleDeleteClick}
-                      onExportPDF={handleExportPDF}
-                      onSendWhatsApp={handleSendWhatsApp}
-                      onBulkDelete={handleBulkDelete}
-                      onViewDetails={(budget) => {
-                        setViewingBudgetId(budget.id);
-                        // Update URL to include budget_id for shareable link
-                        const newParams = new URLSearchParams(searchParams);
-                        newParams.set('budget_id', budget.id);
-                        navigate(`/dashboard/budgets?${newParams.toString()}`, { replace: true });
-                      }}
-                    />
+                    <>
+                      <BudgetsDataTable
+                        budgets={budgets}
+                        onEdit={handleEditBudget}
+                        onDelete={handleDeleteClick}
+                        onExportPDF={handleExportPDF}
+                        onSendWhatsApp={handleSendWhatsApp}
+                        onBulkDelete={handleBulkDelete}
+                        onViewDetails={(budget) => {
+                          setViewingBudgetId(budget.id);
+                          // Update URL to include budget_id for shareable link
+                          const newParams = new URLSearchParams(searchParams);
+                          newParams.set('budget_id', budget.id);
+                          navigate(`/dashboard/budgets?${newParams.toString()}`, { replace: true });
+                        }}
+                        groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                        groupPageSize={isGroupingActive ? groupPageSize : undefined}
+                      />
+                      {/* Pagination Footer */}
+                      {budgets && budgets.length > 0 && (
+                        <Pagination
+                          currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                          pageSize={isGroupingActive ? groupPageSize : pageSize}
+                          totalItems={isGroupingActive ? totalGroups : budgets.length}
+                          onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                          onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                          isLoading={isLoading}
+                        />
+                      )}
+                    </>
                   ) : (
                     <div className="p-8 text-center text-gray-500">
                       <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>

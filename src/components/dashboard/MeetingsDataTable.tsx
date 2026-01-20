@@ -6,9 +6,16 @@ import { meetingColumns, defaultMeetingColumnVisibility } from './columns/meetin
 interface MeetingsDataTableProps {
   meetings: Meeting[];
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  groupCurrentPage?: number;
+  groupPageSize?: number;
 }
 
-export const MeetingsDataTable = ({ meetings, onBulkDelete }: MeetingsDataTableProps) => {
+export const MeetingsDataTable = ({ 
+  meetings, 
+  onBulkDelete,
+  groupCurrentPage,
+  groupPageSize,
+}: MeetingsDataTableProps) => {
   const navigate = useNavigate();
 
   const handleRowClick = (meeting: Meeting) => {
@@ -30,6 +37,8 @@ export const MeetingsDataTable = ({ meetings, onBulkDelete }: MeetingsDataTableP
       totalCount={meetings.length}
       onBulkDelete={onBulkDelete}
       selectionLabel="פגישות"
+      groupCurrentPage={groupCurrentPage}
+      groupPageSize={groupPageSize}
     />
   );
 };

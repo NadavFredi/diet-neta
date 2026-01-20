@@ -10,7 +10,7 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
-import { useAppSelector } from '@/store/hooks';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { SubscriptionTypesDataTable, subscriptionTypeColumns } from '@/components/dashboard/SubscriptionTypesDataTable';
 import { useSubscriptionTypesManagement } from './SubscriptionTypesManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
@@ -21,13 +21,24 @@ import { getSubscriptionTypeFilterFields } from '@/hooks/useTableFilters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
-import { selectActiveFilters } from '@/store/slices/tableStateSlice';
+import { selectActiveFilters, selectGroupByKeys, selectCurrentPage, selectPageSize, setCurrentPage, setPageSize } from '@/store/slices/tableStateSlice';
+import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
+import { Pagination } from '@/components/dashboard/Pagination';
 
 const SubscriptionTypesManagement = () => {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
   const { defaultView } = useDefaultView('subscription_types');
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'subscription_types'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'subscription_types'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'subscription_types'));
+  const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
+  
+  // Group pagination state (separate from record pagination)
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const [groupPageSize] = useState(50);
   const { data: savedView } = useSavedView(viewId);
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
@@ -126,12 +137,27 @@ const SubscriptionTypesManagement = () => {
                       <p>טוען נתונים...</p>
                     </div>
                   ) : subscriptionTypes && subscriptionTypes.length > 0 ? (
-                    <SubscriptionTypesDataTable
-                      subscriptionTypes={subscriptionTypes}
-                      onEdit={handleEditSubscriptionType}
-                      onDelete={handleDeleteClick}
-                      onBulkDelete={handleBulkDelete}
-                    />
+                    <>
+                      <SubscriptionTypesDataTable
+                        subscriptionTypes={subscriptionTypes}
+                        onEdit={handleEditSubscriptionType}
+                        onDelete={handleDeleteClick}
+                        onBulkDelete={handleBulkDelete}
+                        groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                        groupPageSize={isGroupingActive ? groupPageSize : undefined}
+                      />
+                      {/* Pagination Footer */}
+                      {subscriptionTypes && subscriptionTypes.length > 0 && (
+                        <Pagination
+                          currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                          pageSize={isGroupingActive ? groupPageSize : pageSize}
+                          totalItems={isGroupingActive ? totalGroups : subscriptionTypes.length}
+                          onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                          onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                          isLoading={isLoading}
+                        />
+                      )}
+                    </>
                   ) : (
                     <div className="p-8 text-center text-gray-500">
                       <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>

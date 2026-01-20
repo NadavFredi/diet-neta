@@ -4,7 +4,7 @@
  * Handles all business logic, data fetching, and state management
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMeetings } from '@/hooks/useMeetings';
 import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
@@ -15,6 +15,12 @@ import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import {
   selectSearchQuery,
   selectFilterGroup,
+  selectActiveFilters,
+  selectCurrentPage,
+  selectPageSize,
+  selectGroupByKeys,
+  setCurrentPage,
+  setPageSize,
   setSearchQuery,
   addFilter as addFilterAction,
   removeFilter as removeFilterAction,
@@ -33,15 +39,39 @@ export const useMeetingsManagement = () => {
   
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'meetings'));
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'meetings'));
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'meetings'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'meetings'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'meetings'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'meetings'));
 
   const { data: meetings = [], isLoading: isLoadingMeetings } = useMeetings({
     search: searchQuery,
     filterGroup,
+    page: currentPage,
+    pageSize,
+    groupByLevel1: groupByKeys[0] || null,
+    groupByLevel2: groupByKeys[1] || null,
   });
+  
+  // Reset to page 1 when filters, search, or grouping change
+  const prevFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const currentFilters = JSON.stringify({ 
+      searchQuery, 
+      filterGroup,
+      groupByKeys: [groupByKeys[0], groupByKeys[1]],
+    });
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters) {
+      if (currentPage !== 1) {
+        dispatch(setCurrentPage({ resourceKey: 'meetings', page: 1 }));
+      }
+    }
+    prevFiltersRef.current = currentFilters;
+  }, [searchQuery, filterGroup, groupByKeys, currentPage, dispatch]);
   const bulkDeleteMeetings = useBulkDeleteRecords({
     table: 'meetings',
     invalidateKeys: [['meetings']],
-    createdByField: 'created_by',
+    // No createdByField restriction - admins/users can delete all meetings per RLS policy
   });
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
 
@@ -94,11 +124,19 @@ export const useMeetingsManagement = () => {
   const filteredMeetings = useMemo(() => meetings, [meetings]);
 
   const handleBulkDelete = async (payload: { ids: string[] }) => {
-    await bulkDeleteMeetings.mutateAsync(payload.ids);
-    toast({
-      title: 'הצלחה',
-      description: 'הפגישות נמחקו בהצלחה',
-    });
+    try {
+      await bulkDeleteMeetings.mutateAsync(payload.ids);
+      toast({
+        title: 'הצלחה',
+        description: 'הפגישות נמחקו בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת הפגישות',
+        variant: 'destructive',
+      });
+    }
   };
 
   return {
@@ -113,5 +151,6 @@ export const useMeetingsManagement = () => {
     removeFilter,
     clearFilters,
     handleBulkDelete,
+    activeFilters,
   };
 };
