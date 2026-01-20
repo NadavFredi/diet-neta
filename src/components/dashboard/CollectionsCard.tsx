@@ -95,7 +95,7 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
 
   const handleDeleteCollections = async () => {
     if (selectedCollections.size === 0) return;
-    
+
     try {
       const { error } = await supabase
         .from('collections')
@@ -106,11 +106,11 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
 
       setSelectedCollections(new Set());
       setIsDeleteDialogOpen(false);
-      
+
       // Invalidate queries to refresh the list
       queryClient.invalidateQueries({ queryKey: ['collections-by-lead'] });
       queryClient.invalidateQueries({ queryKey: ['all-collections'] });
-      
+
       toast({
         title: 'הצלחה',
         description: `נמחקו ${selectedCollections.size} גבייות בהצלחה`,
@@ -201,13 +201,6 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
-                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right w-12">
-                        <Checkbox
-                          checked={selectedCollections.size === sortedCollections.length && sortedCollections.length > 0}
-                          onCheckedChange={handleSelectAllCollections}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
@@ -220,7 +213,7 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
                         onClick={() => handleCollectionClick(collection.id)}
                         className="cursor-pointer hover:bg-purple-50 transition-colors border-b border-gray-100"
                       >
-                        <TableCell 
+                        <TableCell
                           className="text-xs py-3 px-3 text-right align-middle w-12"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -230,7 +223,7 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
                           />
                         </TableCell>
                         <TableCell className="text-xs py-3 px-3 text-gray-900 text-right align-middle">
-                          {collection.due_date 
+                          {collection.due_date
                             ? format(new Date(collection.due_date), 'dd/MM/yyyy', { locale: he })
                             : format(new Date(collection.created_at), 'dd/MM/yyyy', { locale: he })
                           }

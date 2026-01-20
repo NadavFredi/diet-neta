@@ -204,19 +204,13 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
             onClick={handleProsperoClick}
             disabled={isCreatingProspero}
           >
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                <span className="text-xs font-semibold text-gray-900">
-                  יצירת הצעה חדשה
-                </span>
-              </div>
-              {isCreatingProspero ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
-              ) : (
-                <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-1.5 py-0.5 rounded">
-                  חדש
-                </span>
+            <div className="flex items-center gap-2 w-full">
+              <Sparkles className="h-4 w-4 text-blue-600 flex-shrink-0" />
+              <span className="text-xs font-semibold text-gray-900">
+                יצירת הצעה חדשה
+              </span>
+              {isCreatingProspero && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600 mr-auto" />
               )}
             </div>
           </Button>

@@ -13,7 +13,7 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, Users, Calendar, DollarSign } from 'lucide-react';
+import { CalendarIcon, Users, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
@@ -738,7 +738,7 @@ const Analytics = () => {
                       <div className="flex items-center justify-between">
                         <CardDescription className="text-amber-100 text-sm font-medium">סה"כ פגישות</CardDescription>
                         <div className="bg-white/20 rounded-lg p-2">
-                          <Calendar className="h-5 w-5" />
+                          <CalendarIcon className="h-5 w-5" />
                         </div>
                       </div>
                       <CardTitle className="text-4xl font-bold text-white mt-2">

@@ -13,12 +13,12 @@ import { Button } from '@/components/ui/button';
 import { InlineEditableField, type InlineEditableFieldRef } from './InlineEditableField';
 import { InlineEditableSelect, type InlineEditableSelectRef } from './InlineEditableSelect';
 import { CardHeaderWithActions } from './CardHeaderWithActions';
-import { 
-  Target, 
-  Activity, 
-  Clock, 
-  MapPin, 
-  Wallet, 
+import {
+  Target,
+  Activity,
+  Clock,
+  MapPin,
+  Wallet,
   Dumbbell,
   Flame,
   FileText,
@@ -29,9 +29,9 @@ import {
   X
 } from 'lucide-react';
 import { formatDate, calculateCurrentWeekFromJoinDate } from '@/utils/dashboard';
-import { 
-  FITNESS_GOAL_OPTIONS, 
-  SOURCE_OPTIONS 
+import {
+  FITNESS_GOAL_OPTIONS,
+  SOURCE_OPTIONS
 } from '@/utils/dashboard';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 import { cn } from '@/lib/utils';
@@ -115,13 +115,13 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   const [isCreateSubscriptionModalOpen, setIsCreateSubscriptionModalOpen] = useState(false);
   const [isAddPaymentDialogOpen, setIsAddPaymentDialogOpen] = useState(false);
   const [isAddMeetingDialogOpen, setIsAddMeetingDialogOpen] = useState(false);
-  
+
   // Selection state for meetings and payments
   const [selectedMeetings, setSelectedMeetings] = useState<Set<string>>(new Set());
   const [selectedPayments, setSelectedPayments] = useState<Set<string>>(new Set());
   const [isDeleteMeetingsDialogOpen, setIsDeleteMeetingsDialogOpen] = useState(false);
   const [isDeletePaymentsDialogOpen, setIsDeletePaymentsDialogOpen] = useState(false);
-  
+
   // Delete hooks
   const deleteMeeting = useDeleteMeeting();
   const deletePayment = useDeletePayment();
@@ -164,7 +164,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   // Filter meetings by lead_id or customer_id
   const leadMeetings = useMemo(() => {
     if (!leadId && !customer?.id) return [];
-    
+
     return allMeetings.filter((meeting) => {
       // Match by lead_id first, then fallback to customer_id
       if (leadId && meeting.lead_id === leadId) return true;
@@ -197,7 +197,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       }
       return null;
     })();
-    
+
     if (schedulingData?.eventStartTime) {
       try {
         const date = new Date(schedulingData.eventStartTime);
@@ -208,12 +208,12 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         // Silent failure
       }
     }
-    
-    return meetingData.date || 
-           meetingData.meeting_date || 
-           meetingData['תאריך'] || 
-           meetingData['תאריך פגישה'] ||
-           formatDate(meeting.created_at);
+
+    return meetingData.date ||
+      meetingData.meeting_date ||
+      meetingData['תאריך'] ||
+      meetingData['תאריך פגישה'] ||
+      formatDate(meeting.created_at);
   };
 
   // Helper function to extract meeting time
@@ -237,7 +237,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       }
       return null;
     })();
-    
+
     if (schedulingData?.eventStartTime) {
       try {
         const startDate = new Date(schedulingData.eventStartTime);
@@ -245,7 +245,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           const hours = startDate.getHours().toString().padStart(2, '0');
           const minutes = startDate.getMinutes().toString().padStart(2, '0');
           const startTime = `${hours}:${minutes}`;
-          
+
           if (schedulingData.eventEndTime) {
             try {
               const endDate = new Date(schedulingData.eventEndTime);
@@ -343,7 +343,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
   const handleDeleteMeetings = async () => {
     if (selectedMeetings.size === 0) return;
-    
+
     try {
       await Promise.all(
         Array.from(selectedMeetings).map((id) => deleteMeeting.mutateAsync(id))
@@ -386,7 +386,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
   const handleDeletePayments = async () => {
     if (selectedPayments.size === 0) return;
-    
+
     try {
       await Promise.all(
         Array.from(selectedPayments).map((id) => deletePayment.mutateAsync(id))
@@ -596,12 +596,12 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   }
 
   const subscriptionData = activeLead.subscription_data || {};
-  
+
   // Use calculated week if available, otherwise fall back to stored value
-  const currentWeekValue = calculatedCurrentWeek > 0 
-    ? calculatedCurrentWeek 
+  const currentWeekValue = calculatedCurrentWeek > 0
+    ? calculatedCurrentWeek
     : (subscriptionData.currentWeekInProgram || 0);
-  
+
   // Use status_sub first, then status_main, then default
   // This matches the database structure and ensures correct display
   const displayStatus = activeLead.status_sub || activeLead.status_main || 'ללא סטטוס';
@@ -627,7 +627,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   };
 
   const age = getAge();
-  
+
   // Calculate BMI if height and weight are available
   const calculateBMI = (height: number | null, weight: number | null): number | null => {
     if (!height || !weight || height === 0) return null;
@@ -713,9 +713,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                     ...subscriptionData,
                     currentWeekInProgram: newCurrentWeek > 0 ? newCurrentWeek : (subscriptionData.currentWeekInProgram || 0),
                   };
-                  await onUpdateLead({ 
+                  await onUpdateLead({
                     join_date: newJoinDate,
-                    subscription_data: updatedSubscription 
+                    subscription_data: updatedSubscription
                   });
                 }}
                 type="date"
@@ -830,25 +830,25 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 ]}
                 onSave={async (newValue) => {
                   const mainCategory = STATUS_CATEGORIES.find(cat => cat.label === newValue);
-                  const subCategory = STATUS_CATEGORIES.find(cat => 
+                  const subCategory = STATUS_CATEGORIES.find(cat =>
                     cat.subStatuses?.some(sub => sub.label === newValue)
                   );
-                  
+
                   if (mainCategory) {
-                    await onUpdateLead({ 
+                    await onUpdateLead({
                       status_main: mainCategory.label,
-                      status_sub: null 
+                      status_sub: null
                     });
                   } else if (subCategory) {
                     const subStatus = subCategory.subStatuses?.find(sub => sub.label === newValue);
-                    await onUpdateLead({ 
+                    await onUpdateLead({
                       status_main: subCategory.label,
-                      status_sub: subStatus?.label || newValue 
+                      status_sub: subStatus?.label || newValue
                     });
                   } else {
-                    await onUpdateLead({ 
+                    await onUpdateLead({
                       status_main: newValue,
-                      status_sub: null 
+                      status_sub: null
                     });
                   }
                 }}
@@ -1020,9 +1020,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           />
 
           {/* Card 5: Fillout Forms */}
-          <LeadFormsCard 
+          <LeadFormsCard
             leadId={activeLead?.id || null} // Pass lead ID for URL parameter matching
-            leadEmail={customer?.email || activeLead?.email || null} 
+            leadEmail={customer?.email || activeLead?.email || null}
             leadPhone={activeLead?.phone || customer?.phone || null}
             leadName={customer?.full_name || activeLead?.name || null}
           />
@@ -1080,13 +1080,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
-                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right w-12">
-                        <Checkbox
-                          checked={selectedMeetings.size === sortedMeetings.length && sortedMeetings.length > 0}
-                          onCheckedChange={handleSelectAllMeetings}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">שעה</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
@@ -1096,12 +1089,12 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                     {sortedMeetings.map((meeting) => (
                       <TableRow
                         key={meeting.id}
-                        onClick={() => navigate(`/dashboard/meetings/${meeting.id}`, { 
-                          state: { returnTo: location.pathname } 
+                        onClick={() => navigate(`/dashboard/meetings/${meeting.id}`, {
+                          state: { returnTo: location.pathname }
                         })}
                         className="cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100"
                       >
-                        <TableCell 
+                        <TableCell
                           className="text-xs py-3 px-3 text-right align-middle w-12"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -1170,13 +1163,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
-                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right w-12">
-                        <Checkbox
-                          checked={selectedPayments.size === sortedPayments.length && sortedPayments.length > 0}
-                          onCheckedChange={handleSelectAllPayments}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
@@ -1186,12 +1172,12 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                     {sortedPayments.map((payment) => (
                       <TableRow
                         key={payment.id}
-                        onClick={() => navigate(`/dashboard/payments/${payment.id}`, { 
-                          state: { returnTo: location.pathname } 
+                        onClick={() => navigate(`/dashboard/payments/${payment.id}`, {
+                          state: { returnTo: location.pathname }
                         })}
                         className="cursor-pointer hover:bg-green-50 transition-colors border-b border-gray-100"
                       >
-                        <TableCell 
+                        <TableCell
                           className="text-xs py-3 px-3 text-right align-middle w-12"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -1251,7 +1237,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             onAddSupplementsPlan={() => {
               // Supplements plan creation - placeholder for future implementation
             }}
-            onAssignBudget={onAssignBudget || (() => {})}
+            onAssignBudget={onAssignBudget || (() => { })}
           />
         </div>
       </div>
@@ -1264,11 +1250,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           try {
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
-            
+
             // Calculate expiration date based on duration_unit
             const expirationDate = new Date(today);
             const durationUnit = subscriptionType.duration_unit || 'months';
-            
+
             switch (durationUnit) {
               case 'days':
                 expirationDate.setDate(expirationDate.getDate() + subscriptionType.duration);
@@ -1282,7 +1268,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 break;
             }
             const expirationDateStr = expirationDate.toISOString().split('T')[0];
-            
+
             // Create a NEW subscription_data object (copy values, not reference)
             // This ensures one-way relationship - template changes don't affect leads
             const updatedSubscription = {
@@ -1293,7 +1279,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               expirationDate: expirationDateStr, // Calculate expiration date
               status: 'פעיל', // Set status to Active by default
             };
-            
+
             await onUpdateLead({
               join_date: todayStr,
               subscription_data: updatedSubscription,
