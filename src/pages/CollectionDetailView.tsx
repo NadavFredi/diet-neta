@@ -1,201 +1,70 @@
 /**
- * PaymentDetailView Component - Matches meeting page design
+ * CollectionDetailView Component - Matches meeting page design
  * 
  * Uses same ClientHero header and customer notes system
  * Layout:
  * - ClientHero header (same as customer page)
  * - Tabs below header: הערות, היסטוריה, צפה כמתאמן, תשלומים, WhatsApp
- * - Three vertical panels: Client Details, Payment Details, Notes (using CustomerNotesSidebar)
+ * - Three vertical panels: Client Details, Collection Details, Notes (using CustomerNotesSidebar)
  */
 
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { ClientHero } from '@/components/dashboard/ClientHero';
 import { ClientHeroBar } from '@/components/dashboard/ClientHeroBar';
 import { ResizableNotesPanel } from '@/components/dashboard/ResizableNotesPanel';
 import { LeadSidebarContainer } from '@/components/dashboard/LeadSidebarContainer';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { usePayment } from '@/hooks/usePayment';
+import { useCollectionDetailView } from './CollectionDetailView';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
-import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { logoutUser } from '@/store/slices/authSlice';
 import { 
   Calendar, 
-  CreditCard,
-  User, 
-  Package,
   Receipt,
-  ExternalLink,
+  User, 
+  Wallet,
+  DollarSign,
+  FileText,
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { cn } from '@/lib/utils';
-import { useCustomer } from '@/hooks/useCustomers';
-import { useUpdateCustomer } from '@/hooks/useUpdateCustomer';
-import { useUpdateLead } from '@/hooks/useUpdateLead';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
-import { selectCustomerNotes, fetchCustomerNotes } from '@/store/slices/leadViewSlice';
 
-// Payment status configuration
-const PAYMENT_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  'שולם': {
-    label: 'שולם',
-    className: 'bg-green-50 text-green-700 border-green-200',
-  },
-  'ממתין': {
-    label: 'ממתין',
-    className: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-  },
-  'הוחזר': {
-    label: 'הוחזר',
-    className: 'bg-blue-50 text-blue-700 border-blue-200',
-  },
-  'נכשל': {
-    label: 'נכשל',
-    className: 'bg-red-50 text-red-700 border-red-200',
-  },
-};
-
-const PaymentDetailView = () => {
-  const { id } = useParams<{ id: string }>();
+const CollectionDetailView = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const dispatch = useAppDispatch();
-  const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
-  const { data: payment, isLoading } = usePayment(id || null);
-
-  // Get customer from payment
-  const customerId = payment?.customer_id;
-  const { data: customer } = useCustomer(customerId || null);
-
-  // Get lead data for ClientHero
-  const { data: leadData } = useQuery({
-    queryKey: ['lead', payment?.lead_id],
-    queryFn: async () => {
-      if (!payment?.lead_id) return null;
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('id', payment.lead_id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!payment?.lead_id,
-  });
-
-  // Fetch all leads for the customer (for history sidebar)
-  const { data: allLeads } = useQuery({
-    queryKey: ['leads-for-customer', customerId],
-    queryFn: async () => {
-      if (!customerId) return [];
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('customer_id', customerId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!customerId,
-  });
-
-  // Sort leads by created_at descending (most recent first)
-  const sortedLeads = allLeads || [];
-
-  const handleBack = () => {
-    // Check if we have a return URL from location state (e.g., from lead page)
-    const returnTo = (location.state as any)?.returnTo;
-    if (returnTo && returnTo.startsWith('/leads/')) {
-      navigate(returnTo);
-    } else {
-      // Default to payments list page
-      navigate('/dashboard/payments');
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await dispatch(logoutUser()).unwrap();
-      navigate('/login');
-    } catch (error) {
-      navigate('/login');
-    }
-  };
+  const {
+    collection,
+    isLoading,
+    customer,
+    leadData,
+    sortedLeads,
+    user,
+    notesOpen,
+    leftSidebar,
+    notesCount,
+    isPaymentHistoryOpen,
+    setIsPaymentHistoryOpen,
+    isTraineeSettingsOpen,
+    setIsTraineeSettingsOpen,
+    isExpanded,
+    setIsExpanded,
+    handleBack,
+    handleLogout,
+    handleWhatsApp,
+    handleUpdateLead,
+    handleUpdateCustomer,
+    handleViewCustomerProfile,
+    getStatusColor,
+    getStatusConfig,
+    formattedTotalAmount,
+    formattedPaidAmount,
+    formattedRemainingAmount,
+  } = useCollectionDetailView();
 
   const handleSaveViewClick = () => {};
   const handleEditViewClick = () => {};
-
-  const handleWhatsApp = () => {
-    const phone = customer?.phone || payment?.customer?.phone;
-    if (phone) {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      window.open(`https://wa.me/${cleanPhone}`, '_blank');
-    }
-  };
-
-  // Update handlers for ClientHero
-  const updateLead = useUpdateLead();
-  const updateCustomer = useUpdateCustomer();
-
-  const handleUpdateLead = async (updates: any) => {
-    if (!leadData?.id) return;
-    await updateLead.mutateAsync({
-      leadId: leadData.id,
-      updates,
-    });
-  };
-
-  const handleUpdateCustomer = async (updates: any) => {
-    if (!customer?.id) return;
-    await updateCustomer.mutateAsync({
-      customerId: customer.id,
-      updates,
-    });
-  };
-
-  const handleViewCustomerProfile = () => {
-    if (customer?.id) {
-      navigate(`/leads/${payment?.lead_id || customer.id}`);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    const statusStr = String(status);
-    if (statusStr.includes('בוטל') || statusStr.includes('מבוטל')) return 'bg-red-50 text-red-700 border-red-200';
-    if (statusStr.includes('הושלם') || statusStr.includes('שולם')) return 'bg-green-50 text-green-700 border-green-200';
-    if (statusStr.includes('מתוכנן') || statusStr.includes('ממתין')) return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-    return 'bg-gray-50 text-gray-700 border-gray-200';
-  };
-
-  // Get sidebar states from Redux (same as customer page) - MUST be before early returns
-  const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
-  const leftSidebar = useAppSelector((state) => state.leadView.leftSidebar);
-
-  // Modal state management (same as lead page)
-  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
-  const [isTraineeSettingsOpen, setIsTraineeSettingsOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  // Get notes count for the customer
-  const customerNotesSelector = useMemo(
-    () => selectCustomerNotes(customer?.id),
-    [customer?.id]
-  );
-  const notes = useAppSelector(customerNotesSelector);
-  const notesCount = notes?.length || 0;
-
-  // Fetch notes when customer changes - MUST be before early returns
-  useEffect(() => {
-    if (customer?.id) {
-      dispatch(fetchCustomerNotes(customer.id));
-    }
-  }, [customer?.id, dispatch]);
 
   const HEADER_HEIGHT_LOADING = 60;
 
@@ -224,7 +93,7 @@ const PaymentDetailView = () => {
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-12">
                 <div className="text-center">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                  <p className="text-gray-600">טוען פרטי תשלום...</p>
+                  <p className="text-gray-600">טוען פרטי גבייה...</p>
                 </div>
               </div>
             </div>
@@ -234,7 +103,7 @@ const PaymentDetailView = () => {
     );
   }
 
-  if (!payment || !customer) {
+  if (!collection || !customer) {
     return (
       <>
         <div
@@ -258,9 +127,9 @@ const PaymentDetailView = () => {
             <div className="p-6">
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-12">
                 <div className="text-center text-gray-500">
-                  <p className="text-lg font-medium mb-2">תשלום לא נמצא</p>
+                  <p className="text-lg font-medium mb-2">גבייה לא נמצאה</p>
                   <Button onClick={handleBack} variant="outline" className="mt-4">
-                    חזור לרשימת תשלומים
+                    חזור לרשימת גבייות
                   </Button>
                 </div>
               </div>
@@ -271,12 +140,7 @@ const PaymentDetailView = () => {
     );
   }
 
-  const statusConfig = PAYMENT_STATUS_CONFIG[payment.status] || PAYMENT_STATUS_CONFIG['ממתין'];
-  const formattedAmount = new Intl.NumberFormat('he-IL', {
-    style: 'currency',
-    currency: payment.currency || 'ILS',
-  }).format(payment.amount);
-
+  const statusConfig = getStatusConfig(collection.status);
   const HEADER_HEIGHT = 60;
 
   return (
@@ -331,7 +195,7 @@ const PaymentDetailView = () => {
             <ClientHero
               customer={customer}
               mostRecentLead={leadData as any}
-              status={payment.status}
+              status={collection.status}
               onBack={handleBack}
               onWhatsApp={handleWhatsApp}
               onUpdateLead={handleUpdateLead}
@@ -367,7 +231,7 @@ const PaymentDetailView = () => {
                   fitness_goal: leadData.fitness_goal,
                   status_main: leadData.status_main,
                 }] : []}
-                activeLeadId={payment.lead_id || null}
+                activeLeadId={collection.lead_id || null}
               />
             )}
 
@@ -387,10 +251,10 @@ const PaymentDetailView = () => {
                 {leftSidebar === 'history' && (
                   <LeadSidebarContainer
                     leads={sortedLeads}
-                    activeLeadId={payment.lead_id || null}
+                    activeLeadId={collection.lead_id || null}
                     onLeadSelect={(leadId) => {
                       // Navigate to the lead page if different lead is selected
-                      if (leadId !== payment.lead_id) {
+                      if (leadId !== collection.lead_id) {
                         navigate(`/leads/${leadId}`);
                       }
                     }}
@@ -400,7 +264,7 @@ const PaymentDetailView = () => {
                   />
                 )}
 
-                {/* Center: Payment Details Panels - 2 columns in one row */}
+                {/* Center: Collection Details Panels - 2 columns in one row */}
                 <div 
                   className="flex-1 w-full transition-all duration-200 ease-out"
                   style={{ 
@@ -445,40 +309,52 @@ const PaymentDetailView = () => {
                             {customer.phone || '-'}
                           </p>
                         </div>
-                        {payment.lead_id && (
+                        {collection.lead_id && (
                           <div>
                             <label className="text-xs font-semibold text-gray-500 block mb-1">ליד</label>
                             <p className="text-sm text-gray-900">
-                              {payment.lead?.customer?.full_name || `ליד ${payment.lead_id.slice(0, 8)}`}
+                              {collection.lead_name || `ליד ${collection.lead_id.slice(0, 8)}`}
                             </p>
                           </div>
                         )}
                       </div>
                     </Card>
 
-                    {/* Right Panel: Payment Details */}
+                    {/* Right Panel: Collection Details */}
                     <Card className="p-4 border border-slate-200 rounded-xl shadow-sm bg-white" style={{ minWidth: 0 }}>
                       <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
                         <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                          <CreditCard className="h-4 w-4 text-blue-600" />
+                          <Receipt className="h-4 w-4 text-blue-600" />
                         </div>
-                        <h3 className="text-sm font-bold text-gray-900">פרטי תשלום</h3>
+                        <h3 className="text-sm font-bold text-gray-900">פרטי גבייה</h3>
                       </div>
                       <div className="space-y-3">
                         <div>
-                          <label className="text-xs font-semibold text-gray-500 block mb-1">מוצר</label>
+                          <label className="text-xs font-semibold text-gray-500 block mb-1">סכום כולל</label>
                           <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-gray-400" />
-                            <p className="text-sm text-gray-900">
-                              {payment.product_name || '-'}
+                            <Wallet className="h-4 w-4 text-gray-400" />
+                            <p className="text-sm font-bold text-gray-900">
+                              {formattedTotalAmount}
                             </p>
                           </div>
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-gray-500 block mb-1">סכום</label>
-                          <p className="text-sm font-bold text-gray-900">
-                            {formattedAmount}
-                          </p>
+                          <label className="text-xs font-semibold text-gray-500 block mb-1">שולם</label>
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-green-600" />
+                            <p className="text-sm font-semibold text-green-600">
+                              {formattedPaidAmount}
+                            </p>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 block mb-1">נותר</label>
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-red-600" />
+                            <p className="text-sm font-semibold text-red-600">
+                              {formattedRemainingAmount}
+                            </p>
+                          </div>
                         </div>
                         <div>
                           <label className="text-xs font-semibold text-gray-500 block mb-1">סטטוס</label>
@@ -492,50 +368,39 @@ const PaymentDetailView = () => {
                           </Badge>
                         </div>
                         <div>
+                          <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך יעד</label>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <p className="text-sm text-gray-900">
+                              {collection.due_date ? formatDate(collection.due_date) : '-'}
+                            </p>
+                          </div>
+                        </div>
+                        <div>
                           <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך יצירה</label>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-gray-400" />
                             <p className="text-sm text-gray-900">
-                              {payment.created_at ? formatDate(payment.created_at) : '-'}
+                              {collection.created_at ? formatDate(collection.created_at) : '-'}
                             </p>
                           </div>
                         </div>
-                        {payment.transaction_id && (
+                        {collection.description && (
                           <div>
-                            <label className="text-xs font-semibold text-gray-500 block mb-1">מספר עסקה</label>
-                            <p className="text-sm text-gray-900 font-mono">
-                              {payment.transaction_id}
-                            </p>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">תיאור</label>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-gray-400" />
+                              <p className="text-sm text-gray-900">
+                                {collection.description}
+                              </p>
+                            </div>
                           </div>
                         )}
-                        {payment.stripe_payment_id && (
-                          <div>
-                            <label className="text-xs font-semibold text-gray-500 block mb-1">מזהה Stripe</label>
-                            <p className="text-sm text-gray-900 font-mono text-xs">
-                              {payment.stripe_payment_id}
-                            </p>
-                          </div>
-                        )}
-                        {payment.receipt_url && (
-                          <div>
-                            <label className="text-xs font-semibold text-gray-500 block mb-1">קבלה</label>
-                            <a
-                              href={payment.receipt_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
-                            >
-                              <Receipt className="h-4 w-4" />
-                              <span>צפה בקבלה</span>
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </div>
-                        )}
-                        {payment.notes && (
+                        {collection.notes && (
                           <div>
                             <label className="text-xs font-semibold text-gray-500 block mb-1">הערות</label>
                             <p className="text-sm text-gray-900">
-                              {payment.notes}
+                              {collection.notes}
                             </p>
                           </div>
                         )}
@@ -551,4 +416,4 @@ const PaymentDetailView = () => {
   );
 };
 
-export default PaymentDetailView;
+export default CollectionDetailView;

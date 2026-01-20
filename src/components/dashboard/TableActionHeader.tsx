@@ -296,10 +296,10 @@ export const TableActionHeader = ({
     if (!columns || columns.length === 0) {
       return [];
     }
-    // Filter out columns that shouldn't be grouped (like actions, IDs, etc.)
+    // Filter out columns that shouldn't be grouped (like actions, etc.)
     return columns.filter((col) => {
       // Exclude certain column types from grouping
-      const excludeIds = ['id', 'actions'];
+      const excludeIds = ['actions'];
       return !excludeIds.includes(col.id) && col.enableHiding !== false;
     });
   };

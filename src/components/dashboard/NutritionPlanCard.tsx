@@ -134,13 +134,13 @@ export const NutritionPlanCard = ({
                   </Button>
                 </DialogTrigger>
                 <DialogContent 
-                  className="max-w-[95vw] w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden" 
+                  className="max-w-[98vw] w-[98vw] h-[96vh] flex flex-col p-0 overflow-hidden" 
                   dir="rtl"
                 >
-                  <DialogHeader className="px-4 pt-4 pb-3 border-b flex-shrink-0">
-                    <DialogTitle className="text-lg">עריכת תוכנית תזונה</DialogTitle>
+                  <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
+                    <DialogTitle className="text-xl font-semibold">עריכת תוכנית תזונה</DialogTitle>
                   </DialogHeader>
-                  <div className="flex-1 overflow-hidden min-h-0">
+                  <div className="flex-1 overflow-hidden min-h-0 px-6 pb-6">
                     <NutritionTemplateForm
                       mode="user"
                       initialData={nutritionPlan}

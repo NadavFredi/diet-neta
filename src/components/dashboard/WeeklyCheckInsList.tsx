@@ -5,18 +5,21 @@
  * with a button to add new weekly check-ins via a popup dialog
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Calendar, Edit, Trash2 } from 'lucide-react';
+import { Plus, Calendar, Edit, Trash2, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { WeeklyReviewModule } from './WeeklyReviewModule';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { sendWhatsAppMessage, replacePlaceholders } from '@/services/greenApiService';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchTemplates } from '@/store/slices/automationSlice';
 
 interface WeeklyCheckInsListProps {
   leadId?: string | null;
@@ -55,8 +58,34 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const templates = useAppSelector((state) => state.automation.templates);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingReview, setEditingReview] = useState<WeeklyReview | null>(null);
+  const [sendingReviewId, setSendingReviewId] = useState<string | null>(null);
+
+  // Fetch WhatsApp templates on mount and periodically to catch updates
+  useEffect(() => {
+    dispatch(fetchTemplates());
+    
+    // Refetch templates periodically to catch updates from automation page
+    const intervalId = setInterval(() => {
+      dispatch(fetchTemplates());
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [dispatch]);
+
+  // Debug: Log component state
+  useEffect(() => {
+    console.log('WeeklyCheckInsList mounted/updated', {
+      customerPhone,
+      customerName,
+      customerId,
+      leadId,
+      templatesCount: Object.keys(templates).length,
+    });
+  }, [customerPhone, customerName, customerId, leadId, templates]);
 
   // Fetch all weekly reviews for this lead/customer
   const { data: weeklyReviews, isLoading } = useQuery({
@@ -134,6 +163,136 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
   const handleDialogClose = () => {
     setIsCreateDialogOpen(false);
     setEditingReview(null);
+  };
+
+  const handleSendWhatsApp = async (review: WeeklyReview) => {
+    console.log('handleSendWhatsApp called', { review, customerPhone, customerName });
+    
+    if (!customerPhone) {
+      toast({
+        title: 'שגיאה',
+        description: 'מספר טלפון לא זמין',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSendingReviewId(review.id);
+    try {
+      console.log('Starting WhatsApp send process...');
+      const weekStart = new Date(review.week_start_date);
+      const weekEnd = new Date(review.week_end_date);
+      const weekLabel = `שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}`;
+      
+      // Check if there's a custom template for weekly_review
+      const weeklyReviewTemplate = templates['weekly_review'];
+      let message: string;
+      let processedButtons: Array<{ id: string; text: string }> | undefined;
+      let media: { type: 'image' | 'video' | 'gif'; url: string } | undefined;
+      
+      if (weeklyReviewTemplate?.template_content?.trim()) {
+        // Use custom template with placeholders
+        const placeholders: Record<string, string> = {
+          // Week info
+          '{{week_label}}': weekLabel,
+          '{{week_start}}': format(weekStart, 'dd/MM', { locale: he }),
+          '{{week_end}}': format(weekEnd, 'dd/MM', { locale: he }),
+          
+          // Customer info
+          '{{first_name}}': customerName?.split(' ')[0] || '',
+          '{{full_name}}': customerName || '',
+          
+          // Targets
+          '{{target_calories}}': review.target_calories ? Math.round(review.target_calories).toString() : '-',
+          '{{target_protein}}': review.target_protein ? Math.round(review.target_protein).toString() : '-',
+          '{{target_fiber}}': review.target_fiber ? Math.round(review.target_fiber).toString() : '-',
+          '{{target_steps}}': review.target_steps ? Math.round(review.target_steps).toString() : '-',
+          
+          // Actuals
+          '{{actual_calories}}': review.actual_calories_avg ? Math.round(review.actual_calories_avg).toString() : '-',
+          '{{actual_protein}}': review.actual_protein_avg ? Math.round(review.actual_protein_avg).toString() : '-',
+          '{{actual_fiber}}': review.actual_fiber_avg ? Math.round(review.actual_fiber_avg).toString() : '-',
+          '{{actual_weight}}': review.weekly_avg_weight ? review.weekly_avg_weight.toFixed(1) : '-',
+          
+          // Trainer feedback
+          '{{trainer_summary}}': review.trainer_summary || '',
+          '{{action_plan}}': review.action_plan || '',
+        };
+        
+        message = replacePlaceholders(weeklyReviewTemplate.template_content, placeholders);
+        
+        // Process buttons if they exist
+        if (weeklyReviewTemplate.buttons?.length) {
+          processedButtons = weeklyReviewTemplate.buttons.map(btn => ({
+            id: btn.id,
+            text: replacePlaceholders(btn.text, placeholders),
+          }));
+        }
+        
+        // Process media if it exists
+        if (weeklyReviewTemplate.media?.url) {
+          media = {
+            type: weeklyReviewTemplate.media.type as 'image' | 'video' | 'gif',
+            url: weeklyReviewTemplate.media.url,
+          };
+        }
+      } else {
+        // Use default message format (matches the format from WhatsApp automation)
+        message = `📊 סיכום שבועי - שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}\n\n`;
+        message += `🎯 יעדים:\n`;
+        if (review.target_calories) message += `קלוריות: ${Math.round(review.target_calories)} קק"ל\n`;
+        if (review.target_protein) message += `חלבון: ${Math.round(review.target_protein)} גרם\n`;
+        if (review.target_fiber) message += `סיבים: ${Math.round(review.target_fiber)} גרם\n`;
+        if (review.target_steps) message += `צעדים: ${Math.round(review.target_steps)}\n`;
+        
+        message += `\n📈 בפועל (ממוצע):\n`;
+        if (review.actual_calories_avg) message += `קלוריות: ${Math.round(review.actual_calories_avg)} קק"ל\n`;
+        if (review.weekly_avg_weight) message += `משקל ממוצע: ${review.weekly_avg_weight.toFixed(1)} ק"ג\n`;
+        
+        if (review.trainer_summary) {
+          message += `\n💬 סיכום ומסקנות:\n${review.trainer_summary}\n`;
+        }
+        
+        if (review.action_plan) {
+          message += `\n🎯 דגשים לשבוע הקרוב:\n${review.action_plan}\n`;
+        }
+      }
+
+      console.log('Sending WhatsApp message', { 
+        phoneNumber: customerPhone, 
+        messageLength: message.length,
+        hasButtons: !!processedButtons,
+        hasMedia: !!media 
+      });
+
+      const result = await sendWhatsAppMessage({
+        phoneNumber: customerPhone,
+        message,
+        buttons: processedButtons,
+        media,
+      });
+
+      console.log('WhatsApp send result', result);
+
+      if (result.success) {
+        toast({
+          title: 'הצלחה',
+          description: 'הסיכום השבועי נשלח ב-WhatsApp',
+        });
+      } else {
+        console.error('WhatsApp send failed', result.error);
+        throw new Error(result.error || 'Failed to send WhatsApp message');
+      }
+    } catch (error: any) {
+      console.error('Error sending WhatsApp message', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בשליחת הודעת WhatsApp',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingReviewId(null);
+    }
   };
 
   return (
@@ -224,7 +383,43 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Send button clicked', { 
+                          reviewId: review.id, 
+                          customerPhone,
+                          isDisabled: sendingReviewId === review.id || !customerPhone,
+                          sendingReviewId,
+                        });
+                        if (!customerPhone) {
+                          toast({
+                            title: 'שגיאה',
+                            description: 'מספר טלפון לא זמין',
+                            variant: 'destructive',
+                          });
+                          return;
+                        }
+                        if (sendingReviewId === review.id) {
+                          return; // Already sending
+                        }
+                        handleSendWhatsApp(review);
+                      }}
+                      disabled={sendingReviewId === review.id || !customerPhone}
+                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={!customerPhone ? 'מספר טלפון לא זמין' : sendingReviewId === review.id ? 'שולח...' : 'שלח ב-WhatsApp'}
+                    >
+                      {sendingReviewId === review.id ? (
+                        <div className="h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

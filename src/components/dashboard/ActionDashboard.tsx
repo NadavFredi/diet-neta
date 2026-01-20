@@ -45,13 +45,25 @@ import { usePlansHistory } from '@/hooks/usePlansHistory';
 import { ProgressGalleryCard } from './ProgressGalleryCard';
 import { BloodTestsGalleryCard } from './BloodTestsGalleryCard.tsx';
 import { CreateSubscriptionModal } from './dialogs/CreateSubscriptionModal';
-import { useMeetings } from '@/hooks/useMeetings';
-import { usePaymentHistory } from '@/hooks/usePaymentHistory';
-import { CreditCard, Plus } from 'lucide-react';
+import { useMeetings, useDeleteMeeting } from '@/hooks/useMeetings';
+import { usePaymentHistory, useDeletePayment } from '@/hooks/usePaymentHistory';
+import { CreditCard, Plus, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useNavigate } from 'react-router-dom';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AddPaymentDialog } from './dialogs/AddPaymentDialog';
 import { AddMeetingDialog } from './dialogs/AddMeetingDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface LeadData {
   id: string;
@@ -98,9 +110,21 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 }) => {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
   const [isCreateSubscriptionModalOpen, setIsCreateSubscriptionModalOpen] = useState(false);
   const [isAddPaymentDialogOpen, setIsAddPaymentDialogOpen] = useState(false);
   const [isAddMeetingDialogOpen, setIsAddMeetingDialogOpen] = useState(false);
+  
+  // Selection state for meetings and payments
+  const [selectedMeetings, setSelectedMeetings] = useState<Set<string>>(new Set());
+  const [selectedPayments, setSelectedPayments] = useState<Set<string>>(new Set());
+  const [isDeleteMeetingsDialogOpen, setIsDeleteMeetingsDialogOpen] = useState(false);
+  const [isDeletePaymentsDialogOpen, setIsDeletePaymentsDialogOpen] = useState(false);
+  
+  // Delete hooks
+  const deleteMeeting = useDeleteMeeting();
+  const deletePayment = useDeletePayment();
 
   // Refs for Subscription card editable fields
   const joinDateRef = useRef<InlineEditableFieldRef>(null);
@@ -296,6 +320,92 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     }
   };
 
+  // Meeting selection handlers
+  const handleMeetingToggle = (meetingId: string, checked: boolean) => {
+    setSelectedMeetings((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(meetingId);
+      } else {
+        next.delete(meetingId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllMeetings = (checked: boolean) => {
+    if (checked) {
+      setSelectedMeetings(new Set(sortedMeetings.map((m) => m.id)));
+    } else {
+      setSelectedMeetings(new Set());
+    }
+  };
+
+  const handleDeleteMeetings = async () => {
+    if (selectedMeetings.size === 0) return;
+    
+    try {
+      await Promise.all(
+        Array.from(selectedMeetings).map((id) => deleteMeeting.mutateAsync(id))
+      );
+      setSelectedMeetings(new Set());
+      setIsDeleteMeetingsDialogOpen(false);
+      toast({
+        title: 'הצלחה',
+        description: `נמחקו ${selectedMeetings.size} פגישות בהצלחה`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת הפגישות',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Payment selection handlers
+  const handlePaymentToggle = (paymentId: string, checked: boolean) => {
+    setSelectedPayments((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(paymentId);
+      } else {
+        next.delete(paymentId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllPayments = (checked: boolean) => {
+    if (checked) {
+      setSelectedPayments(new Set(sortedPayments.map((p) => p.id)));
+    } else {
+      setSelectedPayments(new Set());
+    }
+  };
+
+  const handleDeletePayments = async () => {
+    if (selectedPayments.size === 0) return;
+    
+    try {
+      await Promise.all(
+        Array.from(selectedPayments).map((id) => deletePayment.mutateAsync(id))
+      );
+      setSelectedPayments(new Set());
+      setIsDeletePaymentsDialogOpen(false);
+      toast({
+        title: 'הצלחה',
+        description: `נמחקו ${selectedPayments.size} תשלומים בהצלחה`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת התשלומים',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Callback hooks (must be called before early returns)
   const handleSubscriptionFieldEditingChange = useCallback((fieldId: string, isEditing: boolean) => {
     setSubscriptionEditingFields(prev => {
@@ -456,6 +566,12 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     return [...plans, ...jsonbHistory];
   }, [plansHistory?.stepsHistory, activeLead?.steps_history]);
 
+  // Calculate current week from join date (must be called before early returns)
+  const calculatedCurrentWeek = useMemo(() => {
+    if (!activeLead?.join_date) return 0;
+    return calculateCurrentWeekFromJoinDate(activeLead.join_date);
+  }, [activeLead?.join_date]);
+
   // NOW we can do early returns after all hooks are called
   if (isLoading) {
     return (
@@ -480,11 +596,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   }
 
   const subscriptionData = activeLead.subscription_data || {};
-  
-  // Calculate current week from join date
-  const calculatedCurrentWeek = useMemo(() => {
-    return calculateCurrentWeekFromJoinDate(activeLead.join_date);
-  }, [activeLead.join_date]);
   
   // Use calculated week if available, otherwise fall back to stored value
   const currentWeekValue = calculatedCurrentWeek > 0 
@@ -937,14 +1048,26 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                   </div>
                   <h3 className="text-sm font-bold text-gray-900">פגישות</h3>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => setIsAddMeetingDialogOpen(true)}
-                  className="h-8 text-xs"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  צור פגישה
-                </Button>
+                <div className="flex items-center gap-2">
+                  {selectedMeetings.size > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={() => setIsDeleteMeetingsDialogOpen(true)}
+                      className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      מחק ({selectedMeetings.size})
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => setIsAddMeetingDialogOpen(true)}
+                    className="h-8 text-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    צור פגישה
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="flex-1 overflow-auto max-h-[300px]">
@@ -956,6 +1079,13 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right w-12">
+                        <Checkbox
+                          checked={selectedMeetings.size === sortedMeetings.length && sortedMeetings.length > 0}
+                          onCheckedChange={handleSelectAllMeetings}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">שעה</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
@@ -965,9 +1095,20 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                     {sortedMeetings.map((meeting) => (
                       <TableRow
                         key={meeting.id}
-                        onClick={() => navigate(`/dashboard/meetings/${meeting.id}`)}
+                        onClick={() => navigate(`/dashboard/meetings/${meeting.id}`, { 
+                          state: { returnTo: location.pathname } 
+                        })}
                         className="cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100"
                       >
+                        <TableCell 
+                          className="text-xs py-3 px-3 text-right align-middle w-12"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={selectedMeetings.has(meeting.id)}
+                            onCheckedChange={(checked) => handleMeetingToggle(meeting.id, checked === true)}
+                          />
+                        </TableCell>
                         <TableCell className="text-xs py-3 px-3 text-gray-900 text-right align-middle">
                           {getMeetingDate(meeting)}
                         </TableCell>
@@ -997,14 +1138,26 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                   </div>
                   <h3 className="text-sm font-bold text-gray-900">תשלומים</h3>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => setIsAddPaymentDialogOpen(true)}
-                  className="h-8 text-xs"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  צור תשלום
-                </Button>
+                <div className="flex items-center gap-2">
+                  {selectedPayments.size > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={() => setIsDeletePaymentsDialogOpen(true)}
+                      className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      מחק ({selectedPayments.size})
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => setIsAddPaymentDialogOpen(true)}
+                    className="h-8 text-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    צור תשלום
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="flex-1 overflow-auto max-h-[300px]">
@@ -1016,6 +1169,13 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right w-12">
+                        <Checkbox
+                          checked={selectedPayments.size === sortedPayments.length && sortedPayments.length > 0}
+                          onCheckedChange={handleSelectAllPayments}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
@@ -1025,9 +1185,20 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                     {sortedPayments.map((payment) => (
                       <TableRow
                         key={payment.id}
-                        onClick={() => navigate(`/dashboard/payments/${payment.id}`)}
+                        onClick={() => navigate(`/dashboard/payments/${payment.id}`, { 
+                          state: { returnTo: location.pathname } 
+                        })}
                         className="cursor-pointer hover:bg-green-50 transition-colors border-b border-gray-100"
                       >
+                        <TableCell 
+                          className="text-xs py-3 px-3 text-right align-middle w-12"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={selectedPayments.has(payment.id)}
+                            onCheckedChange={(checked) => handlePaymentToggle(payment.id, checked === true)}
+                          />
+                        </TableCell>
                         <TableCell className="text-xs py-3 px-3 text-gray-900 text-right align-middle">
                           {formatDate(payment.date)}
                         </TableCell>
@@ -1153,6 +1324,50 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           // Meetings will refresh automatically via query invalidation
         }}
       />
+
+      {/* Delete Meetings Confirmation Dialog */}
+      <AlertDialog open={isDeleteMeetingsDialogOpen} onOpenChange={setIsDeleteMeetingsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת פגישות</AlertDialogTitle>
+            <AlertDialogDescription>
+              את/ה עומד/ת למחוק {selectedMeetings.size} פגישות. פעולה זו אינה ניתנת לשחזור.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={handleDeleteMeetings}
+              className="bg-red-600 hover:bg-red-600/90 text-white"
+              disabled={deleteMeeting.isPending}
+            >
+              {deleteMeeting.isPending ? 'מוחק...' : 'אישור מחיקה'}
+            </AlertDialogAction>
+            <AlertDialogCancel disabled={deleteMeeting.isPending}>ביטול</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Payments Confirmation Dialog */}
+      <AlertDialog open={isDeletePaymentsDialogOpen} onOpenChange={setIsDeletePaymentsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת תשלומים</AlertDialogTitle>
+            <AlertDialogDescription>
+              את/ה עומד/ת למחוק {selectedPayments.size} תשלומים. פעולה זו אינה ניתנת לשחזור.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={handleDeletePayments}
+              className="bg-red-600 hover:bg-red-600/90 text-white"
+              disabled={deletePayment.isPending}
+            >
+              {deletePayment.isPending ? 'מוחק...' : 'אישור מחיקה'}
+            </AlertDialogAction>
+            <AlertDialogCancel disabled={deletePayment.isPending}>ביטול</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

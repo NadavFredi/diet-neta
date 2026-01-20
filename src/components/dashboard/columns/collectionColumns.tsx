@@ -2,7 +2,6 @@ import { type ColumnDef } from '@tanstack/react-table';
 import type { AllCollectionRecord } from '@/hooks/useAllCollections';
 import { formatDate } from '@/utils/dashboard';
 import type { DataTableColumn } from '@/components/ui/DataTable';
-import { DevModeId } from '@/components/ui/DevModeId';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { User, Calendar, CreditCard, FileText, DollarSign } from 'lucide-react';
@@ -276,22 +275,6 @@ export const collectionColumns: DataTableColumn<AllCollectionRecord>[] = [
       );
     },
   },
-  // Hidden column: id (for row selection and dev mode)
-  {
-    id: 'id',
-    header: 'ID',
-    accessorKey: 'id',
-    enableSorting: false,
-    enableResizing: false,
-    enableHiding: true,
-    size: 100,
-    meta: {
-      align: 'right',
-    },
-    cell: ({ getValue }) => {
-      return <DevModeId id={getValue() as string} />;
-    },
-  },
 ];
 
 /**
@@ -307,5 +290,4 @@ export const defaultCollectionColumnVisibility = {
   paid_amount: true,
   remaining_amount: true,
   description: false,
-  id: false,
 };

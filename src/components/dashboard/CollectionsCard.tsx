@@ -4,18 +4,33 @@
  * Displays collections (גבייה) for a lead/customer with ability to create new ones.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, Plus, Calendar, DollarSign } from 'lucide-react';
+import { Receipt, Plus, Calendar, Trash2 } from 'lucide-react';
 import { useCollectionsByLead } from '@/hooks/useCollectionsByLead';
 import { usePaymentHistory } from '@/hooks/usePaymentHistory';
 import { AddCollectionDialog } from './dialogs/AddCollectionDialog';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabaseClient';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface CollectionsCardProps {
   leadId: string | null;
@@ -27,19 +42,86 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
   customerId,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set());
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { data: collections = [], isLoading } = useCollectionsByLead(leadId);
   const { data: allPayments = [] } = usePaymentHistory(customerId || '', leadId || null);
 
   // Get payments not linked to any collection
   const unlinkedPayments = allPayments.filter((p) => !p.collection_id);
 
+  // Sort collections by date (most recent first)
+  const sortedCollections = useMemo(() => {
+    return [...collections].sort((a, b) => {
+      const dateA = a.due_date || a.created_at;
+      const dateB = b.due_date || b.created_at;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
+  }, [collections]);
+
   const handleCreateCollection = () => {
     setIsAddDialogOpen(true);
   };
 
   const handleCollectionClick = (collectionId: string) => {
-    navigate(`/dashboard/collections?collection_id=${collectionId}`);
+    navigate(`/dashboard/collections?collection_id=${collectionId}`, {
+      state: { returnTo: location.pathname }
+    });
+  };
+
+  const handleCollectionToggle = (collectionId: string, checked: boolean) => {
+    setSelectedCollections((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(collectionId);
+      } else {
+        next.delete(collectionId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllCollections = (checked: boolean) => {
+    if (checked) {
+      setSelectedCollections(new Set(sortedCollections.map((c) => c.id)));
+    } else {
+      setSelectedCollections(new Set());
+    }
+  };
+
+  const handleDeleteCollections = async () => {
+    if (selectedCollections.size === 0) return;
+    
+    try {
+      const { error } = await supabase
+        .from('collections')
+        .delete()
+        .in('id', Array.from(selectedCollections));
+
+      if (error) throw error;
+
+      setSelectedCollections(new Set());
+      setIsDeleteDialogOpen(false);
+      
+      // Invalidate queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['collections-by-lead'] });
+      queryClient.invalidateQueries({ queryKey: ['all-collections'] });
+      
+      toast({
+        title: 'הצלחה',
+        description: `נמחקו ${selectedCollections.size} גבייות בהצלחה`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת הגבייות',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -79,84 +161,92 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
               </div>
               <h3 className="text-sm font-bold text-gray-900">גבייות</h3>
             </div>
-            <Button
-              size="sm"
-              onClick={handleCreateCollection}
-              className="h-8 text-xs"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              צור גבייה
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedCollections.size > 0 && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  מחק ({selectedCollections.size})
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={handleCreateCollection}
+                className="h-8 text-xs"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                צור גבייה
+              </Button>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto max-h-[300px] mt-4 space-y-3">
+        <div className="flex-1 overflow-auto max-h-[300px]">
           {isLoading ? (
-            <div className="text-center text-gray-500 py-4">
+            <div className="text-center text-gray-500 py-8">
               <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               <p className="mt-2 text-sm">טוען גבייות...</p>
             </div>
-          ) : collections.length === 0 && unlinkedPayments.length === 0 ? (
-            <div className="text-center text-gray-500 py-4">
+          ) : sortedCollections.length === 0 && unlinkedPayments.length === 0 ? (
+            <div className="text-center text-gray-500 py-8 text-sm">
               <Receipt className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm">אין גבייות עדיין</p>
+              <p>אין גבייות</p>
             </div>
           ) : (
             <>
-              {/* Collections List */}
-              {collections.length > 0 && (
-                <div className="space-y-2">
-                  {collections.map((collection) => (
-                    <div
-                      key={collection.id}
-                      onClick={() => handleCollectionClick(collection.id)}
-                      className="p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge
-                              className={cn(
-                                'text-xs font-semibold px-2 py-0.5 border',
-                                getStatusColor(collection.status || 'ממתין')
-                              )}
-                            >
-                              {collection.status || 'ממתין'}
-                            </Badge>
-                            {collection.description && (
-                              <span className="text-sm font-medium text-slate-900">
-                                {collection.description}
-                              </span>
-                            )}
-                          </div>
-                          {collection.due_date && (
-                            <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
-                              <Calendar className="h-3.5 w-3.5" />
-                              <span>
-                                {format(new Date(collection.due_date), 'dd/MM/yyyy', { locale: he })}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <div className="text-sm font-bold text-slate-900">
-                            {formatCurrency(collection.total_amount)}
-                          </div>
-                          {collection.paid_amount !== undefined && (
-                            <div className="text-xs text-slate-500">
-                              שולם: {formatCurrency(collection.paid_amount)}
-                            </div>
-                          )}
-                          {collection.remaining_amount !== undefined && collection.remaining_amount > 0 && (
-                            <div className="text-xs text-red-600 font-semibold">
-                              נותר: {formatCurrency(collection.remaining_amount)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              {sortedCollections.length > 0 && (
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right w-12">
+                        <Checkbox
+                          checked={selectedCollections.size === sortedCollections.length && sortedCollections.length > 0}
+                          onCheckedChange={handleSelectAllCollections}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedCollections.map((collection) => (
+                      <TableRow
+                        key={collection.id}
+                        onClick={() => handleCollectionClick(collection.id)}
+                        className="cursor-pointer hover:bg-purple-50 transition-colors border-b border-gray-100"
+                      >
+                        <TableCell 
+                          className="text-xs py-3 px-3 text-right align-middle w-12"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={selectedCollections.has(collection.id)}
+                            onCheckedChange={(checked) => handleCollectionToggle(collection.id, checked === true)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 text-right align-middle">
+                          {collection.due_date 
+                            ? format(new Date(collection.due_date), 'dd/MM/yyyy', { locale: he })
+                            : format(new Date(collection.created_at), 'dd/MM/yyyy', { locale: he })
+                          }
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 font-semibold text-right align-middle">
+                          {formatCurrency(collection.total_amount)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-right align-middle">
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 inline-flex", getStatusColor(collection.status || 'ממתין'))}>
+                            {collection.status || 'ממתין'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
 
               {/* Unlinked Payments Section */}
@@ -199,6 +289,27 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
           // Collections will refresh automatically via query invalidation
         }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת גבייות</AlertDialogTitle>
+            <AlertDialogDescription>
+              את/ה עומד/ת למחוק {selectedCollections.size} גבייות. פעולה זו אינה ניתנת לשחזור.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ביטול</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCollections}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              מחק
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

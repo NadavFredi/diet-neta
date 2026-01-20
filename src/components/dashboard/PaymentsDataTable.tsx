@@ -42,26 +42,22 @@ export const PaymentsDataTable = ({
   const sortOrder = externalSortOrder ?? reduxSortOrder;
   const navigate = useNavigate();
 
-  // Pass columns to DataTable - exclude ID column for payments
+  // Pass columns to DataTable
   const columns = useMemo(() => {
-    return paymentColumns.filter((col) => col.id !== 'id');
+    return paymentColumns;
   }, []);
 
   // Default column visibility - DataTable will read from Redux tableStateSlice after initialization
-  // ID column is excluded from columns array, so no need to handle it here
   const initialVisibility = useMemo(() => {
     const visibility: Record<string, boolean> = {};
-    paymentColumns
-      .filter((col) => col.id !== 'id') // Exclude ID column
-      .forEach((col) => {
-        visibility[col.id] = col.enableHiding !== false;
-      });
+    paymentColumns.forEach((col) => {
+      visibility[col.id] = col.enableHiding !== false;
+    });
     return visibility;
   }, []);
 
   // Default column order (from right to left in RTL)
   // Order: date, status, lead, customer, amount, product
-  // ID column is excluded
   const initialColumnOrder = useMemo(() => {
     return [
       'date',      // תאריך

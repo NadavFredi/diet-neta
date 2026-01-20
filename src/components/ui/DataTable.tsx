@@ -808,8 +808,8 @@ export function DataTable<T extends Record<string, any>>({
 
       if (!defaultSize) {
         // Special cases for compact columns
-        if (col.id === 'id' || col.id === 'actions') {
-          defaultSize = 80; // Very compact for IDs
+        if (col.id === 'actions') {
+          defaultSize = 80; // Very compact for actions
         } else if (col.meta?.isNumeric) {
           defaultSize = 90; // Compact for numbers
         } else {
@@ -1887,10 +1887,10 @@ function TableContent<T>({
                                       isNumeric
                                         ? 'font-mono tabular-nums text-gray-900'
                                         : 'text-gray-900',
-                                      (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
+                                      (cell.column.id.includes('date') || cell.column.id.includes('created')) && !isNumeric
                                         ? 'text-gray-600'
                                         : '',
-                                      (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
+                                      (cell.column.id === 'phone' || isNumeric)
                                         ? 'whitespace-nowrap'
                                         : ''
                                     )}
@@ -1997,10 +1997,10 @@ function TableContent<T>({
                                   isNumeric
                                     ? 'font-mono tabular-nums text-gray-900'
                                     : 'text-gray-900',
-                                  (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
+                                  (cell.column.id.includes('date') || cell.column.id.includes('created')) && !isNumeric
                                     ? 'text-gray-600'
                                     : '',
-                                  (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
+                                  (cell.column.id === 'phone' || isNumeric)
                                     ? 'whitespace-nowrap'
                                     : ''
                                 )}
@@ -2053,10 +2053,10 @@ function TableContent<T>({
                       isNumeric
                         ? 'font-mono tabular-nums text-gray-900'
                         : 'text-gray-900',
-                      (cell.column.id.includes('date') || cell.column.id.includes('created') || cell.column.id === 'id') && !isNumeric
+                      (cell.column.id.includes('date') || cell.column.id.includes('created')) && !isNumeric
                         ? 'text-gray-600'
                         : '',
-                      (cell.column.id === 'id' || cell.column.id === 'phone' || isNumeric)
+                      (cell.column.id === 'phone' || isNumeric)
                         ? 'whitespace-nowrap'
                         : ''
                     )}

@@ -74,7 +74,7 @@ export const subscriptionTypeColumns: DataTableColumn<SubscriptionType>[] = [
     },
   },
   {
-    id: 'createdDate',
+    id: 'created_at',
     header: 'תאריך יצירה',
     accessorKey: 'created_at',
     enableSorting: true,

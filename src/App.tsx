@@ -19,6 +19,7 @@ import SubscriptionTypesManagement from "./pages/SubscriptionTypesManagement.tsx
 import PaymentsManagement from "./pages/PaymentsManagement.tsx";
 import PaymentDetailView from "./pages/PaymentDetailView.tsx";
 import CollectionsManagement from "./pages/CollectionsManagement.tsx";
+import CollectionDetailView from "./pages/CollectionDetailView.tsx";
 import KnowledgeBaseManagement from "./pages/KnowledgeBaseManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
 import MeetingsManagement from "./pages/MeetingsManagement.tsx";
@@ -152,6 +153,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <CollectionsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/collections/:id"
+            element={
+              <ProtectedRoute>
+                <CollectionDetailView />
               </ProtectedRoute>
             }
           />

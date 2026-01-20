@@ -361,7 +361,7 @@ export const TraineeSettingsModal = ({
               ) : (
                 <>
                   <Key className="h-4 w-4 ml-2" />
-                  שמור ושלוח ב-WhatsApp
+                  שמור ושלח ב-WhatsApp
                 </>
               )}
             </Button>

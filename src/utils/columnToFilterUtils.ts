@@ -249,26 +249,47 @@ export function generateFilterFieldsFromColumns<T>(
   existingFields: FilterField[] = [],
   customFieldConfigs?: Record<string, Partial<FilterField>>
 ): FilterField[] {
-  // Create a map of existing fields by id for quick lookup
-  const existingFieldsMap = new Map<string, FilterField>();
+  // Create maps of existing fields by id for quick lookup
+  const existingFieldsMapById = new Map<string, FilterField>();
+  
   existingFields.forEach(field => {
-    existingFieldsMap.set(field.id, field);
+    existingFieldsMapById.set(field.id, field);
   });
   
   // Generate filter fields from columns
   const generatedFields: FilterField[] = [];
+  const usedFieldIds = new Set<string>();
+  const usedLabels = new Set<string>();
   
   columns.forEach(column => {
-    // Skip if already exists in existing fields
-    if (existingFieldsMap.has(column.id)) {
-      // Use existing field but update with any custom config
-      const existingField = existingFieldsMap.get(column.id)!;
-      const customConfig = customFieldConfigs?.[column.id];
-      if (customConfig) {
-        generatedFields.push({ ...existingField, ...customConfig });
-      } else {
-        generatedFields.push(existingField);
+    let existingField: FilterField | undefined;
+    
+    // First, check if column.id matches an existing field
+    if (existingFieldsMapById.has(column.id)) {
+      existingField = existingFieldsMapById.get(column.id)!;
+    }
+    // If not, check if column.accessorKey matches an existing field id
+    // This handles cases where column.id !== existing field.id but they represent the same field
+    // Example: column has id: 'createdDate' and accessorKey: 'created_at', 
+    //          and existing field has id: 'created_at'
+    else if (column.accessorKey && existingFieldsMapById.has(column.accessorKey)) {
+      existingField = existingFieldsMapById.get(column.accessorKey)!;
+    }
+    
+    // If we found an existing field, use it (avoid duplicates)
+    if (existingField) {
+      // Skip if we've already added this field or a field with the same label
+      if (usedFieldIds.has(existingField.id) || usedLabels.has(existingField.label)) {
+        return;
       }
+      
+      // Use existing field but update with any custom config
+      const customConfig = customFieldConfigs?.[column.id] || customFieldConfigs?.[existingField.id];
+      const finalField = customConfig ? { ...existingField, ...customConfig } : existingField;
+      
+      generatedFields.push(finalField);
+      usedFieldIds.add(finalField.id);
+      usedLabels.add(finalField.label);
       return;
     }
     
@@ -277,15 +298,31 @@ export function generateFilterFieldsFromColumns<T>(
     const filterField = columnToFilterField(column, data, customConfig);
     
     if (filterField) {
+      // Check for duplicates by label (to catch cases where different IDs have same label)
+      if (usedLabels.has(filterField.label)) {
+        return;
+      }
+      
       generatedFields.push(filterField);
+      usedFieldIds.add(filterField.id);
+      usedLabels.add(filterField.label);
     }
   });
   
   // Add any existing fields that don't have corresponding columns
   // (for backward compatibility with custom filter fields)
+  // But skip if we've already added a field with the same label
   existingFields.forEach(field => {
-    if (!columns.some(col => col.id === field.id)) {
+    // Check if any column matches this field (by id or accessorKey)
+    const hasMatchingColumn = columns.some(col => 
+      col.id === field.id || 
+      col.accessorKey === field.id
+    );
+    
+    if (!hasMatchingColumn && !usedFieldIds.has(field.id) && !usedLabels.has(field.label)) {
       generatedFields.push(field);
+      usedFieldIds.add(field.id);
+      usedLabels.add(field.label);
     }
   });
   

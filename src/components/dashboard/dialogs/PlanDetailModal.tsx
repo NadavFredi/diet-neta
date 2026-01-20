@@ -19,10 +19,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, X } from 'lucide-react';
+import { Loader2, Save, X, Trash2, Plus } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { supabase } from '@/lib/supabaseClient';
 import { useQueryClient } from '@tanstack/react-query';
+import type { Supplement } from '@/store/slices/budgetSlice';
 
 interface WorkoutPlanData {
   id?: string;
@@ -56,7 +57,7 @@ interface SupplementPlanData {
   startDate?: string;
   endDate?: string;
   description?: string;
-  supplements?: string[];
+  supplements?: Supplement[] | string[]; // Support both formats for backward compatibility
   budget_id?: string;
   created_at?: string;
 }
@@ -109,8 +110,7 @@ export const PlanDetailModal = ({
     startDate: '',
     endDate: '',
     description: '',
-    supplements: [] as string[],
-    newSupplement: '',
+    supplements: [] as Supplement[],
   });
 
   // Helper to convert date string to YYYY-MM-DD format for input
@@ -161,12 +161,28 @@ export const PlanDetailModal = ({
         });
       } else if (planType === 'supplements') {
         const data = planData as SupplementPlanData;
+        // Handle backward compatibility: convert string[] to Supplement[]
+        let supplements: Supplement[] = [];
+        if (data.supplements) {
+          if (Array.isArray(data.supplements) && data.supplements.length > 0) {
+            if (typeof data.supplements[0] === 'string') {
+              // Old format: string[]
+              supplements = (data.supplements as string[]).map(name => ({
+                name: name,
+                dosage: '',
+                timing: '',
+              }));
+            } else {
+              // New format: Supplement[]
+              supplements = data.supplements as Supplement[];
+            }
+          }
+        }
         setSupplementForm({
           startDate: formatDateForInput(data.startDate),
           endDate: formatDateForInput(data.endDate),
           description: data.description || '',
-          supplements: data.supplements || [],
-          newSupplement: '',
+          supplements: supplements,
         });
       }
       setIsEditing(false);
@@ -183,13 +199,41 @@ export const PlanDetailModal = ({
       return;
     }
 
+    // Validate required fields
+    if (planType === 'workout' && !workoutForm.startDate) {
+      toast({
+        title: 'שגיאה',
+        description: 'נא להזין תאריך התחלה',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (planType === 'nutrition' && !nutritionForm.startDate) {
+      toast({
+        title: 'שגיאה',
+        description: 'נא להזין תאריך התחלה',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (planType === 'supplements' && !supplementForm.startDate) {
+      toast({
+        title: 'שגיאה',
+        description: 'נא להזין תאריך התחלה',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       if (planType === 'workout') {
-        await supabase
+        const { error } = await supabase
           .from('workout_plans')
           .update({
             start_date: workoutForm.startDate,
@@ -199,8 +243,9 @@ export const PlanDetailModal = ({
             intervals: workoutForm.intervals,
           })
           .eq('id', planData.id);
+        if (error) throw error;
       } else if (planType === 'nutrition') {
-        await supabase
+        const { error } = await supabase
           .from('nutrition_plans')
           .update({
             start_date: nutritionForm.startDate,
@@ -215,16 +260,20 @@ export const PlanDetailModal = ({
             },
           })
           .eq('id', planData.id);
+        if (error) throw error;
       } else if (planType === 'supplements') {
-        await supabase
+        // Filter out supplements with empty names before saving
+        const validSupplements = supplementForm.supplements.filter((s) => s.name.trim() !== '');
+        const { error } = await supabase
           .from('supplement_plans')
           .update({
             start_date: supplementForm.startDate,
             end_date: supplementForm.endDate || null,
             description: supplementForm.description,
-            supplements: supplementForm.supplements,
+            supplements: validSupplements,
           })
           .eq('id', planData.id);
+        if (error) throw error;
       }
 
       // Invalidate queries to refresh data
@@ -241,9 +290,10 @@ export const PlanDetailModal = ({
       setIsEditing(false);
       onClose();
     } catch (error: any) {
+      console.error('Error saving plan:', error);
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל בעדכון התוכנית',
+        description: error?.message || error?.error?.message || 'נכשל בעדכון התוכנית',
         variant: 'destructive',
       });
     } finally {
@@ -252,19 +302,25 @@ export const PlanDetailModal = ({
   };
 
   const handleAddSupplement = () => {
-    if (supplementForm.newSupplement.trim()) {
-      setSupplementForm({
-        ...supplementForm,
-        supplements: [...supplementForm.supplements, supplementForm.newSupplement.trim()],
-        newSupplement: '',
-      });
-    }
+    setSupplementForm({
+      ...supplementForm,
+      supplements: [...supplementForm.supplements, { name: '', dosage: '', timing: '' }],
+    });
   };
 
   const handleRemoveSupplement = (index: number) => {
     setSupplementForm({
       ...supplementForm,
       supplements: supplementForm.supplements.filter((_, i) => i !== index),
+    });
+  };
+
+  const handleUpdateSupplement = (index: number, field: keyof Supplement, value: string) => {
+    const updated = [...supplementForm.supplements];
+    updated[index] = { ...updated[index], [field]: value };
+    setSupplementForm({
+      ...supplementForm,
+      supplements: updated,
     });
   };
 
@@ -493,37 +549,77 @@ export const PlanDetailModal = ({
               </div>
               <div className="space-y-2">
                 <Label>תוספים</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={supplementForm.newSupplement}
-                    onChange={(e) => setSupplementForm({ ...supplementForm, newSupplement: e.target.value })}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddSupplement()}
-                    disabled={!isEditing}
-                    placeholder="הוסף תוסף חדש"
-                    className="bg-slate-50"
-                  />
-                  {isEditing && (
-                    <Button type="button" onClick={handleAddSupplement} size="sm">
-                      הוסף
+                {supplementForm.supplements.length === 0 ? (
+                  <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
+                    <p className="text-xs text-slate-400 mb-2">אין תוספים</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleAddSupplement}
+                      className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                    >
+                      <Plus className="h-4 w-4 ml-1" />
+                      הוסף תוסף
                     </Button>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {supplementForm.supplements.map((sup, index) => (
-                    <Badge key={index} variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      {sup}
-                      {isEditing && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSupplement(index)}
-                          className="mr-1 hover:text-red-600"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </Badge>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {supplementForm.supplements.map((supplement, index) => (
+                      <div key={index} className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
+                        <div className="flex-1 grid grid-cols-3 gap-1.5">
+                          <Input
+                            value={supplement.name}
+                            onChange={(e) => handleUpdateSupplement(index, 'name', e.target.value)}
+                            placeholder="שם התוסף"
+                            className="h-8 bg-white border-0 text-xs"
+                            dir="rtl"
+                            disabled={!isEditing}
+                          />
+                          <Input
+                            value={supplement.dosage}
+                            onChange={(e) => handleUpdateSupplement(index, 'dosage', e.target.value)}
+                            placeholder="מינון"
+                            className="h-8 bg-white border-0 text-xs"
+                            dir="rtl"
+                            disabled={!isEditing}
+                          />
+                          <Input
+                            value={supplement.timing}
+                            onChange={(e) => handleUpdateSupplement(index, 'timing', e.target.value)}
+                            placeholder="זמן נטילה"
+                            className="h-8 bg-white border-0 text-xs"
+                            dir="rtl"
+                            disabled={!isEditing}
+                          />
+                        </div>
+                        {isEditing && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveSupplement(index)}
+                            className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    {isEditing && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleAddSupplement}
+                        className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                      >
+                        <Plus className="h-4 w-4 ml-1" />
+                        הוסף תוסף נוסף
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -579,12 +675,28 @@ export const PlanDetailModal = ({
                       });
                     } else if (planType === 'supplements') {
                       const data = planData as SupplementPlanData;
+                      // Handle backward compatibility: convert string[] to Supplement[]
+                      let supplements: Supplement[] = [];
+                      if (data.supplements) {
+                        if (Array.isArray(data.supplements) && data.supplements.length > 0) {
+                          if (typeof data.supplements[0] === 'string') {
+                            // Old format: string[]
+                            supplements = (data.supplements as string[]).map(name => ({
+                              name: name,
+                              dosage: '',
+                              timing: '',
+                            }));
+                          } else {
+                            // New format: Supplement[]
+                            supplements = data.supplements as Supplement[];
+                          }
+                        }
+                      }
                       setSupplementForm({
                         startDate: formatDateForInput(data.startDate),
                         endDate: formatDateForInput(data.endDate),
                         description: data.description || '',
-                        supplements: data.supplements || [],
-                        newSupplement: '',
+                        supplements: supplements,
                       });
                     }
                   }

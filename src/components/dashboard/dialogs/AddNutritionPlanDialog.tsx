@@ -26,9 +26,9 @@ export const AddNutritionPlanDialog = ({
 }: AddNutritionPlanDialogProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" dir="rtl">
+      <DialogContent className="max-w-[98vw] w-[98vw] h-[96vh] flex flex-col p-0 overflow-hidden" dir="rtl">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-          <DialogTitle>{initialData ? 'עריכת תוכנית תזונה' : 'יצירת תוכנית תזונה חדשה'}</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">{initialData ? 'עריכת תוכנית תזונה' : 'יצירת תוכנית תזונה חדשה'}</DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
           <NutritionTemplateForm

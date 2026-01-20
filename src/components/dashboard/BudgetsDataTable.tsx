@@ -185,7 +185,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     },
   },
   {
-    id: 'createdDate',
+    id: 'created_at',
     header: 'תאריך יצירה',
     accessorKey: 'created_at',
     enableSorting: true,

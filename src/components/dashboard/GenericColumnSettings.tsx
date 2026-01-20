@@ -68,14 +68,7 @@ export const GenericColumnSettings = <T extends Record<string, any>>({
       .map((colId) => columns.find((col) => col.id === colId))
       .filter((col): col is DataTableColumn<T> => 
         col !== undefined && col.enableHiding !== false
-      )
-      // Exclude ID column for payments
-      .filter((col) => {
-        if (resourceKey === 'payments' && col.id === 'id') {
-          return false;
-        }
-        return true;
-      });
+      );
 
     if (!searchQuery.trim()) {
       return orderedColumns;

@@ -222,15 +222,34 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
           >
             <GripVertical className="h-4 w-4" />
           </div>
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <div className="flex items-center justify-between mb-2 gap-2">
-              <Input
-                value={exercise.name}
-                onChange={(e) => onUpdate({ name: e.target.value })}
-                className="h-7 text-sm font-semibold border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-gray-900 placeholder:text-gray-400 flex-1 min-w-0"
-                placeholder="שם התרגיל"
-                dir="rtl"
-              />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <Input
+                  value={exercise.name}
+                  onChange={(e) => onUpdate({ name: e.target.value })}
+                  className="h-7 text-sm font-semibold border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-gray-900 placeholder:text-gray-400 w-full"
+                  placeholder="שם התרגיל"
+                  dir="rtl"
+                  style={{ 
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    textOverflow: 'clip'
+                  }}
+                  onFocus={(e) => {
+                    // For RTL, ensure we can see the full text by scrolling to start
+                    const input = e.target as HTMLInputElement;
+                    // Set selection to end to ensure cursor is visible
+                    setTimeout(() => {
+                      input.setSelectionRange(0, input.value.length);
+                      // For RTL, scroll to show the beginning of text
+                      if (input.dir === 'rtl') {
+                        input.scrollLeft = 0;
+                      }
+                    }, 0);
+                  }}
+                />
+              </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {/* Image Upload Button */}
                 <Popover>

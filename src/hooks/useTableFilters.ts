@@ -613,20 +613,17 @@ export function getPaymentFilterFields<T>(
 ): FilterField[] {
   // If columns are provided, generate filter fields from them
   if (columns && columns.length > 0) {
-    // Filter out ID column from columns before generating filter fields
-    const filteredColumns = columns.filter((col) => col.id !== 'id');
     const fields = generateFilterFieldsFromColumns(
-      filteredColumns,
+      columns,
       payments,
       PAYMENT_FILTER_FIELDS, // Merge with existing fields for backward compatibility
       {}
     );
-    // Also filter out ID from the generated fields (in case it came from PAYMENT_FILTER_FIELDS)
-    return fields.filter((field) => field.id !== 'id');
+    return fields;
   }
   
-  // Fallback to existing fields if columns not provided - exclude ID
-  return PAYMENT_FILTER_FIELDS.filter((field) => field.id !== 'id').map(field => {
+  // Fallback to existing fields if columns not provided
+  return PAYMENT_FILTER_FIELDS.map(field => {
     // If we need dynamic options in the future, we can add them here
     // For now, return the base fields
     return field;

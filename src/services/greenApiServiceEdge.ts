@@ -29,6 +29,29 @@ export interface GreenApiResponse {
 }
 
 /**
+ * Format URLs in message to make them more visible and clickable
+ * WhatsApp automatically detects URLs, but we format them for better appearance
+ */
+export const formatUrlsInMessage = (text: string): string => {
+  if (!text) return text;
+  
+  // URL regex pattern - matches http://, https://, or www. URLs
+  const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  
+  return text.replace(urlPattern, (url) => {
+    // Ensure URL starts with http:// or https://
+    let formattedUrl = url.trim();
+    if (formattedUrl.startsWith('www.')) {
+      formattedUrl = 'https://' + formattedUrl;
+    }
+    
+    // Ensure URL is on its own line for better visibility in WhatsApp
+    // This makes the link more prominent and easier to click
+    return `\n${formattedUrl}\n`;
+  });
+};
+
+/**
  * Clean HTML tags and format text for WhatsApp
  */
 export const cleanWhatsAppMessage = (text: string): string => {
@@ -50,6 +73,13 @@ export const cleanWhatsAppMessage = (text: string): string => {
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
   cleaned = cleaned.trim();
   cleaned = cleaned.split('\n').map(line => line.trimEnd()).join('\n');
+  
+  // Format URLs to make them more visible
+  cleaned = formatUrlsInMessage(cleaned);
+  
+  // Clean up excessive newlines after URL formatting
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  cleaned = cleaned.trim();
   
   return cleaned;
 };

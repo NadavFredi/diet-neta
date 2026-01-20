@@ -2,7 +2,6 @@ import { type ColumnDef } from '@tanstack/react-table';
 import type { AllPaymentRecord } from '@/hooks/useAllPayments';
 import { formatDate } from '@/utils/dashboard';
 import type { DataTableColumn } from '@/components/ui/DataTable';
-import { DevModeId } from '@/components/ui/DevModeId';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Package, User, Calendar, CreditCard } from 'lucide-react';
@@ -178,22 +177,6 @@ export const paymentColumns: DataTableColumn<AllPaymentRecord>[] = [
           <span className="text-sm font-medium text-slate-900">{value}</span>
         </div>
       );
-    },
-  },
-  // Hidden column: id (for row selection and dev mode)
-  {
-    id: 'id',
-    header: 'ID',
-    accessorKey: 'id',
-    enableSorting: false,
-    enableResizing: false,
-    enableHiding: true,
-    size: 100,
-    meta: {
-      align: 'right',
-    },
-    cell: ({ getValue }) => {
-      return <DevModeId id={getValue() as string} />;
     },
   },
 ];

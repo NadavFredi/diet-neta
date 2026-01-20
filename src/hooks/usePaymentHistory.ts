@@ -5,7 +5,7 @@
  * Handles Hebrew status values and maps them to internal status types.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 
 export interface PaymentRecord {
@@ -86,6 +86,25 @@ export const usePaymentHistory = (customerId: string, leadId?: string | null) =>
     },
     enabled: !!customerId,
     retry: false, // Don't retry if table doesn't exist
+  });
+};
+
+// Delete a payment
+export const useDeletePayment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', paymentId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payment-history'] });
+    },
   });
 };
 
