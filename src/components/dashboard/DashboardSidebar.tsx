@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt } from 'lucide-react';
+import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection, setSectionExpanded } from '@/store/slices/sidebarSlice';
@@ -122,6 +122,13 @@ const navigationItems: NavItem[] = [
     label: 'אוטומציית WhatsApp',
     icon: Send,
     path: '/dashboard/whatsapp-automations',
+  },
+  {
+    id: 'analytics',
+    resourceKey: 'analytics',
+    label: 'אנליטיקה',
+    icon: BarChart3,
+    path: '/dashboard/analytics',
   },
 ];
 
@@ -334,6 +341,10 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     if (path === '/dashboard/whatsapp-automations') {
       // Active for WhatsApp automations page
       return location.pathname === '/dashboard/whatsapp-automations';
+    }
+    if (path === '/dashboard/analytics') {
+      // Active for analytics page
+      return location.pathname === '/dashboard/analytics';
     }
     return location.pathname === path || location.pathname.startsWith(path);
   };

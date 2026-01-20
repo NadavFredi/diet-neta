@@ -21,7 +21,7 @@ const getFormIds = () => {
 };
 
 export interface FormType {
-  key: 'details' | 'intro' | 'characterization';
+  key: 'details' | 'intro' | 'characterization' | 'prospero';
   label: string;
   formId: string;
 }

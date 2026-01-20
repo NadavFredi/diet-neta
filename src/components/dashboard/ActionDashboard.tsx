@@ -1024,6 +1024,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             leadId={activeLead?.id || null} // Pass lead ID for URL parameter matching
             leadEmail={customer?.email || activeLead?.email || null} 
             leadPhone={activeLead?.phone || customer?.phone || null}
+            leadName={customer?.full_name || activeLead?.name || null}
           />
 
           {/* Card 6: Stripe Payment Center */}

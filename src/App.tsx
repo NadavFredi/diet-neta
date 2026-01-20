@@ -27,6 +27,7 @@ import MeetingDetailView from "./pages/MeetingDetailView.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
 import { CheckInSettingsPage } from "./pages/CheckInSettingsPage.tsx";
 import { WhatsAppAutomationsPage } from "./pages/WhatsAppAutomationsPage.tsx";
+import Analytics from "./pages/Analytics.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ClientDashboard from "./pages/client/ClientDashboard.tsx";
 import { ArticlePage } from "./pages/client/ArticlePage.tsx";
@@ -201,6 +202,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <WhatsAppAutomationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/analytics"
+            element={
+              <ProtectedRoute>
+                <Analytics />
               </ProtectedRoute>
             }
           />
