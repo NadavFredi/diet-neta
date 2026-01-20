@@ -1046,6 +1046,20 @@ export function DataTable<T extends Record<string, any>>({
     }
   };
 
+  // Helper function to resolve column ID to accessorKey
+  const resolveColumnToField = useCallback((columnId: string | null): string | null => {
+    if (!columnId) return null;
+    const column = columns.find((col) => col.id === columnId);
+    if (!column) return columnId; // Fallback to columnId if column not found
+    
+    // Use accessorKey if available, otherwise use accessorFn result or fallback to columnId
+    if (column.accessorKey) {
+      return column.accessorKey as string;
+    }
+    // If no accessorKey, try to get value using accessorFn or use columnId
+    return columnId;
+  }, [columns]);
+
   // Get grouped data - support both legacy single-level and new multi-level grouping
   const groupedData = useMemo(() => {
     // Check if multi-level grouping is active
@@ -1067,16 +1081,35 @@ export function DataTable<T extends Record<string, any>>({
     
     // Use multi-level grouping if active
     if (hasMultiLevelGrouping) {
-      return groupDataByKeys(processedData, groupByKeys, groupSorting);
+      // Resolve column IDs to actual field names for grouping
+      const resolvedKeys: [string | null, string | null] = [
+        resolveColumnToField(groupByKeys[0]),
+        resolveColumnToField(groupByKeys[1]),
+      ];
+      return groupDataByKeys(processedData, resolvedKeys, groupSorting);
     }
     
     // Fallback to legacy single-level grouping
     if (groupByKey) {
-      return groupDataByKey(processedData, groupByKey);
+      const resolvedKey = resolveColumnToField(groupByKey);
+      if (resolvedKey) {
+        return groupDataByKey(processedData, resolvedKey);
+      }
     }
     
     return null;
-  }, [data, groupByKey, groupByKeys, groupSorting, table]);
+  }, [data, groupByKey, groupByKeys, groupSorting, table, resolveColumnToField]);
+
+  // Store resolved field names for row filtering (keep column IDs for display)
+  const resolvedGroupByKeys = useMemo(() => [
+    resolveColumnToField(groupByKeys[0]),
+    resolveColumnToField(groupByKeys[1]),
+  ] as [string | null, string | null], [groupByKeys, resolveColumnToField]);
+  
+  const resolvedGroupByKey = useMemo(() => 
+    groupByKey ? resolveColumnToField(groupByKey) : null,
+    [groupByKey, resolveColumnToField]
+  );
 
   // Paginate groups when grouping is active
   const paginatedGroupedData = useMemo(() => {
@@ -1263,8 +1296,10 @@ export function DataTable<T extends Record<string, any>>({
               isResizing={isResizing}
               columnSizing={derivedColumnSizing}
               groupedData={paginatedGroupedData || groupedData}
-              groupByKey={groupByKey}
-              groupByKeys={groupByKeys}
+              groupByKey={resolvedGroupByKey}
+              groupByKeys={resolvedGroupByKeys}
+              originalGroupByKey={groupByKey || null}
+              originalGroupByKeys={groupByKeys}
               columns={columns}
               collapsedGroupsSet={collapsedGroupsSet}
               onToggleGroup={handleToggleGroup}
@@ -1286,8 +1321,10 @@ export function DataTable<T extends Record<string, any>>({
               isResizing={isResizing}
               columnSizing={derivedColumnSizing}
               groupedData={paginatedGroupedData || groupedData}
-              groupByKey={groupByKey}
-              groupByKeys={groupByKeys}
+              groupByKey={resolvedGroupByKey}
+              groupByKeys={resolvedGroupByKeys}
+              originalGroupByKey={groupByKey || null}
+              originalGroupByKeys={groupByKeys}
               columns={columns}
               collapsedGroupsSet={collapsedGroupsSet}
               onToggleGroup={handleToggleGroup}
@@ -1372,10 +1409,23 @@ function TableContent<T>({
   };
 
   // Get column header text for group by column
-  const getGroupColumnHeaderText = (columnId: string | null) => {
+  // Get column header text using original column IDs for display
+  const getGroupColumnHeaderText = (columnId: string | null, isLevel2: boolean = false) => {
     if (!columnId) return '';
-    const column = columns.find((col) => col.id === columnId);
-    if (!column) return columnId;
+    // Use original column ID for display (not the resolved field name)
+    const originalColumnId = isLevel2 
+      ? (originalGroupByKeys?.[1] || columnId)
+      : (originalGroupByKeys?.[0] || originalGroupByKey || columnId);
+    
+    const column = columns.find((col) => col.id === originalColumnId);
+    if (!column) {
+      // Fallback: try to find by accessorKey
+      const columnByAccessor = columns.find((col) => col.accessorKey === columnId);
+      if (columnByAccessor) {
+        return typeof columnByAccessor.header === 'string' ? columnByAccessor.header : columnId;
+      }
+      return columnId;
+    }
     return typeof column.header === 'string' ? column.header : columnId;
   };
   // Calculate total width using pixel-based sizing
@@ -1611,7 +1661,7 @@ function TableContent<T>({
             groupedData.map((level1Group) => {
               const level1Key = `level1:${level1Group.level1Key}`;
               const isLevel1Collapsed = collapsedGroupsSet.has(level1Key);
-              const level1Header = getGroupColumnHeaderText(groupByKeys[0]);
+              const level1Header = getGroupColumnHeaderText(groupByKeys[0], false);
 
               // Get all rows for this level 1 group
               const allLevel1Rows: any[] = [];
@@ -1620,7 +1670,7 @@ function TableContent<T>({
                 level1Group.level2Groups.forEach((level2Group) => {
                   const level2Key = `${level1Key}|level2:${level2Group.groupKey}`;
                   const isLevel2Collapsed = collapsedGroupsSet.has(level2Key);
-                  const level2Header = getGroupColumnHeaderText(groupByKeys[1]);
+                  const level2Header = getGroupColumnHeaderText(groupByKeys[1], true);
 
                   // Match rows for this level 2 group
                   const level2Rows = table.getRowModel().rows.filter((row: any) => {
@@ -1850,7 +1900,7 @@ function TableContent<T>({
                           )}
                         </div>
                         <span className="text-sm font-bold text-slate-900">
-                          {getGroupColumnHeader(groupByKey)}: {group.groupKey}
+                          {getGroupColumnHeader(originalGroupByKey || groupByKey)}: {group.groupKey}
                         </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
                           {group.items.length} {group.items.length === 1 ? 'ליד' : 'לידים'}

@@ -17,6 +17,7 @@ import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.t
 import BudgetManagement from "./pages/BudgetManagement.tsx";
 import SubscriptionTypesManagement from "./pages/SubscriptionTypesManagement.tsx";
 import PaymentsManagement from "./pages/PaymentsManagement.tsx";
+import PaymentDetailView from "./pages/PaymentDetailView.tsx";
 import KnowledgeBaseManagement from "./pages/KnowledgeBaseManagement.tsx";
 import CustomersManagement from "./pages/CustomersManagement.tsx";
 import MeetingsManagement from "./pages/MeetingsManagement.tsx";
@@ -60,7 +61,8 @@ const AppContent = () => {
     location.pathname.startsWith('/leads/') ||
     location.pathname.startsWith('/dashboard/customers/') ||
     location.pathname.startsWith('/profile/') ||
-    location.pathname.startsWith('/dashboard/meetings/');
+    location.pathname.startsWith('/dashboard/meetings/') ||
+    location.pathname.startsWith('/dashboard/payments/');
 
   // Hide footer when the dashboard sidebar panel is visible
   const isDashboardSidebarRoute =
@@ -132,6 +134,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <PaymentsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/payments/:id"
+            element={
+              <ProtectedRoute>
+                <PaymentDetailView />
               </ProtectedRoute>
             }
           />

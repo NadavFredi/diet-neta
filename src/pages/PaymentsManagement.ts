@@ -28,6 +28,7 @@ import {
   setPageSize,
   setSortBy,
   setSortOrder,
+  setActiveFilters,
   initializeTableState,
 } from '@/store/slices/tableStateSlice';
 import { useEffect } from 'react';
@@ -71,9 +72,13 @@ export const usePaymentsManagement = () => {
 
   useSyncSavedViewFilters('payments', savedView, isLoadingView);
 
-  // Initialize table state for payments
+  // Initialize table state for payments with column IDs (excluding ID column)
   useEffect(() => {
-    dispatch(initializeTableState({ resourceKey: 'payments' }));
+    const columnIds = ['date', 'status', 'lead', 'customer', 'amount', 'product'];
+    dispatch(initializeTableState({ 
+      resourceKey: 'payments',
+      columnIds,
+    }));
   }, [dispatch]);
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
@@ -90,6 +95,13 @@ export const usePaymentsManagement = () => {
   const handleSearchChange = useCallback((value: string) => {
     dispatch(setSearchQuery({ resourceKey: 'payments', query: value }));
   }, [dispatch]);
+
+  // Sync local filter group changes to Redux
+  useEffect(() => {
+    if (localFilterGroup) {
+      dispatch(setActiveFilters({ resourceKey: 'payments', filters: localFilterGroup }));
+    }
+  }, [localFilterGroup, dispatch]);
 
   const addFilter = useCallback((filter: ActiveFilter) => {
     addFilterLocal(filter);

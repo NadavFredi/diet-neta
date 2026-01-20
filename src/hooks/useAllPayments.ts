@@ -58,7 +58,7 @@ export const useAllPayments = (filters?: { search?: string; filterGroup?: Filter
             `
             *,
             customer:customers(full_name),
-            lead:leads(id)
+            lead:leads(id, customer:customers(full_name))
           `
           )
           .order('created_at', { ascending: false });
@@ -97,7 +97,8 @@ export const useAllPayments = (filters?: { search?: string; filterGroup?: Filter
           customer_id: record.customer_id,
           customer_name: record.customer?.full_name || null,
           lead_id: record.lead_id || null,
-          lead_name: record.lead_id ? `ליד ${record.lead_id.slice(0, 8)}` : null,
+          // Use the lead's customer name if available, otherwise fall back to ID
+          lead_name: record.lead?.customer?.full_name || (record.lead_id ? `ליד ${record.lead_id.slice(0, 8)}` : null),
         })) as AllPaymentRecord[];
       } catch (error: any) {
         // Graceful degradation if payments table doesn't exist

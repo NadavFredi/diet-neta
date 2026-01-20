@@ -68,7 +68,14 @@ export const GenericColumnSettings = <T extends Record<string, any>>({
       .map((colId) => columns.find((col) => col.id === colId))
       .filter((col): col is DataTableColumn<T> => 
         col !== undefined && col.enableHiding !== false
-      );
+      )
+      // Exclude ID column for payments
+      .filter((col) => {
+        if (resourceKey === 'payments' && col.id === 'id') {
+          return false;
+        }
+        return true;
+      });
 
     if (!searchQuery.trim()) {
       return orderedColumns;
@@ -79,7 +86,7 @@ export const GenericColumnSettings = <T extends Record<string, any>>({
       const headerText = typeof col.header === 'string' ? col.header : col.id;
       return headerText.toLowerCase().includes(query) || col.id.toLowerCase().includes(query);
     });
-  }, [columnOrder, columns, searchQuery]);
+  }, [columnOrder, columns, searchQuery, resourceKey]);
 
   return (
     <div className="space-y-4">

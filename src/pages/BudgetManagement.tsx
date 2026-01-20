@@ -44,6 +44,36 @@ const BudgetManagement = () => {
   const pageSize = useAppSelector((state) => selectPageSize(state, 'budgets'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
   
+  // Get budgets data first before using it in useMemo
+  const {
+    budgets,
+    editingBudget,
+    budgetToDelete,
+    isLoading,
+    isAddDialogOpen,
+    isEditDialogOpen,
+    deleteDialogOpen,
+    isSaveViewModalOpen,
+    setIsAddDialogOpen,
+    setIsEditDialogOpen,
+    setDeleteDialogOpen,
+    setIsSaveViewModalOpen,
+    handleLogout,
+    handleToggleColumn,
+    handleAddBudget,
+    handleEditBudget,
+    handleSaveBudget,
+    handleDeleteClick,
+    handleConfirmDelete,
+    handleBulkDelete,
+    handleSaveViewClick,
+    getCurrentFilterConfig,
+    deleteBudget,
+    handleExportPDF,
+    handleSendWhatsApp,
+    sendingBudget,
+  } = useBudgetManagement();
+  
   // Group pagination state (separate from record pagination)
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize] = useState(50);
@@ -89,34 +119,6 @@ const BudgetManagement = () => {
   const pageTitle = viewId && savedView?.view_name 
     ? savedView.view_name 
     : 'כל התקציבים';
-  const {
-    budgets,
-    editingBudget,
-    budgetToDelete,
-    isLoading,
-    isAddDialogOpen,
-    isEditDialogOpen,
-    deleteDialogOpen,
-    isSaveViewModalOpen,
-    setIsAddDialogOpen,
-    setIsEditDialogOpen,
-    setDeleteDialogOpen,
-    setIsSaveViewModalOpen,
-    handleLogout,
-    handleToggleColumn,
-    handleAddBudget,
-    handleEditBudget,
-    handleSaveBudget,
-    handleDeleteClick,
-    handleConfirmDelete,
-    handleBulkDelete,
-    handleSaveViewClick,
-    getCurrentFilterConfig,
-    deleteBudget,
-    handleExportPDF,
-    handleSendWhatsApp,
-    sendingBudget,
-  } = useBudgetManagement();
 
   // Generate filter fields with all renderable columns
   const budgetFilterFields = useMemo(() => {

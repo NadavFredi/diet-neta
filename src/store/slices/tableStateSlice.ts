@@ -27,6 +27,9 @@ export interface TableState {
     level2: 'asc' | 'desc' | null;
   };
   collapsedGroups: string[]; // Array of collapsed group keys (supports composite keys for multi-level)
+  // Sorting state
+  sortBy: string | null; // Column to sort by (e.g., 'createdDate', 'name', 'status')
+  sortOrder: 'ASC' | 'DESC' | null; // Sort order
   // Pagination state
   currentPage: number;
   pageSize: number; // 50 or 100
@@ -83,6 +86,9 @@ const tableStateSlice = createSlice({
             level2: null,
           },
           collapsedGroups: [],
+          // Sorting state
+          sortBy: null,
+          sortOrder: null,
           // Pagination state
           currentPage: 1,
           pageSize: 100, // Default to 100, can be changed to 50
@@ -114,6 +120,9 @@ const tableStateSlice = createSlice({
           groupByKeys: [null, null],
           groupSorting: { level1: null, level2: null },
           collapsedGroups: [],
+          // Sorting state
+          sortBy: null,
+          sortOrder: null,
           // Pagination state
           currentPage: 1,
           pageSize: 100,
@@ -479,6 +488,37 @@ const tableStateSlice = createSlice({
       }
       state.tables[resourceKey].totalCount = Math.max(0, totalCount);
     },
+
+    // Sorting actions
+    setSortBy: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        sortBy: string | null;
+      }>
+    ) => {
+      const { resourceKey, sortBy } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      state.tables[resourceKey].sortBy = sortBy;
+      state.tables[resourceKey].currentPage = 1; // Reset to first page when sorting changes
+    },
+
+    setSortOrder: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        sortOrder: 'ASC' | 'DESC' | null;
+      }>
+    ) => {
+      const { resourceKey, sortOrder } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      state.tables[resourceKey].sortOrder = sortOrder;
+      state.tables[resourceKey].currentPage = 1; // Reset to first page when sort order changes
+    },
   },
 });
 
@@ -506,6 +546,8 @@ export const {
   setGroupByKeys,
   setGroupSorting,
   toggleGroupCollapse,
+  setSortBy,
+  setSortOrder,
 } = tableStateSlice.actions;
 
 export default tableStateSlice.reducer;
@@ -613,4 +655,13 @@ export const selectPageSize = (state: { tableState: TableStateState }, resourceK
 
 export const selectTotalCount = (state: { tableState: TableStateState }, resourceKey: ResourceKey): number => {
   return state.tableState.tables[resourceKey]?.totalCount ?? 0;
+};
+
+// Sorting selectors
+export const selectSortBy = (state: { tableState: TableStateState }, resourceKey: ResourceKey): string | null => {
+  return state.tableState.tables[resourceKey]?.sortBy ?? null;
+};
+
+export const selectSortOrder = (state: { tableState: TableStateState }, resourceKey: ResourceKey): 'ASC' | 'DESC' | null => {
+  return state.tableState.tables[resourceKey]?.sortOrder ?? null;
 };

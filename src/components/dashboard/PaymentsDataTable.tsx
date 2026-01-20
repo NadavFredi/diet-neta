@@ -42,24 +42,26 @@ export const PaymentsDataTable = ({
   const sortOrder = externalSortOrder ?? reduxSortOrder;
   const navigate = useNavigate();
 
-  // Pass ALL columns from schema to DataTable
+  // Pass columns to DataTable - exclude ID column for payments
   const columns = useMemo(() => {
-    return paymentColumns;
+    return paymentColumns.filter((col) => col.id !== 'id');
   }, []);
 
   // Default column visibility - DataTable will read from Redux tableStateSlice after initialization
+  // ID column is excluded from columns array, so no need to handle it here
   const initialVisibility = useMemo(() => {
     const visibility: Record<string, boolean> = {};
-    paymentColumns.forEach((col) => {
-      // Default: all columns visible except hidden ones
-      visibility[col.id] = col.enableHiding !== false;
-    });
+    paymentColumns
+      .filter((col) => col.id !== 'id') // Exclude ID column
+      .forEach((col) => {
+        visibility[col.id] = col.enableHiding !== false;
+      });
     return visibility;
   }, []);
 
   // Default column order (from right to left in RTL)
   // Order: date, status, lead, customer, amount, product
-  // Hidden columns (id) are placed at the end
+  // ID column is excluded
   const initialColumnOrder = useMemo(() => {
     return [
       'date',      // תאריך
@@ -68,16 +70,12 @@ export const PaymentsDataTable = ({
       'customer',  // לקוח
       'amount',    // מחיר
       'product',   // מוצר
-      // Hidden columns at the end
-      'id',
     ];
   }, []);
 
   const handleRowClick = (payment: AllPaymentRecord) => {
-    // Navigate to customer profile if customer_id exists
-    if (payment.customer_id) {
-      navigate(`/dashboard/customers/${payment.customer_id}`);
-    }
+    // Navigate to payment detail page
+    navigate(`/dashboard/payments/${payment.id}`);
   };
 
   return (

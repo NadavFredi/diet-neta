@@ -444,64 +444,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           <>
             <span className="flex-1 text-right">{item.label}</span>
             {supportsViews && (
-              <div className="flex items-center gap-1">
-                {/* Sort controls - hidden and takes 0 space when not hovered */}
-                <div className="flex items-center gap-0.5 w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0 transition-all duration-200">
-                  {sortOrder === null && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSortOrder('asc');
-                      }}
-                      className={cn(
-                        'p-1 rounded-md transition-colors',
-                        isMainInterfaceActive
-                          ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                          : 'text-white/60 hover:text-white hover:bg-white/10'
-                      )}
-                      title="מיין לפי שם (א-ב)"
-                    >
-                      <ArrowUpDown className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {sortOrder === 'asc' && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSortOrder('desc');
-                      }}
-                      className={cn(
-                        'p-1 rounded-md transition-colors',
-                        isMainInterfaceActive
-                          ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                          : 'text-white/60 hover:text-white hover:bg-white/10'
-                      )}
-                      title="מיין לפי שם (ב-א)"
-                    >
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {sortOrder === 'desc' && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSortOrder(null);
-                      }}
-                      className={cn(
-                        'p-1 rounded-md transition-colors',
-                        isMainInterfaceActive
-                          ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                          : 'text-white/60 hover:text-white hover:bg-white/10'
-                      )}
-                      title="בטל מיון (החזר לסדר ידני)"
-                    >
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
+              <div className="flex items-center gap-1 relative">
+                {/* Sort controls placeholder - maintains spacing */}
+                <div className="w-0 overflow-hidden group-hover:w-auto transition-all duration-200" />
                 {/* Create folder button - hidden and takes 0 space when not hovered */}
                 <div
                   className={cn(
@@ -569,6 +514,71 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           </>
         )}
       </button>
+      {/* Sort controls - positioned outside button to avoid nesting, aligned between label and action buttons */}
+      {!isCollapsed && supportsViews && (
+        <div className="absolute top-1/2 -translate-y-1/2 flex items-center gap-0.5 w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0 transition-all duration-200 z-20 pointer-events-none"
+          style={{ 
+            right: 'calc(100% - 100px)' // Position to align with action buttons area
+          }}
+        >
+          <div className="flex items-center gap-0.5 pointer-events-auto">
+            {sortOrder === null && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSortOrder('asc');
+                }}
+                className={cn(
+                  'p-1 rounded-md transition-colors',
+                  isMainInterfaceActive
+                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                )}
+                title="מיין לפי שם (א-ב)"
+              >
+                <ArrowUpDown className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {sortOrder === 'asc' && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSortOrder('desc');
+                }}
+                className={cn(
+                  'p-1 rounded-md transition-colors',
+                  isMainInterfaceActive
+                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                )}
+                title="מיין לפי שם (ב-א)"
+              >
+                <ArrowDown className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {sortOrder === 'desc' && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSortOrder(null);
+                }}
+                className={cn(
+                  'p-1 rounded-md transition-colors',
+                  isMainInterfaceActive
+                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                )}
+                title="בטל מיון (החזר לסדר ידני)"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 
