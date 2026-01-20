@@ -32,6 +32,7 @@ interface SubscriptionTypesDataTableProps {
   subscriptionTypes: SubscriptionType[];
   onEdit: (subscriptionType: SubscriptionType) => void;
   onDelete: (subscriptionType: SubscriptionType) => void;
+  onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
 }
 
 export const subscriptionTypeColumns: DataTableColumn<SubscriptionType>[] = [
@@ -103,6 +104,7 @@ export const SubscriptionTypesDataTable = ({
   subscriptionTypes,
   onEdit,
   onDelete,
+  onBulkDelete,
 }: SubscriptionTypesDataTableProps) => {
   const columns = useMemo(() => {
     return subscriptionTypeColumns.map((col) => {
@@ -166,9 +168,15 @@ export const SubscriptionTypesDataTable = ({
     <DataTable
       data={subscriptionTypes}
       columns={columns}
-      enableRowSelection={false}
-      enableColumnResizing={true}
-      enableColumnVisibility={true}
+      dir="rtl"
+      emptyMessage="לא נמצאו סוגי מנוי"
+      enableColumnVisibility={false}
+      enableColumnReordering={true}
+      resourceKey="subscription_types"
+      enableRowSelection
+      totalCount={subscriptionTypes.length}
+      onBulkDelete={onBulkDelete}
+      selectionLabel="סוגי מנוי"
     />
   );
 };

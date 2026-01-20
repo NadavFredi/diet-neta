@@ -3,19 +3,20 @@ import { DataTable } from '@/components/ui/DataTable';
 import type { WorkoutTemplate } from '@/hooks/useWorkoutTemplates';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
-import type { TemplateColumnVisibility } from './TemplateColumnSettings';
 import { workoutTemplateColumns } from './columns/templateColumns';
 
 interface WorkoutTemplatesDataTableProps {
   templates: WorkoutTemplate[];
   onEdit: (template: WorkoutTemplate) => void;
   onDelete: (template: WorkoutTemplate) => void;
+  onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
 }
 
 export const WorkoutTemplatesDataTable = ({
   templates,
   onEdit,
   onDelete,
+  onBulkDelete,
 }: WorkoutTemplatesDataTableProps) => {
   // CRITICAL: Pass ALL columns from schema to DataTable
   // This ensures the column visibility popover shows ALL available Workout Template columns
@@ -79,8 +80,10 @@ export const WorkoutTemplatesDataTable = ({
       enableColumnVisibility={false}
       enableColumnReordering={true}
       resourceKey="templates"
+      enableRowSelection
+      totalCount={templates.length}
+      onBulkDelete={onBulkDelete}
+      selectionLabel="תבניות אימון"
     />
   );
 };
-
-

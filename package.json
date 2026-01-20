@@ -16,6 +16,7 @@
     "create-users": "node scripts/create_test_users.js",
     "create-trainee-prod": "node scripts/create_trainee_user_production.js",
     "reset-manager-password": "node scripts/reset_manager_password.js",
+    "generate-random-data": "node scripts/generate_random_data.js",
     "deploy:functions": "node scripts/deploy-functions.js",
     "functions:local": "supabase functions serve --env-file .env.local",
     "db:backup": "./scripts/backup-db.sh",

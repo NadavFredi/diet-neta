@@ -4,7 +4,7 @@
  * Pure presentation component - all logic is in NutritionTemplatesManagement.ts
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
@@ -25,6 +25,12 @@ const NutritionTemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'nutrition_templates'));
+  
+  // Generate filter fields with all renderable columns
+  const nutritionTemplateFilterFields = useMemo(() => {
+    return getNutritionTemplateFilterFields(templates || [], nutritionTemplateColumns);
+  }, [templates]);
+  
   const {
     templates,
     savedView,
@@ -46,6 +52,7 @@ const NutritionTemplatesManagement = () => {
     handleSaveTemplate,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,
     deleteTemplate,
@@ -83,7 +90,7 @@ const NutritionTemplatesManagement = () => {
                   dataCount={templates.length}
                   singularLabel="תבנית"
                   pluralLabel="תבניות"
-                  filterFields={getNutritionTemplateFilterFields(templates)}
+                  filterFields={nutritionTemplateFilterFields}
                   searchPlaceholder="חיפוש לפי שם או תיאור..."
                   addButtonLabel="הוסף תבנית"
                   onAddClick={handleAddTemplate}
@@ -102,6 +109,7 @@ const NutritionTemplatesManagement = () => {
                       templates={templates}
                       onEdit={handleEditTemplate}
                       onDelete={handleDeleteClick}
+                      onBulkDelete={handleBulkDelete}
                     />
                   )}
                 </div>

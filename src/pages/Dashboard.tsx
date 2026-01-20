@@ -12,11 +12,13 @@ import { useDashboardLogic } from '@/hooks/useDashboardLogic';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { useTableFilters, getLeadFilterFields, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { fetchLeadIdsByFilter } from '@/services/leadService';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabaseClient';
 
 // Custom hook to detect if screen is desktop (lg breakpoint = 1024px)
 const useIsDesktop = () => {
@@ -100,9 +102,9 @@ const Dashboard = () => {
   useEffect(() => {
   }, [filteredLeads, isLoading]);
 
-  // Get filter fields with dynamic options from data
+  // Get filter fields with dynamic options from data - now includes all renderable columns
   const leadFilterFields = useMemo(() => {
-    return getLeadFilterFields(filteredLeads || []);
+    return getLeadFilterFields(filteredLeads || [], leadColumns);
   }, [filteredLeads]);
 
   const addFilter = useCallback((filter: ActiveFilter) => {
@@ -125,12 +127,38 @@ const Dashboard = () => {
     handleSearchChange(value);
   }, [handleSearchChange]);
 
+  const { toast } = useToast();
+
+  const handleBulkDelete = useCallback(
+    async (payload: { ids: string[]; selectAllAcrossPages: boolean }) => {
+      const idsToDelete = payload.selectAllAcrossPages
+        ? await fetchLeadIdsByFilter({ searchQuery, filterGroup })
+        : payload.ids;
+
+      if (!idsToDelete.length) return;
+
+      const chunkSize = 100;
+      for (let i = 0; i < idsToDelete.length; i += chunkSize) {
+        const chunk = idsToDelete.slice(i, i + chunkSize);
+        const { error } = await supabase.from('leads').delete().in('id', chunk);
+        if (error) throw error;
+      }
+
+      toast({
+        title: 'הצלחה',
+        description: 'הלידים נמחקו בהצלחה',
+      });
+
+      refreshLeads();
+    },
+    [searchQuery, filterGroup, toast, refreshLeads]
+  );
+
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
-  const { toast } = useToast();
   const hasShownSaveSuggestion = useRef(false);
   const previousFiltersRef = useRef<string>('');
   const lastAppliedViewIdRef = useRef<string | null>(null);
@@ -324,6 +352,8 @@ const Dashboard = () => {
                       onSortChange={handleSortChange}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
+                      totalCount={totalLeads}
+                      onBulkDelete={handleBulkDelete}
                     />
                     {/* Pagination Footer */}
                     {totalLeads > 0 && (

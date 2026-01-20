@@ -7,6 +7,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMeetings } from '@/hooks/useMeetings';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useSavedView } from '@/hooks/useSavedViews';
@@ -21,12 +22,14 @@ import {
   initializeTableState,
 } from '@/store/slices/tableStateSlice';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
+import { useToast } from '@/hooks/use-toast';
 
 export const useMeetingsManagement = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
+  const { toast } = useToast();
   
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'meetings'));
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'meetings'));
@@ -34,6 +37,11 @@ export const useMeetingsManagement = () => {
   const { data: meetings = [], isLoading: isLoadingMeetings } = useMeetings({
     search: searchQuery,
     filterGroup,
+  });
+  const bulkDeleteMeetings = useBulkDeleteRecords({
+    table: 'meetings',
+    invalidateKeys: [['meetings']],
+    createdByField: 'created_by',
   });
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
 
@@ -85,6 +93,14 @@ export const useMeetingsManagement = () => {
   // Filter meetings based on search query and active filters
   const filteredMeetings = useMemo(() => meetings, [meetings]);
 
+  const handleBulkDelete = async (payload: { ids: string[] }) => {
+    await bulkDeleteMeetings.mutateAsync(payload.ids);
+    toast({
+      title: 'הצלחה',
+      description: 'הפגישות נמחקו בהצלחה',
+    });
+  };
+
   return {
     meetings,
     filteredMeetings,
@@ -96,5 +112,6 @@ export const useMeetingsManagement = () => {
     addFilter,
     removeFilter,
     clearFilters,
+    handleBulkDelete,
   };
 };

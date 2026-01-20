@@ -16,6 +16,7 @@ import {
   useUpdateWorkoutTemplate, 
   type WorkoutTemplate 
 } from '@/hooks/useWorkoutTemplates';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
@@ -57,6 +58,11 @@ export const useTemplatesManagement = () => {
   const createTemplate = useCreateWorkoutTemplate();
   const updateTemplate = useUpdateWorkoutTemplate();
   const deleteTemplate = useDeleteWorkoutTemplate();
+  const bulkDeleteTemplates = useBulkDeleteRecords({
+    table: 'workout_templates',
+    invalidateKeys: [['workoutTemplates']],
+    createdByField: 'created_by',
+  });
 
   useSyncSavedViewFilters('templates', savedView, isLoadingView);
 
@@ -169,6 +175,14 @@ export const useTemplatesManagement = () => {
     }
   };
 
+  const handleBulkDelete = async (payload: { ids: string[] }) => {
+    await bulkDeleteTemplates.mutateAsync(payload.ids);
+    toast({
+      title: 'הצלחה',
+      description: 'התבניות נמחקו בהצלחה',
+    });
+  };
+
   const handleSaveViewClick = () => {
     setIsSaveViewModalOpen(true);
   };
@@ -219,6 +233,7 @@ export const useTemplatesManagement = () => {
     handleSaveTemplate,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,
     

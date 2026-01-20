@@ -27,7 +27,9 @@ import {
   extractWorkoutTemplateFilterOptions,
   extractNutritionTemplateFilterOptions
 } from '@/utils/filterUtils';
+import { generateFilterFieldsFromColumns } from '@/utils/columnToFilterUtils';
 import type { Lead } from '@/store/slices/dashboardSlice';
+import type { DataTableColumn } from '@/components/ui/DataTable';
 
 export interface FilterConfig {
   filters: ActiveFilter[];
@@ -147,10 +149,59 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
 
 /**
  * Get filter fields for Leads table with dynamic options from data
+ * Now automatically includes all renderable columns as filterable
  */
-export function getLeadFilterFields(leads: Lead[] = []): FilterField[] {
+export function getLeadFilterFields(
+  leads: Lead[] = [],
+  columns?: DataTableColumn<Lead>[]
+): FilterField[] {
   const dynamicOptions = getLeadFilterOptions(leads);
   
+  // Custom configs for specific fields that need special handling
+  const customFieldConfigs: Record<string, Partial<FilterField>> = {
+    status: {
+      type: 'multiselect',
+      operators: ['is', 'isNot'],
+      dynamicOptions: dynamicOptions.status.length > 0 ? dynamicOptions.status : undefined,
+      options: dynamicOptions.status.length === 0 ? [...STATUS_OPTIONS] : undefined,
+    },
+    fitnessGoal: {
+      type: 'multiselect',
+      operators: ['is', 'isNot'],
+      dynamicOptions: dynamicOptions.fitnessGoal.length > 0 ? dynamicOptions.fitnessGoal : undefined,
+      options: dynamicOptions.fitnessGoal.length === 0 ? [...FITNESS_GOAL_OPTIONS] : undefined,
+    },
+    activityLevel: {
+      type: 'multiselect',
+      operators: ['is', 'isNot'],
+      dynamicOptions: dynamicOptions.activityLevel.length > 0 ? dynamicOptions.activityLevel : undefined,
+      options: dynamicOptions.activityLevel.length === 0 ? [...ACTIVITY_LEVEL_OPTIONS] : undefined,
+    },
+    preferredTime: {
+      type: 'multiselect',
+      operators: ['is', 'isNot'],
+      dynamicOptions: dynamicOptions.preferredTime.length > 0 ? dynamicOptions.preferredTime : undefined,
+      options: dynamicOptions.preferredTime.length === 0 ? [...PREFERRED_TIME_OPTIONS] : undefined,
+    },
+    source: {
+      type: 'multiselect',
+      operators: ['is', 'isNot'],
+      dynamicOptions: dynamicOptions.source.length > 0 ? dynamicOptions.source : undefined,
+      options: dynamicOptions.source.length === 0 ? [...SOURCE_OPTIONS] : undefined,
+    },
+  };
+  
+  // If columns are provided, generate filter fields from them
+  if (columns && columns.length > 0) {
+    return generateFilterFieldsFromColumns(
+      columns,
+      leads,
+      LEAD_FILTER_FIELDS_BASE, // Merge with existing base fields for backward compatibility
+      customFieldConfigs
+    );
+  }
+  
+  // Fallback to existing logic if columns not provided
   return LEAD_FILTER_FIELDS_BASE.map(field => {
     if (field.id === 'status' && dynamicOptions.status.length > 0) {
       return { ...field, dynamicOptions: dynamicOptions.status };
@@ -222,9 +273,69 @@ export const CUSTOMER_FILTER_FIELDS: FilterField[] = [
 ];
 
 /**
- * Get filter fields for Workout Templates table with dynamic options from data
+ * Get filter fields for Customers table
+ * Now automatically includes all renderable columns as filterable
  */
-export function getWorkoutTemplateFilterFields(templates: any[] = []): FilterField[] {
+export function getCustomerFilterFields<T>(
+  customers: T[] = [],
+  columns?: DataTableColumn<T>[]
+): FilterField[] {
+  // If columns are provided, generate filter fields from them
+  if (columns && columns.length > 0) {
+    return generateFilterFieldsFromColumns(
+      columns,
+      customers,
+      CUSTOMER_FILTER_FIELDS, // Merge with existing fields for backward compatibility
+      {}
+    );
+  }
+  
+  // Fallback to existing fields if columns not provided
+  return CUSTOMER_FILTER_FIELDS;
+}
+
+/**
+ * Get filter fields for Workout Templates table with dynamic options from data
+ * Now automatically includes all renderable columns as filterable
+ */
+export function getWorkoutTemplateFilterFields<T>(
+  templates: T[] = [],
+  columns?: DataTableColumn<T>[]
+): FilterField[] {
+  const dynamicOptions = {
+    goal_tags: extractWorkoutTemplateFilterOptions(templates as any, 'goal_tags'),
+    is_public: extractWorkoutTemplateFilterOptions(templates as any, 'is_public'),
+  };
+  
+  const customFieldConfigs: Record<string, Partial<FilterField>> = {
+    goal_tags: {
+      type: 'multiselect',
+      operators: ['is', 'isNot'],
+      dynamicOptions: dynamicOptions.goal_tags.length > 0 ? dynamicOptions.goal_tags : undefined,
+    },
+    is_public: {
+      type: 'select',
+      operators: ['is', 'isNot'],
+      dynamicOptions: dynamicOptions.is_public.length > 0 ? dynamicOptions.is_public : undefined,
+    },
+    has_leads: {
+      type: 'select',
+      operators: ['is', 'isNot'],
+      options: ['כן', 'לא'],
+    },
+  };
+  
+  // If columns are provided, generate filter fields from them
+  if (columns && columns.length > 0) {
+    return generateFilterFieldsFromColumns(
+      columns,
+      templates,
+      TEMPLATE_FILTER_FIELDS, // Merge with existing fields for backward compatibility
+      customFieldConfigs
+    );
+  }
+  
+  // Fallback to existing logic if columns not provided
   return [
     {
       id: 'created_at',
@@ -236,14 +347,14 @@ export function getWorkoutTemplateFilterFields(templates: any[] = []): FilterFie
       id: 'goal_tags',
       label: 'תגיות מטרה',
       type: 'multiselect',
-      dynamicOptions: extractWorkoutTemplateFilterOptions(templates, 'goal_tags'),
+      dynamicOptions: dynamicOptions.goal_tags,
       operators: ['is', 'isNot'],
     },
     {
       id: 'is_public',
       label: 'תבנית ציבורית',
       type: 'select',
-      dynamicOptions: extractWorkoutTemplateFilterOptions(templates, 'is_public'),
+      dynamicOptions: dynamicOptions.is_public,
       operators: ['is', 'isNot'],
     },
     {
@@ -287,8 +398,47 @@ export const TEMPLATE_FILTER_FIELDS: FilterField[] = [
 
 /**
  * Get filter fields for Nutrition Templates table with dynamic options from data
+ * Now automatically includes all renderable columns as filterable
  */
-export function getNutritionTemplateFilterFields(templates: any[] = []): FilterField[] {
+export function getNutritionTemplateFilterFields<T>(
+  templates: T[] = [],
+  columns?: DataTableColumn<T>[]
+): FilterField[] {
+  const dynamicOptions = {
+    is_public: extractNutritionTemplateFilterOptions(templates as any, 'is_public'),
+    calories_range: extractNutritionTemplateFilterOptions(templates as any, 'calories_range'),
+    protein_range: extractNutritionTemplateFilterOptions(templates as any, 'protein_range'),
+  };
+  
+  const customFieldConfigs: Record<string, Partial<FilterField>> = {
+    is_public: {
+      type: 'select',
+      operators: ['is', 'isNot'],
+      dynamicOptions: dynamicOptions.is_public.length > 0 ? dynamicOptions.is_public : undefined,
+    },
+    calories_range: {
+      type: 'multiselect',
+      operators: ['is', 'isNot'],
+      dynamicOptions: dynamicOptions.calories_range.length > 0 ? dynamicOptions.calories_range : undefined,
+    },
+    protein_range: {
+      type: 'multiselect',
+      operators: ['is', 'isNot'],
+      dynamicOptions: dynamicOptions.protein_range.length > 0 ? dynamicOptions.protein_range : undefined,
+    },
+  };
+  
+  // If columns are provided, generate filter fields from them
+  if (columns && columns.length > 0) {
+    return generateFilterFieldsFromColumns(
+      columns,
+      templates,
+      NUTRITION_TEMPLATE_FILTER_FIELDS, // Merge with existing fields for backward compatibility
+      customFieldConfigs
+    );
+  }
+  
+  // Fallback to existing logic if columns not provided
   return [
     {
       id: 'created_at',
@@ -300,21 +450,21 @@ export function getNutritionTemplateFilterFields(templates: any[] = []): FilterF
       id: 'is_public',
       label: 'תבנית ציבורית',
       type: 'select',
-      dynamicOptions: extractNutritionTemplateFilterOptions(templates, 'is_public'),
+      dynamicOptions: dynamicOptions.is_public,
       operators: ['is', 'isNot'],
     },
     {
       id: 'calories_range',
       label: 'טווח קלוריות',
       type: 'multiselect',
-      dynamicOptions: extractNutritionTemplateFilterOptions(templates, 'calories_range'),
+      dynamicOptions: dynamicOptions.calories_range,
       operators: ['is', 'isNot'],
     },
     {
       id: 'protein_range',
       label: 'טווח חלבון',
       type: 'multiselect',
-      dynamicOptions: extractNutritionTemplateFilterOptions(templates, 'protein_range'),
+      dynamicOptions: dynamicOptions.protein_range,
       operators: ['is', 'isNot'],
     },
   ];
@@ -373,8 +523,23 @@ export const MEETING_FILTER_FIELDS: FilterField[] = [
 
 /**
  * Get filter fields for Meetings table with dynamic options from data
+ * Now automatically includes all renderable columns as filterable
  */
-export function getMeetingFilterFields(meetings: any[] = []): FilterField[] {
+export function getMeetingFilterFields<T>(
+  meetings: T[] = [],
+  columns?: DataTableColumn<T>[]
+): FilterField[] {
+  // If columns are provided, generate filter fields from them
+  if (columns && columns.length > 0) {
+    return generateFilterFieldsFromColumns(
+      columns,
+      meetings,
+      MEETING_FILTER_FIELDS, // Merge with existing fields for backward compatibility
+      {}
+    );
+  }
+  
+  // Fallback to existing fields if columns not provided
   return MEETING_FILTER_FIELDS.map(field => {
     // If we need dynamic options in the future, we can add them here
     // For now, return the base fields
@@ -440,8 +605,23 @@ export const PAYMENT_FILTER_FIELDS: FilterField[] = [
 
 /**
  * Get filter fields for Payments table with dynamic options from data
+ * Now automatically includes all renderable columns as filterable
  */
-export function getPaymentFilterFields(payments: any[] = []): FilterField[] {
+export function getPaymentFilterFields<T>(
+  payments: T[] = [],
+  columns?: DataTableColumn<T>[]
+): FilterField[] {
+  // If columns are provided, generate filter fields from them
+  if (columns && columns.length > 0) {
+    return generateFilterFieldsFromColumns(
+      columns,
+      payments,
+      PAYMENT_FILTER_FIELDS, // Merge with existing fields for backward compatibility
+      {}
+    );
+  }
+  
+  // Fallback to existing fields if columns not provided
   return PAYMENT_FILTER_FIELDS.map(field => {
     // If we need dynamic options in the future, we can add them here
     // For now, return the base fields
@@ -449,7 +629,25 @@ export function getPaymentFilterFields(payments: any[] = []): FilterField[] {
   });
 }
 
-export function getBudgetFilterFields(budgets: any[] = []): FilterField[] {
+/**
+ * Get filter fields for Budgets table with dynamic options from data
+ * Now automatically includes all renderable columns as filterable
+ */
+export function getBudgetFilterFields<T>(
+  budgets: T[] = [],
+  columns?: DataTableColumn<T>[]
+): FilterField[] {
+  // If columns are provided, generate filter fields from them
+  if (columns && columns.length > 0) {
+    return generateFilterFieldsFromColumns(
+      columns,
+      budgets,
+      BUDGET_FILTER_FIELDS, // Merge with existing fields for backward compatibility
+      {}
+    );
+  }
+  
+  // Fallback to existing fields if columns not provided
   return BUDGET_FILTER_FIELDS.map(field => {
     // If we need dynamic options in the future, we can add them here
     // For now, return the base fields
@@ -469,8 +667,23 @@ export const SUBSCRIPTION_TYPE_FILTER_FIELDS: FilterField[] = [
 
 /**
  * Get filter fields for Subscription Types table with dynamic options from data
+ * Now automatically includes all renderable columns as filterable
  */
-export function getSubscriptionTypeFilterFields(subscriptionTypes: any[] = []): FilterField[] {
+export function getSubscriptionTypeFilterFields<T>(
+  subscriptionTypes: T[] = [],
+  columns?: DataTableColumn<T>[]
+): FilterField[] {
+  // If columns are provided, generate filter fields from them
+  if (columns && columns.length > 0) {
+    return generateFilterFieldsFromColumns(
+      columns,
+      subscriptionTypes,
+      SUBSCRIPTION_TYPE_FILTER_FIELDS, // Merge with existing fields for backward compatibility
+      {}
+    );
+  }
+  
+  // Fallback to existing fields if columns not provided
   return SUBSCRIPTION_TYPE_FILTER_FIELDS.map(field => {
     // If we need dynamic options in the future, we can add them here
     // For now, return the base fields

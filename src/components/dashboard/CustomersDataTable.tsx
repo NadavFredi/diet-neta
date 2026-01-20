@@ -5,9 +5,10 @@ import { customerColumns } from './columns/customerColumns';
 
 interface CustomersDataTableProps {
   customers: Customer[];
+  onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
 }
 
-export const CustomersDataTable = ({ customers }: CustomersDataTableProps) => {
+export const CustomersDataTable = ({ customers, onBulkDelete }: CustomersDataTableProps) => {
   const navigate = useNavigate();
 
   const handleRowClick = (customer: Customer) => {
@@ -24,10 +25,13 @@ export const CustomersDataTable = ({ customers }: CustomersDataTableProps) => {
       enableColumnVisibility={false}
       enableColumnReordering={true}
       resourceKey="customers"
+      enableRowSelection
+      totalCount={customers.length}
+      onBulkDelete={onBulkDelete}
+      selectionLabel="לקוחות"
     />
   );
 };
-
 
 
 

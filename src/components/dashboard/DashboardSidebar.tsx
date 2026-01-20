@@ -42,14 +42,14 @@ const navigationItems: NavItem[] = [
   {
     id: 'leads',
     resourceKey: 'leads',
-    label: 'ניהול לידים',
+    label: 'לידים',
     icon: UserPlus,
     path: '/dashboard',
   },
   {
     id: 'customers',
     resourceKey: 'customers',
-    label: 'ניהול לקוחות',
+    label: 'לקוחות',
     icon: Users,
     path: '/dashboard/customers',
   },
@@ -130,20 +130,20 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   const [searchParams] = useSearchParams();
   const activeViewId = searchParams.get('view_id');
   const { toast } = useToast();
-  
+
   // Get sidebar state from Redux
   const { isCollapsed, expandedSections } = useAppSelector((state) => state.sidebar);
-  
+
   // Fetch preferences on mount to sync with database (populates Redux)
   useInterfaceIconPreferences();
-  
+
   // Get all preferences from Redux at component level
   const iconPreferences = useAppSelector(selectInterfaceIconPreferences);
-  
+
   // Fetch interface order for drag-and-drop
   const { data: interfaceOrder } = useInterfaceOrder();
   const updateInterfaceOrders = useUpdateInterfaceOrders();
-  
+
   const [editIconDialogOpen, setEditIconDialogOpen] = useState(false);
   const [editingInterface, setEditingInterface] = useState<{
     key: string;
@@ -226,7 +226,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
       }));
 
       await updateInterfaceOrders.mutateAsync(orders);
-      
+
       toast({
         title: 'סדר התפריט עודכן',
         description: 'הסדר החדש נשמר בהצלחה.',
@@ -265,14 +265,14 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   };
 
   // When sidebar is collapsed, also collapse all sections
-  const effectiveExpandedSections = isCollapsed 
+  const effectiveExpandedSections = isCollapsed
     ? Object.keys(expandedSections).reduce((acc, key) => ({ ...acc, [key]: false }), {} as Record<string, boolean>)
     : expandedSections;
 
   // Auto-expand the section for the current route when navigating
   useEffect(() => {
     if (isCollapsed) return; // Don't auto-expand if sidebar is collapsed
-    
+
     const activeItem = navigationItems.find(item => isActive(item.path));
     if (activeItem) {
       const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'meetings'].includes(activeItem.resourceKey);
@@ -293,24 +293,24 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   const isActive = (path: string) => {
     if (path === '/dashboard') {
       // Active for dashboard and lead profile routes (not customer routes)
-      return location.pathname === '/dashboard' || 
-             location.pathname.startsWith('/leads/') ||
-             location.pathname.startsWith('/profile/lead/') ||
-             (location.pathname.startsWith('/profile/') && 
-              !location.pathname.startsWith('/profile/lead/') && 
-              location.pathname.split('/').length === 3); // /profile/:customerId (lead route)
+      return location.pathname === '/dashboard' ||
+        location.pathname.startsWith('/leads/') ||
+        location.pathname.startsWith('/profile/lead/') ||
+        (location.pathname.startsWith('/profile/') &&
+          !location.pathname.startsWith('/profile/lead/') &&
+          location.pathname.split('/').length === 3); // /profile/:customerId (lead route)
     }
     if (path === '/dashboard/customers') {
       // Active for customers list and customer profile routes (not lead routes)
-      return location.pathname === '/dashboard/customers' || 
-             (location.pathname.startsWith('/dashboard/customers/') && 
-              !location.pathname.startsWith('/profile/lead/') &&
-              !location.pathname.startsWith('/leads/'));
+      return location.pathname === '/dashboard/customers' ||
+        (location.pathname.startsWith('/dashboard/customers/') &&
+          !location.pathname.startsWith('/profile/lead/') &&
+          !location.pathname.startsWith('/leads/'));
     }
     if (path === '/dashboard/meetings') {
       // Active for meetings list and meeting detail routes
-      return location.pathname === '/dashboard/meetings' || 
-             location.pathname.startsWith('/dashboard/meetings/');
+      return location.pathname === '/dashboard/meetings' ||
+        location.pathname.startsWith('/dashboard/meetings/');
     }
     if (path === '/dashboard/subscription-types') {
       // Active for subscription types list
@@ -350,17 +350,17 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     <>
       {/* Navigation Content - This will be rendered inside the header */}
       <div className="flex-1 flex flex-col min-h-0">
-        <nav 
+        <nav
           className="flex-1 py-4 overflow-y-auto text-base transition-all duration-300"
-      dir="rtl"
+          dir="rtl"
           style={{
-          scrollbarWidth: 'thin',
+            scrollbarWidth: 'thin',
             scrollbarColor: '#6B7FB8 #5B6FB9',
-        }}
+          }}
           role="navigation"
           aria-label="תפריט ניווט ראשי"
-      >
-        <style>{`
+        >
+          <style>{`
           nav::-webkit-scrollbar {
               width: 8px;
           }
@@ -411,12 +411,12 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
               </ul>
             </SortableContext>
           </DndContext>
-      </nav>
+        </nav>
 
-      {/* Footer - At the bottom of the sidebar */}
-      <div className={cn("flex-shrink-0", !isCollapsed && "border-t border-white/10", isCollapsed && "p-0")}>
-        <FooterContent compact hideLink smallImage isCollapsed={isCollapsed} />
-      </div>
+        {/* Footer - At the bottom of the sidebar */}
+        <div className={cn("flex-shrink-0", !isCollapsed && "border-t border-white/10", isCollapsed && "p-0")}>
+          <FooterContent compact hideLink smallImage isCollapsed={isCollapsed} />
+        </div>
 
       </div>
 

@@ -16,6 +16,7 @@ import {
   useUpdateBudget,
   useBudget,
 } from '@/hooks/useBudgets';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { setGeneratingPDF, setSendingWhatsApp } from '@/store/slices/budgetSlice';
@@ -92,6 +93,11 @@ export const useBudgetManagement = () => {
   const createBudget = useCreateBudget();
   const updateBudget = useUpdateBudget();
   const deleteBudget = useDeleteBudget();
+  const bulkDeleteBudgets = useBulkDeleteRecords({
+    table: 'budgets',
+    invalidateKeys: [['budgets']],
+    createdByField: 'created_by',
+  });
 
   useSyncSavedViewFilters('budgets', savedView, isLoadingView);
 
@@ -280,6 +286,14 @@ export const useBudgetManagement = () => {
     }
   };
 
+  const handleBulkDelete = async (payload: { ids: string[] }) => {
+    await bulkDeleteBudgets.mutateAsync(payload.ids);
+    toast({
+      title: 'הצלחה',
+      description: 'התקציבים נמחקו בהצלחה',
+    });
+  };
+
   const handleSaveViewClick = () => {
     setIsSaveViewModalOpen(true);
   };
@@ -359,6 +373,7 @@ export const useBudgetManagement = () => {
     handleSaveBudget,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     handleExportPDF,
     handleSendWhatsApp,

@@ -2,7 +2,7 @@
  * MeetingsManagement UI Component
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
@@ -38,7 +38,13 @@ const MeetingsManagement = () => {
     handleLogout,
     getCurrentFilterConfig,
     activeFilters,
+    handleBulkDelete,
   } = useMeetingsManagement();
+  
+  // Generate filter fields with all renderable columns
+  const meetingFilterFields = useMemo(() => {
+    return getMeetingFilterFields(meetings || [], meetingColumns);
+  }, [meetings]);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -81,7 +87,7 @@ const MeetingsManagement = () => {
                   dataCount={filteredMeetings?.length || 0}
                   singularLabel="פגישה"
                   pluralLabel="פגישות"
-                  filterFields={getMeetingFilterFields(meetings || [])}
+                  filterFields={useMemo(() => getMeetingFilterFields(meetings || [], meetingColumns), [meetings])}
                   searchPlaceholder="חיפוש לפי שם לקוח, טלפון, תאריך פגישה..."
                   enableColumnVisibility={true}
                   enableFilters={true}
@@ -97,7 +103,7 @@ const MeetingsManagement = () => {
                       <p className="text-gray-600">טוען פגישות...</p>
                     </div>
                   ) : filteredMeetings && Array.isArray(filteredMeetings) && filteredMeetings.length > 0 ? (
-                    <MeetingsDataTable meetings={filteredMeetings} />
+                    <MeetingsDataTable meetings={filteredMeetings} onBulkDelete={handleBulkDelete} />
                   ) : (
                     <div className="p-8 text-center text-gray-500">
                       <p className="text-lg font-medium mb-2">לא נמצאו פגישות</p>

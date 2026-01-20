@@ -4,7 +4,7 @@
  * Pure presentation component - all logic is in TemplatesManagement.ts
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
@@ -25,6 +25,12 @@ const TemplatesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'templates'));
+  
+  // Generate filter fields with all renderable columns
+  const workoutTemplateFilterFields = useMemo(() => {
+    return getWorkoutTemplateFilterFields(templates || [], workoutTemplateColumns);
+  }, [templates]);
+  
   const {
     templates = [],
     savedView,
@@ -46,6 +52,7 @@ const TemplatesManagement = () => {
     handleSaveTemplate,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,
     deleteTemplate,
@@ -88,7 +95,7 @@ const TemplatesManagement = () => {
                   dataCount={templates?.length || 0}
                   singularLabel="תוכנית"
                   pluralLabel="תוכניות"
-                  filterFields={getWorkoutTemplateFilterFields(templates || [])}
+                  filterFields={workoutTemplateFilterFields}
                   searchPlaceholder="חיפוש לפי שם, תיאור, שם ליד, טלפון או אימייל..."
                   addButtonLabel="הוסף תוכנית"
                   onAddClick={handleAddTemplate}
@@ -107,6 +114,7 @@ const TemplatesManagement = () => {
                       templates={templates || []}
                       onEdit={handleEditTemplate}
                       onDelete={handleDeleteClick}
+                      onBulkDelete={handleBulkDelete}
                     />
                   )}
                 </div>

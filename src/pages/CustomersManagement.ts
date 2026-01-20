@@ -4,21 +4,33 @@
  * Handles all business logic, data fetching, and state management
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
-import { selectFilterGroup, selectSearchQuery } from '@/store/slices/tableStateSlice';
+import { 
+  selectFilterGroup, 
+  selectSearchQuery, 
+  selectCurrentPage, 
+  selectPageSize, 
+  selectTotalCount,
+  setCurrentPage,
+  setPageSize,
+  setTotalCount,
+} from '@/store/slices/tableStateSlice';
+import { useToast } from '@/hooks/use-toast';
 
 export const useCustomersManagement = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
+  const { toast } = useToast();
   
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
 
@@ -26,10 +38,39 @@ export const useCustomersManagement = () => {
   const { defaultView } = useDefaultView('customers');
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'customers'));
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'customers'));
+  const currentPage = useAppSelector((state) => selectCurrentPage(state, 'customers'));
+  const pageSize = useAppSelector((state) => selectPageSize(state, 'customers'));
 
-  const { data: customers = [], isLoading: isLoadingCustomers } = useCustomers({
+  const { data: customersResult, isLoading: isLoadingCustomers } = useCustomers({
     search: searchQuery,
     filterGroup,
+    page: currentPage,
+    pageSize,
+  });
+
+  const customers = customersResult?.data ?? [];
+  const totalCustomers = customersResult?.totalCount ?? 0;
+
+  // Update total count in Redux when it changes
+  useEffect(() => {
+    if (customersResult?.totalCount !== undefined) {
+      dispatch(setTotalCount({ resourceKey: 'customers', totalCount: customersResult.totalCount }));
+    }
+  }, [customersResult?.totalCount, dispatch]);
+
+  // Reset to page 1 when filters or search change (but not on initial load)
+  const prevFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const currentFilters = JSON.stringify({ searchQuery, filterGroup });
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters) {
+      // Filters changed, reset to page 1
+      dispatch(setCurrentPage({ resourceKey: 'customers', page: 1 }));
+    }
+    prevFiltersRef.current = currentFilters;
+  }, [searchQuery, filterGroup, dispatch]);
+  const bulkDeleteCustomers = useBulkDeleteRecords({
+    table: 'customers',
+    invalidateKeys: [['customers']],
   });
 
   useSyncSavedViewFilters('customers', savedView, isLoadingView);
@@ -70,9 +111,28 @@ export const useCustomersManagement = () => {
 
   const filteredCustomers = useMemo(() => customers, [customers]);
 
+  // Pagination handlers
+  const handlePageChange = useCallback((page: number) => {
+    dispatch(setCurrentPage({ resourceKey: 'customers', page }));
+  }, [dispatch]);
+
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    dispatch(setPageSize({ resourceKey: 'customers', pageSize: newPageSize }));
+  }, [dispatch]);
+
+  const handleBulkDelete = async (payload: { ids: string[] }) => {
+    await bulkDeleteCustomers.mutateAsync(payload.ids);
+    toast({
+      title: 'הצלחה',
+      description: 'הלקוחות נמחקו בהצלחה',
+    });
+  };
+
   return {
     // Data
-    customers: filteredCustomers,
+    customers, // Raw customers data
+    filteredCustomers, // Filtered customers (same as customers since filtering happens in useCustomers hook)
+    totalCustomers, // Total count for pagination
     savedView,
     isLoadingCustomers,
     isLoadingView,
@@ -80,12 +140,16 @@ export const useCustomersManagement = () => {
     // State
     searchQuery,
     isSaveViewModalOpen,
+    currentPage,
+    pageSize,
     
     // Handlers
     handleSaveViewClick,
     setIsSaveViewModalOpen,
     handleLogout,
     getCurrentFilterConfig,
+    handleBulkDelete,
+    handlePageChange,
+    handlePageSizeChange,
   };
 };
-

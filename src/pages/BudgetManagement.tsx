@@ -4,7 +4,7 @@
  * Pure presentation component - all logic is in BudgetManagement.ts
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
@@ -36,6 +36,11 @@ const BudgetManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'budgets'));
+  
+  // Generate filter fields with all renderable columns
+  const budgetFilterFields = useMemo(() => {
+    return getBudgetFilterFields(budgets || [], budgetColumns);
+  }, [budgets]);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -68,6 +73,7 @@ const BudgetManagement = () => {
     handleSaveBudget,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,
     deleteBudget,
@@ -120,7 +126,7 @@ const BudgetManagement = () => {
                   dataCount={budgets.length}
                   singularLabel="תקציב"
                   pluralLabel="תקציבים"
-                  filterFields={getBudgetFilterFields(budgets)}
+                  filterFields={useMemo(() => getBudgetFilterFields(budgets || [], budgetColumns), [budgets])}
                   searchPlaceholder="חיפוש לפי שם או תיאור..."
                   addButtonLabel="הוסף תקציב"
                   onAddClick={handleAddBudget}
@@ -144,6 +150,7 @@ const BudgetManagement = () => {
                       onDelete={handleDeleteClick}
                       onExportPDF={handleExportPDF}
                       onSendWhatsApp={handleSendWhatsApp}
+                      onBulkDelete={handleBulkDelete}
                       onViewDetails={(budget) => {
                         setViewingBudgetId(budget.id);
                         // Update URL to include budget_id for shareable link

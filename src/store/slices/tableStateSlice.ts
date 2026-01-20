@@ -11,7 +11,7 @@ import {
   updateGroupInGroup,
 } from '@/utils/filterGroupUtils';
 
-export type ResourceKey = 'leads' | 'customers' | 'templates' | 'nutrition_templates' | 'budgets' | 'meetings';
+export type ResourceKey = 'leads' | 'customers' | 'templates' | 'nutrition_templates' | 'budgets' | 'meetings' | 'subscription_types' | 'payments';
 
 export interface TableState {
   columnVisibility: Record<string, boolean>;
@@ -27,6 +27,10 @@ export interface TableState {
     level2: 'asc' | 'desc' | null;
   };
   collapsedGroups: string[]; // Array of collapsed group keys (supports composite keys for multi-level)
+  // Pagination state
+  currentPage: number;
+  pageSize: number; // 50 or 100
+  totalCount: number; // Total count from server (for pagination)
 }
 
 interface TableStateMap {
@@ -79,6 +83,10 @@ const tableStateSlice = createSlice({
             level2: null,
           },
           collapsedGroups: [],
+          // Pagination state
+          currentPage: 1,
+          pageSize: 100, // Default to 100, can be changed to 50
+          totalCount: 0,
         };
       }
     },
@@ -98,7 +106,7 @@ const tableStateSlice = createSlice({
         state.tables[resourceKey] = {
           columnVisibility: { [columnId]: visible },
           columnSizing: {},
-          columnOrder: [columnId],
+            columnOrder: [columnId],
           searchQuery: '',
           activeFilters: [],
           filterGroup: createRootGroup([]),
@@ -106,6 +114,10 @@ const tableStateSlice = createSlice({
           groupByKeys: [null, null],
           groupSorting: { level1: null, level2: null },
           collapsedGroups: [],
+          // Pagination state
+          currentPage: 1,
+          pageSize: 100,
+          totalCount: 0,
         };
         return;
       }
@@ -421,12 +433,61 @@ const tableStateSlice = createSlice({
       }
       state.tables[resourceKey].collapsedGroups = collapsedGroups;
     },
+
+    // Pagination actions
+    setCurrentPage: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        page: number;
+      }>
+    ) => {
+      const { resourceKey, page } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      state.tables[resourceKey].currentPage = Math.max(1, page); // Ensure page >= 1
+    },
+
+    setPageSize: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        pageSize: number;
+      }>
+    ) => {
+      const { resourceKey, pageSize } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      // Only allow 50 or 100
+      const newPageSize = pageSize === 50 || pageSize === 100 ? pageSize : 100;
+      state.tables[resourceKey].pageSize = newPageSize;
+      state.tables[resourceKey].currentPage = 1; // Reset to first page when page size changes
+    },
+
+    setTotalCount: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        totalCount: number;
+      }>
+    ) => {
+      const { resourceKey, totalCount } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      state.tables[resourceKey].totalCount = Math.max(0, totalCount);
+    },
   },
 });
 
 export const {
   initializeTableState,
   setColumnVisibility,
+  setCurrentPage,
+  setPageSize,
+  setTotalCount,
   toggleColumnVisibility,
   setAllColumnVisibility,
   setColumnSizing,
@@ -540,3 +601,16 @@ export const selectCollapsedGroups = createSelector(
     return tableState?.collapsedGroups ?? DEFAULT_COLLAPSED_GROUPS;
   }
 );
+
+// Pagination selectors
+export const selectCurrentPage = (state: { tableState: TableStateState }, resourceKey: ResourceKey): number => {
+  return state.tableState.tables[resourceKey]?.currentPage ?? 1;
+};
+
+export const selectPageSize = (state: { tableState: TableStateState }, resourceKey: ResourceKey): number => {
+  return state.tableState.tables[resourceKey]?.pageSize ?? 100;
+};
+
+export const selectTotalCount = (state: { tableState: TableStateState }, resourceKey: ResourceKey): number => {
+  return state.tableState.tables[resourceKey]?.totalCount ?? 0;
+};

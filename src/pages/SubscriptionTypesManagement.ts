@@ -15,6 +15,7 @@ import {
   useCreateSubscriptionType,
   useUpdateSubscriptionType,
 } from '@/hooks/useSubscriptionTypes';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
@@ -61,6 +62,11 @@ export const useSubscriptionTypesManagement = () => {
   const createSubscriptionType = useCreateSubscriptionType();
   const updateSubscriptionType = useUpdateSubscriptionType();
   const deleteSubscriptionType = useDeleteSubscriptionType();
+  const bulkDeleteSubscriptionTypes = useBulkDeleteRecords({
+    table: 'subscription_types',
+    invalidateKeys: [['subscriptionTypes']],
+    createdByField: 'created_by',
+  });
 
   useSyncSavedViewFilters('subscription_types', savedView, isLoadingView);
 
@@ -172,6 +178,14 @@ export const useSubscriptionTypesManagement = () => {
     }
   };
 
+  const handleBulkDelete = async (payload: { ids: string[] }) => {
+    await bulkDeleteSubscriptionTypes.mutateAsync(payload.ids);
+    toast({
+      title: 'הצלחה',
+      description: 'סוגי המנוי נמחקו בהצלחה',
+    });
+  };
+
   const handleSaveViewClick = () => {
     setIsSaveViewModalOpen(true);
   };
@@ -225,6 +239,7 @@ export const useSubscriptionTypesManagement = () => {
     handleSaveSubscriptionType,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,
     

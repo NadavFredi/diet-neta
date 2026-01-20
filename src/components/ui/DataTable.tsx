@@ -55,6 +55,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 // Stable default values to prevent unnecessary re-renders
 const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {};
@@ -63,6 +74,7 @@ const DEFAULT_COLUMN_ORDER: string[] = [];
 const DEFAULT_GROUP_BY_KEYS: [string | null, string | null] = [null, null];
 const DEFAULT_GROUP_SORTING: { level1: 'asc' | 'desc' | null; level2: 'asc' | 'desc' | null } = { level1: null, level2: null };
 const DEFAULT_COLLAPSED_GROUPS: string[] = [];
+const SELECTION_COLUMN_ID = '__select__';
 
 export interface DataTableColumn<T> {
   id: string;
@@ -80,6 +92,7 @@ export interface DataTableColumn<T> {
     align?: 'left' | 'right' | 'center';
     isNumeric?: boolean;
     truncate?: boolean; // Whether to truncate this column's content
+    isSelection?: boolean;
   };
 }
 
@@ -100,6 +113,11 @@ export interface DataTableProps<T> {
   serverSideSorting?: boolean; // If true, disable client-side sorting and use onSortChange
   sortBy?: string; // Current sort column (for server-side sorting)
   sortOrder?: 'ASC' | 'DESC'; // Current sort order (for server-side sorting)
+  enableRowSelection?: boolean;
+  getRowId?: (row: T) => string;
+  totalCount?: number;
+  selectionLabel?: string;
+  onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
 }
 
 // Helper function to get header text and smart truncate
@@ -374,8 +392,14 @@ export function DataTable<T extends Record<string, any>>({
   serverSideSorting = false,
   sortBy: externalSortBy,
   sortOrder: externalSortOrder,
+  enableRowSelection = false,
+  getRowId,
+  totalCount,
+  selectionLabel = 'רשומות',
+  onBulkDelete,
 }: DataTableProps<T>) {
   const dispatch = useAppDispatch();
+  const { toast } = useToast();
   
   // For server-side sorting, sync sorting state from props
   // For client-side sorting, use local state
@@ -400,6 +424,99 @@ export function DataTable<T extends Record<string, any>>({
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const tableRef = React.useRef<HTMLDivElement>(null);
   const [hasMeasured, setHasMeasured] = useState(false);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [selectAllAcrossPages, setSelectAllAcrossPages] = useState(false);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const getRowIdValue = useCallback(
+    (row: T): string => {
+      if (getRowId) return getRowId(row);
+      const value = (row as any)?.id;
+      return value ? String(value) : '';
+    },
+    [getRowId]
+  );
+
+  const currentPageIds = useMemo(
+    () => data.map(getRowIdValue).filter((id) => id),
+    [data, getRowIdValue]
+  );
+
+  const totalItems = totalCount ?? data.length;
+  const selectedCount = selectAllAcrossPages ? totalItems : selectedRowIds.size;
+  const allPageSelected = currentPageIds.length > 0 && currentPageIds.every((id) => selectedRowIds.has(id));
+  const somePageSelected = currentPageIds.some((id) => selectedRowIds.has(id)) && !allPageSelected;
+  const showSelectAllAcrossPages = !selectAllAcrossPages && allPageSelected && totalItems > currentPageIds.length;
+
+  const handleToggleAllPage = (checked: boolean) => {
+    if (selectAllAcrossPages) {
+      setSelectAllAcrossPages(false);
+      setSelectedRowIds(new Set());
+      return;
+    }
+
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        currentPageIds.forEach((id) => next.add(id));
+      } else {
+        currentPageIds.forEach((id) => next.delete(id));
+      }
+      return next;
+    });
+  };
+
+  const handleToggleRow = (rowId: string, checked: boolean) => {
+    if (!rowId) return;
+    if (selectAllAcrossPages) {
+      const next = new Set(currentPageIds);
+      if (checked) {
+        next.add(rowId);
+      } else {
+        next.delete(rowId);
+      }
+      setSelectAllAcrossPages(false);
+      setSelectedRowIds(next);
+      return;
+    }
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(rowId);
+      } else {
+        next.delete(rowId);
+      }
+      return next;
+    });
+  };
+
+  const handleClearSelection = () => {
+    setSelectAllAcrossPages(false);
+    setSelectedRowIds(new Set());
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (!onBulkDelete) return;
+    setIsBulkDeleting(true);
+    try {
+      await onBulkDelete({
+        ids: Array.from(selectedRowIds),
+        selectAllAcrossPages,
+        totalCount: totalItems,
+      });
+      handleClearSelection();
+      setIsBulkDeleteOpen(false);
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקה. נסה שוב.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   // Get state from Redux if resourceKey is provided, otherwise use local state (backward compatibility)
   // Use stable default constants to prevent unnecessary re-renders
@@ -439,6 +556,9 @@ export function DataTable<T extends Record<string, any>>({
 
   // Use Redux state if resourceKey is provided, otherwise use local state
   const effectiveColumnSizing = resourceKey ? columnSizing : localColumnSizing;
+  const derivedColumnSizing = enableRowSelection
+    ? { ...effectiveColumnSizing, [SELECTION_COLUMN_ID]: 48 }
+    : effectiveColumnSizing;
 
   // Fit-to-content: Measure and adjust column widths on initial load
   React.useEffect(() => {
@@ -556,6 +676,9 @@ export function DataTable<T extends Record<string, any>>({
   });
 
   const columnOrder = resourceKey ? (reduxColumnOrder.length > 0 ? reduxColumnOrder : columns.map((col) => col.id)) : localColumnOrder;
+  const derivedColumnOrder = enableRowSelection
+    ? [SELECTION_COLUMN_ID, ...columnOrder.filter((id) => id !== SELECTION_COLUMN_ID)]
+    : columnOrder;
 
   // Initialize column visibility for backward compatibility (when resourceKey is not provided)
   React.useEffect(() => {
@@ -597,6 +720,9 @@ export function DataTable<T extends Record<string, any>>({
 
   // Use Redux state if resourceKey is provided, otherwise use local state
   const effectiveColumnVisibility = resourceKey ? columnVisibility : localColumnVisibility;
+  const derivedColumnVisibility = enableRowSelection
+    ? { ...effectiveColumnVisibility, [SELECTION_COLUMN_ID]: true }
+    : effectiveColumnVisibility;
 
   // DnD Kit sensors
   const sensors = useSensors(
@@ -613,7 +739,7 @@ export function DataTable<T extends Record<string, any>>({
   // Convert our column format to TanStack Table format
   const tableColumns = useMemo<ColumnDef<T>[]>(() => {
     // Filter and order columns based on visibility and order state
-    const orderedColumns = columnOrder
+    const orderedColumns = derivedColumnOrder
       .map((id) => columns.find((col) => col.id === id))
       .filter((col): col is DataTableColumn<T> => col !== undefined && effectiveColumnVisibility[col.id] !== false);
 
@@ -627,14 +753,49 @@ export function DataTable<T extends Record<string, any>>({
     };
 
     // Calculate base width and weights for Smart Density
-    const visibleCount = orderedColumns.length;
-    const headerLengths = orderedColumns.map(col => getHeaderTextLength(col));
-    const totalLength = headerLengths.reduce((sum, len) => sum + len, 0);
     const baseWidth = 100; // Minimum readable width
     const charWidth = 10; // Pixels per character for Hebrew text (more generous)
     const iconSpace = 40; // Space reserved for icons
 
-    return orderedColumns.map((col, index) => {
+    const selectionColumn: ColumnDef<T> | null = enableRowSelection
+      ? {
+          id: SELECTION_COLUMN_ID,
+          header: () => (
+            <div className="flex items-center justify-center">
+              <Checkbox
+                checked={selectAllAcrossPages ? true : allPageSelected ? true : somePageSelected ? 'indeterminate' : false}
+                onCheckedChange={(value) => handleToggleAllPage(value === true)}
+                aria-label="בחר הכל בעמוד"
+                onClick={(event) => event.stopPropagation()}
+              />
+            </div>
+          ),
+          cell: ({ row }: any) => {
+            const rowId = getRowIdValue(row.original);
+            const checked = selectAllAcrossPages ? true : selectedRowIds.has(rowId);
+            return (
+              <div className="flex items-center justify-center" onClick={(event) => event.stopPropagation()}>
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={(value) => handleToggleRow(rowId, value === true)}
+                  aria-label="בחר שורה"
+                  disabled={!rowId}
+                />
+              </div>
+            );
+          },
+          enableSorting: false,
+          enableResizing: false,
+          enableHiding: false,
+          size: 48,
+          meta: {
+            align: 'center',
+            isSelection: true,
+          },
+        }
+      : null;
+
+    const dataColumns = orderedColumns.map((col) => {
       // Use provided size or calculate based on weighted width
       let defaultSize = col.size;
       
@@ -673,43 +834,67 @@ export function DataTable<T extends Record<string, any>>({
         meta: col.meta,
       };
     });
-  }, [columns, columnOrder, effectiveColumnVisibility]);
+
+    return selectionColumn ? [selectionColumn, ...dataColumns] : dataColumns;
+  }, [
+    columns,
+    derivedColumnOrder,
+    effectiveColumnVisibility,
+    enableRowSelection,
+    allPageSelected,
+    somePageSelected,
+    selectAllAcrossPages,
+    selectedRowIds,
+    getRowIdValue,
+    handleToggleAllPage,
+    handleToggleRow,
+  ]);
 
   const table = useReactTable({
     data,
     columns: tableColumns,
     state: {
       sorting,
-      columnSizing: effectiveColumnSizing,
-      columnVisibility: effectiveColumnVisibility,
-      columnOrder,
+      columnSizing: derivedColumnSizing,
+      columnVisibility: derivedColumnVisibility,
+      columnOrder: derivedColumnOrder,
     },
     onSortingChange: setSorting,
     onColumnSizingChange: (updater: any) => {
-      const newSizing = typeof updater === 'function' ? updater(effectiveColumnSizing) : updater;
+      const newSizing = typeof updater === 'function' ? updater(derivedColumnSizing) : updater;
+      const sanitizedSizing = enableRowSelection
+        ? Object.fromEntries(Object.entries(newSizing).filter(([key]) => key !== SELECTION_COLUMN_ID))
+        : newSizing;
       if (resourceKey) {
-        dispatch(setAllColumnSizingAction({ resourceKey, sizing: newSizing }));
+        dispatch(setAllColumnSizingAction({ resourceKey, sizing: sanitizedSizing }));
       } else {
-        setLocalColumnSizing(newSizing);
+        setLocalColumnSizing(sanitizedSizing);
       }
     },
     onColumnVisibilityChange: (updater: any) => {
-      const newVisibility = typeof updater === 'function' ? updater(effectiveColumnVisibility) : updater;
+      const newVisibility = typeof updater === 'function' ? updater(derivedColumnVisibility) : updater;
       if (resourceKey) {
         // Update Redux state column by column
         Object.keys(newVisibility).forEach((colId) => {
+          if (enableRowSelection && colId === SELECTION_COLUMN_ID) return;
           dispatch(setColumnVisibilityAction({ resourceKey, columnId: colId, visible: newVisibility[colId] }));
         });
       } else {
-        setLocalColumnVisibility(newVisibility);
+        const sanitizedVisibility = enableRowSelection
+          ? Object.fromEntries(Object.entries(newVisibility).filter(([key]) => key !== SELECTION_COLUMN_ID))
+          : newVisibility;
+        setLocalColumnVisibility(sanitizedVisibility);
       }
     },
     onColumnOrderChange: (updater: any) => {
-      const newOrder = typeof updater === 'function' ? updater(columnOrder) : updater;
+      const newOrder = typeof updater === 'function' ? updater(derivedColumnOrder) : updater;
+      const sanitizedOrder = enableRowSelection
+        ? newOrder.filter((id: string) => id !== SELECTION_COLUMN_ID)
+        : newOrder;
       if (resourceKey) {
-        dispatch(setColumnOrderAction({ resourceKey, order: newOrder }));
+        dispatch(setColumnOrderAction({ resourceKey, order: sanitizedOrder }));
       } else {
-        setLocalColumnOrder(newOrder);
+        setLocalColumnOrder(sanitizedOrder);
       }
     },
     getCoreRowModel: getCoreRowModel(),
@@ -970,10 +1155,48 @@ export function DataTable<T extends Record<string, any>>({
     );
   }
 
-  const visibleColumns = columns.filter((col) => effectiveColumnVisibility[col.id] !== false);
-
   return (
     <div className={cn('w-full', className)} dir={dir}>
+      {enableRowSelection && (selectedRowIds.size > 0 || selectAllAcrossPages) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-indigo-100 bg-indigo-50/40 px-4 py-3 mb-4">
+          <div className="text-sm text-slate-700">
+            {selectAllAcrossPages ? (
+              <span>
+                נבחרו כל {totalItems} {selectionLabel}
+              </span>
+            ) : (
+              <span>
+                נבחרו {selectedCount} מתוך {totalItems} {selectionLabel}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {showSelectAllAcrossPages && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectAllAcrossPages(true)}
+              >
+                בחר את כל {totalItems} {selectionLabel}
+              </Button>
+            )}
+            {onBulkDelete && (
+              <Button
+                type="button"
+                size="sm"
+                className="bg-red-600 hover:bg-red-600/90 text-white"
+                onClick={() => setIsBulkDeleteOpen(true)}
+              >
+                מחיקה
+              </Button>
+            )}
+            <Button type="button" variant="ghost" size="sm" onClick={handleClearSelection}>
+              נקה בחירה
+            </Button>
+          </div>
+        </div>
+      )}
       {/* Table with Horizontal Scroll */}
       <div 
         ref={tableRef}
@@ -1008,7 +1231,6 @@ export function DataTable<T extends Record<string, any>>({
             <TableContent
               table={table}
               tableColumns={tableColumns}
-              visibleColumns={visibleColumns}
               dir={dir}
               enableColumnReordering={enableColumnReordering}
               onRowClick={onRowClick}
@@ -1018,7 +1240,7 @@ export function DataTable<T extends Record<string, any>>({
               getCellContent={getCellContent}
               onHideColumn={handleHideColumn}
               isResizing={isResizing}
-              columnSizing={effectiveColumnSizing}
+              columnSizing={derivedColumnSizing}
               groupedData={groupedData}
               groupByKey={groupByKey}
               groupByKeys={groupByKeys}
@@ -1032,7 +1254,6 @@ export function DataTable<T extends Record<string, any>>({
           <TableContent
             table={table}
             tableColumns={tableColumns}
-            visibleColumns={visibleColumns}
             dir={dir}
             enableColumnReordering={enableColumnReordering}
             onRowClick={onRowClick}
@@ -1042,7 +1263,7 @@ export function DataTable<T extends Record<string, any>>({
             getCellContent={getCellContent}
             onHideColumn={handleHideColumn}
               isResizing={isResizing}
-              columnSizing={effectiveColumnSizing}
+              columnSizing={derivedColumnSizing}
               groupedData={groupedData}
               groupByKey={groupByKey}
               groupByKeys={groupByKeys}
@@ -1053,6 +1274,31 @@ export function DataTable<T extends Record<string, any>>({
           />
         )}
       </div>
+      {onBulkDelete && (
+        <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>מחיקת {selectionLabel}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {selectAllAcrossPages
+                  ? `את/ה עומד/ת למחוק ${totalItems} ${selectionLabel}.`
+                  : `את/ה עומד/ת למחוק ${selectedCount} ${selectionLabel}.`}{' '}
+                פעולה זו אינה ניתנת לשחזור.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction
+                onClick={handleConfirmBulkDelete}
+                className="bg-red-600 hover:bg-red-600/90 text-white"
+                disabled={isBulkDeleting}
+              >
+                {isBulkDeleting ? 'מוחק...' : 'אישור מחיקה'}
+              </AlertDialogAction>
+              <AlertDialogCancel disabled={isBulkDeleting}>ביטול</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
@@ -1061,7 +1307,6 @@ export function DataTable<T extends Record<string, any>>({
 function TableContent<T>({
   table,
   tableColumns,
-  visibleColumns,
   dir,
   enableColumnReordering,
   onRowClick,
@@ -1082,7 +1327,6 @@ function TableContent<T>({
 }: {
   table: any;
   tableColumns: any[];
-  visibleColumns: any[];
   dir: 'ltr' | 'rtl';
   enableColumnReordering: boolean;
   onRowClick?: (row: T) => void;
@@ -1128,7 +1372,10 @@ function TableContent<T>({
           const headerContent = headers.map((header: any) => {
             const width = columnSizing[header.id] || header.getSize() || 150;
             
-            if (enableColumnReordering) {
+            const column = table.getColumn(header.id);
+            const meta = column?.columnDef.meta;
+
+            if (enableColumnReordering && !meta?.isSelection) {
               return (
                 <SortableHeader
                   key={header.id}
@@ -1146,11 +1393,9 @@ function TableContent<T>({
             }
 
             // Regular header (non-sortable) with improved styling
-            const column = table.getColumn(header.id);
             const canSort = column?.getCanSort();
             const canResize = column?.columnDef.enableResizing !== false;
             const canHide = column?.columnDef.enableHiding !== false;
-            const meta = column?.columnDef.meta;
             const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
             const [isHovered, setIsHovered] = useState(false);
 
@@ -1394,7 +1639,7 @@ function TableContent<T>({
                     )}
                     onClick={() => onToggleGroup(level1Key)}
                   >
-                    <td colSpan={visibleColumns.length} className="px-4 py-3">
+                    <td colSpan={table.getVisibleLeafColumns().length} className="px-4 py-3">
                       <div
                         className="flex items-center gap-3"
                         style={{
@@ -1434,7 +1679,7 @@ function TableContent<T>({
                             paddingLeft: dir === 'ltr' ? '24px' : '0',
                           }}
                         >
-                          <td colSpan={visibleColumns.length} className="px-4 py-2.5">
+                          <td colSpan={table.getVisibleLeafColumns().length} className="px-4 py-2.5">
                             <div
                               className="flex items-center gap-3"
                               style={{
@@ -1550,7 +1795,7 @@ function TableContent<T>({
                     )}
                     onClick={() => onToggleGroup(group.groupKey)}
                   >
-                    <td colSpan={visibleColumns.length} className="px-4 py-3">
+                    <td colSpan={table.getVisibleLeafColumns().length} className="px-4 py-3">
                       <div
                         className="flex items-center gap-3"
                         style={{
@@ -1689,5 +1934,3 @@ function TableContent<T>({
     </table>
   );
 }
-
-

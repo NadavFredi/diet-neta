@@ -4,7 +4,7 @@
  * Pure presentation component - all logic is in CustomersManagement.ts
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
@@ -12,8 +12,9 @@ import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
+import { Pagination } from '@/components/dashboard/Pagination';
 import { useAppSelector } from '@/store/hooks';
-import { CUSTOMER_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { getCustomerFilterFields } from '@/hooks/useTableFilters';
 import { customerColumns } from '@/components/dashboard/columns/customerColumns';
 import { useCustomersManagement } from './CustomersManagement';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
@@ -43,9 +44,21 @@ const CustomersManagement = () => {
     handleLogout,
     getCurrentFilterConfig,
     searchQuery,
+    filteredCustomers,
+    totalCustomers,
+    currentPage,
+    pageSize,
+    handlePageChange,
+    handlePageSizeChange,
+    handleBulkDelete,
   } = useCustomersManagement();
 
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'customers'));
+
+  // Generate filter fields with all renderable columns
+  const customerFilterFields = useMemo(() => {
+    return getCustomerFilterFields(filteredCustomers || customers || [], customerColumns);
+  }, [filteredCustomers, customers]);
 
   // Load advanced filters from saved view
   useEffect(() => {
@@ -125,8 +138,6 @@ const CustomersManagement = () => {
     setIsAddLeadDialogOpen(false);
   }, [queryClient]);
 
-  const filteredCustomers = customers; // For now, filtering happens in the hook
-
   return (
     <>
       <DashboardHeader
@@ -148,10 +159,10 @@ const CustomersManagement = () => {
               <TableActionHeader
                 resourceKey="customers"
                 title={savedView?.view_name || 'ניהול לקוחות'}
-                dataCount={filteredCustomers?.length || 0}
+                dataCount={totalCustomers || 0}
                 singularLabel="לקוח"
                 pluralLabel="לקוחות"
-                filterFields={CUSTOMER_FILTER_FIELDS}
+                filterFields={customerFilterFields}
                 searchPlaceholder="חיפוש לפי שם, טלפון או אימייל..."
                 addButtonLabel="הוסף ליד"
                 onAddClick={handleAddLead}
@@ -169,7 +180,20 @@ const CustomersManagement = () => {
                     <p className="text-gray-600">טוען לקוחות...</p>
                   </div>
                 ) : filteredCustomers && Array.isArray(filteredCustomers) && filteredCustomers.length > 0 ? (
-                  <CustomersDataTable customers={filteredCustomers} />
+                  <>
+                    <CustomersDataTable customers={filteredCustomers} onBulkDelete={handleBulkDelete} />
+                    {/* Pagination Footer */}
+                    {totalCustomers > 0 && (
+                      <Pagination
+                        currentPage={currentPage}
+                        pageSize={pageSize}
+                        totalItems={totalCustomers}
+                        onPageChange={handlePageChange}
+                        onPageSizeChange={handlePageSizeChange}
+                        isLoading={isLoadingCustomers}
+                      />
+                    )}
+                  </>
                 ) : (
                   <div className="p-8 text-center text-gray-500">
                     <p className="text-lg font-medium mb-2">לא נמצאו לקוחות</p>
@@ -209,7 +233,7 @@ const CustomersManagement = () => {
         onOpenChange={setIsEditViewModalOpen}
         view={viewToEdit}
         currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={CUSTOMER_FILTER_FIELDS}
+        filterFields={customerFilterFields}
         onSuccess={() => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);

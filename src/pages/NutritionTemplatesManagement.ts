@@ -16,6 +16,7 @@ import {
   useUpdateNutritionTemplate,
   type NutritionTemplate,
 } from '@/hooks/useNutritionTemplates';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
@@ -56,6 +57,11 @@ export const useNutritionTemplatesManagement = () => {
   const createTemplate = useCreateNutritionTemplate();
   const updateTemplate = useUpdateNutritionTemplate();
   const deleteTemplate = useDeleteNutritionTemplate();
+  const bulkDeleteTemplates = useBulkDeleteRecords({
+    table: 'nutrition_templates',
+    invalidateKeys: [['nutritionTemplates']],
+    createdByField: 'created_by',
+  });
 
   useSyncSavedViewFilters('nutrition_templates', savedView, isLoadingView);
 
@@ -167,6 +173,14 @@ export const useNutritionTemplatesManagement = () => {
     }
   };
 
+  const handleBulkDelete = async (payload: { ids: string[] }) => {
+    await bulkDeleteTemplates.mutateAsync(payload.ids);
+    toast({
+      title: 'הצלחה',
+      description: 'התבניות נמחקו בהצלחה',
+    });
+  };
+
   const handleSaveViewClick = () => {
     setIsSaveViewModalOpen(true);
   };
@@ -216,6 +230,7 @@ export const useNutritionTemplatesManagement = () => {
     handleSaveTemplate,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,
     
@@ -223,4 +238,3 @@ export const useNutritionTemplatesManagement = () => {
     deleteTemplate,
   };
 };
-

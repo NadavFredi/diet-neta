@@ -68,15 +68,22 @@ export interface CustomerWithLeads extends Customer {
   }>;
 }
 
-// Fetch all customers with lead counts
-export const useCustomers = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
+// Fetch all customers with lead counts (with pagination)
+export const useCustomers = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+}) => {
   const { user } = useAppSelector((state) => state.auth);
+  const page = filters?.page ?? 1;
+  const pageSize = filters?.pageSize ?? 100;
 
   return useQuery({
     queryKey: ['customers', filters, user?.email],
     queryFn: async () => {
       if (!user?.email) {
-        return [];
+        return { data: [], totalCount: 0 };
       }
 
       try {
@@ -93,10 +100,32 @@ export const useCustomers = (filters?: { search?: string; filterGroup?: FilterGr
         const searchGroup = filters?.search ? createSearchGroup(filters.search, ['full_name', 'phone', 'email']) : null;
         const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
 
+        // Get total count first (for pagination)
+        let countQuery = supabase
+          .from('customers_with_lead_counts')
+          .select('*', { count: 'exact', head: true });
+
+        if (combinedGroup) {
+          countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
+        }
+
+        const { count, error: countError } = await countQuery;
+
+        if (countError) {
+          throw countError;
+        }
+
+        const totalCount = count ?? 0;
+
+        // Get paginated data
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+
         let query = supabase
           .from('customers_with_lead_counts')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .range(from, to);
 
         if (combinedGroup) {
           query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
@@ -108,13 +137,12 @@ export const useCustomers = (filters?: { search?: string; filterGroup?: FilterGr
           throw customersError;
         }
 
-        if (!customersData || customersData.length === 0) {
-          return [];
-        }
-
-        return (customersData || []) as Customer[];
+        return {
+          data: (customersData || []) as Customer[],
+          totalCount,
+        };
       } catch (error: any) {
-        return [];
+        return { data: [], totalCount: 0 };
       }
     },
     enabled: !!user?.email,

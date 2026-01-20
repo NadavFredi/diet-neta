@@ -5,7 +5,7 @@
  * Pure presentation component - all logic is in PaymentsManagement.ts
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
@@ -63,6 +63,12 @@ const PaymentsManagement = () => {
     savedView,
     defaultView,
   } = usePaymentsManagement();
+  
+  // Generate filter fields with all renderable columns
+  const paymentFilterFields = useMemo(() => {
+    return getPaymentFilterFields(payments || [], undefined);
+  }, [payments]);
+
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'payments'));
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
@@ -132,7 +138,7 @@ const PaymentsManagement = () => {
                 dataCount={payments.length}
                 singularLabel="תשלום"
                 pluralLabel="תשלומים"
-                filterFields={getPaymentFilterFields(payments)}
+                filterFields={useMemo(() => getPaymentFilterFields(payments || [], undefined), [payments])}
                 searchPlaceholder="חיפוש לפי מוצר, לקוח או תאריך..."
                 enableColumnVisibility={false}
                 enableFilters={true}

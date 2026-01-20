@@ -79,6 +79,44 @@ export interface LeadFilterOptions {
   weights: string[];
 }
 
+const leadFieldConfigs: FilterFieldConfigMap = {
+  createdDate: { column: 'created_date_formatted', type: 'date' },
+  birthDate: { column: 'birth_date_formatted', type: 'date' },
+  name: { column: 'customer_name', type: 'text' },
+  phone: { column: 'customer_phone', type: 'text' },
+  email: { column: 'customer_email', type: 'text' },
+  status: { column: 'status_main', type: 'select' },
+  age: { column: 'age', type: 'number' },
+  height: { column: 'height', type: 'number' },
+  weight: { column: 'weight', type: 'number' },
+  fitnessGoal: { column: 'fitness_goal', type: 'select' },
+  activityLevel: { column: 'activity_level', type: 'select' },
+  preferredTime: { column: 'preferred_time', type: 'select' },
+  source: { column: 'source', type: 'select' },
+  notes: { column: 'notes', type: 'text' },
+  id: { column: 'id', type: 'text' },
+  customer_name: { column: 'customer_name', type: 'text' },
+  customer_phone: { column: 'customer_phone', type: 'text' },
+  customer_email: { column: 'customer_email', type: 'text' },
+  status_main: { column: 'status_main', type: 'text' },
+  fitness_goal: { column: 'fitness_goal', type: 'text' },
+  activity_level: { column: 'activity_level', type: 'text' },
+  preferred_time: { column: 'preferred_time', type: 'text' },
+  source_text: { column: 'source', type: 'text' },
+};
+
+const leadSearchColumns = [
+  'customer_name',
+  'customer_phone',
+  'customer_email',
+  'status_main',
+  'fitness_goal',
+  'activity_level',
+  'preferred_time',
+  'source_text',
+  'notes',
+];
+
 // =====================================================
 // Service Functions
 // =====================================================
@@ -94,45 +132,7 @@ export async function fetchFilteredLeads(
     const limit = filters.limit || 100;
     const offset = filters.offset || 0;
 
-    const leadFieldConfigs: FilterFieldConfigMap = {
-      createdDate: { column: 'created_date_formatted', type: 'date' },
-      birthDate: { column: 'birth_date_formatted', type: 'date' },
-      name: { column: 'customer_name', type: 'text' },
-      phone: { column: 'customer_phone', type: 'text' },
-      email: { column: 'customer_email', type: 'text' },
-      status: { column: 'status_main', type: 'select' },
-      age: { column: 'age', type: 'number' },
-      height: { column: 'height', type: 'number' },
-      weight: { column: 'weight', type: 'number' },
-      fitnessGoal: { column: 'fitness_goal', type: 'select' },
-      activityLevel: { column: 'activity_level', type: 'select' },
-      preferredTime: { column: 'preferred_time', type: 'select' },
-      source: { column: 'source', type: 'select' },
-      notes: { column: 'notes', type: 'text' },
-      id: { column: 'id', type: 'text' },
-      customer_name: { column: 'customer_name', type: 'text' },
-      customer_phone: { column: 'customer_phone', type: 'text' },
-      customer_email: { column: 'customer_email', type: 'text' },
-      status_main: { column: 'status_main', type: 'text' },
-      fitness_goal: { column: 'fitness_goal', type: 'text' },
-      activity_level: { column: 'activity_level', type: 'text' },
-      preferred_time: { column: 'preferred_time', type: 'text' },
-      source_text: { column: 'source', type: 'text' },
-    };
-
-    const searchColumns = [
-      'customer_name',
-      'customer_phone',
-      'customer_email',
-      'status_main',
-      'fitness_goal',
-      'activity_level',
-      'preferred_time',
-      'source_text',
-      'notes',
-    ];
-
-    const searchGroup = filters.searchQuery ? createSearchGroup(filters.searchQuery, searchColumns) : null;
+    const searchGroup = filters.searchQuery ? createSearchGroup(filters.searchQuery, leadSearchColumns) : null;
     const combinedGroup = mergeFilterGroups(filters.filterGroup || null, searchGroup);
 
     let query = supabase
@@ -200,6 +200,23 @@ export async function fetchFilteredLeads(
   } catch (error) {
     throw error;
   }
+}
+
+export async function fetchLeadIdsByFilter(filters: LeadFilterParams): Promise<string[]> {
+  const searchGroup = filters.searchQuery ? createSearchGroup(filters.searchQuery, leadSearchColumns) : null;
+  const combinedGroup = mergeFilterGroups(filters.filterGroup || null, searchGroup);
+
+  let query = supabase
+    .from('v_leads_with_customer')
+    .select('id');
+
+  if (combinedGroup) {
+    query = applyFilterGroupToQuery(query, combinedGroup, leadFieldConfigs);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map((row: { id: string }) => row.id);
 }
 
 /**

@@ -22,6 +22,7 @@ interface BudgetsDataTableProps {
   onExportPDF?: (budget: Budget) => void;
   onSendWhatsApp?: (budget: Budget) => void;
   onViewDetails?: (budget: Budget) => void;
+  onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
 }
 
 export const budgetColumns: DataTableColumn<Budget>[] = [
@@ -217,6 +218,7 @@ export const BudgetsDataTable = ({
   onExportPDF,
   onSendWhatsApp,
   onViewDetails,
+  onBulkDelete,
 }: BudgetsDataTableProps) => {
   const { generatingPDF, sendingWhatsApp } = useAppSelector((state) => state.budget);
   const navigate = useNavigate();
@@ -368,7 +370,10 @@ export const BudgetsDataTable = ({
       enableColumnVisibility={false}
       enableColumnReordering={true}
       resourceKey="budgets"
+      enableRowSelection
+      totalCount={budgets.length}
+      onBulkDelete={onBulkDelete}
+      selectionLabel="תקציבים"
     />
   );
 };
-

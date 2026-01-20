@@ -4,7 +4,7 @@
  * Pure presentation component - all logic is in SubscriptionTypesManagement.ts
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
@@ -32,6 +32,11 @@ const SubscriptionTypesManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'subscription_types'));
+  
+  // Generate filter fields with all renderable columns
+  const subscriptionTypeFilterFields = useMemo(() => {
+    return getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns);
+  }, [subscriptionTypes]);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -64,6 +69,7 @@ const SubscriptionTypesManagement = () => {
     handleSaveSubscriptionType,
     handleDeleteClick,
     handleConfirmDelete,
+    handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,
     deleteSubscriptionType,
@@ -102,7 +108,7 @@ const SubscriptionTypesManagement = () => {
                   dataCount={subscriptionTypes.length}
                   singularLabel="סוג מנוי"
                   pluralLabel="סוגי מנויים"
-                  filterFields={getSubscriptionTypeFilterFields(subscriptionTypes)}
+                  filterFields={useMemo(() => getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns), [subscriptionTypes])}
                   searchPlaceholder="חיפוש לפי שם..."
                   addButtonLabel="הוסף סוג מנוי"
                   onAddClick={handleAddSubscriptionType}
@@ -124,6 +130,7 @@ const SubscriptionTypesManagement = () => {
                       subscriptionTypes={subscriptionTypes}
                       onEdit={handleEditSubscriptionType}
                       onDelete={handleDeleteClick}
+                      onBulkDelete={handleBulkDelete}
                     />
                   ) : (
                     <div className="p-8 text-center text-gray-500">

@@ -9,12 +9,14 @@ interface NutritionTemplatesDataTableProps {
   templates: NutritionTemplate[];
   onEdit: (template: NutritionTemplate) => void;
   onDelete: (template: NutritionTemplate) => void;
+  onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
 }
 
 export const NutritionTemplatesDataTable = ({
   templates,
   onEdit,
   onDelete,
+  onBulkDelete,
 }: NutritionTemplatesDataTableProps) => {
   // CRITICAL: Pass ALL columns from schema to DataTable
   // This ensures the column visibility popover shows ALL available Nutrition Template columns
@@ -78,8 +80,11 @@ export const NutritionTemplatesDataTable = ({
       enableColumnVisibility={false}
       enableColumnReordering={true}
       resourceKey="nutrition_templates"
+      enableRowSelection
+      totalCount={templates.length}
+      onBulkDelete={onBulkDelete}
+      selectionLabel="תבניות תזונה"
     />
   );
 };
-
 
