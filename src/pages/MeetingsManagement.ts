@@ -13,7 +13,6 @@ import { useSavedView } from '@/hooks/useSavedViews';
 import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import {
   selectSearchQuery,
-  selectActiveFilters,
   selectFilterGroup,
   setSearchQuery,
   addFilter as addFilterAction,
@@ -30,7 +29,6 @@ export const useMeetingsManagement = () => {
   const viewId = searchParams.get('view_id');
   
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'meetings'));
-  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'meetings'));
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'meetings'));
 
   const { data: meetings = [], isLoading: isLoadingMeetings } = useMeetings({
@@ -94,7 +92,6 @@ export const useMeetingsManagement = () => {
     handleLogout,
     getCurrentFilterConfig,
     searchQuery,
-    activeFilters,
     handleSearchChange,
     addFilter,
     removeFilter,

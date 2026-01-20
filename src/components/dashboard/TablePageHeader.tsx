@@ -373,6 +373,7 @@ export const TablePageHeader = ({
           {enableFilters && activeFilters && activeFilters.length > 0 && (
             <FilterChips
               filters={activeFilters}
+              filterGroup={filterGroup}
               onRemove={handleRemoveFilter}
               onClearAll={handleClearFilters}
               onEdit={canEditFilters ? setEditingFilter : undefined}

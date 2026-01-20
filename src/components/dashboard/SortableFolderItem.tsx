@@ -50,7 +50,7 @@ export const SortableFolderItem: React.FC<SortableFolderItemProps> = ({
           'flex items-center justify-center z-10',
           isActive
             ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-            : 'text-white/60 hover:text-white hover:bg-white/20'
+            : 'text-white/90 hover:text-white hover:bg-white/20'
         )}
         style={{ marginLeft: '8px' }}
         title="גרור לשינוי סדר"

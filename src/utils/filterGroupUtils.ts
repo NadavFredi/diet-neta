@@ -107,7 +107,7 @@ export const removeGroupFromGroup = (group: FilterGroup, groupId: string): Filte
 export const isAdvancedFilterGroup = (group?: FilterGroup | null): boolean => {
   if (!group) return false;
   if (group.not || group.operator === 'or') return true;
-  return group.children.some((child) => isFilterGroup(child) && isAdvancedFilterGroup(child));
+  return group.children.some((child) => isFilterGroup(child));
 };
 
 export const createSearchGroup = (query: string, fieldIds: string[]): FilterGroup => {

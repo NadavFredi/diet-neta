@@ -441,8 +441,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
             <span className="flex-1 text-right">{item.label}</span>
             {supportsViews && (
               <div className="flex items-center gap-1">
-                {/* Sort controls */}
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Sort controls - hidden and takes 0 space when not hovered */}
+                <div className="flex items-center gap-0.5 w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0 transition-all duration-200">
                   {sortOrder === null && (
                     <button
                       type="button"
@@ -498,11 +498,11 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                     </button>
                   )}
                 </div>
-                {/* Create folder button */}
+                {/* Create folder button - hidden and takes 0 space when not hovered */}
                 <div
                   className={cn(
                     'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
-                    'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
+                    'w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0',
                     isMainInterfaceActive
                       ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
                       : 'text-white/60 hover:text-white hover:bg-white/10'
@@ -524,12 +524,12 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                 >
                   <FolderPlus className="h-3.5 w-3.5" />
                 </div>
-                {/* Create page button */}
+                {/* Create page button - hidden and takes 0 space when not hovered */}
                 {onSaveViewClick && (
                   <div
                     className={cn(
                       'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
-                      'opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none',
+                      'w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0',
                       isMainInterfaceActive
                         ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
                         : 'text-white/60 hover:text-white hover:bg-white/10'
@@ -552,7 +552,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                     <Plus className="h-3.5 w-3.5" />
                   </div>
                 )}
-                {/* Expand/collapse button */}
+                {/* Expand/collapse button - always visible */}
                 <ChevronDown
                   className={cn(
                     'h-4 w-4 flex-shrink-0 transition-transform duration-200',
@@ -651,7 +651,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   }, [allViews]);
 
   // Render a single page/view
-  const renderPage = (view: SavedView, isInPopover = false) => {
+  const renderPage = (view: SavedView, isInPopover = false, isInFolder = false) => {
     const isViewActive = activeViewId === view.id ||
       (shouldHighlightDefaultView && view.id === defaultView?.id);
     const isDefaultView = view.is_default;
@@ -666,7 +666,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         <div
           className={cn(
             'group/view-item relative flex items-center',
-            'mx-5'
+            !isInFolder && 'mx-5'
           )}
         >
           <button
@@ -681,7 +681,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                 ? 'text-gray-800 bg-white shadow-sm font-semibold'
                 : isInPopover
                   ? 'text-gray-700 hover:bg-white/10'
-                  : 'text-white/80 hover:bg-white/10'
+                  : isInFolder
+                    ? 'text-white bg-white/5 hover:bg-white/10'
+                    : 'text-white/80 hover:bg-white/10'
             )}
           >
             <span className="flex-1 truncate">{view.view_name}</span>
@@ -764,9 +766,14 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const renderFolder = (folder: InterfaceFolder) => {
     const folderPages = viewsByFolder.grouped[folder.id] || [];
     const isExpanded = expandedFolders.has(folder.id);
+    // Check if any page inside this folder is active
+    const hasActivePage = folderPages.some(view =>
+      activeViewId === view.id ||
+      (shouldHighlightDefaultView && view.id === defaultView?.id)
+    );
 
     return (
-      <SortableFolderItem key={folder.id} folder={folder}>
+      <SortableFolderItem key={folder.id} folder={folder} isActive={hasActivePage}>
         <div className="mx-5 mb-1">
           <button
             onClick={() => {
@@ -781,11 +788,19 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
             className={cn(
               'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
               'text-right w-full rounded-lg',
-              'text-white/80 hover:bg-white/10'
+              hasActivePage
+                ? 'text-gray-800 bg-white shadow-sm font-semibold'
+                : 'text-white bg-white/5 hover:bg-white/10'
             )}
           >
-            <Folder className="h-4 w-4 flex-shrink-0" />
-            <span className="flex-1 truncate">{folder.name}</span>
+            <Folder className={cn(
+              'h-4 w-4 flex-shrink-0',
+              hasActivePage ? 'text-gray-800' : 'text-white'
+            )} />
+            <span className={cn(
+              'flex-1 truncate',
+              hasActivePage ? 'text-gray-800' : 'text-white'
+            )}>{folder.name}</span>
             <div className="flex items-center gap-1 opacity-0 group-hover/folder-drag:opacity-100 transition-opacity">
               <div
                 onClick={(e) => {
@@ -799,7 +814,12 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                     },
                   });
                 }}
-                className="p-1 rounded hover:bg-red-100 text-red-600 cursor-pointer"
+                className={cn(
+                  'p-1 rounded cursor-pointer transition-colors',
+                  hasActivePage
+                    ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
+                    : 'text-white/90 hover:text-white hover:bg-red-500/20'
+                )}
                 title="מחק תיקייה"
               >
                 <X className="h-3.5 w-3.5" />
@@ -808,6 +828,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
             <ChevronDown
               className={cn(
                 'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+                hasActivePage ? 'text-gray-700' : 'text-white/80',
                 isExpanded ? 'rotate-0' : '-rotate-90'
               )}
             />
@@ -823,8 +844,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                 items={folderPages.map((view) => view.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-1 mt-1 mr-8">
-                  {folderPages.map((view) => renderPage(view, false))}
+                <div className="space-y-1 mt-1">
+                  {folderPages.map((view) => renderPage(view, false, true))}
                 </div>
               </SortableContext>
             </DndContext>
@@ -938,18 +959,18 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                               }}
                               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md w-full text-right"
                             >
-                              <Folder className="h-4 w-4" />
-                              <span className="flex-1 truncate">{folder.name}</span>
+                              <Folder className="h-4 w-4 text-gray-700" />
+                              <span className="flex-1 truncate text-gray-700">{folder.name}</span>
                               <ChevronDown
                                 className={cn(
-                                  'h-4 w-4 transition-transform duration-200',
+                                  'h-4 w-4 transition-transform duration-200 text-gray-700',
                                   isFolderExpanded ? 'rotate-0' : '-rotate-90'
                                 )}
                               />
                             </button>
                             {isFolderExpanded && folderPages.length > 0 && (
-                              <div className="mr-4 mt-1 space-y-1">
-                                {folderPages.map((view) => renderPage(view, true))}
+                              <div className="mt-1 space-y-1">
+                                {folderPages.map((view) => renderPage(view, true, true))}
                               </div>
                             )}
                           </div>

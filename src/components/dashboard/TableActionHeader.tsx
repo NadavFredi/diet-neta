@@ -573,6 +573,7 @@ export const TableActionHeader = ({
           {enableFilters && activeFilters && activeFilters.length > 0 && (
             <FilterChips
               filters={activeFilters}
+              filterGroup={filterGroup}
               onRemove={handleRemoveFilter}
               onClearAll={handleClearFilters}
               onEdit={setEditingFilter}
