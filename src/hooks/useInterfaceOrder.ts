@@ -122,7 +122,6 @@ export const useUpdateInterfaceOrders = () => {
       const errors = results.filter((r) => r.error);
 
       if (errors.length > 0) {
-        console.error('Failed to update interface orders:', errors);
         throw new Error('Failed to update some interface orders');
       }
     },

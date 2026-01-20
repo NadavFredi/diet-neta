@@ -62,7 +62,6 @@ async function handleMediaMessage(
           //    This might work if Supabase local storage is accessible via public endpoint
           // 3. If that doesn't work, we'll need to use ngrok or a public file hosting service
           
-          console.log('[send-whatsapp-message] Localhost detected for templates, creating long-lived signed URL...');
           
           try {
             const supabaseAdmin = createSupabaseAdmin();
@@ -84,7 +83,6 @@ async function handleMediaMessage(
               
               if (!urlError && urlData?.signedUrl) {
                 mediaUrl = urlData.signedUrl;
-                console.log('[send-whatsapp-message] Created long-lived signed URL for public domain');
               }
           } else {
             // For true localhost, create a signed URL anyway
@@ -100,8 +98,7 @@ async function handleMediaMessage(
             
             if (!urlError && urlData?.signedUrl) {
               mediaUrl = urlData.signedUrl;
-              console.warn('[send-whatsapp-message] Using localhost signed URL');
-              console.warn('[send-whatsapp-message] For local dev: Use ngrok (npx ngrok http 54321) to expose Supabase publicly, then update SUPABASE_URL');
+
               // Continue - let GreenAPI try to access it. If ngrok is set up, it might work.
             } else {
               return errorResponse(
@@ -112,7 +109,6 @@ async function handleMediaMessage(
           }
             
           } catch (fetchError: any) {
-            console.error('[send-whatsapp-message] Error processing localhost file:', fetchError);
             return errorResponse(`Failed to process media file for local development: ${fetchError.message}`, 400);
           }
         } else {
@@ -200,16 +196,10 @@ async function handleMediaMessage(
 }
 
 serve(async (req) => {
-  console.log('[send-whatsapp-message] Function called:', {
-    method: req.method,
-    url: req.url,
-    hasAuthHeader: !!req.headers.get('Authorization'),
-  });
 
   // Handle CORS preflight
   const corsResponse = handleCors(req);
   if (corsResponse) {
-    console.log('[send-whatsapp-message] Handling OPTIONS request');
     return corsResponse;
   }
 
@@ -233,7 +223,6 @@ serve(async (req) => {
           .maybeSingle();
         
         if (dbError) {
-          console.warn('[send-whatsapp-message] Database query error:', dbError.message, dbError);
         } else if (data && data.id_instance && data.api_token_instance) {
           // Validate the credentials aren't placeholders
           if (data.id_instance !== 'your_instance_id' && data.api_token_instance !== 'your_token') {
@@ -241,32 +230,19 @@ serve(async (req) => {
               idInstance: data.id_instance,
               apiTokenInstance: data.api_token_instance,
             };
-            console.log('[send-whatsapp-message] ✅ Found credentials in database');
           } else {
-            console.warn('[send-whatsapp-message] Database has placeholder values, ignoring');
           }
         } else {
-          console.log('[send-whatsapp-message] No credentials found in database');
         }
       } catch (dbError: any) {
-        console.warn('[send-whatsapp-message] Could not fetch from database:', dbError?.message || dbError);
       }
     } else {
-      console.log('[send-whatsapp-message] ✅ Found credentials in environment variables');
     }
     
     const finalIdInstance = idInstance || configFromDb?.idInstance;
     const finalApiTokenInstance = apiTokenInstance || configFromDb?.apiTokenInstance;
 
     // Debug: Log available env vars (without sensitive data)
-    console.log('[send-whatsapp-message] Environment check:', {
-      hasIdInstance: !!finalIdInstance,
-      hasApiTokenInstance: !!finalApiTokenInstance,
-      idInstancePreview: finalIdInstance ? `${finalIdInstance.substring(0, 4)}...` : 'missing',
-      fromDatabase: !!configFromDb,
-      supabaseUrl: Deno.env.get('SUPABASE_URL') ? 'present' : 'missing',
-      supabaseAnonKey: Deno.env.get('SUPABASE_ANON_KEY') ? 'present' : 'missing',
-    });
 
     if (!finalIdInstance || !finalApiTokenInstance) {
       const missing = [];
@@ -276,14 +252,12 @@ serve(async (req) => {
       const errorMsg = `Green API configuration not found. Missing: ${missing.join(', ')}. ` +
         `For local development: Insert credentials into green_api_settings table OR run Edge Functions with --env-file .env.local. ` +
         `For production: Set as Supabase secrets: supabase secrets set ${missing.join('=xxx ')}`;
-      console.error('[send-whatsapp-message]', errorMsg);
       return errorResponse(errorMsg, 500);
     }
 
     // Check for placeholder values
     if (finalIdInstance === 'your_instance_id' || finalApiTokenInstance === 'your_token') {
       const errorMsg = 'Green API credentials are still set to placeholder values. Please set actual credentials via Supabase secrets.';
-      console.error('[send-whatsapp-message]', errorMsg);
       return errorResponse(errorMsg, 500);
     }
 
@@ -293,7 +267,6 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.error('[send-whatsapp-message] Missing Supabase environment variables');
       return errorResponse('Server configuration error: Missing Supabase URL or Anon Key', 500);
     }
 
@@ -311,18 +284,15 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser();
 
     if (authError || !user) {
-      console.error('[send-whatsapp-message] Authentication failed:', authError?.message);
       return errorResponse('Unauthorized', 401);
     }
 
-    console.log('[send-whatsapp-message] Authenticated user:', user.id);
 
     // Parse request body
     let body: SendMessageRequest;
     try {
       body = await parseJsonBody<SendMessageRequest>(req);
     } catch (error: any) {
-      console.error('[send-whatsapp-message] JSON parse error:', error);
       return errorResponse('Invalid JSON in request body', 400);
     }
 
@@ -428,7 +398,6 @@ serve(async (req) => {
       return successResponse(data);
     }
   } catch (error: any) {
-    console.error('[send-whatsapp-message] Error:', error);
     return errorResponse(error?.message || 'Failed to send WhatsApp message', 500);
   }
 });

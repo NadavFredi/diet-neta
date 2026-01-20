@@ -113,8 +113,6 @@ serve(async (req) => {
           ]);
 
           // Debug: Log raw data structure
-          console.log('[stripe-api] Total products fetched:', allProducts.length);
-          console.log('[stripe-api] Total prices fetched:', allPrices.length);
 
           // Group prices by product
           const pricesByProduct: Record<string, any[]> = {};
@@ -126,13 +124,11 @@ serve(async (req) => {
             
             // Skip prices without unit_amount (tiered/volume pricing not supported yet)
             if (price.unit_amount === null || price.unit_amount === undefined) {
-              console.warn('[stripe-api] Skipping price with null unit_amount:', price.id, price.billing_scheme);
               return;
             }
             
             // Only include active prices
             if (price.active === false) {
-              console.warn('[stripe-api] Skipping inactive price:', price.id);
               return;
             }
             
@@ -165,12 +161,8 @@ serve(async (req) => {
             }))
             .filter((product: any) => product.prices.length > 0); // Only include products with valid prices
 
-          console.log('[stripe-api] Products with prices:', products.length);
-          console.log('[stripe-api] Products without prices:', allProducts.filter((p: any) => !pricesByProduct[p.id] || pricesByProduct[p.id].length === 0).length);
-
           return successResponse({ products });
         } catch (fetchError: any) {
-          console.error('[stripe-api] Error fetching products:', fetchError);
           return errorResponse(
             fetchError.message || 'Failed to fetch Stripe products',
             500
@@ -236,7 +228,6 @@ serve(async (req) => {
         return errorResponse(`Unknown action: ${action}`, 400);
     }
   } catch (error: any) {
-    console.error('[stripe-api] Error:', error);
     return errorResponse(error.message || 'Internal server error', 500);
   }
 });

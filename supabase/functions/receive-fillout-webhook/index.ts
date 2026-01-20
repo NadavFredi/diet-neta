@@ -29,21 +29,15 @@ interface FilloutWebhookBody {
 }
 
 serve(async (req) => {
-  console.log('[receive-fillout-webhook] Function called:', {
-    method: req.method,
-    url: req.url,
-  });
 
   // Handle CORS preflight
   const corsResponse = handleCors(req);
   if (corsResponse) {
-    console.log('[receive-fillout-webhook] Handling OPTIONS request');
     return corsResponse;
   }
 
   // Handle GET requests (for webhook verification)
   if (req.method === 'GET') {
-    console.log('[receive-fillout-webhook] GET request received');
     return new Response('Webhook endpoint is active', {
       headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
       status: 200,
@@ -53,34 +47,28 @@ serve(async (req) => {
   try {
     // Parse request body
     const rawBody = await req.text();
-    console.log('[receive-fillout-webhook] Raw body received:', rawBody);
 
     let body: FilloutWebhookBody;
     try {
       body = JSON.parse(rawBody);
     } catch (parseError) {
-      console.error('[receive-fillout-webhook] Failed to parse JSON:', parseError);
       return errorResponse('Invalid JSON in request body', 400);
     }
 
-    console.log('[receive-fillout-webhook] ========== WEBHOOK RECEIVED ==========');
-    console.log('[receive-fillout-webhook] Full body structure:', JSON.stringify(body, null, 2));
-    console.log('[receive-fillout-webhook] Full body keys:', Object.keys(body));
-    console.log('[receive-fillout-webhook] Body type:', typeof body);
 
     // Log nested structures
     if (body.data) {
-      console.log('[receive-fillout-webhook] body.data keys:', Object.keys(body.data));
-      console.log('[receive-fillout-webhook] body.data:', JSON.stringify(body.data, null, 2));
+
+
     }
     if (body.response) {
-      console.log('[receive-fillout-webhook] body.response keys:', Object.keys(body.response));
+
     }
     if (body.submission) {
-      console.log('[receive-fillout-webhook] body.submission keys:', Object.keys(body.submission));
+
     }
     if (body.event) {
-      console.log('[receive-fillout-webhook] body.event keys:', Object.keys(body.event));
+
     }
 
     // Extract form ID - try multiple possible field names and locations
@@ -117,13 +105,6 @@ serve(async (req) => {
     // Also try to extract from formName if it contains the form ID
     // Fillout sometimes sends formName like "open-meeting" or the actual form ID
     const formName = body.formName || body.form_name || body.form?.name || body.data?.formName || '';
-
-    console.log('[receive-fillout-webhook] Extracted IDs (first pass):', {
-      formId,
-      formName,
-      submissionId,
-      eventType: body.eventType,
-    });
 
     // Get the open-meeting form ID from environment variable
     // Try both VITE_ and non-VITE_ versions for compatibility
@@ -165,37 +146,12 @@ serve(async (req) => {
       normalizedFormId &&
       normalizedFormId === normalizedBudgetMeetingFormId;
 
-    console.log('[receive-fillout-webhook] Automation trigger check:', {
-      formId: formId,
-      formName: formName,
-      normalizedFormId,
-      openMeetingFormId: openMeetingFormId,
-      normalizedOpenMeetingFormId,
-      budgetMeetingFormId: budgetMeetingFormId,
-      normalizedBudgetMeetingFormId,
-      isOpenMeetingForm,
-      isBudgetMeetingForm,
-      shouldTriggerAutomation,
-      hasFormId: !!formId,
-      hasFormName: !!formName,
-      hasOpenMeetingFormId: !!openMeetingFormId,
-      allEnvVars: {
-        VITE_FILLOUT_FORM_ID_MEETING: Deno.env.get('VITE_FILLOUT_FORM_ID_MEETING') ? 'SET' : 'NOT SET',
-        FILLOUT_FORM_ID_MEETING: Deno.env.get('FILLOUT_FORM_ID_MEETING') ? 'SET' : 'NOT SET',
-        VITE_FILLOUT_FORM_ID_BUDGET_MEETING: Deno.env.get('VITE_FILLOUT_FORM_ID_BUDGET_MEETING') ? 'SET' : 'NOT SET',
-        FILLOUT_FORM_ID_BUDGET_MEETING: Deno.env.get('FILLOUT_FORM_ID_BUDGET_MEETING') ? 'SET' : 'NOT SET',
-      }
-    });
-
     if (!openMeetingFormId && !isOpenMeetingForm) {
-      console.warn('[receive-fillout-webhook] WARNING: VITE_FILLOUT_FORM_ID_MEETING not set AND form name does not match "open-meeting". Automation will not trigger.');
-      console.warn('[receive-fillout-webhook] To fix: Set VITE_FILLOUT_FORM_ID_MEETING in .env.local and restart Supabase functions');
     }
 
     // Accept any event type for now (Fillout might send different event types)
     // We'll process it if we have a submissionId
     if (!submissionId) {
-      console.log('[receive-fillout-webhook] No submissionId found in first pass, checking deeper nested structures...');
 
       // Try to find submission ID in deeply nested structures
       // Check arrays and nested objects
@@ -205,15 +161,12 @@ serve(async (req) => {
 
         // Check if this object has an ID field that looks like a submission ID
         if (obj.id && typeof obj.id === 'string' && obj.id.length > 10) {
-          console.log(`[receive-fillout-webhook] Found potential submissionId at path: ${path}.id = ${obj.id}`);
           return obj.id;
         }
         if (obj.submissionId && typeof obj.submissionId === 'string') {
-          console.log(`[receive-fillout-webhook] Found submissionId at path: ${path}.submissionId = ${obj.submissionId}`);
           return obj.submissionId;
         }
         if (obj.submission_id && typeof obj.submission_id === 'string') {
-          console.log(`[receive-fillout-webhook] Found submission_id at path: ${path}.submission_id = ${obj.submission_id}`);
           return obj.submission_id;
         }
 
@@ -231,16 +184,11 @@ serve(async (req) => {
       submissionId = deepSearch(body);
 
       if (submissionId) {
-        console.log('[receive-fillout-webhook] ✅ Found submissionId in deep search:', submissionId);
       } else {
-        console.error('[receive-fillout-webhook] ❌ Missing submissionId in all expected locations');
-        console.error('[receive-fillout-webhook] Full body structure for debugging:', JSON.stringify(body, null, 2));
-        console.error('[receive-fillout-webhook] This might be a webhook verification request or a different event type');
 
         // For webhook verification, return success instead of error
         // Some webhook providers send verification requests without submission data
         if (body.type === 'webhook_verification' || body.eventType === 'webhook.verify' || req.method === 'GET') {
-          console.log('[receive-fillout-webhook] This appears to be a webhook verification request');
           return successResponse({ message: 'Webhook verified', verified: true });
         }
 
@@ -260,8 +208,6 @@ serve(async (req) => {
         // Generate a temporary submissionId based on timestamp
         if (leadIdFromUrl) {
           submissionId = `temp_${Date.now()}_${leadIdFromUrl.substring(0, 8)}`;
-          console.log('[receive-fillout-webhook] ⚠️ No submissionId found, but lead_id exists. Using temporary ID:', submissionId);
-          console.log('[receive-fillout-webhook] ⚠️ This webhook will trigger automation but may not create a meeting record');
         } else {
           return errorResponse('Missing submissionId in webhook body. Please check Fillout webhook configuration. Full payload logged for debugging.', 400);
         }
@@ -269,7 +215,6 @@ serve(async (req) => {
     }
 
     const finalSubmissionId = submissionId;
-    console.log('[receive-fillout-webhook] ✅ Using submissionId:', finalSubmissionId);
 
     // Extract lead_id from URL parameters - try multiple locations
     let leadId: string | null = null;
@@ -282,7 +227,6 @@ serve(async (req) => {
       );
       if (leadIdParam) {
         leadId = leadIdParam.value || leadIdParam.val || null;
-        console.log('[receive-fillout-webhook] Found lead_id in urlParameters:', leadId);
       }
 
       const customerIdParam = body.urlParameters.find((param: any) =>
@@ -290,19 +234,16 @@ serve(async (req) => {
       );
       if (customerIdParam) {
         customerId = customerIdParam.value || customerIdParam.val || null;
-        console.log('[receive-fillout-webhook] Found customer_id in urlParameters:', customerId);
       }
     }
 
     // Try direct properties
     if (!leadId && (body.lead_id || body.leadId || body.data?.lead_id)) {
       leadId = body.lead_id || body.leadId || body.data?.lead_id || null;
-      console.log('[receive-fillout-webhook] Found lead_id in direct property:', leadId);
     }
 
     if (!customerId && (body.customer_id || body.customerId || body.data?.customer_id)) {
       customerId = body.customer_id || body.customerId || body.data?.customer_id || null;
-      console.log('[receive-fillout-webhook] Found customer_id in direct property:', customerId);
     }
 
     // Try extracting from questions (sometimes URL params are in questions)
@@ -316,7 +257,6 @@ serve(async (req) => {
         const potentialLeadId = leadIdQuestion.value.toString();
         if (potentialLeadId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
           leadId = potentialLeadId;
-          console.log('[receive-fillout-webhook] Found lead_id in questions:', leadId);
         }
       }
     }
@@ -332,9 +272,7 @@ serve(async (req) => {
 
       if (!leadError && leadData) {
         customerId = leadData.customer_id;
-        console.log('[receive-fillout-webhook] ✅ Found customer_id from lead:', customerId);
       } else {
-        console.log('[receive-fillout-webhook] ⚠️ Could not find customer_id from lead:', leadError);
       }
     }
 
@@ -372,7 +310,6 @@ serve(async (req) => {
 
         if (customerByPhone) {
           customerId = customerByPhone.id;
-          console.log('[receive-fillout-webhook] ✅ Found customer_id by phone:', customerId);
         }
       }
 
@@ -387,27 +324,17 @@ serve(async (req) => {
 
         if (customerByEmail) {
           customerId = customerByEmail.id;
-          console.log('[receive-fillout-webhook] ✅ Found customer_id by email:', customerId);
         }
       }
     }
 
     // Log final IDs for debugging
-    console.log('[receive-fillout-webhook] ========== FINAL ID EXTRACTION ==========');
-    console.log('[receive-fillout-webhook] leadId:', leadId);
-    console.log('[receive-fillout-webhook] customerId:', customerId);
-    console.log('[receive-fillout-webhook] =========================================');
 
     // Build meeting_data from questions - try multiple formats
     const meetingData: Record<string, any> = {};
 
     // Log the full body structure for debugging
-    console.log('[receive-fillout-webhook] ========== FULL WEBHOOK PAYLOAD ==========');
-    console.log('[receive-fillout-webhook] Raw body length:', rawBody.length);
-    console.log('[receive-fillout-webhook] Full body structure:', JSON.stringify(body, null, 2));
-    console.log('[receive-fillout-webhook] Body keys:', Object.keys(body));
-    console.log('[receive-fillout-webhook] Body type:', typeof body);
-    console.log('[receive-fillout-webhook] ===========================================');
+
 
     // Store the complete raw body for debugging (will be stored in meeting_data)
     const rawWebhookPayload = body;
@@ -459,7 +386,7 @@ serve(async (req) => {
           // Only store if we don't already have this key, or if it's a top-level value (prefer top-level)
           if (!meetingData[storageKey] || depth === 0) {
             meetingData[storageKey] = value;
-            console.log(`[receive-fillout-webhook] Stored nested field: ${storageKey} = ${JSON.stringify(value)}`);
+
           }
         } else if (typeof value === 'object' && value !== null) {
           // For objects, check if it's a simple key-value structure we should flatten
@@ -479,9 +406,7 @@ serve(async (req) => {
 
     // Helper function to extract question data
     const extractQuestions = (questions: any[], source: string) => {
-      console.log(`[receive-fillout-webhook] Extracting questions from ${source}, count:`, questions.length);
       questions.forEach((question: any, index: number) => {
-        console.log(`[receive-fillout-webhook] Question ${index}:`, JSON.stringify(question));
 
         // Try multiple possible field names for the key
         const key = question.name ||
@@ -504,13 +429,12 @@ serve(async (req) => {
 
         if (key && value !== null && value !== undefined) {
           meetingData[key] = value;
-          console.log(`[receive-fillout-webhook] Stored field: ${key} = ${JSON.stringify(value)}`);
+
         } else {
           // If question object has nested structure, extract it recursively
           if (typeof question === 'object' && question !== null) {
             extractNestedFields(question, key, 0);
           }
-          console.log(`[receive-fillout-webhook] Skipped question ${index} - missing key or value`);
         }
       });
     };
@@ -540,7 +464,7 @@ serve(async (req) => {
 
     // Try submission.data (Fillout often stores form fields directly in submission.data as key-value pairs)
     if (body.submission && body.submission.data && typeof body.submission.data === 'object' && !Array.isArray(body.submission.data)) {
-      console.log('[receive-fillout-webhook] Checking body.submission.data for direct fields (Fillout format)');
+
       Object.keys(body.submission.data).forEach((key) => {
         // Skip metadata fields
         if (!key.startsWith('_') &&
@@ -552,27 +476,25 @@ serve(async (req) => {
           const value = body.submission.data[key];
           // Store the value regardless of type (could be string, number, object, etc.)
           meetingData[key] = value;
-          console.log(`[receive-fillout-webhook] Stored field from body.submission.data: ${key} = ${JSON.stringify(value)}`);
+
         }
       });
     }
 
     // Try event.data (some webhook formats use event.data)
     if (body.event && body.event.data && typeof body.event.data === 'object' && !Array.isArray(body.event.data)) {
-      console.log('[receive-fillout-webhook] Checking body.event.data for direct fields');
       Object.keys(body.event.data).forEach((key) => {
         if (!key.startsWith('_') &&
           key !== 'formId' &&
           key !== 'submissionId') {
           meetingData[key] = body.event.data[key];
-          console.log(`[receive-fillout-webhook] Stored field from body.event.data: ${key} = ${JSON.stringify(body.event.data[key])}`);
+
         }
       });
     }
 
     // Try direct data object (if questions are properties of data - flat structure)
     if (body.data && typeof body.data === 'object' && !Array.isArray(body.data)) {
-      console.log('[receive-fillout-webhook] Checking body.data for direct fields');
       Object.keys(body.data).forEach((key) => {
         // Skip metadata fields and arrays (already processed)
         if (!key.startsWith('_') &&
@@ -584,14 +506,13 @@ serve(async (req) => {
           !Array.isArray(body.data[key]) &&
           typeof body.data[key] !== 'object') {
           meetingData[key] = body.data[key];
-          console.log(`[receive-fillout-webhook] Stored direct field from body.data: ${key} = ${JSON.stringify(body.data[key])}`);
+
         }
       });
     }
 
     // Try response object (if questions are properties of response)
     if (body.response && typeof body.response === 'object' && !Array.isArray(body.response)) {
-      console.log('[receive-fillout-webhook] Checking body.response for direct fields');
       Object.keys(body.response).forEach((key) => {
         // Skip metadata fields and arrays
         if (!key.startsWith('_') &&
@@ -603,14 +524,13 @@ serve(async (req) => {
           !Array.isArray(body.response[key]) &&
           typeof body.response[key] !== 'object') {
           meetingData[key] = body.response[key];
-          console.log(`[receive-fillout-webhook] Stored direct field from body.response: ${key} = ${JSON.stringify(body.response[key])}`);
+
         }
       });
     }
 
     // Try submission object (if questions are properties of submission)
     if (body.submission && typeof body.submission === 'object' && !Array.isArray(body.submission)) {
-      console.log('[receive-fillout-webhook] Checking body.submission for direct fields');
       Object.keys(body.submission).forEach((key) => {
         // Skip metadata fields and arrays
         if (!key.startsWith('_') &&
@@ -622,7 +542,7 @@ serve(async (req) => {
           !Array.isArray(body.submission[key]) &&
           typeof body.submission[key] !== 'object') {
           meetingData[key] = body.submission[key];
-          console.log(`[receive-fillout-webhook] Stored direct field from body.submission: ${key} = ${JSON.stringify(body.submission[key])}`);
+
         }
       });
     }
@@ -658,18 +578,15 @@ serve(async (req) => {
         // Don't overwrite if already exists (prefer more specific extraction)
         if (!meetingData[key] || (key === 'lead_id' || key === 'leadId')) {
           meetingData[key] = body[key];
-          console.log(`[receive-fillout-webhook] Stored top-level field: ${key} = ${JSON.stringify(body[key])}`);
+
         }
       }
     });
 
     // Final pass: Recursively extract ALL fields from the entire body (except metadata)
     // This catches any nested structures we might have missed
-    console.log('[receive-fillout-webhook] Performing final recursive extraction from entire body...');
     extractNestedFields(body, '', 0);
 
-    console.log('[receive-fillout-webhook] Extracted meeting_data fields:', Object.keys(meetingData));
-    console.log('[receive-fillout-webhook] Extracted meeting_data:', JSON.stringify(meetingData, null, 2));
 
     // Extract Form_name, event_start_time, and event_end_time from top-level body
     // These are direct fields that may come from custom webhook payloads
@@ -678,21 +595,18 @@ serve(async (req) => {
       meetingData['Form_name'] = formNameValue;
       meetingData['סוג פגישה'] = formNameValue;
       meetingData.meeting_type = formNameValue;
-      console.log('[receive-fillout-webhook] ✅ Extracted Form_name:', formNameValue);
     }
 
     if (body.event_start_time || body.eventStartTime) {
       const eventStartTime = body.event_start_time || body.eventStartTime;
       meetingData.event_start_time = eventStartTime;
       meetingData.eventStartTime = eventStartTime; // Also store camelCase variant
-      console.log('[receive-fillout-webhook] ✅ Extracted event_start_time:', eventStartTime);
     }
 
     if (body.event_end_time || body.eventEndTime) {
       const eventEndTime = body.event_end_time || body.eventEndTime;
       meetingData.event_end_time = eventEndTime;
       meetingData.eventEndTime = eventEndTime; // Also store camelCase variant
-      console.log('[receive-fillout-webhook] ✅ Extracted event_end_time:', eventEndTime);
     }
 
     // Add metadata
@@ -707,7 +621,6 @@ serve(async (req) => {
       meetingData['סוג פגישה'] = meetingData['סוג פגישה'] || 'תיאום תקציב';
       meetingData['פגישת הכרות'] = meetingData['פגישת הכרות'] || 'תיאום תקציב'; // Also set the common field name
       meetingData.meeting_type = meetingData.meeting_type || 'תיאום תקציב';
-      console.log('[receive-fillout-webhook] ✅ Detected budget meeting form, setting meeting type to "תיאום תקציב"');
     } else if (shouldTriggerAutomation || isOpenMeetingForm) {
       // Keep default for open-meeting form only if Form_name wasn't provided
       if (!meetingData['סוג פגישה'] && !meetingData['פגישת הכרות']) {
@@ -717,19 +630,8 @@ serve(async (req) => {
     }
 
     // Log what we extracted
-    console.log('[receive-fillout-webhook] ========== EXTRACTION SUMMARY ==========');
-    console.log('[receive-fillout-webhook] Total fields extracted:', Object.keys(meetingData).length);
-    console.log('[receive-fillout-webhook] Extracted fields:', Object.keys(meetingData));
-    console.log('[receive-fillout-webhook] Meeting data preview:', JSON.stringify(meetingData, null, 2).substring(0, 2000));
-    console.log('[receive-fillout-webhook] =========================================');
 
-    console.log('[receive-fillout-webhook] Processing submission:', {
-      submissionId: finalSubmissionId,
-      formId,
-      leadId,
-      customerId,
-      questionsCount: body.questions?.length || 0,
-    });
+
 
     // Check if submission exists in database
     const supabase = createSupabaseAdmin();
@@ -744,22 +646,18 @@ serve(async (req) => {
 
         if (checkError && checkError.code !== 'PGRST116') {
           // PGRST116 is "not found" which is expected for new submissions
-          console.warn('[receive-fillout-webhook] ⚠️ Error checking submission existence in database:', checkError);
         }
 
         submissionExists = !!existingSubmission;
         if (submissionExists) {
-          console.log('[receive-fillout-webhook] ✅ Submission exists in database');
         } else {
-          console.log('[receive-fillout-webhook] ✅ Submission does not exist in database (new submission)');
+
         }
       } catch (dbError: any) {
-        console.error('[receive-fillout-webhook] Error checking submission existence in database:', dbError);
         // Continue as if it's a new submission if check fails
         submissionExists = false;
       }
     } else {
-      console.warn('[receive-fillout-webhook] ⚠️ Missing formId or submissionId, cannot check in database');
       submissionExists = false;
     }
 
@@ -772,11 +670,9 @@ serve(async (req) => {
     if (normalizedFormId === normalizedOpenMeetingFormId || isOpenMeetingForm) {
       // This is definitely an open-meeting form, so set submissionType to 'meeting' to ensure meetings table gets updated
       submissionType = 'meeting';
-      console.log('[receive-fillout-webhook] Detected open-meeting form, setting submissionType to "meeting"');
     } else if (normalizedFormId === normalizedBudgetMeetingFormId) {
       // This is a budget meeting form
       submissionType = 'budget_meeting';
-      console.log('[receive-fillout-webhook] Detected budget-meeting form, setting submissionType to "budget_meeting"');
     } else {
       // Not a meeting form, try to extract from form_name or other sources
       // Try from form_name in body (from Fillout webhook configuration)
@@ -784,7 +680,6 @@ serve(async (req) => {
       if (formNameValue && typeof formNameValue === 'string') {
         // Use form_name as submission_type (e.g., "שאלון התאמה" -> "שאלון התאמה")
         submissionType = formNameValue.trim();
-        console.log('[receive-fillout-webhook] Extracted submission_type from form_name:', submissionType);
       }
       
       // Try from questions array
@@ -814,7 +709,6 @@ serve(async (req) => {
       }
     }
 
-    console.log('[receive-fillout-webhook] Extracted submission_type:', submissionType);
 
     // Check if submission already exists in fillout_submissions table
     const { data: existingSubmission } = await supabase
@@ -824,7 +718,6 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingSubmission) {
-      console.log('[receive-fillout-webhook] Submission already exists in DB, updating:', existingSubmission.id);
 
       // Update existing submission in fillout_submissions table
       const { data: updatedSubmission, error: updateError } = await supabase
@@ -842,11 +735,9 @@ serve(async (req) => {
         .single();
 
       if (updateError) {
-        console.error('[receive-fillout-webhook] Error updating submission:', updateError);
         return errorResponse(`Failed to update submission: ${updateError.message}`, 500);
       }
 
-      console.log('[receive-fillout-webhook] Submission updated successfully:', updatedSubmission.id);
 
       // Also update/create meetings table for backward compatibility (if it's a meeting type)
       if (submissionType === 'meeting' || submissionType === 'budget_meeting') {
@@ -869,9 +760,8 @@ serve(async (req) => {
             .eq('id', existingMeeting.id);
 
           if (meetingUpdateError) {
-            console.warn('[receive-fillout-webhook] Error updating meeting (non-critical):', meetingUpdateError);
+
           } else {
-            console.log('[receive-fillout-webhook] Meeting updated for backward compatibility');
           }
         } else {
           // Create new meeting if it doesn't exist
@@ -887,9 +777,8 @@ serve(async (req) => {
             .single();
 
           if (meetingInsertError) {
-            console.warn('[receive-fillout-webhook] Error creating meeting (non-critical):', meetingInsertError);
+
           } else {
-            console.log('[receive-fillout-webhook] Meeting created for backward compatibility:', newMeeting.id);
           }
         }
       }
@@ -902,26 +791,13 @@ serve(async (req) => {
       const isQuestionnaireForm = normalizedFormIdForUpdate === normalizedQuestionnaireFormId || 
                                   formId === questionnaireFormId;
 
-      console.log('[receive-fillout-webhook] Questionnaire form check:', {
-        formId,
-        normalizedFormId: normalizedFormIdForUpdate,
-        questionnaireFormId,
-        normalizedQuestionnaireFormId,
-        isQuestionnaireForm,
-        hasLeadId: !!leadId,
-        meetingDataKeys: Object.keys(meetingData),
-      });
-
       if (isQuestionnaireForm && leadId) {
-        console.log('[receive-fillout-webhook] ✅ Detected questionnaire form (23ggw4DEs7us), updating lead fields');
-        console.log('[receive-fillout-webhook] Meeting data available fields:', Object.keys(meetingData));
-        console.log('[receive-fillout-webhook] Looking for: age, weight, height, period');
+
+
         updateLeadFromQuestionnaireForm(leadId, customerId, meetingData, supabase).catch((err) => {
-          console.error('[receive-fillout-webhook] ❌ Error updating lead from questionnaire (non-blocking):', err);
-          console.error('[receive-fillout-webhook] Error stack:', err?.stack);
+
         });
       } else if (isQuestionnaireForm && !leadId) {
-        console.warn('[receive-fillout-webhook] ⚠️ Questionnaire form detected but leadId is missing - cannot update lead');
       }
 
       // Note: Don't trigger automation on updates, only on new submissions
@@ -949,11 +825,9 @@ serve(async (req) => {
         .single();
 
       if (insertError) {
-        console.error('[receive-fillout-webhook] Error creating submission:', insertError);
         return errorResponse(`Failed to create submission: ${insertError.message}`, 500);
       }
 
-      console.log('[receive-fillout-webhook] Submission created successfully:', newSubmission.id);
 
       // Also create in meetings table for backward compatibility (if it's a meeting type)
       if (submissionType === 'meeting' || submissionType === 'budget_meeting') {
@@ -969,9 +843,8 @@ serve(async (req) => {
           .single();
 
         if (meetingInsertError) {
-          console.warn('[receive-fillout-webhook] Error creating meeting (non-critical):', meetingInsertError);
+
         } else {
-          console.log('[receive-fillout-webhook] Meeting also created for backward compatibility:', newMeeting.id);
         }
       }
 
@@ -983,54 +856,24 @@ serve(async (req) => {
       const isQuestionnaireForm = normalizedFormIdForCreate === normalizedQuestionnaireFormId || 
                                   formId === questionnaireFormId;
 
-      console.log('[receive-fillout-webhook] Questionnaire form check:', {
-        formId,
-        normalizedFormId: normalizedFormIdForCreate,
-        questionnaireFormId,
-        normalizedQuestionnaireFormId,
-        isQuestionnaireForm,
-        hasLeadId: !!leadId,
-        meetingDataKeys: Object.keys(meetingData),
-      });
-
       if (isQuestionnaireForm && leadId) {
-        console.log('[receive-fillout-webhook] ✅ Detected questionnaire form (23ggw4DEs7us), updating lead fields');
-        console.log('[receive-fillout-webhook] Meeting data available fields:', Object.keys(meetingData));
-        console.log('[receive-fillout-webhook] Looking for: age, weight, height, period');
+
+
         updateLeadFromQuestionnaireForm(leadId, customerId, meetingData, supabase).catch((err) => {
-          console.error('[receive-fillout-webhook] ❌ Error updating lead from questionnaire (non-blocking):', err);
-          console.error('[receive-fillout-webhook] Error stack:', err?.stack);
+
         });
       } else if (isQuestionnaireForm && !leadId) {
-        console.warn('[receive-fillout-webhook] ⚠️ Questionnaire form detected but leadId is missing - cannot update lead');
       }
 
-      console.log('[receive-fillout-webhook] ========== AUTOMATION DECISION ==========');
-      console.log('[receive-fillout-webhook] shouldTriggerAutomation:', shouldTriggerAutomation);
-      console.log('[receive-fillout-webhook] customerId:', customerId);
-      console.log('[receive-fillout-webhook] leadId:', leadId);
-      console.log('[receive-fillout-webhook] formId:', formId);
-      console.log('[receive-fillout-webhook] openMeetingFormId:', openMeetingFormId);
-      console.log('[receive-fillout-webhook] =========================================');
 
       // Trigger intro_questionnaire automation automatically ONLY for open-meeting form submissions
       // Run this asynchronously so it doesn't block the webhook response
       if (shouldTriggerAutomation) {
-        console.log('[receive-fillout-webhook] ✅ Automation will be triggered');
         triggerIntroQuestionnaireAutomation(customerId, leadId, supabase).catch((err) => {
-          console.error('[receive-fillout-webhook] ❌ Error triggering automation (non-blocking):', err);
-          console.error('[receive-fillout-webhook] Error stack:', err?.stack);
+
         });
       } else {
-        console.log('[receive-fillout-webhook] ⚠️ Skipping automation - form is not open-meeting form');
-        console.log('[receive-fillout-webhook] Debug info:', {
-          formId,
-          formName,
-          openMeetingFormId,
-          normalizedFormId,
-          normalizedOpenMeetingFormId,
-          isOpenMeetingForm,
-        });
+
       }
 
       return successResponse({
@@ -1043,7 +886,6 @@ serve(async (req) => {
       });
     }
   } catch (error: any) {
-    console.error('[receive-fillout-webhook] Unexpected error:', error);
     return errorResponse(`Internal server error: ${error.message}`, 500);
   }
 });
@@ -1058,10 +900,6 @@ async function updateLeadFromQuestionnaireForm(
   meetingData: Record<string, any>,
   supabase: any
 ): Promise<void> {
-  console.log('[receive-fillout-webhook] ========== UPDATING LEAD FROM QUESTIONNAIRE ==========');
-  console.log('[receive-fillout-webhook] leadId:', leadId);
-  console.log('[receive-fillout-webhook] customerId:', customerId);
-  console.log('[receive-fillout-webhook] Available fields in meetingData:', Object.keys(meetingData));
 
   try {
     const updates: Record<string, any> = {};
@@ -1111,7 +949,6 @@ async function updateLeadFromQuestionnaireForm(
       } else if (typeof periodValue === 'number') {
         updates.period = periodValue === 1;
       }
-      console.log('[receive-fillout-webhook] Extracted period:', periodValue, '->', updates.period);
     }
 
     // Extract age - integer field (just a number that the user types)
@@ -1138,9 +975,8 @@ async function updateLeadFromQuestionnaireForm(
       // Validate it's a valid positive integer within reasonable range
       if (!isNaN(ageNum) && ageNum > 0 && ageNum < 150 && Number.isInteger(ageNum)) {
         updates.age = ageNum;
-        console.log('[receive-fillout-webhook] Extracted age:', ageValue, '->', updates.age, '(integer)');
+
       } else {
-        console.warn('[receive-fillout-webhook] Invalid age value:', ageValue, '-> parsed as:', ageNum);
       }
     }
 
@@ -1158,7 +994,6 @@ async function updateLeadFromQuestionnaireForm(
       const heightNum = typeof heightValue === 'number' ? heightValue : parseFloat(String(heightValue));
       if (!isNaN(heightNum) && heightNum > 0 && heightNum < 300) {
         updates.height = heightNum;
-        console.log('[receive-fillout-webhook] Extracted height:', heightValue, '->', updates.height);
       }
     }
 
@@ -1176,7 +1011,6 @@ async function updateLeadFromQuestionnaireForm(
       const weightNum = typeof weightValue === 'number' ? weightValue : parseFloat(String(weightValue));
       if (!isNaN(weightNum) && weightNum > 0 && weightNum < 500) {
         updates.weight = weightNum;
-        console.log('[receive-fillout-webhook] Extracted weight:', weightValue, '->', updates.weight);
       }
     }
 
@@ -1201,9 +1035,7 @@ async function updateLeadFromQuestionnaireForm(
             .eq('id', customerId);
 
           if (customerUpdateError) {
-            console.error('[receive-fillout-webhook] Error updating customer email:', customerUpdateError);
           } else {
-            console.log('[receive-fillout-webhook] Updated customer email:', emailStr);
           }
         }
       }
@@ -1211,7 +1043,6 @@ async function updateLeadFromQuestionnaireForm(
 
     // Update lead if we have any updates
     if (Object.keys(updates).length > 0) {
-      console.log('[receive-fillout-webhook] Updating lead with fields:', updates);
 
       const { data: updatedLead, error: updateError } = await supabase
         .from('leads')
@@ -1221,20 +1052,13 @@ async function updateLeadFromQuestionnaireForm(
         .single();
 
       if (updateError) {
-        console.error('[receive-fillout-webhook] Error updating lead:', updateError);
         throw updateError;
       }
 
-      console.log('[receive-fillout-webhook] ✅ Lead updated successfully:', updatedLead.id);
-      console.log('[receive-fillout-webhook] Updated fields:', Object.keys(updates));
     } else {
-      console.log('[receive-fillout-webhook] ⚠️ No fields to update - no matching fields found in form submission');
     }
 
-    console.log('[receive-fillout-webhook] ========== LEAD UPDATE COMPLETED ==========');
   } catch (error: any) {
-    console.error('[receive-fillout-webhook] ❌ Error in updateLeadFromQuestionnaireForm:', error);
-    console.error('[receive-fillout-webhook] Error stack:', error?.stack);
     throw error;
   }
 }
@@ -1248,18 +1072,13 @@ async function triggerIntroQuestionnaireAutomation(
   leadId: string | null,
   supabase: any
 ): Promise<void> {
-  console.log('[receive-fillout-webhook] ========== STARTING AUTOMATION TRIGGER ==========');
-  console.log('[receive-fillout-webhook] Parameters:', { customerId, leadId });
 
   try {
     // Need customer_id to get phone number
     if (!customerId) {
-      console.log('[receive-fillout-webhook] ❌ Skipping automation - no customer_id');
-      console.log('[receive-fillout-webhook] Lead ID was:', leadId);
       return;
     }
 
-    console.log('[receive-fillout-webhook] ✅ Customer ID found:', customerId);
 
     // Fetch customer data
     const { data: customer, error: customerError } = await supabase
@@ -1269,23 +1088,13 @@ async function triggerIntroQuestionnaireAutomation(
       .single();
 
     if (customerError || !customer) {
-      console.error('[receive-fillout-webhook] ❌ Error fetching customer:', customerError);
       return;
     }
-
-    console.log('[receive-fillout-webhook] ✅ Customer fetched:', {
-      id: customer.id,
-      name: customer.full_name,
-      hasPhone: !!customer.phone,
-      hasEmail: !!customer.email,
-    });
 
     if (!customer.phone) {
-      console.log('[receive-fillout-webhook] ❌ Skipping automation - customer has no phone number');
       return;
     }
 
-    console.log('[receive-fillout-webhook] ✅ Customer phone found:', customer.phone);
 
     // Fetch lead data for placeholders
     let lead: any = null;
@@ -1311,23 +1120,12 @@ async function triggerIntroQuestionnaireAutomation(
       .limit(1);
 
     if (templateError || !templates || templates.length === 0) {
-      console.log('[receive-fillout-webhook] ❌ No intro_questionnaire template found - skipping automation');
-      console.log('[receive-fillout-webhook] Template error:', templateError);
-      console.log('[receive-fillout-webhook] Templates found:', templates?.length || 0);
       return;
     }
 
     const template = templates[0];
-    console.log('[receive-fillout-webhook] ✅ Template found:', {
-      id: template.id,
-      flow_key: template.flow_key,
-      hasContent: !!template.template_content,
-      contentLength: template.template_content?.length || 0,
-      hasButtons: !!template.buttons,
-    });
 
     if (!template.template_content || !template.template_content.trim()) {
-      console.log('[receive-fillout-webhook] ❌ Template content is empty - skipping automation');
       return;
     }
 
@@ -1359,7 +1157,6 @@ async function triggerIntroQuestionnaireAutomation(
           }));
         }
       } catch (error) {
-        console.warn('[receive-fillout-webhook] Error processing buttons:', error);
       }
     }
 
@@ -1368,7 +1165,6 @@ async function triggerIntroQuestionnaireAutomation(
     const apiTokenInstance = Deno.env.get('GREEN_API_TOKEN_INSTANCE') || Deno.env.get('VITE_GREEN_API_TOKEN_INSTANCE');
 
     if (!idInstance || !apiTokenInstance) {
-      console.error('[receive-fillout-webhook] Green API credentials not found - cannot send automation');
       return;
     }
 
@@ -1396,17 +1192,13 @@ async function triggerIntroQuestionnaireAutomation(
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('[receive-fillout-webhook] Error sending WhatsApp message with buttons:', errorData);
         return;
       }
 
       const responseData = await response.json();
-      console.log('[receive-fillout-webhook] ✅ Successfully sent intro_questionnaire automation with buttons:', responseData);
     } else {
       // Send regular message
       const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiTokenInstance}`;
-      console.log('[receive-fillout-webhook] Sending regular message to:', chatId);
-      console.log('[receive-fillout-webhook] Message preview:', message.substring(0, 100) + '...');
 
       const response = await fetch(url, {
         method: 'POST',
@@ -1421,23 +1213,14 @@ async function triggerIntroQuestionnaireAutomation(
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('[receive-fillout-webhook] ❌ Error sending WhatsApp message:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorData,
-        });
+
         return;
       }
 
       const responseData = await response.json();
-      console.log('[receive-fillout-webhook] ✅ Successfully sent intro_questionnaire automation:', responseData);
     }
 
-    console.log('[receive-fillout-webhook] ========== AUTOMATION TRIGGER COMPLETED ==========');
   } catch (error: any) {
-    console.error('[receive-fillout-webhook] ❌ Error in triggerIntroQuestionnaireAutomation:', error);
-    console.error('[receive-fillout-webhook] Error stack:', error?.stack);
-    console.log('[receive-fillout-webhook] ========== AUTOMATION TRIGGER FAILED ==========');
   }
 }
 

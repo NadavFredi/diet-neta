@@ -246,7 +246,6 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
         description: 'הסדר החדש נשמר בהצלחה.',
       });
     } catch (error: any) {
-      console.error('Error updating interface order:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'לא ניתן לעדכן את הסדר. אנא נסה שוב.',

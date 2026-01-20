@@ -54,16 +54,8 @@ serve(async (req) => {
     let body;
     try {
       body = await parseJsonBody(req);
-      console.log('[create-trainee-user] Request body received:', {
-        email: body.email,
-        customerId: body.customerId,
-        leadId: body.leadId,
-        invitedBy: body.invitedBy,
-        hasPassword: !!body.password,
-        passwordLength: body.password?.length,
-      });
+
     } catch (parseError: any) {
-      console.error('[create-trainee-user] JSON parse error:', parseError);
       return errorResponse('Invalid request body: ' + (parseError.message || 'Failed to parse JSON'), 400);
     }
 
@@ -90,20 +82,14 @@ serve(async (req) => {
       existingUserData = existingUser?.users?.find(
         u => u.email?.toLowerCase() === email.toLowerCase()
       );
-      console.log('[create-trainee-user] Checking for existing user:', {
-        email,
-        found: !!existingUserData,
-        existingUserId: existingUserData?.id,
-      });
+
     } catch (listError: any) {
-      console.error('[create-trainee-user] Error listing users:', listError);
       // Continue - will try to create user and handle error if it exists
     }
 
     let userId: string;
 
     if (existingUserData) {
-      console.log('[create-trainee-user] User exists in auth, reactivating:', existingUserData.id);
       // Check if the user profile exists and is active
       const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
@@ -137,7 +123,6 @@ serve(async (req) => {
           });
 
         if (profileError) {
-          console.error('Profile creation error:', profileError);
           // Continue even if profile creation fails
         }
       } else {
@@ -148,7 +133,6 @@ serve(async (req) => {
           .eq('id', userId);
 
         if (profileUpdateError) {
-          console.error('Profile update error:', profileUpdateError);
           // Continue even if profile update fails
         }
       }
@@ -160,12 +144,10 @@ serve(async (req) => {
         .eq('id', customerId);
 
       if (customerUpdateError) {
-        console.error('Customer update error:', customerUpdateError);
         // Continue even if customer update fails (non-critical)
       }
     } else {
       // Create new user
-      console.log('[create-trainee-user] Creating new user:', email);
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
@@ -187,7 +169,6 @@ serve(async (req) => {
           errorMsg.includes('email') && errorMsg.includes('registered');
         
         if (isEmailExistsError) {
-          console.log('[create-trainee-user] User creation failed - email exists, attempting to find and reactivate');
           
           // Try to find the user by listing all users again
           try {
@@ -197,7 +178,6 @@ serve(async (req) => {
             );
             
             if (foundUser) {
-              console.log('[create-trainee-user] Found existing user, reactivating:', foundUser.id);
               userId = foundUser.id;
               
               // Update password
@@ -230,7 +210,6 @@ serve(async (req) => {
                   });
 
                 if (profileError) {
-                  console.error('Profile creation error:', profileError);
                 }
               } else {
                 // Update profile
@@ -240,7 +219,6 @@ serve(async (req) => {
                   .eq('id', userId);
 
                 if (profileUpdateError) {
-                  console.error('Profile update error:', profileUpdateError);
                 }
               }
 
@@ -251,7 +229,6 @@ serve(async (req) => {
                 .eq('id', customerId);
 
               if (customerUpdateError) {
-                console.error('Customer update error:', customerUpdateError);
               }
 
               // Log audit event
@@ -269,7 +246,6 @@ serve(async (req) => {
               });
             }
           } catch (findError: any) {
-            console.error('[create-trainee-user] Error finding user:', findError);
           }
         }
         
@@ -290,7 +266,6 @@ serve(async (req) => {
         });
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
         // Continue even if profile creation fails (it might already exist)
       }
 
@@ -301,7 +276,6 @@ serve(async (req) => {
         .eq('id', customerId);
 
       if (customerUpdateError) {
-        console.error('Customer update error:', customerUpdateError);
         // Continue even if customer update fails (non-critical)
       }
     }
@@ -320,12 +294,8 @@ serve(async (req) => {
       isNewUser: !existingUserData,
     });
   } catch (error: any) {
-    console.error('[create-trainee-user] Error:', error);
-    console.error('[create-trainee-user] Error stack:', error.stack);
-    console.error('[create-trainee-user] Error details:', JSON.stringify(error, null, 2));
-    
+
     const errorMessage = error.message || 'Failed to create trainee user';
-    console.error('[create-trainee-user] Returning error response:', errorMessage);
     
     return errorResponse(errorMessage, 400);
   }

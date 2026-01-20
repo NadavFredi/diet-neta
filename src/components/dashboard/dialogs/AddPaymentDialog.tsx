@@ -164,7 +164,6 @@ export const AddPaymentDialog = ({
       // Close dialog
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error creating payment:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'לא ניתן ליצור את התשלום. אנא נסה שוב.',

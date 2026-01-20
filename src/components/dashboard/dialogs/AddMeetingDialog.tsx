@@ -215,7 +215,6 @@ export const AddMeetingDialog = ({
       // Close dialog
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error creating meeting:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'לא ניתן ליצור את הפגישה. אנא נסה שוב.',

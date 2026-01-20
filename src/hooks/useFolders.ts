@@ -37,13 +37,11 @@ export const useFolders = (interfaceKey: string | null) => {
           .order('name', { ascending: true }); // Fallback sort by name
 
         if (error) {
-          console.error('Error fetching folders:', error);
           return [];
         }
 
         return (data || []) as InterfaceFolder[];
       } catch (error) {
-        console.error('Error fetching folders:', error);
         return [];
       }
     },
@@ -208,7 +206,6 @@ export const useUpdateFolderOrders = () => {
       const errors = results.filter((r) => r.error);
 
       if (errors.length > 0) {
-        console.error('Failed to update folder orders:', errors);
         throw new Error('Failed to update some folder orders');
       }
 

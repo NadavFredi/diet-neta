@@ -55,7 +55,6 @@ export const createProsperoProposal = async (
 
     return data.link;
   } catch (error: any) {
-    console.error('[prosperoService] Error creating proposal:', error);
     throw error;
   }
 };

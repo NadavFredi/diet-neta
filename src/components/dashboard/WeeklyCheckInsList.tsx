@@ -76,16 +76,6 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
     return () => clearInterval(intervalId);
   }, [dispatch]);
 
-  // Debug: Log component state
-  useEffect(() => {
-    console.log('WeeklyCheckInsList mounted/updated', {
-      customerPhone,
-      customerName,
-      customerId,
-      leadId,
-      templatesCount: Object.keys(templates).length,
-    });
-  }, [customerPhone, customerName, customerId, leadId, templates]);
 
   // Fetch all weekly reviews for this lead/customer
   const { data: weeklyReviews, isLoading } = useQuery({
@@ -166,8 +156,6 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
   };
 
   const handleSendWhatsApp = async (review: WeeklyReview) => {
-    console.log('handleSendWhatsApp called', { review, customerPhone, customerName });
-    
     if (!customerPhone) {
       toast({
         title: 'שגיאה',
@@ -179,7 +167,6 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
 
     setSendingReviewId(review.id);
     try {
-      console.log('Starting WhatsApp send process...');
       const weekStart = new Date(review.week_start_date);
       const weekEnd = new Date(review.week_end_date);
       const weekLabel = `שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}`;
@@ -258,13 +245,6 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
         }
       }
 
-      console.log('Sending WhatsApp message', { 
-        phoneNumber: customerPhone, 
-        messageLength: message.length,
-        hasButtons: !!processedButtons,
-        hasMedia: !!media 
-      });
-
       const result = await sendWhatsAppMessage({
         phoneNumber: customerPhone,
         message,
@@ -272,19 +252,15 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
         media,
       });
 
-      console.log('WhatsApp send result', result);
-
       if (result.success) {
         toast({
           title: 'הצלחה',
           description: 'הסיכום השבועי נשלח ב-WhatsApp',
         });
       } else {
-        console.error('WhatsApp send failed', result.error);
         throw new Error(result.error || 'Failed to send WhatsApp message');
       }
     } catch (error: any) {
-      console.error('Error sending WhatsApp message', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בשליחת הודעת WhatsApp',
@@ -391,12 +367,6 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('Send button clicked', { 
-                          reviewId: review.id, 
-                          customerPhone,
-                          isDisabled: sendingReviewId === review.id || !customerPhone,
-                          sendingReviewId,
-                        });
                         if (!customerPhone) {
                           toast({
                             title: 'שגיאה',

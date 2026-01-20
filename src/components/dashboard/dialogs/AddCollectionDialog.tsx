@@ -134,7 +134,6 @@ export const AddCollectionDialog = ({
       // Close dialog
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error creating collection:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'לא ניתן ליצור את הגבייה. אנא נסה שוב.',

@@ -78,7 +78,6 @@ export const UserImpersonationDialog: React.FC<UserImpersonationDialogProps> = (
 
         setCustomers((data || []) as CustomerWithUser[]);
       } catch (error: any) {
-        console.error('Error searching customers:', error);
         toast({
           title: 'שגיאה',
           description: 'נכשל בחיפוש משתמשים',

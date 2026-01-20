@@ -563,7 +563,6 @@ export const ArticlePage: React.FC = () => {
             quill.setSelection(newLength - 1);
 
           } catch (error: any) {
-            console.error('Error inserting video:', error);
             toast({ title: 'שגיאה', description: 'נכשל בהוספת הווידאו', variant: 'destructive' });
           }
         }
