@@ -177,9 +177,16 @@ serve(async (req) => {
 
       if (createError || !newUser.user) {
         // If error is about email already existing, try to find and reactivate the user
-        if (createError?.message?.includes('already been registered') || 
-            createError?.message?.includes('already exists') ||
-            createError?.message?.includes('User already registered')) {
+        const errorMsg = createError?.message?.toLowerCase() || '';
+        const isEmailExistsError = 
+          errorMsg.includes('already been registered') || 
+          errorMsg.includes('already exists') ||
+          errorMsg.includes('user already registered') ||
+          errorMsg.includes('email address has already been registered') ||
+          errorMsg.includes('duplicate') ||
+          errorMsg.includes('email') && errorMsg.includes('registered');
+        
+        if (isEmailExistsError) {
           console.log('[create-trainee-user] User creation failed - email exists, attempting to find and reactivate');
           
           // Try to find the user by listing all users again
