@@ -28,7 +28,7 @@ import {
   Save,
   X
 } from 'lucide-react';
-import { formatDate } from '@/utils/dashboard';
+import { formatDate, calculateCurrentWeekFromJoinDate } from '@/utils/dashboard';
 import { 
   FITNESS_GOAL_OPTIONS, 
   SOURCE_OPTIONS 
@@ -305,6 +305,17 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   }
 
   const subscriptionData = activeLead.subscription_data || {};
+  
+  // Calculate current week from join date
+  const calculatedCurrentWeek = useMemo(() => {
+    return calculateCurrentWeekFromJoinDate(activeLead.join_date);
+  }, [activeLead.join_date]);
+  
+  // Use calculated week if available, otherwise fall back to stored value
+  const currentWeekValue = calculatedCurrentWeek > 0 
+    ? calculatedCurrentWeek 
+    : (subscriptionData.currentWeekInProgram || 0);
+  
   // Use status_sub first, then status_main, then default
   // This matches the database structure and ensures correct display
   const displayStatus = activeLead.status_sub || activeLead.status_main || 'ללא סטטוס';
@@ -408,7 +419,18 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 label="תאריך הצטרפות"
                 value={activeLead.join_date || ''}
                 onSave={async (newValue) => {
-                  await onUpdateLead({ join_date: String(newValue) });
+                  const newJoinDate = String(newValue);
+                  // Calculate new current week from the new join date
+                  const newCurrentWeek = calculateCurrentWeekFromJoinDate(newJoinDate);
+                  // Update both join_date and current week in subscription_data
+                  const updatedSubscription = {
+                    ...subscriptionData,
+                    currentWeekInProgram: newCurrentWeek > 0 ? newCurrentWeek : (subscriptionData.currentWeekInProgram || 0),
+                  };
+                  await onUpdateLead({ 
+                    join_date: newJoinDate,
+                    subscription_data: updatedSubscription 
+                  });
                 }}
                 type="date"
                 formatValue={(val) => formatDate(String(val))}
@@ -419,7 +441,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               <InlineEditableField
                 ref={currentWeekRef}
                 label="שבוע נוכחי"
-                value={subscriptionData.currentWeekInProgram || 0}
+                value={currentWeekValue}
                 onSave={async (newValue) => {
                   const updatedSubscription = {
                     ...subscriptionData,

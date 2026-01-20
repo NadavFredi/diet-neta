@@ -44,22 +44,7 @@ const SubscriptionTypesManagement = () => {
   const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'subscription_types'));
   
-  // Generate filter fields with all renderable columns
-  const subscriptionTypeFilterFields = useMemo(() => {
-    return getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns);
-  }, [subscriptionTypes]);
-
-  // Auto-navigate to default view if no view_id is present
-  useEffect(() => {
-    if (!viewId && defaultView) {
-      navigate(`/dashboard/subscription-types?view_id=${defaultView.id}`, { replace: true });
-    }
-  }, [viewId, defaultView, navigate]);
-
-  // Determine the title to show
-  const pageTitle = viewId && savedView?.view_name 
-    ? savedView.view_name 
-    : 'כל סוגי המנויים';
+  // Get subscription types data first before using it in useMemo
   const {
     subscriptionTypes,
     editingSubscriptionType,
@@ -85,6 +70,53 @@ const SubscriptionTypesManagement = () => {
     getCurrentFilterConfig,
     deleteSubscriptionType,
   } = useSubscriptionTypesManagement();
+
+  // Calculate total groups when grouping is active
+  const totalGroups = useMemo(() => {
+    if (!isGroupingActive || !subscriptionTypes || subscriptionTypes.length === 0) {
+      return 0;
+    }
+    
+    // Group the data to count groups
+    const groupedData = groupDataByKeys(subscriptionTypes, groupByKeys, { level1: null, level2: null });
+    return getTotalGroupsCount(groupedData);
+  }, [isGroupingActive, subscriptionTypes, groupByKeys]);
+  
+  // Reset group pagination when grouping changes
+  useEffect(() => {
+    if (isGroupingActive) {
+      setGroupCurrentPage(1);
+    }
+  }, [isGroupingActive, groupByKeys]);
+
+  const handleGroupPageChange = useCallback((page: number) => {
+    setGroupCurrentPage(page);
+  }, []);
+  
+  const handlePageChange = useCallback((page: number) => {
+    dispatch(setCurrentPage({ resourceKey: 'subscription_types', page }));
+  }, [dispatch]);
+  
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    dispatch(setPageSize({ resourceKey: 'subscription_types', pageSize: newPageSize }));
+  }, [dispatch]);
+
+  // Auto-navigate to default view if no view_id is present
+  useEffect(() => {
+    if (!viewId && defaultView) {
+      navigate(`/dashboard/subscription-types?view_id=${defaultView.id}`, { replace: true });
+    }
+  }, [viewId, defaultView, navigate]);
+
+  // Determine the title to show
+  const pageTitle = viewId && savedView?.view_name 
+    ? savedView.view_name 
+    : 'כל סוגי המנויים';
+
+  // Generate filter fields with all renderable columns
+  const subscriptionTypeFilterFields = useMemo(() => {
+    return getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns);
+  }, [subscriptionTypes]);
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
@@ -215,7 +247,7 @@ const SubscriptionTypesManagement = () => {
         onOpenChange={setIsEditViewModalOpen}
         view={viewToEdit}
         currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={getSubscriptionTypeFilterFields(subscriptionTypes)}
+        filterFields={getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns)}
         onSuccess={() => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);

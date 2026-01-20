@@ -1378,6 +1378,8 @@ function TableContent<T>({
   groupedData,
   groupByKey,
   groupByKeys,
+  originalGroupByKey,
+  originalGroupByKeys,
   columns,
   collapsedGroupsSet,
   onToggleGroup,
@@ -1398,6 +1400,8 @@ function TableContent<T>({
   groupedData: GroupedData<T>[] | MultiLevelGroupedData<T>[] | null;
   groupByKey: string | null;
   groupByKeys: [string | null, string | null];
+  originalGroupByKey: string | null;
+  originalGroupByKeys: [string | null, string | null];
   columns: DataTableColumn<T>[];
   collapsedGroupsSet: Set<string>;
   onToggleGroup: (groupKey: string) => void;

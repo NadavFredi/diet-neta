@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { DateRangePicker } from './DateRangePicker';
@@ -469,27 +470,35 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                           className="w-full h-9 text-sm bg-white text-gray-900 border border-gray-200 hover:bg-white focus:bg-white focus:border-indigo-400"
                           dir="rtl"
                         />
-                        <div className="max-h-48 overflow-y-auto space-y-1 border rounded-md p-2">
-                          {(selectedField.dynamicOptions || selectedField.options || [])
-                            .filter(option => {
-                              if (!valueSearchQuery.trim()) return true;
-                              return option.toLowerCase().includes(valueSearchQuery.toLowerCase());
-                            })
-                            .map((option) => (
-                              <div
-                                key={option}
-                                className={cn(
-                                  "flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded",
-                                  selectedValues.includes(option) && "bg-[#5B6FB9]/10"
-                                )}
-                                onClick={() => handleValueToggle(option)}
-                              >
-                                {selectedValues.includes(option) && (
-                                  <Check className="h-4 w-4 text-[#5B6FB9]" />
-                                )}
-                                <span className="text-sm">{option}</span>
-                              </div>
-                            ))}
+                        <div className="max-h-48 overflow-y-auto border rounded-md p-2">
+                          <RadioGroup
+                            value={selectedValues[0] || ''}
+                            onValueChange={(value) => setSelectedValues([value])}
+                            className="space-y-1"
+                          >
+                            {(selectedField.dynamicOptions || selectedField.options || [])
+                              .filter(option => {
+                                if (!valueSearchQuery.trim()) return true;
+                                return option.toLowerCase().includes(valueSearchQuery.toLowerCase());
+                              })
+                              .map((option) => (
+                                <div
+                                  key={option}
+                                  className={cn(
+                                    "flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                                  )}
+                                  onClick={() => setSelectedValues([option])}
+                                >
+                                  <RadioGroupItem value={option} id={`radio-${option}`} />
+                                  <label
+                                    htmlFor={`radio-${option}`}
+                                    className="text-sm cursor-pointer flex-1"
+                                  >
+                                    {option}
+                                  </label>
+                                </div>
+                              ))}
+                          </RadioGroup>
                         </div>
                       </div>
                     )}
