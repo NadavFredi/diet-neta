@@ -140,3 +140,17 @@ export const mergeFilterGroups = (primary?: FilterGroup | null, secondary?: Filt
     children: [primary, secondary],
   };
 };
+
+const getFilterSignature = (filter: ActiveFilter): string => {
+  const values = Array.isArray(filter.values) ? [...filter.values].sort() : [];
+  return `f:${filter.fieldId}:${filter.operator}:${filter.type}:${values.join(',')}`;
+};
+
+export const getFilterGroupSignature = (group?: FilterGroup | null): string => {
+  if (!group) return '';
+  const childSignatures = group.children.map((child) =>
+    isFilterGroup(child) ? getFilterGroupSignature(child) : getFilterSignature(child)
+  );
+  childSignatures.sort();
+  return `g:${group.operator}:${group.not ? 1 : 0}:[${childSignatures.join('|')}]`;
+};

@@ -17,7 +17,7 @@ import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrde
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { isAdvancedFilterGroup } from '@/utils/filterGroupUtils';
+import { getFilterGroupSignature, isAdvancedFilterGroup } from '@/utils/filterGroupUtils';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, useUpdateSavedView } from '@/hooks/useSavedViews';
 import { useToast } from '@/hooks/use-toast';
@@ -198,8 +198,8 @@ export const TablePageHeader = ({
       type: f.type,
     })).sort((a: any, b: any) => a.id.localeCompare(b.id));
     
-    const currentFilterGroupStr = filterGroup ? JSON.stringify(filterGroup) : '';
-    const savedFilterGroupStr = savedFilterGroup ? JSON.stringify(savedFilterGroup) : '';
+    const currentFilterGroupStr = getFilterGroupSignature(filterGroup || undefined);
+    const savedFilterGroupStr = getFilterGroupSignature(savedFilterGroup || undefined);
     const filtersChanged = savedFilterGroup
       ? currentFilterGroupStr !== savedFilterGroupStr
       : JSON.stringify(currentFilters) !== JSON.stringify(normalizedSavedFilters);
@@ -248,7 +248,10 @@ export const TablePageHeader = ({
 
       if (targetView.is_default) {
         queryClient.invalidateQueries({ queryKey: ['defaultView', resourceKey, user?.id] });
+      } else if (viewId) {
+        queryClient.invalidateQueries({ queryKey: ['savedView', viewId, user?.id] });
       }
+      queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey, user?.id] });
 
       toast({
         title: 'הצלחה',
