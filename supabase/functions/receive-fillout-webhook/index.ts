@@ -848,28 +848,49 @@ serve(async (req) => {
 
       console.log('[receive-fillout-webhook] Submission updated successfully:', updatedSubmission.id);
 
-      // Also update meetings table for backward compatibility (if it exists)
-      const { data: existingMeeting } = await supabase
-        .from('meetings')
-        .select('id')
-        .eq('fillout_submission_id', finalSubmissionId)
-        .maybeSingle();
-
-      if (existingMeeting && (submissionType === 'meeting' || submissionType === 'budget_meeting')) {
-        const { error: meetingUpdateError } = await supabase
+      // Also update/create meetings table for backward compatibility (if it's a meeting type)
+      if (submissionType === 'meeting' || submissionType === 'budget_meeting') {
+        const { data: existingMeeting } = await supabase
           .from('meetings')
-          .update({
-            meeting_data: meetingData,
-            lead_id: leadId,
-            customer_id: customerId,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existingMeeting.id);
+          .select('id')
+          .eq('fillout_submission_id', finalSubmissionId)
+          .maybeSingle();
 
-        if (meetingUpdateError) {
-          console.warn('[receive-fillout-webhook] Error updating meeting (non-critical):', meetingUpdateError);
+        if (existingMeeting) {
+          // Update existing meeting
+          const { error: meetingUpdateError } = await supabase
+            .from('meetings')
+            .update({
+              meeting_data: meetingData,
+              lead_id: leadId,
+              customer_id: customerId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingMeeting.id);
+
+          if (meetingUpdateError) {
+            console.warn('[receive-fillout-webhook] Error updating meeting (non-critical):', meetingUpdateError);
+          } else {
+            console.log('[receive-fillout-webhook] Meeting updated for backward compatibility');
+          }
         } else {
-          console.log('[receive-fillout-webhook] Meeting also updated for backward compatibility');
+          // Create new meeting if it doesn't exist
+          const { data: newMeeting, error: meetingInsertError } = await supabase
+            .from('meetings')
+            .insert({
+              fillout_submission_id: finalSubmissionId,
+              meeting_data: meetingData,
+              lead_id: leadId,
+              customer_id: customerId,
+            })
+            .select()
+            .single();
+
+          if (meetingInsertError) {
+            console.warn('[receive-fillout-webhook] Error creating meeting (non-critical):', meetingInsertError);
+          } else {
+            console.log('[receive-fillout-webhook] Meeting created for backward compatibility:', newMeeting.id);
+          }
         }
       }
 
