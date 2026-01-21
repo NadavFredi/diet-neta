@@ -126,3 +126,36 @@ export const createProsperoProposal = async (
     throw error;
   }
 };
+
+/**
+ * Fetch Prospero proposals for a specific lead
+ */
+export interface ProsperoProposal {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  lead_id: string;
+  customer_id: string | null;
+  proposal_link: string;
+  prospero_proposal_id: string | null;
+  status: 'Sent' | 'Signed';
+  metadata: any;
+}
+
+export const getProsperoProposals = async (leadId: string): Promise<ProsperoProposal[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('prospero_proposals')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
+  } catch (error: any) {
+    throw new Error(`Failed to fetch proposals: ${error?.message || 'Unknown error'}`);
+  }
+};
