@@ -1295,7 +1295,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         isOpen={isAddPaymentDialogOpen}
         onOpenChange={setIsAddPaymentDialogOpen}
         leadId={leadId}
-        customerId={customer?.id}
         onPaymentCreated={() => {
           // Payments will refresh automatically via query invalidation
         }}
@@ -1306,7 +1305,6 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         isOpen={isAddMeetingDialogOpen}
         onOpenChange={setIsAddMeetingDialogOpen}
         leadId={leadId}
-        customerId={customer?.id}
         onMeetingCreated={() => {
           // Meetings will refresh automatically via query invalidation
         }}

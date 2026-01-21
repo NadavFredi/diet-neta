@@ -24,7 +24,7 @@ export const EditNutritionTemplateDialog = ({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange} modal={true}>
       <DialogContent 
-        className="!max-w-[98vw] !w-[98vw] !h-[95vh] !max-h-[95vh] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%] !rounded-none" 
+        className="!max-w-[95vw] !w-[95vw] !h-[95vh] !max-h-[95vh] sm:!max-w-[95vw] md:!max-w-[95vw] lg:!max-w-[95vw] xl:!max-w-[95vw] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%] !rounded-none" 
         dir="rtl"
         onInteractOutside={(e) => {
           // Prevent closing when clicking outside - only close via explicit action

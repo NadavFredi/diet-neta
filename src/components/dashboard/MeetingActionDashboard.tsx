@@ -15,7 +15,6 @@ import {
   User, 
   Phone, 
   Mail, 
-  MapPin, 
   FileText,
   CalendarPlus,
 } from 'lucide-react';
@@ -30,7 +29,6 @@ interface MeetingActionDashboardProps {
   status: string;
   meetingDate: string | null;
   formatTimeRange: () => string;
-  location: string | null;
   notes: string | null;
   getStatusColor: (status: string) => string;
   onAddToCalendar: () => void;
@@ -45,7 +43,6 @@ export const MeetingActionDashboard: React.FC<MeetingActionDashboardProps> = ({
   status,
   meetingDate,
   formatTimeRange,
-  location,
   notes,
   getStatusColor,
   onAddToCalendar,
@@ -94,15 +91,6 @@ export const MeetingActionDashboard: React.FC<MeetingActionDashboardProps> = ({
                   <p className="text-sm text-gray-700 font-medium">{schedulingData.timezone}</p>
                 </div>
               )}
-            {location && (
-              <div>
-                <label className="text-xs font-semibold text-gray-500 block mb-2">מיקום</label>
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <p className="text-sm text-gray-700 font-medium">{String(location)}</p>
-                </div>
-              </div>
-            )}
             {hasCalendarUrl && (
               <Button
                 variant="outline"

@@ -20,7 +20,9 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
       align: 'right',
     },
     cell: ({ row }) => {
-      const customer = row.original.customer;
+      // Get customer from direct relationship or through lead
+      const customer = row.original.customer || 
+                       (row.original.lead as any)?.customer;
       return (
         <span className="font-medium text-gray-900">
           {customer?.full_name || '-'}
@@ -228,7 +230,9 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
       align: 'right',
     },
     cell: ({ row }) => {
-      const customer = row.original.customer;
+      // Get customer from direct relationship or through lead
+      const customer = row.original.customer || 
+                       (row.original.lead as any)?.customer;
       return <span className="font-mono text-sm text-gray-700">{customer?.phone || '-'}</span>;
     },
   },
@@ -274,7 +278,9 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
       align: 'right',
     },
     cell: ({ row }) => {
-      const customer = row.original.customer;
+      // Get customer from direct relationship or through lead
+      const customer = row.original.customer || 
+                       (row.original.lead as any)?.customer;
       const meetingData = row.original.meeting_data || {};
       const email = customer?.email || meetingData.email || meetingData['אימייל'] || '-';
       return (
@@ -306,30 +312,6 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
       return (
         <span className="text-sm font-medium text-gray-900">
           {String(meetingType)}
-        </span>
-      );
-    },
-  },
-  {
-    id: 'location',
-    header: 'מיקום',
-    accessorKey: 'location',
-    enableSorting: false,
-    enableResizing: true,
-    enableHiding: true,
-    size: 150,
-    meta: {
-      align: 'right',
-    },
-    cell: ({ row }) => {
-      const meetingData = row.original.meeting_data || {};
-      const location = meetingData.location || 
-                      meetingData['מיקום'] || 
-                      meetingData['מקום'] ||
-                      '-';
-      return (
-        <span className="text-sm text-gray-700">
-          {String(location)}
         </span>
       );
     },
@@ -406,7 +388,6 @@ export const defaultMeetingColumnVisibility = {
   email: true,
   meeting_type: true,
   status: true,
-  location: false,
   notes: false,
   created_at: true,
   actions: true,

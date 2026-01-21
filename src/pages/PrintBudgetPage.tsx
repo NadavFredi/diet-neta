@@ -411,9 +411,6 @@ const PrintBudgetPage = () => {
           {/* Footer */}
           <div className="p-6 bg-gray-50 print:bg-white border-t border-gray-200 print:border-t-0">
             <div className="flex items-center justify-between text-sm text-gray-600">
-              <div>
-                <p>manager@dietneta.com</p>
-              </div>
               <div className="hidden print:block">
                 <p>עמוד <span className="page-number"></span></p>
               </div>

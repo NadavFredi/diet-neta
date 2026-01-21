@@ -146,8 +146,7 @@ export const WorkoutPlanCard = ({
                   </Button>
                 </DialogTrigger>
                 <DialogContent 
-                  className="max-w-[98vw] w-[98vw] h-[95vh] flex flex-col p-0 overflow-hidden" 
-                  style={{ height: '95vh', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+                  className="!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%] !rounded-none !m-0" 
                   dir="rtl"
                 >
                   <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0" style={{ flexShrink: 0 }}>

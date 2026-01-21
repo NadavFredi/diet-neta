@@ -5,7 +5,7 @@
  * Matches the structure of MeetingsDataTable.
  */
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { DataTable } from '@/components/ui/DataTable';
 import type { AllCollectionRecord } from '@/hooks/useAllCollections';
 import { collectionColumns, defaultCollectionColumnVisibility } from './columns/collectionColumns';
@@ -24,9 +24,12 @@ export const CollectionsDataTable = ({
   groupPageSize,
 }: CollectionsDataTableProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleRowClick = (collection: AllCollectionRecord) => {
-    navigate(`/dashboard/collections/${collection.id}`);
+    navigate(`/dashboard/collections/${collection.id}`, {
+      state: { returnTo: location.pathname + location.search }
+    });
   };
 
   return (

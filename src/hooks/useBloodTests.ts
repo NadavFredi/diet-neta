@@ -58,14 +58,24 @@ export const useBloodTests = (leadId: string | null) => {
             return { ...test, signedUrl: '' };
           }
 
-          const { data: urlData } = await supabase.storage
-            .from('client-assets')
-            .createSignedUrl(test.file_url, 3600);
+          try {
+            const { data: urlData, error: urlError } = await supabase.storage
+              .from('client-assets')
+              .createSignedUrl(test.file_url, 3600);
 
-          return {
-            ...test,
-            signedUrl: urlData?.signedUrl || '',
-          };
+            if (urlError) {
+              // File might not exist in storage - handle gracefully
+              return { ...test, signedUrl: '' };
+            }
+
+            return {
+              ...test,
+              signedUrl: urlData?.signedUrl || '',
+            };
+          } catch (error: any) {
+            // Handle storage errors gracefully (e.g., file not found)
+            return { ...test, signedUrl: '' };
+          }
         })
       );
 
@@ -116,14 +126,24 @@ export const useBloodTestsForCustomer = (customerId: string | null) => {
             return { ...test, signedUrl: '' };
           }
 
-          const { data: urlData } = await supabase.storage
-            .from('client-assets')
-            .createSignedUrl(test.file_url, 3600);
+          try {
+            const { data: urlData, error: urlError } = await supabase.storage
+              .from('client-assets')
+              .createSignedUrl(test.file_url, 3600);
 
-          return {
-            ...test,
-            signedUrl: urlData?.signedUrl || '',
-          };
+            if (urlError) {
+              // File might not exist in storage - handle gracefully
+              return { ...test, signedUrl: '' };
+            }
+
+            return {
+              ...test,
+              signedUrl: urlData?.signedUrl || '',
+            };
+          } catch (error: any) {
+            // Handle storage errors gracefully (e.g., file not found)
+            return { ...test, signedUrl: '' };
+          }
         })
       );
 

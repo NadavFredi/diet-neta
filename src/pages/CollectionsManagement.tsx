@@ -24,6 +24,9 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { AddCollectionDialog } from '@/components/dashboard/dialogs/AddCollectionDialog';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const CollectionsManagement = () => {
   const dispatch = useAppDispatch();
@@ -50,6 +53,7 @@ const CollectionsManagement = () => {
   
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
+  const [isAddCollectionDialogOpen, setIsAddCollectionDialogOpen] = useState(false);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -133,6 +137,16 @@ const CollectionsManagement = () => {
                   enableGroupBy={true}
                   enableSearch={true}
                   columns={collectionColumns}
+                  customActions={
+                    <Button
+                      onClick={() => setIsAddCollectionDialogOpen(true)}
+                      className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
+                      size="sm"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>צור גביה</span>
+                    </Button>
+                  }
                 />
 
                 <div className="bg-white">
@@ -192,6 +206,12 @@ const CollectionsManagement = () => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);
         }}
+      />
+
+      {/* Add Collection Dialog */}
+      <AddCollectionDialog
+        isOpen={isAddCollectionDialogOpen}
+        onOpenChange={setIsAddCollectionDialogOpen}
       />
     </>
   );

@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Receipt, Plus, Calendar, Trash2 } from 'lucide-react';
 import { useCollectionsByLead } from '@/hooks/useCollectionsByLead';
-import { usePaymentHistory } from '@/hooks/usePaymentHistory';
 import { AddCollectionDialog } from './dialogs/AddCollectionDialog';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -49,10 +48,6 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set());
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { data: collections = [], isLoading } = useCollectionsByLead(leadId);
-  const { data: allPayments = [] } = usePaymentHistory(customerId || '', leadId || null);
-
-  // Get payments not linked to any collection
-  const unlinkedPayments = allPayments.filter((p) => !p.collection_id);
 
   // Sort collections by date (most recent first)
   const sortedCollections = useMemo(() => {
@@ -68,8 +63,8 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
   };
 
   const handleCollectionClick = (collectionId: string) => {
-    navigate(`/dashboard/collections?collection_id=${collectionId}`, {
-      state: { returnTo: location.pathname }
+    navigate(`/dashboard/collections/${collectionId}`, {
+      state: { returnTo: location.pathname + location.search }
     });
   };
 
@@ -190,7 +185,7 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
               <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               <p className="mt-2 text-sm">טוען גבייות...</p>
             </div>
-          ) : sortedCollections.length === 0 && unlinkedPayments.length === 0 ? (
+          ) : sortedCollections.length === 0 ? (
             <div className="text-center text-gray-500 py-8 text-sm">
               <Receipt className="h-8 w-8 mx-auto mb-2 text-gray-400" />
               <p>אין גבייות</p>
@@ -241,33 +236,6 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
                   </TableBody>
                 </Table>
               )}
-
-              {/* Unlinked Payments Section */}
-              {unlinkedPayments.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-slate-200">
-                  <div className="text-xs font-semibold text-slate-600 mb-2">
-                    תשלומים ללא גבייה ({unlinkedPayments.length})
-                  </div>
-                  <div className="space-y-1.5">
-                    {unlinkedPayments.slice(0, 3).map((payment) => (
-                      <div
-                        key={payment.id}
-                        className="flex items-center justify-between text-xs p-2 bg-slate-50 rounded"
-                      >
-                        <span className="text-slate-700 text-right flex-1">{payment.product_name || 'ללא שם מוצר'}</span>
-                        <span className="font-semibold text-slate-900 text-right flex-shrink-0 mr-2">
-                          {formatCurrency(payment.amount || 0)}
-                        </span>
-                      </div>
-                    ))}
-                    {unlinkedPayments.length > 3 && (
-                      <div className="text-xs text-slate-500 text-center pt-1">
-                        +{unlinkedPayments.length - 3} תשלומים נוספים
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>
@@ -277,7 +245,6 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
         isOpen={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         leadId={leadId}
-        customerId={customerId}
         onCollectionCreated={() => {
           // Collections will refresh automatically via query invalidation
         }}
