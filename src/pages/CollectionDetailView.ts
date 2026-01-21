@@ -98,7 +98,7 @@ export const useCollectionDetailView = () => {
   const handleBack = () => {
     // Check if we have a return URL from location state
     const returnTo = (location.state as any)?.returnTo;
-    if (returnTo && returnTo.startsWith('/leads/')) {
+    if (returnTo) {
       navigate(returnTo);
     } else {
       // Default to collections list page

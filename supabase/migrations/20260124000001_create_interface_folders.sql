@@ -6,7 +6,7 @@
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS interface_folders (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     interface_key TEXT NOT NULL, -- e.g., 'leads', 'customers', 'templates', etc.
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,

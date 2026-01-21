@@ -152,3 +152,8 @@ entrypoint = "./functions/stripe-api/index.ts"
 enabled = true
 verify_jwt = false  # Handles auth manually for invitation acceptance
 entrypoint = "./functions/admin-user/index.ts"
+
+[functions.receive-prospero-webhook]
+enabled = true
+verify_jwt = false  # Webhook from Make.com doesn't need JWT
+entrypoint = "./functions/receive-prospero-webhook/index.ts"

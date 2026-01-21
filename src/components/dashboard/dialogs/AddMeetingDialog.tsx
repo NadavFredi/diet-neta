@@ -1,7 +1,7 @@
 /**
  * AddMeetingDialog Component
  * 
- * Dialog for creating a new meeting linked to a lead/customer.
+ * Dialog for creating a new meeting linked to a lead.
  */
 
 import { useState, useEffect } from 'react';
@@ -26,6 +26,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
@@ -38,7 +40,6 @@ interface AddMeetingDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   leadId?: string | null;
-  customerId?: string | null;
   onMeetingCreated?: () => void | Promise<void>;
 }
 
@@ -46,13 +47,34 @@ export const AddMeetingDialog = ({
   isOpen,
   onOpenChange,
   leadId,
-  customerId,
   onMeetingCreated,
 }: AddMeetingDialogProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAppSelector((state) => state.auth);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch leads for selection (only when not pre-filled)
+  const [leads, setLeads] = useState<Array<{ id: string; customer_id: string; customer?: { full_name: string; phone?: string } }>>([]);
+  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
+
+  // Fetch leads when dialog opens and no leadId is provided
+  useEffect(() => {
+    if (isOpen && !leadId) {
+      setIsLoadingLeads(true);
+      supabase
+        .from('leads')
+        .select('id, customer_id, customer:customers(full_name, phone)')
+        .order('created_at', { ascending: false })
+        .limit(1000)
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setLeads(data as any);
+          }
+          setIsLoadingLeads(false);
+        });
+    }
+  }, [isOpen, leadId]);
 
   // Get today's date in YYYY-MM-DD format for default
   const today = new Date();
@@ -61,7 +83,6 @@ export const AddMeetingDialog = ({
   const defaultTime = format(today, 'HH:mm');
 
   const [formData, setFormData] = useState({
-    customer_id: customerId || '',
     lead_id: leadId || '',
     meeting_date: todayStr,
     meeting_time_start: defaultTime,
@@ -81,7 +102,6 @@ export const AddMeetingDialog = ({
       const defaultTime = format(today, 'HH:mm');
       
       setFormData({
-        customer_id: customerId || '',
         lead_id: leadId || '',
         meeting_date: todayStr,
         meeting_time_start: defaultTime,
@@ -91,7 +111,7 @@ export const AddMeetingDialog = ({
       });
       setSelectedDate(today);
     }
-  }, [isOpen, leadId, customerId]);
+  }, [isOpen, leadId]);
 
   // Update formData when selectedDate changes
   useEffect(() => {
@@ -106,10 +126,10 @@ export const AddMeetingDialog = ({
   };
 
   const handleSubmit = async () => {
-    if (!formData.customer_id && !formData.lead_id) {
+    if (!formData.lead_id) {
       toast({
         title: 'שגיאה',
-        description: 'יש לבחור לקוח או ליד',
+        description: 'יש לבחור ליד',
         variant: 'destructive',
       });
       return;
@@ -189,8 +209,7 @@ export const AddMeetingDialog = ({
       const { data, error } = await supabase
         .from('meetings')
         .insert({
-          customer_id: formData.customer_id || null,
-          lead_id: formData.lead_id || null,
+          lead_id: formData.lead_id,
           meeting_data: meetingData,
           created_by: user?.id || null,
         })
@@ -236,11 +255,98 @@ export const AddMeetingDialog = ({
         <DialogHeader>
           <DialogTitle>צור פגישה חדשה</DialogTitle>
           <DialogDescription>
-            צור פגישה חדשה המקושרת ללקוח/ליד
+            צור פגישה חדשה המקושרת לליד
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Lead selection - show when not pre-filled from props */}
+          {!leadId && (
+            <div className="space-y-2">
+              <Label htmlFor="lead_id">ליד *</Label>
+              {leads.length > 5 ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={cn(
+                        "w-full justify-between",
+                        !formData.lead_id && "text-muted-foreground"
+                      )}
+                      disabled={isSubmitting || isLoadingLeads}
+                    >
+                      {isLoadingLeads
+                        ? "טוען לידים..."
+                        : formData.lead_id
+                        ? leads.find((lead) => lead.id === formData.lead_id)?.customer?.full_name || `ליד #${formData.lead_id.slice(0, 8)}`
+                        : "בחר ליד *"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start" dir="rtl">
+                    <Command>
+                      <CommandInput placeholder="חפש ליד..." dir="rtl" />
+                      <CommandList>
+                        <CommandEmpty>לא נמצאו לידים</CommandEmpty>
+                        <CommandGroup>
+                          {leads.length === 0 && !isLoadingLeads ? (
+                            <CommandItem value="no-leads" disabled>אין לידים זמינים</CommandItem>
+                          ) : (
+                            leads.map((lead) => (
+                              <CommandItem
+                                key={lead.id}
+                                value={`${lead.customer?.full_name || ''} ${lead.customer?.phone || ''} ${lead.id}`}
+                                onSelect={() => {
+                                  handleInputChange('lead_id', lead.id);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "ml-2 h-4 w-4",
+                                    formData.lead_id === lead.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {lead.customer?.full_name || `ליד #${lead.id.slice(0, 8)}`}
+                                {lead.customer?.phone ? ` - ${lead.customer.phone}` : ''}
+                              </CommandItem>
+                            ))
+                          )}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <Select
+                  value={formData.lead_id || 'none'}
+                  onValueChange={(value) => handleInputChange('lead_id', value === 'none' ? '' : value)}
+                  disabled={isSubmitting || isLoadingLeads}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={isLoadingLeads ? "טוען לידים..." : "בחר ליד"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">ללא ליד</SelectItem>
+                    {leads.length === 0 && !isLoadingLeads ? (
+                      <SelectItem value="no-leads" disabled>אין לידים זמינים</SelectItem>
+                    ) : (
+                      leads.map((lead) => (
+                        <SelectItem key={lead.id} value={lead.id}>
+                          {lead.customer?.full_name || `ליד #${lead.id.slice(0, 8)}`}
+                          {lead.customer?.phone ? ` - ${lead.customer.phone}` : ''}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+              {isLoadingLeads && (
+                <p className="text-xs text-muted-foreground">טוען רשימת לידים...</p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="meeting_date">תאריך פגישה *</Label>
             <Popover>
@@ -289,7 +395,7 @@ export const AddMeetingDialog = ({
                     ),
                     day_range_end: "day-range-end",
                     day_selected:
-                      "bg-[#5B6FB9] text-white hover:bg-[#5B6FB9]/90 hover:text-white focus:bg-[#5B6FB9] focus:text-white font-semibold shadow-md",
+                      "!bg-[#5B6FB9] !text-white hover:!bg-[#5B6FB9]/90 hover:!text-white focus:!bg-[#5B6FB9] focus:!text-white font-semibold shadow-md",
                     day_today: "bg-blue-50 text-[#5B6FB9] font-semibold",
                     day_outside:
                       "day-outside text-gray-400 opacity-50 aria-selected:bg-gray-100 aria-selected:text-gray-500 aria-selected:opacity-30",

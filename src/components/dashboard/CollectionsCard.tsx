@@ -49,27 +49,45 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set());
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { data: collections = [], isLoading } = useCollectionsByLead(leadId);
-  const { data: allPayments = [] } = usePaymentHistory(customerId || '', leadId || null);
+  const { data: paymentHistory = [] } = usePaymentHistory(customerId || '', leadId || null);
 
-  // Get payments not linked to any collection
-  const unlinkedPayments = allPayments.filter((p) => !p.collection_id);
+  // Get unlinked payments (payments without a collection_id)
+  const unlinkedPayments = useMemo(() => {
+    return paymentHistory.filter((payment) => !payment.collection_id);
+  }, [paymentHistory]);
+
+  // Calculate remaining amount for each collection
+  const collectionsWithRemaining = useMemo(() => {
+    return collections.map((collection) => {
+      const linkedPayments = paymentHistory.filter(
+        (payment) => payment.collection_id === collection.id
+      );
+      const paidAmount = linkedPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+      const remaining = Math.max(0, collection.total_amount - paidAmount);
+      return {
+        ...collection,
+        paidAmount,
+        remaining,
+      };
+    });
+  }, [collections, paymentHistory]);
 
   // Sort collections by date (most recent first)
   const sortedCollections = useMemo(() => {
-    return [...collections].sort((a, b) => {
+    return [...collectionsWithRemaining].sort((a, b) => {
       const dateA = a.due_date || a.created_at;
       const dateB = b.due_date || b.created_at;
       return new Date(dateB).getTime() - new Date(dateA).getTime();
     });
-  }, [collections]);
+  }, [collectionsWithRemaining]);
 
   const handleCreateCollection = () => {
     setIsAddDialogOpen(true);
   };
 
   const handleCollectionClick = (collectionId: string) => {
-    navigate(`/dashboard/collections?collection_id=${collectionId}`, {
-      state: { returnTo: location.pathname }
+    navigate(`/dashboard/collections/${collectionId}`, {
+      state: { returnTo: location.pathname + location.search }
     });
   };
 
@@ -190,7 +208,7 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
               <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               <p className="mt-2 text-sm">טוען גבייות...</p>
             </div>
-          ) : sortedCollections.length === 0 && unlinkedPayments.length === 0 ? (
+          ) : sortedCollections.length === 0 ? (
             <div className="text-center text-gray-500 py-8 text-sm">
               <Receipt className="h-8 w-8 mx-auto mb-2 text-gray-400" />
               <p>אין גבייות</p>
@@ -201,9 +219,11 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right w-12"></TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
-                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">נותר</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -228,45 +248,21 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
                             : format(new Date(collection.created_at), 'dd/MM/yyyy', { locale: he })
                           }
                         </TableCell>
-                        <TableCell className="text-xs py-3 px-3 text-gray-900 font-semibold text-right align-middle">
-                          {formatCurrency(collection.total_amount)}
-                        </TableCell>
                         <TableCell className="text-xs py-3 px-3 text-right align-middle">
                           <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 inline-flex", getStatusColor(collection.status || 'ממתין'))}>
                             {collection.status || 'ממתין'}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 font-semibold text-right align-middle">
+                          {formatCurrency(collection.total_amount)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-700 text-right align-middle">
+                          {formatCurrency(collection.remaining)}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              )}
-
-              {/* Unlinked Payments Section */}
-              {unlinkedPayments.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-slate-200">
-                  <div className="text-xs font-semibold text-slate-600 mb-2">
-                    תשלומים ללא גבייה ({unlinkedPayments.length})
-                  </div>
-                  <div className="space-y-1.5">
-                    {unlinkedPayments.slice(0, 3).map((payment) => (
-                      <div
-                        key={payment.id}
-                        className="flex items-center justify-between text-xs p-2 bg-slate-50 rounded"
-                      >
-                        <span className="text-slate-700 text-right flex-1">{payment.product_name || 'ללא שם מוצר'}</span>
-                        <span className="font-semibold text-slate-900 text-right flex-shrink-0 mr-2">
-                          {formatCurrency(payment.amount || 0)}
-                        </span>
-                      </div>
-                    ))}
-                    {unlinkedPayments.length > 3 && (
-                      <div className="text-xs text-slate-500 text-center pt-1">
-                        +{unlinkedPayments.length - 3} תשלומים נוספים
-                      </div>
-                    )}
-                  </div>
-                </div>
               )}
             </>
           )}
@@ -277,7 +273,6 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
         isOpen={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         leadId={leadId}
-        customerId={customerId}
         onCollectionCreated={() => {
           // Collections will refresh automatically via query invalidation
         }}

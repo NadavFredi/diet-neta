@@ -20,6 +20,9 @@ import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { getMeetingFilterFields } from '@/hooks/useTableFilters';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
+import { AddMeetingDialog } from '@/components/dashboard/dialogs/AddMeetingDialog';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const MeetingsManagement = () => {
   const dispatch = useAppDispatch();
@@ -42,6 +45,7 @@ const MeetingsManagement = () => {
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('meetings');
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
+  const [isAddMeetingDialogOpen, setIsAddMeetingDialogOpen] = useState(false);
   
   const {
     meetings,
@@ -136,6 +140,16 @@ const MeetingsManagement = () => {
                   enableGroupBy={true}
                   enableSearch={true}
                   columns={meetingColumns}
+                  customActions={
+                    <Button
+                      onClick={() => setIsAddMeetingDialogOpen(true)}
+                      className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
+                      size="sm"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>צור פגישה</span>
+                    </Button>
+                  }
                 />
 
                 <div className="bg-white">
@@ -195,6 +209,12 @@ const MeetingsManagement = () => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);
         }}
+      />
+
+      {/* Add Meeting Dialog */}
+      <AddMeetingDialog
+        isOpen={isAddMeetingDialogOpen}
+        onOpenChange={setIsAddMeetingDialogOpen}
       />
     </>
   );

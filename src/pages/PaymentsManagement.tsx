@@ -22,6 +22,9 @@ import { getPaymentFilterFields } from '@/hooks/useTableFilters';
 import { selectActiveFilters, selectGroupByKeys, selectCurrentPage, selectPageSize, setCurrentPage, setPageSize } from '@/store/slices/tableStateSlice';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
+import { AddPaymentDialog } from '@/components/dashboard/dialogs/AddPaymentDialog';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const PaymentsManagement = () => {
   const dispatch = useAppDispatch();
@@ -74,6 +77,7 @@ const PaymentsManagement = () => {
 
   const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
   const [viewToEdit, setViewToEdit] = useState<any>(null);
+  const [isAddPaymentDialogOpen, setIsAddPaymentDialogOpen] = useState(false);
 
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -153,6 +157,16 @@ const PaymentsManagement = () => {
                 legacyOnFilterRemove={removeFilter}
                 legacyOnFilterClear={clearFilters}
                 legacyOnFilterGroupChange={setFilterGroup}
+                customActions={
+                  <Button
+                    onClick={() => setIsAddPaymentDialogOpen(true)}
+                    className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>צור תשלום</span>
+                  </Button>
+                }
               />
 
               {/* Table Section - Data Area */}
@@ -227,6 +241,12 @@ const PaymentsManagement = () => {
           setIsEditViewModalOpen(false);
           setViewToEdit(null);
         }}
+      />
+
+      {/* Add Payment Dialog */}
+      <AddPaymentDialog
+        isOpen={isAddPaymentDialogOpen}
+        onOpenChange={setIsAddPaymentDialogOpen}
       />
     </>
   );

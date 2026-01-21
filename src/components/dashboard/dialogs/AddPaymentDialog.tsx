@@ -1,10 +1,10 @@
 /**
  * AddPaymentDialog Component
  * 
- * Dialog for creating a new payment linked to a lead/customer.
+ * Dialog for creating a new payment linked to a lead.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,17 +24,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCollectionsByLead } from '@/hooks/useCollectionsByLead';
+import { useAllCollections, type AllCollectionRecord } from '@/hooks/useAllCollections';
+import { cn } from '@/lib/utils';
 
 interface AddPaymentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   leadId?: string | null;
-  customerId?: string | null;
   onPaymentCreated?: () => void | Promise<void>;
 }
 
@@ -42,7 +46,6 @@ export const AddPaymentDialog = ({
   isOpen,
   onOpenChange,
   leadId,
-  customerId,
   onPaymentCreated,
 }: AddPaymentDialogProps) => {
   const { toast } = useToast();
@@ -50,11 +53,46 @@ export const AddPaymentDialog = ({
   const { user } = useAppSelector((state) => state.auth);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch collections for the current lead
-  const { data: collections = [], isLoading: isLoadingCollections } = useCollectionsByLead(leadId || null);
+  // Fetch collections for the current lead if leadId prop is provided
+  const { data: leadCollections = [], isLoading: isLoadingLeadCollections } = useCollectionsByLead(leadId || null);
+  
+  // Fetch all collections if no leadId is provided
+  const { data: allCollections = [], isLoading: isLoadingAllCollections } = useAllCollections();
+
+  // Fetch leads for selection (only when not pre-filled)
+  const [leads, setLeads] = useState<Array<{ id: string; customer_id: string; customer?: { full_name: string; phone?: string } }>>([]);
+  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
+
+  // Fetch leads when dialog opens and no leadId is provided
+  useEffect(() => {
+    if (isOpen && !leadId) {
+      setIsLoadingLeads(true);
+      supabase
+        .from('leads')
+        .select('id, customer_id, customer:customers(full_name, phone)')
+        .order('created_at', { ascending: false })
+        .limit(1000)
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error fetching leads:', error);
+            toast({
+              title: 'שגיאה',
+              description: 'לא ניתן לטעון את רשימת הלידים',
+              variant: 'destructive',
+            });
+          }
+          if (!error && data) {
+            setLeads(data as any);
+          }
+          setIsLoadingLeads(false);
+        });
+    } else if (!isOpen) {
+      // Reset leads when dialog closes
+      setLeads([]);
+    }
+  }, [isOpen, leadId, toast]);
 
   const [formData, setFormData] = useState({
-    customer_id: customerId || '',
     lead_id: leadId || '',
     collection_id: 'none',
     product_name: '',
@@ -68,7 +106,6 @@ export const AddPaymentDialog = ({
   useEffect(() => {
     if (isOpen) {
       setFormData({
-        customer_id: customerId || '',
         lead_id: leadId || '',
         collection_id: 'none',
         product_name: '',
@@ -78,7 +115,65 @@ export const AddPaymentDialog = ({
         notes: '',
       });
     }
-  }, [isOpen, leadId, customerId]);
+  }, [isOpen, leadId]);
+
+  // Determine effective leadId (from prop or form selection)
+  const effectiveLeadId = useMemo(() => leadId || formData.lead_id || null, [leadId, formData.lead_id]);
+
+  // If user selected a lead dynamically, we need to fetch its collections
+  const { data: dynamicLeadCollections = [], isLoading: isLoadingDynamicLeadCollections } = useCollectionsByLead(
+    formData.lead_id && !leadId ? formData.lead_id : null
+  );
+
+  // Determine which collections to use based on selected lead
+  const collections = useMemo(() => {
+    // Use dynamic lead collections if lead was selected from form (and not from prop)
+    if (formData.lead_id && !leadId) {
+      return dynamicLeadCollections;
+    }
+    
+    // If leadId prop is provided, use collections from that lead
+    if (leadId) {
+      return leadCollections;
+    }
+    
+    // If no leadId, return all collections
+    return allCollections;
+  }, [leadId, formData.lead_id, leadCollections, dynamicLeadCollections, allCollections]);
+
+  const isLoadingCollections = 
+    (formData.lead_id && !leadId) ? isLoadingDynamicLeadCollections :
+    leadId ? isLoadingLeadCollections : 
+    isLoadingAllCollections;
+
+  // Helper function to format collection display without ID
+  const formatCollectionDisplay = (collection: AllCollectionRecord | undefined) => {
+    if (!collection) return '';
+    
+    const parts: string[] = [];
+    
+    // Add customer name if available
+    if (collection.customer_name) {
+      parts.push(collection.customer_name);
+    }
+    
+    // Add status in parentheses
+    if (collection.status) {
+      parts.push(`(${collection.status})`);
+    }
+    
+    // Add amount
+    if (collection.total_amount) {
+      parts.push(`₪${collection.total_amount.toFixed(2)}`);
+    }
+    
+    // If no customer name, use description as fallback
+    if (!collection.customer_name && collection.description) {
+      return `${collection.description} - (${collection.status}) ₪${collection.total_amount.toFixed(2)}`;
+    }
+    
+    return parts.join(' - ');
+  };
 
   // Auto-fill product name when collection is selected
   useEffect(() => {
@@ -94,14 +189,18 @@ export const AddPaymentDialog = ({
   }, [formData.collection_id, collections]);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
   const handleSubmit = async () => {
-    if (!formData.customer_id) {
+    // Require lead_id
+    if (!formData.lead_id) {
       toast({
         title: 'שגיאה',
-        description: 'יש לבחור לקוח',
+        description: 'יש לבחור ליד כדי ליצור תשלום',
         variant: 'destructive',
       });
       return;
@@ -128,11 +227,41 @@ export const AddPaymentDialog = ({
     setIsSubmitting(true);
 
     try {
+      // Get customer_id from the selected lead
+      let customerIdFromLead: string | null = null;
+      if (formData.lead_id) {
+        const selectedLead = leads.find((l) => l.id === formData.lead_id);
+        if (selectedLead?.customer_id) {
+          customerIdFromLead = selectedLead.customer_id;
+        } else {
+          // Fetch customer_id from lead if not in local state
+          const { data: leadData } = await supabase
+            .from('leads')
+            .select('customer_id')
+            .eq('id', formData.lead_id)
+            .single();
+          
+          if (leadData?.customer_id) {
+            customerIdFromLead = leadData.customer_id;
+          }
+        }
+      }
+
+      if (!customerIdFromLead && formData.lead_id) {
+        toast({
+          title: 'שגיאה',
+          description: 'לא ניתן למצוא לקוח מקושר לליד זה',
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('payments')
         .insert({
-          customer_id: formData.customer_id,
-          lead_id: formData.lead_id || null,
+          customer_id: customerIdFromLead,
+          lead_id: formData.lead_id,
           collection_id: formData.collection_id && formData.collection_id !== 'none' ? formData.collection_id : null,
           product_name: formData.product_name.trim(),
           amount: Number(formData.amount),
@@ -152,6 +281,8 @@ export const AddPaymentDialog = ({
       });
 
       // Invalidate queries to refresh data
+      // Invalidate all payments queries (regardless of filters)
+      queryClient.invalidateQueries({ queryKey: ['all-payments'] });
       queryClient.invalidateQueries({ queryKey: ['payment-history'] });
       queryClient.invalidateQueries({ queryKey: ['collections-by-lead'] });
       queryClient.invalidateQueries({ queryKey: ['all-collections'] });
@@ -185,11 +316,93 @@ export const AddPaymentDialog = ({
         <DialogHeader>
           <DialogTitle>צור תשלום חדש</DialogTitle>
           <DialogDescription>
-            צור תשלום חדש המקושר ללקוח/ליד
+            צור תשלום חדש המקושר לליד
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Lead selection - show when not pre-filled from props */}
+          {!leadId && (
+            <div className="space-y-2">
+              <Label htmlFor="lead_id">ליד *</Label>
+              {leads.length > 5 ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={cn(
+                        "w-full justify-between",
+                        !formData.lead_id && "text-muted-foreground"
+                      )}
+                      disabled={isSubmitting || isLoadingLeads}
+                    >
+                      {isLoadingLeads
+                        ? "טוען לידים..."
+                        : formData.lead_id
+                        ? leads.find((lead) => lead.id === formData.lead_id)?.customer?.full_name || `ליד #${formData.lead_id.slice(0, 8)}`
+                        : "בחר ליד *"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start" dir="rtl">
+                    <Command>
+                      <CommandInput placeholder="חפש ליד..." dir="rtl" />
+                      <CommandList>
+                        <CommandEmpty>לא נמצאו לידים</CommandEmpty>
+                        <CommandGroup>
+                          {leads.map((lead) => (
+                            <CommandItem
+                              key={lead.id}
+                              value={`${lead.customer?.full_name || ''} ${lead.customer?.phone || ''} ${lead.id}`}
+                              onSelect={() => {
+                                handleInputChange('lead_id', lead.id);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "ml-2 h-4 w-4",
+                                  formData.lead_id === lead.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {lead.customer?.full_name || `ליד #${lead.id.slice(0, 8)}`}
+                              {lead.customer?.phone ? ` - ${lead.customer.phone}` : ''}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <Select
+                  value={formData.lead_id || ''}
+                  onValueChange={(value) => handleInputChange('lead_id', value)}
+                  disabled={isSubmitting || isLoadingLeads}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={isLoadingLeads ? "טוען לידים..." : "בחר ליד *"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {leads.length === 0 && !isLoadingLeads ? (
+                      <SelectItem value="no-leads" disabled>אין לידים זמינים</SelectItem>
+                    ) : (
+                      leads.map((lead) => (
+                        <SelectItem key={lead.id} value={lead.id}>
+                          {lead.customer?.full_name || `ליד #${lead.id.slice(0, 8)}`}
+                          {lead.customer?.phone ? ` - ${lead.customer.phone}` : ''}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+              {isLoadingLeads && (
+                <p className="text-xs text-muted-foreground">טוען רשימת לידים...</p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="product_name">שם מוצר *</Label>
             <Input
@@ -250,31 +463,95 @@ export const AddPaymentDialog = ({
             </Select>
           </div>
 
-          {leadId && (
-            <div className="space-y-2">
-              <Label htmlFor="collection_id">גבייה (אופציונלי)</Label>
-            <Select
-              value={formData.collection_id || 'none'}
-              onValueChange={(value) => handleInputChange('collection_id', value)}
-              disabled={isSubmitting || isLoadingCollections}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="בחר גבייה (אופציונלי)" />
-              </SelectTrigger>
+          <div className="space-y-2">
+            <Label htmlFor="collection_id">גבייה (אופציונלי)</Label>
+            {collections.length > 5 ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className={cn(
+                      "w-full justify-between",
+                      (!formData.collection_id || formData.collection_id === 'none') && "text-muted-foreground"
+                    )}
+                    disabled={isSubmitting || isLoadingCollections}
+                  >
+                    {isLoadingCollections
+                      ? "טוען גבייות..."
+                      : formData.collection_id && formData.collection_id !== 'none'
+                      ? formatCollectionDisplay(collections.find((c) => c.id === formData.collection_id)) || `גבייה #${formData.collection_id.slice(0, 8)}`
+                      : "בחר גבייה (אופציונלי)"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start" dir="rtl">
+                  <Command>
+                    <CommandInput placeholder="חפש גבייה..." dir="rtl" />
+                    <CommandList>
+                      <CommandEmpty>לא נמצאו גבייות</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="none"
+                          onSelect={() => {
+                            handleInputChange('collection_id', 'none');
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "ml-2 h-4 w-4",
+                              (!formData.collection_id || formData.collection_id === 'none') ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          ללא גבייה
+                        </CommandItem>
+                        {collections.map((collection) => (
+                          <CommandItem
+                            key={collection.id}
+                            value={`${collection.description || ''} ${collection.customer_name || ''} ${collection.id}`}
+                            onSelect={() => {
+                              handleInputChange('collection_id', collection.id);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "ml-2 h-4 w-4",
+                                formData.collection_id === collection.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {formatCollectionDisplay(collection) || `גבייה #${collection.id.slice(0, 8)}`}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <Select
+                value={formData.collection_id || 'none'}
+                onValueChange={(value) => handleInputChange('collection_id', value)}
+                disabled={isSubmitting || isLoadingCollections}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="בחר גבייה (אופציונלי)" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">ללא גבייה</SelectItem>
-                  {collections.map((collection) => (
+                    {collections.map((collection) => (
                     <SelectItem key={collection.id} value={collection.id}>
-                      {collection.description || `גבייה #${collection.id.slice(0, 8)}`} - ₪{collection.total_amount.toFixed(2)} ({collection.status})
+                      {formatCollectionDisplay(collection) || `גבייה #${collection.id.slice(0, 8)}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {collections.length === 0 && !isLoadingCollections && (
-                <p className="text-xs text-muted-foreground">אין גבייות זמינות לליד זה</p>
-              )}
-            </div>
-          )}
+            )}
+            {collections.length === 0 && !isLoadingCollections && (
+              <p className="text-xs text-muted-foreground">
+                {leadId || formData.lead_id ? 'אין גבייות זמינות לליד זה' : 'אין גבייות זמינות'}
+              </p>
+            )}
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="notes">הערות</Label>

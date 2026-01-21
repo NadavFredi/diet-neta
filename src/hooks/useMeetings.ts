@@ -18,6 +18,12 @@ export interface Meeting {
   lead?: {
     id: string;
     customer_id: string;
+    customer?: {
+      id: string;
+      full_name: string;
+      phone: string;
+      email: string | null;
+    } | null;
   } | null;
   customer?: {
     id: string;
@@ -146,7 +152,7 @@ export const useMeetings = (filters?: {
         .select(
           `
           *,
-          lead:leads(id, customer_id),
+          lead:leads(id, customer_id, customer:customers(id, full_name, phone, email)),
           customer:customers(id, full_name, phone, email)
         `
         );
@@ -178,7 +184,20 @@ export const useMeetings = (filters?: {
       const { data, error } = await query;
 
       if (error) throw error;
-      return (data || []) as Meeting[];
+      
+      // Map the data to ensure customer is populated from lead if not directly set
+      const mappedData = (data || []).map((meeting: any) => {
+        // If meeting doesn't have direct customer but has lead with customer, use lead's customer
+        if (!meeting.customer && meeting.lead?.customer) {
+          return {
+            ...meeting,
+            customer: meeting.lead.customer,
+          };
+        }
+        return meeting;
+      });
+      
+      return mappedData as Meeting[];
     },
     // Refetch every 10 seconds to catch new meetings
     refetchInterval: 10000,
@@ -221,13 +240,22 @@ export const useMeeting = (meetingId: string | null) => {
         .from('meetings')
         .select(`
           *,
-          lead:leads(id, customer_id),
+          lead:leads(id, customer_id, customer:customers(id, full_name, phone, email)),
           customer:customers(id, full_name, phone, email)
         `)
         .eq('id', meetingId)
         .single();
 
       if (error) throw error;
+      
+      // If meeting doesn't have direct customer but has lead with customer, use lead's customer
+      if (!data.customer && (data as any).lead?.customer) {
+        return {
+          ...data,
+          customer: (data as any).lead.customer,
+        } as Meeting;
+      }
+      
       return data as Meeting;
     },
     enabled: !!meetingId,
