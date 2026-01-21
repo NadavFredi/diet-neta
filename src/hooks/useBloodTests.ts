@@ -64,7 +64,9 @@ export const useBloodTests = (leadId: string | null) => {
               .createSignedUrl(test.file_url, 3600);
 
             if (urlError) {
-              // File might not exist in storage - handle gracefully
+              // Log error for debugging but don't throw
+              console.warn(`Failed to create signed URL for ${test.file_url}:`, urlError);
+              // File might not exist in storage or RLS policy violation - handle gracefully
               return { ...test, signedUrl: '' };
             }
 
@@ -73,13 +75,15 @@ export const useBloodTests = (leadId: string | null) => {
               signedUrl: urlData?.signedUrl || '',
             };
           } catch (error: any) {
-            // Handle storage errors gracefully (e.g., file not found)
+            // Handle storage errors gracefully (e.g., file not found, RLS violation)
+            console.warn(`Error creating signed URL for ${test.file_url}:`, error);
             return { ...test, signedUrl: '' };
           }
         })
       );
 
-      return testsWithUrls;
+      // Filter out tests with empty signed URLs (files that couldn't be accessed)
+      return testsWithUrls.filter(test => test.signedUrl !== '');
     },
     enabled: !!leadId && !!user?.id,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -132,7 +136,9 @@ export const useBloodTestsForCustomer = (customerId: string | null) => {
               .createSignedUrl(test.file_url, 3600);
 
             if (urlError) {
-              // File might not exist in storage - handle gracefully
+              // Log error for debugging but don't throw
+              console.warn(`Failed to create signed URL for ${test.file_url}:`, urlError);
+              // File might not exist in storage or RLS policy violation - handle gracefully
               return { ...test, signedUrl: '' };
             }
 
@@ -141,13 +147,15 @@ export const useBloodTestsForCustomer = (customerId: string | null) => {
               signedUrl: urlData?.signedUrl || '',
             };
           } catch (error: any) {
-            // Handle storage errors gracefully (e.g., file not found)
+            // Handle storage errors gracefully (e.g., file not found, RLS violation)
+            console.warn(`Error creating signed URL for ${test.file_url}:`, error);
             return { ...test, signedUrl: '' };
           }
         })
       );
 
-      return testsWithUrls;
+      // Filter out tests with empty signed URLs (files that couldn't be accessed)
+      return testsWithUrls.filter(test => test.signedUrl !== '');
     },
     enabled: !!customerId && !!user?.id,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -196,7 +204,13 @@ export const useUploadBloodTest = () => {
           upsert: false,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        // Provide more helpful error message for RLS violations
+        if (uploadError.message?.includes('row-level security') || uploadError.message?.includes('policy')) {
+          throw new Error('אין הרשאה להעלות קבצים. אנא ודא שיש לך הרשאות מתאימות.');
+        }
+        throw uploadError;
+      }
 
       // Insert record in database
       const { data, error } = await supabase

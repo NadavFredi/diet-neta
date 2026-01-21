@@ -98,29 +98,25 @@ export async function syncPlansFromBudget({
 
       // DELETE all existing workout plans for this specific budget + customer/lead combination
       // This ensures we only have one plan per budget assignment
-      // Delete plans that match budget_id AND (customer_id OR lead_id)
-      // We delete separately for customer_id and lead_id to ensure all matches are removed
+      // Delete plans that match budget_id AND (customer_id OR lead_id OR both)
       try {
-        if (finalCustomerId) {
-          const { error: customerDeleteError } = await supabase
-            .from('workout_plans')
-            .delete()
-            .eq('budget_id', budget.id)
-            .eq('customer_id', finalCustomerId);
-          
-          if (customerDeleteError) {
-          }
+        let deleteQuery = supabase
+          .from('workout_plans')
+          .delete()
+          .eq('budget_id', budget.id);
+        
+        // Build OR condition for customer_id and lead_id
+        if (finalCustomerId && leadId) {
+          deleteQuery = deleteQuery.or(`customer_id.eq.${finalCustomerId},lead_id.eq.${leadId}`);
+        } else if (finalCustomerId) {
+          deleteQuery = deleteQuery.eq('customer_id', finalCustomerId);
+        } else if (leadId) {
+          deleteQuery = deleteQuery.eq('lead_id', leadId);
         }
         
-        if (leadId) {
-          const { error: leadDeleteError } = await supabase
-            .from('workout_plans')
-            .delete()
-            .eq('budget_id', budget.id)
-            .eq('lead_id', leadId);
-          
-          if (leadDeleteError) {
-          }
+        const { error: deleteError } = await deleteQuery;
+        if (deleteError) {
+          // Log but don't throw - continue to create new plan
         }
       } catch (deleteError) {
         // Don't throw - continue to create new plan
@@ -174,29 +170,25 @@ export async function syncPlansFromBudget({
     try {
     // DELETE all existing nutrition plans for this specific budget + customer/lead combination
     // This ensures we only have one plan per budget assignment
-    // Delete plans that match budget_id AND (customer_id OR lead_id)
-    // We delete separately for customer_id and lead_id to ensure all matches are removed
+    // Delete plans that match budget_id AND (customer_id OR lead_id OR both)
     try {
-      if (finalCustomerId) {
-        const { error: customerDeleteError } = await supabase
-          .from('nutrition_plans')
-          .delete()
-          .eq('budget_id', budget.id)
-          .eq('customer_id', finalCustomerId);
-        
-        if (customerDeleteError && !customerDeleteError.message?.includes('does not exist') && !customerDeleteError.message?.includes('relation')) {
-        }
+      let deleteQuery = supabase
+        .from('nutrition_plans')
+        .delete()
+        .eq('budget_id', budget.id);
+      
+      // Build OR condition for customer_id and lead_id
+      if (finalCustomerId && leadId) {
+        deleteQuery = deleteQuery.or(`customer_id.eq.${finalCustomerId},lead_id.eq.${leadId}`);
+      } else if (finalCustomerId) {
+        deleteQuery = deleteQuery.eq('customer_id', finalCustomerId);
+      } else if (leadId) {
+        deleteQuery = deleteQuery.eq('lead_id', leadId);
       }
       
-      if (leadId) {
-        const { error: leadDeleteError } = await supabase
-          .from('nutrition_plans')
-          .delete()
-          .eq('budget_id', budget.id)
-          .eq('lead_id', leadId);
-        
-        if (leadDeleteError && !leadDeleteError.message?.includes('does not exist') && !leadDeleteError.message?.includes('relation')) {
-        }
+      const { error: deleteError } = await deleteQuery;
+      if (deleteError && !deleteError.message?.includes('does not exist') && !deleteError.message?.includes('relation')) {
+        // Log but don't throw - continue to create new plan
       }
     } catch (deleteError) {
       // Don't throw - continue to create new plan
@@ -295,18 +287,26 @@ export async function syncPlansFromBudget({
 
     // DELETE all existing steps plans for this specific budget + customer/lead combination
     // This ensures we only have one plan per budget assignment
-    // Delete plans that match budget_id AND (customer_id OR lead_id)
-    // We delete separately for customer_id and lead_id to ensure all matches are removed
+    // Delete plans that match budget_id AND (customer_id OR lead_id OR both)
     try {
-      if (finalCustomerId) {
-        const { error: customerDeleteError } = await supabase
-          .from('steps_plans')
-          .delete()
-          .eq('budget_id', budget.id)
-          .eq('customer_id', finalCustomerId);
-        
-        if (customerDeleteError && (customerDeleteError.message?.includes('does not exist') || customerDeleteError.message?.includes('relation'))) {
-          // Table doesn't exist, use fallback
+      let deleteQuery = supabase
+        .from('steps_plans')
+        .delete()
+        .eq('budget_id', budget.id);
+      
+      // Build OR condition for customer_id and lead_id
+      if (finalCustomerId && leadId) {
+        deleteQuery = deleteQuery.or(`customer_id.eq.${finalCustomerId},lead_id.eq.${leadId}`);
+      } else if (finalCustomerId) {
+        deleteQuery = deleteQuery.eq('customer_id', finalCustomerId);
+      } else if (leadId) {
+        deleteQuery = deleteQuery.eq('lead_id', leadId);
+      }
+      
+      const { error: deleteError } = await deleteQuery;
+      if (deleteError && (deleteError.message?.includes('does not exist') || deleteError.message?.includes('relation'))) {
+        // Table doesn't exist, use fallback
+        if (finalCustomerId) {
           const { data: customer } = await supabase
             .from('customers')
             .select('daily_protocol')
@@ -324,27 +324,11 @@ export async function syncPlansFromBudget({
               .from('customers')
               .update({ daily_protocol: updatedProtocol })
               .eq('id', finalCustomerId);
-            
           }
-          return result; // Return early if table doesn't exist
-        } else if (customerDeleteError) {
         }
-      }
-      
-      if (leadId) {
-        const { error: leadDeleteError } = await supabase
-          .from('steps_plans')
-          .delete()
-          .eq('budget_id', budget.id)
-          .eq('lead_id', leadId);
-        
-        if (leadDeleteError && (leadDeleteError.message?.includes('does not exist') || leadDeleteError.message?.includes('relation'))) {
-          // Table doesn't exist, use fallback (already handled above)
-          if (!finalCustomerId) {
-            return result; // Return early if table doesn't exist and no customer_id
-          }
-        } else if (leadDeleteError) {
-        }
+        return result; // Return early if table doesn't exist
+      } else if (deleteError) {
+        // Log but don't throw - continue to create new plan
       }
     } catch (deleteError: any) {
       if (deleteError?.message?.includes('does not exist') || deleteError?.message?.includes('relation')) {
@@ -367,7 +351,6 @@ export async function syncPlansFromBudget({
               .from('customers')
               .update({ daily_protocol: updatedProtocol })
               .eq('id', finalCustomerId);
-            
           }
         }
         return result; // Return early if table doesn't exist
@@ -462,29 +445,25 @@ export async function syncPlansFromBudget({
 
     // DELETE all existing supplement plans for this specific budget + customer/lead combination
     // This ensures we only have one plan per budget assignment
-    // Delete plans that match budget_id AND (customer_id OR lead_id)
-    // We delete separately for customer_id and lead_id to ensure all matches are removed
+    // Delete plans that match budget_id AND (customer_id OR lead_id OR both)
     try {
-      if (finalCustomerId) {
-        const { error: customerDeleteError } = await supabase
-          .from('supplement_plans')
-          .delete()
-          .eq('budget_id', budget.id)
-          .eq('customer_id', finalCustomerId);
-        
-        if (customerDeleteError) {
-        }
+      let deleteQuery = supabase
+        .from('supplement_plans')
+        .delete()
+        .eq('budget_id', budget.id);
+      
+      // Build OR condition for customer_id and lead_id
+      if (finalCustomerId && leadId) {
+        deleteQuery = deleteQuery.or(`customer_id.eq.${finalCustomerId},lead_id.eq.${leadId}`);
+      } else if (finalCustomerId) {
+        deleteQuery = deleteQuery.eq('customer_id', finalCustomerId);
+      } else if (leadId) {
+        deleteQuery = deleteQuery.eq('lead_id', leadId);
       }
       
-      if (leadId) {
-        const { error: leadDeleteError } = await supabase
-          .from('supplement_plans')
-          .delete()
-          .eq('budget_id', budget.id)
-          .eq('lead_id', leadId);
-        
-        if (leadDeleteError) {
-        }
+      const { error: deleteError } = await deleteQuery;
+      if (deleteError) {
+        // Log but don't throw - continue to create new plan
       }
     } catch (deleteError) {
       // Don't throw - continue to create new plan

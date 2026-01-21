@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Receipt, Plus, Calendar, Trash2 } from 'lucide-react';
 import { useCollectionsByLead } from '@/hooks/useCollectionsByLead';
+import { usePaymentHistory } from '@/hooks/usePaymentHistory';
 import { AddCollectionDialog } from './dialogs/AddCollectionDialog';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -48,15 +49,37 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set());
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { data: collections = [], isLoading } = useCollectionsByLead(leadId);
+  const { data: paymentHistory = [] } = usePaymentHistory(customerId || '', leadId || null);
+
+  // Get unlinked payments (payments without a collection_id)
+  const unlinkedPayments = useMemo(() => {
+    return paymentHistory.filter((payment) => !payment.collection_id);
+  }, [paymentHistory]);
+
+  // Calculate remaining amount for each collection
+  const collectionsWithRemaining = useMemo(() => {
+    return collections.map((collection) => {
+      const linkedPayments = paymentHistory.filter(
+        (payment) => payment.collection_id === collection.id
+      );
+      const paidAmount = linkedPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+      const remaining = Math.max(0, collection.total_amount - paidAmount);
+      return {
+        ...collection,
+        paidAmount,
+        remaining,
+      };
+    });
+  }, [collections, paymentHistory]);
 
   // Sort collections by date (most recent first)
   const sortedCollections = useMemo(() => {
-    return [...collections].sort((a, b) => {
+    return [...collectionsWithRemaining].sort((a, b) => {
       const dateA = a.due_date || a.created_at;
       const dateB = b.due_date || b.created_at;
       return new Date(dateB).getTime() - new Date(dateA).getTime();
     });
-  }, [collections]);
+  }, [collectionsWithRemaining]);
 
   const handleCreateCollection = () => {
     setIsAddDialogOpen(true);
@@ -196,9 +219,11 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right w-12"></TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
-                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">נותר</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -223,13 +248,16 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
                             : format(new Date(collection.created_at), 'dd/MM/yyyy', { locale: he })
                           }
                         </TableCell>
-                        <TableCell className="text-xs py-3 px-3 text-gray-900 font-semibold text-right align-middle">
-                          {formatCurrency(collection.total_amount)}
-                        </TableCell>
                         <TableCell className="text-xs py-3 px-3 text-right align-middle">
                           <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 inline-flex", getStatusColor(collection.status || 'ממתין'))}>
                             {collection.status || 'ממתין'}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 font-semibold text-right align-middle">
+                          {formatCurrency(collection.total_amount)}
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-700 text-right align-middle">
+                          {formatCurrency(collection.remaining)}
                         </TableCell>
                       </TableRow>
                     ))}

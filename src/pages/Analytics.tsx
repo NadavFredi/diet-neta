@@ -17,12 +17,14 @@ import { CalendarIcon, Users, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
+import { ChartDataPopup, type ChartDataPopupItem } from '@/components/analytics/ChartDataPopup';
+import { supabase } from '@/lib/supabaseClient';
 
 const Analytics = () => {
   const sidebarWidth = useSidebarWidth();
@@ -45,14 +47,531 @@ const Analytics = () => {
   const { analyticsData, isLoading, error } = useAnalytics(showAllData ? null : dateRange || undefined);
 
   // Format currency
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
       currency: 'ILS',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
-  };
+  }, []);
+
+  // Popup state
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupTitle, setPopupTitle] = useState('');
+  const [popupDescription, setPopupDescription] = useState('');
+  const [popupItems, setPopupItems] = useState<ChartDataPopupItem[]>([]);
+  const [popupLoading, setPopupLoading] = useState(false);
+
+  // Fetch detailed data functions
+  const fetchLeadsByStatus = useCallback(async (status: string) => {
+    setPopupLoading(true);
+    try {
+      let query = supabase
+        .from('leads')
+        .select('id, created_at, status_main, source, customer:customers(id, full_name, phone, email)')
+        .eq('status_main', status);
+      
+      const dateFilter = showAllData ? null : (dateRange?.from && dateRange?.to ? {
+        from: startOfDay(dateRange.from).toISOString(),
+        to: endOfDay(dateRange.to).toISOString(),
+      } : null);
+      
+      if (dateFilter) {
+        query = query
+          .gte('created_at', dateFilter.from)
+          .lte('created_at', dateFilter.to);
+      }
+      
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((lead) => ({
+        id: lead.id,
+        title: (lead.customer as any)?.full_name || 'ללא שם',
+        subtitle: (lead.customer as any)?.phone || '',
+        metadata: {
+          'תאריך יצירה': lead.created_at,
+          'מקור': lead.source || 'ללא מקור',
+          'אימייל': (lead.customer as any)?.email || '',
+        },
+      }));
+      
+      setPopupItems(items);
+      setPopupTitle(`לידים עם סטטוס: ${status}`);
+      setPopupDescription(`נמצאו ${items.length} לידים עם סטטוס זה`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching leads by status:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, [showAllData, dateRange]);
+
+  const fetchLeadsByDate = useCallback(async (dateStr: string) => {
+    setPopupLoading(true);
+    try {
+      const date = parseISO(dateStr);
+      const start = startOfDay(date);
+      const end = endOfDay(date);
+      
+      const { data, error: fetchError } = await supabase
+        .from('leads')
+        .select('id, created_at, status_main, source, customer:customers(id, full_name, phone, email)')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
+        .order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((lead) => ({
+        id: lead.id,
+        title: (lead.customer as any)?.full_name || 'ללא שם',
+        subtitle: (lead.customer as any)?.phone || '',
+        metadata: {
+          'סטטוס': lead.status_main || 'ללא סטטוס',
+          'מקור': lead.source || 'ללא מקור',
+          'אימייל': (lead.customer as any)?.email || '',
+        },
+      }));
+      
+      setPopupItems(items);
+      setPopupTitle(`לידים בתאריך: ${format(date, 'dd/MM/yyyy', { locale: he })}`);
+      setPopupDescription(`נמצאו ${items.length} לידים בתאריך זה`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching leads by date:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, []);
+
+  const fetchLeadsBySource = useCallback(async (source: string) => {
+    setPopupLoading(true);
+    try {
+      let query = supabase
+        .from('leads')
+        .select('id, created_at, status_main, source, customer:customers(id, full_name, phone, email)')
+        .eq('source', source);
+      
+      const dateFilter = showAllData ? null : (dateRange?.from && dateRange?.to ? {
+        from: startOfDay(dateRange.from).toISOString(),
+        to: endOfDay(dateRange.to).toISOString(),
+      } : null);
+      
+      if (dateFilter) {
+        query = query
+          .gte('created_at', dateFilter.from)
+          .lte('created_at', dateFilter.to);
+      }
+      
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((lead) => ({
+        id: lead.id,
+        title: (lead.customer as any)?.full_name || 'ללא שם',
+        subtitle: (lead.customer as any)?.phone || '',
+        metadata: {
+          'תאריך יצירה': lead.created_at,
+          'סטטוס': lead.status_main || 'ללא סטטוס',
+          'אימייל': (lead.customer as any)?.email || '',
+        },
+      }));
+      
+      setPopupItems(items);
+      setPopupTitle(`לידים ממקור: ${source}`);
+      setPopupDescription(`נמצאו ${items.length} לידים ממקור זה`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching leads by source:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, [showAllData, dateRange]);
+
+  const fetchPaymentsByDate = useCallback(async (dateStr: string) => {
+    setPopupLoading(true);
+    try {
+      const date = parseISO(dateStr);
+      const start = startOfDay(date);
+      const end = endOfDay(date);
+      
+      const { data, error: fetchError } = await supabase
+        .from('payments')
+        .select('id, created_at, amount, status, product_name')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
+        .order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((payment) => ({
+        id: payment.id,
+        title: payment.product_name || 'ללא שם מוצר',
+        subtitle: formatCurrency(Number(payment.amount) || 0),
+        metadata: {
+          'תאריך': payment.created_at,
+          'סטטוס': payment.status || 'ללא סטטוס',
+          'סכום': Number(payment.amount) || 0,
+        },
+      }));
+      
+      setPopupItems(items);
+      setPopupTitle(`תשלומים בתאריך: ${format(date, 'dd/MM/yyyy', { locale: he })}`);
+      setPopupDescription(`נמצאו ${items.length} תשלומים בתאריך זה`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching payments by date:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, []);
+
+  const fetchPaymentsByStatus = useCallback(async (status: string) => {
+    setPopupLoading(true);
+    try {
+      let query = supabase
+        .from('payments')
+        .select('id, created_at, amount, status, product_name')
+        .eq('status', status);
+      
+      const dateFilter = showAllData ? null : (dateRange?.from && dateRange?.to ? {
+        from: startOfDay(dateRange.from).toISOString(),
+        to: endOfDay(dateRange.to).toISOString(),
+      } : null);
+      
+      if (dateFilter) {
+        query = query
+          .gte('created_at', dateFilter.from)
+          .lte('created_at', dateFilter.to);
+      }
+      
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((payment) => ({
+        id: payment.id,
+        title: payment.product_name || 'ללא שם מוצר',
+        subtitle: formatCurrency(Number(payment.amount) || 0),
+        metadata: {
+          'תאריך': payment.created_at,
+          'סכום': Number(payment.amount) || 0,
+        },
+      }));
+      
+      setPopupItems(items);
+      setPopupTitle(`תשלומים עם סטטוס: ${status}`);
+      setPopupDescription(`נמצאו ${items.length} תשלומים עם סטטוס זה`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching payments by status:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, [showAllData, dateRange]);
+
+  const fetchCustomersByDate = useCallback(async (dateStr: string) => {
+    setPopupLoading(true);
+    try {
+      const date = parseISO(dateStr);
+      const start = startOfDay(date);
+      const end = endOfDay(date);
+      
+      const { data, error: fetchError } = await supabase
+        .from('customers')
+        .select('id, created_at, full_name, phone, email')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
+        .order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((customer) => ({
+        id: customer.id,
+        title: customer.full_name || 'ללא שם',
+        subtitle: customer.phone || '',
+        metadata: {
+          'תאריך יצירה': customer.created_at,
+          'טלפון': customer.phone || '',
+          'אימייל': customer.email || '',
+        },
+      }));
+      
+      setPopupItems(items);
+      setPopupTitle(`לקוחות בתאריך: ${format(date, 'dd/MM/yyyy', { locale: he })}`);
+      setPopupDescription(`נמצאו ${items.length} לקוחות בתאריך זה`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching customers by date:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, []);
+
+  const fetchMeetingsByDate = useCallback(async (dateStr: string) => {
+    setPopupLoading(true);
+    try {
+      const date = parseISO(dateStr);
+      const start = startOfDay(date);
+      const end = endOfDay(date);
+      
+      const { data, error: fetchError } = await supabase
+        .from('meetings')
+        .select('id, created_at, meeting_data')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
+        .order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((meeting) => {
+        const meetingData = meeting.meeting_data || {};
+        const name = meetingData.name || meetingData['שם'] || 'ללא שם';
+        const status = meetingData.status || meetingData['סטטוס'] || 'ללא סטטוס';
+        
+        return {
+          id: meeting.id,
+          title: name,
+          subtitle: status,
+          metadata: {
+            'תאריך': meeting.created_at,
+            'סטטוס': status,
+            ...Object.entries(meetingData).reduce((acc, [key, value]) => {
+              if (key !== 'name' && key !== 'שם' && key !== 'status' && key !== 'סטטוס') {
+                acc[key] = String(value);
+              }
+              return acc;
+            }, {} as Record<string, any>),
+          },
+        };
+      });
+      
+      setPopupItems(items);
+      setPopupTitle(`פגישות בתאריך: ${format(date, 'dd/MM/yyyy', { locale: he })}`);
+      setPopupDescription(`נמצאו ${items.length} פגישות בתאריך זה`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching meetings by date:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, []);
+
+  // Fetch all items for summary cards
+  const fetchAllLeads = useCallback(async () => {
+    setPopupLoading(true);
+    try {
+      let query = supabase
+        .from('leads')
+        .select('id, created_at, status_main, source, customer:customers(id, full_name, phone, email)');
+      
+      const dateFilter = showAllData ? null : (dateRange?.from && dateRange?.to ? {
+        from: startOfDay(dateRange.from).toISOString(),
+        to: endOfDay(dateRange.to).toISOString(),
+      } : null);
+      
+      if (dateFilter) {
+        query = query
+          .gte('created_at', dateFilter.from)
+          .lte('created_at', dateFilter.to);
+      }
+      
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((lead) => ({
+        id: lead.id,
+        title: (lead.customer as any)?.full_name || 'ללא שם',
+        subtitle: (lead.customer as any)?.phone || '',
+        metadata: {
+          'תאריך יצירה': lead.created_at,
+          'סטטוס': lead.status_main || 'ללא סטטוס',
+          'מקור': lead.source || 'ללא מקור',
+          'אימייל': (lead.customer as any)?.email || '',
+        },
+      }));
+      
+      setPopupItems(items);
+      setPopupTitle('סה"כ לידים');
+      setPopupDescription(`נמצאו ${items.length} לידים${dateFilter ? ' בתקופה הנבחרת' : ''}`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching all leads:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, [showAllData, dateRange]);
+
+  const fetchAllCustomers = useCallback(async () => {
+    setPopupLoading(true);
+    try {
+      let query = supabase
+        .from('customers')
+        .select('id, created_at, full_name, phone, email');
+      
+      const dateFilter = showAllData ? null : (dateRange?.from && dateRange?.to ? {
+        from: startOfDay(dateRange.from).toISOString(),
+        to: endOfDay(dateRange.to).toISOString(),
+      } : null);
+      
+      if (dateFilter) {
+        query = query
+          .gte('created_at', dateFilter.from)
+          .lte('created_at', dateFilter.to);
+      }
+      
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((customer) => ({
+        id: customer.id,
+        title: customer.full_name || 'ללא שם',
+        subtitle: customer.phone || '',
+        metadata: {
+          'תאריך יצירה': customer.created_at,
+          'טלפון': customer.phone || '',
+          'אימייל': customer.email || '',
+        },
+      }));
+      
+      setPopupItems(items);
+      setPopupTitle('סה"כ לקוחות');
+      setPopupDescription(`נמצאו ${items.length} לקוחות${dateFilter ? ' בתקופה הנבחרת' : ''}`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching all customers:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, [showAllData, dateRange]);
+
+  const fetchAllApprovedPayments = useCallback(async () => {
+    setPopupLoading(true);
+    try {
+      let query = supabase
+        .from('payments')
+        .select('id, created_at, amount, status, product_name')
+        .eq('status', 'שולם');
+      
+      const dateFilter = showAllData ? null : (dateRange?.from && dateRange?.to ? {
+        from: startOfDay(dateRange.from).toISOString(),
+        to: endOfDay(dateRange.to).toISOString(),
+      } : null);
+      
+      if (dateFilter) {
+        query = query
+          .gte('created_at', dateFilter.from)
+          .lte('created_at', dateFilter.to);
+      }
+      
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((payment) => ({
+        id: payment.id,
+        title: payment.product_name || 'ללא שם מוצר',
+        subtitle: formatCurrency(Number(payment.amount) || 0),
+        metadata: {
+          'תאריך': payment.created_at,
+          'סכום': Number(payment.amount) || 0,
+          'סטטוס': payment.status || 'ללא סטטוס',
+        },
+      }));
+      
+      setPopupItems(items);
+      setPopupTitle('סה"כ הכנסות - תשלומים מאושרים');
+      setPopupDescription(`נמצאו ${items.length} תשלומים מאושרים${dateFilter ? ' בתקופה הנבחרת' : ''}`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching all approved payments:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, [showAllData, dateRange, formatCurrency]);
+
+  const fetchAllMeetings = useCallback(async () => {
+    setPopupLoading(true);
+    try {
+      let query = supabase
+        .from('meetings')
+        .select('id, created_at, meeting_data');
+      
+      const dateFilter = showAllData ? null : (dateRange?.from && dateRange?.to ? {
+        from: startOfDay(dateRange.from).toISOString(),
+        to: endOfDay(dateRange.to).toISOString(),
+      } : null);
+      
+      if (dateFilter) {
+        query = query
+          .gte('created_at', dateFilter.from)
+          .lte('created_at', dateFilter.to);
+      }
+      
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const items: ChartDataPopupItem[] = (data || []).map((meeting) => {
+        const meetingData = meeting.meeting_data || {};
+        const name = meetingData.name || meetingData['שם'] || 'ללא שם';
+        const status = meetingData.status || meetingData['סטטוס'] || 'ללא סטטוס';
+        
+        return {
+          id: meeting.id,
+          title: name,
+          subtitle: status,
+          metadata: {
+            'תאריך': meeting.created_at,
+            'סטטוס': status,
+            ...Object.entries(meetingData).reduce((acc, [key, value]) => {
+              if (key !== 'name' && key !== 'שם' && key !== 'status' && key !== 'סטטוס') {
+                acc[key] = String(value);
+              }
+              return acc;
+            }, {} as Record<string, any>),
+          },
+        };
+      });
+      
+      setPopupItems(items);
+      setPopupTitle('סה"כ פגישות');
+      setPopupDescription(`נמצאו ${items.length} פגישות${dateFilter ? ' בתקופה הנבחרת' : ''}`);
+      setPopupOpen(true);
+    } catch (err: any) {
+      console.error('Error fetching all meetings:', err);
+      setPopupItems([]);
+      setPopupTitle('שגיאה בטעינת הנתונים');
+    } finally {
+      setPopupLoading(false);
+    }
+  }, [showAllData, dateRange]);
 
   // Leads Over Time Chart
   const leadsOverTimeOptions = useMemo((): Highcharts.Options => {
@@ -111,17 +630,37 @@ const Analytics = () => {
           marker: {
             radius: 4,
             fillColor: '#5B6FB9',
+            states: {
+              hover: {
+                radius: 6,
+              },
+            },
+          },
+          cursor: 'pointer',
+          point: {
+            events: {
+              click: function() {
+                const index = this.index;
+                const dateStr = analyticsData.leadsOverTime[index]?.date;
+                if (dateStr) {
+                  fetchLeadsByDate(dateStr);
+                }
+              },
+            },
           },
         },
       },
       series: [{
         type: 'line',
         name: 'לידים',
-        data: analyticsData.leadsOverTime.map(item => item.count),
+        data: analyticsData.leadsOverTime.map((item, index) => ({
+          y: item.count,
+          date: item.date,
+        })),
         color: '#5B6FB9',
       }],
     };
-  }, [analyticsData]);
+  }, [analyticsData, fetchLeadsByDate]);
 
   // Leads By Status Pie Chart
   const leadsByStatusOptions = useMemo((): Highcharts.Options => {
@@ -164,6 +703,17 @@ const Analytics = () => {
             },
           },
           showInLegend: true,
+          cursor: 'pointer',
+          point: {
+            events: {
+              click: function() {
+                const status = this.name;
+                if (status) {
+                  fetchLeadsByStatus(status);
+                }
+              },
+            },
+          },
         },
       },
       legend: {
@@ -185,7 +735,7 @@ const Analytics = () => {
         colors: ['#5B6FB9', '#7B8FC8', '#9BAFD8', '#BBCFE8', '#DBEFF8'],
       }],
     };
-  }, [analyticsData]);
+  }, [analyticsData, fetchLeadsByStatus]);
 
   // Leads By Source Chart
   const leadsBySourceOptions = useMemo((): Highcharts.Options => {
@@ -236,6 +786,18 @@ const Analytics = () => {
         column: {
           color: '#5B6FB9',
           borderRadius: 4,
+          cursor: 'pointer',
+          point: {
+            events: {
+              click: function() {
+                const index = this.index;
+                const source = analyticsData.leadsBySource[index]?.source;
+                if (source) {
+                  fetchLeadsBySource(source);
+                }
+              },
+            },
+          },
         },
       },
       series: [{
@@ -244,7 +806,7 @@ const Analytics = () => {
         data: analyticsData.leadsBySource.map(item => item.count),
       }],
     };
-  }, [analyticsData]);
+  }, [analyticsData, fetchLeadsBySource]);
 
   // Revenue Over Time Chart
   const revenueOverTimeOptions = useMemo((): Highcharts.Options => {
@@ -310,6 +872,23 @@ const Analytics = () => {
           marker: {
             radius: 4,
             fillColor: '#5B6FB9',
+            states: {
+              hover: {
+                radius: 6,
+              },
+            },
+          },
+          cursor: 'pointer',
+          point: {
+            events: {
+              click: function() {
+                const index = this.index;
+                const dateStr = analyticsData.paymentsOverTime[index]?.date;
+                if (dateStr) {
+                  fetchPaymentsByDate(dateStr);
+                }
+              },
+            },
           },
         },
       },
@@ -319,7 +898,7 @@ const Analytics = () => {
         data: analyticsData.paymentsOverTime.map(item => item.amount),
       }],
     };
-  }, [analyticsData]);
+  }, [analyticsData, fetchPaymentsByDate, formatCurrency]);
 
   // Payments By Status Chart
   const paymentsByStatusOptions = useMemo((): Highcharts.Options => {
@@ -362,6 +941,17 @@ const Analytics = () => {
             },
           },
           showInLegend: true,
+          cursor: 'pointer',
+          point: {
+            events: {
+              click: function() {
+                const status = this.name;
+                if (status) {
+                  fetchPaymentsByStatus(status);
+                }
+              },
+            },
+          },
         },
       },
       legend: {
@@ -384,7 +974,7 @@ const Analytics = () => {
         colors: ['#10b981', '#f59e0b', '#ef4444', '#6b7280'],
       }],
     };
-  }, [analyticsData]);
+  }, [analyticsData, fetchPaymentsByStatus, formatCurrency]);
 
   // Customers Over Time Chart
   const customersOverTimeOptions = useMemo((): Highcharts.Options => {
@@ -440,6 +1030,23 @@ const Analytics = () => {
           marker: {
             radius: 4,
             fillColor: '#10b981',
+            states: {
+              hover: {
+                radius: 6,
+              },
+            },
+          },
+          cursor: 'pointer',
+          point: {
+            events: {
+              click: function() {
+                const index = this.index;
+                const dateStr = analyticsData.customersOverTime[index]?.date;
+                if (dateStr) {
+                  fetchCustomersByDate(dateStr);
+                }
+              },
+            },
           },
         },
       },
@@ -450,7 +1057,7 @@ const Analytics = () => {
         color: '#10b981',
       }],
     };
-  }, [analyticsData]);
+  }, [analyticsData, fetchCustomersByDate]);
 
   // Meetings Over Time Chart
   const meetingsOverTimeOptions = useMemo((): Highcharts.Options => {
@@ -503,6 +1110,18 @@ const Analytics = () => {
         column: {
           color: '#8b5cf6',
           borderRadius: 4,
+          cursor: 'pointer',
+          point: {
+            events: {
+              click: function() {
+                const index = this.index;
+                const dateStr = analyticsData.meetingsOverTime[index]?.date;
+                if (dateStr) {
+                  fetchMeetingsByDate(dateStr);
+                }
+              },
+            },
+          },
         },
       },
       series: [{
@@ -511,7 +1130,7 @@ const Analytics = () => {
         data: analyticsData.meetingsOverTime.map(item => item.count),
       }],
     };
-  }, [analyticsData]);
+  }, [analyticsData, fetchMeetingsByDate]);
 
   return (
     <>
@@ -676,7 +1295,10 @@ const Analytics = () => {
               <>
                 {/* Key Metrics Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                  <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <Card 
+                    className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg hover:shadow-xl cursor-pointer transform hover:scale-105 transition-all duration-200"
+                    onClick={fetchAllLeads}
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardDescription className="text-blue-100 text-sm font-medium">סה"כ לידים</CardDescription>
@@ -695,7 +1317,10 @@ const Analytics = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <Card 
+                    className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-0 shadow-lg hover:shadow-xl cursor-pointer transform hover:scale-105 transition-all duration-200"
+                    onClick={fetchAllCustomers}
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardDescription className="text-emerald-100 text-sm font-medium">סה"כ לקוחות</CardDescription>
@@ -714,7 +1339,10 @@ const Analytics = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <Card 
+                    className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg hover:shadow-xl cursor-pointer transform hover:scale-105 transition-all duration-200"
+                    onClick={fetchAllApprovedPayments}
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardDescription className="text-purple-100 text-sm font-medium">סה"כ הכנסות</CardDescription>
@@ -733,7 +1361,10 @@ const Analytics = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <Card 
+                    className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-0 shadow-lg hover:shadow-xl cursor-pointer transform hover:scale-105 transition-all duration-200"
+                    onClick={fetchAllMeetings}
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardDescription className="text-amber-100 text-sm font-medium">סה"כ פגישות</CardDescription>
@@ -874,6 +1505,16 @@ const Analytics = () => {
           </div>
         </main>
       </div>
+      
+      {/* Chart Data Popup */}
+      <ChartDataPopup
+        open={popupOpen}
+        onOpenChange={setPopupOpen}
+        title={popupTitle}
+        description={popupDescription}
+        items={popupItems}
+        isLoading={popupLoading}
+      />
     </>
   );
 };

@@ -65,6 +65,7 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
 
     try {
       setIsLoading(true);
+      
       const { data, error } = await supabase.storage
         .from('client-assets')
         .list(`${customerId}/progress`, {
@@ -82,35 +83,65 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
         throw error;
       }
 
-      // Get signed URLs for each photo
+      // Get signed URLs for each photo with individual error handling
       const photosWithUrls: ProgressPhoto[] = await Promise.all(
         (data || []).map(async (file) => {
-          const { data: urlData } = await supabase.storage
-            .from('client-assets')
-            .createSignedUrl(`${customerId}/progress/${file.name}`, 3600);
+          try {
+            const { data: urlData, error: urlError } = await supabase.storage
+              .from('client-assets')
+              .createSignedUrl(`${customerId}/progress/${file.name}`, 3600);
 
-          return {
-            url: urlData?.signedUrl || '',
-            path: `${customerId}/progress/${file.name}`,
-            uploadedAt: file.created_at || file.updated_at || new Date().toISOString(),
-          };
+            if (urlError) {
+              console.warn(`Failed to create signed URL for ${file.name}:`, urlError);
+              // Return photo with empty URL - it will be skipped in display
+              return {
+                url: '',
+                path: `${customerId}/progress/${file.name}`,
+                uploadedAt: file.created_at || file.updated_at || new Date().toISOString(),
+              };
+            }
+
+            return {
+              url: urlData?.signedUrl || '',
+              path: `${customerId}/progress/${file.name}`,
+              uploadedAt: file.created_at || file.updated_at || new Date().toISOString(),
+            };
+          } catch (err) {
+            console.warn(`Error processing file ${file.name}:`, err);
+            // Return photo with empty URL - it will be skipped in display
+            return {
+              url: '',
+              path: `${customerId}/progress/${file.name}`,
+              uploadedAt: file.created_at || file.updated_at || new Date().toISOString(),
+            };
+          }
         })
       );
 
-      setPhotos(photosWithUrls);
+      // Filter out photos with empty URLs (failed to get signed URL)
+      const validPhotos = photosWithUrls.filter(photo => photo.url !== '');
+      setPhotos(validPhotos);
     } catch (error: any) {
+      console.error('Error fetching progress photos:', error);
       // Don't show error toast for empty folder (expected case) or storage unavailable
       if (error?.message?.includes('not found') || error?.statusCode === '404' || 
-          error?.message?.includes('name resolution failed') || error?.message?.includes('503')) {
+          error?.message?.includes('name resolution failed') || error?.message?.includes('503') ||
+          error?.message?.includes('row-level security')) {
         setPhotos([]);
+      } else {
+        // For other errors, still set empty array but log the error
+        setPhotos([]);
+        console.warn('Progress photos fetch error (non-critical):', error?.message);
       }
     } finally {
+      // Always set loading to false, even if there was an error
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchPhotos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId]);
 
   // Handle file upload (for managers)
@@ -155,7 +186,13 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
           upsert: false,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        // Provide more helpful error message for RLS violations
+        if (uploadError.message?.includes('row-level security') || uploadError.message?.includes('policy')) {
+          throw new Error('אין הרשאה להעלות תמונות. אנא ודא שיש לך הרשאות מתאימות.');
+        }
+        throw uploadError;
+      }
 
       toast({
         title: 'הצלחה',

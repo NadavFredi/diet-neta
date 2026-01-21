@@ -1080,9 +1080,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right w-12"></TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
-                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">שעה</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">שעה</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1106,13 +1107,13 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                         <TableCell className="text-xs py-3 px-3 text-gray-900 text-right align-middle">
                           {getMeetingDate(meeting)}
                         </TableCell>
-                        <TableCell className="text-xs py-3 px-3 text-gray-700 text-right align-middle">
-                          {getMeetingTime(meeting)}
-                        </TableCell>
                         <TableCell className="text-xs py-3 px-3 text-right align-middle">
                           <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 inline-flex", getMeetingStatusColor(getMeetingStatus(meeting)))}>
                             {getMeetingStatus(meeting)}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-700 text-right align-middle">
+                          {getMeetingTime(meeting)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1163,9 +1164,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-gray-200">
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right w-12"></TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">תאריך</TableHead>
-                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
                       <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סטטוס</TableHead>
+                      <TableHead className="h-10 px-3 text-xs font-semibold text-gray-600 text-right">סכום</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1189,13 +1191,13 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                         <TableCell className="text-xs py-3 px-3 text-gray-900 text-right align-middle">
                           {formatDate(payment.date)}
                         </TableCell>
-                        <TableCell className="text-xs py-3 px-3 text-gray-900 font-semibold text-right align-middle">
-                          ₪{payment.amount.toFixed(2)}
-                        </TableCell>
                         <TableCell className="text-xs py-3 px-3 text-right align-middle">
                           <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 inline-flex", getPaymentStatusColor(payment.status))}>
                             {formatPaymentStatus(payment.status)}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs py-3 px-3 text-gray-900 font-semibold text-right align-middle">
+                          ₪{payment.amount.toFixed(2)}
                         </TableCell>
                       </TableRow>
                     ))}
