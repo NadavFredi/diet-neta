@@ -1025,6 +1025,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             leadEmail={customer?.email || activeLead?.email || null}
             leadPhone={activeLead?.phone || customer?.phone || null}
             leadName={customer?.full_name || activeLead?.name || null}
+            subscriptionData={activeLead?.subscription_data || null}
           />
 
           {/* Card 6: Stripe Payment Center */}
@@ -1278,8 +1279,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               months: subscriptionType.duration, // Copy duration value
               duration_unit: durationUnit, // Copy duration unit
               initialPrice: subscriptionType.price, // Copy price value
+              currency: subscriptionType.currency || 'ILS', // Copy currency value
               expirationDate: expirationDateStr, // Calculate expiration date
-              status: 'פעיל', // Set status to Active by default
+              status: subscriptionType.status || 'פעיל', // Use status from modal or default to Active
             };
 
             await onUpdateLead({

@@ -5,7 +5,7 @@
  * Used in ActionDashboard for the active lead interaction.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -201,10 +201,143 @@ export const LeadHistoryTabs = ({
   const [selectedSupplementPlan, setSelectedSupplementPlan] = useState<SupplementsHistoryItem | null>(null);
   const [selectedCheckIn, setSelectedCheckIn] = useState<any | null>(null);
 
-  const hasWorkoutHistory = workoutHistory && workoutHistory.length > 0;
-  const hasStepsHistory = stepsHistory && stepsHistory.length > 0;
-  const hasNutritionHistory = nutritionHistory && nutritionHistory.length > 0;
-  const hasSupplementsHistory = supplementsHistory && supplementsHistory.length > 0;
+  // Deduplicate history arrays to prevent duplicate rows
+  const deduplicatedWorkoutHistory = useMemo(() => {
+    if (!workoutHistory || workoutHistory.length === 0) return [];
+    
+    // Deduplicate by id first, then by budget_id + startDate combination
+    // Prefer active items when duplicates exist
+    const seen = new Map<string, WorkoutHistoryItem>();
+    
+    workoutHistory.forEach((item) => {
+      if (item.id) {
+        // Use id as primary key
+        const existing = seen.get(item.id);
+        if (!existing) {
+          seen.set(item.id, item);
+        } else if (item.is_active && !existing.is_active) {
+          // Prefer active item over inactive
+          seen.set(item.id, item);
+        }
+      } else {
+        // Fallback: use budget_id + startDate as key
+        const key = `${item.budget_id || 'no-budget'}-${item.startDate || 'no-date'}`;
+        const existing = seen.get(key);
+        if (!existing) {
+          seen.set(key, item);
+        } else if (item.is_active && !existing.is_active) {
+          // Prefer active item over inactive
+          seen.set(key, item);
+        }
+      }
+    });
+    
+    return Array.from(seen.values());
+  }, [workoutHistory]);
+
+  const deduplicatedNutritionHistory = useMemo(() => {
+    if (!nutritionHistory || nutritionHistory.length === 0) return [];
+    
+    // Deduplicate by id first, then by budget_id + startDate combination
+    // Prefer active items when duplicates exist
+    const seen = new Map<string, NutritionHistoryItem>();
+    
+    nutritionHistory.forEach((item) => {
+      if (item.id) {
+        // Use id as primary key
+        const existing = seen.get(item.id);
+        if (!existing) {
+          seen.set(item.id, item);
+        } else if (item.is_active && !existing.is_active) {
+          // Prefer active item over inactive
+          seen.set(item.id, item);
+        }
+      } else {
+        // Fallback: use budget_id + startDate as key
+        const key = `${item.budget_id || 'no-budget'}-${item.startDate || 'no-date'}`;
+        const existing = seen.get(key);
+        if (!existing) {
+          seen.set(key, item);
+        } else if (item.is_active && !existing.is_active) {
+          // Prefer active item over inactive
+          seen.set(key, item);
+        }
+      }
+    });
+    
+    return Array.from(seen.values());
+  }, [nutritionHistory]);
+
+  const deduplicatedSupplementsHistory = useMemo(() => {
+    if (!supplementsHistory || supplementsHistory.length === 0) return [];
+    
+    // Deduplicate by id first, then by budget_id + startDate combination
+    // Prefer active items when duplicates exist
+    const seen = new Map<string, SupplementsHistoryItem>();
+    
+    supplementsHistory.forEach((item) => {
+      if (item.id) {
+        // Use id as primary key
+        const existing = seen.get(item.id);
+        if (!existing) {
+          seen.set(item.id, item);
+        } else if (item.is_active && !existing.is_active) {
+          // Prefer active item over inactive
+          seen.set(item.id, item);
+        }
+      } else {
+        // Fallback: use budget_id + startDate as key
+        const key = `${item.budget_id || 'no-budget'}-${item.startDate || 'no-date'}`;
+        const existing = seen.get(key);
+        if (!existing) {
+          seen.set(key, item);
+        } else if (item.is_active && !existing.is_active) {
+          // Prefer active item over inactive
+          seen.set(key, item);
+        }
+      }
+    });
+    
+    return Array.from(seen.values());
+  }, [supplementsHistory]);
+
+  const deduplicatedStepsHistory = useMemo(() => {
+    if (!stepsHistory || stepsHistory.length === 0) return [];
+    
+    // Deduplicate by id first (if available), then by budget_id + startDate + target combination
+    // Prefer active items when duplicates exist
+    const seen = new Map<string, StepsHistoryItem & { id?: string; budget_id?: string; is_active?: boolean }>();
+    
+    stepsHistory.forEach((item: any) => {
+      if (item.id) {
+        // Use id as primary key
+        const existing = seen.get(item.id);
+        if (!existing) {
+          seen.set(item.id, item);
+        } else if (item.is_active && !existing.is_active) {
+          // Prefer active item over inactive
+          seen.set(item.id, item);
+        }
+      } else {
+        // Fallback: use budget_id + startDate + target as key
+        const key = `${item.budget_id || 'no-budget'}-${item.startDate || 'no-date'}-${item.target || 0}`;
+        const existing = seen.get(key);
+        if (!existing) {
+          seen.set(key, item);
+        } else if (item.is_active && !existing.is_active) {
+          // Prefer active item over inactive
+          seen.set(key, item);
+        }
+      }
+    });
+    
+    return Array.from(seen.values());
+  }, [stepsHistory]);
+
+  const hasWorkoutHistory = deduplicatedWorkoutHistory && deduplicatedWorkoutHistory.length > 0;
+  const hasStepsHistory = deduplicatedStepsHistory && deduplicatedStepsHistory.length > 0;
+  const hasNutritionHistory = deduplicatedNutritionHistory && deduplicatedNutritionHistory.length > 0;
+  const hasSupplementsHistory = deduplicatedSupplementsHistory && deduplicatedSupplementsHistory.length > 0;
   const hasBudgetAssignments = budgetAssignments && budgetAssignments.length > 0;
 
   // Delete budget assignment handlers
@@ -514,9 +647,9 @@ export const LeadHistoryTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {workoutHistory.map((workout, index) => {
+                  {deduplicatedWorkoutHistory.map((workout, index) => {
                     // Ensure only the first active plan (by sorted order) is shown as active
-                    const firstActiveIndex = workoutHistory.findIndex((w: any) => w.is_active === true);
+                    const firstActiveIndex = deduplicatedWorkoutHistory.findIndex((w: any) => w.is_active === true);
                     const isActive = workout.is_active === true && index === firstActiveIndex;
                     
                     return (
@@ -599,10 +732,10 @@ export const LeadHistoryTabs = ({
             </div>
           ) : (
             <div className="space-y-2">
-              {(stepsHistory || []).map((step: any, index: number) => {
+              {deduplicatedStepsHistory.map((step: any, index: number) => {
                 // Use is_active from the data, but ensure only the first active plan (by date) is shown as active
                 // Find the first active plan's index to ensure only one is marked
-                const firstActiveIndex = (stepsHistory || []).findIndex((s: any) => s.is_active === true);
+                const firstActiveIndex = deduplicatedStepsHistory.findIndex((s: any) => s.is_active === true);
                 const isCurrent = step.is_active === true && index === firstActiveIndex;
                 return (
                   <div
@@ -707,9 +840,9 @@ export const LeadHistoryTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {nutritionHistory.map((nutrition, index) => {
+                  {deduplicatedNutritionHistory.map((nutrition, index) => {
                     // Ensure only the first active plan (by sorted order) is shown as active
-                    const firstActiveIndex = nutritionHistory.findIndex((n: any) => n.is_active === true);
+                    const firstActiveIndex = deduplicatedNutritionHistory.findIndex((n: any) => n.is_active === true);
                     const isActive = nutrition.is_active === true && index === firstActiveIndex;
                     
                     return (
@@ -825,9 +958,9 @@ export const LeadHistoryTabs = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {supplementsHistory.map((supplement, index) => {
+                  {deduplicatedSupplementsHistory.map((supplement, index) => {
                     // Ensure only the first active plan (by sorted order) is shown as active
-                    const firstActiveIndex = supplementsHistory.findIndex((s: any) => s.is_active === true);
+                    const firstActiveIndex = deduplicatedSupplementsHistory.findIndex((s: any) => s.is_active === true);
                     const isActive = supplement.is_active === true && index === firstActiveIndex;
                     
                     return (

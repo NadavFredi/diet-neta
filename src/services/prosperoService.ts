@@ -4,26 +4,58 @@
  * Handles creating Prospero proposals via Make.com webhook
  */
 
+import { supabase } from '@/lib/supabaseClient';
+
 interface CreateProsperoProposalParams {
   leadId: string;
   leadPhone: string;
   leadEmail?: string;
+  leadName?: string;
+  subscriptionData?: {
+    currency?: string;
+    initialPrice?: number;
+  };
 }
 
 interface ProsperoResponse {
   link?: string;
   error?: string;
+  proposalId?: string; // Optional Prospero proposal ID
 }
 
 const PROSPERO_WEBHOOK_URL = 'https://hook.us1.make.com/12buvi4g3epo9z3f2li17thbhqt924jl';
 
 /**
+ * Convert currency code to symbol
+ */
+const getCurrencySymbol = (currencyCode: string): string => {
+  switch (currencyCode?.toUpperCase()) {
+    case 'ILS':
+      return '₪';
+    case 'USD':
+      return '$';
+    case 'EUR':
+      return '€';
+    default:
+      return '₪'; // Default to ILS symbol
+  }
+};
+
+/**
  * Create a new Prospero proposal by calling the Make.com webhook
+ * and save it to the database with status "Sent"
  */
 export const createProsperoProposal = async (
   params: CreateProsperoProposalParams
 ): Promise<string> => {
   try {
+    // Extract subscription data
+    const currencyCode = params.subscriptionData?.currency || 'ILS';
+    const currencySymbol = getCurrencySymbol(currencyCode);
+    const price = params.subscriptionData?.initialPrice || 0;
+    const name = params.leadName || '';
+
+    // Call Make.com webhook to create proposal
     const response = await fetch(PROSPERO_WEBHOOK_URL, {
       method: 'POST',
       headers: {
@@ -33,6 +65,9 @@ export const createProsperoProposal = async (
         leadId: params.leadId,
         phone: params.leadPhone,
         email: params.leadEmail || '',
+        name: name,
+        currency: currencySymbol,
+        Price: String(price),
       }),
     });
 
@@ -51,6 +86,39 @@ export const createProsperoProposal = async (
 
     if (!data.link) {
       throw new Error('Response missing proposal link');
+    }
+
+    // Get customer_id from lead
+    const { data: leadData, error: leadError } = await supabase
+      .from('leads')
+      .select('customer_id')
+      .eq('id', params.leadId)
+      .single();
+
+    if (leadError) {
+      console.error('Error fetching lead:', leadError);
+      // Continue anyway, customer_id is optional
+    }
+
+    // Save proposal to database with status "Sent"
+    const { error: insertError } = await supabase
+      .from('prospero_proposals')
+      .insert({
+        lead_id: params.leadId,
+        customer_id: leadData?.customer_id || null,
+        proposal_link: data.link,
+        prospero_proposal_id: data.proposalId || null,
+        status: 'Sent',
+        metadata: {
+          phone: params.leadPhone,
+          email: params.leadEmail || null,
+        },
+      });
+
+    if (insertError) {
+      console.error('Error saving proposal to database:', insertError);
+      // Don't throw - the proposal was created successfully, just DB save failed
+      // In production, you might want to log this to an error tracking service
     }
 
     return data.link;

@@ -22,9 +22,10 @@ interface LeadFormsCardProps {
   leadPhone?: string | null;
   leadId?: string | null; // Supabase lead row ID (for matching form submissions)
   leadName?: string | null; // Lead/customer name
+  subscriptionData?: any; // Subscription data from lead
 }
 
-export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPhone, leadId, leadName }) => {
+export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPhone, leadId, leadName, subscriptionData }) => {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
   const [submissionsByType, setSubmissionsByType] = useState<Record<string, FilloutSubmission>>({});
@@ -90,12 +91,27 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
       return;
     }
 
+    // Check if subscription exists
+    if (!subscriptionData || !subscriptionData.initialPrice) {
+      toast({
+        title: 'שגיאה',
+        description: 'נדרש מנוי פעיל ליצירת הצעה. אנא צור מנוי תחילה.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsCreatingProspero(true);
     try {
       const link = await createProsperoProposal({
         leadId,
         leadPhone,
         leadEmail: leadEmail || undefined,
+        leadName: leadName || undefined,
+        subscriptionData: {
+          currency: subscriptionData.currency || 'ILS',
+          initialPrice: subscriptionData.initialPrice || 0,
+        },
       });
 
       if (link) {
@@ -202,7 +218,7 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
             variant="ghost"
             className="w-full justify-start h-auto py-2.5 px-3 hover:bg-blue-50/50 border border-dashed border-blue-200 rounded-md transition-all duration-200 hover:border-blue-300 bg-blue-50/20"
             onClick={handleProsperoClick}
-            disabled={isCreatingProspero}
+            disabled={isCreatingProspero || !subscriptionData || !subscriptionData.initialPrice}
           >
             <div className="flex items-center gap-2 w-full">
               <Sparkles className="h-4 w-4 text-blue-600 flex-shrink-0" />

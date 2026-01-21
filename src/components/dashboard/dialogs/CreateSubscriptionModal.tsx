@@ -22,7 +22,7 @@ import type { Currency, DurationUnit } from '@/store/slices/subscriptionTypesSli
 interface CreateSubscriptionModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (subscriptionType: { name: string; duration: number; duration_unit: DurationUnit; price: number }) => void;
+  onConfirm: (subscriptionType: { name: string; duration: number; duration_unit: DurationUnit; price: number; status: string }) => void;
 }
 
 // Helper function to get duration unit label in Hebrew
@@ -58,6 +58,8 @@ export const CreateSubscriptionModal = ({
   const [newDurationUnit, setNewDurationUnit] = useState<DurationUnit>('months');
   const [newPrice, setNewPrice] = useState<number>(0);
   const [newCurrency, setNewCurrency] = useState<Currency>('ILS');
+  const [newStatus, setNewStatus] = useState<string>('פעיל');
+  const [selectedStatus, setSelectedStatus] = useState<string>('פעיל');
   const [isSaving, setIsSaving] = useState(false);
 
   // Fetch subscription types when modal opens
@@ -100,6 +102,7 @@ export const CreateSubscriptionModal = ({
       duration: selectedSubscriptionType.duration,
       duration_unit: selectedSubscriptionType.duration_unit || 'months',
       price: selectedSubscriptionType.price,
+      status: selectedStatus,
     });
     resetForm();
     onOpenChange(false);
@@ -155,6 +158,7 @@ export const CreateSubscriptionModal = ({
         duration: newDuration,
         duration_unit: newDurationUnit,
         price: newPrice,
+        status: newStatus,
       });
 
       resetForm();
@@ -178,6 +182,8 @@ export const CreateSubscriptionModal = ({
     setNewDurationUnit('months');
     setNewPrice(0);
     setNewCurrency('ILS');
+    setNewStatus('פעיל');
+    setSelectedStatus('פעיל');
   };
 
   const handleCancel = () => {
@@ -239,15 +245,36 @@ export const CreateSubscriptionModal = ({
 
               {/* Show selected subscription type details */}
               {selectedSubscriptionType && (
-                <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                  <p className="text-sm font-semibold text-gray-700">פרטי המנוי שנבחר:</p>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <p>שם: {selectedSubscriptionType.name}</p>
-                    <p>תוקף: {selectedSubscriptionType.duration} {getDurationUnitLabel(selectedSubscriptionType.duration_unit || 'months', selectedSubscriptionType.duration)}</p>
-                    <p>מחיר: {
-                      selectedSubscriptionType.currency === 'USD' ? '$' : 
-                      selectedSubscriptionType.currency === 'EUR' ? '€' : '₪'
-                    }{selectedSubscriptionType.price.toLocaleString('he-IL')}</p>
+                <div className="space-y-4">
+                  <div className="p-4 bg-gray-50 rounded-lg space-y-2">
+                    <p className="text-sm font-semibold text-gray-700">פרטי המנוי שנבחר:</p>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p>שם: {selectedSubscriptionType.name}</p>
+                      <p>תוקף: {selectedSubscriptionType.duration} {getDurationUnitLabel(selectedSubscriptionType.duration_unit || 'months', selectedSubscriptionType.duration)}</p>
+                      <p>מחיר: {
+                        selectedSubscriptionType.currency === 'USD' ? '$' : 
+                        selectedSubscriptionType.currency === 'EUR' ? '€' : '₪'
+                      }{selectedSubscriptionType.price.toLocaleString('he-IL')}</p>
+                      <p>סטטוס: {selectedStatus}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Status selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="subscription-status">סטטוס</Label>
+                    <Select
+                      value={selectedStatus}
+                      onValueChange={setSelectedStatus}
+                      dir="rtl"
+                    >
+                      <SelectTrigger id="subscription-status" dir="rtl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        <SelectItem value="פעיל">פעיל</SelectItem>
+                        <SelectItem value="לא פעיל">לא פעיל</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
@@ -342,6 +369,24 @@ export const CreateSubscriptionModal = ({
                   </div>
                 </div>
               </div>
+              
+              {/* Status selection for new subscription */}
+              <div className="space-y-2">
+                <Label htmlFor="new-status">סטטוס</Label>
+                <Select
+                  value={newStatus}
+                  onValueChange={setNewStatus}
+                  dir="rtl"
+                >
+                  <SelectTrigger id="new-status" dir="rtl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value="פעיל">פעיל</SelectItem>
+                    <SelectItem value="לא פעיל">לא פעיל</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* Preview of new subscription type */}
               {newName && newDuration > 0 && newPrice > 0 && (
@@ -351,6 +396,7 @@ export const CreateSubscriptionModal = ({
                     <p>שם: {newName}</p>
                     <p>תוקף: {newDuration} {getDurationUnitLabel(newDurationUnit, newDuration)}</p>
                     <p>מחיר: {getCurrencySymbol(newCurrency)}{newPrice.toLocaleString('he-IL')}</p>
+                    <p>סטטוס: {newStatus}</p>
                   </div>
                 </div>
               )}
@@ -373,13 +419,13 @@ export const CreateSubscriptionModal = ({
             ביטול
           </Button>
           {!isCreatingNew ? (
-            <Button onClick={handleConfirm} disabled={!selectedSubscriptionType}>
+            <Button onClick={handleConfirm} disabled={!selectedSubscriptionType || !selectedStatus}>
               צור מנוי
             </Button>
           ) : (
             <Button 
               onClick={handleCreateAndConfirm} 
-              disabled={isSaving || !newName.trim() || newDuration <= 0 || newPrice <= 0}
+              disabled={isSaving || !newName.trim() || newDuration <= 0 || newPrice <= 0 || !newStatus}
             >
               {isSaving ? 'יוצר...' : 'צור סוג מנוי ושייך ללקוח'}
             </Button>
