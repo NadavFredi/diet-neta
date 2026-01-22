@@ -12,18 +12,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { useSavedView, type FilterConfig } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { logoutUser } from '@/store/slices/authSlice';
-import { format } from 'date-fns';
 import {
-  setSelectedDate,
-  setSelectedStatus,
-  setSelectedAge,
-  setSelectedHeight,
-  setSelectedWeight,
-  setSelectedFitnessGoal,
-  setSelectedActivityLevel,
-  setSelectedPreferredTime,
-  setSelectedSource,
-  resetFilters,
   setLeads,
   setLoading,
   setError,
@@ -38,7 +27,6 @@ import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import {
   selectGroupByKeys,
-  selectGroupSorting,
   selectSearchQuery,
   selectColumnVisibility,
   setAllColumnSizing,
@@ -59,15 +47,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   // Redux state (source of truth - no derived state)
   const {
     leads, // Raw leads from database
-    selectedDate,
-    selectedStatus,
-    selectedAge,
-    selectedHeight,
-    selectedWeight,
-    selectedFitnessGoal,
-    selectedActivityLevel,
-    selectedPreferredTime,
-    selectedSource,
     isLoading,
     error,
     // Pagination state
@@ -85,7 +64,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
 
   // Group by state from tableStateSlice (for leads)
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
-  const groupSorting = useAppSelector((state) => selectGroupSorting(state, 'leads'));
 
   // Debounced search - internal state for debouncing
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
@@ -167,35 +145,12 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
         groupByLevel2: groupByKeys[1] || null,
       };
 
-      if (!options?.filterGroup) {
-        filterParams.createdDate = selectedDate || null;
-        filterParams.statusMain = selectedStatus || null;
-        filterParams.statusSub = null;
-        filterParams.age = selectedAge || null;
-        filterParams.height = selectedHeight || null;
-        filterParams.weight = selectedWeight || null;
-        filterParams.fitnessGoal = selectedFitnessGoal || null;
-        filterParams.activityLevel = selectedActivityLevel || null;
-        filterParams.preferredTime = selectedPreferredTime || null;
-        filterParams.source = selectedSource || null;
-      }
-
       // Fetch total count and leads in parallel
       const [dbLeads, totalCount] = await Promise.all([
         fetchFilteredLeads(filterParams),
         getFilteredLeadsCount({
           searchQuery: debouncedSearchQuery || null,
           filterGroup: options?.filterGroup || null,
-          createdDate: options?.filterGroup ? null : (selectedDate || null),
-          statusMain: options?.filterGroup ? null : (selectedStatus || null),
-          statusSub: null,
-          age: options?.filterGroup ? null : (selectedAge || null),
-          height: options?.filterGroup ? null : (selectedHeight || null),
-          weight: options?.filterGroup ? null : (selectedWeight || null),
-          fitnessGoal: options?.filterGroup ? null : (selectedFitnessGoal || null),
-          activityLevel: options?.filterGroup ? null : (selectedActivityLevel || null),
-          preferredTime: options?.filterGroup ? null : (selectedPreferredTime || null),
-          source: options?.filterGroup ? null : (selectedSource || null),
         }),
       ]);
 
@@ -257,15 +212,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   }, [
     debouncedSearchQuery, // Use debounced search
     options?.filterGroup,
-    selectedDate,
-    selectedStatus,
-    selectedAge,
-    selectedHeight,
-    selectedWeight,
-    selectedFitnessGoal,
-    selectedActivityLevel,
-    selectedPreferredTime,
-    selectedSource,
     // Pagination dependencies
     currentPage,
     pageSize,
@@ -283,15 +229,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     const currentFilters = JSON.stringify({ 
       debouncedSearchQuery, 
       filterGroup: options?.filterGroup,
-      selectedDate,
-      selectedStatus,
-      selectedAge,
-      selectedHeight,
-      selectedWeight,
-      selectedFitnessGoal,
-      selectedActivityLevel,
-      selectedPreferredTime,
-      selectedSource,
       groupByKeys: [groupByKeys[0], groupByKeys[1]],
     });
     
@@ -303,15 +240,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   }, [
     debouncedSearchQuery,
     options?.filterGroup,
-    selectedDate,
-    selectedStatus,
-    selectedAge,
-    selectedHeight,
-    selectedWeight,
-    selectedFitnessGoal,
-    selectedActivityLevel,
-    selectedPreferredTime,
-    selectedSource,
     groupByKeys,
     currentPage,
     dispatch,
@@ -329,15 +257,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     // Filter dependencies (using debounced search)
     debouncedSearchQuery,
     options?.filterGroup,
-    selectedDate,
-    selectedStatus,
-    selectedAge,
-    selectedHeight,
-    selectedWeight,
-    selectedFitnessGoal,
-    selectedActivityLevel,
-    selectedPreferredTime,
-    selectedSource,
     // Pagination dependencies
     currentPage,
     pageSize,
@@ -355,42 +274,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   // =====================================================
   const handleSearchChange = useCallback((value: string) => {
     dispatch(setTableSearchQuery({ resourceKey: 'leads', query: value }));
-  }, [dispatch]);
-
-  const handleDateSelect = useCallback((date: Date | undefined) => {
-    dispatch(setSelectedDate(date ? format(date, 'yyyy-MM-dd') : null));
-  }, [dispatch]);
-
-  const handleStatusChange = useCallback((value: string) => {
-    dispatch(setSelectedStatus(value === 'all' ? null : value));
-  }, [dispatch]);
-
-  const handleAgeChange = useCallback((value: string) => {
-    dispatch(setSelectedAge(value === 'all' ? null : value));
-  }, [dispatch]);
-
-  const handleHeightChange = useCallback((value: string) => {
-    dispatch(setSelectedHeight(value === 'all' ? null : value));
-  }, [dispatch]);
-
-  const handleWeightChange = useCallback((value: string) => {
-    dispatch(setSelectedWeight(value === 'all' ? null : value));
-  }, [dispatch]);
-
-  const handleFitnessGoalChange = useCallback((value: string) => {
-    dispatch(setSelectedFitnessGoal(value === 'all' ? null : value));
-  }, [dispatch]);
-
-  const handleActivityLevelChange = useCallback((value: string) => {
-    dispatch(setSelectedActivityLevel(value === 'all' ? null : value));
-  }, [dispatch]);
-
-  const handlePreferredTimeChange = useCallback((value: string) => {
-    dispatch(setSelectedPreferredTime(value === 'all' ? null : value));
-  }, [dispatch]);
-
-  const handleSourceChange = useCallback((value: string) => {
-    dispatch(setSelectedSource(value === 'all' ? null : value));
   }, [dispatch]);
 
   // =====================================================
@@ -419,13 +302,12 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   // Saved Views Logic
   // =====================================================
 
-  // Reset filters when navigating to base resource (no view_id)
+  // Reset view flag when navigating to base resource (no view_id)
   useEffect(() => {
     if (!viewId) {
-      dispatch(resetFilters());
       setHasAppliedView(false);
     }
-  }, [viewId, dispatch]);
+  }, [viewId]);
 
   // Apply saved view filter config when view is loaded
   useEffect(() => {
@@ -435,33 +317,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
       // Apply all filters from the saved view
       if (filterConfig.searchQuery !== undefined) {
         dispatch(setTableSearchQuery({ resourceKey: 'leads', query: filterConfig.searchQuery || '' }));
-      }
-      if (filterConfig.selectedDate !== undefined) {
-        dispatch(setSelectedDate(filterConfig.selectedDate));
-      }
-      if (filterConfig.selectedStatus !== undefined) {
-        dispatch(setSelectedStatus(filterConfig.selectedStatus));
-      }
-      if (filterConfig.selectedAge !== undefined) {
-        dispatch(setSelectedAge(filterConfig.selectedAge));
-      }
-      if (filterConfig.selectedHeight !== undefined) {
-        dispatch(setSelectedHeight(filterConfig.selectedHeight));
-      }
-      if (filterConfig.selectedWeight !== undefined) {
-        dispatch(setSelectedWeight(filterConfig.selectedWeight));
-      }
-      if (filterConfig.selectedFitnessGoal !== undefined) {
-        dispatch(setSelectedFitnessGoal(filterConfig.selectedFitnessGoal));
-      }
-      if (filterConfig.selectedActivityLevel !== undefined) {
-        dispatch(setSelectedActivityLevel(filterConfig.selectedActivityLevel));
-      }
-      if (filterConfig.selectedPreferredTime !== undefined) {
-        dispatch(setSelectedPreferredTime(filterConfig.selectedPreferredTime));
-      }
-      if (filterConfig.selectedSource !== undefined) {
-        dispatch(setSelectedSource(filterConfig.selectedSource));
       }
       if (filterConfig.columnVisibility) {
         dispatch(setAllTableColumnVisibility({ resourceKey: 'leads', visibility: filterConfig.columnVisibility }));
@@ -481,15 +336,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   const getCurrentFilterConfig = useCallback((advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc'): FilterConfig => {
     return {
       searchQuery,
-      selectedDate,
-      selectedStatus,
-      selectedAge,
-      selectedHeight,
-      selectedWeight,
-      selectedFitnessGoal,
-      selectedActivityLevel,
-      selectedPreferredTime,
-      selectedSource,
       columnVisibility: tableColumnVisibility,
       columnOrder,
       columnWidths,
@@ -500,15 +346,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     };
   }, [
     searchQuery,
-    selectedDate,
-    selectedStatus,
-    selectedAge,
-    selectedHeight,
-    selectedWeight,
-    selectedFitnessGoal,
-    selectedActivityLevel,
-    selectedPreferredTime,
-    selectedSource,
     tableColumnVisibility,
     options?.filterGroup,
   ]);
@@ -681,15 +518,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     filteredLeads,
     leads, // Raw leads (source of truth)
     searchQuery,
-    selectedDate,
-    selectedStatus,
-    selectedAge,
-    selectedHeight,
-    selectedWeight,
-    selectedFitnessGoal,
-    selectedActivityLevel,
-    selectedPreferredTime,
-    selectedSource,
     columnVisibility: tableColumnVisibility,
     user,
     isLoading: isLoading || isRefreshing,
@@ -714,15 +542,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
 
     // Handlers
     handleSearchChange,
-    handleDateSelect,
-    handleStatusChange,
-    handleAgeChange,
-    handleHeightChange,
-    handleWeightChange,
-    handleFitnessGoalChange,
-    handleActivityLevelChange,
-    handlePreferredTimeChange,
-    handleSourceChange,
     // Pagination handlers
     handlePageChange,
     handlePageSizeChange,

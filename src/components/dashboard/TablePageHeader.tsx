@@ -234,7 +234,6 @@ export const TablePageHeader = ({
     const searchQueryChanged = currentSearchQuery !== normalizedSavedSearchQuery;
     
     // Compare column visibility
-    // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
     const currentColumnVisibility = reduxColumnVisibility || {};
     
     // Normalize column visibility for comparison (sort keys for consistent comparison)
@@ -277,7 +276,6 @@ export const TablePageHeader = ({
     }
 
     try {
-      // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
       const currentColumnVisibility = reduxColumnVisibility || {};
 
       const currentColumnOrder = columns && columns.length > 0

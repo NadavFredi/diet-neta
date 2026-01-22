@@ -141,7 +141,7 @@ export const TableActionHeader = ({
   
   // Initialize Redux state for this resource if not already initialized
   useEffect(() => {
-    if (resourceKey !== 'leads' && !isInitialized) {
+    if (!isInitialized) {
       // Initialize even without columns (for search/filter state)
       dispatch(
         initializeTableState({
@@ -366,7 +366,6 @@ export const TableActionHeader = ({
     const searchQueryChanged = currentSearchQuery !== normalizedSavedSearchQuery;
     
     // Compare column visibility
-    // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
     const currentColumnVisibility = reduxColumnVisibility || {};
     
     // Normalize column visibility for comparison (sort keys for consistent comparison)
@@ -409,7 +408,6 @@ export const TableActionHeader = ({
     }
 
     try {
-      // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
       const currentColumnVisibility = reduxColumnVisibility || {};
 
       const currentColumnOrder = columns && columns.length > 0
