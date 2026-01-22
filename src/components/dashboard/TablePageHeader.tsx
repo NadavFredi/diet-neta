@@ -13,7 +13,7 @@ import { useTableFilters, type FilterField } from '@/hooks/useTableFilters';
 import type { ActiveFilter, FilterGroup } from '@/components/dashboard/TableFilter';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
-import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, type ResourceKey } from '@/store/slices/tableStateSlice';
+import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, selectColumnVisibility, type ResourceKey } from '@/store/slices/tableStateSlice';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -167,6 +167,11 @@ export const TablePageHeader = ({
 
   // Get column order from Redux
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
+  
+  // Get column visibility from Redux (for non-leads resources)
+  const reduxColumnVisibility = resourceKey !== 'leads' 
+    ? useAppSelector((state) => selectColumnVisibility(state, resourceKey))
+    : undefined;
 
   // Check if filters are dirty (different from saved/default state)
   const filtersDirty = useMemo(() => {
@@ -179,6 +184,7 @@ export const TablePageHeader = ({
     const savedFilters = savedConfig.advancedFilters || [];
     const savedFilterGroup = savedConfig.filterGroup || null;
     const savedSearchQuery = savedConfig.searchQuery || '';
+    const savedColumnVisibility = savedConfig.columnVisibility || {};
     
     // Normalize current filters for comparison
     const currentFilters = (activeFilters || []).map(f => ({
@@ -209,9 +215,34 @@ export const TablePageHeader = ({
     const normalizedSavedSearchQuery = savedSearchQuery.trim();
     const searchQueryChanged = currentSearchQuery !== normalizedSavedSearchQuery;
     
-    // Filters are dirty if filters changed or search query changed
-    return filtersChanged || searchQueryChanged;
-  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup]);
+    // Compare column visibility
+    // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
+    const currentColumnVisibility = resourceKey === 'leads' 
+      ? leadsColumnVisibility || {}
+      : (reduxColumnVisibility || {});
+    
+    // Normalize column visibility for comparison (sort keys for consistent comparison)
+    const currentColumnVisibilityStr = JSON.stringify(
+      Object.keys(currentColumnVisibility)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = currentColumnVisibility[key];
+          return acc;
+        }, {} as Record<string, boolean>)
+    );
+    const savedColumnVisibilityStr = JSON.stringify(
+      Object.keys(savedColumnVisibility)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = savedColumnVisibility[key];
+          return acc;
+        }, {} as Record<string, boolean>)
+    );
+    const columnVisibilityChanged = currentColumnVisibilityStr !== savedColumnVisibilityStr;
+    
+    // Filters are dirty if filters changed, search query changed, or column visibility changed
+    return filtersChanged || searchQueryChanged || columnVisibilityChanged;
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, leadsColumnVisibility, reduxColumnVisibility]);
 
   // Handle saving filters to default view
   const handleSaveFilters = async () => {
@@ -226,6 +257,11 @@ export const TablePageHeader = ({
     }
 
     try {
+      // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
+      const currentColumnVisibility = resourceKey === 'leads' 
+        ? leadsColumnVisibility || {}
+        : (reduxColumnVisibility || {});
+      
       // Build current filter config
       const currentFilterConfig: FilterConfig = {
         ...(targetView.filter_config as FilterConfig),
@@ -239,6 +275,7 @@ export const TablePageHeader = ({
           values: f.values,
           type: f.type,
         })),
+        columnVisibility: currentColumnVisibility,
       };
 
       await updateSavedView.mutateAsync({

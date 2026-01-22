@@ -16,7 +16,7 @@ import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
 import { TemplateColumnSettings } from '@/components/dashboard/TemplateColumnSettings';
 import { GenericColumnSettings } from '@/components/dashboard/GenericColumnSettings';
 import { PageHeader } from '@/components/dashboard/PageHeader';
-import { Columns, Plus, Settings, LucideIcon, Group, X } from 'lucide-react';
+import { Columns, Plus, Settings, LucideIcon, Group, X, Save } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,6 +29,7 @@ import {
   clearFilters as clearFiltersAction,
   setActiveFilters,
   selectColumnOrder,
+  selectColumnVisibility,
   selectSearchQuery,
   selectActiveFilters,
   selectFilterGroup,
@@ -259,6 +260,11 @@ export const TableActionHeader = ({
   // Get column order from Redux
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
   
+  // Get column visibility from Redux (for non-leads resources)
+  const reduxColumnVisibility = resourceKey !== 'leads' 
+    ? useAppSelector((state) => selectColumnVisibility(state, resourceKey))
+    : undefined;
+  
   // Get groupByKey from Redux (legacy)
   const groupByKey = useAppSelector((state) => selectGroupByKey(state, resourceKey));
   
@@ -351,6 +357,7 @@ export const TableActionHeader = ({
     const savedFilters = savedConfig.advancedFilters || [];
     const savedFilterGroup = savedConfig.filterGroup || null;
     const savedSearchQuery = savedConfig.searchQuery || '';
+    const savedColumnVisibility = savedConfig.columnVisibility || {};
     
     // Normalize current filters for comparison
     const currentFilters = (activeFilters || []).map(f => ({
@@ -381,9 +388,34 @@ export const TableActionHeader = ({
     const normalizedSavedSearchQuery = savedSearchQuery.trim();
     const searchQueryChanged = currentSearchQuery !== normalizedSavedSearchQuery;
     
-    // Filters are dirty if filters changed or search query changed
-    return filtersChanged || searchQueryChanged;
-  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup]);
+    // Compare column visibility
+    // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
+    const currentColumnVisibility = resourceKey === 'leads' 
+      ? leadsColumnVisibility || {}
+      : (reduxColumnVisibility || {});
+    
+    // Normalize column visibility for comparison (sort keys for consistent comparison)
+    const currentColumnVisibilityStr = JSON.stringify(
+      Object.keys(currentColumnVisibility)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = currentColumnVisibility[key];
+          return acc;
+        }, {} as Record<string, boolean>)
+    );
+    const savedColumnVisibilityStr = JSON.stringify(
+      Object.keys(savedColumnVisibility)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = savedColumnVisibility[key];
+          return acc;
+        }, {} as Record<string, boolean>)
+    );
+    const columnVisibilityChanged = currentColumnVisibilityStr !== savedColumnVisibilityStr;
+    
+    // Filters are dirty if filters changed, search query changed, or column visibility changed
+    return filtersChanged || searchQueryChanged || columnVisibilityChanged;
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, leadsColumnVisibility, reduxColumnVisibility]);
 
   // Handle saving filters to default view
   const handleSaveFilters = async () => {
@@ -398,6 +430,11 @@ export const TableActionHeader = ({
     }
 
     try {
+      // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
+      const currentColumnVisibility = resourceKey === 'leads' 
+        ? leadsColumnVisibility || {}
+        : (reduxColumnVisibility || {});
+      
       // Build current filter config
       const currentFilterConfig: FilterConfig = {
         ...(targetView.filter_config as FilterConfig),
@@ -411,6 +448,7 @@ export const TableActionHeader = ({
           values: f.values,
           type: f.type,
         })),
+        columnVisibility: currentColumnVisibility,
       };
 
       await updateSavedView.mutateAsync({
@@ -444,8 +482,9 @@ export const TableActionHeader = ({
       icon={icon}
       resourceKey={resourceKey}
       className={className}
-      filtersDirty={filtersDirty}
-      onSaveFilters={handleSaveFilters}
+      dataCount={dataCount}
+      singularLabel={singularLabel}
+      pluralLabel={pluralLabel}
       actions={
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap" dir="rtl">
           {/* Search Input - Rightmost (first in RTL flex) */}
@@ -523,6 +562,19 @@ export const TableActionHeader = ({
             />
           )}
 
+          {/* Save View Button - Only show when filters are dirty */}
+          {filtersDirty && (
+            <Button
+              onClick={handleSaveFilters}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-2 flex-shrink-0 h-10 sm:h-11"
+            >
+              <Save className="h-4 w-4" />
+              <span>שמור מסננים</span>
+            </Button>
+          )}
+
           {/* Add Button */}
           {addButtonLabel && onAddClick && (
             <Button
@@ -592,11 +644,6 @@ export const TableActionHeader = ({
               onEdit={setEditingFilter}
             />
           )}
-
-          {/* Results Count */}
-          <p className="text-sm text-gray-500 font-normal">
-            {dataCount} {dataCount === 1 ? singularLabel : pluralLabel} נמצאו
-          </p>
         </div>
       }
     />
