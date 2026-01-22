@@ -14,7 +14,7 @@ import { fetchLeadIdsByFilter } from '@/services/leadService';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { selectGroupByKeys } from '@/store/slices/tableStateSlice';
+import { selectColumnOrder, selectColumnSizing, selectGroupByKeys, setAllColumnSizing, setAllColumnVisibility, setColumnOrder } from '@/store/slices/tableStateSlice';
 import { groupDataByKeys, getTotalGroupsCount, getAllGroupKeys } from '@/utils/groupDataByKey';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
@@ -28,6 +28,8 @@ const Dashboard = () => {
   // Removed duplicate useDefaultView and useSavedView - they're already called in useDashboardLogic
   const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'leads'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'leads'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
 
   // Safety check: Redirect trainees immediately
@@ -240,6 +242,15 @@ const Dashboard = () => {
       if (filterConfig.searchQuery !== undefined) {
         dispatch(setSearchQuery(filterConfig.searchQuery));
       }
+      if (filterConfig.columnVisibility) {
+        dispatch(setAllColumnVisibility({ resourceKey: 'leads', visibility: filterConfig.columnVisibility }));
+      }
+      if (filterConfig.columnOrder && Array.isArray(filterConfig.columnOrder)) {
+        dispatch(setColumnOrder({ resourceKey: 'leads', order: filterConfig.columnOrder }));
+      }
+      if (filterConfig.columnWidths) {
+        dispatch(setAllColumnSizing({ resourceKey: 'leads', sizing: filterConfig.columnWidths }));
+      }
 
       previousFiltersRef.current = JSON.stringify({
         filters: filterConfig.filterGroup || filterConfig.advancedFilters || [],
@@ -435,7 +446,7 @@ const Dashboard = () => {
         isOpen={isSaveViewModalOpen}
         onOpenChange={setIsSaveViewModalOpen}
         resourceKey={saveViewResourceKey}
-        filterConfig={getCurrentFilterConfig(activeFilters)}
+        filterConfig={getCurrentFilterConfig(activeFilters, columnOrder, columnSizing)}
       />
     </>
   );

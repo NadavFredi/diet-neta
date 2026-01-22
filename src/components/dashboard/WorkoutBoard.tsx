@@ -807,6 +807,15 @@ const ExerciseRow = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exerc
           />
         </TableCell>
         <TableCell className="w-[120px]">
+          <Input
+            value={exercise.order || ''}
+            onChange={(e) => onUpdate({ order: e.target.value })}
+            className="h-8 text-sm border-gray-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+            placeholder="סדר"
+            dir="rtl"
+          />
+        </TableCell>
+        <TableCell className="w-[120px]">
           <div className="flex items-center justify-center gap-1">
             <Popover>
               <PopoverTrigger asChild>
@@ -1272,6 +1281,7 @@ const DayColumn = ({
                       <TableHead className="text-right">שם התרגיל</TableHead>
                       <TableHead className="w-[100px] text-center">סטים</TableHead>
                       <TableHead className="w-[100px] text-center">חזרות</TableHead>
+                      <TableHead className="w-[120px] text-center">סדר</TableHead>
                       <TableHead className="w-[120px] text-center">מדיה</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
@@ -1316,6 +1326,7 @@ const DayColumn = ({
                   name: exercise.name,
                   sets: 3,
                   reps: exercise.repetitions || 10,
+                  order: '',
                   image_url: exercise.image || undefined,
                   video_url: exercise.video_link || undefined,
                 });
@@ -1330,6 +1341,7 @@ const DayColumn = ({
                     name: name.trim(),
                     sets: 3,
                     reps: 10,
+                    order: '',
                   });
                 }
               }}

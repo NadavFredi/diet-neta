@@ -43,6 +43,9 @@ import type { ColumnVisibility as ColumnVisibilityType } from '@/utils/dashboard
 import {
   selectGroupByKeys,
   selectGroupSorting,
+  setAllColumnSizing,
+  setAllColumnVisibility as setAllTableColumnVisibility,
+  setColumnOrder as setTableColumnOrder,
 } from '@/store/slices/tableStateSlice';
 import { allLeadColumns } from '@/components/dashboard/columns/leadColumns';
 
@@ -465,6 +468,13 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
       }
       if (filterConfig.columnVisibility) {
         dispatch(setColumnVisibility(filterConfig.columnVisibility));
+        dispatch(setAllTableColumnVisibility({ resourceKey: 'leads', visibility: filterConfig.columnVisibility }));
+      }
+      if (filterConfig.columnOrder && Array.isArray(filterConfig.columnOrder)) {
+        dispatch(setTableColumnOrder({ resourceKey: 'leads', order: filterConfig.columnOrder }));
+      }
+      if (filterConfig.columnWidths) {
+        dispatch(setAllColumnSizing({ resourceKey: 'leads', sizing: filterConfig.columnWidths }));
       }
 
       setHasAppliedView(true);

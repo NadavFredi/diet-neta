@@ -408,6 +408,7 @@ export const useWorkoutBoard = (
       name: ex.name,
       sets: ex.sets,
       reps: ex.reps,
+      order: '',
     }));
 
     updateDay(dayKey, (prev) => ({
