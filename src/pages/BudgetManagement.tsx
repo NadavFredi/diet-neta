@@ -170,40 +170,25 @@ const BudgetManagement = () => {
               </div>
             </div>
           ) : budgets && budgets.length > 0 ? (
-            <>
-              <div className="flex-1 min-h-0">
-                <BudgetsDataTable
-                  budgets={budgets}
-                  onEdit={handleEditBudget}
-                  onDelete={handleDeleteClick}
-                  onExportPDF={handleExportPDF}
-                  onSendWhatsApp={handleSendWhatsApp}
-                  onBulkDelete={handleBulkDelete}
-                  onViewDetails={(budget) => {
-                    setViewingBudgetId(budget.id);
-                    // Update URL to include budget_id for shareable link
-                    const newParams = new URLSearchParams(searchParams);
-                    newParams.set('budget_id', budget.id);
-                    navigate(`/dashboard/budgets?${newParams.toString()}`, { replace: true });
-                  }}
-                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                />
-              </div>
-              {/* Pagination Footer - Always visible */}
-              {budgets && budgets.length > 0 && (
-                <div className="flex-shrink-0">
-                  <Pagination
-                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                    pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : totalBudgets}
-                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                    isLoading={isLoading}
-                  />
-                </div>
-              )}
-            </>
+            <div className="flex-1 min-h-0">
+              <BudgetsDataTable
+                budgets={budgets}
+                onEdit={handleEditBudget}
+                onDelete={handleDeleteClick}
+                onExportPDF={handleExportPDF}
+                onSendWhatsApp={handleSendWhatsApp}
+                onBulkDelete={handleBulkDelete}
+                onViewDetails={(budget) => {
+                  setViewingBudgetId(budget.id);
+                  // Update URL to include budget_id for shareable link
+                  const newParams = new URLSearchParams(searchParams);
+                  newParams.set('budget_id', budget.id);
+                  navigate(`/dashboard/budgets?${newParams.toString()}`, { replace: true });
+                }}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+            </div>
           ) : (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
               <div>
@@ -217,6 +202,20 @@ const BudgetManagement = () => {
                   </p>
                 )}
               </div>
+            </div>
+          )}
+          {/* Pagination Footer - Always visible when there's data */}
+          {!isLoading && totalBudgets > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                pageSize={isGroupingActive ? groupPageSize : pageSize}
+                totalItems={isGroupingActive ? totalGroups : totalBudgets}
+                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                showIfSinglePage={isGroupingActive}
+                isLoading={isLoading}
+              />
             </div>
           )}
         </div>

@@ -144,35 +144,34 @@ const MeetingsManagement = () => {
               </div>
             </div>
           ) : filteredMeetings && Array.isArray(filteredMeetings) && filteredMeetings.length > 0 ? (
-            <>
-              <div className="flex-1 min-h-0">
-                <MeetingsDataTable 
-                  meetings={filteredMeetings} 
-                  onBulkDelete={handleBulkDelete}
-                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                />
-              </div>
-              {/* Pagination Footer - Always visible */}
-              {totalMeetings > 0 && (
-                <div className="flex-shrink-0">
-                  <Pagination
-                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                    pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : totalMeetings}
-                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                    isLoading={isLoadingMeetings}
-                  />
-                </div>
-              )}
-            </>
+            <div className="flex-1 min-h-0">
+              <MeetingsDataTable 
+                meetings={filteredMeetings} 
+                onBulkDelete={handleBulkDelete}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+            </div>
           ) : (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
               <div>
                 <p className="text-lg font-medium mb-2">לא נמצאו פגישות</p>
                 <p className="text-sm">פגישות מתווספות אוטומטית מטופס Fillout</p>
               </div>
+            </div>
+          )}
+          {/* Pagination Footer - Always visible when there's data */}
+          {!isLoadingMeetings && totalMeetings > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                pageSize={isGroupingActive ? groupPageSize : pageSize}
+                totalItems={isGroupingActive ? totalGroups : totalMeetings}
+                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                showIfSinglePage={isGroupingActive}
+                isLoading={isLoadingMeetings}
+              />
             </div>
           )}
         </div>

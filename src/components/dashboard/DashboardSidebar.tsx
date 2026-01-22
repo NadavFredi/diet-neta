@@ -437,7 +437,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
         {/* Search Filter */}
         {!isCollapsed && (
           <div className="px-2 pb-3 pt-4">
-            <div className="relative">
+            <div className="relative ml-3">
               <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/60" />
               <Input
                 type="text"
@@ -447,7 +447,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
                 className={cn(
                   "w-full pr-9 pl-9 h-9 text-sm",
                   "bg-white/10 border-white/20 text-white placeholder:text-white/60",
-                  "focus-visible:ring-white/30 focus-visible:border-white/40"
+                  "focus-visible:ring-0 focus-visible:border-white/30 focus-visible:bg-white/15"
                 )}
                 dir="rtl"
               />

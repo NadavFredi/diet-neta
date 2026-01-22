@@ -10,13 +10,19 @@ import { useState, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { TableFilter } from '@/components/dashboard/TableFilter';
 import { FilterChips } from '@/components/dashboard/FilterChips';
 import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
 import { TemplateColumnSettings } from '@/components/dashboard/TemplateColumnSettings';
 import { GenericColumnSettings } from '@/components/dashboard/GenericColumnSettings';
 import { PageHeader } from '@/components/dashboard/PageHeader';
-import { Columns, Plus, Settings, LucideIcon, Group, X, Save } from 'lucide-react';
+import { Columns, Plus, Settings, LucideIcon, Group, X, Save, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import { useQueryClient } from '@tanstack/react-query';
@@ -40,6 +46,7 @@ import {
   setGroupByKeys,
   setGroupSorting,
   initializeTableState,
+  setCollapsedGroups,
   type ResourceKey,
 } from '@/store/slices/tableStateSlice';
 import { GroupBadge } from './GroupBadge';
@@ -88,6 +95,9 @@ interface TableActionHeaderProps {
   // Custom actions to add to the header (e.g., sync button for meetings)
   customActions?: React.ReactNode;
   
+  // Function to get all group keys for collapse/expand all functionality
+  getAllGroupKeys?: () => string[];
+  
   // Legacy support: For leads, we still use dashboardSlice for search/filters
   // If these are provided, they override Redux state
   legacySearchQuery?: string;
@@ -124,6 +134,7 @@ export const TableActionHeader = ({
   templateColumnVisibility,
   onToggleTemplateColumn,
   columns,
+  getAllGroupKeys,
   legacySearchQuery,
   legacyOnSearchChange,
   legacyActiveFilters,
@@ -139,6 +150,7 @@ export const TableActionHeader = ({
   const [isGroupByOpen, setIsGroupByOpen] = useState(false);
   const [editingFilter, setEditingFilter] = useState<ActiveFilter | null>(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [isGroupMenuOpen, setIsGroupMenuOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAppSelector((state) => state.auth);
@@ -282,6 +294,20 @@ export const TableActionHeader = ({
   // Handle multi-level group by change
   const handleGroupByKeysChange = (keys: [string | null, string | null]) => {
     dispatch(setGroupByKeys({ resourceKey, groupByKeys: keys }));
+  };
+
+  // Handle collapse all groups
+  const handleCollapseAll = () => {
+    if (!getAllGroupKeys) return;
+    const allGroupKeys = getAllGroupKeys();
+    dispatch(setCollapsedGroups({ resourceKey, collapsedGroups: allGroupKeys }));
+    setIsGroupMenuOpen(false);
+  };
+
+  // Handle expand all groups
+  const handleExpandAll = () => {
+    dispatch(setCollapsedGroups({ resourceKey, collapsedGroups: [] }));
+    setIsGroupMenuOpen(false);
   };
 
   // Handle group sorting change
@@ -540,33 +566,70 @@ export const TableActionHeader = ({
             </Popover>
           )}
 
-          {/* Group By Button */}
+          {/* Group By Button - Split Button */}
           {enableGroupBy && columns && columns.length > 0 && (
-            <Popover open={isGroupByOpen} onOpenChange={setIsGroupByOpen}>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className={cn(
-                    "gap-2 h-11",
-                    (groupByKeys[0] || groupByKeys[1]) && "bg-slate-50 border-slate-300"
-                  )}
-                >
-                  <Group className="h-4 w-4" />
-                  <span>קיבוץ לפי</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="p-0 w-auto" align="end" dir="rtl">
-                <GroupBySelector
-                  columns={columns}
-                  groupByKeys={groupByKeys}
-                  groupSorting={groupSorting}
-                  onGroupByKeysChange={handleGroupByKeysChange}
-                  onGroupSortingChange={handleGroupSortingChange}
-                  onClose={() => setIsGroupByOpen(false)}
-                />
-              </PopoverContent>
-            </Popover>
+            <div className="flex items-center" dir="rtl">
+              {/* Chevron Menu Button (right part in RTL) - only show when grouping is active */}
+              {(groupByKeys[0] || groupByKeys[1]) && (
+                <DropdownMenu open={isGroupMenuOpen} onOpenChange={setIsGroupMenuOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-11 px-2 rounded-l-none border-l-0",
+                        (groupByKeys[0] || groupByKeys[1]) && "bg-slate-50 border-slate-300"
+                      )}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ChevronDown className="h-4 w-4 text-gray-600" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" dir="rtl">
+                    <DropdownMenuItem 
+                      onClick={handleExpandAll}
+                      disabled={!getAllGroupKeys}
+                    >
+                      הרחב הכל
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={handleCollapseAll}
+                      disabled={!getAllGroupKeys}
+                    >
+                      כווץ הכל
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              
+              {/* Group By Button (left part in RTL) */}
+              <Popover open={isGroupByOpen} onOpenChange={setIsGroupByOpen}>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className={cn(
+                      "gap-2 h-11",
+                      (groupByKeys[0] || groupByKeys[1]) ? "rounded-r-none" : "",
+                      (groupByKeys[0] || groupByKeys[1]) && "bg-slate-50 border-slate-300"
+                    )}
+                  >
+                    <Group className="h-4 w-4" />
+                    <span>קיבוץ לפי</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-auto" align="end" dir="rtl">
+                  <GroupBySelector
+                    columns={columns}
+                    groupByKeys={groupByKeys}
+                    groupSorting={groupSorting}
+                    onGroupByKeysChange={handleGroupByKeysChange}
+                    onGroupSortingChange={handleGroupSortingChange}
+                    onClose={() => setIsGroupByOpen(false)}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           )}
 
           {/* Filter Button */}

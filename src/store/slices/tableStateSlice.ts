@@ -443,6 +443,21 @@ const tableStateSlice = createSlice({
       state.tables[resourceKey].collapsedGroups = collapsedGroups;
     },
 
+    // Set all collapsed groups (for collapse/expand all)
+    setCollapsedGroups: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        collapsedGroups: string[];
+      }>
+    ) => {
+      const { resourceKey, collapsedGroups } = action.payload;
+      if (!state.tables[resourceKey]) {
+        return;
+      }
+      state.tables[resourceKey].collapsedGroups = collapsedGroups;
+    },
+
     // Pagination actions
     setCurrentPage: (
       state,
@@ -532,6 +547,7 @@ export const {
   setAllColumnVisibility,
   setColumnSizing,
   setAllColumnSizing,
+  setCollapsedGroups,
   setColumnOrder,
   setSearchQuery,
   addFilter,

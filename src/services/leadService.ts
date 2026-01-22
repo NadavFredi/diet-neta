@@ -295,8 +295,7 @@ export async function fetchFilteredLeads(
     const searchGroup = filters.searchQuery ? createSearchGroup(filters.searchQuery, leadSearchColumns) : null;
     const combinedGroup = mergeFilterGroups(filters.filterGroup || null, searchGroup);
 
-    // When grouping is active, fetch ALL matching records (no pagination)
-    // This ensures grouping works correctly across all data, not just the current page
+    // When grouping is active, we still limit to max 100 records per request for performance
     const isGroupingActive = !!(filters.groupByLevel1 || filters.groupByLevel2);
 
     // Check if we need inner joins for "entity exists" filters
@@ -342,10 +341,9 @@ export async function fetchFilteredLeads(
         )
       `);
 
-    // Only apply pagination if grouping is NOT active
-    if (!isGroupingActive) {
-      query = query.range(offset, offset + limit - 1);
-    }
+    // Always apply pagination limit (max 100 records per request for performance)
+    const maxLimit = Math.min(limit, 100);
+    query = query.range(offset, offset + maxLimit - 1);
 
     if (combinedGroup) {
       query = applyFilterGroupToQuery(query, combinedGroup, leadFieldConfigs);

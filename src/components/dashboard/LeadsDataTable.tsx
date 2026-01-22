@@ -13,6 +13,7 @@ interface LeadsDataTableProps {
   sortOrder?: 'ASC' | 'DESC';
   totalCount?: number;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onBulkEdit?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number; updates: Record<string, any> }) => Promise<void> | void;
   groupCurrentPage?: number;
   groupPageSize?: number;
 }
@@ -25,6 +26,7 @@ export const LeadsDataTable = ({
   sortOrder: externalSortOrder,
   totalCount,
   onBulkDelete,
+  onBulkEdit,
   groupCurrentPage,
   groupPageSize,
 }: LeadsDataTableProps) => {
@@ -103,6 +105,7 @@ export const LeadsDataTable = ({
       enableRowSelection
       totalCount={totalCount}
       onBulkDelete={onBulkDelete}
+      onBulkEdit={onBulkEdit}
       selectionLabel="לידים"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}

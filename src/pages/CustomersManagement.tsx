@@ -193,29 +193,14 @@ const CustomersManagement = () => {
               </div>
             </div>
           ) : filteredCustomers && Array.isArray(filteredCustomers) && filteredCustomers.length > 0 ? (
-            <>
-              <div className="flex-1 min-h-0">
-                <CustomersDataTable 
-                  customers={filteredCustomers} 
-                  onBulkDelete={handleBulkDelete}
-                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                />
-              </div>
-              {/* Pagination Footer - Always visible */}
-              {totalCustomers > 0 && (
-                <div className="flex-shrink-0">
-                  <Pagination
-                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                    pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : totalCustomers}
-                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                    isLoading={isLoadingCustomers}
-                  />
-                </div>
-              )}
-            </>
+            <div className="flex-1 min-h-0">
+              <CustomersDataTable 
+                customers={filteredCustomers} 
+                onBulkDelete={handleBulkDelete}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+            </div>
           ) : (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
               <div>
@@ -229,6 +214,20 @@ const CustomersManagement = () => {
                   </p>
                 )}
               </div>
+            </div>
+          )}
+          {/* Pagination Footer - Always visible when there's data */}
+          {!isLoadingCustomers && totalCustomers > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                pageSize={isGroupingActive ? groupPageSize : pageSize}
+                totalItems={isGroupingActive ? totalGroups : totalCustomers}
+                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                showIfSinglePage={isGroupingActive}
+                isLoading={isLoadingCustomers}
+              />
             </div>
           )}
         </div>

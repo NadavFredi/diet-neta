@@ -129,31 +129,30 @@ const ExercisesManagement = () => {
               <div>טוען...</div>
             </div>
           ) : (
-            <>
-              <div className="flex-1 min-h-0">
-                <ExercisesDataTable
-                  exercises={exercises}
-                  onEdit={handleEditExercise}
-                  onDelete={handleDeleteClick}
-                  onBulkDelete={handleBulkDelete}
-                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                />
-              </div>
-              {/* Pagination Footer - Always visible */}
-              {totalExercises > 0 && (
-                <div className="flex-shrink-0">
-                  <Pagination
-                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                    pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : totalExercises}
-                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                    isLoading={isLoading}
-                  />
-                </div>
-              )}
-            </>
+            <div className="flex-1 min-h-0">
+              <ExercisesDataTable
+                exercises={exercises}
+                onEdit={handleEditExercise}
+                onDelete={handleDeleteClick}
+                onBulkDelete={handleBulkDelete}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+            </div>
+          )}
+          {/* Pagination Footer - Always visible when there's data */}
+          {!isLoading && totalExercises > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                pageSize={isGroupingActive ? groupPageSize : pageSize}
+                totalItems={isGroupingActive ? totalGroups : totalExercises}
+                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                showIfSinglePage={isGroupingActive}
+                isLoading={isLoading}
+              />
+            </div>
           )}
         </div>
       </TableManagementLayout>

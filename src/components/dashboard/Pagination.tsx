@@ -24,6 +24,7 @@ interface PaginationProps {
   onPageSizeChange?: (pageSize: number) => void; // Optional - hide page size selector when undefined
   className?: string;
   isLoading?: boolean;
+  showIfSinglePage?: boolean;
 }
 
 export const Pagination = ({
@@ -34,6 +35,7 @@ export const Pagination = ({
   onPageSizeChange,
   className,
   isLoading = false,
+  showIfSinglePage = false,
 }: PaginationProps) => {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -99,7 +101,7 @@ export const Pagination = ({
   };
 
   // Don't show pagination if there's only one page
-  if (totalPages <= 1 && totalItems > 0) {
+  if (!showIfSinglePage && totalPages <= 1 && totalItems > 0) {
     return null;
   }
 

@@ -141,35 +141,34 @@ const CollectionsManagement = () => {
               </div>
             </div>
           ) : filteredCollections && Array.isArray(filteredCollections) && filteredCollections.length > 0 ? (
-            <>
-              <div className="flex-1 min-h-0">
-                <CollectionsDataTable
-                  collections={filteredCollections}
-                  onBulkDelete={handleBulkDelete}
-                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                />
-              </div>
-              {/* Pagination Footer - Always visible */}
-              {filteredCollections && filteredCollections.length > 0 && (
-                <div className="flex-shrink-0">
-                  <Pagination
-                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                    pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : filteredCollections.length}
-                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                    isLoading={isLoadingCollections}
-                  />
-                </div>
-              )}
-            </>
+            <div className="flex-1 min-h-0">
+              <CollectionsDataTable
+                collections={filteredCollections}
+                onBulkDelete={handleBulkDelete}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+            </div>
           ) : (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
               <div>
                 <p className="text-lg font-medium mb-2">לא נמצאו גבייות</p>
                 <p className="text-sm">גבייות מתווספות בעת יצירת תשלומים או ידנית</p>
               </div>
+            </div>
+          )}
+          {/* Pagination Footer - Always visible when there's data */}
+          {!isLoadingCollections && filteredCollections && filteredCollections.length > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                pageSize={isGroupingActive ? groupPageSize : pageSize}
+                totalItems={isGroupingActive ? totalGroups : filteredCollections.length}
+                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                showIfSinglePage={isGroupingActive}
+                isLoading={isLoadingCollections}
+              />
             </div>
           )}
         </div>

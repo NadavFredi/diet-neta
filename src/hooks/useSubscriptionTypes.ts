@@ -61,7 +61,7 @@ export const useSubscriptionTypes = (filters?: {
       const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name']) : null;
       const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
 
-      // When grouping is active, fetch ALL matching records (no pagination)
+      // When grouping is active, we still limit to pageSize for performance
       const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
       
       // Map groupBy columns to database columns
@@ -74,12 +74,11 @@ export const useSubscriptionTypes = (filters?: {
         .from('subscription_types')
         .select('*');
 
-      // Only apply pagination if grouping is NOT active
-      if (!isGroupingActive) {
-        const from = (page - 1) * pageSize;
-        const to = from + pageSize - 1;
-        query = query.range(from, to);
-      }
+      // Always apply pagination limit (max 100 records per request for performance)
+      const maxPageSize = Math.min(pageSize, 100);
+      const from = (page - 1) * maxPageSize;
+      const to = from + maxPageSize - 1;
+      query = query.range(from, to);
 
       // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
       if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {

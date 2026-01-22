@@ -168,33 +168,18 @@ const PaymentsManagement = () => {
               </div>
             </div>
           ) : filteredPayments && Array.isArray(filteredPayments) && filteredPayments.length > 0 ? (
-            <>
-              <div className="flex-1 min-h-0">
-                <PaymentsDataTable
-                  payments={filteredPayments}
-                  enableColumnVisibility={false}
-                  onSortChange={handleSortChange}
-                  sortBy={sortBy}
-                  sortOrder={sortOrder}
-                  totalCount={totalPayments}
-                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                />
-              </div>
-              {/* Pagination Footer - Always visible */}
-              {totalPayments > 0 && (
-                <div className="flex-shrink-0">
-                  <Pagination
-                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                    pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : totalPayments}
-                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                    isLoading={isLoadingPayments}
-                  />
-                </div>
-              )}
-            </>
+            <div className="flex-1 min-h-0">
+              <PaymentsDataTable
+                payments={filteredPayments}
+                enableColumnVisibility={false}
+                onSortChange={handleSortChange}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                totalCount={totalPayments}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+            </div>
           ) : (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
               <div>
@@ -206,6 +191,20 @@ const PaymentsManagement = () => {
                   </p>
                 )}
               </div>
+            </div>
+          )}
+          {/* Pagination Footer - Always visible when there's data */}
+          {!isLoadingPayments && totalPayments > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                pageSize={isGroupingActive ? groupPageSize : pageSize}
+                totalItems={isGroupingActive ? totalGroups : totalPayments}
+                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                showIfSinglePage={isGroupingActive}
+                isLoading={isLoadingPayments}
+              />
             </div>
           )}
         </div>

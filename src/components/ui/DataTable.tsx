@@ -67,6 +67,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { BulkEditModal } from '@/components/ui/BulkEditModal';
 import { useToast } from '@/hooks/use-toast';
 
 // Stable default values to prevent unnecessary re-renders
@@ -120,6 +121,7 @@ export interface DataTableProps<T> {
   totalCount?: number;
   selectionLabel?: string;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onBulkEdit?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number; updates: Record<string, any> }) => Promise<void> | void;
   // Group pagination (when grouping is active, paginate groups instead of records)
   groupCurrentPage?: number;
   groupPageSize?: number;
@@ -402,6 +404,7 @@ export function DataTable<T extends Record<string, any>>({
   totalCount,
   selectionLabel = 'רשומות',
   onBulkDelete,
+  onBulkEdit,
   groupCurrentPage,
   groupPageSize = 50,
 }: DataTableProps<T>) {
@@ -435,6 +438,8 @@ export function DataTable<T extends Record<string, any>>({
   const [selectAllAcrossPages, setSelectAllAcrossPages] = useState(false);
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [isBulkEditing, setIsBulkEditing] = useState(false);
 
   const getRowIdValue = useCallback(
     (row: T): string => {
@@ -522,6 +527,33 @@ export function DataTable<T extends Record<string, any>>({
       });
     } finally {
       setIsBulkDeleting(false);
+    }
+  };
+
+  const handleConfirmBulkEdit = async (updates: Record<string, any>) => {
+    if (!onBulkEdit || Object.keys(updates).length === 0) return;
+    setIsBulkEditing(true);
+    try {
+      await onBulkEdit({
+        ids: Array.from(selectedRowIds),
+        selectAllAcrossPages,
+        totalCount: totalItems,
+        updates,
+      });
+      handleClearSelection();
+      setIsBulkEditOpen(false);
+      toast({
+        title: 'הצלחה',
+        description: 'הערכים עודכנו בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון. נסה שוב.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsBulkEditing(false);
     }
   };
 
@@ -1255,6 +1287,16 @@ export function DataTable<T extends Record<string, any>>({
                 בחר את כל {totalItems} {selectionLabel}
               </Button>
             )}
+            {onBulkEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsBulkEditOpen(true)}
+              >
+                עריכה מרוכזת
+              </Button>
+            )}
             {onBulkDelete && (
               <Button
                 type="button"
@@ -1363,6 +1405,20 @@ export function DataTable<T extends Record<string, any>>({
           />
         )}
       </div>
+      {onBulkEdit && (
+        <BulkEditModal
+          open={isBulkEditOpen}
+          onOpenChange={setIsBulkEditOpen}
+          onConfirm={handleConfirmBulkEdit}
+          columns={columns}
+          selectedCount={selectedCount}
+          totalItems={totalItems}
+          selectAllAcrossPages={selectAllAcrossPages}
+          selectionLabel={selectionLabel}
+          isEditing={isBulkEditing}
+          dir={dir}
+        />
+      )}
       {onBulkDelete && (
         <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
           <AlertDialogContent>
@@ -1812,6 +1868,28 @@ function TableContent<T>({
                 ? level1Group.level2Groups.reduce((sum, g) => sum + g.items.length, 0)
                 : level1Group.items.length;
 
+              // Get all visible row IDs for level 1 group
+              const getLevel1VisibleRowIds = (): string[] => {
+                if (!enableRowSelection || !getRowIdValue) return [];
+                const rowIds: string[] = [];
+                allLevel1Rows.forEach((item) => {
+                  if (item.type === 'level2-rows' || item.type === 'level1-rows') {
+                    item.rows.forEach((row: any) => {
+                      const rowId = getRowIdValue(row.original);
+                      if (rowId) rowIds.push(rowId);
+                    });
+                  }
+                });
+                return rowIds;
+              };
+
+              const level1VisibleRowIds = getLevel1VisibleRowIds();
+              const level1SelectedCount = level1VisibleRowIds.filter(id =>
+                selectAllAcrossPages ? true : selectedRowIds?.has(id)
+              ).length;
+              const level1AllSelected = level1VisibleRowIds.length > 0 && level1SelectedCount === level1VisibleRowIds.length;
+              const level1SomeSelected = level1SelectedCount > 0 && level1SelectedCount < level1VisibleRowIds.length;
+
               return (
                 <React.Fragment key={level1Key}>
                   {/* Level 1 Group Header */}
@@ -1830,6 +1908,27 @@ function TableContent<T>({
                           justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
                         }}
                       >
+                        <span className="text-sm font-bold text-slate-900">
+                          {level1Header}: {formatGroupValue(level1Group.level1Key, groupByKeys[0], false)}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
+                          {totalItems} {totalItems === 1 ? 'ליד' : 'לידים'}
+                        </span>
+                        {enableRowSelection && handleToggleRow && getRowIdValue && (
+                          <div className="flex-shrink-0">
+                            <Checkbox
+                              checked={level1AllSelected ? true : level1SomeSelected ? 'indeterminate' : false}
+                              onCheckedChange={(value) => {
+                                const shouldSelect = value === true;
+                                level1VisibleRowIds.forEach(rowId => {
+                                  handleToggleRow(rowId, shouldSelect);
+                                });
+                              }}
+                              aria-label="בחר כל הפריטים בקבוצה"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        )}
                         <div className="flex-shrink-0 transition-transform duration-200">
                           {isLevel1Collapsed ? (
                             <ChevronRight className="h-4 w-4 text-slate-600" />
@@ -1837,18 +1936,32 @@ function TableContent<T>({
                             <ChevronDown className="h-4 w-4 text-slate-600" />
                           )}
                         </div>
-                        <span className="text-sm font-bold text-slate-900">
-                          {level1Header}: {formatGroupValue(level1Group.level1Key, groupByKeys[0], false)}
-                        </span>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
-                          {totalItems} {totalItems === 1 ? 'ליד' : 'לידים'}
-                        </span>
                       </div>
                     </td>
                   </tr>
                   {/* Level 1 Content */}
                   {!isLevel1Collapsed && allLevel1Rows.map((item) => {
                     if (item.type === 'level2-header') {
+                      // Get all visible row IDs for level 2 group
+                      const getLevel2VisibleRowIds = (): string[] => {
+                        if (!enableRowSelection || !getRowIdValue) return [];
+                        const rowIds: string[] = [];
+                        if (!item.isCollapsed) {
+                          item.rows.forEach((row: any) => {
+                            const rowId = getRowIdValue(row.original);
+                            if (rowId) rowIds.push(rowId);
+                          });
+                        }
+                        return rowIds;
+                      };
+
+                      const level2VisibleRowIds = getLevel2VisibleRowIds();
+                      const level2SelectedCount = level2VisibleRowIds.filter(id =>
+                        selectAllAcrossPages ? true : selectedRowIds?.has(id)
+                      ).length;
+                      const level2AllSelected = level2VisibleRowIds.length > 0 && level2SelectedCount === level2VisibleRowIds.length;
+                      const level2SomeSelected = level2SelectedCount > 0 && level2SelectedCount < level2VisibleRowIds.length;
+
                       return (
                         <tr
                           key={item.key}
@@ -1872,6 +1985,27 @@ function TableContent<T>({
                                 marginLeft: dir === 'ltr' ? '24px' : '0',
                               }}
                             >
+                              <span className="text-sm font-semibold text-slate-700">
+                                {item.header}: {formatGroupValue(item.group.groupKey, groupByKeys[1], true)}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
+                                {item.group.items.length} {item.group.items.length === 1 ? 'ליד' : 'לידים'}
+                              </span>
+                              {enableRowSelection && handleToggleRow && getRowIdValue && (
+                                <div className="flex-shrink-0">
+                                  <Checkbox
+                                    checked={level2AllSelected ? true : level2SomeSelected ? 'indeterminate' : false}
+                                    onCheckedChange={(value) => {
+                                      const shouldSelect = value === true;
+                                      level2VisibleRowIds.forEach(rowId => {
+                                        handleToggleRow(rowId, shouldSelect);
+                                      });
+                                    }}
+                                    aria-label="בחר כל הפריטים בקבוצה"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                              )}
                               <div className="flex-shrink-0 transition-transform duration-200">
                                 {item.isCollapsed ? (
                                   <ChevronRight className="h-4 w-4 text-slate-500" />
@@ -1879,12 +2013,6 @@ function TableContent<T>({
                                   <ChevronDown className="h-4 w-4 text-slate-500" />
                                 )}
                               </div>
-                              <span className="text-sm font-semibold text-slate-700">
-                                {item.header}: {formatGroupValue(item.group.groupKey, groupByKeys[1], true)}
-                              </span>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
-                                {item.group.items.length} {item.group.items.length === 1 ? 'ליד' : 'לידים'}
-                              </span>
                             </div>
                           </td>
                         </tr>
@@ -1922,7 +2050,7 @@ function TableContent<T>({
                                   <td
                                     key={cell.id}
                                     className={cn(
-                                      'px-2 py-4 text-sm transition-colors overflow-hidden',
+                                      'px-2 py-1 text-sm transition-colors overflow-hidden',
                                       `text-${align}`,
                                       isNumeric
                                         ? 'font-mono tabular-nums text-gray-900'

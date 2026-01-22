@@ -15,7 +15,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectGroupByKeys } from '@/store/slices/tableStateSlice';
-import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
+import { groupDataByKeys, getTotalGroupsCount, getAllGroupKeys } from '@/utils/groupDataByKey';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { setSearchQuery } from '@/store/slices/dashboardSlice';
@@ -105,6 +105,11 @@ const Dashboard = () => {
     return getLeadFilterFields(filteredLeads || [], allLeadColumns);
   }, [filteredLeads]);
 
+  // Function to get all group keys for collapse/expand all
+  const getAllGroupKeysFn = useCallback(() => {
+    return getAllGroupKeys(filteredLeads || [], groupByKeys);
+  }, [filteredLeads, groupByKeys]);
+
   // Calculate total groups when grouping is active (after filteredLeads is defined)
   const totalGroups = useMemo(() => {
     if (!isGroupingActive || !filteredLeads || filteredLeads.length === 0) {
@@ -167,6 +172,31 @@ const Dashboard = () => {
       toast({
         title: 'הצלחה',
         description: 'הלידים נמחקו בהצלחה',
+      });
+
+      refreshLeads();
+    },
+    [searchQuery, filterGroup, toast, refreshLeads]
+  );
+
+  const handleBulkEdit = useCallback(
+    async (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number; updates: Record<string, any> }) => {
+      const idsToUpdate = payload.selectAllAcrossPages
+        ? await fetchLeadIdsByFilter({ searchQuery, filterGroup })
+        : payload.ids;
+
+      if (!idsToUpdate.length || Object.keys(payload.updates).length === 0) return;
+
+      const chunkSize = 100;
+      for (let i = 0; i < idsToUpdate.length; i += chunkSize) {
+        const chunk = idsToUpdate.slice(i, i + chunkSize);
+        const { error } = await supabase.from('leads').update(payload.updates).in('id', chunk);
+        if (error) throw error;
+      }
+
+      toast({
+        title: 'הצלחה',
+        description: `עודכנו ${idsToUpdate.length} לידים בהצלחה`,
       });
 
       refreshLeads();
@@ -312,6 +342,7 @@ const Dashboard = () => {
             enableGroupBy={true}
             enableSearch={true}
             columns={allLeadColumns}
+            getAllGroupKeys={getAllGroupKeysFn}
             legacySearchQuery={searchQuery}
             legacyOnSearchChange={handleSearchChangeWithSource}
             legacyActiveFilters={activeFilters}
@@ -334,34 +365,20 @@ const Dashboard = () => {
               </div>
             </div>
           ) : filteredLeads && Array.isArray(filteredLeads) && filteredLeads.length > 0 ? (
-            <>
-              <div className="flex-1 min-h-0">
-                <LeadsDataTable
-                  leads={filteredLeads}
-                  enableColumnVisibility={false}
-                  onSortChange={handleSortChange}
-                  sortBy={sortBy}
-                  sortOrder={sortOrder}
-                  totalCount={totalLeads}
-                  onBulkDelete={handleBulkDelete}
-                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                />
-              </div>
-              {/* Pagination Footer - Always visible */}
-              {totalLeads > 0 && (
-                <div className="flex-shrink-0">
-                  <Pagination
-                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                    pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : totalLeads}
-                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                    isLoading={isLoading}
-                  />
-                </div>
-              )}
-            </>
+            <div className="flex-1 min-h-0">
+              <LeadsDataTable
+                leads={filteredLeads}
+                enableColumnVisibility={false}
+                onSortChange={handleSortChange}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                totalCount={totalLeads}
+                onBulkDelete={handleBulkDelete}
+                onBulkEdit={handleBulkEdit}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+            </div>
           ) : (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
               <div>
@@ -373,6 +390,20 @@ const Dashboard = () => {
                   </p>
                 )}
               </div>
+            </div>
+          )}
+          {/* Pagination Footer - Always visible when there's data */}
+          {!isLoading && totalLeads > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                pageSize={isGroupingActive ? groupPageSize : pageSize}
+                totalItems={isGroupingActive ? totalGroups : totalLeads}
+                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                showIfSinglePage={isGroupingActive}
+                isLoading={isLoading}
+              />
             </div>
           )}
         </div>

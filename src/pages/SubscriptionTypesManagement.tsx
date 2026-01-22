@@ -19,7 +19,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { selectActiveFilters, selectGroupByKeys, selectCurrentPage, selectPageSize, setCurrentPage, setPageSize } from '@/store/slices/tableStateSlice';
-import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
+import { groupDataByKeys, getTotalGroupsCount, getAllGroupKeys } from '@/utils/groupDataByKey';
 import { Pagination } from '@/components/dashboard/Pagination';
 
 const SubscriptionTypesManagement = () => {
@@ -115,6 +115,11 @@ const SubscriptionTypesManagement = () => {
     return getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns);
   }, [subscriptionTypes]);
 
+  // Function to get all group keys for collapse/expand all
+  const getAllGroupKeysFn = useCallback(() => {
+    return getAllGroupKeys(subscriptionTypes || [], groupByKeys);
+  }, [subscriptionTypes, groupByKeys]);
+
 
   return (
     <>
@@ -140,6 +145,7 @@ const SubscriptionTypesManagement = () => {
             enableGroupBy={true}
             enableSearch={true}
             columns={subscriptionTypeColumns}
+            getAllGroupKeys={getAllGroupKeysFn}
           />
         </div>
 
@@ -153,31 +159,16 @@ const SubscriptionTypesManagement = () => {
               </div>
             </div>
           ) : subscriptionTypes && subscriptionTypes.length > 0 ? (
-            <>
-              <div className="flex-1 min-h-0">
-                <SubscriptionTypesDataTable
-                  subscriptionTypes={subscriptionTypes}
-                  onEdit={handleEditSubscriptionType}
-                  onDelete={handleDeleteClick}
-                  onBulkDelete={handleBulkDelete}
-                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                />
-              </div>
-              {/* Pagination Footer - Always visible */}
-              {subscriptionTypes && subscriptionTypes.length > 0 && (
-                <div className="flex-shrink-0">
-                  <Pagination
-                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                    pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : totalSubscriptionTypes}
-                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                    isLoading={isLoading}
-                  />
-                </div>
-              )}
-            </>
+            <div className="flex-1 min-h-0">
+              <SubscriptionTypesDataTable
+                subscriptionTypes={subscriptionTypes}
+                onEdit={handleEditSubscriptionType}
+                onDelete={handleDeleteClick}
+                onBulkDelete={handleBulkDelete}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+            </div>
           ) : (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
               <div>
@@ -191,6 +182,20 @@ const SubscriptionTypesManagement = () => {
                   </p>
                 )}
               </div>
+            </div>
+          )}
+          {/* Pagination Footer - Always visible when there's data */}
+          {!isLoading && totalSubscriptionTypes > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                pageSize={isGroupingActive ? groupPageSize : pageSize}
+                totalItems={isGroupingActive ? totalGroups : totalSubscriptionTypes}
+                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                showIfSinglePage={isGroupingActive}
+                isLoading={isLoading}
+              />
             </div>
           )}
         </div>
