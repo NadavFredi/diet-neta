@@ -139,6 +139,182 @@ export const getLeadsConfig = async (supabase: SupabaseClient) => {
         sortable: true,
         visible: false,
         category: 'לידים'
+      },
+
+      // Subscription
+      {
+        id: 'subscription_name',
+        label: 'סוג מנוי',
+        type: 'text',
+        sortable: true,
+        visible: false,
+        category: 'מנוי'
+      },
+      {
+        id: 'subscription_months',
+        label: 'חודשי מנוי',
+        type: 'number',
+        sortable: true,
+        visible: false,
+        category: 'מנוי'
+      },
+
+      // Budget
+      {
+        id: 'active_budget_name',
+        label: 'תקציב פעיל',
+        type: 'text',
+        sortable: true,
+        visible: true,
+        category: 'תקציב'
+      },
+
+      // Collections & Payments
+      {
+        id: 'total_expected',
+        label: 'צפי גבייה',
+        type: 'number',
+        sortable: true,
+        visible: false,
+        category: 'גבייה'
+      },
+      {
+        id: 'total_paid',
+        label: 'שולם בפועל',
+        type: 'number',
+        sortable: true,
+        visible: false,
+        category: 'גבייה'
+      },
+      {
+        id: 'debt_amount',
+        label: 'חוב',
+        type: 'number',
+        sortable: true,
+        visible: true,
+        category: 'גבייה'
+      },
+      {
+        id: 'last_payment_date',
+        label: 'תאריך תשלום אחרון',
+        type: 'date',
+        sortable: true,
+        visible: false,
+        category: 'גבייה'
+      },
+
+      // Plans
+      {
+        id: 'workout_plans_count',
+        label: 'מספר תוכניות אימון',
+        type: 'number',
+        sortable: true,
+        visible: false,
+        category: 'תוכניות'
+      },
+      {
+        id: 'nutrition_plans_count',
+        label: 'מספר תוכניות תזונה',
+        type: 'number',
+        sortable: true,
+        visible: false,
+        category: 'תוכניות'
+      },
+      {
+        id: 'latest_workout_plan_date',
+        label: 'תאריך תוכנית אימון אחרונה',
+        type: 'date',
+        sortable: true,
+        visible: false,
+        category: 'תוכניות'
+      },
+      {
+        id: 'latest_nutrition_plan_date',
+        label: 'תאריך תוכנית תזונה אחרונה',
+        type: 'date',
+        sortable: true,
+        visible: false,
+        category: 'תוכניות'
+      },
+
+      // Supplement Plans
+      {
+        id: 'supplement_plans_count',
+        label: 'מספר תוכניות תוספים',
+        type: 'number',
+        sortable: true,
+        visible: false,
+        category: 'תוספים'
+      },
+      {
+        id: 'latest_supplement_plan_date',
+        label: 'תאריך תוכנית תוספים אחרונה',
+        type: 'date',
+        sortable: true,
+        visible: false,
+        category: 'תוספים'
+      },
+
+      // Steps Plans
+      {
+        id: 'steps_plans_count',
+        label: 'מספר תוכניות צעדים',
+        type: 'number',
+        sortable: true,
+        visible: false,
+        category: 'צעדים'
+      },
+      {
+        id: 'latest_steps_plan_date',
+        label: 'תאריך תוכנית צעדים אחרונה',
+        type: 'date',
+        sortable: true,
+        visible: false,
+        category: 'צעדים'
+      },
+
+      // Meetings
+      {
+        id: 'meetings_count',
+        label: 'מספר פגישות',
+        type: 'number',
+        sortable: true,
+        visible: false,
+        category: 'פגישות'
+      },
+      {
+        id: 'latest_meeting_date',
+        label: 'פגישה אחרונה',
+        type: 'date',
+        sortable: true,
+        visible: false,
+        category: 'פגישות'
+      },
+      {
+        id: 'next_meeting_date',
+        label: 'פגישה הבאה',
+        type: 'date',
+        sortable: true,
+        visible: true,
+        category: 'פגישות'
+      },
+
+      // Blood Tests
+      {
+        id: 'blood_tests_count',
+        label: 'מספר בדיקות דם',
+        type: 'number',
+        sortable: true,
+        visible: false,
+        category: 'בדיקות דם'
+      },
+      {
+        id: 'latest_test_date',
+        label: 'בדיקת דם אחרונה',
+        type: 'date',
+        sortable: true,
+        visible: false,
+        category: 'בדיקות דם'
       }
     ],
     filters: [
@@ -236,6 +412,77 @@ export const getLeadsConfig = async (supabase: SupabaseClient) => {
         operators: ['eq', 'gte', 'lte'],
         options: getOptions('weights'),
         category: 'לידים'
+      },
+
+      // Subscription
+      {
+        id: 'subscription_name',
+        label: 'סוג מנוי',
+        type: 'text',
+        operators: ['ilike', 'eq'],
+        category: 'מנוי'
+      },
+
+      // Budget
+      {
+        id: 'active_budget_name',
+        label: 'תקציב פעיל',
+        type: 'text',
+        operators: ['ilike', 'eq'],
+        category: 'תקציב'
+      },
+
+      // Collections
+      {
+        id: 'debt_amount',
+        label: 'חוב',
+        type: 'number',
+        operators: ['gt', 'lt', 'eq', 'gte', 'lte'],
+        category: 'גבייה'
+      },
+      {
+        id: 'total_paid',
+        label: 'שולם בפועל',
+        type: 'number',
+        operators: ['gt', 'lt', 'eq', 'gte', 'lte'],
+        category: 'גבייה'
+      },
+      {
+        id: 'last_payment_date',
+        label: 'תאריך תשלום אחרון',
+        type: 'date_range',
+        operators: ['gte', 'lte'],
+        category: 'גבייה'
+      },
+
+      // Meetings
+      {
+        id: 'next_meeting_date',
+        label: 'תאריך פגישה הבאה',
+        type: 'date_range',
+        operators: ['gte', 'lte'],
+        category: 'פגישות'
+      },
+      {
+        id: 'supplement_plans_count',
+        label: 'מספר תוכניות תוספים',
+        type: 'number',
+        operators: ['gt', 'lt', 'eq', 'gte', 'lte'],
+        category: 'תוספים'
+      },
+      {
+        id: 'steps_plans_count',
+        label: 'מספר תוכניות צעדים',
+        type: 'number',
+        operators: ['gt', 'lt', 'eq', 'gte', 'lte'],
+        category: 'צעדים'
+      },
+      {
+        id: 'blood_tests_count',
+        label: 'מספר בדיקות דם',
+        type: 'number',
+        operators: ['gt', 'lt', 'eq', 'gte', 'lte'],
+        category: 'בדיקות דם'
       }
     ],
     grouping: [
@@ -263,6 +510,31 @@ export const getLeadsConfig = async (supabase: SupabaseClient) => {
         id: 'preferred_time',
         label: 'לפי זמן מועדף',
         category: 'לידים'
+      },
+      {
+        id: 'active_budget_name',
+        label: 'לפי תקציב',
+        category: 'תקציב'
+      },
+      {
+        id: 'subscription_name',
+        label: 'לפי מנוי',
+        category: 'מנוי'
+      },
+      {
+        id: 'debt_amount',
+        label: 'לפי חוב',
+        category: 'גבייה'
+      },
+      {
+        id: 'meetings_count',
+        label: 'לפי מספר פגישות',
+        category: 'פגישות'
+      },
+      {
+        id: 'blood_tests_count',
+        label: 'לפי מספר בדיקות דם',
+        category: 'בדיקות דם'
       }
     ]
   }
