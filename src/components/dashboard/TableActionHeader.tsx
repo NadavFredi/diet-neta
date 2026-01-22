@@ -16,7 +16,7 @@ import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
 import { TemplateColumnSettings } from '@/components/dashboard/TemplateColumnSettings';
 import { GenericColumnSettings } from '@/components/dashboard/GenericColumnSettings';
 import { PageHeader } from '@/components/dashboard/PageHeader';
-import { Columns, Plus, Settings, LucideIcon, Group } from 'lucide-react';
+import { Columns, Plus, Settings, LucideIcon, Group, X } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import { useQueryClient } from '@tanstack/react-query';
@@ -567,8 +567,18 @@ export const TableActionHeader = ({
           )}
 
           {filterGroup && isAdvancedFilterGroup(filterGroup) && (
-            <Badge variant="secondary" className="w-fit bg-indigo-50 text-indigo-700 border border-indigo-200">
-              סינון מתקדם פעיל
+            <Badge variant="secondary" className="w-fit bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1.5 pr-1.5">
+              <span>סינון מתקדם פעיל</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClearFilters();
+                }}
+                className="ml-1 rounded-full hover:bg-indigo-100 p-0.5 transition-colors"
+                aria-label="נקה מסננים"
+              >
+                <X className="h-3 w-3" />
+              </button>
             </Badge>
           )}
 
