@@ -297,10 +297,13 @@ export const TableActionHeader = ({
   };
 
   // Handle collapse all groups
+  // If getAllGroupKeys is provided, use it to get all group keys
+  // Otherwise, we can't collapse all (but button is still enabled if groups exist)
   const handleCollapseAll = () => {
-    if (!getAllGroupKeys) return;
-    const allGroupKeys = getAllGroupKeys();
-    dispatch(setCollapsedGroups({ resourceKey, collapsedGroups: allGroupKeys }));
+    if (getAllGroupKeys) {
+      const allGroupKeys = getAllGroupKeys();
+      dispatch(setCollapsedGroups({ resourceKey, collapsedGroups: allGroupKeys }));
+    }
     setIsGroupMenuOpen(false);
   };
 
@@ -588,13 +591,11 @@ export const TableActionHeader = ({
                   <DropdownMenuContent align="end" dir="rtl">
                     <DropdownMenuItem 
                       onClick={handleExpandAll}
-                      disabled={!getAllGroupKeys}
                     >
                       הרחב הכל
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={handleCollapseAll}
-                      disabled={!getAllGroupKeys}
                     >
                       כווץ הכל
                     </DropdownMenuItem>

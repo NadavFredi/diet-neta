@@ -1928,6 +1928,13 @@ function TableContent<T>({
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
                           {totalItems} {totalItems === 1 ? (singularLabel || 'פריט') : (pluralLabel || 'פריטים')}
                         </span>
+                        <div className="flex-shrink-0 transition-transform duration-200">
+                          {isLevel1Collapsed ? (
+                            <ChevronRight className="h-4 w-4 text-slate-600" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-slate-600" />
+                          )}
+                        </div>
                         {enableRowSelection && handleToggleRow && getRowIdValue && (
                           <div className="flex-shrink-0">
                             <Checkbox
@@ -1943,13 +1950,6 @@ function TableContent<T>({
                             />
                           </div>
                         )}
-                        <div className="flex-shrink-0 transition-transform duration-200">
-                          {isLevel1Collapsed ? (
-                            <ChevronRight className="h-4 w-4 text-slate-600" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4 text-slate-600" />
-                          )}
-                        </div>
                       </div>
                     </td>
                   </tr>
@@ -2005,6 +2005,13 @@ function TableContent<T>({
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
                                 {item.group.items.length} {item.group.items.length === 1 ? (singularLabel || 'פריט') : (pluralLabel || 'פריטים')}
                               </span>
+                              <div className="flex-shrink-0 transition-transform duration-200">
+                                {item.isCollapsed ? (
+                                  <ChevronRight className="h-4 w-4 text-slate-500" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                                )}
+                              </div>
                               {enableRowSelection && handleToggleRow && getRowIdValue && (
                                 <div className="flex-shrink-0">
                                   <Checkbox
@@ -2020,13 +2027,6 @@ function TableContent<T>({
                                   />
                                 </div>
                               )}
-                              <div className="flex-shrink-0 transition-transform duration-200">
-                                {item.isCollapsed ? (
-                                  <ChevronRight className="h-4 w-4 text-slate-500" />
-                                ) : (
-                                  <ChevronDown className="h-4 w-4 text-slate-500" />
-                                )}
-                              </div>
                             </div>
                           </td>
                         </tr>
@@ -2121,6 +2121,26 @@ function TableContent<T>({
                 return null;
               }
 
+              // Get all visible row IDs for this group
+              const getGroupVisibleRowIds = (): string[] => {
+                if (!enableRowSelection || !getRowIdValue) return [];
+                const rowIds: string[] = [];
+                if (!isCollapsed) {
+                  groupRows.forEach((row: any) => {
+                    const rowId = getRowIdValue(row.original);
+                    if (rowId) rowIds.push(rowId);
+                  });
+                }
+                return rowIds;
+              };
+
+              const groupVisibleRowIds = getGroupVisibleRowIds();
+              const groupSelectedCount = groupVisibleRowIds.filter(id =>
+                selectAllAcrossPages ? true : selectedRowIds?.has(id)
+              ).length;
+              const groupAllSelected = groupVisibleRowIds.length > 0 && groupSelectedCount === groupVisibleRowIds.length;
+              const groupSomeSelected = groupSelectedCount > 0 && groupSelectedCount < groupVisibleRowIds.length;
+
               return (
                 <React.Fragment key={group.groupKey}>
                   <tr
@@ -2138,6 +2158,12 @@ function TableContent<T>({
                           justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start',
                         }}
                       >
+                        <span className="text-sm font-bold text-slate-900">
+                          {getGroupColumnHeader(originalGroupByKey || groupByKey)}: {formatGroupValue(group.groupKey, groupByKey, false)}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
+                          {group.items.length} {group.items.length === 1 ? (singularLabel || 'פריט') : (pluralLabel || 'פריטים')}
+                        </span>
                         <div className="flex-shrink-0 transition-transform duration-200">
                           {isCollapsed ? (
                             <ChevronRight className="h-4 w-4 text-slate-600" />
@@ -2145,12 +2171,21 @@ function TableContent<T>({
                             <ChevronDown className="h-4 w-4 text-slate-600" />
                           )}
                         </div>
-                        <span className="text-sm font-bold text-slate-900">
-                          {getGroupColumnHeader(originalGroupByKey || groupByKey)}: {formatGroupValue(group.groupKey, groupByKey, false)}
-                        </span>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
-                          {group.items.length} {group.items.length === 1 ? (singularLabel || 'פריט') : (pluralLabel || 'פריטים')}
-                        </span>
+                        {enableRowSelection && handleToggleRow && getRowIdValue && (
+                          <div className="flex-shrink-0">
+                            <Checkbox
+                              checked={groupAllSelected ? true : groupSomeSelected ? 'indeterminate' : false}
+                              onCheckedChange={(value) => {
+                                const shouldSelect = value === true;
+                                groupVisibleRowIds.forEach(rowId => {
+                                  handleToggleRow(rowId, shouldSelect);
+                                });
+                              }}
+                              aria-label="בחר כל הפריטים בקבוצה"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>

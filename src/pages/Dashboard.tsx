@@ -30,10 +30,6 @@ const Dashboard = () => {
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
 
-  // Group pagination state (separate from record pagination)
-  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
-  const [groupPageSize] = useState(50);
-
   // Safety check: Redirect trainees immediately
   useEffect(() => {
     if (authUser?.role === 'trainee') {
@@ -96,6 +92,16 @@ const Dashboard = () => {
     handleSortChange,
   } = useDashboardLogic({ filterGroup });
 
+  // Group pagination state (separate from record pagination)
+  // Use the same pageSize as regular pagination for consistency, but allow it to be changed
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const [groupPageSize, setGroupPageSize] = useState(pageSize); // Start with regular page size, but allow changes
+
+  // Sync groupPageSize with pageSize when pageSize changes
+  useEffect(() => {
+    setGroupPageSize(pageSize);
+  }, [pageSize]);
+
   // Debug: Log filteredLeads when it changes
   useEffect(() => {
   }, [filteredLeads, isLoading]);
@@ -130,6 +136,11 @@ const Dashboard = () => {
 
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
+  }, []);
+
+  const handleGroupPageSizeChange = useCallback((newPageSize: number) => {
+    setGroupPageSize(newPageSize);
+    setGroupCurrentPage(1); // Reset to first page when page size changes
   }, []);
 
   const addFilter = useCallback((filter: ActiveFilter) => {
@@ -402,7 +413,7 @@ const Dashboard = () => {
                 pageSize={isGroupingActive ? groupPageSize : pageSize}
                 totalItems={isGroupingActive ? totalGroups : totalLeads}
                 onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                onPageSizeChange={isGroupingActive ? handleGroupPageSizeChange : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
                 singularLabel="ליד"

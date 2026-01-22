@@ -23,6 +23,7 @@ import {
   selectPageSize,
   selectSortBy,
   selectSortOrder,
+  selectGroupByKeys,
   setSearchQuery,
   setCurrentPage,
   setPageSize,
@@ -47,6 +48,7 @@ export const usePaymentsManagement = () => {
   const pageSize = useAppSelector((state) => selectPageSize(state, 'payments'));
   const sortBy = useAppSelector((state) => selectSortBy(state, 'payments'));
   const sortOrder = useAppSelector((state) => selectSortOrder(state, 'payments'));
+  const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'payments'));
 
   // Filter system (same as Dashboard)
   const {
@@ -63,10 +65,17 @@ export const usePaymentsManagement = () => {
   // Use local filter group if available, otherwise use Redux
   const effectiveFilterGroup = localFilterGroup || filterGroup;
 
-  const { data: payments, isLoading: isLoadingPayments, error } = useAllPayments({
+  const { data: paymentsData, isLoading: isLoadingPayments, error } = useAllPayments({
     search: searchQuery,
     filterGroup: effectiveFilterGroup,
+    page: currentPage,
+    pageSize,
+    groupByLevel1: groupByKeys[0] || null,
+    groupByLevel2: groupByKeys[1] || null,
   });
+  
+  const payments = paymentsData?.data || [];
+  const totalPayments = paymentsData?.totalCount || 0;
   const { defaultView } = useDefaultView('payments');
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
 
@@ -148,7 +157,6 @@ export const usePaymentsManagement = () => {
   };
 
   const filteredPayments = useMemo(() => payments || [], [payments]);
-  const totalPayments = payments?.length || 0;
 
   return {
     payments: filteredPayments,

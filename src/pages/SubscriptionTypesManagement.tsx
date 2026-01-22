@@ -34,8 +34,14 @@ const SubscriptionTypesManagement = () => {
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
 
   // Group pagination state (separate from record pagination)
+  // Use the same pageSize as regular pagination for consistency, but allow it to be changed
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
-  const [groupPageSize] = useState(50);
+  const [groupPageSize, setGroupPageSize] = useState(pageSize); // Start with regular page size, but allow changes
+
+  // Sync groupPageSize with pageSize when pageSize changes
+  useEffect(() => {
+    setGroupPageSize(pageSize);
+  }, [pageSize]);
   const { data: savedView } = useSavedView(viewId);
   const { user } = useAppSelector((state) => state.auth);
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'subscription_types'));
@@ -88,6 +94,11 @@ const SubscriptionTypesManagement = () => {
 
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
+  }, []);
+
+  const handleGroupPageSizeChange = useCallback((newPageSize: number) => {
+    setGroupPageSize(newPageSize);
+    setGroupCurrentPage(1); // Reset to first page when page size changes
   }, []);
 
   const handlePageChange = useCallback((page: number) => {
@@ -192,7 +203,7 @@ const SubscriptionTypesManagement = () => {
                 pageSize={isGroupingActive ? groupPageSize : pageSize}
                 totalItems={isGroupingActive ? totalGroups : totalSubscriptionTypes}
                 onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                onPageSizeChange={isGroupingActive ? handleGroupPageSizeChange : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
                 singularLabel="סוג מנוי"

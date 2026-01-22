@@ -63,8 +63,14 @@ const CollectionsManagement = () => {
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
 
   // Group pagination state (separate from record pagination)
+  // Use the same pageSize as regular pagination for consistency, but allow it to be changed
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
-  const [groupPageSize] = useState(50);
+  const [groupPageSize, setGroupPageSize] = useState(pageSize); // Start with regular page size, but allow changes
+  
+  // Sync groupPageSize with pageSize when pageSize changes
+  useEffect(() => {
+    setGroupPageSize(pageSize);
+  }, [pageSize]);
 
   // Calculate total groups when grouping is active
   const totalGroups = useMemo(() => {
@@ -86,6 +92,11 @@ const CollectionsManagement = () => {
 
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
+  }, []);
+
+  const handleGroupPageSizeChange = useCallback((newPageSize: number) => {
+    setGroupPageSize(newPageSize);
+    setGroupCurrentPage(1); // Reset to first page when page size changes
   }, []);
 
   const handlePageChange = useCallback((page: number) => {
@@ -165,7 +176,7 @@ const CollectionsManagement = () => {
                 pageSize={isGroupingActive ? groupPageSize : pageSize}
                 totalItems={isGroupingActive ? totalGroups : filteredCollections.length}
                 onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                onPageSizeChange={isGroupingActive ? handleGroupPageSizeChange : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoadingCollections}
                 singularLabel="גבייה"
