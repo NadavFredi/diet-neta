@@ -5,14 +5,12 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { BudgetsDataTable } from '@/components/dashboard/BudgetsDataTable';
 import { useBudgetManagement } from './BudgetManagement';
-import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { AddBudgetDialog } from '@/components/dashboard/dialogs/AddBudgetDialog';
 import { EditBudgetDialog } from '@/components/dashboard/dialogs/EditBudgetDialog';
 import { DeleteBudgetDialog } from '@/components/dashboard/dialogs/DeleteBudgetDialog';
@@ -36,7 +34,6 @@ const BudgetManagement = () => {
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
-  const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'budgets'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'budgets'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'budgets'));
@@ -137,95 +134,80 @@ const BudgetManagement = () => {
 
   return (
     <>
-      <DashboardHeader
+      <TableManagementLayout
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
-      />
+        onSaveViewClick={handleSaveViewClick}
+      >
+        <TableActionHeader
+          resourceKey="budgets"
+          title={pageTitle}
+          dataCount={budgets.length}
+          singularLabel="תקציב"
+          pluralLabel="תקציבים"
+          filterFields={budgetFilterFields}
+          searchPlaceholder="חיפוש לפי שם או תיאור..."
+          addButtonLabel="הוסף תקציב"
+          onAddClick={handleAddBudget}
+          enableColumnVisibility={true}
+          enableFilters={true}
+          enableGroupBy={true}
+          enableSearch={true}
+          columns={budgetColumns}
+        />
 
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
-        <main
-          className="bg-gray-50 overflow-y-auto transition-all duration-300"
-          style={{
-            marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 60px)',
-          }}
-        >
-          <div className="pr-6">
-            {/* Show budgets table */}
-            <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
-              <TableActionHeader
-                resourceKey="budgets"
-                title={pageTitle}
-                dataCount={budgets.length}
-                singularLabel="תקציב"
-                pluralLabel="תקציבים"
-                filterFields={budgetFilterFields}
-                searchPlaceholder="חיפוש לפי שם או תיאור..."
-                addButtonLabel="הוסף תקציב"
-                onAddClick={handleAddBudget}
-                enableColumnVisibility={true}
-                enableFilters={true}
-                enableGroupBy={true}
-                enableSearch={true}
-                columns={budgetColumns}
-              />
-
-              <div className="bg-white">
-                {isLoading ? (
-                  <div className="p-8 text-center text-gray-500">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <p>טוען נתונים...</p>
-                  </div>
-                ) : budgets && budgets.length > 0 ? (
-                  <>
-                    <BudgetsDataTable
-                      budgets={budgets}
-                      onEdit={handleEditBudget}
-                      onDelete={handleDeleteClick}
-                      onExportPDF={handleExportPDF}
-                      onSendWhatsApp={handleSendWhatsApp}
-                      onBulkDelete={handleBulkDelete}
-                      onViewDetails={(budget) => {
-                        setViewingBudgetId(budget.id);
-                        // Update URL to include budget_id for shareable link
-                        const newParams = new URLSearchParams(searchParams);
-                        newParams.set('budget_id', budget.id);
-                        navigate(`/dashboard/budgets?${newParams.toString()}`, { replace: true });
-                      }}
-                      groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                      groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                    />
-                    {/* Pagination Footer */}
-                    {budgets && budgets.length > 0 && (
-                      <Pagination
-                        currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                        pageSize={isGroupingActive ? groupPageSize : pageSize}
-                        totalItems={isGroupingActive ? totalGroups : budgets.length}
-                        onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                        onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                        isLoading={isLoading}
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
-                    <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-                    {!isLoading && (
-                      <p className="text-xs text-gray-400 mt-2">
-                        {budgets && budgets.length > 0
-                          ? `מספר תקציבים: ${budgets.length}`
-                          : 'אין נתונים זמינים'}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+        <div className="bg-white">
+          {isLoading ? (
+            <div className="p-8 text-center text-gray-500">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+              <p>טוען נתונים...</p>
             </div>
-          </div>
-        </main>
-      </div>
+          ) : budgets && budgets.length > 0 ? (
+            <>
+              <BudgetsDataTable
+                budgets={budgets}
+                onEdit={handleEditBudget}
+                onDelete={handleDeleteClick}
+                onExportPDF={handleExportPDF}
+                onSendWhatsApp={handleSendWhatsApp}
+                onBulkDelete={handleBulkDelete}
+                onViewDetails={(budget) => {
+                  setViewingBudgetId(budget.id);
+                  // Update URL to include budget_id for shareable link
+                  const newParams = new URLSearchParams(searchParams);
+                  newParams.set('budget_id', budget.id);
+                  navigate(`/dashboard/budgets?${newParams.toString()}`, { replace: true });
+                }}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+              {/* Pagination Footer */}
+              {budgets && budgets.length > 0 && (
+                <Pagination
+                  currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                  pageSize={isGroupingActive ? groupPageSize : pageSize}
+                  totalItems={isGroupingActive ? totalGroups : budgets.length}
+                  onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                  onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                  isLoading={isLoading}
+                />
+              )}
+            </>
+          ) : (
+            <div className="p-8 text-center text-gray-500">
+              <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
+              <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+              {!isLoading && (
+                <p className="text-xs text-gray-400 mt-2">
+                  {budgets && budgets.length > 0
+                    ? `מספר תקציבים: ${budgets.length}`
+                    : 'אין נתונים זמינים'}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </TableManagementLayout>
 
       {/* Add Budget Dialog */}
       <AddBudgetDialog

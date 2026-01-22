@@ -5,8 +5,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
@@ -16,7 +15,6 @@ import { AddExerciseDialog } from '@/components/dashboard/dialogs/AddExerciseDia
 import { EditExerciseDialog } from '@/components/dashboard/dialogs/EditExerciseDialog';
 import { DeleteExerciseDialog } from '@/components/dashboard/dialogs/DeleteExerciseDialog';
 import { useExercisesManagement } from './ExercisesManagement';
-import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { exerciseColumns } from '@/components/dashboard/columns/exerciseColumns';
 import { selectActiveFilters, selectGroupByKeys, selectCurrentPage, selectPageSize, setCurrentPage, setPageSize } from '@/store/slices/tableStateSlice';
 import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
@@ -25,7 +23,6 @@ import { Pagination } from '@/components/dashboard/Pagination';
 const ExercisesManagement = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
-  const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'exercises'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'exercises'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'exercises'));
@@ -99,23 +96,12 @@ const ExercisesManagement = () => {
 
   return (
     <>
-      <DashboardHeader 
-        userEmail={user?.email} 
+      <TableManagementLayout
+        userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
-      />
-          
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
-        <main 
-          className="bg-gray-50 overflow-y-auto transition-all duration-300" 
-          style={{ 
-            marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 60px)',
-          }}
-        >
-            <div className="pr-6">
-              <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
-                <TableActionHeader
+        onSaveViewClick={handleSaveViewClick}
+      >
+        <TableActionHeader
                   resourceKey="exercises"
                   title={savedView?.view_name || 'תרגילים'}
                   dataCount={exercises.length}
@@ -158,11 +144,8 @@ const ExercisesManagement = () => {
                       )}
                     </>
                   )}
-                </div>
-              </div>
-            </div>
-          </main>
-      </div>
+        </div>
+      </TableManagementLayout>
 
       {/* Add Exercise Dialog */}
       <AddExerciseDialog

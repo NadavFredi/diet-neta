@@ -7,15 +7,13 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { CollectionsDataTable } from '@/components/dashboard/CollectionsDataTable';
 import { Pagination } from '@/components/dashboard/Pagination';
 import { collectionColumns } from '@/components/dashboard/columns/collectionColumns';
 import { useCollectionsManagement } from './CollectionsManagement';
-import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { generateFilterFieldsFromColumns } from '@/utils/columnToFilterUtils';
 import { selectGroupByKeys, selectCurrentPage, selectPageSize, setCurrentPage, setPageSize } from '@/store/slices/tableStateSlice';
@@ -29,7 +27,6 @@ import { Plus } from 'lucide-react';
 
 const CollectionsManagement = () => {
   const dispatch = useAppDispatch();
-  const sidebarWidth = useSidebarWidth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
@@ -101,23 +98,12 @@ const CollectionsManagement = () => {
 
   return (
     <>
-      <DashboardHeader
+      <TableManagementLayout
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
-      />
-
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
-        <main 
-          className="bg-gray-50 overflow-y-auto transition-all duration-300" 
-          style={{ 
-            marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 60px)',
-          }}
-        >
-            <div className="pr-6">
-              <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
-                <TableActionHeader
+        onSaveViewClick={handleSaveViewClick}
+      >
+        <TableActionHeader
                   resourceKey="collections"
                   title={savedView?.view_name || 'כל הגבייות'}
                   dataCount={filteredCollections?.length || 0}
@@ -174,11 +160,8 @@ const CollectionsManagement = () => {
                       <p className="text-sm">גבייות מתווספות בעת יצירת תשלומים או ידנית</p>
                     </div>
                   )}
-                </div>
-              </div>
-            </div>
-          </main>
-      </div>
+        </div>
+      </TableManagementLayout>
 
       {/* Save View Modal */}
       <SaveViewModal

@@ -5,8 +5,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
@@ -16,7 +15,6 @@ import { useAppSelector } from '@/store/hooks';
 import { getCustomerFilterFields } from '@/hooks/useTableFilters';
 import { customerColumns } from '@/components/dashboard/columns/customerColumns';
 import { useCustomersManagement } from './CustomersManagement';
-import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
@@ -25,7 +23,6 @@ import { groupDataByKeys, getTotalGroupsCount, type MultiLevelGroupedData } from
 
 const CustomersManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const sidebarWidth = useSidebarWidth();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
@@ -161,83 +158,69 @@ const CustomersManagement = () => {
 
   return (
     <>
-      <DashboardHeader
+      <TableManagementLayout
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
-      />
+        onSaveViewClick={handleSaveViewClick}
+      >
+        <TableActionHeader
+          resourceKey="customers"
+          title={savedView?.view_name || 'ניהול לקוחות'}
+          dataCount={totalCustomers || 0}
+          singularLabel="לקוח"
+          pluralLabel="לקוחות"
+          filterFields={customerFilterFields}
+          searchPlaceholder="חיפוש לפי שם, טלפון או אימייל..."
+          addButtonLabel="הוסף ליד"
+          onAddClick={handleAddLead}
+          enableColumnVisibility={true}
+          enableFilters={true}
+          enableGroupBy={true}
+          enableSearch={true}
+          columns={customerColumns}
+        />
 
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
-        <main
-          className="bg-gray-50 overflow-y-auto transition-all duration-300"
-          style={{
-            marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 60px)',
-          }}
-        >
-          <div className="pr-6">
-            <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
-              <TableActionHeader
-                resourceKey="customers"
-                title={savedView?.view_name || 'ניהול לקוחות'}
-                dataCount={totalCustomers || 0}
-                singularLabel="לקוח"
-                pluralLabel="לקוחות"
-                filterFields={customerFilterFields}
-                searchPlaceholder="חיפוש לפי שם, טלפון או אימייל..."
-                addButtonLabel="הוסף ליד"
-                onAddClick={handleAddLead}
-                enableColumnVisibility={true}
-                enableFilters={true}
-                enableGroupBy={true}
-                enableSearch={true}
-                columns={customerColumns}
-              />
-
-              <div className="bg-white">
-                {isLoadingCustomers ? (
-                  <div className="text-center py-12">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <p className="text-gray-600">טוען לקוחות...</p>
-                  </div>
-                ) : filteredCustomers && Array.isArray(filteredCustomers) && filteredCustomers.length > 0 ? (
-                  <>
-                    <CustomersDataTable 
-                      customers={filteredCustomers} 
-                      onBulkDelete={handleBulkDelete}
-                      groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                      groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                    />
-                    {/* Pagination Footer */}
-                    {totalCustomers > 0 && (
-                      <Pagination
-                        currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                        pageSize={isGroupingActive ? groupPageSize : pageSize}
-                        totalItems={isGroupingActive ? totalGroups : totalCustomers}
-                        onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                        onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                        isLoading={isLoadingCustomers}
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    <p className="text-lg font-medium mb-2">לא נמצאו לקוחות</p>
-                    <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-                    {!isLoadingCustomers && (
-                      <p className="text-xs text-gray-400 mt-2">
-                        {filteredCustomers && Array.isArray(filteredCustomers)
-                          ? `מספר לקוחות: ${filteredCustomers.length}`
-                          : 'אין נתונים זמינים'}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+        <div className="bg-white">
+          {isLoadingCustomers ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+              <p className="text-gray-600">טוען לקוחות...</p>
             </div>
-          </div>
-        </main>
-      </div>
+          ) : filteredCustomers && Array.isArray(filteredCustomers) && filteredCustomers.length > 0 ? (
+            <>
+              <CustomersDataTable 
+                customers={filteredCustomers} 
+                onBulkDelete={handleBulkDelete}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+              {/* Pagination Footer */}
+              {totalCustomers > 0 && (
+                <Pagination
+                  currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                  pageSize={isGroupingActive ? groupPageSize : pageSize}
+                  totalItems={isGroupingActive ? totalGroups : totalCustomers}
+                  onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                  onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                  isLoading={isLoadingCustomers}
+                />
+              )}
+            </>
+          ) : (
+            <div className="p-8 text-center text-gray-500">
+              <p className="text-lg font-medium mb-2">לא נמצאו לקוחות</p>
+              <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+              {!isLoadingCustomers && (
+                <p className="text-xs text-gray-400 mt-2">
+                  {filteredCustomers && Array.isArray(filteredCustomers)
+                    ? `מספר לקוחות: ${filteredCustomers.length}`
+                    : 'אין נתונים זמינים'}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </TableManagementLayout>
 
       {/* Add Lead Dialog */}
       <AddLeadDialog

@@ -5,14 +5,12 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { SubscriptionTypesDataTable, subscriptionTypeColumns } from '@/components/dashboard/SubscriptionTypesDataTable';
 import { useSubscriptionTypesManagement } from './SubscriptionTypesManagement';
-import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { AddSubscriptionTypeDialog } from '@/components/dashboard/dialogs/AddSubscriptionTypeDialog';
 import { EditSubscriptionTypeDialog } from '@/components/dashboard/dialogs/EditSubscriptionTypeDialog';
 import { DeleteSubscriptionTypeDialog } from '@/components/dashboard/dialogs/DeleteSubscriptionTypeDialog';
@@ -40,7 +38,6 @@ const SubscriptionTypesManagement = () => {
   const [groupPageSize] = useState(50);
   const { data: savedView } = useSavedView(viewId);
   const { user } = useAppSelector((state) => state.auth);
-  const sidebarWidth = useSidebarWidth();
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'subscription_types'));
   
   // Get subscription types data first before using it in useMemo
@@ -120,24 +117,12 @@ const SubscriptionTypesManagement = () => {
 
   return (
     <>
-      <DashboardHeader 
-        userEmail={user?.email} 
+      <TableManagementLayout
+        userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
-      />
-          
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
-        <main 
-          className="bg-gray-50 overflow-y-auto transition-all duration-300" 
-          style={{ 
-            marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 60px)',
-          }}
-        >
-          <div className="pr-6">
-            {/* Show subscription types table */}
-            <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
-                <TableActionHeader
+        onSaveViewClick={handleSaveViewClick}
+      >
+        <TableActionHeader
                   resourceKey="subscription_types"
                   title={pageTitle}
                   dataCount={subscriptionTypes.length}
@@ -193,13 +178,10 @@ const SubscriptionTypesManagement = () => {
                             : 'אין נתונים זמינים'}
                         </p>
                       )}
-                    </div>
-                  )}
-                </div>
-              </div>
-          </div>
-        </main>
-      </div>
+                  </div>
+                )}
+        </div>
+      </TableManagementLayout>
 
       {/* Add Subscription Type Dialog */}
       <AddSubscriptionTypeDialog

@@ -11,7 +11,7 @@ import {
   updateGroupInGroup,
 } from '@/utils/filterGroupUtils';
 
-export type ResourceKey = 'leads' | 'customers' | 'templates' | 'nutrition_templates' | 'budgets' | 'meetings' | 'subscription_types' | 'payments';
+export type ResourceKey = 'leads' | 'customers' | 'templates' | 'nutrition_templates' | 'budgets' | 'meetings' | 'subscription_types' | 'payments' | 'whatsapp_automations';
 
 export interface TableState {
   columnVisibility: Record<string, boolean>;
