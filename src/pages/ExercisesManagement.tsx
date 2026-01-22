@@ -141,7 +141,7 @@ const ExercisesManagement = () => {
                 />
               </div>
               {/* Pagination Footer - Always visible */}
-              {exercises && exercises.length > 0 && (
+              {totalExercises > 0 && (
                 <div className="flex-shrink-0">
                   <Pagination
                     currentPage={isGroupingActive ? groupCurrentPage : currentPage}

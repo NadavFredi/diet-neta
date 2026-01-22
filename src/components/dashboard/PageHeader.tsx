@@ -6,7 +6,7 @@
  * and integrated controls. Acts as the colored architectural crown of the content panel.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { LucideIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
@@ -62,6 +62,13 @@ export const PageHeader = ({
   const [editIconDialogOpen, setEditIconDialogOpen] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+
+  // Reset filtersExpanded when navigating to a page without active filters
+  useEffect(() => {
+    if (!hasActiveFilters) {
+      setFiltersExpanded(false);
+    }
+  }, [hasActiveFilters]);
 
   // Determine which icon to use
   let Icon: LucideIcon;
@@ -183,7 +190,7 @@ export const PageHeader = ({
           </div>
 
           {/* Bottom Row: Filters / Search (Optional) */}
-          {filters && filtersExpanded && (
+          {filters && hasActiveFilters && filtersExpanded && (
             <div className="py-4 border-t border-gray-200">
               <div className="flex-1">
                 {filters}
