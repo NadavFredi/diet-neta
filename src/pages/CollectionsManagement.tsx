@@ -43,10 +43,10 @@ const CollectionsManagement = () => {
     activeFilters,
     handleBulkDelete,
   } = useCollectionsManagement();
-  
+
   const { defaultView } = useDefaultView('collections');
   const { data: savedView } = useSavedView(viewId);
-  
+
   const [isAddCollectionDialogOpen, setIsAddCollectionDialogOpen] = useState(false);
 
   // Auto-navigate to default view if no view_id is present
@@ -61,37 +61,37 @@ const CollectionsManagement = () => {
   const pageSize = useAppSelector((state) => selectPageSize(state, 'collections'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'collections'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
-  
+
   // Group pagination state (separate from record pagination)
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize] = useState(50);
-  
+
   // Calculate total groups when grouping is active
   const totalGroups = useMemo(() => {
     if (!isGroupingActive || !filteredCollections || filteredCollections.length === 0) {
       return 0;
     }
-    
+
     // Group the data to count groups
     const groupedData = groupDataByKeys(filteredCollections, groupByKeys, { level1: null, level2: null });
     return getTotalGroupsCount(groupedData);
   }, [isGroupingActive, filteredCollections, groupByKeys]);
-  
+
   // Reset group pagination when grouping changes
   useEffect(() => {
     if (isGroupingActive) {
       setGroupCurrentPage(1);
     }
   }, [isGroupingActive, groupByKeys]);
-  
+
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
   }, []);
-  
+
   const handlePageChange = useCallback((page: number) => {
     dispatch(setCurrentPage({ resourceKey: 'collections', page }));
   }, [dispatch]);
-  
+
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     dispatch(setPageSize({ resourceKey: 'collections', pageSize: newPageSize }));
   }, [dispatch]);
@@ -104,62 +104,62 @@ const CollectionsManagement = () => {
         onSaveViewClick={handleSaveViewClick}
       >
         <TableActionHeader
-                  resourceKey="collections"
-                  title={savedView?.view_name || 'כל הגבייות'}
-                  dataCount={filteredCollections?.length || 0}
-                  singularLabel="גבייה"
-                  pluralLabel="גבייות"
-                  filterFields={useMemo(() => generateFilterFieldsFromColumns(filteredCollections || [], collectionColumns), [filteredCollections])}
-                  searchPlaceholder="חיפוש לפי תיאור, לקוח או תאריך..."
-                  enableColumnVisibility={true}
-                  enableFilters={true}
-                  enableGroupBy={true}
-                  enableSearch={true}
-                  columns={collectionColumns}
-                  customActions={
-                    <Button
-                      onClick={() => setIsAddCollectionDialogOpen(true)}
-                      className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
-                      size="sm"
-                    >
-                      <Plus className="h-4 w-4" />
-                      <span>צור גביה</span>
-                    </Button>
-                  }
-                />
+          resourceKey="collections"
+          title={savedView?.view_name || 'כל הגבייות'}
+          dataCount={filteredCollections?.length || 0}
+          singularLabel="גבייה"
+          pluralLabel="גבייות"
+          filterFields={useMemo(() => generateFilterFieldsFromColumns(filteredCollections || [], collectionColumns), [filteredCollections])}
+          searchPlaceholder="חיפוש לפי תיאור, לקוח או תאריך..."
+          enableColumnVisibility={true}
+          enableFilters={true}
+          enableGroupBy={true}
+          enableSearch={true}
+          columns={collectionColumns}
+          customActions={
+            <Button
+              onClick={() => setIsAddCollectionDialogOpen(true)}
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
+              size="sm"
+            >
+              <Plus className="h-4 w-4" />
+              <span>צור גביה</span>
+            </Button>
+          }
+        />
 
-                <div className="bg-white">
-                  {isLoadingCollections ? (
-                    <div className="text-center py-12">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                      <p className="text-gray-600">טוען גבייות...</p>
-                    </div>
-                  ) : filteredCollections && Array.isArray(filteredCollections) && filteredCollections.length > 0 ? (
-                    <>
-                      <CollectionsDataTable 
-                        collections={filteredCollections} 
-                        onBulkDelete={handleBulkDelete}
-                        groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                        groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                      />
-                      {/* Pagination Footer */}
-                      {filteredCollections && filteredCollections.length > 0 && (
-                        <Pagination
-                          currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                          pageSize={isGroupingActive ? groupPageSize : pageSize}
-                          totalItems={isGroupingActive ? totalGroups : filteredCollections.length}
-                          onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                          onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                          isLoading={isLoadingCollections}
-                        />
-                      )}
-                    </>
-                  ) : (
-                    <div className="p-8 text-center text-gray-500">
-                      <p className="text-lg font-medium mb-2">לא נמצאו גבייות</p>
-                      <p className="text-sm">גבייות מתווספות בעת יצירת תשלומים או ידנית</p>
-                    </div>
-                  )}
+        <div className="bg-white">
+          {isLoadingCollections ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+              <p className="text-gray-600">טוען גבייות...</p>
+            </div>
+          ) : filteredCollections && Array.isArray(filteredCollections) && filteredCollections.length > 0 ? (
+            <>
+              <CollectionsDataTable
+                collections={filteredCollections}
+                onBulkDelete={handleBulkDelete}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+              {/* Pagination Footer */}
+              {filteredCollections && filteredCollections.length > 0 && (
+                <Pagination
+                  currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                  pageSize={isGroupingActive ? groupPageSize : pageSize}
+                  totalItems={isGroupingActive ? totalGroups : filteredCollections.length}
+                  onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                  onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                  isLoading={isLoadingCollections}
+                />
+              )}
+            </>
+          ) : (
+            <div className="p-8 text-center text-gray-500">
+              <p className="text-lg font-medium mb-2">לא נמצאו גבייות</p>
+              <p className="text-sm">גבייות מתווספות בעת יצירת תשלומים או ידנית</p>
+            </div>
+          )}
         </div>
       </TableManagementLayout>
 
