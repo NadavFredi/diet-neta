@@ -135,7 +135,7 @@ export const WhatsAppAutomationsPage: React.FC = () => {
       <DashboardHeader
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
       />
 
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>

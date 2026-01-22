@@ -57,7 +57,7 @@ export const TableManagementLayout: React.FC<TableManagementLayoutProps> = ({
 
             <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
                 <main
-                    className={`bg-gray-80 overflow-y-auto transition-all duration-300 ${className || ''}`}
+                    className={`bg-gray-50 overflow-y-auto transition-all duration-300 ${className || ''}`}
                     style={{
                         marginRight: isDesktop ? `${sidebarWidth.width}px` : 0,
                         minHeight: 'calc(100vh - 60px)',

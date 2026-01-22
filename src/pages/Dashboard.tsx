@@ -42,6 +42,13 @@ const Dashboard = () => {
     }
   }, [authUser, isAuthenticated, authIsLoading]);
 
+  const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
+  const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
+  const hasShownSaveSuggestion = useRef(false);
+  const previousFiltersRef = useRef<string>('');
+  const lastAppliedViewIdRef = useRef<string | null>(null);
+  const lastAppliedDefaultIdRef = useRef<string | null>(null);
+
   const handleSaveViewClick = useCallback((resourceKey: string) => {
     setSaveViewResourceKey(resourceKey);
     setIsSaveViewModalOpen(true);
@@ -166,14 +173,6 @@ const Dashboard = () => {
     },
     [searchQuery, filterGroup, toast, refreshLeads]
   );
-
-
-  const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
-  const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
-  const hasShownSaveSuggestion = useRef(false);
-  const previousFiltersRef = useRef<string>('');
-  const lastAppliedViewIdRef = useRef<string | null>(null);
-  const lastAppliedDefaultIdRef = useRef<string | null>(null);
 
   // Get default view to load filters from it
   const { defaultView, isLoading: isLoadingDefaultView } = useDefaultView('leads');
