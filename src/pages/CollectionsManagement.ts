@@ -14,23 +14,22 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, type FilterConfig } from '@/hooks/useSavedViews';
 import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
-import { useTableFilters } from '@/hooks/useTableFilters';
-import type { ActiveFilter } from '@/components/dashboard/TableFilter';
-import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { useToast } from '@/hooks/use-toast';
 import { 
+  selectActiveFilters,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   selectFilterGroup, 
   selectSearchQuery,
   selectCurrentPage,
   selectPageSize,
   selectSortBy,
   selectSortOrder,
-  setSearchQuery,
   setCurrentPage,
   setPageSize,
   setSortBy,
   setSortOrder,
-  setActiveFilters,
   initializeTableState,
 } from '@/store/slices/tableStateSlice';
 import { useEffect } from 'react';
@@ -51,24 +50,14 @@ export const useCollectionsManagement = () => {
   const sortBy = useAppSelector((state) => selectSortBy(state, 'collections'));
   const sortOrder = useAppSelector((state) => selectSortOrder(state, 'collections'));
 
-  // Filter system (same as Dashboard)
-  const {
-    filterGroup: localFilterGroup,
-    filters: activeFilters,
-    addFilter: addFilterLocal,
-    removeFilter: removeFilterLocal,
-    clearFilters: clearFiltersLocal,
-    updateFilters: updateFiltersLocal,
-    updateFilter: updateFilterLocal,
-    setFilterGroup: setFilterGroupLocal,
-  } = useTableFilters([]);
-
-  // Use local filter group if available, otherwise use Redux
-  const effectiveFilterGroup = localFilterGroup || filterGroup;
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'collections'));
+  const columnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'collections'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'collections'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'collections'));
 
   const { data: collections, isLoading: isLoadingCollections, error } = useAllCollections({
     search: searchQuery,
-    filterGroup: effectiveFilterGroup,
+    filterGroup,
     page: currentPage,
     pageSize,
     sortBy,
@@ -99,33 +88,6 @@ export const useCollectionsManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
-  const handleSearchChange = useCallback((value: string) => {
-    dispatch(setSearchQuery({ resourceKey: 'collections', query: value }));
-  }, [dispatch]);
-
-  // Sync local filter group changes to Redux
-  useEffect(() => {
-    if (localFilterGroup) {
-      dispatch(setActiveFilters({ resourceKey: 'collections', filters: localFilterGroup }));
-    }
-  }, [localFilterGroup, dispatch]);
-
-  const addFilter = useCallback((filter: ActiveFilter) => {
-    addFilterLocal(filter);
-  }, [addFilterLocal]);
-
-  const removeFilter = useCallback((filterId: string) => {
-    removeFilterLocal(filterId);
-  }, [removeFilterLocal]);
-
-  const clearFilters = useCallback(() => {
-    clearFiltersLocal();
-  }, [clearFiltersLocal]);
-
-  const setFilterGroup = useCallback((group: FilterGroup | null) => {
-    setFilterGroupLocal(group);
-  }, [setFilterGroupLocal]);
-
   const handleSortChange = useCallback((columnId: string, order: 'ASC' | 'DESC') => {
     dispatch(setSortBy({ resourceKey: 'collections', sortBy: columnId }));
     dispatch(setSortOrder({ resourceKey: 'collections', sortOrder: order }));
@@ -139,10 +101,10 @@ export const useCollectionsManagement = () => {
     dispatch(setPageSize({ resourceKey: 'collections', pageSize: newPageSize }));
   }, [dispatch]);
 
-  const getCurrentFilterConfig = (filters: ActiveFilter[]): FilterConfig => {
+  const getCurrentFilterConfig = (filters: typeof activeFilters): FilterConfig => {
     return {
       searchQuery: searchQuery || '',
-      filterGroup: effectiveFilterGroup,
+      filterGroup,
       advancedFilters: filters.map((filter) => ({
         id: filter.id,
         fieldId: filter.fieldId,
@@ -151,6 +113,9 @@ export const useCollectionsManagement = () => {
         values: filter.values,
         type: filter.type,
       })),
+      columnVisibility,
+      columnOrder,
+      columnWidths: columnSizing,
     };
   };
 
@@ -197,13 +162,8 @@ export const useCollectionsManagement = () => {
     viewId,
     // Search and filters
     searchQuery,
-    handleSearchChange,
     activeFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
-    filterGroup: effectiveFilterGroup,
-    setFilterGroup,
+    filterGroup,
     // Sorting
     sortBy,
     sortOrder,

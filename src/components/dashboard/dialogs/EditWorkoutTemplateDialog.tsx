@@ -31,14 +31,16 @@ export const EditWorkoutTemplateDialog = ({
           const nativeEvent = e.nativeEvent;
           
           // If this is a pointer event with buttons pressed, it's an active drag operation
-          // Allow drag operations to continue even when pointer moves over the overlay
+          // Prevent closing during drag operations
           if (nativeEvent instanceof PointerEvent) {
             if (nativeEvent.buttons !== 0) {
-              // Mouse buttons are pressed, this is a drag - allow it
+              // Mouse buttons are pressed, this is a drag - prevent closing
+              e.preventDefault();
               return;
             }
-            // For pointermove events during drag, also allow
+            // For pointermove events during drag, also prevent closing
             if (nativeEvent.type === 'pointermove') {
+              e.preventDefault();
               return;
             }
           }
@@ -52,22 +54,12 @@ export const EditWorkoutTemplateDialog = ({
             target.classList.contains('cursor-grabbing');
           
           if (isDraggableElement) {
-            // This is related to drag and drop, allow it
+            // This is related to drag and drop, prevent closing
+            e.preventDefault();
             return;
           }
           
-          // Only prevent closing on actual click/tap events (not drags)
-          // This prevents the dialog from closing when clicking outside
-          if (nativeEvent.type === 'mousedown' || 
-              nativeEvent.type === 'pointerdown' ||
-              nativeEvent.type === 'touchstart') {
-            // This is a click/tap, prevent closing
-            e.preventDefault();
-          }
-        }}
-        onEscapeKeyDown={(e) => {
-          // Prevent closing on escape - only close via explicit action
-          e.preventDefault();
+          // Allow closing on regular clicks outside (not during drags)
         }}
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">

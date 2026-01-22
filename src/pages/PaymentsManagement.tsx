@@ -16,15 +16,14 @@ import { paymentColumns } from '@/components/dashboard/columns/paymentColumns';
 import { usePaymentsManagement } from './PaymentsManagement';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getPaymentFilterFields } from '@/hooks/useTableFilters';
-import { selectActiveFilters, selectGroupByKeys, selectCurrentPage, selectPageSize, setCurrentPage, setPageSize } from '@/store/slices/tableStateSlice';
-import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { selectActiveFilters, selectGroupByKeys } from '@/store/slices/tableStateSlice';
+import { useAppSelector } from '@/store/hooks';
 import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
 import { AddPaymentDialog } from '@/components/dashboard/dialogs/AddPaymentDialog';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 const PaymentsManagement = () => {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
@@ -41,11 +40,6 @@ const PaymentsManagement = () => {
     getCurrentFilterConfig,
     savedView,
     defaultView,
-    searchQuery,
-    handleSearchChange,
-    addFilter,
-    removeFilter,
-    clearFilters,
     sortBy,
     sortOrder,
     handleSortChange,
@@ -54,8 +48,6 @@ const PaymentsManagement = () => {
     totalPayments,
     handlePageChange,
     handlePageSizeChange,
-    filterGroup,
-    setFilterGroup,
   } = usePaymentsManagement();
 
   // Generate filter fields with all renderable columns
@@ -141,14 +133,6 @@ const PaymentsManagement = () => {
             enableGroupBy={true}
             enableSearch={true}
             columns={paymentColumns}
-            legacySearchQuery={searchQuery}
-            legacyOnSearchChange={handleSearchChange}
-            legacyActiveFilters={activeFilters}
-            legacyFilterGroup={filterGroup}
-            legacyOnFilterAdd={addFilter}
-            legacyOnFilterRemove={removeFilter}
-            legacyOnFilterClear={clearFilters}
-            legacyOnFilterGroupChange={setFilterGroup}
             customActions={
               <Button
                 onClick={() => setIsAddPaymentDialogOpen(true)}

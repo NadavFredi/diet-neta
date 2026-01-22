@@ -13,23 +13,22 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, type FilterConfig } from '@/hooks/useSavedViews';
 import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
-import { useTableFilters } from '@/hooks/useTableFilters';
-import type { ActiveFilter } from '@/components/dashboard/TableFilter';
-import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { 
+  selectActiveFilters,
   selectFilterGroup, 
   selectSearchQuery,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   selectCurrentPage,
   selectPageSize,
   selectSortBy,
   selectSortOrder,
   selectGroupByKeys,
-  setSearchQuery,
   setCurrentPage,
   setPageSize,
   setSortBy,
   setSortOrder,
-  setActiveFilters,
   initializeTableState,
 } from '@/store/slices/tableStateSlice';
 import { useEffect } from 'react';
@@ -50,24 +49,14 @@ export const usePaymentsManagement = () => {
   const sortOrder = useAppSelector((state) => selectSortOrder(state, 'payments'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'payments'));
 
-  // Filter system (same as Dashboard)
-  const {
-    filterGroup: localFilterGroup,
-    filters: activeFilters,
-    addFilter: addFilterLocal,
-    removeFilter: removeFilterLocal,
-    clearFilters: clearFiltersLocal,
-    updateFilters: updateFiltersLocal,
-    updateFilter: updateFilterLocal,
-    setFilterGroup: setFilterGroupLocal,
-  } = useTableFilters([]);
-
-  // Use local filter group if available, otherwise use Redux
-  const effectiveFilterGroup = localFilterGroup || filterGroup;
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'payments'));
+  const columnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'payments'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'payments'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'payments'));
 
   const { data: paymentsData, isLoading: isLoadingPayments, error } = useAllPayments({
     search: searchQuery,
-    filterGroup: effectiveFilterGroup,
+    filterGroup,
     page: currentPage,
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
@@ -103,33 +92,6 @@ export const usePaymentsManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
-  const handleSearchChange = useCallback((value: string) => {
-    dispatch(setSearchQuery({ resourceKey: 'payments', query: value }));
-  }, [dispatch]);
-
-  // Sync local filter group changes to Redux
-  useEffect(() => {
-    if (localFilterGroup) {
-      dispatch(setActiveFilters({ resourceKey: 'payments', filters: localFilterGroup }));
-    }
-  }, [localFilterGroup, dispatch]);
-
-  const addFilter = useCallback((filter: ActiveFilter) => {
-    addFilterLocal(filter);
-  }, [addFilterLocal]);
-
-  const removeFilter = useCallback((filterId: string) => {
-    removeFilterLocal(filterId);
-  }, [removeFilterLocal]);
-
-  const clearFilters = useCallback(() => {
-    clearFiltersLocal();
-  }, [clearFiltersLocal]);
-
-  const setFilterGroup = useCallback((group: FilterGroup | null) => {
-    setFilterGroupLocal(group);
-  }, [setFilterGroupLocal]);
-
   const handleSortChange = useCallback((columnId: string, order: 'ASC' | 'DESC') => {
     dispatch(setSortBy({ resourceKey: 'payments', sortBy: columnId }));
     dispatch(setSortOrder({ resourceKey: 'payments', sortOrder: order }));
@@ -143,10 +105,10 @@ export const usePaymentsManagement = () => {
     dispatch(setPageSize({ resourceKey: 'payments', pageSize: newPageSize }));
   }, [dispatch]);
 
-  const getCurrentFilterConfig = (filters: ActiveFilter[]): FilterConfig => {
+  const getCurrentFilterConfig = (filters: typeof activeFilters): FilterConfig => {
     return {
       searchQuery: searchQuery || '',
-      filterGroup: effectiveFilterGroup,
+      filterGroup,
       advancedFilters: filters.map((filter) => ({
         id: filter.id,
         fieldId: filter.fieldId,
@@ -155,6 +117,9 @@ export const usePaymentsManagement = () => {
         values: filter.values,
         type: filter.type,
       })),
+      columnVisibility,
+      columnOrder,
+      columnWidths: columnSizing,
     };
   };
 
@@ -177,13 +142,7 @@ export const usePaymentsManagement = () => {
     viewId,
     // Search and filters
     searchQuery,
-    handleSearchChange,
     activeFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
-    filterGroup: effectiveFilterGroup,
-    setFilterGroup,
     // Sorting
     sortBy,
     sortOrder,

@@ -14,7 +14,6 @@ import { useDefaultView } from '@/hooks/useDefaultView';
 import { logoutUser } from '@/store/slices/authSlice';
 import { format } from 'date-fns';
 import {
-  setSearchQuery,
   setSelectedDate,
   setSelectedStatus,
   setSelectedAge,
@@ -24,8 +23,6 @@ import {
   setSelectedActivityLevel,
   setSelectedPreferredTime,
   setSelectedSource,
-  setColumnVisibility,
-  toggleColumnVisibility,
   resetFilters,
   setLeads,
   setLoading,
@@ -39,13 +36,15 @@ import {
 import { fetchFilteredLeads, getFilteredLeadsCount, mapLeadToUIFormat, type LeadFilterParams } from '@/services/leadService';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import type { Lead } from '@/store/slices/dashboardSlice';
-import type { ColumnVisibility as ColumnVisibilityType } from '@/utils/dashboard';
 import {
   selectGroupByKeys,
   selectGroupSorting,
+  selectSearchQuery,
+  selectColumnVisibility,
   setAllColumnSizing,
   setAllColumnVisibility as setAllTableColumnVisibility,
   setColumnOrder as setTableColumnOrder,
+  setSearchQuery as setTableSearchQuery,
 } from '@/store/slices/tableStateSlice';
 import { allLeadColumns } from '@/components/dashboard/columns/leadColumns';
 
@@ -60,7 +59,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   // Redux state (source of truth - no derived state)
   const {
     leads, // Raw leads from database
-    searchQuery,
     selectedDate,
     selectedStatus,
     selectedAge,
@@ -70,7 +68,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     selectedActivityLevel,
     selectedPreferredTime,
     selectedSource,
-    columnVisibility,
     isLoading,
     error,
     // Pagination state
@@ -81,6 +78,10 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     sortBy,
     sortOrder,
   } = useAppSelector((state) => state.dashboard);
+
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'leads'));
+  const tableColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'leads'));
+  const isTableStateInitialized = useAppSelector((state) => !!state.tableState.tables.leads);
 
   // Group by state from tableStateSlice (for leads)
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
@@ -353,7 +354,7 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   // Filter Handlers (update Redux state, triggers refresh)
   // =====================================================
   const handleSearchChange = useCallback((value: string) => {
-    dispatch(setSearchQuery(value));
+    dispatch(setTableSearchQuery({ resourceKey: 'leads', query: value }));
   }, [dispatch]);
 
   const handleDateSelect = useCallback((date: Date | undefined) => {
@@ -390,10 +391,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
 
   const handleSourceChange = useCallback((value: string) => {
     dispatch(setSelectedSource(value === 'all' ? null : value));
-  }, [dispatch]);
-
-  const handleToggleColumn = useCallback((column: keyof ColumnVisibilityType) => {
-    dispatch(toggleColumnVisibility(column));
   }, [dispatch]);
 
   // =====================================================
@@ -437,7 +434,7 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
 
       // Apply all filters from the saved view
       if (filterConfig.searchQuery !== undefined) {
-        dispatch(setSearchQuery(filterConfig.searchQuery));
+        dispatch(setTableSearchQuery({ resourceKey: 'leads', query: filterConfig.searchQuery || '' }));
       }
       if (filterConfig.selectedDate !== undefined) {
         dispatch(setSelectedDate(filterConfig.selectedDate));
@@ -467,7 +464,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
         dispatch(setSelectedSource(filterConfig.selectedSource));
       }
       if (filterConfig.columnVisibility) {
-        dispatch(setColumnVisibility(filterConfig.columnVisibility));
         dispatch(setAllTableColumnVisibility({ resourceKey: 'leads', visibility: filterConfig.columnVisibility }));
       }
       if (filterConfig.columnOrder && Array.isArray(filterConfig.columnOrder)) {
@@ -494,7 +490,7 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
       selectedActivityLevel,
       selectedPreferredTime,
       selectedSource,
-      columnVisibility,
+      columnVisibility: tableColumnVisibility,
       columnOrder,
       columnWidths,
       sortBy,
@@ -513,7 +509,7 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     selectedActivityLevel,
     selectedPreferredTime,
     selectedSource,
-    columnVisibility,
+    tableColumnVisibility,
     options?.filterGroup,
   ]);
 
@@ -555,6 +551,7 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   useEffect(() => {
     // Only read from URL params once on initial mount
     if (hasReadUrlParams) return;
+    if (!isTableStateInitialized) return;
 
     const params = new URLSearchParams(searchParams);
 
@@ -578,7 +575,7 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     // Read search from URL
     const urlSearch = params.get('search');
     if (urlSearch !== null && urlSearch !== searchQuery) {
-      dispatch(setSearchQuery(urlSearch));
+      dispatch(setTableSearchQuery({ resourceKey: 'leads', query: urlSearch }));
     }
 
     // Read sorting from URL
@@ -593,7 +590,7 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     }
 
     setHasReadUrlParams(true);
-  }, [hasReadUrlParams, searchParams, dispatch]); // Only depend on searchParams, not Redux state
+  }, [hasReadUrlParams, searchParams, dispatch, isTableStateInitialized]); // Only depend on searchParams, not Redux state
 
   // Sync Redux state to URL on changes (one-way: Redux -> URL)
   // This effect should NOT depend on searchParams to avoid loops
@@ -693,7 +690,7 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     selectedActivityLevel,
     selectedPreferredTime,
     selectedSource,
-    columnVisibility,
+    columnVisibility: tableColumnVisibility,
     user,
     isLoading: isLoading || isRefreshing,
     error,
@@ -726,7 +723,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     handleActivityLevelChange,
     handlePreferredTimeChange,
     handleSourceChange,
-    handleToggleColumn,
     // Pagination handlers
     handlePageChange,
     handlePageSizeChange,

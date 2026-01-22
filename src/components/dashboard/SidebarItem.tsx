@@ -118,6 +118,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const supportsViews = item.resourceKey === 'leads' ||
     item.resourceKey === 'customers' ||
     item.resourceKey === 'templates' ||
+    item.resourceKey === 'exercises' ||
     item.resourceKey === 'nutrition_templates' ||
     item.resourceKey === 'budgets' ||
     item.resourceKey === 'payments' ||
@@ -455,172 +456,164 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
             aria-label={item.label}
             aria-expanded={supportsViews ? isExpanded : undefined}
           >
-        {/* Drag handle inside button - positioned relative to button container */}
-        {isSortable && dragHandleProps && !isCollapsed && (
-          <div
-            {...dragHandleProps.attributes}
-            {...dragHandleProps.listeners}
-            className={cn(
-              'absolute right-0 cursor-grab active:cursor-grabbing',
-              'p-1 rounded hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity',
-              'flex items-center justify-center z-10'
-            )}
-            style={{ marginLeft: '8px' }}
-            title="גרור לשינוי סדר"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className={cn(
-              'h-4 w-4',
-              isMainInterfaceActive ? 'text-gray-600' : 'text-white/60'
-            )} />
-          </div>
-        )}
-        <div
-          onClick={(e) => {
-            e.stopPropagation();
-            const currentTime = Date.now();
-            const timeSinceLastClick = currentTime - lastClickTime;
-            if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
-              // Double click detected
-              onEditIconClick?.(item.resourceKey, item.label, undefined);
-              setLastClickTime(0);
-            } else {
-              setLastClickTime(currentTime);
-              setTimeout(() => setLastClickTime(0), 300);
-            }
-          }}
-          className="relative cursor-pointer group/icon pr-4"
-          title="לחץ פעמיים לערוך אייקון"
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onEditIconClick?.(item.resourceKey, item.label, undefined);
-            }
-          }}
-        >
-          <Icon
-            className={cn(
-              'h-4 w-4 flex-shrink-0 transition-colors',
-              isMainInterfaceActive ? 'text-gray-800' : 'text-white',
-              'group-hover/icon:opacity-80'
-            )}
-          />
-        </div>
-        {!isCollapsed && (
-          <>
-            <span className="flex-1 text-right">{item.label}</span>
-            {supportsViews && (
-              <div className="flex items-center gap-1 relative">
-                {/* 3-dots menu for parent item actions */}
-                <div className="w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0 transition-all duration-200 flex-shrink-0">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className={cn(
-                          'p-1 rounded-md transition-colors cursor-pointer',
-                          isMainInterfaceActive
-                            ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                            : 'text-white/60 hover:text-white hover:bg-white/10'
-                        )}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }
-                        }}
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" dir="rtl" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onResourceClick();
-                        }}
-                      >
-                        <Plus className="h-4 w-4 ml-2" />
-                        הוסף פריט חדש
-                      </DropdownMenuItem>
-                      {onSaveViewClick && (
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSaveViewClick(item.resourceKey);
-                          }}
-                        >
-                          <Plus className="h-4 w-4 ml-2" />
-                          הוסף דף חדש
-                        </DropdownMenuItem>
-                      )}
-                      {supportsViews && (
-                        <>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCreateFolderDialogOpen(true);
-                            }}
-                          >
-                            <FolderPlus className="h-4 w-4 ml-2" />
-                            צור תיקייה חדשה
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {sortOrder === null && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSortOrder('asc');
-                              }}
-                            >
-                              <ArrowUpDown className="h-4 w-4 ml-2" />
-                              מיין לפי שם (א-ב)
-                            </DropdownMenuItem>
-                          )}
-                          {sortOrder === 'asc' && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSortOrder('desc');
-                              }}
-                            >
-                              <ArrowDown className="h-4 w-4 ml-2" />
-                              מיין לפי שם (ב-א)
-                            </DropdownMenuItem>
-                          )}
-                          {sortOrder === 'desc' && (
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSortOrder(null);
-                              }}
-                            >
-                              <ArrowUp className="h-4 w-4 ml-2" />
-                              בטל מיון (החזר לסדר ידני)
-                            </DropdownMenuItem>
-                          )}
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                {/* Expand/collapse button - always visible */}
-                <ChevronDown
-                  className={cn(
-                    'h-4 w-4 flex-shrink-0 transition-transform duration-200',
-                    isExpanded ? 'rotate-0' : '-rotate-90',
-                    isMainInterfaceActive ? 'text-gray-700' : 'text-white/60'
-                  )}
-                />
+            {/* Drag handle inside button - positioned relative to button container */}
+            {isSortable && dragHandleProps && !isCollapsed && (
+              <div
+                {...dragHandleProps.attributes}
+                {...dragHandleProps.listeners}
+                className={cn(
+                  'absolute right-0 cursor-grab active:cursor-grabbing',
+                  'p-1 rounded hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity',
+                  'flex items-center justify-center z-10'
+                )}
+                style={{ marginLeft: '8px' }}
+                title="גרור לשינוי סדר"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <GripVertical className={cn(
+                  'h-4 w-4',
+                  isMainInterfaceActive ? 'text-gray-600' : 'text-white/60'
+                )} />
               </div>
             )}
-          </>
-        )}
-      </button>
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                const currentTime = Date.now();
+                const timeSinceLastClick = currentTime - lastClickTime;
+                if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
+                  // Double click detected
+                  onEditIconClick?.(item.resourceKey, item.label, undefined);
+                  setLastClickTime(0);
+                } else {
+                  setLastClickTime(currentTime);
+                  setTimeout(() => setLastClickTime(0), 300);
+                }
+              }}
+              className="relative cursor-pointer group/icon pr-4"
+              title="לחץ פעמיים לערוך אייקון"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onEditIconClick?.(item.resourceKey, item.label, undefined);
+                }
+              }}
+            >
+              <Icon
+                className={cn(
+                  'h-4 w-4 flex-shrink-0 transition-colors',
+                  isMainInterfaceActive ? 'text-gray-800' : 'text-white',
+                  'group-hover/icon:opacity-80'
+                )}
+              />
+            </div>
+            {!isCollapsed && (
+              <>
+                <span className="flex-1 text-right">{item.label}</span>
+                {supportsViews && (
+                  <div className="flex items-center gap-1 relative">
+                    {/* 3-dots menu for parent item actions */}
+                    <div className="w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0 transition-all duration-200 flex-shrink-0">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className={cn(
+                              'p-1 rounded-md transition-colors cursor-pointer',
+                              isMainInterfaceActive
+                                ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                                : 'text-white/60 hover:text-white hover:bg-white/10'
+                            )}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }
+                            }}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" dir="rtl" onClick={(e) => e.stopPropagation()}>
+
+                          {onSaveViewClick && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSaveViewClick(item.resourceKey);
+                              }}
+                            >
+                              <Plus className="h-4 w-4 ml-2" />
+                              הוסף דף חדש
+                            </DropdownMenuItem>
+                          )}
+                          {supportsViews && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCreateFolderDialogOpen(true);
+                                }}
+                              >
+                                <FolderPlus className="h-4 w-4 ml-2" />
+                                צור תיקייה חדשה
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {sortOrder === null && (
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSortOrder('asc');
+                                  }}
+                                >
+                                  <ArrowUpDown className="h-4 w-4 ml-2" />
+                                  מיין לפי שם (א-ב)
+                                </DropdownMenuItem>
+                              )}
+                              {sortOrder === 'asc' && (
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSortOrder('desc');
+                                  }}
+                                >
+                                  <ArrowDown className="h-4 w-4 ml-2" />
+                                  מיין לפי שם (ב-א)
+                                </DropdownMenuItem>
+                              )}
+                              {sortOrder === 'desc' && (
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSortOrder(null);
+                                  }}
+                                >
+                                  <ArrowUp className="h-4 w-4 ml-2" />
+                                  בטל מיון (החזר לסדר ידני)
+                                </DropdownMenuItem>
+                              )}
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    {/* Expand/collapse button - always visible */}
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+                        isExpanded ? 'rotate-0' : '-rotate-90',
+                        isMainInterfaceActive ? 'text-gray-700' : 'text-white/60'
+                      )}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </button>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent dir="rtl" onClick={(e) => e.stopPropagation()}>
@@ -717,7 +710,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     // Filter by search query if provided
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
-      views = views.filter((view) => 
+      views = views.filter((view) =>
         view.view_name.toLowerCase().includes(query)
       );
     }
@@ -1021,11 +1014,11 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   // Render a folder with its pages
   const renderFolder = (folder: InterfaceFolder) => {
     let folderPages = viewsByFolder.grouped[folder.id] || [];
-    
+
     // Filter folder pages by search query if provided
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
-      folderPages = folderPages.filter((view) => 
+      folderPages = folderPages.filter((view) =>
         view.view_name.toLowerCase().includes(query)
       );
     }
@@ -1033,7 +1026,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     // Auto-expand folder if search query matches its pages
     const shouldAutoExpand = searchQuery.trim() && folderPages.length > 0;
     const isExpanded = shouldAutoExpand || expandedFolders.has(folder.id);
-    
+
     // Check if any page inside this folder is active
     const hasActivePage = folderPages.some(view =>
       activeViewId === view.id ||
@@ -1146,22 +1139,22 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           </ContextMenuContent>
         </ContextMenu>
 
-          {isExpanded && folderPages.length > 0 && (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleViewDragEnd}
+        {isExpanded && folderPages.length > 0 && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleViewDragEnd}
+          >
+            <SortableContext
+              items={folderPages.map((view) => view.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <SortableContext
-                items={folderPages.map((view) => view.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-1 mt-1">
-                  {folderPages.map((view) => renderPage(view, false, true))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
+              <div className="space-y-1 mt-1">
+                {folderPages.map((view) => renderPage(view, false, true))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
       </SortableFolderItem>
     );
   };

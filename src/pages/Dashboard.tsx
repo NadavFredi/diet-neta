@@ -7,27 +7,23 @@ import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { Pagination } from '@/components/dashboard/Pagination';
 import { allLeadColumns } from '@/components/dashboard/columns/leadColumns';
 import { useDashboardLogic } from '@/hooks/useDashboardLogic';
-import { useDefaultView } from '@/hooks/useDefaultView';
-import { useSavedView } from '@/hooks/useSavedViews';
-import { useTableFilters, getLeadFilterFields, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
+import { getLeadFilterFields, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { fetchLeadIdsByFilter } from '@/services/leadService';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { ActiveFilter } from '@/components/dashboard/TableFilter';
-import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { selectColumnOrder, selectColumnSizing, selectGroupByKeys, setAllColumnSizing, setAllColumnVisibility, setColumnOrder } from '@/store/slices/tableStateSlice';
+import { useSearchParams } from 'react-router-dom';
+import { useAppSelector } from '@/store/hooks';
+import { selectActiveFilters, selectColumnOrder, selectColumnSizing, selectFilterGroup, selectGroupByKeys } from '@/store/slices/tableStateSlice';
 import { groupDataByKeys, getTotalGroupsCount, getAllGroupKeys } from '@/utils/groupDataByKey';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { setSearchQuery } from '@/store/slices/dashboardSlice';
+import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
-  // Removed duplicate useDefaultView and useSavedView - they're already called in useDashboardLogic
   const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'leads'));
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'leads'));
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'leads'));
   const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'leads'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
@@ -44,8 +40,6 @@ const Dashboard = () => {
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
   const hasShownSaveSuggestion = useRef(false);
   const previousFiltersRef = useRef<string>('');
-  const lastAppliedViewIdRef = useRef<string | null>(null);
-  const lastAppliedDefaultIdRef = useRef<string | null>(null);
 
   const handleSaveViewClick = useCallback((resourceKey: string) => {
     setSaveViewResourceKey(resourceKey);
@@ -53,27 +47,12 @@ const Dashboard = () => {
     hasShownSaveSuggestion.current = false; // Reset when user opens save modal
   }, []);
 
-  // Auto-navigate to default view is handled in useDashboardLogic
-
-  // Filter system for leads (advanced filter groups)
-  const {
-    filterGroup,
-    filters: activeFilters,
-    addFilter: addFilterLocal,
-    removeFilter: removeFilterLocal,
-    clearFilters: clearFiltersLocal,
-    updateFilters: updateFiltersLocal,
-    updateFilter: updateFilterLocal,
-    setFilterGroup,
-  } = useTableFilters([]);
 
   const {
     filteredLeads,
     searchQuery,
-    columnVisibility,
     user,
     isAddLeadDialogOpen,
-    handleSearchChange,
     handleLogout,
     handleAddLead,
     setIsAddLeadDialogOpen,
@@ -145,26 +124,6 @@ const Dashboard = () => {
     setGroupCurrentPage(1); // Reset to first page when page size changes
   }, []);
 
-  const addFilter = useCallback((filter: ActiveFilter) => {
-    addFilterLocal(filter);
-  }, [addFilterLocal]);
-
-  const removeFilter = useCallback((filterId: string) => {
-    removeFilterLocal(filterId);
-  }, [removeFilterLocal]);
-
-  const updateFilter = useCallback((filter: ActiveFilter) => {
-    updateFilterLocal(filter);
-  }, [updateFilterLocal]);
-
-  const clearFilters = useCallback(() => {
-    clearFiltersLocal();
-  }, [clearFiltersLocal]);
-
-  const handleSearchChangeWithSource = useCallback((value: string) => {
-    handleSearchChange(value);
-  }, [handleSearchChange]);
-
   const { toast } = useToast();
 
   const handleBulkDelete = useCallback(
@@ -217,88 +176,7 @@ const Dashboard = () => {
     [searchQuery, filterGroup, toast, refreshLeads]
   );
 
-  // Get default view to load filters from it
-  const { defaultView, isLoading: isLoadingDefaultView } = useDefaultView('leads');
-
-  // Load advanced filters from saved view or default view
-  useEffect(() => {
-    const applyFilterConfig = (filterConfig: any) => {
-      if (!filterConfig) return;
-
-      if (filterConfig.filterGroup) {
-        setFilterGroup(filterConfig.filterGroup);
-      } else if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
-        const savedFilters: ActiveFilter[] = filterConfig.advancedFilters.map((f: any) => ({
-          id: f.id,
-          fieldId: f.fieldId,
-          fieldLabel: f.fieldLabel,
-          operator: f.operator as any,
-          values: f.values,
-          type: f.type as any,
-        }));
-        updateFiltersLocal(savedFilters);
-      }
-
-      if (filterConfig.searchQuery !== undefined) {
-        dispatch(setSearchQuery(filterConfig.searchQuery));
-      }
-      if (filterConfig.columnVisibility) {
-        dispatch(setAllColumnVisibility({ resourceKey: 'leads', visibility: filterConfig.columnVisibility }));
-      }
-      if (filterConfig.columnOrder && Array.isArray(filterConfig.columnOrder)) {
-        dispatch(setColumnOrder({ resourceKey: 'leads', order: filterConfig.columnOrder }));
-      }
-      if (filterConfig.columnWidths) {
-        dispatch(setAllColumnSizing({ resourceKey: 'leads', sizing: filterConfig.columnWidths }));
-      }
-
-      previousFiltersRef.current = JSON.stringify({
-        filters: filterConfig.filterGroup || filterConfig.advancedFilters || [],
-        searchQuery: filterConfig.searchQuery || '',
-      });
-      hasShownSaveSuggestion.current = false;
-    };
-
-    if (viewId && savedView && !isLoadingView) {
-      if (lastAppliedViewIdRef.current === savedView.id) {
-        return;
-      }
-      applyFilterConfig(savedView.filter_config);
-      lastAppliedViewIdRef.current = savedView.id;
-      return;
-    }
-
-    if (!viewId && defaultView && !isLoadingDefaultView && !isLoadingView) {
-      if (lastAppliedDefaultIdRef.current === defaultView.id) {
-        return;
-      }
-      applyFilterConfig(defaultView.filter_config);
-      lastAppliedDefaultIdRef.current = defaultView.id;
-      return;
-    }
-
-    if (
-      !viewId &&
-      !isLoadingDefaultView &&
-      !isLoadingView &&
-      (!defaultView || !defaultView.filter_config?.advancedFilters || (defaultView.filter_config as any).advancedFilters?.length === 0)
-    ) {
-      if (previousFiltersRef.current === '') {
-        clearFiltersLocal();
-        previousFiltersRef.current = '';
-        hasShownSaveSuggestion.current = false;
-        lastAppliedDefaultIdRef.current = null;
-      }
-    }
-  }, [viewId, savedView, isLoadingView, defaultView, isLoadingDefaultView, updateFiltersLocal, clearFiltersLocal, dispatch, setFilterGroup]);
-
-  useEffect(() => {
-    if (viewId) {
-      lastAppliedDefaultIdRef.current = null;
-    } else {
-      lastAppliedViewIdRef.current = null;
-    }
-  }, [viewId]);
+  useSyncSavedViewFilters('leads', savedView, isLoadingView);
 
   // Show save suggestion when filters change
   useEffect(() => {
@@ -365,15 +243,6 @@ const Dashboard = () => {
             enableSearch={true}
             columns={allLeadColumns}
             getAllGroupKeys={getAllGroupKeysFn}
-            legacySearchQuery={searchQuery}
-            legacyOnSearchChange={handleSearchChangeWithSource}
-            legacyActiveFilters={activeFilters}
-            legacyFilterGroup={filterGroup}
-            legacyOnFilterAdd={addFilter}
-            legacyOnFilterUpdate={updateFilter}
-            legacyOnFilterRemove={removeFilter}
-            legacyOnFilterClear={clearFilters}
-            legacyOnFilterGroupChange={setFilterGroup}
           />
         </div>
 

@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { DndContext, DragOverlay, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -759,6 +760,127 @@ const ExerciseRow = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exerc
     onUpdate({ video_url: undefined });
   };
 
+  const dialogsContent = (
+    <>
+      {/* Hidden file inputs */}
+      <input
+        ref={imageFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageFileUpload}
+      />
+      <input
+        ref={videoFileInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={handleVideoFileUpload}
+      />
+
+      {/* Image URL Input Dialog */}
+      <Dialog open={isImageUrlDialogOpen} onOpenChange={setIsImageUrlDialogOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor={`image-url-${exercise.id}`} className="text-right">
+                קישור תמונה
+              </Label>
+              <Input
+                id={`image-url-${exercise.id}`}
+                value={imageUrlInput}
+                onChange={(e) => setImageUrlInput(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className="mt-1"
+                dir="ltr"
+              />
+            </div>
+            <div className="flex justify-start gap-2">
+              <Button onClick={handleImageUrlSubmit}>הוסף</Button>
+              <Button variant="outline" onClick={() => setIsImageUrlDialogOpen(false)}>
+                ביטול
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Video URL Input Dialog */}
+      <Dialog open={isVideoUrlDialogOpen} onOpenChange={setIsVideoUrlDialogOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor={`video-url-${exercise.id}`} className="text-right">
+                קישור וידאו
+              </Label>
+              <Input
+                id={`video-url-${exercise.id}`}
+                value={videoUrlInput}
+                onChange={(e) => setVideoUrlInput(e.target.value)}
+                placeholder="https://example.com/video.mp4"
+                className="mt-1"
+                dir="ltr"
+              />
+            </div>
+            <div className="flex justify-start gap-2">
+              <Button onClick={handleVideoUrlSubmit}>הוסף</Button>
+              <Button variant="outline" onClick={() => setIsVideoUrlDialogOpen(false)}>
+                ביטול
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Modal */}
+      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+        <DialogContent className="max-w-4xl" dir="rtl">
+          <div className="relative w-full h-[80vh] flex items-center justify-center bg-black rounded-lg overflow-hidden">
+            {exercise.image_url && (
+              <img
+                src={exercise.image_url}
+                alt={exercise.name}
+                className="max-w-full max-h-full object-contain"
+              />
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 left-2 text-white hover:bg-white/20"
+              onClick={() => setIsImageModalOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Video Modal */}
+      <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
+        <DialogContent className="max-w-4xl" dir="rtl">
+          <div className="relative w-full h-[80vh] flex items-center justify-center bg-black rounded-lg overflow-hidden">
+            {exercise.video_url && (
+              <video
+                src={exercise.video_url}
+                controls
+                className="w-full h-full"
+                autoPlay
+              />
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 left-2 text-white hover:bg-white/20"
+              onClick={() => setIsVideoModalOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+
   return (
     <>
       <TableRow
@@ -950,123 +1072,7 @@ const ExerciseRow = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exerc
           </Button>
         </TableCell>
       </TableRow>
-
-      {/* Hidden file inputs */}
-      <input
-        ref={imageFileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleImageFileUpload}
-      />
-      <input
-        ref={videoFileInputRef}
-        type="file"
-        accept="video/*"
-        className="hidden"
-        onChange={handleVideoFileUpload}
-      />
-
-      {/* Image URL Input Dialog */}
-      <Dialog open={isImageUrlDialogOpen} onOpenChange={setIsImageUrlDialogOpen}>
-        <DialogContent className="sm:max-w-md" dir="rtl">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="image-url" className="text-right">
-                קישור תמונה
-              </Label>
-              <Input
-                id="image-url"
-                value={imageUrlInput}
-                onChange={(e) => setImageUrlInput(e.target.value)}
-                placeholder="https://example.com/image.jpg"
-                className="mt-1"
-                dir="ltr"
-              />
-            </div>
-            <div className="flex justify-start gap-2">
-              <Button onClick={handleImageUrlSubmit}>הוסף</Button>
-              <Button variant="outline" onClick={() => setIsImageUrlDialogOpen(false)}>
-                ביטול
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Video URL Input Dialog */}
-      <Dialog open={isVideoUrlDialogOpen} onOpenChange={setIsVideoUrlDialogOpen}>
-        <DialogContent className="sm:max-w-md" dir="rtl">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="video-url" className="text-right">
-                קישור וידאו
-              </Label>
-              <Input
-                id="video-url"
-                value={videoUrlInput}
-                onChange={(e) => setVideoUrlInput(e.target.value)}
-                placeholder="https://example.com/video.mp4"
-                className="mt-1"
-                dir="ltr"
-              />
-            </div>
-            <div className="flex justify-start gap-2">
-              <Button onClick={handleVideoUrlSubmit}>הוסף</Button>
-              <Button variant="outline" onClick={() => setIsVideoUrlDialogOpen(false)}>
-                ביטול
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Image Modal */}
-      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-4xl" dir="rtl">
-          <div className="relative w-full h-[80vh] flex items-center justify-center bg-black rounded-lg overflow-hidden">
-            {exercise.image_url && (
-              <img
-                src={exercise.image_url}
-                alt={exercise.name}
-                className="max-w-full max-h-full object-contain"
-              />
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-2 left-2 text-white hover:bg-white/20"
-              onClick={() => setIsImageModalOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Video Modal */}
-      <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
-        <DialogContent className="max-w-4xl" dir="rtl">
-          <div className="relative w-full h-[80vh] flex items-center justify-center bg-black rounded-lg overflow-hidden">
-            {exercise.video_url && (
-              <video
-                src={exercise.video_url}
-                controls
-                className="w-full h-full"
-                autoPlay
-              />
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-2 left-2 text-white hover:bg-white/20"
-              onClick={() => setIsVideoModalOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {typeof document !== 'undefined' && createPortal(dialogsContent, document.body)}
     </>
   );
 };
@@ -1240,35 +1246,6 @@ const DayColumn = ({
         )}
         dir="rtl"
       >
-        {/* Day Actions */}
-        <div className="p-2 bg-white border-b border-gray-200 flex-shrink-0">
-          {isDayActive && (dayData?.exercises?.length || 0) > 0 && (
-            <div className="flex gap-1.5">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleDuplicateClick}
-                type="button"
-                className="flex-1 text-xs h-7"
-              >
-                <Copy className="h-3 w-3 ml-1" />
-                שכפל יום
-              </Button>
-            </div>
-          )}
-          {!isDayActive && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onActivateDay}
-              className="w-full text-xs h-7"
-            >
-              <Plus className="h-3 w-3 ml-1" />
-              הפעל יום
-            </Button>
-          )}
-        </div>
-
         {/* Exercises Table */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {isDayActive ? (
@@ -1317,37 +1294,35 @@ const DayColumn = ({
         </div>
 
         {/* Quick Add Footer */}
-        {isDayActive && (
-          <div className="p-2 border-t border-gray-200 bg-white flex-shrink-0 space-y-2">
-            <SelectExerciseFromDatabase
-              onSelect={(exercise) => {
+        <div className="p-2 border-t border-gray-200 bg-white flex-shrink-0 space-y-2">
+          <SelectExerciseFromDatabase
+            onSelect={(exercise) => {
+              onAddExercise({
+                id: `${Date.now()}-${Math.random()}`,
+                name: exercise.name,
+                sets: 3,
+                reps: exercise.repetitions || 10,
+                order: '',
+                image_url: exercise.image || undefined,
+                video_url: exercise.video_link || undefined,
+              });
+            }}
+          />
+
+          <ManualExerciseInput
+            onAdd={(name) => {
+              if (name.trim()) {
                 onAddExercise({
                   id: `${Date.now()}-${Math.random()}`,
-                  name: exercise.name,
+                  name: name.trim(),
                   sets: 3,
-                  reps: exercise.repetitions || 10,
+                  reps: 10,
                   order: '',
-                  image_url: exercise.image || undefined,
-                  video_url: exercise.video_link || undefined,
                 });
-              }}
-            />
-
-            <ManualExerciseInput
-              onAdd={(name) => {
-                if (name.trim()) {
-                  onAddExercise({
-                    id: `${Date.now()}-${Math.random()}`,
-                    name: name.trim(),
-                    sets: 3,
-                    reps: 10,
-                    order: '',
-                  });
-                }
-              }}
-            />
-          </div>
-        )}
+              }
+            }}
+          />
+        </div>
       </div>
 
       {/* Duplicate Day Dialog */}

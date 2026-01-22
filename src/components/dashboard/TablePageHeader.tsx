@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TableFilter } from '@/components/dashboard/TableFilter';
 import { FilterChips } from '@/components/dashboard/FilterChips';
-import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
 import { TemplateColumnSettings } from '@/components/dashboard/TemplateColumnSettings';
 import { GenericColumnSettings } from '@/components/dashboard/GenericColumnSettings';
 import { PageHeader } from '@/components/dashboard/PageHeader';
@@ -12,7 +11,6 @@ import { Columns, Plus, LucideIcon } from 'lucide-react';
 import { useTableFilters, type FilterField } from '@/hooks/useTableFilters';
 import type { ActiveFilter, FilterGroup } from '@/components/dashboard/TableFilter';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, selectColumnSizing, selectColumnVisibility, type ResourceKey } from '@/store/slices/tableStateSlice';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { cn } from '@/lib/utils';
@@ -148,32 +146,20 @@ export const TablePageHeader = ({
     setEditingFilter(null);
   };
 
-  // Get column visibility from Redux for leads (legacy dashboardSlice)
-  const leadsColumnVisibility = resourceKey === 'leads' 
-    ? useAppSelector((state) => state.dashboard.columnVisibility)
-    : undefined;
-
   const handleToggleColumn = (columnId: string) => {
-    if (resourceKey === 'leads') {
-      // Legacy leads column visibility in dashboardSlice
-      dispatch(toggleColumnVisibility(columnId as any));
-    } else if (useTemplateColumnSettings && onToggleTemplateColumn) {
-      // Template column settings - use provided handler
+    if (useTemplateColumnSettings && onToggleTemplateColumn) {
       onToggleTemplateColumn(columnId);
-    } else {
-      // Use new tableStateSlice for other resources
-      dispatch(toggleTableColumnVisibility({ resourceKey, columnId }));
+      return;
     }
+    dispatch(toggleTableColumnVisibility({ resourceKey, columnId }));
   };
 
   // Get column order from Redux
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
   const columnSizing = useAppSelector((state) => selectColumnSizing(state, resourceKey));
   
-  // Get column visibility from Redux (for non-leads resources)
-  const reduxColumnVisibility = resourceKey !== 'leads' 
-    ? useAppSelector((state) => selectColumnVisibility(state, resourceKey))
-    : undefined;
+  // Get column visibility from Redux
+  const reduxColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, resourceKey));
 
   // Check if filters are currently active (applied to the page)
   const hasActiveFilters = useMemo(() => {
@@ -249,9 +235,7 @@ export const TablePageHeader = ({
     
     // Compare column visibility
     // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
-    const currentColumnVisibility = resourceKey === 'leads' 
-      ? leadsColumnVisibility || {}
-      : (reduxColumnVisibility || {});
+    const currentColumnVisibility = reduxColumnVisibility || {};
     
     // Normalize column visibility for comparison (sort keys for consistent comparison)
     const currentColumnVisibilityStr = JSON.stringify(
@@ -278,7 +262,7 @@ export const TablePageHeader = ({
     
     // Filters are dirty if filters changed, search query changed, or column visibility changed
     return filtersChanged || searchQueryChanged || columnVisibilityChanged || columnOrderChanged;
-  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, leadsColumnVisibility, reduxColumnVisibility, columnOrder, columns]);
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, reduxColumnVisibility, columnOrder, columns]);
 
   // Handle saving filters to default view
   const handleSaveFilters = async () => {
@@ -294,9 +278,7 @@ export const TablePageHeader = ({
 
     try {
       // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
-      const currentColumnVisibility = resourceKey === 'leads' 
-        ? leadsColumnVisibility || {}
-        : (reduxColumnVisibility || {});
+      const currentColumnVisibility = reduxColumnVisibility || {};
 
       const currentColumnOrder = columns && columns.length > 0
         ? columns
@@ -368,16 +350,6 @@ export const TablePageHeader = ({
           resourceKey={resourceKey}
           columns={columns}
           columnOrder={columnOrder.length > 0 ? columnOrder : columns.map((col) => col.id)}
-        />
-      );
-    }
-    
-    // Leads: fallback to legacy ColumnSettings component (only if columns not provided)
-    if (resourceKey === 'leads' && leadsColumnVisibility) {
-      return (
-        <ColumnSettings
-          columnVisibility={leadsColumnVisibility}
-          onToggleColumn={handleToggleColumn as any}
         />
       );
     }

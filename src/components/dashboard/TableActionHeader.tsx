@@ -18,13 +18,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { TableFilter } from '@/components/dashboard/TableFilter';
 import { FilterChips } from '@/components/dashboard/FilterChips';
-import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
 import { TemplateColumnSettings } from '@/components/dashboard/TemplateColumnSettings';
 import { GenericColumnSettings } from '@/components/dashboard/GenericColumnSettings';
 import { PageHeader } from '@/components/dashboard/PageHeader';
-import { Columns, Plus, Settings, LucideIcon, Group, X, Save, ChevronDown, ChevronUp } from 'lucide-react';
+import { Columns, Plus, Settings, LucideIcon, Group, X, Save, ChevronDown } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   toggleColumnVisibility as toggleTableColumnVisibility,
@@ -40,10 +38,8 @@ import {
   selectSearchQuery,
   selectActiveFilters,
   selectFilterGroup,
-  selectGroupByKey,
   selectGroupByKeys,
   selectGroupSorting,
-  setGroupByKey,
   setGroupByKeys,
   setGroupSorting,
   initializeTableState,
@@ -98,18 +94,6 @@ interface TableActionHeaderProps {
   
   // Function to get all group keys for collapse/expand all functionality
   getAllGroupKeys?: () => string[];
-  
-  // Legacy support: For leads, we still use dashboardSlice for search/filters
-  // If these are provided, they override Redux state
-  legacySearchQuery?: string;
-  legacyOnSearchChange?: (value: string) => void;
-  legacyActiveFilters?: any[];
-  legacyFilterGroup?: FilterGroup;
-  legacyOnFilterAdd?: (filter: any) => void;
-  legacyOnFilterUpdate?: (filter: any) => void;
-  legacyOnFilterRemove?: (filterId: string) => void;
-  legacyOnFilterClear?: () => void;
-  legacyOnFilterGroupChange?: (group: FilterGroup) => void;
 }
 
 export const TableActionHeader = ({
@@ -136,15 +120,6 @@ export const TableActionHeader = ({
   onToggleTemplateColumn,
   columns,
   getAllGroupKeys,
-  legacySearchQuery,
-  legacyOnSearchChange,
-  legacyActiveFilters,
-  legacyFilterGroup,
-  legacyOnFilterAdd,
-  legacyOnFilterUpdate,
-  legacyOnFilterRemove,
-  legacyOnFilterClear,
-  legacyOnFilterGroupChange,
 }: TableActionHeaderProps) => {
   const dispatch = useAppDispatch();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -177,91 +152,50 @@ export const TableActionHeader = ({
     }
   }, [dispatch, resourceKey, columns, isInitialized]);
 
-  // Get state from Redux (or use legacy props for leads)
+  // Get state from Redux
   const reduxSearchQuery = useAppSelector((state) => selectSearchQuery(state, resourceKey));
   const reduxActiveFilters = useAppSelector((state) => selectActiveFilters(state, resourceKey));
   const reduxFilterGroup = useAppSelector((state) => selectFilterGroup(state, resourceKey));
 
-  // Use legacy props when provided, Redux otherwise
-  const searchQuery = legacySearchQuery !== undefined 
-    ? legacySearchQuery 
-    : reduxSearchQuery;
-  
-  const activeFilters = legacyActiveFilters !== undefined
-    ? legacyActiveFilters
-    : reduxActiveFilters;
-
-  const filterGroup = legacyFilterGroup !== undefined
-    ? legacyFilterGroup
-    : reduxFilterGroup;
+  const searchQuery = reduxSearchQuery;
+  const activeFilters = reduxActiveFilters;
+  const filterGroup = reduxFilterGroup;
 
   // Handle search change
   const handleSearchChange = (value: string) => {
-    if (legacyOnSearchChange) {
-      legacyOnSearchChange(value);
-    } else {
-      dispatch(setSearchQuery({ resourceKey, query: value }));
-    }
+    dispatch(setSearchQuery({ resourceKey, query: value }));
   };
 
   // Handle filter actions
   const handleAddFilter = (filter: any) => {
-    if (legacyOnFilterAdd) {
-      legacyOnFilterAdd(filter);
-    } else {
-      dispatch(addFilterAction({ resourceKey, filter }));
-    }
+    dispatch(addFilterAction({ resourceKey, filter }));
   };
 
   const handleUpdateFilter = (filter: any) => {
-    if (legacyOnFilterUpdate) {
-      legacyOnFilterUpdate(filter);
-    } else {
-      dispatch(updateFilterAction({ resourceKey, filter }));
-    }
+    dispatch(updateFilterAction({ resourceKey, filter }));
   };
 
   const handleRemoveFilter = (filterId: string) => {
-    if (legacyOnFilterRemove) {
-      legacyOnFilterRemove(filterId);
-    } else {
-      dispatch(removeFilterAction({ resourceKey, filterId }));
-    }
+    dispatch(removeFilterAction({ resourceKey, filterId }));
     if (editingFilter?.id === filterId) {
       setEditingFilter(null);
     }
   };
 
   const handleClearFilters = () => {
-    if (legacyOnFilterClear) {
-      legacyOnFilterClear();
-    } else {
-      dispatch(clearFiltersAction({ resourceKey }));
-    }
+    dispatch(clearFiltersAction({ resourceKey }));
     setEditingFilter(null);
   };
 
   const handleFilterGroupChange = (group: FilterGroup) => {
-    if (legacyOnFilterGroupChange) {
-      legacyOnFilterGroupChange(group);
-    } else {
-      dispatch(setActiveFilters({ resourceKey, filters: group }));
-    }
+    dispatch(setActiveFilters({ resourceKey, filters: group }));
   };
-
-  // Get column visibility from Redux for leads (legacy dashboardSlice)
-  const leadsColumnVisibility = resourceKey === 'leads' 
-    ? useAppSelector((state) => state.dashboard.columnVisibility)
-    : undefined;
 
   const handleToggleColumn = (columnId: string) => {
     // Priority: Use Redux tableStateSlice for all resources when columns are provided
     // This ensures column visibility syncs with DataTable
     if (columns && columns.length > 0) {
       dispatch(toggleTableColumnVisibility({ resourceKey, columnId }));
-    } else if (resourceKey === 'leads') {
-      // Legacy leads column visibility in dashboardSlice (fallback)
-      dispatch(toggleColumnVisibility(columnId as any));
     } else if (useTemplateColumnSettings && onToggleTemplateColumn) {
       // Template column settings - use provided handler (fallback)
       onToggleTemplateColumn(columnId);
@@ -275,23 +209,12 @@ export const TableActionHeader = ({
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
   const columnSizing = useAppSelector((state) => selectColumnSizing(state, resourceKey));
   
-  // Get column visibility from Redux (for non-leads resources)
-  const reduxColumnVisibility = resourceKey !== 'leads' 
-    ? useAppSelector((state) => selectColumnVisibility(state, resourceKey))
-    : undefined;
-  
-  // Get groupByKey from Redux (legacy)
-  const groupByKey = useAppSelector((state) => selectGroupByKey(state, resourceKey));
+  // Get column visibility from Redux
+  const reduxColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, resourceKey));
   
   // Get multi-level grouping from Redux
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, resourceKey));
   const groupSorting = useAppSelector((state) => selectGroupSorting(state, resourceKey));
-  
-  // Handle group by change (legacy - for backward compatibility)
-  const handleGroupByChange = (key: string | null) => {
-    dispatch(setGroupByKey({ resourceKey, groupByKey: key }));
-    setIsGroupByOpen(false);
-  };
 
   // Handle multi-level group by change
   const handleGroupByKeysChange = (keys: [string | null, string | null]) => {
@@ -361,16 +284,6 @@ export const TableActionHeader = ({
         <TemplateColumnSettings
           columnVisibility={templateColumnVisibility}
           onToggleColumn={onToggleTemplateColumn}
-        />
-      );
-    }
-    
-    // Fallback 2: Leads legacy ColumnSettings (for backward compatibility if columns not provided)
-    if (resourceKey === 'leads' && leadsColumnVisibility) {
-      return (
-        <ColumnSettings
-          columnVisibility={leadsColumnVisibility}
-          onToggleColumn={handleToggleColumn as any}
         />
       );
     }
@@ -454,9 +367,7 @@ export const TableActionHeader = ({
     
     // Compare column visibility
     // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
-    const currentColumnVisibility = resourceKey === 'leads' 
-      ? leadsColumnVisibility || {}
-      : (reduxColumnVisibility || {});
+    const currentColumnVisibility = reduxColumnVisibility || {};
     
     // Normalize column visibility for comparison (sort keys for consistent comparison)
     const currentColumnVisibilityStr = JSON.stringify(
@@ -483,7 +394,7 @@ export const TableActionHeader = ({
     
     // Filters are dirty if filters changed, search query changed, or column visibility changed
     return filtersChanged || searchQueryChanged || columnVisibilityChanged || columnOrderChanged;
-  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, leadsColumnVisibility, reduxColumnVisibility, columnOrder, columns]);
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, reduxColumnVisibility, columnOrder, columns]);
 
   // Handle saving filters to default view
   const handleSaveFilters = async () => {
@@ -499,9 +410,7 @@ export const TableActionHeader = ({
 
     try {
       // Get current column visibility - use Redux for non-leads, dashboardSlice for leads
-      const currentColumnVisibility = resourceKey === 'leads' 
-        ? leadsColumnVisibility || {}
-        : (reduxColumnVisibility || {});
+      const currentColumnVisibility = reduxColumnVisibility || {};
 
       const currentColumnOrder = columns && columns.length > 0
         ? columns
