@@ -8,11 +8,11 @@ import type { DataTableColumn } from '@/components/ui/DataTable';
 import type { FilterField, FilterOperator } from '@/components/dashboard/TableFilter';
 
 const DEFAULT_OPERATORS: Record<string, FilterOperator[]> = {
-  select: ['is', 'isNot'],
-  multiselect: ['is', 'isNot'],
-  date: ['equals', 'before', 'after', 'between'],
-  number: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
-  text: ['contains', 'notContains', 'equals', 'notEquals'],
+  select: ['is', 'isNot', 'hasData', 'noData'],
+  multiselect: ['is', 'isNot', 'hasData', 'noData'],
+  date: ['equals', 'before', 'after', 'between', 'hasData', 'noData'],
+  number: ['equals', 'greaterThan', 'lessThan', 'notEquals', 'hasData', 'noData'],
+  text: ['contains', 'notContains', 'equals', 'notEquals', 'hasData', 'noData'],
 };
 
 /**

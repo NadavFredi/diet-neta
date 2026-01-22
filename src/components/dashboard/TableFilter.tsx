@@ -25,7 +25,7 @@ import { FilterGroupDialog } from '@/components/dashboard/FilterGroupDialog';
 import { isAdvancedFilterGroup } from '@/utils/filterGroupUtils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-export type FilterOperator = 'is' | 'isNot' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'before' | 'after' | 'between';
+export type FilterOperator = 'is' | 'isNot' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'before' | 'after' | 'between' | 'hasData' | 'noData';
 
 export type FilterType = 'select' | 'multiselect' | 'date' | 'number' | 'text';
 
@@ -90,14 +90,16 @@ export const OPERATOR_LABELS: Record<FilterOperator, string> = {
   before: 'לפני',
   after: 'אחרי',
   between: 'בין',
+  hasData: 'מכיל מידע',
+  noData: 'לא מכיל מידע',
 };
 
 const DEFAULT_OPERATORS: Record<FilterType, FilterOperator[]> = {
-  select: ['is', 'isNot'],
-  multiselect: ['is', 'isNot'],
-  date: ['equals', 'before', 'after', 'between'],
-  number: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
-  text: ['contains', 'notContains', 'equals', 'notEquals'],
+  select: ['is', 'isNot', 'hasData', 'noData'],
+  multiselect: ['is', 'isNot', 'hasData', 'noData'],
+  date: ['equals', 'before', 'after', 'between', 'hasData', 'noData'],
+  number: ['equals', 'greaterThan', 'lessThan', 'notEquals', 'hasData', 'noData'],
+  text: ['contains', 'notContains', 'equals', 'notEquals', 'hasData', 'noData'],
 };
 
 export const TableFilter: React.FC<TableFilterProps> = ({
@@ -127,6 +129,14 @@ export const TableFilter: React.FC<TableFilterProps> = ({
   const [valueSearchQuery, setValueSearchQuery] = useState('');
   const [editingFilterId, setEditingFilterId] = useState<string | null>(null);
   const isAdvancedGroup = isAdvancedFilterGroup(filterGroup);
+  const isValueLessOperator = (operator: FilterOperator | null) => operator === 'hasData' || operator === 'noData';
+  const getOperatorsForField = (field: FilterField) => {
+    const base = field.operators || DEFAULT_OPERATORS[field.type];
+    const extras: FilterOperator[] = ['hasData', 'noData'];
+    const set = new Set<FilterOperator>(base);
+    extras.forEach((op) => set.add(op));
+    return Array.from(set);
+  };
 
   useEffect(() => {
     if (!editFilter) return;
@@ -176,7 +186,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
     setValueSearchQuery(''); // Reset search when field changes
 
     // Set default operator
-    const operators = field.operators || DEFAULT_OPERATORS[field.type];
+    const operators = getOperatorsForField(field);
     if (operators.length > 0) {
       setSelectedOperator(operators[0]);
     }
@@ -184,6 +194,11 @@ export const TableFilter: React.FC<TableFilterProps> = ({
 
   const handleOperatorSelect = (operator: FilterOperator) => {
     setSelectedOperator(operator);
+    if (isValueLessOperator(operator)) {
+      setSelectedValues([]);
+      setDateRange(null);
+      return;
+    }
     if (selectedField?.type === 'date') {
       if (operator === 'between') {
         setDateRange({ mode: 'range' });
@@ -240,7 +255,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
       values = selectedValues;
     }
 
-    if (values.length === 0 && selectedField.type !== 'date') return;
+    if (!isValueLessOperator(selectedOperator) && values.length === 0 && selectedField.type !== 'date') return;
 
     const newFilter: ActiveFilter = {
       id: editingFilterId || `${selectedField.id}-${Date.now()}`,
@@ -277,6 +292,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
       return dateRange?.from !== undefined;
     }
 
+    if (isValueLessOperator(selectedOperator)) return true;
     return selectedValues.length > 0;
   };
 
@@ -470,7 +486,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                       תנאי
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {(selectedField.operators || DEFAULT_OPERATORS[selectedField.type]).map((op) => (
+                      {getOperatorsForField(selectedField).map((op) => (
                         <Button
                           key={op}
                           variant={selectedOperator === op ? 'default' : 'outline'}
@@ -490,7 +506,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
                   </div>
 
                   {/* Value Selection */}
-                  {selectedOperator && (
+                  {selectedOperator && !isValueLessOperator(selectedOperator) && (
                     <div>
                       <label className="text-sm font-medium text-gray-700 mb-2 block">
                         ערך

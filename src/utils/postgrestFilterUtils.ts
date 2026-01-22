@@ -6,7 +6,7 @@ type PostgrestOperator = 'eq' | 'gt' | 'lt' | 'gte' | 'lte' | 'ilike' | 'in' | '
 export interface PostgrestCondition {
   column: string;
   operator: PostgrestOperator;
-  value: string | number | boolean | Array<string | number | boolean>;
+  value: string | number | boolean | null | Array<string | number | boolean>;
   negate?: boolean;
 }
 
@@ -73,6 +73,43 @@ const resolveFilterDnf = (
   const values = filter.values.map(mapValue);
 
   const wrap = (condition: PostgrestCondition): FilterDnf => [[condition]];
+  const isValuePresentType = type === 'text' || type === 'select' || type === 'multiselect';
+
+  if (filter.operator === 'hasData' || filter.operator === 'noData') {
+    const wantsData = filter.operator === 'hasData';
+    const hasData = negate ? !wantsData : wantsData;
+
+    if (isArray) {
+      if (hasData) {
+        return [[
+          { column, operator: 'eq', value: null, negate: true },
+          { column, operator: 'eq', value: '{}', negate: true },
+        ]];
+      }
+      return [
+        [{ column, operator: 'eq', value: null }],
+        [{ column, operator: 'eq', value: '{}' }],
+      ];
+    }
+
+    if (hasData) {
+      if (isValuePresentType) {
+        return [[
+          { column, operator: 'eq', value: null, negate: true },
+          { column, operator: 'eq', value: '', negate: true },
+        ]];
+      }
+      return [[{ column, operator: 'eq', value: null, negate: true }]];
+    }
+
+    if (isValuePresentType) {
+      return [
+        [{ column, operator: 'eq', value: null }],
+        [{ column, operator: 'eq', value: '' }],
+      ];
+    }
+    return [[{ column, operator: 'eq', value: null }]];
+  }
 
   switch (type) {
     case 'text': {
@@ -307,4 +344,3 @@ export const applyFilterGroupToQuery = <TQuery>(
   if (!expression) return query;
   return (query as any).or(expression);
 };
-

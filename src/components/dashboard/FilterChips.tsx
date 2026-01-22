@@ -33,6 +33,10 @@ export const FilterChips: React.FC<FilterChipsProps> = ({
   if (filters.length === 0) return null;
 
   const formatFilterValue = (filter: ActiveFilter): string => {
+    if (filter.operator === 'hasData' || filter.operator === 'noData') {
+      return '—';
+    }
+
     if (filter.type === 'date') {
       if (filter.operator === 'between' && filter.values.length === 2) {
         try {
@@ -55,7 +59,7 @@ export const FilterChips: React.FC<FilterChipsProps> = ({
       return `${filter.values.slice(0, 2).join(', ')} +${filter.values.length - 2}`;
     }
     
-    return filter.values.join(', ');
+    return filter.values.length > 0 ? filter.values.join(', ') : '—';
   };
 
   const renderFilterBadge = (filter: ActiveFilter) => (
@@ -158,7 +162,6 @@ export const FilterChips: React.FC<FilterChipsProps> = ({
     </div>
   );
 };
-
 
 
 

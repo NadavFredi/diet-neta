@@ -163,7 +163,7 @@ export const PageHeader = ({
                 <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-tight truncate">
                   {title}
                   {dataCount !== undefined && (
-                    <span className="text-gray-500 font-normal ml-1">
+                    <span className="text-gray-500 font-normal mx-2">
                       ({dataCount})
                     </span>
                   )}

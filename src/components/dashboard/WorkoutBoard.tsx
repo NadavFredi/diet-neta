@@ -7,6 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Calendar } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -30,10 +38,15 @@ import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useWorkoutBoard, DAYS } from '@/hooks/useWorkoutBoard';
 import type { Exercise, WeeklyWorkout } from '@/components/dashboard/WeeklyWorkoutBuilder';
-import { QuickAddExercise } from './QuickAddExercise';
 import { SelectExerciseFromDatabase } from './SelectExerciseFromDatabase';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import {
   Select,
   SelectContent,
@@ -104,20 +117,20 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
           cacheControl: '3600',
           upsert: false,
         });
-  
+
       if (uploadError) {
         throw new Error(uploadError.message || 'שגיאה בהעלאת התמונה');
       }
-  
+
       // Generate signed URL (valid for 1 year) since bucket is private
       const { data: urlData, error: urlError } = await supabase.storage
         .from('client-assets')
         .createSignedUrl(filePath, 31536000); // 1 year expiration
-  
+
       if (urlError) {
         throw new Error(urlError.message || 'לא ניתן לקבל קישור לתמונה');
       }
-  
+
       if (urlData?.signedUrl) {
         onUpdate({ image_url: urlData.signedUrl });
       } else {
@@ -150,20 +163,20 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
           cacheControl: '3600',
           upsert: false,
         });
-  
+
       if (uploadError) {
         throw new Error(uploadError.message || 'שגיאה בהעלאת הווידאו');
       }
-  
+
       // Generate signed URL (valid for 1 year) since bucket is private
       const { data: urlData, error: urlError } = await supabase.storage
         .from('client-assets')
         .createSignedUrl(filePath, 31536000); // 1 year expiration
-  
+
       if (urlError) {
         throw new Error(urlError.message || 'לא ניתן לקבל קישור לווידאו');
       }
-  
+
       if (urlData?.signedUrl) {
         onUpdate({ video_url: urlData.signedUrl });
       } else {
@@ -232,7 +245,7 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
                   className="h-7 text-sm font-semibold border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-gray-900 placeholder:text-gray-400 w-full"
                   placeholder="שם התרגיל"
                   dir="rtl"
-                  style={{ 
+                  style={{
                     overflowX: 'auto',
                     overflowY: 'hidden',
                     textOverflow: 'clip'
@@ -388,7 +401,7 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
                 <span className="text-xs font-medium whitespace-nowrap">חזרות</span>
               </div>
             </div>
-            
+
             {/* Media Thumbnails */}
             {(exercise.image_url || exercise.video_url) && (
               <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -604,6 +617,451 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
   );
 };
 
+const ExerciseRow = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: ExerciseCardProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({
+    id: `${dayKey}-${exercise.id}`,
+  });
+
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [videoUrlInput, setVideoUrlInput] = useState('');
+  const [isImageUrlDialogOpen, setIsImageUrlDialogOpen] = useState(false);
+  const [isVideoUrlDialogOpen, setIsVideoUrlDialogOpen] = useState(false);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isSortableDragging ? 0.5 : 1,
+  };
+
+  const handleImageFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${exercise.id}-${Date.now()}.${fileExt}`;
+      const filePath = `workout-exercises/${exercise.id}/images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('client-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message || 'שגיאה בהעלאת התמונה');
+      }
+
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from('client-assets')
+        .createSignedUrl(filePath, 31536000);
+
+      if (urlError) {
+        throw new Error(urlError.message || 'לא ניתן לקבל קישור לתמונה');
+      }
+
+      if (urlData?.signedUrl) {
+        onUpdate({ image_url: urlData.signedUrl });
+      } else {
+        throw new Error('לא ניתן לקבל קישור לתמונה');
+      }
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.error?.message || 'שגיאה בהעלאת התמונה';
+      alert(`שגיאה בהעלאת התמונה: ${errorMessage}`);
+    } finally {
+      setIsUploading(false);
+      if (imageFileInputRef.current) {
+        imageFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleVideoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !file.type.startsWith('video/')) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${exercise.id}-${Date.now()}.${fileExt}`;
+      const filePath = `workout-exercises/${exercise.id}/videos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('client-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message || 'שגיאה בהעלאת הווידאו');
+      }
+
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from('client-assets')
+        .createSignedUrl(filePath, 31536000);
+
+      if (urlError) {
+        throw new Error(urlError.message || 'לא ניתן לקבל קישור לווידאו');
+      }
+
+      if (urlData?.signedUrl) {
+        onUpdate({ video_url: urlData.signedUrl });
+      } else {
+        throw new Error('לא ניתן לקבל קישור לווידאו');
+      }
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.error?.message || 'שגיאה בהעלאת הווידאו';
+      alert(`שגיאה בהעלאת הווידאו: ${errorMessage}`);
+    } finally {
+      setIsUploading(false);
+      if (videoFileInputRef.current) {
+        videoFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleImageUrlSubmit = () => {
+    if (imageUrlInput.trim()) {
+      onUpdate({ image_url: imageUrlInput.trim() });
+      setImageUrlInput('');
+      setIsImageUrlDialogOpen(false);
+    }
+  };
+
+  const handleVideoUrlSubmit = () => {
+    if (videoUrlInput.trim()) {
+      onUpdate({ video_url: videoUrlInput.trim() });
+      setVideoUrlInput('');
+      setIsVideoUrlDialogOpen(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    onUpdate({ image_url: undefined });
+  };
+
+  const handleRemoveVideo = () => {
+    onUpdate({ video_url: undefined });
+  };
+
+  return (
+    <>
+      <TableRow
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          'hover:bg-gray-50',
+          isDragging && 'opacity-50'
+        )}
+        dir="rtl"
+      >
+        <TableCell className="w-[40px]">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+          >
+            <GripVertical className="h-4 w-4" />
+          </div>
+        </TableCell>
+        <TableCell>
+          <Input
+            value={exercise.name}
+            onChange={(e) => onUpdate({ name: e.target.value })}
+            className="h-8 text-sm border-gray-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+            placeholder="שם התרגיל"
+            dir="rtl"
+          />
+        </TableCell>
+        <TableCell className="w-[100px]">
+          <Input
+            type="number"
+            value={exercise.sets}
+            onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 0 })}
+            className="h-8 w-16 text-center border-gray-300 text-xs font-medium focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+            dir="ltr"
+          />
+        </TableCell>
+        <TableCell className="w-[100px]">
+          <Input
+            type="number"
+            value={exercise.reps}
+            onChange={(e) => onUpdate({ reps: parseInt(e.target.value) || 0 })}
+            className="h-8 w-16 text-center border-gray-300 text-xs font-medium focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+            dir="ltr"
+          />
+        </TableCell>
+        <TableCell className="w-[120px]">
+          <div className="flex items-center justify-center gap-1">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                  onClick={(e) => e.stopPropagation()}
+                  disabled={isUploading}
+                >
+                  <Image className={cn('h-3.5 w-3.5', exercise.image_url && 'text-blue-600')} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3" dir="rtl" onClick={(e) => e.stopPropagation()}>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => {
+                      imageFileInputRef.current?.click();
+                    }}
+                    disabled={isUploading}
+                  >
+                    <Image className="h-3 w-3 ml-1" />
+                    העלה תמונה
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => setIsImageUrlDialogOpen(true)}
+                    disabled={isUploading}
+                  >
+                    <Image className="h-3 w-3 ml-1" />
+                    הוסף קישור תמונה
+                  </Button>
+                  {exercise.image_url && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs text-red-600 hover:text-red-700"
+                      onClick={handleRemoveImage}
+                    >
+                      <X className="h-3 w-3 ml-1" />
+                      הסר תמונה
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                  onClick={(e) => e.stopPropagation()}
+                  disabled={isUploading}
+                >
+                  <Video className={cn('h-3.5 w-3.5', exercise.video_url && 'text-blue-600')} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3" dir="rtl" onClick={(e) => e.stopPropagation()}>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => {
+                      videoFileInputRef.current?.click();
+                    }}
+                    disabled={isUploading}
+                  >
+                    <Video className="h-3 w-3 ml-1" />
+                    העלה וידאו
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => setIsVideoUrlDialogOpen(true)}
+                    disabled={isUploading}
+                  >
+                    <PlayCircle className="h-3 w-3 ml-1" />
+                    הוסף קישור וידאו
+                  </Button>
+                  {exercise.video_url && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs text-red-600 hover:text-red-700"
+                      onClick={handleRemoveVideo}
+                    >
+                      <X className="h-3 w-3 ml-1" />
+                      הסר וידאו
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            {(exercise.image_url || exercise.video_url) && (
+              <div className="flex items-center gap-1">
+                {exercise.image_url && (
+                  <img
+                    src={exercise.image_url}
+                    alt={exercise.name}
+                    className="h-6 w-6 object-cover rounded border border-gray-200 cursor-pointer hover:border-blue-400"
+                    onClick={() => setIsImageModalOpen(true)}
+                  />
+                )}
+                {exercise.video_url && (
+                  <div
+                    className="h-6 w-6 rounded border border-gray-200 cursor-pointer hover:border-blue-400 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
+                    onClick={() => setIsVideoModalOpen(true)}
+                  >
+                    <PlayCircle className="h-3 w-3 text-gray-700" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </TableCell>
+        <TableCell className="w-[50px]">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50"
+            onClick={onRemove}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </TableCell>
+      </TableRow>
+
+      {/* Hidden file inputs */}
+      <input
+        ref={imageFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageFileUpload}
+      />
+      <input
+        ref={videoFileInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={handleVideoFileUpload}
+      />
+
+      {/* Image URL Input Dialog */}
+      <Dialog open={isImageUrlDialogOpen} onOpenChange={setIsImageUrlDialogOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="image-url" className="text-right">
+                קישור תמונה
+              </Label>
+              <Input
+                id="image-url"
+                value={imageUrlInput}
+                onChange={(e) => setImageUrlInput(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className="mt-1"
+                dir="ltr"
+              />
+            </div>
+            <div className="flex justify-start gap-2">
+              <Button onClick={handleImageUrlSubmit}>הוסף</Button>
+              <Button variant="outline" onClick={() => setIsImageUrlDialogOpen(false)}>
+                ביטול
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Video URL Input Dialog */}
+      <Dialog open={isVideoUrlDialogOpen} onOpenChange={setIsVideoUrlDialogOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="video-url" className="text-right">
+                קישור וידאו
+              </Label>
+              <Input
+                id="video-url"
+                value={videoUrlInput}
+                onChange={(e) => setVideoUrlInput(e.target.value)}
+                placeholder="https://example.com/video.mp4"
+                className="mt-1"
+                dir="ltr"
+              />
+            </div>
+            <div className="flex justify-start gap-2">
+              <Button onClick={handleVideoUrlSubmit}>הוסף</Button>
+              <Button variant="outline" onClick={() => setIsVideoUrlDialogOpen(false)}>
+                ביטול
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Modal */}
+      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+        <DialogContent className="max-w-4xl" dir="rtl">
+          <div className="relative w-full h-[80vh] flex items-center justify-center bg-black rounded-lg overflow-hidden">
+            {exercise.image_url && (
+              <img
+                src={exercise.image_url}
+                alt={exercise.name}
+                className="max-w-full max-h-full object-contain"
+              />
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 left-2 text-white hover:bg-white/20"
+              onClick={() => setIsImageModalOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Video Modal */}
+      <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
+        <DialogContent className="max-w-4xl" dir="rtl">
+          <div className="relative w-full h-[80vh] flex items-center justify-center bg-black rounded-lg overflow-hidden">
+            {exercise.video_url && (
+              <video
+                src={exercise.video_url}
+                controls
+                className="w-full h-full"
+                autoPlay
+              />
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 left-2 text-white hover:bg-white/20"
+              onClick={() => setIsVideoModalOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
 interface ManualExerciseInputProps {
   onAdd: (name: string) => void;
 }
@@ -656,8 +1114,8 @@ const ManualExerciseInput = ({ onAdd }: ManualExerciseInputProps) => {
                   e.stopPropagation();
                   // Manually trigger submit with a synthetic event
                   const syntheticEvent = {
-                    preventDefault: () => {},
-                    stopPropagation: () => {},
+                    preventDefault: () => { },
+                    stopPropagation: () => { },
                   } as React.FormEvent;
                   handleSubmit(syntheticEvent);
                 }
@@ -728,7 +1186,7 @@ const DayColumn = ({
   const totalSets = (dayData?.exercises || []).reduce((sum, ex) => sum + ex.sets, 0);
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
   const [selectedTargetDay, setSelectedTargetDay] = useState<string>('');
-  
+
   const { setNodeRef, isOver } = useDroppable({
     id: `${dayKey}-column`,
   });
@@ -753,34 +1211,19 @@ const DayColumn = ({
   };
 
   return (
-    <div className="flex flex-col h-full flex-1 min-w-0" style={{ flex: '1 1 0%' }} dir="rtl">
-      <Card 
+    <>
+      <div
         ref={setNodeRef}
         className={cn(
-          'flex-1 flex flex-col bg-gray-50 border-2 overflow-hidden transition-colors',
+          'flex flex-col bg-gray-50 border-2 transition-colors',
           isOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
         )}
+        dir="rtl"
       >
-        {/* Day Header */}
+        {/* Day Actions */}
         <div className="p-2 bg-white border-b border-gray-200 flex-shrink-0">
-          <div className="flex items-center justify-between mb-1.5">
-            <div>
-              <h3 className="font-semibold text-gray-900 text-sm">{dayLabel}</h3>
-              <p className="text-xs text-gray-500">{dayShort}</p>
-            </div>
-            <div className="flex items-center gap-1">
-              <Badge variant="outline" className="text-xs px-1.5 py-0">
-                {dayData?.exercises?.length || 0}
-              </Badge>
-              {totalSets > 0 && (
-                <Badge variant="outline" className="text-xs px-1.5 py-0">
-                  {totalSets}
-                </Badge>
-              )}
-            </div>
-          </div>
           {dayData?.isActive && (dayData?.exercises?.length || 0) > 0 && (
-            <div className="flex gap-1.5 mt-1.5">
+            <div className="flex gap-1.5">
               <Button
                 size="sm"
                 variant="outline"
@@ -806,37 +1249,48 @@ const DayColumn = ({
           )}
         </div>
 
-        {/* Exercises List */}
-        <div className="flex-1 overflow-y-auto p-2 min-h-0">
+        {/* Exercises Table */}
+        <div className="flex-1 overflow-y-auto min-h-0">
           {dayData?.isActive ? (
-            <SortableContext items={exerciseIds} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {(dayData?.exercises || []).map((exercise) => (
-                  <ExerciseCard
-                    key={exercise.id}
-                    exercise={exercise}
-                    dayKey={dayKey}
-                    onUpdate={(updates) => onUpdateExercise(exercise.id, updates)}
-                    onRemove={() => onRemoveExercise(exercise.id)}
-                    isDragging={activeId === `${dayKey}-${exercise.id}`}
-                  />
-                ))}
+            (dayData?.exercises?.length || 0) > 0 ? (
+              <SortableContext items={exerciseIds} strategy={verticalListSortingStrategy}>
+                <Table dir="rtl">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[40px]"></TableHead>
+                      <TableHead className="text-right">שם התרגיל</TableHead>
+                      <TableHead className="w-[100px] text-center">סטים</TableHead>
+                      <TableHead className="w-[100px] text-center">חזרות</TableHead>
+                      <TableHead className="w-[120px] text-center">מדיה</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(dayData?.exercises || []).map((exercise) => (
+                      <ExerciseRow
+                        key={exercise.id}
+                        exercise={exercise}
+                        dayKey={dayKey}
+                        onUpdate={(updates) => onUpdateExercise(exercise.id, updates)}
+                        onRemove={() => onRemoveExercise(exercise.id)}
+                        isDragging={activeId === `${dayKey}-${exercise.id}`}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </SortableContext>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center p-6 text-gray-400 border-2 border-dashed border-gray-300 rounded-lg m-4">
+                <p className="text-sm mb-2">אין תרגילים</p>
+                <p className="text-xs">גרור לכאן או לחץ למטה להוספה</p>
               </div>
-            </SortableContext>
+            )
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center p-6 text-gray-400">
               <Dumbbell className="h-12 w-12 mb-3 opacity-30" />
               <p className="text-sm mb-2">יום מנוחה</p>
               <p className="text-xs">לחץ על "הפעל יום" למעלה</p>
               <p className="text-xs">או הוסף תרגיל למטה</p>
-            </div>
-          )}
-
-          {/* Empty State when active but no exercises */}
-          {dayData?.isActive && (dayData?.exercises?.length || 0) === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center p-6 text-gray-400 border-2 border-dashed border-gray-300 rounded-lg">
-              <p className="text-sm mb-2">אין תרגילים</p>
-              <p className="text-xs">גרור לכאן או לחץ למטה להוספה</p>
             </div>
           )}
         </div>
@@ -856,16 +1310,7 @@ const DayColumn = ({
                 });
               }}
             />
-            <QuickAddExercise
-              onSelect={(name) => {
-                onAddExercise({
-                  id: `${Date.now()}-${Math.random()}`,
-                  name: name || '',
-                  sets: 3,
-                  reps: 10,
-                });
-              }}
-            />
+
             <ManualExerciseInput
               onAdd={(name) => {
                 if (name.trim()) {
@@ -880,12 +1325,12 @@ const DayColumn = ({
             />
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Duplicate Day Dialog */}
       <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
-        <DialogContent 
-          className="sm:max-w-md" 
+        <DialogContent
+          className="sm:max-w-md"
           dir="rtl"
           onInteractOutside={(e) => {
             // Prevent closing when clicking outside - only close via explicit action
@@ -943,7 +1388,7 @@ const DayColumn = ({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 
@@ -1140,44 +1585,17 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
         </div>
       </div>
 
-      {/* Quick Templates Bar */}
-      <div className="flex-shrink-0 px-3 py-1.5 border-b border-slate-100 bg-slate-50 flex items-center gap-2 flex-wrap" dir="rtl">
-        <span className="text-xs font-medium text-slate-600">תבניות מהירות:</span>
-        {(['push', 'pull', 'legs', 'upper', 'lower'] as const).map((template) => (
-          <Button
-            key={template}
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              // Apply to first active day or first day
-              const firstActiveDay = DAYS.find((d) => weeklyWorkout?.days?.[d.key as keyof typeof weeklyWorkout.days]?.isActive);
-              const targetDay = firstActiveDay?.key || DAYS[0].key;
-              copyFromTemplate(targetDay as any, template);
-            }}
-            className="h-7 text-xs"
-          >
-            {template === 'push' && 'דחיפה'}
-            {template === 'pull' && 'משיכה'}
-            {template === 'legs' && 'רגליים'}
-            {template === 'upper' && 'פלג עליון'}
-            {template === 'lower' && 'פלג תחתון'}
-          </Button>
-        ))}
-      </div>
 
-      {/* Kanban Board */}
-      <div className="flex-1 overflow-hidden min-h-0" style={{ flexGrow: 1, minHeight: 0 }}>
+
+      {/* Days Accordion List */}
+      <div className="flex-1 min-h-0" style={{ flexGrow: 1, minHeight: 0 }}>
         <DndContext
           sensors={dndContext.sensors}
           collisionDetection={dndContext.collisionDetection}
           onDragStart={dndContext.onDragStart}
           onDragEnd={dndContext.onDragEnd}
         >
-          <div
-            className="flex flex-wrap gap-2 p-2 h-full"
-            style={{ width: '100%', justifyContent: 'space-between' }}
-          >
+          <Accordion type="multiple" className="w-full" dir="rtl">
             {DAYS.map((day) => {
               const dayKey = day.key;
               const dayData = weeklyWorkout?.days?.[dayKey as keyof typeof weeklyWorkout.days] || {
@@ -1185,25 +1603,48 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
                 isActive: false,
                 exercises: [],
               };
-              
+
               return (
-                <DayColumn
-                  key={day.key}
-                  dayKey={day.key}
-                  dayLabel={day.label}
-                  dayShort={day.short}
-                  dayData={dayData}
-                  onAddExercise={(exercise) => addExercise(dayKey, exercise)}
-                  onUpdateExercise={(exerciseId, updates) => updateExercise(dayKey, exerciseId, updates)}
-                  onRemoveExercise={(exerciseId) => removeExercise(dayKey, exerciseId)}
-                  onActivateDay={() => updateDay(dayKey, { isActive: true })}
-                  onCopyTemplate={(template) => copyFromTemplate(dayKey, template)}
-                  onDuplicateDay={(targetDay) => duplicateDay(dayKey, targetDay)}
-                  activeId={activeId}
-                />
+                <AccordionItem key={day.key} value={day.key} className="border-b">
+                  <AccordionTrigger className="hover:no-underline px-4 py-3 bg-gray-50 hover:bg-gray-100">
+                    <div className="flex items-center justify-between w-full mr-4">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <h3 className="font-semibold text-gray-900 text-sm text-right">{day.label}</h3>
+                          <p className="text-xs text-gray-500 text-right">{day.short}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Badge variant="outline" className="text-xs px-1.5 py-0">
+                            {dayData?.exercises?.length || 0}
+                          </Badge>
+                          {(dayData?.exercises || []).reduce((sum, ex) => sum + ex.sets, 0) > 0 && (
+                            <Badge variant="outline" className="text-xs px-1.5 py-0">
+                              {(dayData?.exercises || []).reduce((sum, ex) => sum + ex.sets, 0)}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-0 pb-4">
+                    <DayColumn
+                      dayKey={day.key}
+                      dayLabel={day.label}
+                      dayShort={day.short}
+                      dayData={dayData}
+                      onAddExercise={(exercise) => addExercise(dayKey, exercise)}
+                      onUpdateExercise={(exerciseId, updates) => updateExercise(dayKey, exerciseId, updates)}
+                      onRemoveExercise={(exerciseId) => removeExercise(dayKey, exerciseId)}
+                      onActivateDay={() => updateDay(dayKey, { isActive: true })}
+                      onCopyTemplate={(template) => copyFromTemplate(dayKey, template)}
+                      onDuplicateDay={(targetDay) => duplicateDay(dayKey, targetDay)}
+                      activeId={activeId}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
               );
             })}
-          </div>
+          </Accordion>
           <DragOverlay>
             {activeExercise && (
               <Card className="p-3 bg-white border-2 border-blue-400 w-64">

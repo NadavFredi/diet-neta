@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Plus, 
+import {
+  Plus,
   Dumbbell,
   X,
 } from 'lucide-react';
@@ -38,7 +38,7 @@ export const SessionBuilder = ({ day, onUpdate }: SessionBuilderProps) => {
       sets: 3,
       reps: 10,
     };
-    
+
     // Use functional update to ensure we get the latest exercises array
     onUpdate((prev) => ({
       exercises: [...(prev.exercises || []), newExercise],
@@ -120,11 +120,11 @@ export const SessionBuilder = ({ day, onUpdate }: SessionBuilderProps) => {
 
       {/* Scrollable Exercises List - Flex Grow with overflow-y-auto */}
       {/* This section is completely independent from the footer */}
-      <div 
-        className="flex-1 overflow-y-auto min-h-0 py-4" 
-        style={{ 
-          flexGrow: 1, 
-          minHeight: 0, 
+      <div
+        className="flex-1 overflow-y-auto min-h-0 py-4"
+        style={{
+          flexGrow: 1,
+          minHeight: 0,
           overflowY: 'auto',
           scrollbarGutter: 'stable'
         }}
@@ -169,12 +169,7 @@ export const SessionBuilder = ({ day, onUpdate }: SessionBuilderProps) => {
       {/* Footer - Add Exercise Section - ALWAYS VISIBLE, UNCONDITIONAL */}
       {/* This footer is completely decoupled from exercise list state */}
       <div className="flex-shrink-0 pt-4 border-t border-slate-200 space-y-3 bg-white" style={{ flexShrink: 0 }}>
-        <div className="flex items-center gap-2">
-          <QuickAddExercise onSelect={handleAddExercise} />
-          <div className="flex-1 h-px bg-slate-200"></div>
-          <span className="text-xs text-slate-500 px-2">או</span>
-          <div className="flex-1 h-px bg-slate-200"></div>
-        </div>
+
         <Button
           type="button"
           onClick={() => handleAddExercise()}
