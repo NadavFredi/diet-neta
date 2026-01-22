@@ -8,7 +8,7 @@
 
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectInterfaceIconPreference } from '@/store/slices/interfaceIconPreferencesSlice';
 import { useInterfaceIconPreferences } from '@/hooks/useInterfaceIconPreferences';
@@ -59,6 +59,7 @@ export const PageHeader = ({
 
   const [editIconDialogOpen, setEditIconDialogOpen] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   // Determine which icon to use
   let Icon: LucideIcon;
@@ -103,11 +104,12 @@ export const PageHeader = ({
         className={cn(
           'relative',
           'border-b border-gray-200',
-          'px-3 sm:px-4 md:px-6 py-4 sm:py-5',
+          'px-3 sm:px-4 md:px-6 pt-3',
           'bg-white',
           className
         )}
         dir="rtl"
+        style={{ marginTop: 0 }}
       >
         {/* Content Container */}
         <div className="relative">
@@ -153,6 +155,21 @@ export const PageHeader = ({
                   {subtitle}
                 </p>
               )}
+              {/* Chevron icon for expanding/collapsing filters */}
+              {filters && (
+                <button
+                  type="button"
+                  onClick={() => setFiltersExpanded(!filtersExpanded)}
+                  className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-md hover:bg-gray-100 transition-colors ml-2"
+                  aria-label={filtersExpanded ? 'סגור מסננים' : 'פתח מסננים'}
+                >
+                  {filtersExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-gray-600" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-600" />
+                  )}
+                </button>
+              )}
             </div>
 
             {/* Actions Section (Left side in RTL) */}
@@ -164,8 +181,8 @@ export const PageHeader = ({
           </div>
 
           {/* Bottom Row: Filters / Search (Optional) */}
-          {filters && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
+          {filters && filtersExpanded && (
+            <div className="py-4 border-t border-gray-200">
               <div className="flex-1">
                 {filters}
               </div>

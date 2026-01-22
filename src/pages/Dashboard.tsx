@@ -51,7 +51,7 @@ const Dashboard = () => {
   const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
-  
+
   // Group pagination state (separate from record pagination)
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize] = useState(50);
@@ -113,25 +113,25 @@ const Dashboard = () => {
   const leadFilterFields = useMemo(() => {
     return getLeadFilterFields(filteredLeads || [], allLeadColumns);
   }, [filteredLeads]);
-  
+
   // Calculate total groups when grouping is active (after filteredLeads is defined)
   const totalGroups = useMemo(() => {
     if (!isGroupingActive || !filteredLeads || filteredLeads.length === 0) {
       return 0;
     }
-    
+
     // Group the data to count groups
     const groupedData = groupDataByKeys(filteredLeads, groupByKeys, { level1: null, level2: null });
     return getTotalGroupsCount(groupedData);
   }, [isGroupingActive, filteredLeads, groupByKeys]);
-  
+
   // Reset group pagination when grouping changes
   useEffect(() => {
     if (isGroupingActive) {
       setGroupCurrentPage(1);
     }
   }, [isGroupingActive, groupByKeys]);
-  
+
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
   }, []);
@@ -329,7 +329,7 @@ const Dashboard = () => {
             minHeight: 'calc(100vh - 60px)',
           }}
         >
-          <div className="p-3 sm:p-4 md:p-6">
+          <div className='pr-6'>
             {/* Unified Workspace Panel - Master Container */}
             <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
               {/* Header Section - Control Deck */}
@@ -368,8 +368,8 @@ const Dashboard = () => {
                   </div>
                 ) : filteredLeads && Array.isArray(filteredLeads) && filteredLeads.length > 0 ? (
                   <>
-                    <LeadsDataTable 
-                      leads={filteredLeads} 
+                    <LeadsDataTable
+                      leads={filteredLeads}
                       enableColumnVisibility={false}
                       onSortChange={handleSortChange}
                       sortBy={sortBy}
