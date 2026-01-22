@@ -34,6 +34,7 @@ export interface LeadFilterParams {
   // Sorting
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
+  sortKeys?: string[];
   // Grouping
   groupByLevel1?: string | null;
   groupByLevel2?: string | null;
@@ -394,7 +395,13 @@ export async function fetchFilteredLeads(
     if (filters.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
       query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
     }
-    query = query.order(sortBy, { ascending: sortAscending });
+    if (filters.sortKeys && filters.sortKeys.length > 0) {
+      filters.sortKeys.forEach((key) => {
+        query = query.order(key, { ascending: sortAscending, nullsFirst: false });
+      });
+    } else {
+      query = query.order(sortBy, { ascending: sortAscending });
+    }
 
     const { data, error } = await query;
 

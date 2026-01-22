@@ -27,6 +27,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 150,
     meta: {
       align: 'right',
+      sortKey: 'created_at',
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -44,6 +45,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 200,
     meta: {
       align: 'right',
+      sortKey: 'customer_name',
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -65,6 +67,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 140,
     meta: {
       align: 'right',
+      sortKeys: ['status_sub', 'status_main'],
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -100,6 +103,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     meta: {
       align: 'right',
       isNumeric: true,
+      sortKey: 'age',
     },
     cell: ({ getValue }) => {
       const value = getValue() as number;
@@ -117,6 +121,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 150,
     meta: {
       align: 'right',
+      sortKey: 'fitness_goal',
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -138,6 +143,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 140,
     meta: {
       align: 'right',
+      sortKey: 'activity_level',
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -159,6 +165,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 130,
     meta: {
       align: 'right',
+      sortKey: 'preferred_time',
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -180,6 +187,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 150,
     meta: {
       align: 'right',
+      sortKey: 'customer_phone',
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -197,6 +205,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 130,
     meta: {
       align: 'right',
+      sortKey: 'source',
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -218,6 +227,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 250,
     meta: {
       align: 'right',
+      sortKey: 'customer_email',
     },
     cell: ({ row }) => {
       const notes = row.original.notes;
@@ -261,6 +271,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     meta: {
       align: 'right',
       isNumeric: true,
+      sortKey: 'height',
     },
     cell: ({ getValue }) => {
       const value = getValue() as number;
@@ -279,6 +290,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     meta: {
       align: 'right',
       isNumeric: true,
+      sortKey: 'weight',
     },
     cell: ({ getValue }) => {
       const value = getValue() as number;
@@ -347,8 +359,6 @@ export const defaultLeadColumnVisibility: Record<string, boolean> = {
   source: false,
   notes: false,
 };
-
-
 
 
 

@@ -44,6 +44,7 @@ import {
   selectGroupByKeys,
   selectGroupSorting,
 } from '@/store/slices/tableStateSlice';
+import { allLeadColumns } from '@/components/dashboard/columns/leadColumns';
 
 export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }) => {
   const dispatch = useAppDispatch();
@@ -134,6 +135,18 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
       const offset = (currentPage - 1) * pageSize;
       const limit = pageSize;
 
+      const sortKeys = (() => {
+        const column = allLeadColumns.find((col) => col.id === sortBy);
+        if (!column?.meta) return undefined;
+        if ('sortKeys' in column.meta && Array.isArray(column.meta.sortKeys) && column.meta.sortKeys.length > 0) {
+          return column.meta.sortKeys;
+        }
+        if ('sortKey' in column.meta && typeof column.meta.sortKey === 'string') {
+          return [column.meta.sortKey];
+        }
+        return undefined;
+      })();
+
       // Build filter params from Redux state
       const filterParams: LeadFilterParams = {
         searchQuery: debouncedSearchQuery || null, // Use debounced search
@@ -144,6 +157,7 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
         // Sorting
         sortBy: sortBy,
         sortOrder: sortOrder,
+        sortKeys,
         // Grouping (from tableStateSlice)
         groupByLevel1: groupByKeys[0] || null,
         groupByLevel2: groupByKeys[1] || null,

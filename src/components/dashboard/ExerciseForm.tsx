@@ -84,9 +84,11 @@ export const ExerciseForm = ({
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
+          contentType: file.type,
         });
 
       if (uploadError) {
+        console.error('Upload error details:', uploadError);
         throw new Error(uploadError.message || 'שגיאה בהעלאת התמונה');
       }
 

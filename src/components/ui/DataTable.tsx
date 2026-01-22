@@ -102,6 +102,8 @@ export interface DataTableColumn<T> extends Omit<ColumnDef<T>, 'id'> {
   meta?: {
     align?: 'left' | 'center' | 'right';
     className?: string;
+    sortKey?: string;
+    sortKeys?: string[];
   };
 }
 
