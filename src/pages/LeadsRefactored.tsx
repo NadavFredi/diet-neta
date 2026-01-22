@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/select"
 import { Label } from '@/components/ui/label';
 
+import { useNavigate } from 'react-router-dom';
+
 const LeadsRefactored = () => {
+  const navigate = useNavigate();
   const { config, data, count, isLoading, error, fetchData } = useEntityQuery('leads');
   const [page, setPage] = useState(1);
   const [activeFilters, setActiveFilters] = useState<any[]>([]);
@@ -125,7 +128,11 @@ const LeadsRefactored = () => {
                     </TableRow>
                   ) : (
                     data.map((row: any) => (
-                      <TableRow key={row.id}>
+                      <TableRow 
+                        key={row.id} 
+                        className="cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => navigate(`/leads/${row.id}`)}
+                      >
                         {config?.columns
                           .filter((col: any) => col.visible)
                           .map((col: any) => (

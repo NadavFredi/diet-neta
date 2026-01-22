@@ -49,9 +49,13 @@ export const useEntityQuery = (entityName: string) => {
     
     setIsLoadingData(true);
     try {
+      // Ensure 'id' is always selected for keys/navigation
+      const columnsToSelect = new Set(options.select || config.columns.filter(c => c.visible).map(c => c.id));
+      columnsToSelect.add('id');
+
       const payload = {
         entity: entityName,
-        select: options.select || config.columns.filter(c => c.visible).map(c => c.id),
+        select: Array.from(columnsToSelect),
         filters: options.filters || [],
         sort: options.sort || config.defaultSort,
         page: options.page || 1,
