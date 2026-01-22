@@ -60,28 +60,39 @@ export const DAYS = [
   { key: 'saturday', label: 'שבת', short: 'ש' },
 ] as const;
 
+const getDefaultDays = () => ({
+  sunday: { day: 'sunday', isActive: false, exercises: [] },
+  monday: { day: 'monday', isActive: false, exercises: [] },
+  tuesday: { day: 'tuesday', isActive: false, exercises: [] },
+  wednesday: { day: 'wednesday', isActive: false, exercises: [] },
+  thursday: { day: 'thursday', isActive: false, exercises: [] },
+  friday: { day: 'friday', isActive: false, exercises: [] },
+  saturday: { day: 'saturday', isActive: false, exercises: [] },
+});
+
 const initializeWeeklyWorkout = (initialData?: WorkoutPlan | { routine_data?: any }): WeeklyWorkout => {
   const weeklyWorkoutData = 
     (initialData as any)?.routine_data?.weeklyWorkout ||
     (initialData as WorkoutPlan)?.custom_attributes?.data?.weeklyWorkout;
 
+  const defaultDays = getDefaultDays();
+
   if (weeklyWorkoutData) {
-    return weeklyWorkoutData as WeeklyWorkout;
+    // Ensure days structure exists, merge with defaults if needed
+    return {
+      ...weeklyWorkoutData,
+      days: {
+        ...defaultDays,
+        ...(weeklyWorkoutData.days || {}),
+      },
+    } as WeeklyWorkout;
   }
 
   return {
     startDate: (initialData as WorkoutPlan)?.start_date || format(new Date(), 'yyyy-MM-dd'),
     description: (initialData as WorkoutPlan)?.description || '',
     generalGoals: '',
-    days: {
-      sunday: { day: 'sunday', isActive: false, exercises: [] },
-      monday: { day: 'monday', isActive: false, exercises: [] },
-      tuesday: { day: 'tuesday', isActive: false, exercises: [] },
-      wednesday: { day: 'wednesday', isActive: false, exercises: [] },
-      thursday: { day: 'thursday', isActive: false, exercises: [] },
-      friday: { day: 'friday', isActive: false, exercises: [] },
-      saturday: { day: 'saturday', isActive: false, exercises: [] },
-    },
+    days: defaultDays,
   };
 };
 
@@ -156,12 +167,14 @@ export const useWorkoutBoard = (
     updates: Partial<DayWorkout> | ((prev: DayWorkout) => Partial<DayWorkout>)
   ) => {
     setWeeklyWorkout((prev) => {
-      const currentDay = prev.days[dayKey] || { day: dayKey, isActive: false, exercises: [] };
+      // Ensure days exists, initialize with defaults if needed
+      const prevDays = prev.days || getDefaultDays();
+      const currentDay = prevDays[dayKey] || { day: dayKey, isActive: false, exercises: [] };
       const newUpdates = typeof updates === 'function' ? updates(currentDay) : updates;
       return {
         ...prev,
         days: {
-          ...prev.days,
+          ...prevDays,
           [dayKey]: {
             ...currentDay,
             ...newUpdates,
@@ -251,26 +264,28 @@ export const useWorkoutBoard = (
         if (sourceDayKey !== targetDayKey) {
           // Move exercise to different day
           setWeeklyWorkout((prev) => {
-            const sourceDay = prev.days[sourceDayKey];
+            const prevDays = prev.days || getDefaultDays();
+            const sourceDay = prevDays[sourceDayKey] || { day: sourceDayKey, isActive: false, exercises: [] };
             const exercise = sourceDay.exercises.find((ex) => ex.id === exerciseId);
             
             if (!exercise) return prev;
 
             const updatedSourceExercises = sourceDay.exercises.filter((ex) => ex.id !== exerciseId);
+            const targetDay = prevDays[targetDayKey] || { day: targetDayKey, isActive: false, exercises: [] };
             
             return {
               ...prev,
               days: {
-                ...prev.days,
+                ...prevDays,
                 [sourceDayKey]: {
                   ...sourceDay,
                   exercises: updatedSourceExercises,
                   isActive: updatedSourceExercises.length > 0,
                 },
                 [targetDayKey]: {
-                  ...prev.days[targetDayKey],
+                  ...targetDay,
                   isActive: true,
-                  exercises: [...prev.days[targetDayKey].exercises, exercise],
+                  exercises: [...targetDay.exercises, exercise],
                 },
               },
             };
@@ -284,7 +299,8 @@ export const useWorkoutBoard = (
         if (sourceDayKey === targetDayKey) {
           // Reorder within same day
           setWeeklyWorkout((prev) => {
-            const day = prev.days[sourceDayKey];
+            const prevDays = prev.days || getDefaultDays();
+            const day = prevDays[sourceDayKey] || { day: sourceDayKey, isActive: false, exercises: [] };
             const exercises = [...day.exercises];
             const sourceIndex = exercises.findIndex((ex) => ex.id === exerciseId);
             const targetIndex = exercises.findIndex((ex) => ex.id === targetExerciseId);
@@ -303,7 +319,7 @@ export const useWorkoutBoard = (
             return {
               ...prev,
               days: {
-                ...prev.days,
+                ...prevDays,
                 [sourceDayKey]: {
                   ...day,
                   exercises,
@@ -314,8 +330,9 @@ export const useWorkoutBoard = (
         } else {
           // Move to different day at specific position
           setWeeklyWorkout((prev) => {
-            const sourceDay = prev.days[sourceDayKey];
-            const targetDay = prev.days[targetDayKey];
+            const prevDays = prev.days || getDefaultDays();
+            const sourceDay = prevDays[sourceDayKey] || { day: sourceDayKey, isActive: false, exercises: [] };
+            const targetDay = prevDays[targetDayKey] || { day: targetDayKey, isActive: false, exercises: [] };
             const exercise = sourceDay.exercises.find((ex) => ex.id === exerciseId);
             
             if (!exercise) return prev;
@@ -331,7 +348,7 @@ export const useWorkoutBoard = (
             return {
               ...prev,
               days: {
-                ...prev.days,
+                ...prevDays,
                 [sourceDayKey]: {
                   ...sourceDay,
                   exercises: updatedSourceExercises,
@@ -404,11 +421,12 @@ export const useWorkoutBoard = (
     targetDay: keyof WeeklyWorkout['days']
   ) => {
     setWeeklyWorkout((prev) => {
-      const source = prev.days[sourceDay];
+      const prevDays = prev.days || getDefaultDays();
+      const source = prevDays[sourceDay] || { day: sourceDay, isActive: false, exercises: [] };
       return {
         ...prev,
         days: {
-          ...prev.days,
+          ...prevDays,
           [targetDay]: {
             ...source,
             day: targetDay,
@@ -427,7 +445,7 @@ export const useWorkoutBoard = (
       throw new Error('נא לבחור תאריך התחלה');
     }
 
-    const activeDays = Object.values(weeklyWorkout.days).filter((d) => d.isActive).length;
+    const activeDays = Object.values(weeklyWorkout.days || getDefaultDays()).filter((d) => d.isActive).length;
     const updatedWorkout: WeeklyWorkout = {
       ...weeklyWorkout,
       startDate: startDate ? format(startDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),

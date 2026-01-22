@@ -32,13 +32,13 @@ import { TemplateEditorModal } from '@/components/dashboard/TemplateEditorModal'
 import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { WhatsAppAutomationsDataTable } from '@/components/dashboard/WhatsAppAutomationsDataTable';
+import { Pagination } from '@/components/dashboard/Pagination';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { useAppSelector } from '@/store/hooks';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { useWhatsAppAutomationsPage } from './WhatsAppAutomationsPage';
 import { createWhatsAppAutomationColumns } from '@/components/dashboard/columns/whatsappAutomationColumns';
-import { selectActiveFilters } from '@/store/slices/tableStateSlice';
 
 export const WhatsAppAutomationsPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -47,7 +47,6 @@ export const WhatsAppAutomationsPage: React.FC = () => {
   const viewId = searchParams.get('view_id');
   const { defaultView } = useDefaultView('whatsapp_automations');
   const { data: savedView } = useSavedView(viewId);
-  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'whatsapp_automations'));
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
 
@@ -73,7 +72,6 @@ export const WhatsAppAutomationsPage: React.FC = () => {
   const {
     automations,
     isLoading,
-    allFlows,
     editingFlowKey,
     deletingFlowKey,
     isAddDialogOpen,
@@ -95,6 +93,14 @@ export const WhatsAppAutomationsPage: React.FC = () => {
     setIsAddDialogOpen,
     setNewFlowLabel,
     setNewFlowKey,
+    totalTemplates,
+    currentPage,
+    pageSize,
+    sortBy,
+    sortOrder,
+    handleSortChange,
+    handlePageChange,
+    handlePageSizeChange,
   } = useWhatsAppAutomationsPage();
 
   // Create columns for TableActionHeader (needed for column visibility)
@@ -139,7 +145,7 @@ export const WhatsAppAutomationsPage: React.FC = () => {
             resourceKey="whatsapp_automations"
             title={pageTitle}
             icon={Send}
-            dataCount={automations?.length || 0}
+            dataCount={totalTemplates || 0}
             singularLabel="אוטומציה"
             pluralLabel="אוטומציות"
             filterFields={[]}
@@ -169,6 +175,9 @@ export const WhatsAppAutomationsPage: React.FC = () => {
                 automations={automations}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
               />
             </div>
           ) : (
@@ -177,6 +186,21 @@ export const WhatsAppAutomationsPage: React.FC = () => {
                 <p className="text-lg font-medium mb-2">לא נמצאו אוטומציות</p>
                 <p className="text-sm">לחץ על "הוסף אוטומציה" כדי להתחיל</p>
               </div>
+            </div>
+          )}
+          {!isLoading && totalTemplates > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalTemplates}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                showIfSinglePage={true}
+                isLoading={isLoading}
+                singularLabel="אוטומציה"
+                pluralLabel="אוטומציות"
+              />
             </div>
           )}
         </div>
@@ -203,7 +227,7 @@ export const WhatsAppAutomationsPage: React.FC = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>מחיקת אוטומציה</AlertDialogTitle>
               <AlertDialogDescription>
-                האם אתה בטוח שברצונך למחוק את האוטומציה "{allFlows.find(f => f.key === deletingFlowKey)?.label}"?
+                האם אתה בטוח שברצונך למחוק את האוטומציה "{deletingFlowKey}"?
                 <br />
                 פעולה זו תמחק גם את התבנית הקשורה לאוטומציה זו ולא ניתן לבטל אותה.
               </AlertDialogDescription>

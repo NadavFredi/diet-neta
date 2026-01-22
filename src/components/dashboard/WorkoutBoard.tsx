@@ -724,8 +724,8 @@ const DayColumn = ({
   onDuplicateDay,
   activeId,
 }: DayColumnProps) => {
-  const exerciseIds = dayData.exercises.map((ex) => `${dayKey}-${ex.id}`);
-  const totalSets = dayData.exercises.reduce((sum, ex) => sum + ex.sets, 0);
+  const exerciseIds = (dayData?.exercises || []).map((ex) => `${dayKey}-${ex.id}`);
+  const totalSets = (dayData?.exercises || []).reduce((sum, ex) => sum + ex.sets, 0);
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
   const [selectedTargetDay, setSelectedTargetDay] = useState<string>('');
   
@@ -770,7 +770,7 @@ const DayColumn = ({
             </div>
             <div className="flex items-center gap-1">
               <Badge variant="outline" className="text-xs px-1.5 py-0">
-                {dayData.exercises.length}
+                {dayData?.exercises?.length || 0}
               </Badge>
               {totalSets > 0 && (
                 <Badge variant="outline" className="text-xs px-1.5 py-0">
@@ -779,7 +779,7 @@ const DayColumn = ({
               )}
             </div>
           </div>
-          {dayData.isActive && dayData.exercises.length > 0 && (
+          {dayData?.isActive && (dayData?.exercises?.length || 0) > 0 && (
             <div className="flex gap-1.5 mt-1.5">
               <Button
                 size="sm"
@@ -793,7 +793,7 @@ const DayColumn = ({
               </Button>
             </div>
           )}
-          {!dayData.isActive && (
+          {!dayData?.isActive && (
             <Button
               size="sm"
               variant="outline"
@@ -808,10 +808,10 @@ const DayColumn = ({
 
         {/* Exercises List */}
         <div className="flex-1 overflow-y-auto p-2 min-h-0">
-          {dayData.isActive ? (
+          {dayData?.isActive ? (
             <SortableContext items={exerciseIds} strategy={verticalListSortingStrategy}>
               <div className="space-y-2">
-                {dayData.exercises.map((exercise) => (
+                {(dayData?.exercises || []).map((exercise) => (
                   <ExerciseCard
                     key={exercise.id}
                     exercise={exercise}
@@ -833,7 +833,7 @@ const DayColumn = ({
           )}
 
           {/* Empty State when active but no exercises */}
-          {dayData.isActive && dayData.exercises.length === 0 && (
+          {dayData?.isActive && (dayData?.exercises?.length || 0) === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center p-6 text-gray-400 border-2 border-dashed border-gray-300 rounded-lg">
               <p className="text-sm mb-2">אין תרגילים</p>
               <p className="text-xs">גרור לכאן או לחץ למטה להוספה</p>
@@ -842,7 +842,7 @@ const DayColumn = ({
         </div>
 
         {/* Quick Add Footer */}
-        {dayData.isActive && (
+        {dayData?.isActive && (
           <div className="p-2 border-t border-gray-200 bg-white flex-shrink-0 space-y-2">
             <SelectExerciseFromDatabase
               onSelect={(exercise) => {
@@ -980,7 +980,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
   }, [goalTags]);
 
   const dndContext = getDndContext();
-  const activeDaysCount = Object.values(weeklyWorkout.days).filter((d) => d.isActive).length;
+  const activeDaysCount = Object.values(weeklyWorkout?.days || {}).filter((d) => d.isActive).length;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -998,7 +998,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
   };
 
   const activeExercise = useMemo(() => {
-    if (!activeId) return null;
+    if (!activeId || !weeklyWorkout?.days) return null;
     const [dayKey, exerciseId] = activeId.split('-');
     if (!dayKey || !exerciseId || dayKey === 'column') return null;
     const day = weeklyWorkout.days[dayKey as keyof typeof weeklyWorkout.days];
@@ -1151,7 +1151,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
             size="sm"
             onClick={() => {
               // Apply to first active day or first day
-              const firstActiveDay = DAYS.find((d) => weeklyWorkout.days[d.key as keyof typeof weeklyWorkout.days].isActive);
+              const firstActiveDay = DAYS.find((d) => weeklyWorkout?.days?.[d.key as keyof typeof weeklyWorkout.days]?.isActive);
               const targetDay = firstActiveDay?.key || DAYS[0].key;
               copyFromTemplate(targetDay as any, template);
             }}
@@ -1174,10 +1174,17 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
           onDragStart={dndContext.onDragStart}
           onDragEnd={dndContext.onDragEnd}
         >
-          <div className="flex gap-2 p-2 h-full" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <div
+            className="flex flex-wrap gap-2 p-2 h-full"
+            style={{ width: '100%', justifyContent: 'space-between' }}
+          >
             {DAYS.map((day) => {
-              const dayKey = day.key as keyof typeof weeklyWorkout.days;
-              const dayData = weeklyWorkout.days[dayKey];
+              const dayKey = day.key;
+              const dayData = weeklyWorkout?.days?.[dayKey as keyof typeof weeklyWorkout.days] || {
+                day: dayKey,
+                isActive: false,
+                exercises: [],
+              };
               
               return (
                 <DayColumn
