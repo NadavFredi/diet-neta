@@ -103,61 +103,73 @@ const CollectionsManagement = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        <TableActionHeader
-          resourceKey="collections"
-          title={savedView?.view_name || 'כל הגבייות'}
-          dataCount={filteredCollections?.length || 0}
-          singularLabel="גבייה"
-          pluralLabel="גבייות"
-          filterFields={useMemo(() => generateFilterFieldsFromColumns(filteredCollections || [], collectionColumns), [filteredCollections])}
-          searchPlaceholder="חיפוש לפי תיאור, לקוח או תאריך..."
-          enableColumnVisibility={true}
-          enableFilters={true}
-          enableGroupBy={true}
-          enableSearch={true}
-          columns={collectionColumns}
-          customActions={
-            <Button
-              onClick={() => setIsAddCollectionDialogOpen(true)}
-              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
-              size="sm"
-            >
-              <Plus className="h-4 w-4" />
-              <span>צור גביה</span>
-            </Button>
-          }
-        />
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="collections"
+            title={savedView?.view_name || 'כל הגבייות'}
+            dataCount={filteredCollections?.length || 0}
+            singularLabel="גבייה"
+            pluralLabel="גבייות"
+            filterFields={useMemo(() => generateFilterFieldsFromColumns(filteredCollections || [], collectionColumns), [filteredCollections])}
+            searchPlaceholder="חיפוש לפי תיאור, לקוח או תאריך..."
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={collectionColumns}
+            customActions={
+              <Button
+                onClick={() => setIsAddCollectionDialogOpen(true)}
+                className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
+                size="sm"
+              >
+                <Plus className="h-4 w-4" />
+                <span>צור גביה</span>
+              </Button>
+            }
+          />
+        </div>
 
-        <div className="bg-white">
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
           {isLoadingCollections ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-              <p className="text-gray-600">טוען גבייות...</p>
+            <div className="text-center py-12 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p className="text-gray-600">טוען גבייות...</p>
+              </div>
             </div>
           ) : filteredCollections && Array.isArray(filteredCollections) && filteredCollections.length > 0 ? (
             <>
-              <CollectionsDataTable
-                collections={filteredCollections}
-                onBulkDelete={handleBulkDelete}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
-              />
-              {/* Pagination Footer */}
-              {filteredCollections && filteredCollections.length > 0 && (
-                <Pagination
-                  currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                  pageSize={isGroupingActive ? groupPageSize : pageSize}
-                  totalItems={isGroupingActive ? totalGroups : filteredCollections.length}
-                  onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                  onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                  isLoading={isLoadingCollections}
+              <div className="flex-1 min-h-0">
+                <CollectionsDataTable
+                  collections={filteredCollections}
+                  onBulkDelete={handleBulkDelete}
+                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
                 />
+              </div>
+              {/* Pagination Footer - Always visible */}
+              {filteredCollections && filteredCollections.length > 0 && (
+                <div className="flex-shrink-0">
+                  <Pagination
+                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                    pageSize={isGroupingActive ? groupPageSize : pageSize}
+                    totalItems={isGroupingActive ? totalGroups : filteredCollections.length}
+                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                    isLoading={isLoadingCollections}
+                  />
+                </div>
               )}
             </>
           ) : (
-            <div className="p-8 text-center text-gray-500">
-              <p className="text-lg font-medium mb-2">לא נמצאו גבייות</p>
-              <p className="text-sm">גבייות מתווספות בעת יצירת תשלומים או ידנית</p>
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו גבייות</p>
+                <p className="text-sm">גבייות מתווספות בעת יצירת תשלומים או ידנית</p>
+              </div>
             </div>
           )}
         </div>

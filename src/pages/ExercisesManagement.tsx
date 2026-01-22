@@ -28,7 +28,7 @@ const ExercisesManagement = () => {
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'exercises'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'exercises'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
-  
+
   const {
     exercises,
     savedView,
@@ -54,37 +54,37 @@ const ExercisesManagement = () => {
     getCurrentFilterConfig,
     deleteExercise,
   } = useExercisesManagement();
-  
+
   // Group pagination state (separate from record pagination)
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize] = useState(50);
-  
+
   // Calculate total groups when grouping is active
   const totalGroups = useMemo(() => {
     if (!isGroupingActive || !exercises || exercises.length === 0) {
       return 0;
     }
-    
+
     // Group the data to count groups
     const groupedData = groupDataByKeys(exercises, groupByKeys, { level1: null, level2: null });
     return getTotalGroupsCount(groupedData);
   }, [isGroupingActive, exercises, groupByKeys]);
-  
+
   // Reset group pagination when grouping changes
   useEffect(() => {
     if (isGroupingActive) {
       setGroupCurrentPage(1);
     }
   }, [isGroupingActive, groupByKeys]);
-  
+
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
   }, []);
-  
+
   const handlePageChange = useCallback((page: number) => {
     dispatch(setCurrentPage({ resourceKey: 'exercises', page }));
   }, [dispatch]);
-  
+
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     dispatch(setPageSize({ resourceKey: 'exercises', pageSize: newPageSize }));
   }, [dispatch]);
@@ -101,49 +101,59 @@ const ExercisesManagement = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        <TableActionHeader
-                  resourceKey="exercises"
-                  title={savedView?.view_name || 'תרגילים'}
-                  dataCount={exercises.length}
-                  singularLabel="תרגיל"
-                  pluralLabel="תרגילים"
-                  filterFields={exerciseFilterFields}
-                  searchPlaceholder="חיפוש לפי שם..."
-                  addButtonLabel="הוסף תרגיל"
-                  onAddClick={handleAddExercise}
-                  enableColumnVisibility={true}
-                  enableFilters={true}
-                  enableGroupBy={true}
-                  enableSearch={true}
-                  columns={exerciseColumns}
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="exercises"
+            title={savedView?.view_name || 'תרגילים'}
+            dataCount={exercises.length}
+            singularLabel="תרגיל"
+            pluralLabel="תרגילים"
+            filterFields={exerciseFilterFields}
+            searchPlaceholder="חיפוש לפי שם..."
+            addButtonLabel="הוסף תרגיל"
+            onAddClick={handleAddExercise}
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={exerciseColumns}
+          />
+        </div>
+
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
+          {isLoading ? (
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>טוען...</div>
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 min-h-0">
+                <ExercisesDataTable
+                  exercises={exercises}
+                  onEdit={handleEditExercise}
+                  onDelete={handleDeleteClick}
+                  onBulkDelete={handleBulkDelete}
+                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
                 />
-                
-                <div className="bg-white">
-                  {isLoading ? (
-                    <div className="p-8 text-center text-gray-500">טוען...</div>
-                  ) : (
-                    <>
-                      <ExercisesDataTable
-                        exercises={exercises}
-                        onEdit={handleEditExercise}
-                        onDelete={handleDeleteClick}
-                        onBulkDelete={handleBulkDelete}
-                        groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                        groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                      />
-                      {/* Pagination Footer */}
-                      {exercises && exercises.length > 0 && (
-                        <Pagination
-                          currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                          pageSize={isGroupingActive ? groupPageSize : pageSize}
-                          totalItems={isGroupingActive ? totalGroups : exercises.length}
-                          onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                          onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                          isLoading={isLoading}
-                        />
-                      )}
-                    </>
-                  )}
+              </div>
+              {/* Pagination Footer - Always visible */}
+              {exercises && exercises.length > 0 && (
+                <div className="flex-shrink-0">
+                  <Pagination
+                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                    pageSize={isGroupingActive ? groupPageSize : pageSize}
+                    totalItems={isGroupingActive ? totalGroups : exercises.length}
+                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                    isLoading={isLoading}
+                  />
+                </div>
+              )}
+            </>
+          )}
         </div>
       </TableManagementLayout>
 

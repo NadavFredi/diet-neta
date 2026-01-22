@@ -105,61 +105,73 @@ const MeetingsManagement = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        <TableActionHeader
-          resourceKey="meetings"
-          title={savedView?.view_name || 'כל הפגישות'}
-          dataCount={filteredMeetings?.length || 0}
-          singularLabel="פגישה"
-          pluralLabel="פגישות"
-          filterFields={useMemo(() => getMeetingFilterFields(meetings || [], meetingColumns), [meetings])}
-          searchPlaceholder="חיפוש לפי שם לקוח, טלפון, תאריך פגישה..."
-          enableColumnVisibility={true}
-          enableFilters={true}
-          enableGroupBy={true}
-          enableSearch={true}
-          columns={meetingColumns}
-          customActions={
-            <Button
-              onClick={() => setIsAddMeetingDialogOpen(true)}
-              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
-              size="sm"
-            >
-              <Plus className="h-4 w-4" />
-              <span>צור פגישה</span>
-            </Button>
-          }
-        />
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="meetings"
+            title={savedView?.view_name || 'כל הפגישות'}
+            dataCount={filteredMeetings?.length || 0}
+            singularLabel="פגישה"
+            pluralLabel="פגישות"
+            filterFields={useMemo(() => getMeetingFilterFields(meetings || [], meetingColumns), [meetings])}
+            searchPlaceholder="חיפוש לפי שם לקוח, טלפון, תאריך פגישה..."
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={meetingColumns}
+            customActions={
+              <Button
+                onClick={() => setIsAddMeetingDialogOpen(true)}
+                className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
+                size="sm"
+              >
+                <Plus className="h-4 w-4" />
+                <span>צור פגישה</span>
+              </Button>
+            }
+          />
+        </div>
 
-        <div className="bg-white">
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
           {isLoadingMeetings ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-              <p className="text-gray-600">טוען פגישות...</p>
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p className="text-gray-600">טוען פגישות...</p>
+              </div>
             </div>
           ) : filteredMeetings && Array.isArray(filteredMeetings) && filteredMeetings.length > 0 ? (
             <>
-              <MeetingsDataTable 
-                meetings={filteredMeetings} 
-                onBulkDelete={handleBulkDelete}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
-              />
-              {/* Pagination Footer */}
-              {filteredMeetings && filteredMeetings.length > 0 && (
-                <Pagination
-                  currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                  pageSize={isGroupingActive ? groupPageSize : pageSize}
-                  totalItems={isGroupingActive ? totalGroups : filteredMeetings.length}
-                  onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                  onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                  isLoading={isLoadingMeetings}
+              <div className="flex-1 min-h-0">
+                <MeetingsDataTable 
+                  meetings={filteredMeetings} 
+                  onBulkDelete={handleBulkDelete}
+                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
                 />
+              </div>
+              {/* Pagination Footer - Always visible */}
+              {filteredMeetings && filteredMeetings.length > 0 && (
+                <div className="flex-shrink-0">
+                  <Pagination
+                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                    pageSize={isGroupingActive ? groupPageSize : pageSize}
+                    totalItems={isGroupingActive ? totalGroups : filteredMeetings.length}
+                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                    isLoading={isLoadingMeetings}
+                  />
+                </div>
               )}
             </>
           ) : (
-            <div className="p-8 text-center text-gray-500">
-              <p className="text-lg font-medium mb-2">לא נמצאו פגישות</p>
-              <p className="text-sm">פגישות מתווספות אוטומטית מטופס Fillout</p>
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו פגישות</p>
+                <p className="text-sm">פגישות מתווספות אוטומטית מטופס Fillout</p>
+              </div>
             </div>
           )}
         </div>

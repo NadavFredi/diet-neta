@@ -103,49 +103,59 @@ const NutritionTemplatesManagement = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        <TableActionHeader
-                  resourceKey="nutrition_templates"
-                  title={savedView?.view_name || 'תבניות תזונה'}
-                  dataCount={templates.length}
-                  singularLabel="תבנית"
-                  pluralLabel="תבניות"
-                  filterFields={nutritionTemplateFilterFields}
-                  searchPlaceholder="חיפוש לפי שם או תיאור..."
-                  addButtonLabel="הוסף תבנית"
-                  onAddClick={handleAddTemplate}
-                  enableColumnVisibility={true}
-                  enableFilters={true}
-                  enableGroupBy={true}
-                  enableSearch={true}
-                  columns={nutritionTemplateColumns}
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="nutrition_templates"
+            title={savedView?.view_name || 'תבניות תזונה'}
+            dataCount={templates.length}
+            singularLabel="תבנית"
+            pluralLabel="תבניות"
+            filterFields={nutritionTemplateFilterFields}
+            searchPlaceholder="חיפוש לפי שם או תיאור..."
+            addButtonLabel="הוסף תבנית"
+            onAddClick={handleAddTemplate}
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={nutritionTemplateColumns}
+          />
+        </div>
+
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
+          {isLoading ? (
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>טוען...</div>
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 min-h-0">
+                <NutritionTemplatesDataTable
+                  templates={templates}
+                  onEdit={handleEditTemplate}
+                  onDelete={handleDeleteClick}
+                  onBulkDelete={handleBulkDelete}
+                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
                 />
-                
-                <div className="bg-white">
-                  {isLoading ? (
-                    <div className="p-8 text-center text-gray-500">טוען...</div>
-                  ) : (
-                    <>
-                      <NutritionTemplatesDataTable
-                        templates={templates}
-                        onEdit={handleEditTemplate}
-                        onDelete={handleDeleteClick}
-                        onBulkDelete={handleBulkDelete}
-                        groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                        groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                      />
-                      {/* Pagination Footer */}
-                      {templates && templates.length > 0 && (
-                        <Pagination
-                          currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                          pageSize={isGroupingActive ? groupPageSize : pageSize}
-                          totalItems={isGroupingActive ? totalGroups : templates.length}
-                          onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                          onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                          isLoading={isLoading}
-                        />
-                      )}
-                    </>
-                  )}
+              </div>
+              {/* Pagination Footer - Always visible */}
+              {templates && templates.length > 0 && (
+                <div className="flex-shrink-0">
+                  <Pagination
+                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                    pageSize={isGroupingActive ? groupPageSize : pageSize}
+                    totalItems={isGroupingActive ? totalGroups : templates.length}
+                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                    isLoading={isLoading}
+                  />
+                </div>
+              )}
+            </>
+          )}
         </div>
       </TableManagementLayout>
 

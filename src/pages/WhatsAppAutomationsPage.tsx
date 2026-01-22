@@ -133,40 +133,50 @@ export const WhatsAppAutomationsPage: React.FC = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        <TableActionHeader
-          resourceKey="whatsapp_automations"
-          title={pageTitle}
-          icon={Send}
-          dataCount={automations?.length || 0}
-          singularLabel="אוטומציה"
-          pluralLabel="אוטומציות"
-          filterFields={[]}
-          searchPlaceholder="חיפוש לפי שם אוטומציה..."
-          addButtonLabel="הוסף אוטומציה"
-          onAddClick={() => setIsAddDialogOpen(true)}
-          enableColumnVisibility={true}
-          enableFilters={false}
-          enableGroupBy={false}
-          enableSearch={true}
-          columns={columns}
-        />
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="whatsapp_automations"
+            title={pageTitle}
+            icon={Send}
+            dataCount={automations?.length || 0}
+            singularLabel="אוטומציה"
+            pluralLabel="אוטומציות"
+            filterFields={[]}
+            searchPlaceholder="חיפוש לפי שם אוטומציה..."
+            addButtonLabel="הוסף אוטומציה"
+            onAddClick={() => setIsAddDialogOpen(true)}
+            enableColumnVisibility={true}
+            enableFilters={false}
+            enableGroupBy={false}
+            enableSearch={true}
+            columns={columns}
+          />
+        </div>
 
-        <div className="bg-white">
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
           {isLoading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-              <p className="text-gray-600">טוען אוטומציות...</p>
+            <div className="text-center py-12 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p className="text-gray-600">טוען אוטומציות...</p>
+              </div>
             </div>
           ) : automations && Array.isArray(automations) && automations.length > 0 ? (
-            <WhatsAppAutomationsDataTable
-              automations={automations}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+            <div className="flex-1 min-h-0">
+              <WhatsAppAutomationsDataTable
+                automations={automations}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            </div>
           ) : (
-            <div className="p-8 text-center text-gray-500">
-              <p className="text-lg font-medium mb-2">לא נמצאו אוטומציות</p>
-              <p className="text-sm">לחץ על "הוסף אוטומציה" כדי להתחיל</p>
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו אוטומציות</p>
+                <p className="text-sm">לחץ על "הוסף אוטומציה" כדי להתחיל</p>
+              </div>
             </div>
           )}
         </div>

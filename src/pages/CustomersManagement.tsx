@@ -163,60 +163,72 @@ const CustomersManagement = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        <TableActionHeader
-          resourceKey="customers"
-          title={savedView?.view_name || 'ניהול לקוחות'}
-          dataCount={totalCustomers || 0}
-          singularLabel="לקוח"
-          pluralLabel="לקוחות"
-          filterFields={customerFilterFields}
-          searchPlaceholder="חיפוש לפי שם, טלפון או אימייל..."
-          addButtonLabel="הוסף ליד"
-          onAddClick={handleAddLead}
-          enableColumnVisibility={true}
-          enableFilters={true}
-          enableGroupBy={true}
-          enableSearch={true}
-          columns={customerColumns}
-        />
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="customers"
+            title={savedView?.view_name || 'ניהול לקוחות'}
+            dataCount={totalCustomers || 0}
+            singularLabel="לקוח"
+            pluralLabel="לקוחות"
+            filterFields={customerFilterFields}
+            searchPlaceholder="חיפוש לפי שם, טלפון או אימייל..."
+            addButtonLabel="הוסף ליד"
+            onAddClick={handleAddLead}
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={customerColumns}
+          />
+        </div>
 
-        <div className="bg-white">
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
           {isLoadingCustomers ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-              <p className="text-gray-600">טוען לקוחות...</p>
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p className="text-gray-600">טוען לקוחות...</p>
+              </div>
             </div>
           ) : filteredCustomers && Array.isArray(filteredCustomers) && filteredCustomers.length > 0 ? (
             <>
-              <CustomersDataTable 
-                customers={filteredCustomers} 
-                onBulkDelete={handleBulkDelete}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
-              />
-              {/* Pagination Footer */}
-              {totalCustomers > 0 && (
-                <Pagination
-                  currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                  pageSize={isGroupingActive ? groupPageSize : pageSize}
-                  totalItems={isGroupingActive ? totalGroups : totalCustomers}
-                  onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                  onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                  isLoading={isLoadingCustomers}
+              <div className="flex-1 min-h-0">
+                <CustomersDataTable 
+                  customers={filteredCustomers} 
+                  onBulkDelete={handleBulkDelete}
+                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
                 />
+              </div>
+              {/* Pagination Footer - Always visible */}
+              {totalCustomers > 0 && (
+                <div className="flex-shrink-0">
+                  <Pagination
+                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                    pageSize={isGroupingActive ? groupPageSize : pageSize}
+                    totalItems={isGroupingActive ? totalGroups : totalCustomers}
+                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                    isLoading={isLoadingCustomers}
+                  />
+                </div>
               )}
             </>
           ) : (
-            <div className="p-8 text-center text-gray-500">
-              <p className="text-lg font-medium mb-2">לא נמצאו לקוחות</p>
-              <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-              {!isLoadingCustomers && (
-                <p className="text-xs text-gray-400 mt-2">
-                  {filteredCustomers && Array.isArray(filteredCustomers)
-                    ? `מספר לקוחות: ${filteredCustomers.length}`
-                    : 'אין נתונים זמינים'}
-                </p>
-              )}
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו לקוחות</p>
+                <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+                {!isLoadingCustomers && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    {filteredCustomers && Array.isArray(filteredCustomers)
+                      ? `מספר לקוחות: ${filteredCustomers.length}`
+                      : 'אין נתונים זמינים'}
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -32,14 +32,14 @@ const SubscriptionTypesManagement = () => {
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'subscription_types'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'subscription_types'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
-  
+
   // Group pagination state (separate from record pagination)
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize] = useState(50);
   const { data: savedView } = useSavedView(viewId);
   const { user } = useAppSelector((state) => state.auth);
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'subscription_types'));
-  
+
   // Get subscription types data first before using it in useMemo
   const {
     subscriptionTypes,
@@ -72,12 +72,12 @@ const SubscriptionTypesManagement = () => {
     if (!isGroupingActive || !subscriptionTypes || subscriptionTypes.length === 0) {
       return 0;
     }
-    
+
     // Group the data to count groups
     const groupedData = groupDataByKeys(subscriptionTypes, groupByKeys, { level1: null, level2: null });
     return getTotalGroupsCount(groupedData);
   }, [isGroupingActive, subscriptionTypes, groupByKeys]);
-  
+
   // Reset group pagination when grouping changes
   useEffect(() => {
     if (isGroupingActive) {
@@ -88,11 +88,11 @@ const SubscriptionTypesManagement = () => {
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
   }, []);
-  
+
   const handlePageChange = useCallback((page: number) => {
     dispatch(setCurrentPage({ resourceKey: 'subscription_types', page }));
   }, [dispatch]);
-  
+
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     dispatch(setPageSize({ resourceKey: 'subscription_types', pageSize: newPageSize }));
   }, [dispatch]);
@@ -105,8 +105,8 @@ const SubscriptionTypesManagement = () => {
   }, [viewId, defaultView, navigate]);
 
   // Determine the title to show
-  const pageTitle = viewId && savedView?.view_name 
-    ? savedView.view_name 
+  const pageTitle = viewId && savedView?.view_name
+    ? savedView.view_name
     : 'כל סוגי המנויים';
 
   // Generate filter fields with all renderable columns
@@ -122,64 +122,76 @@ const SubscriptionTypesManagement = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        <TableActionHeader
-                  resourceKey="subscription_types"
-                  title={pageTitle}
-                  dataCount={subscriptionTypes.length}
-                  singularLabel="סוג מנוי"
-                  pluralLabel="סוגי מנויים"
-                  filterFields={useMemo(() => getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns), [subscriptionTypes])}
-                  searchPlaceholder="חיפוש לפי שם..."
-                  addButtonLabel="הוסף סוג מנוי"
-                  onAddClick={handleAddSubscriptionType}
-                  enableColumnVisibility={true}
-                  enableFilters={true}
-                  enableGroupBy={true}
-                  enableSearch={true}
-                  columns={subscriptionTypeColumns}
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="subscription_types"
+            title={pageTitle}
+            dataCount={subscriptionTypes.length}
+            singularLabel="סוג מנוי"
+            pluralLabel="סוגי מנויים"
+            filterFields={useMemo(() => getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns), [subscriptionTypes])}
+            searchPlaceholder="חיפוש לפי שם..."
+            addButtonLabel="הוסף סוג מנוי"
+            onAddClick={handleAddSubscriptionType}
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={subscriptionTypeColumns}
+          />
+        </div>
+
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
+          {isLoading ? (
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p>טוען נתונים...</p>
+              </div>
+            </div>
+          ) : subscriptionTypes && subscriptionTypes.length > 0 ? (
+            <>
+              <div className="flex-1 min-h-0">
+                <SubscriptionTypesDataTable
+                  subscriptionTypes={subscriptionTypes}
+                  onEdit={handleEditSubscriptionType}
+                  onDelete={handleDeleteClick}
+                  onBulkDelete={handleBulkDelete}
+                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
                 />
-                
-                <div className="bg-white">
-                  {isLoading ? (
-                    <div className="p-8 text-center text-gray-500">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                      <p>טוען נתונים...</p>
-                    </div>
-                  ) : subscriptionTypes && subscriptionTypes.length > 0 ? (
-                    <>
-                      <SubscriptionTypesDataTable
-                        subscriptionTypes={subscriptionTypes}
-                        onEdit={handleEditSubscriptionType}
-                        onDelete={handleDeleteClick}
-                        onBulkDelete={handleBulkDelete}
-                        groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                        groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                      />
-                      {/* Pagination Footer */}
-                      {subscriptionTypes && subscriptionTypes.length > 0 && (
-                        <Pagination
-                          currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                          pageSize={isGroupingActive ? groupPageSize : pageSize}
-                          totalItems={isGroupingActive ? totalGroups : subscriptionTypes.length}
-                          onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                          onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                          isLoading={isLoading}
-                        />
-                      )}
-                    </>
-                  ) : (
-                    <div className="p-8 text-center text-gray-500">
-                      <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
-                      <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-                      {!isLoading && (
-                        <p className="text-xs text-gray-400 mt-2">
-                          {subscriptionTypes && subscriptionTypes.length > 0 
-                            ? `מספר סוגי מנויים: ${subscriptionTypes.length}` 
-                            : 'אין נתונים זמינים'}
-                        </p>
-                      )}
-                  </div>
+              </div>
+              {/* Pagination Footer - Always visible */}
+              {subscriptionTypes && subscriptionTypes.length > 0 && (
+                <div className="flex-shrink-0">
+                  <Pagination
+                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                    pageSize={isGroupingActive ? groupPageSize : pageSize}
+                    totalItems={isGroupingActive ? totalGroups : subscriptionTypes.length}
+                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                    isLoading={isLoading}
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
+                <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+                {!isLoading && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    {subscriptionTypes && subscriptionTypes.length > 0
+                      ? `מספר סוגי מנויים: ${subscriptionTypes.length}`
+                      : 'אין נתונים זמינים'}
+                  </p>
                 )}
+              </div>
+            </div>
+          )}
         </div>
       </TableManagementLayout>
 

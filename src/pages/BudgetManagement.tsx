@@ -139,71 +139,83 @@ const BudgetManagement = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        <TableActionHeader
-          resourceKey="budgets"
-          title={pageTitle}
-          dataCount={budgets.length}
-          singularLabel="תקציב"
-          pluralLabel="תקציבים"
-          filterFields={budgetFilterFields}
-          searchPlaceholder="חיפוש לפי שם או תיאור..."
-          addButtonLabel="הוסף תקציב"
-          onAddClick={handleAddBudget}
-          enableColumnVisibility={true}
-          enableFilters={true}
-          enableGroupBy={true}
-          enableSearch={true}
-          columns={budgetColumns}
-        />
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="budgets"
+            title={pageTitle}
+            dataCount={budgets.length}
+            singularLabel="תקציב"
+            pluralLabel="תקציבים"
+            filterFields={budgetFilterFields}
+            searchPlaceholder="חיפוש לפי שם או תיאור..."
+            addButtonLabel="הוסף תקציב"
+            onAddClick={handleAddBudget}
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={budgetColumns}
+          />
+        </div>
 
-        <div className="bg-white">
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
           {isLoading ? (
-            <div className="p-8 text-center text-gray-500">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-              <p>טוען נתונים...</p>
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p>טוען נתונים...</p>
+              </div>
             </div>
           ) : budgets && budgets.length > 0 ? (
             <>
-              <BudgetsDataTable
-                budgets={budgets}
-                onEdit={handleEditBudget}
-                onDelete={handleDeleteClick}
-                onExportPDF={handleExportPDF}
-                onSendWhatsApp={handleSendWhatsApp}
-                onBulkDelete={handleBulkDelete}
-                onViewDetails={(budget) => {
-                  setViewingBudgetId(budget.id);
-                  // Update URL to include budget_id for shareable link
-                  const newParams = new URLSearchParams(searchParams);
-                  newParams.set('budget_id', budget.id);
-                  navigate(`/dashboard/budgets?${newParams.toString()}`, { replace: true });
-                }}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
-              />
-              {/* Pagination Footer */}
-              {budgets && budgets.length > 0 && (
-                <Pagination
-                  currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                  pageSize={isGroupingActive ? groupPageSize : pageSize}
-                  totalItems={isGroupingActive ? totalGroups : budgets.length}
-                  onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                  onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                  isLoading={isLoading}
+              <div className="flex-1 min-h-0">
+                <BudgetsDataTable
+                  budgets={budgets}
+                  onEdit={handleEditBudget}
+                  onDelete={handleDeleteClick}
+                  onExportPDF={handleExportPDF}
+                  onSendWhatsApp={handleSendWhatsApp}
+                  onBulkDelete={handleBulkDelete}
+                  onViewDetails={(budget) => {
+                    setViewingBudgetId(budget.id);
+                    // Update URL to include budget_id for shareable link
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.set('budget_id', budget.id);
+                    navigate(`/dashboard/budgets?${newParams.toString()}`, { replace: true });
+                  }}
+                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
                 />
+              </div>
+              {/* Pagination Footer - Always visible */}
+              {budgets && budgets.length > 0 && (
+                <div className="flex-shrink-0">
+                  <Pagination
+                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                    pageSize={isGroupingActive ? groupPageSize : pageSize}
+                    totalItems={isGroupingActive ? totalGroups : budgets.length}
+                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                    isLoading={isLoading}
+                  />
+                </div>
               )}
             </>
           ) : (
-            <div className="p-8 text-center text-gray-500">
-              <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
-              <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-              {!isLoading && (
-                <p className="text-xs text-gray-400 mt-2">
-                  {budgets && budgets.length > 0
-                    ? `מספר תקציבים: ${budgets.length}`
-                    : 'אין נתונים זמינים'}
-                </p>
-              )}
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
+                <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+                {!isLoading && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    {budgets && budgets.length > 0
+                      ? `מספר תקציבים: ${budgets.length}`
+                      : 'אין נתונים זמינים'}
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
