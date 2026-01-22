@@ -56,6 +56,7 @@ import {
   setGroupByKeys as setGroupByKeysAction,
   setGroupSorting as setGroupSortingAction,
   toggleGroupCollapse as toggleGroupCollapseAction,
+  initializeTableState,
   setSelectedRowIds as setSelectedRowIdsAction,
   setSelectAllAcrossPages as setSelectAllAcrossPagesAction,
   setLastClickedRowIndex as setLastClickedRowIndexAction,
@@ -342,6 +343,19 @@ export function DataTable<T extends Record<string, any>>({
 }: DataTableProps<T>) {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!resourceKey || columns.length === 0) return;
+    const columnIds = columns.map((col) => col.id);
+    dispatch(
+      initializeTableState({
+        resourceKey,
+        columnIds,
+        initialVisibility: initialColumnVisibility,
+        initialOrder: initialColumnOrder,
+      })
+    );
+  }, [resourceKey, columns, initialColumnVisibility, initialColumnOrder, dispatch]);
 
   // 1. Initial Hooks & Base State
   const [isResizing, setIsResizing] = useState<string | null>(null);

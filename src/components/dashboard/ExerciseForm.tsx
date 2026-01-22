@@ -77,7 +77,7 @@ export const ExerciseForm = ({
       // For new exercises, use temp path. For existing, use exercise ID
       const exerciseId = initialData?.id || `temp-${timestamp}`;
       const fileName = `${timestamp}.${fileExt}`;
-      const filePath = `exercises/${exerciseId}/images/${fileName}`;
+      const filePath = `workout-exercises/${exerciseId}/images/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('client-assets')
