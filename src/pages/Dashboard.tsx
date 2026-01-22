@@ -7,7 +7,6 @@ import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { Pagination } from '@/components/dashboard/Pagination';
 import { allLeadColumns } from '@/components/dashboard/columns/leadColumns';
 import { useDashboardLogic } from '@/hooks/useDashboardLogic';
-import { getLeadFilterFields, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { fetchLeadIdsByFilter } from '@/services/leadService';
 import { useSearchParams } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
@@ -71,7 +70,56 @@ const Dashboard = () => {
     sortBy,
     sortOrder,
     handleSortChange,
+    entityConfig, // Config from Backend
   } = useDashboardLogic({ filterGroup });
+
+  // Merge local columns with backend config
+  const mergedColumns = useMemo(() => {
+    if (!entityConfig?.columns) return allLeadColumns;
+
+    const backendColumns = entityConfig.columns;
+    
+    // Create map of local columns for easy access
+    const localColumnsMap = new Map(allLeadColumns.map(col => [col.id, col]));
+
+    // Build columns based on backend order and visibility (can extended to use backend labels)
+    return backendColumns.map((beCol: any) => {
+       const localCol = localColumnsMap.get(beCol.id);
+       
+       if (localCol) {
+         // Merge: Use backend label if provided, keep local renderer
+         return {
+           ...localCol,
+           header: beCol.label || localCol.header,
+           // We could also respect backend visibility here if we want to force it
+           // enableHiding: beCol.visible !== false 
+         };
+       }
+       
+       // Handle columns that exist in backend but not locally (if any)
+       // For now, we only show columns we have local renderers for, or simple text columns
+       // If we want to support dynamic new columns without code changes, we'd add a generic renderer here.
+       return null; 
+    }).filter(Boolean) as typeof allLeadColumns;
+
+    // Note: We might want to append local columns that aren't in backend config if we want to keep them available but hidden?
+    // For "Schema Driven", strictly following backend config is better.
+  }, [entityConfig]);
+
+  // Map backend filters to UI filter fields
+  const leadFilterFields = useMemo(() => {
+     if (!entityConfig?.filters) return [];
+
+     return entityConfig.filters.map((f: any) => ({
+        id: f.id,
+        label: f.label,
+        type: f.type, // 'select', 'text', 'date', etc.
+        options: f.options, // Options from backend (for selects)
+        operators: f.operators, // Operators from backend
+        // Map to existing UI properties if needed
+     }));
+  }, [entityConfig]);
+
 
   // Group pagination state (separate from record pagination)
   // Use the same pageSize as regular pagination for consistency, but allow it to be changed
@@ -83,14 +131,6 @@ const Dashboard = () => {
     setGroupPageSize(pageSize);
   }, [pageSize]);
 
-  // Debug: Log filteredLeads when it changes
-  useEffect(() => {
-  }, [filteredLeads, isLoading]);
-
-  // Get filter fields with dynamic options from data - now includes all renderable columns and related entities
-  const leadFilterFields = useMemo(() => {
-    return getLeadFilterFields(filteredLeads || [], allLeadColumns);
-  }, [filteredLeads]);
 
   // Function to get all group keys for collapse/expand all
   const getAllGroupKeysFn = useCallback(() => {
@@ -241,7 +281,7 @@ const Dashboard = () => {
             enableFilters={true}
             enableGroupBy={true}
             enableSearch={true}
-            columns={allLeadColumns}
+            columns={mergedColumns}
             getAllGroupKeys={getAllGroupKeysFn}
           />
         </div>

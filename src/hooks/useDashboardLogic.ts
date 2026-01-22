@@ -1,9 +1,10 @@
 /**
- * Dashboard Logic Hook
+ * Dashboard Logic Hook - REFACTORED for Schema-Driven UI
  * 
- * Architecture: All business logic for Dashboard page.
- * Uses PostgreSQL-optimized service layer.
- * No client-side filtering or calculations.
+ * Architecture:
+ * - Uses 'useEntityQuery' to fetch data via Edge Functions (no direct DB/RPC calls).
+ * - Adapts the schema-driven response to the UI format expected by components.
+ * - Maintains Redux for UI state (filters, pagination, etc.).
  */
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -22,19 +23,20 @@ import {
   setSortBy,
   setSortOrder,
 } from '@/store/slices/dashboardSlice';
-import { fetchFilteredLeads, getFilteredLeadsCount, mapLeadToUIFormat, type LeadFilterParams } from '@/services/leadService';
+import { mapLeadToUIFormat } from '@/services/leadService';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import {
   selectGroupByKeys,
   selectSearchQuery,
   selectColumnVisibility,
+  selectActiveFilters,
   setAllColumnSizing,
   setAllColumnVisibility as setAllTableColumnVisibility,
   setColumnOrder as setTableColumnOrder,
   setSearchQuery as setTableSearchQuery,
 } from '@/store/slices/tableStateSlice';
-import { allLeadColumns } from '@/components/dashboard/columns/leadColumns';
+import { useEntityQuery } from '@/hooks/useEntityQuery';
 
 export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }) => {
   const dispatch = useAppDispatch();
@@ -42,18 +44,15 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
   const [hasAppliedView, setHasAppliedView] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Redux state (source of truth - no derived state)
+  // Redux state
   const {
-    leads, // Raw leads from database
+    leads,
     isLoading,
     error,
-    // Pagination state
     currentPage,
     pageSize,
     totalLeads,
-    // Sorting state
     sortBy,
     sortOrder,
   } = useAppSelector((state) => state.dashboard);
@@ -61,260 +60,182 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'leads'));
   const tableColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'leads'));
   const isTableStateInitialized = useAppSelector((state) => !!state.tableState.tables.leads);
-
-  // Group by state from tableStateSlice (for leads)
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
-
-  // Debounced search - internal state for debouncing
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'leads'));
 
   const { user } = useAppSelector((state) => state.auth);
   const { defaultView } = useDefaultView('leads');
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
 
-  // =====================================================
+  // Debounced search
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Auto-navigate to default view
-  // =====================================================
   useEffect(() => {
     if (!viewId && defaultView) {
       navigate(`/dashboard?view_id=${defaultView.id}`, { replace: true });
     }
   }, [viewId, defaultView, navigate]);
 
-  // =====================================================
-  // Debounced search - update debounced value after 500ms
-  // =====================================================
+  // Debounce search update
   useEffect(() => {
-    // Clear existing timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // Set new timeout to update debounced value
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     searchTimeoutRef.current = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
     }, 500);
-
-    // Cleanup timeout on unmount or when searchQuery changes
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
+    return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
   }, [searchQuery]);
 
   // =====================================================
-  // Fetch leads with filters, pagination, sorting, grouping
-  // PostgreSQL does all the heavy lifting
+  // Schema-Driven Data Fetching
   // =====================================================
-  const refreshLeads = useCallback(async () => {
-    setIsRefreshing(true);
-    dispatch(setLoading(true));
-    dispatch(setError(null));
+  const {
+    config: entityConfig, // Expose the config
+    data: queryData,
+    count: queryCount,
+    isLoading: isQueryLoading,
+    error: queryError,
+    fetchData,
+  } = useEntityQuery('leads');
 
-    try {
-      const offset = (currentPage - 1) * pageSize;
-      const limit = pageSize;
+  // Convert UI state to API filters
+  const apiFilters = useMemo(() => {
+    const filters: any[] = [];
+    
+    // Search
+    if (debouncedSearchQuery) {
+       filters.push({ field: 'customer_name', operator: 'ilike', value: `%${debouncedSearchQuery}%` });
+    }
 
-      const sortKeys = (() => {
-        const column = allLeadColumns.find((col) => col.id === sortBy);
-        if (!column?.meta) return undefined;
-        if ('sortKeys' in column.meta && Array.isArray(column.meta.sortKeys) && column.meta.sortKeys.length > 0) {
-          return column.meta.sortKeys;
-        }
-        if ('sortKey' in column.meta && typeof column.meta.sortKey === 'string') {
-          return [column.meta.sortKey];
-        }
-        return undefined;
-      })();
+    // Filters from 'TableFilter' component (activeFilters in Redux)
+    if (activeFilters) {
+      activeFilters.forEach((f: any) => {
+        let op = 'eq';
+        // Basic mapping - expand as needed
+        if (f.operator === 'contains') op = 'ilike';
+        else if (f.operator === 'equals' || f.operator === 'is') op = 'eq';
+        else if (f.operator === 'greaterThan') op = 'gt';
+        else if (f.operator === 'lessThan') op = 'lt';
+        else if (f.operator === 'isNot' || f.operator === 'notEquals') op = 'neq';
+        else if (f.operator === 'in') op = 'in';
 
-      // Build filter params from Redux state
-      const filterParams: LeadFilterParams = {
-        searchQuery: debouncedSearchQuery || null, // Use debounced search
-        filterGroup: options?.filterGroup || null,
-        // Pagination
-        limit,
-        offset,
-        // Sorting
-        sortBy: sortBy,
-        sortOrder: sortOrder,
-        sortKeys,
-        // Grouping (from tableStateSlice)
-        groupByLevel1: groupByKeys[0] || null,
-        groupByLevel2: groupByKeys[1] || null,
-      };
+        let val = f.values[0];
+        if (f.operator === 'contains') val = `%${val}%`;
+        
+        // Map fields
+        let field = f.fieldId;
+        if (field === 'status') field = 'status_main';
+        if (field === 'name') field = 'customer_name';
+        if (field === 'phone') field = 'customer_phone';
 
-      // Fetch total count and leads in parallel
-      const [dbLeads, totalCount] = await Promise.all([
-        fetchFilteredLeads(filterParams),
-        getFilteredLeadsCount({
-          searchQuery: debouncedSearchQuery || null,
-          filterGroup: options?.filterGroup || null,
-        }),
-      ]);
+        filters.push({ field, operator: op, value: val });
+      });
+    }
 
+    // Support for 'filterGroup' (advanced nested filters) if passed
+    // NOTE: 'query-entity' currently only supports flat list. 
+    // Advanced group filters would need flattening or backend support.
+    
+    return filters;
+  }, [debouncedSearchQuery, activeFilters]);
 
-      // Update total count in Redux
-      dispatch(setTotalLeads(totalCount));
+  const refreshLeads = useCallback(() => {
+    let sortField = sortBy;
+    if (sortBy === 'createdDate') sortField = 'created_at';
+    if (sortBy === 'name') sortField = 'customer_name';
+    if (sortBy === 'status') sortField = 'status_main';
 
-      // Transform to UI format (minimal - most work done in PostgreSQL)
-      const uiLeads: Lead[] = dbLeads.map((lead, index) => {
-        try {
-          return mapLeadToUIFormat(lead);
-        } catch (error) {
-          // Return a minimal valid lead object to prevent complete failure
-          return {
-            id: lead.id || `error-${index}`,
-            name: lead.customer_name || 'Unknown',
-            createdDate: lead.created_date_formatted || '',
-            status: lead.status_sub || lead.status_main || '',
-            phone: lead.customer_phone || '',
-            email: lead.customer_email || '',
-            source: lead.source || '',
-            age: lead.age || 0,
-            birthDate: lead.birth_date_formatted || '',
-            height: lead.height || 0,
-            weight: lead.weight || 0,
-            fitnessGoal: lead.fitness_goal || '',
-            activityLevel: lead.activity_level || '',
-            preferredTime: lead.preferred_time || '',
-            notes: lead.notes || undefined,
-            dailyStepsGoal: 0,
-            weeklyWorkouts: 0,
-            dailySupplements: [],
-            subscription: {
-              joinDate: '',
-              initialPackageMonths: 0,
-              initialPrice: 0,
-              monthlyRenewalPrice: 0,
-              currentWeekInProgram: 0,
-              timeInCurrentBudget: '',
-            },
-            workoutProgramsHistory: [],
-            stepsHistory: [],
-          } as Lead;
-        }
+    fetchData({
+      page: currentPage,
+      pageSize: pageSize,
+      sort: { field: sortField || 'created_at', direction: sortOrder === 'ASC' ? 'asc' : 'desc' },
+      filters: apiFilters,
+    });
+  }, [fetchData, currentPage, pageSize, sortBy, sortOrder, apiFilters]);
+
+  // Trigger fetch when params change
+  useEffect(() => {
+    refreshLeads();
+  }, [refreshLeads]);
+
+  // Sync Result to Redux
+  useEffect(() => {
+    if (isQueryLoading) {
+      dispatch(setLoading(true));
+      return;
+    }
+    if (queryError) {
+      dispatch(setError(queryError));
+      dispatch(setLoading(false));
+      return;
+    }
+
+    if (queryData) {
+      // Adapt Data
+      const adaptedLeads: Lead[] = queryData.map((row: any) => {
+        // Reconstruct nested budget/menu if view returns flattened fields
+        const budgetAssignments = row.budget_name ? [{
+          budgets: {
+            name: row.budget_name,
+            steps_goal: row.budget_steps_goal,
+            is_public: row.budget_is_public,
+            nutrition_templates: {
+              name: row.menu_name,
+              targets: {
+                calories: row.menu_calories,
+                protein: row.menu_protein
+              }
+            }
+          }
+        }] : [];
+
+        // Base mapping
+        const base = mapLeadToUIFormat(row);
+        
+        return {
+          ...base,
+          budget_assignments: budgetAssignments,
+        };
       });
 
-      // Update Redux with fetched leads (source of truth)
-      dispatch(setLeads(uiLeads));
+      dispatch(setLeads(adaptedLeads));
+      dispatch(setTotalLeads(queryCount));
       dispatch(setLoading(false));
-    } catch (err: any) {
-      dispatch(setError(err.message || 'Failed to fetch leads'));
-      dispatch(setLoading(false));
-      // Don't clear leads on error - keep existing data to prevent blank page
-      // This prevents the issue where leads disappear when returning to the page
-      // This prevents the issue where leads disappear when returning to the page
-    } finally {
-      setIsRefreshing(false);
     }
-  }, [
-    debouncedSearchQuery, // Use debounced search
-    options?.filterGroup,
-    // Pagination dependencies
-    currentPage,
-    pageSize,
-    // Sorting dependencies
-    sortBy,
-    sortOrder,
-    // Grouping dependencies
-    groupByKeys,
-    dispatch,
-  ]);
-
-  // Reset pagination to page 1 when filters or grouping change
-  const prevFiltersRef = useRef<string>('');
-  useEffect(() => {
-    const currentFilters = JSON.stringify({ 
-      debouncedSearchQuery, 
-      filterGroup: options?.filterGroup,
-      groupByKeys: [groupByKeys[0], groupByKeys[1]],
-    });
-    
-    // If filters or grouping changed (and not on initial load), reset to page 1
-    if (prevFiltersRef.current && prevFiltersRef.current !== currentFilters && currentPage !== 1) {
-      dispatch(setCurrentPage(1));
-    }
-    prevFiltersRef.current = currentFilters;
-  }, [
-    debouncedSearchQuery,
-    options?.filterGroup,
-    groupByKeys,
-    currentPage,
-    dispatch,
-  ]);
-
-  // Fetch leads on mount and when filters/pagination/sorting/grouping change
-  // Single useEffect to prevent duplicate calls
-  // NOTE: refreshLeads is NOT in dependencies to prevent infinite loops
-  // It's a useCallback with all necessary dependencies, so it will be recreated when needed
-  useEffect(() => {
-    // Always refresh leads when filters/pagination/sorting/grouping change or on mount
-    refreshLeads();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    // Filter dependencies (using debounced search)
-    debouncedSearchQuery,
-    options?.filterGroup,
-    // Pagination dependencies
-    currentPage,
-    pageSize,
-    // Sorting dependencies
-    sortBy,
-    sortOrder,
-    // Grouping dependencies - use JSON.stringify to ensure stable reference
-    groupByKeys[0],
-    groupByKeys[1],
-  ]);
+  }, [queryData, queryCount, isQueryLoading, queryError, dispatch]);
 
 
   // =====================================================
-  // Filter Handlers (update Redux state, triggers refresh)
+  // Handlers
   // =====================================================
   const handleSearchChange = useCallback((value: string) => {
     dispatch(setTableSearchQuery({ resourceKey: 'leads', query: value }));
   }, [dispatch]);
 
-  // =====================================================
-  // Pagination Handlers (trigger server requests)
-  // =====================================================
   const handlePageChange = useCallback((page: number) => {
     dispatch(setCurrentPage(page));
-    // refreshLeads will be triggered by useEffect when currentPage changes
   }, [dispatch]);
 
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     dispatch(setPageSize(newPageSize));
-    // refreshLeads will be triggered by useEffect when pageSize changes
   }, [dispatch]);
 
-  // =====================================================
-  // Sorting Handlers (trigger server requests)
-  // =====================================================
   const handleSortChange = useCallback((newSortBy: string, newSortOrder: 'ASC' | 'DESC') => {
     dispatch(setSortBy(newSortBy));
     dispatch(setSortOrder(newSortOrder));
-    // refreshLeads will be triggered by useEffect when sortBy/sortOrder changes
   }, [dispatch]);
 
   // =====================================================
-  // Saved Views Logic
+  // Saved Views & UI State
   // =====================================================
-
-  // Reset view flag when navigating to base resource (no view_id)
   useEffect(() => {
-    if (!viewId) {
-      setHasAppliedView(false);
-    }
+    if (!viewId) setHasAppliedView(false);
   }, [viewId]);
 
-  // Apply saved view filter config when view is loaded
   useEffect(() => {
     if (viewId && savedView && !hasAppliedView && !isLoadingView) {
       const filterConfig = savedView.filter_config as FilterConfig;
-
-      // Apply all filters from the saved view
       if (filterConfig.searchQuery !== undefined) {
         dispatch(setTableSearchQuery({ resourceKey: 'leads', query: filterConfig.searchQuery || '' }));
       }
@@ -327,12 +248,10 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
       if (filterConfig.columnWidths) {
         dispatch(setAllColumnSizing({ resourceKey: 'leads', sizing: filterConfig.columnWidths }));
       }
-
       setHasAppliedView(true);
     }
   }, [savedView, hasAppliedView, isLoadingView, viewId, dispatch]);
 
-  // Get current filter config for saving views
   const getCurrentFilterConfig = useCallback((advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc'): FilterConfig => {
     return {
       searchQuery,
@@ -344,15 +263,8 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
       filterGroup: options?.filterGroup || undefined,
       advancedFilters,
     };
-  }, [
-    searchQuery,
-    tableColumnVisibility,
-    options?.filterGroup,
-  ]);
+  }, [searchQuery, tableColumnVisibility, options?.filterGroup]);
 
-  // =====================================================
-  // UI State (local to component)
-  // =====================================================
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
@@ -362,7 +274,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
       await dispatch(logoutUser()).unwrap();
       navigate('/login');
     } catch (error) {
-      // Navigate to login even if logout fails
       navigate('/login');
     }
   }, [dispatch, navigate]);
@@ -371,181 +282,67 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     setIsAddLeadDialogOpen(true);
   }, []);
 
-  // =====================================================
-  // Memoized Values (React performance optimization)
-  // =====================================================
-
-  // Filtered leads = leads (no client-side filtering needed)
-  // PostgreSQL already filtered them
   const filteredLeads = useMemo(() => leads, [leads]);
 
-  // =====================================================
-  // URL Params Sync - read URL params on mount/initial load only
-  // One-way: URL -> Redux (only on initial load)
-  // =====================================================
+  // URL Params Sync (One-way: URL -> Redux on mount)
   const [hasReadUrlParams, setHasReadUrlParams] = useState(false);
-  
   useEffect(() => {
-    // Only read from URL params once on initial mount
-    if (hasReadUrlParams) return;
-    if (!isTableStateInitialized) return;
-
+    if (hasReadUrlParams || !isTableStateInitialized) return;
     const params = new URLSearchParams(searchParams);
 
-    // Read pagination from URL
     const urlPage = params.get('page');
     if (urlPage) {
       const pageNum = parseInt(urlPage, 10);
-      if (!isNaN(pageNum) && pageNum > 0 && pageNum !== currentPage) {
-        dispatch(setCurrentPage(pageNum));
-      }
+      if (!isNaN(pageNum) && pageNum > 0 && pageNum !== currentPage) dispatch(setCurrentPage(pageNum));
     }
-
-    const urlPageSize = params.get('pageSize');
-    if (urlPageSize) {
-      const pageSizeNum = parseInt(urlPageSize, 10);
-      if (!isNaN(pageSizeNum) && (pageSizeNum === 50 || pageSizeNum === 100) && pageSizeNum !== pageSize) {
-        dispatch(setPageSize(pageSizeNum));
-      }
-    }
-
-    // Read search from URL
     const urlSearch = params.get('search');
-    if (urlSearch !== null && urlSearch !== searchQuery) {
-      dispatch(setTableSearchQuery({ resourceKey: 'leads', query: urlSearch }));
-    }
-
-    // Read sorting from URL
+    if (urlSearch !== null && urlSearch !== searchQuery) dispatch(setTableSearchQuery({ resourceKey: 'leads', query: urlSearch }));
     const urlSortBy = params.get('sortBy');
-    if (urlSortBy && urlSortBy !== sortBy) {
-      dispatch(setSortBy(urlSortBy));
-    }
-
-    const urlSortOrder = params.get('sortOrder') as 'ASC' | 'DESC' | null;
-    if (urlSortOrder && (urlSortOrder === 'ASC' || urlSortOrder === 'DESC') && urlSortOrder !== sortOrder) {
-      dispatch(setSortOrder(urlSortOrder));
-    }
-
+    if (urlSortBy && urlSortBy !== sortBy) dispatch(setSortBy(urlSortBy));
+    
     setHasReadUrlParams(true);
-  }, [hasReadUrlParams, searchParams, dispatch, isTableStateInitialized]); // Only depend on searchParams, not Redux state
+  }, [hasReadUrlParams, searchParams, dispatch, isTableStateInitialized]);
 
-  // Sync Redux state to URL on changes (one-way: Redux -> URL)
-  // This effect should NOT depend on searchParams to avoid loops
+  // URL Params Sync (Redux -> URL)
   useEffect(() => {
-    // Skip if we haven't read URL params yet (to avoid writing before reading)
     if (!hasReadUrlParams) return;
-
     const params = new URLSearchParams(window.location.search);
     let updated = false;
 
-    // Update URL params from Redux state
-    if (currentPage !== 1) {
-      if (params.get('page') !== String(currentPage)) {
-        params.set('page', String(currentPage));
-        updated = true;
-      }
-    } else {
-      if (params.has('page')) {
-        params.delete('page');
-        updated = true;
-      }
-    }
-
-    if (pageSize !== 100) {
-      if (params.get('pageSize') !== String(pageSize)) {
-        params.set('pageSize', String(pageSize));
-        updated = true;
-      }
-    } else {
-      if (params.has('pageSize')) {
-        params.delete('pageSize');
-        updated = true;
-      }
-    }
-
-    if (searchQuery) {
-      if (params.get('search') !== searchQuery) {
-        params.set('search', searchQuery);
-        updated = true;
-      }
-    } else {
-      if (params.has('search')) {
-        params.delete('search');
-        updated = true;
-      }
-    }
-
-    if (sortBy !== 'createdDate') {
-      if (params.get('sortBy') !== sortBy) {
-        params.set('sortBy', sortBy);
-        updated = true;
-      }
-    } else {
-      if (params.has('sortBy')) {
-        params.delete('sortBy');
-        updated = true;
-      }
-    }
-
-    if (sortOrder !== 'DESC') {
-      if (params.get('sortOrder') !== sortOrder) {
-        params.set('sortOrder', sortOrder);
-        updated = true;
-      }
-    } else {
-      if (params.has('sortOrder')) {
-        params.delete('sortOrder');
-        updated = true;
-      }
-    }
-
-    // Preserve view_id if present
-    if (viewId) {
-      params.set('view_id', viewId);
-    }
+    if (currentPage !== 1) { params.set('page', String(currentPage)); updated = true; } 
+    else if (params.has('page')) { params.delete('page'); updated = true; }
+    
+    if (searchQuery) { params.set('search', searchQuery); updated = true; }
+    else if (params.has('search')) { params.delete('search'); updated = true; }
 
     if (updated) {
       const newUrl = `${window.location.pathname}?${params.toString()}`;
       window.history.replaceState({}, '', newUrl);
     }
-  }, [currentPage, pageSize, searchQuery, sortBy, sortOrder, viewId, hasReadUrlParams]); // Removed searchParams to prevent loop
+  }, [currentPage, searchQuery, hasReadUrlParams]);
 
-  // =====================================================
-  // Return API
-  // =====================================================
   return {
-    // Data
     filteredLeads,
-    leads, // Raw leads (source of truth)
+    leads,
     searchQuery,
     columnVisibility: tableColumnVisibility,
     user,
-    isLoading: isLoading || isRefreshing,
+    isLoading: isLoading || isQueryLoading,
     error,
-    savedView, // Expose savedView to avoid duplicate calls
-
-    // Pagination state
+    savedView,
     currentPage,
     pageSize,
     totalLeads,
-    
-    // Sorting state
     sortBy,
     sortOrder,
-
-    // UI State
     isSettingsOpen,
     datePickerOpen,
     isAddLeadDialogOpen,
     isLoadingView,
     activeViewId: viewId,
-
-    // Handlers
     handleSearchChange,
-    // Pagination handlers
     handlePageChange,
     handlePageSizeChange,
-    // Sorting handlers
     handleSortChange,
     handleLogout,
     handleAddLead,
@@ -554,5 +351,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     setIsAddLeadDialogOpen,
     getCurrentFilterConfig,
     refreshLeads,
+    entityConfig,
   };
 };
