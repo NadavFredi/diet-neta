@@ -26,6 +26,7 @@ import CustomersManagement from "./pages/CustomersManagement.tsx";
 import MeetingsManagement from "./pages/MeetingsManagement.tsx";
 import MeetingDetailView from "./pages/MeetingDetailView.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
+import LeadsRefactored from "./pages/LeadsRefactored.tsx";
 import { CheckInSettingsPage } from "./pages/CheckInSettingsPage.tsx";
 import { WhatsAppAutomationsPage } from "./pages/WhatsAppAutomationsPage.tsx";
 import Analytics from "./pages/Analytics.tsx";
@@ -243,6 +244,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <MeetingDetailView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leads-refactored"
+            element={
+              <ProtectedRoute>
+                <LeadsRefactored />
               </ProtectedRoute>
             }
           />
