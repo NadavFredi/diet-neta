@@ -480,16 +480,19 @@ function generateMeetingData(lead, customer) {
 // Generate meetings
 async function generateMeetings(leads, customers) {
   console.log(`📅 Creating meetings...`);
+  console.log(`   (Target: At least 150 meetings to ensure >100 records)`);
   
   // Create meetings for 60% of leads (some leads have multiple meetings)
+  // Ensure we get at least 150 meetings total
   const meetings = [];
   const leadsWithMeetings = new Set();
+  const targetMeetings = Math.max(150, Math.ceil(leads.length * 0.75)); // At least 75% of leads get meetings
   
-  // First pass: 60% of leads get at least one meeting
+  // First pass: 75% of leads get at least one meeting
   for (const lead of leads) {
     if (!lead.id || !lead.customer_id) continue; // Skip leads without IDs
     
-    if (Math.random() < 0.6) {
+    if (meetings.length < targetMeetings || Math.random() < 0.75) {
       leadsWithMeetings.add(lead.id);
       const customer = customers.find(c => c.id === lead.customer_id);
       if (!customer) continue;
@@ -508,29 +511,27 @@ async function generateMeetings(leads, customers) {
     }
   }
   
-  // Second pass: 20% of leads with meetings get a second meeting
+  // Second pass: Add more meetings until we reach target
   const leadsArray = Array.from(leadsWithMeetings);
-  for (let i = 0; i < leadsArray.length; i++) {
-    if (Math.random() < 0.2) {
-      const leadId = leadsArray[i];
-      const lead = leads.find(l => l.id === leadId);
-      if (!lead) continue;
-      
-      const customer = customers.find(c => c.id === lead.customer_id);
-      if (!customer) continue;
-      
-      const meetingData = generateMeetingData(lead, customer);
-      const meetingDate = new Date(meetingData.date);
-      
-      meetings.push({
-        lead_id: lead.id,
-        customer_id: lead.customer_id,
-        fillout_submission_id: `fillout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${meetings.length}`,
-        meeting_data: meetingData,
-        created_at: randomDate(meetingDate, new Date()).toISOString(),
-        updated_at: new Date().toISOString()
-      });
-    }
+  while (meetings.length < targetMeetings && leadsArray.length > 0) {
+    const leadId = leadsArray[Math.floor(Math.random() * leadsArray.length)];
+    const lead = leads.find(l => l.id === leadId);
+    if (!lead) continue;
+    
+    const customer = customers.find(c => c.id === lead.customer_id);
+    if (!customer) continue;
+    
+    const meetingData = generateMeetingData(lead, customer);
+    const meetingDate = new Date(meetingData.date);
+    
+    meetings.push({
+      lead_id: lead.id,
+      customer_id: lead.customer_id,
+      fillout_submission_id: `fillout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${meetings.length}`,
+      meeting_data: meetingData,
+      created_at: randomDate(meetingDate, new Date()).toISOString(),
+      updated_at: new Date().toISOString()
+    });
   }
   
   // Insert in batches of 50
@@ -573,60 +574,90 @@ async function generateMeetings(leads, customers) {
 // Generate payments
 async function generatePayments(customers, leads) {
   console.log(`💳 Creating payments...`);
+  console.log(`   (Target: At least 150 payments to ensure >100 records)`);
   
   const payments = [];
+  const targetPayments = Math.max(150, Math.ceil(customers.length * 1.0)); // At least 1 payment per customer on average
   
-  // Create payments for 70% of customers
+  // Create payments for customers
   // Some customers have multiple payments
   for (const customer of customers) {
-    if (Math.random() < 0.7) {
-      // Find a lead for this customer
-      const customerLeads = leads.filter(l => l.customer_id === customer.id);
-      const lead = customerLeads.length > 0 ? customerLeads[Math.floor(Math.random() * customerLeads.length)] : null;
+    // Find a lead for this customer
+    const customerLeads = leads.filter(l => l.customer_id === customer.id);
+    const lead = customerLeads.length > 0 ? customerLeads[Math.floor(Math.random() * customerLeads.length)] : null;
+    
+    // Generate 1-3 payments per customer, but ensure we reach target
+    const numPayments = payments.length < targetPayments 
+      ? Math.floor(Math.random() * 3) + 1 
+      : (Math.random() < 0.7 ? 1 : 0);
+    
+    for (let i = 0; i < numPayments; i++) {
+      const product = paymentProducts[Math.floor(Math.random() * paymentProducts.length)];
+      const status = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
       
-      // Generate 1-3 payments per customer
-      const numPayments = Math.floor(Math.random() * 3) + 1;
-      
-      for (let i = 0; i < numPayments; i++) {
-        const product = paymentProducts[Math.floor(Math.random() * paymentProducts.length)];
-        const status = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
-        
-        // Generate amount based on product
-        let amount = 0;
-        if (product.includes('חודשית')) {
-          amount = 500 + Math.random() * 500; // 500-1000
-        } else if (product.includes('3 חודשים')) {
-          amount = 1200 + Math.random() * 800; // 1200-2000
-        } else if (product.includes('6 חודשים')) {
-          amount = 2000 + Math.random() * 1000; // 2000-3000
-        } else if (product.includes('שנתית')) {
-          amount = 3500 + Math.random() * 1500; // 3500-5000
-        } else if (product.includes('VIP')) {
-          amount = 5000 + Math.random() * 5000; // 5000-10000
-        } else {
-          amount = 200 + Math.random() * 800; // 200-1000
-        }
-        
-        const paymentDate = randomDate(new Date(2023, 0, 1), new Date());
-        
-        const payment = {
-          customer_id: customer.id,
-          lead_id: lead ? lead.id : null,
-          product_name: product,
-          amount: parseFloat(amount.toFixed(2)),
-          currency: 'ILS',
-          status: status,
-          stripe_payment_id: status === 'שולם' ? `pi_${Math.random().toString(36).substr(2, 24)}` : null,
-          transaction_id: status === 'שולם' || status === 'ממתין' ? `txn_${Math.random().toString(36).substr(2, 16)}` : null,
-          receipt_url: status === 'שולם' ? `https://example.com/receipts/${Math.random().toString(36).substr(2, 16)}.pdf` : null,
-          notes: Math.random() < 0.3 ? ['תשלום ראשון', 'תשלום חודשי', 'תשלום חד פעמי', 'החזר'][Math.floor(Math.random() * 4)] : null,
-          created_at: paymentDate.toISOString(),
-          updated_at: paymentDate.toISOString()
-        };
-        
-        payments.push(payment);
+      // Generate amount based on product
+      let amount = 0;
+      if (product.includes('חודשית')) {
+        amount = 500 + Math.random() * 500; // 500-1000
+      } else if (product.includes('3 חודשים')) {
+        amount = 1200 + Math.random() * 800; // 1200-2000
+      } else if (product.includes('6 חודשים')) {
+        amount = 2000 + Math.random() * 1000; // 2000-3000
+      } else if (product.includes('שנתית')) {
+        amount = 3500 + Math.random() * 1500; // 3500-5000
+      } else if (product.includes('VIP')) {
+        amount = 5000 + Math.random() * 5000; // 5000-10000
+      } else {
+        amount = 200 + Math.random() * 800; // 200-1000
       }
+      
+      const paymentDate = randomDate(new Date(2023, 0, 1), new Date());
+      
+      const payment = {
+        customer_id: customer.id,
+        lead_id: lead ? lead.id : null,
+        product_name: product,
+        amount: parseFloat(amount.toFixed(2)),
+        currency: 'ILS',
+        status: status,
+        stripe_payment_id: status === 'שולם' ? `pi_${Math.random().toString(36).substr(2, 24)}` : null,
+        transaction_id: status === 'שולם' || status === 'ממתין' ? `txn_${Math.random().toString(36).substr(2, 16)}` : null,
+        receipt_url: status === 'שולם' ? `https://example.com/receipts/${Math.random().toString(36).substr(2, 16)}.pdf` : null,
+        notes: Math.random() < 0.3 ? ['תשלום ראשון', 'תשלום חודשי', 'תשלום חד פעמי', 'החזר'][Math.floor(Math.random() * 4)] : null,
+        created_at: paymentDate.toISOString(),
+        updated_at: paymentDate.toISOString()
+      };
+      
+      payments.push(payment);
     }
+  }
+  
+  // If we still don't have enough payments, add more
+  while (payments.length < targetPayments && customers.length > 0) {
+    const customer = customers[Math.floor(Math.random() * customers.length)];
+    const customerLeads = leads.filter(l => l.customer_id === customer.id);
+    const lead = customerLeads.length > 0 ? customerLeads[Math.floor(Math.random() * customerLeads.length)] : null;
+    
+    const product = paymentProducts[Math.floor(Math.random() * paymentProducts.length)];
+    const status = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
+    
+    let amount = 500 + Math.random() * 2000;
+    const paymentDate = randomDate(new Date(2023, 0, 1), new Date());
+    
+    payments.push({
+      customer_id: customer.id,
+      lead_id: lead ? lead.id : null,
+      product_name: product,
+      amount: parseFloat(amount.toFixed(2)),
+      currency: 'ILS',
+      status: status,
+      stripe_payment_id: status === 'שולם' ? `pi_${Math.random().toString(36).substr(2, 24)}` : null,
+      transaction_id: status === 'שולם' || status === 'ממתין' ? `txn_${Math.random().toString(36).substr(2, 16)}` : null,
+      receipt_url: status === 'שולם' ? `https://example.com/receipts/${Math.random().toString(36).substr(2, 16)}.pdf` : null,
+      notes: Math.random() < 0.3 ? ['תשלום ראשון', 'תשלום חודשי', 'תשלום חד פעמי', 'החזר'][Math.floor(Math.random() * 4)] : null,
+      created_at: paymentDate.toISOString(),
+      updated_at: paymentDate.toISOString()
+    });
   }
   
   // Insert in batches of 50
@@ -935,7 +966,7 @@ async function generateBudgets(count, nutritionTemplates, workoutTemplates) {
     const isPublic = Math.random() < 0.3; // 30% are public
     
     // Link to nutrition template (50% chance)
-    const nutritionTemplateId = nutritionTemplates.length > 0 && Math.random() < 0.5
+    const nutritionTemplateId = nutritionTemplates && nutritionTemplates.length > 0 && Math.random() < 0.5
       ? nutritionTemplates[Math.floor(Math.random() * nutritionTemplates.length)].id
       : null;
     
@@ -954,7 +985,7 @@ async function generateBudgets(count, nutritionTemplates, workoutTemplates) {
     const stepsInstructions = `הליכה של ${stepsGoal} צעדים ביום`;
     
     // Link to workout template (50% chance)
-    const workoutTemplateId = workoutTemplates.length > 0 && Math.random() < 0.5
+    const workoutTemplateId = workoutTemplates && workoutTemplates.length > 0 && Math.random() < 0.5
       ? workoutTemplates[Math.floor(Math.random() * workoutTemplates.length)].id
       : null;
     

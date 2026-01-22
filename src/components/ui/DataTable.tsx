@@ -1232,7 +1232,7 @@ export function DataTable<T extends Record<string, any>>({
   return (
     <div className={cn('w-full h-full flex flex-col', className)} dir={dir}>
       {enableRowSelection && (selectedRowIds.size > 0 || selectAllAcrossPages) && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-indigo-100 bg-indigo-50/40 px-4 py-3 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border border-indigo-100 bg-indigo-50/40 px-4 py-3 ">
           <div className="text-sm text-slate-700">
             {selectAllAcrossPages ? (
               <span>
@@ -1325,6 +1325,11 @@ export function DataTable<T extends Record<string, any>>({
               collapsedGroupsSet={collapsedGroupsSet}
               onToggleGroup={handleToggleGroup}
               getGroupColumnHeader={getGroupColumnHeader}
+              enableRowSelection={enableRowSelection}
+              getRowIdValue={getRowIdValue}
+              handleToggleRow={handleToggleRow}
+              selectedRowIds={selectedRowIds}
+              selectAllAcrossPages={selectAllAcrossPages}
             />
           </DndContext>
         ) : (
@@ -1350,6 +1355,11 @@ export function DataTable<T extends Record<string, any>>({
             collapsedGroupsSet={collapsedGroupsSet}
             onToggleGroup={handleToggleGroup}
             getGroupColumnHeader={getGroupColumnHeader}
+            enableRowSelection={enableRowSelection}
+            getRowIdValue={getRowIdValue}
+            handleToggleRow={handleToggleRow}
+            selectedRowIds={selectedRowIds}
+            selectAllAcrossPages={selectAllAcrossPages}
           />
         )}
       </div>
@@ -1405,6 +1415,11 @@ function TableContent<T>({
   collapsedGroupsSet,
   onToggleGroup,
   getGroupColumnHeader,
+  enableRowSelection,
+  getRowIdValue,
+  handleToggleRow,
+  selectedRowIds,
+  selectAllAcrossPages,
 }: {
   table: any;
   tableColumns: any[];
@@ -1427,6 +1442,11 @@ function TableContent<T>({
   collapsedGroupsSet: Set<string>;
   onToggleGroup: (groupKey: string) => void;
   getGroupColumnHeader: (columnId?: string | null) => string;
+  enableRowSelection?: boolean;
+  getRowIdValue?: (row: T) => string;
+  handleToggleRow?: (rowId: string, checked: boolean) => void;
+  selectedRowIds?: Set<string>;
+  selectAllAcrossPages?: boolean;
 }) {
   // Helper to check if groupedData is multi-level
   const isMultiLevelGrouping = (data: any): data is MultiLevelGroupedData<T>[] => {
@@ -1896,6 +1916,7 @@ function TableContent<T>({
                                 const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
                                 const isNumeric = meta?.isNumeric;
                                 const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+                                const isSelectionColumn = cell.column.id === SELECTION_COLUMN_ID;
 
                                 return (
                                   <td
@@ -1911,7 +1932,8 @@ function TableContent<T>({
                                         : '',
                                       (cell.column.id === 'phone' || isNumeric)
                                         ? 'whitespace-nowrap'
-                                        : ''
+                                        : '',
+                                      isSelectionColumn && 'cursor-pointer'
                                     )}
                                     style={{
                                       width: `${width}px`,
@@ -1919,6 +1941,14 @@ function TableContent<T>({
                                       maxWidth: `${width}px`,
                                     }}
                                     title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                                    onClick={isSelectionColumn && enableRowSelection && getRowIdValue && handleToggleRow && selectedRowIds && selectAllAcrossPages !== undefined ? (e) => {
+                                      e.stopPropagation();
+                                      const rowId = getRowIdValue(row.original);
+                                      if (rowId) {
+                                        const checked = selectAllAcrossPages ? true : selectedRowIds.has(rowId);
+                                        handleToggleRow(rowId, !checked);
+                                      }
+                                    } : undefined}
                                   >
                                     {getCellContent(cell, column)}
                                   </td>
@@ -2006,6 +2036,7 @@ function TableContent<T>({
                             const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
                             const isNumeric = meta?.isNumeric;
                             const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+                            const isSelectionColumn = cell.column.id === SELECTION_COLUMN_ID;
 
                             return (
                               <td
@@ -2021,7 +2052,8 @@ function TableContent<T>({
                                     : '',
                                   (cell.column.id === 'phone' || isNumeric)
                                     ? 'whitespace-nowrap'
-                                    : ''
+                                    : '',
+                                  isSelectionColumn && 'cursor-pointer'
                                 )}
                                 style={{
                                   width: `${width}px`,
@@ -2029,6 +2061,14 @@ function TableContent<T>({
                                   maxWidth: `${width}px`,
                                 }}
                                 title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                                onClick={isSelectionColumn && enableRowSelection && getRowIdValue && handleToggleRow && selectedRowIds && selectAllAcrossPages !== undefined ? (e) => {
+                                  e.stopPropagation();
+                                  const rowId = getRowIdValue(row.original);
+                                  if (rowId) {
+                                    const checked = selectAllAcrossPages ? true : selectedRowIds.has(rowId);
+                                    handleToggleRow(rowId, !checked);
+                                  }
+                                } : undefined}
                               >
                                 {getCellContent(cell, column)}
                               </td>
@@ -2062,6 +2102,7 @@ function TableContent<T>({
                 const align = meta?.align || (dir === 'rtl' ? 'right' : 'left');
                 const isNumeric = meta?.isNumeric;
                 const width = columnSizing[cell.column.id] || cell.column.getSize() || 150;
+                const isSelectionColumn = cell.column.id === SELECTION_COLUMN_ID;
 
                 return (
                   <td
@@ -2077,7 +2118,8 @@ function TableContent<T>({
                         : '',
                       (cell.column.id === 'phone' || isNumeric)
                         ? 'whitespace-nowrap'
-                        : ''
+                        : '',
+                      isSelectionColumn && 'cursor-pointer'
                     )}
                     style={{
                       width: `${width}px`,
@@ -2085,6 +2127,14 @@ function TableContent<T>({
                       maxWidth: `${width}px`,
                     }}
                     title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
+                    onClick={isSelectionColumn ? (e) => {
+                      e.stopPropagation();
+                      const rowId = getRowIdValue(row.original);
+                      if (rowId) {
+                        const checked = selectAllAcrossPages ? true : selectedRowIds.has(rowId);
+                        handleToggleRow(rowId, !checked);
+                      }
+                    } : undefined}
                   >
                     {getCellContent(cell, column)}
                   </td>
