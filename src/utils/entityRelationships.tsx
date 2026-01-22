@@ -5,7 +5,6 @@
  * This allows filtering by related entities and their sub-filters.
  */
 
-import React from 'react';
 import type { FilterField } from '@/components/dashboard/TableFilter';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { generateFilterFieldsFromColumns } from '@/utils/columnToFilterUtils';
@@ -296,52 +295,16 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
       getColumns: (columns) => {
         // Menu columns come from budgets -> nutrition_templates
         if (columns && columns.length > 0) {
-          return columns.map(col => {
-            // Extract the original cell function
-            const originalCell = col.cell;
-            
-            // Create a new cell function that extracts the nested nutrition template
-            let newCell = originalCell;
-            if (originalCell) {
-              newCell = (info: any) => {
-                // Extract nutrition template from nested structure
-                const nutritionTemplate = info.row.original.budget_assignments?.[0]?.budgets?.nutrition_templates;
-                if (!nutritionTemplate) {
-                  // Return empty/placeholder for missing data
-                  if (col.id === 'targets') {
-                    return <span className="text-gray-400">-</span>;
-                  }
-                  if (col.id === 'created_at') {
-                    return <span className="text-gray-400">-</span>;
-                  }
-                  return <span className="text-gray-400">-</span>;
-                }
-                
-                // Create a mock row object with the nutrition template as original
-                const mockInfo = {
-                  ...info,
-                  row: {
-                    ...info.row,
-                    original: nutritionTemplate,
-                  },
-                };
-                
-                return originalCell(mockInfo);
-              };
-            }
-            
-            return {
-              ...col,
-              id: `menu.${col.id}`,
-              accessorFn: (row: any) => {
-                // Access nutrition template through budget_assignments -> budgets -> nutrition_templates
-                const nutritionTemplate = row.budget_assignments?.[0]?.budgets?.nutrition_templates;
-                if (!nutritionTemplate) return null;
-                return col.accessorKey ? nutritionTemplate[col.accessorKey] : (col.accessorFn ? col.accessorFn(nutritionTemplate) : null);
-              },
-              cell: newCell,
-            };
-          });
+          return columns.map(col => ({
+            ...col,
+            id: `menu.${col.id}`,
+            accessorFn: (row: any) => {
+              // Access nutrition template through budget_assignments -> budgets -> nutrition_templates
+              const nutritionTemplate = row.budget_assignments?.[0]?.budgets?.nutrition_templates;
+              if (!nutritionTemplate) return null;
+              return col.accessorKey ? nutritionTemplate[col.accessorKey] : (col.accessorFn ? col.accessorFn(nutritionTemplate) : null);
+            },
+          }));
         }
         // Fallback: key menu columns
         return [

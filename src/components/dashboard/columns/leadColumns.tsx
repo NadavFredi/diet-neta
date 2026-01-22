@@ -2,7 +2,7 @@ import { type ColumnDef } from '@tanstack/react-table';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { formatDate } from '@/utils/dashboard';
 import type { DataTableColumn } from '@/components/ui/DataTable';
-import { getEntityRelationships } from '@/utils/entityRelationships';
+import { getEntityRelationships } from '@/utils/entityRelationships.tsx';
 import { budgetColumns } from '@/components/dashboard/BudgetsDataTable';
 import { nutritionTemplateColumns } from '@/components/dashboard/columns/templateColumns';
 
@@ -359,7 +359,6 @@ export const defaultLeadColumnVisibility: Record<string, boolean> = {
   source: false,
   notes: false,
 };
-
 
 
 

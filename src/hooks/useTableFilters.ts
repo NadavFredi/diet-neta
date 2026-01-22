@@ -30,7 +30,7 @@ import {
 import { generateFilterFieldsFromColumns } from '@/utils/columnToFilterUtils';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import type { DataTableColumn } from '@/components/ui/DataTable';
-import { getEntityRelationships } from '@/utils/entityRelationships';
+import { getEntityRelationships } from '@/utils/entityRelationships.tsx';
 import { budgetColumns } from '@/components/dashboard/BudgetsDataTable';
 import { nutritionTemplateColumns } from '@/components/dashboard/columns/templateColumns';
 import { exerciseColumns } from '@/components/dashboard/columns/exerciseColumns';
@@ -848,8 +848,6 @@ export function getExerciseFilterFields<T>(
     },
   ];
 }
-
-
 
 
 
