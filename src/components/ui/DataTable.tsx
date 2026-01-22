@@ -947,12 +947,25 @@ function TableContent<T>({
               return (
                 <React.Fragment key={l1Key}>
                   <tr className="bg-slate-50 border-t border-b border-slate-200 hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => onToggleGroup(l1Key)}>
-                    <td colSpan={table.getVisibleLeafColumns().length} className="px-4 py-3">
-                      <div className="flex items-center gap-3" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row', justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start' }}>
-                        <span className="text-sm font-bold text-slate-900">{l1Header}: {formatGVal(l1.level1Key, groupByKeys[0], false)}</span>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">{l1.items.length + (l1.level2Groups?.reduce((acc, g) => acc + g.items.length, 0) || 0)} {singularLabel}</span>
-                        <div className="flex-shrink-0 transition-transform duration-200">{isL1Collapsed ? <ChevronRight className="h-4 w-4 text-slate-600" /> : <ChevronDown className="h-4 w-4 text-slate-600" />}</div>
-                        {enableRowSelection && handleToggleGroupRows && getRowIdValue && <div className="flex-shrink-0"><Checkbox checked={l1AllSel ? true : l1SomeSel ? 'indeterminate' : false} onCheckedChange={(v) => handleToggleGroupRows(l1VisIds, v === true)} aria-label="בחר כל הקבוצה" onClick={(e) => e.stopPropagation()} /></div>}
+                    <td colSpan={table.getVisibleLeafColumns().length} className="p-0">
+                      <div className="flex items-center h-full py-3">
+                        {enableRowSelection && handleToggleGroupRows && getRowIdValue && (
+                          <div className="flex-shrink-0 w-[48px] flex justify-center">
+                            <Checkbox
+                              checked={l1AllSel ? true : l1SomeSel ? 'indeterminate' : false}
+                              onCheckedChange={(v) => handleToggleGroupRows(l1VisIds, v === true)}
+                              aria-label="בחר כל הקבוצה"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        )}
+                        <div className="flex-shrink-0 w-8 flex justify-center transition-transform duration-200 text-slate-600">
+                          {isL1Collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </div>
+                        <div className="flex items-center gap-3 min-w-0 px-2">
+                          <span className="text-sm font-bold text-slate-900 truncate">{l1Header}: {formatGVal(l1.level1Key, groupByKeys[0], false)}</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 whitespace-nowrap">{l1.items.length + (l1.level2Groups?.reduce((acc, g) => acc + g.items.length, 0) || 0)} {singularLabel}</span>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -963,12 +976,25 @@ function TableContent<T>({
                       const l2AllSel = l2VisIds.length > 0 && l2SelCount === l2VisIds.length, l2SomeSel = l2SelCount > 0 && !l2AllSel;
                       return (
                         <tr key={item.key} className="bg-slate-100/50 border-b border-slate-200 hover:bg-slate-150 transition-colors cursor-pointer" onClick={() => onToggleGroup(item.key)}>
-                          <td colSpan={table.getVisibleLeafColumns().length} className="px-4 py-2.5">
-                            <div className="flex items-center gap-3" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row', justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start', marginRight: dir === 'rtl' ? '24px' : '0', marginLeft: dir === 'ltr' ? '24px' : '0' }}>
-                              <span className="text-sm font-semibold text-slate-700">{item.header}: {formatGVal(item.group.groupKey, groupByKeys[1], true)}</span>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">{item.group.items.length} {singularLabel}</span>
-                              <div className="flex-shrink-0 transition-transform duration-200">{item.isCollapsed ? <ChevronRight className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}</div>
-                              {enableRowSelection && handleToggleGroupRows && getRowIdValue && <div className="flex-shrink-0"><Checkbox checked={l2AllSel ? true : l2SomeSel ? 'indeterminate' : false} onCheckedChange={(v) => handleToggleGroupRows(l2VisIds, v === true)} aria-label="בחר כל הקבוצה" onClick={(e) => e.stopPropagation()} /></div>}
+                          <td colSpan={table.getVisibleLeafColumns().length} className="p-0">
+                            <div className="flex items-center h-full py-2.5">
+                              {enableRowSelection && handleToggleGroupRows && getRowIdValue && (
+                                <div className="flex-shrink-0 w-[48px] flex justify-center">
+                                  <Checkbox
+                                    checked={l2AllSel ? true : l2SomeSel ? 'indeterminate' : false}
+                                    onCheckedChange={(v) => handleToggleGroupRows(l2VisIds, v === true)}
+                                    aria-label="בחר כל הקבוצה"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                              )}
+                              <div className="flex-shrink-0 w-8 flex justify-center transition-transform duration-200 text-slate-500">
+                                {item.isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              </div>
+                              <div className="flex items-center gap-3 min-w-0 px-2" style={{ marginRight: dir === 'rtl' ? '24px' : '0', marginLeft: dir === 'ltr' ? '24px' : '0' }}>
+                                <span className="text-sm font-semibold text-slate-700 truncate">{item.header}: {formatGVal(item.group.groupKey, groupByKeys[1], true)}</span>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 whitespace-nowrap">{item.group.items.length} {singularLabel}</span>
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -1002,12 +1028,25 @@ function TableContent<T>({
               return (
                 <React.Fragment key={groupKey}>
                   <tr className="bg-slate-50 border-t border-b border-slate-200 hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => onToggleGroup(groupKey)}>
-                    <td colSpan={table.getVisibleLeafColumns().length} className="px-4 py-3">
-                      <div className="flex items-center gap-3" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row', justifyContent: dir === 'rtl' ? 'flex-end' : 'flex-start' }}>
-                        <span className="text-sm font-bold text-slate-900">{header}: {formatGVal(group.groupKey, groupByKey || groupByKeys[0], false)}</span>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">{group.items.length} {singularLabel}</span>
-                        <div className="flex-shrink-0 transition-transform duration-200">{isCollapsed ? <ChevronRight className="h-4 w-4 text-slate-600" /> : <ChevronDown className="h-4 w-4 text-slate-600" />}</div>
-                        {enableRowSelection && handleToggleGroupRows && getRowIdValue && <div className="flex-shrink-0"><Checkbox checked={gAllSel ? true : gSomeSel ? 'indeterminate' : false} onCheckedChange={(v) => handleToggleGroupRows(groupVisIds, v === true)} aria-label="בחר כל הקבוצה" onClick={(e) => e.stopPropagation()} /></div>}
+                    <td colSpan={table.getVisibleLeafColumns().length} className="p-0">
+                      <div className="flex items-center h-full py-3">
+                        {enableRowSelection && handleToggleGroupRows && getRowIdValue && (
+                          <div className="flex-shrink-0 w-[48px] flex justify-center">
+                            <Checkbox
+                              checked={gAllSel ? true : gSomeSel ? 'indeterminate' : false}
+                              onCheckedChange={(v) => handleToggleGroupRows(groupVisIds, v === true)}
+                              aria-label="בחר כל הקבוצה"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        )}
+                        <div className="flex-shrink-0 w-8 flex justify-center transition-transform duration-200 text-slate-600">
+                          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </div>
+                        <div className="flex items-center gap-3 min-w-0 px-2">
+                          <span className="text-sm font-bold text-slate-900 truncate">{header}: {formatGVal(group.groupKey, groupByKey || groupByKeys[0], false)}</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 whitespace-nowrap">{group.items.length} {singularLabel}</span>
+                        </div>
                       </div>
                     </td>
                   </tr>
