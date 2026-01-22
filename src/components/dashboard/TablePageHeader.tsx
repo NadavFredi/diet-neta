@@ -13,7 +13,7 @@ import { useTableFilters, type FilterField } from '@/hooks/useTableFilters';
 import type { ActiveFilter, FilterGroup } from '@/components/dashboard/TableFilter';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
-import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, selectColumnVisibility, type ResourceKey } from '@/store/slices/tableStateSlice';
+import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, selectColumnSizing, selectColumnVisibility, type ResourceKey } from '@/store/slices/tableStateSlice';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -168,6 +168,7 @@ export const TablePageHeader = ({
 
   // Get column order from Redux
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, resourceKey));
   
   // Get column visibility from Redux (for non-leads resources)
   const reduxColumnVisibility = resourceKey !== 'leads' 
@@ -203,6 +204,19 @@ export const TablePageHeader = ({
     const savedFilterGroup = savedConfig.filterGroup || null;
     const savedSearchQuery = savedConfig.searchQuery || '';
     const savedColumnVisibility = savedConfig.columnVisibility || {};
+    const savedColumnOrder = savedConfig.columnOrder || [];
+
+    const normalizeColumnOrder = (order: string[]) => {
+      if (!columns || columns.length === 0) return order || [];
+      const availableIds = columns.map((col) => col.id);
+      const base = order && order.length > 0 ? order : availableIds;
+      const set = new Set(availableIds);
+      const normalized = base.filter((id) => set.has(id));
+      availableIds.forEach((id) => {
+        if (!normalized.includes(id)) normalized.push(id);
+      });
+      return normalized;
+    };
     
     // Normalize current filters for comparison
     const currentFilters = (activeFilters || []).map(f => ({
@@ -257,10 +271,14 @@ export const TablePageHeader = ({
         }, {} as Record<string, boolean>)
     );
     const columnVisibilityChanged = currentColumnVisibilityStr !== savedColumnVisibilityStr;
+
+    const currentColumnOrder = normalizeColumnOrder(columnOrder);
+    const savedColumnOrderNormalized = normalizeColumnOrder(savedColumnOrder);
+    const columnOrderChanged = JSON.stringify(currentColumnOrder) !== JSON.stringify(savedColumnOrderNormalized);
     
     // Filters are dirty if filters changed, search query changed, or column visibility changed
-    return filtersChanged || searchQueryChanged || columnVisibilityChanged;
-  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, leadsColumnVisibility, reduxColumnVisibility]);
+    return filtersChanged || searchQueryChanged || columnVisibilityChanged || columnOrderChanged;
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, leadsColumnVisibility, reduxColumnVisibility, columnOrder, columns]);
 
   // Handle saving filters to default view
   const handleSaveFilters = async () => {
@@ -279,6 +297,15 @@ export const TablePageHeader = ({
       const currentColumnVisibility = resourceKey === 'leads' 
         ? leadsColumnVisibility || {}
         : (reduxColumnVisibility || {});
+
+      const currentColumnOrder = columns && columns.length > 0
+        ? columns
+            .map((col) => col.id)
+            .reduce<string[]>((acc, id) => {
+              if (columnOrder.includes(id)) return acc;
+              return [...acc, id];
+            }, [...columnOrder])
+        : columnOrder;
       
       // Build current filter config
       const currentFilterConfig: FilterConfig = {
@@ -294,6 +321,8 @@ export const TablePageHeader = ({
           type: f.type,
         })),
         columnVisibility: currentColumnVisibility,
+        columnOrder: currentColumnOrder,
+        columnWidths: columnSizing,
       };
 
       await updateSavedView.mutateAsync({

@@ -36,6 +36,7 @@ import {
   setActiveFilters,
   selectColumnOrder,
   selectColumnVisibility,
+  selectColumnSizing,
   selectSearchQuery,
   selectActiveFilters,
   selectFilterGroup,
@@ -272,6 +273,7 @@ export const TableActionHeader = ({
 
   // Get column order from Redux
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, resourceKey));
   
   // Get column visibility from Redux (for non-leads resources)
   const reduxColumnVisibility = resourceKey !== 'leads' 
@@ -407,6 +409,19 @@ export const TableActionHeader = ({
     const savedFilterGroup = savedConfig.filterGroup || null;
     const savedSearchQuery = savedConfig.searchQuery || '';
     const savedColumnVisibility = savedConfig.columnVisibility || {};
+    const savedColumnOrder = savedConfig.columnOrder || [];
+
+    const normalizeColumnOrder = (order: string[]) => {
+      if (!columns || columns.length === 0) return order || [];
+      const availableIds = columns.map((col) => col.id);
+      const base = order && order.length > 0 ? order : availableIds;
+      const set = new Set(availableIds);
+      const normalized = base.filter((id) => set.has(id));
+      availableIds.forEach((id) => {
+        if (!normalized.includes(id)) normalized.push(id);
+      });
+      return normalized;
+    };
     
     // Normalize current filters for comparison
     const currentFilters = (activeFilters || []).map(f => ({
@@ -461,10 +476,14 @@ export const TableActionHeader = ({
         }, {} as Record<string, boolean>)
     );
     const columnVisibilityChanged = currentColumnVisibilityStr !== savedColumnVisibilityStr;
+
+    const currentColumnOrder = normalizeColumnOrder(columnOrder);
+    const savedColumnOrderNormalized = normalizeColumnOrder(savedColumnOrder);
+    const columnOrderChanged = JSON.stringify(currentColumnOrder) !== JSON.stringify(savedColumnOrderNormalized);
     
     // Filters are dirty if filters changed, search query changed, or column visibility changed
-    return filtersChanged || searchQueryChanged || columnVisibilityChanged;
-  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, leadsColumnVisibility, reduxColumnVisibility]);
+    return filtersChanged || searchQueryChanged || columnVisibilityChanged || columnOrderChanged;
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, leadsColumnVisibility, reduxColumnVisibility, columnOrder, columns]);
 
   // Handle saving filters to default view
   const handleSaveFilters = async () => {
@@ -483,6 +502,15 @@ export const TableActionHeader = ({
       const currentColumnVisibility = resourceKey === 'leads' 
         ? leadsColumnVisibility || {}
         : (reduxColumnVisibility || {});
+
+      const currentColumnOrder = columns && columns.length > 0
+        ? columns
+            .map((col) => col.id)
+            .reduce<string[]>((acc, id) => {
+              if (columnOrder.includes(id)) return acc;
+              return [...acc, id];
+            }, [...columnOrder])
+        : columnOrder;
       
       // Build current filter config
       const currentFilterConfig: FilterConfig = {
@@ -498,6 +526,8 @@ export const TableActionHeader = ({
           type: f.type,
         })),
         columnVisibility: currentColumnVisibility,
+        columnOrder: currentColumnOrder,
+        columnWidths: columnSizing,
       };
 
       await updateSavedView.mutateAsync({
@@ -661,7 +691,7 @@ export const TableActionHeader = ({
               className="flex items-center gap-2 flex-shrink-0 h-10 sm:h-11"
             >
               <Save className="h-4 w-4" />
-              <span>שמור מסננים</span>
+              <span>שמור תצוגה</span>
             </Button>
           )}
 

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { DndContext, DragOverlay, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -1187,6 +1187,17 @@ const DayColumn = ({
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
   const [selectedTargetDay, setSelectedTargetDay] = useState<string>('');
 
+  // Ensure dayData.isActive is properly tracked - use a ref to remember if it was ever active
+  const wasActiveRef = useRef(dayData?.isActive || false);
+  useEffect(() => {
+    if (dayData?.isActive) {
+      wasActiveRef.current = true;
+    }
+  }, [dayData?.isActive]);
+
+  // Use the current isActive or fall back to the remembered state if dayData becomes undefined
+  const isDayActive = dayData?.isActive !== undefined ? dayData.isActive : wasActiveRef.current;
+
   const { setNodeRef, isOver } = useDroppable({
     id: `${dayKey}-column`,
   });
@@ -1222,7 +1233,7 @@ const DayColumn = ({
       >
         {/* Day Actions */}
         <div className="p-2 bg-white border-b border-gray-200 flex-shrink-0">
-          {dayData?.isActive && (dayData?.exercises?.length || 0) > 0 && (
+          {isDayActive && (dayData?.exercises?.length || 0) > 0 && (
             <div className="flex gap-1.5">
               <Button
                 size="sm"
@@ -1236,7 +1247,7 @@ const DayColumn = ({
               </Button>
             </div>
           )}
-          {!dayData?.isActive && (
+          {!isDayActive && (
             <Button
               size="sm"
               variant="outline"
@@ -1251,7 +1262,7 @@ const DayColumn = ({
 
         {/* Exercises Table */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          {dayData?.isActive ? (
+          {isDayActive ? (
             (dayData?.exercises?.length || 0) > 0 ? (
               <SortableContext items={exerciseIds} strategy={verticalListSortingStrategy}>
                 <Table dir="rtl">
@@ -1296,7 +1307,7 @@ const DayColumn = ({
         </div>
 
         {/* Quick Add Footer */}
-        {dayData?.isActive && (
+        {isDayActive && (
           <div className="p-2 border-t border-gray-200 bg-white flex-shrink-0 space-y-2">
             <SelectExerciseFromDatabase
               onSelect={(exercise) => {
@@ -1588,14 +1599,14 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
 
 
       {/* Days Accordion List */}
-      <div className="flex-1 min-h-0" style={{ flexGrow: 1, minHeight: 0 }}>
+      <div className="flex-1 min-h-0 overflow-auto" style={{ flexGrow: 1, minHeight: 0 }}>
         <DndContext
           sensors={dndContext.sensors}
           collisionDetection={dndContext.collisionDetection}
           onDragStart={dndContext.onDragStart}
           onDragEnd={dndContext.onDragEnd}
         >
-          <Accordion type="multiple" className="w-full" dir="rtl">
+          <Accordion type="multiple" className="w-full pb-4" dir="rtl">
             {DAYS.map((day) => {
               const dayKey = day.key;
               const dayData = weeklyWorkout?.days?.[dayKey as keyof typeof weeklyWorkout.days] || {

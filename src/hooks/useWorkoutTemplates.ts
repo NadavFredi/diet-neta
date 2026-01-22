@@ -266,15 +266,57 @@ export const useUpdateWorkoutTemplate = () => {
       if (routine_data !== undefined) updateData.routine_data = routine_data;
       if (is_public !== undefined) updateData.is_public = is_public;
 
-      const { data, error } = await supabase
+      // First check if the template exists and belongs to the user
+      const { data: existingTemplate, error: checkError } = await supabase
         .from('workout_templates')
-        .update(updateData)
+        .select('id, created_by')
         .eq('id', templateId)
-        .eq('created_by', userId)
-        .select()
         .single();
 
-      if (error) throw error;
+      if (checkError) {
+        if (checkError.code === 'PGRST116') {
+          throw new Error('תבנית האימונים לא נמצאה');
+        }
+        throw checkError;
+      }
+
+      // Allow editing if:
+      // 1. Template has no creator (created_by is null) - treat as editable
+      // 2. User is the creator
+      // 3. User is an admin
+      const isOwner = existingTemplate?.created_by === userId;
+      const isPublicTemplate = existingTemplate?.created_by === null;
+      const isAdmin = user?.role === 'admin';
+
+      if (!isOwner && !isPublicTemplate && !isAdmin) {
+        throw new Error('אין לך הרשאה לערוך תבנית זו');
+      }
+
+      // Now perform the update
+      // Build the query - only filter by created_by if it's not null and user is not admin
+      let updateQuery = supabase
+        .from('workout_templates')
+        .update(updateData)
+        .eq('id', templateId);
+
+      // Only filter by created_by if template has a creator and user is not admin
+      if (!isPublicTemplate && !isAdmin) {
+        updateQuery = updateQuery.eq('created_by', userId);
+      }
+
+      const { data, error } = await updateQuery.select().single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error('תבנית האימונים לא נמצאה או אין לך הרשאה לערוך אותה');
+        }
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error('תבנית האימונים לא נמצאה');
+      }
+      
       return data as WorkoutTemplate;
     },
     onSuccess: (data) => {

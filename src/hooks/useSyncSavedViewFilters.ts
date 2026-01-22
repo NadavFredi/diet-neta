@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setActiveFilters, setSearchQuery, type ResourceKey } from '@/store/slices/tableStateSlice';
+import { setActiveFilters, setSearchQuery, setAllColumnSizing, setAllColumnVisibility, setColumnOrder, type ResourceKey } from '@/store/slices/tableStateSlice';
 import type { SavedView } from '@/hooks/useSavedViews';
 
 export const useSyncSavedViewFilters = (
@@ -36,6 +36,15 @@ export const useSyncSavedViewFilters = (
       dispatch(setActiveFilters({ resourceKey, filters: filterConfig.advancedFilters }));
     } else {
       dispatch(setActiveFilters({ resourceKey, filters: [] }));
+    }
+    if (filterConfig.columnVisibility) {
+      dispatch(setAllColumnVisibility({ resourceKey, visibility: filterConfig.columnVisibility }));
+    }
+    if (filterConfig.columnOrder && Array.isArray(filterConfig.columnOrder)) {
+      dispatch(setColumnOrder({ resourceKey, order: filterConfig.columnOrder }));
+    }
+    if (filterConfig.columnWidths) {
+      dispatch(setAllColumnSizing({ resourceKey, sizing: filterConfig.columnWidths }));
     }
 
     lastAppliedViewIdRef.current = savedView.id;

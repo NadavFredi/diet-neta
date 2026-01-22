@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { useExercises } from '@/hooks/useExercises';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Database, Loader2 } from 'lucide-react';
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Database, Loader2, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { Exercise } from '@/hooks/useExercises';
 
 interface SelectExerciseFromDatabaseProps {
@@ -15,54 +19,86 @@ interface SelectExerciseFromDatabaseProps {
 }
 
 export const SelectExerciseFromDatabase = ({ onSelect }: SelectExerciseFromDatabaseProps) => {
-  const [value, setValue] = useState('');
+  const [open, setOpen] = useState(false);
   const { data: exercisesData, isLoading } = useExercises({ pageSize: 1000 });
   const exercises = exercisesData?.data || [];
 
   const handleSelect = (selectedValue: string) => {
-    if (selectedValue) {
-      const exercise = exercises.find((ex) => ex.id === selectedValue);
-      if (exercise) {
-        onSelect(exercise);
-        // Reset select after a short delay to allow the selection to be visible
-        setTimeout(() => setValue(''), 100);
-      }
+    const exercise = exercises.find((ex) => ex.id === selectedValue || ex.name === selectedValue);
+    if (exercise) {
+      onSelect(exercise);
+      setOpen(false);
     }
   };
 
   return (
-    <Select value={value} onValueChange={handleSelect} dir="rtl" disabled={isLoading}>
-      <SelectTrigger className="w-full border-2 border-green-300 hover:border-green-400 bg-green-50 hover:bg-green-100 h-12" dir="rtl">
-        <div className="flex items-center gap-2">
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 text-green-600 animate-spin" />
-          ) : (
-            <Database className="h-4 w-4 text-green-600" />
-          )}
-          <SelectValue placeholder={isLoading ? "טוען תרגילים..." : "בחר מתרגילי המאגר..."} />
-        </div>
-      </SelectTrigger>
-      <SelectContent dir="rtl" className="max-h-[400px]">
-        {exercises.length === 0 && !isLoading && (
-          <div className="px-2 py-4 text-sm text-gray-500 text-center">
-            אין תרגילים במאגר
+    <Popover open={open} onOpenChange={setOpen} dir="rtl">
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between border-2 border-green-300 hover:border-green-400 bg-green-50 hover:bg-green-100 h-12"
+          dir="rtl"
+          disabled={isLoading}
+        >
+          <div className="flex items-center gap-2">
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 text-green-600 animate-spin" />
+            ) : (
+              <Database className="h-4 w-4 text-green-600" />
+            )}
+            <span className="text-sm text-gray-700">
+              {isLoading ? "טוען תרגילים..." : "בחר מתרגילי המאגר..."}
+            </span>
           </div>
-        )}
-        {exercises.map((exercise) => (
-          <SelectItem key={exercise.id} value={exercise.id} dir="rtl">
-            <div className="flex items-center justify-between w-full">
-              <span>{exercise.name}</span>
-              {(exercise.repetitions || exercise.weight) && (
-                <span className="text-xs text-gray-500 mr-2">
-                  {exercise.repetitions && `${exercise.repetitions} חזרות`}
-                  {exercise.repetitions && exercise.weight && ' • '}
-                  {exercise.weight && `${exercise.weight} ק״ג`}
-                </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" dir="rtl" align="start">
+        <Command dir="rtl">
+          <CommandInput
+            placeholder="חפש תרגיל..."
+            dir="rtl"
+          />
+          <CommandList className="max-h-[400px]">
+            <CommandEmpty>
+              {isLoading ? (
+                <div className="py-6 text-center text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                  טוען תרגילים...
+                </div>
+              ) : (
+                <div className="py-6 text-center text-sm text-gray-500">
+                  לא נמצאו תרגילים
+                </div>
               )}
-            </div>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+            </CommandEmpty>
+            <CommandGroup>
+              {exercises.map((exercise) => (
+                <CommandItem
+                  key={exercise.id}
+                  value={`${exercise.name} ${exercise.id}`}
+                  onSelect={() => handleSelect(exercise.id)}
+                  dir="rtl"
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="flex-1 text-right">{exercise.name}</span>
+                    {(exercise.repetitions || exercise.weight) && (
+                      <span className="text-xs text-gray-500 mr-2">
+                        {exercise.repetitions && `${exercise.repetitions} חזרות`}
+                        {exercise.repetitions && exercise.weight && ' • '}
+                        {exercise.weight && `${exercise.weight} ק״ג`}
+                      </span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 };
