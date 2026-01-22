@@ -362,6 +362,7 @@ export function DataTable<T extends Record<string, any>>({
   // 1. Initial Hooks & Base State
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const tableRef = React.useRef<HTMLDivElement>(null);
+  const lastShiftKeyRef = React.useRef(false);
   const [hasMeasured, setHasMeasured] = useState(false);
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -573,10 +574,16 @@ export function DataTable<T extends Record<string, any>>({
         return (
           <Checkbox
             checked={checked}
-            onCheckedChange={(v) => handleToggleRow(rowId, v === true, false, row.index)}
+            onCheckedChange={(v) => {
+              handleToggleRow(rowId, v === true, lastShiftKeyRef.current);
+              lastShiftKeyRef.current = false;
+            }}
             aria-label="בחר שורה"
             className="translate-y-[2px]"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              lastShiftKeyRef.current = e.shiftKey;
+              e.stopPropagation();
+            }}
           />
         );
       },
@@ -668,23 +675,66 @@ export function DataTable<T extends Record<string, any>>({
 
   // 8. Selection Logic
   const getVisibleRowIdsInOrder = useCallback(() => {
-    return tableInstance.getRowModel().rows.map(row => getRowIdValue(row.original));
-  }, [tableInstance, getRowIdValue]);
+    if (paginatedGroupedData && (paginatedGroupedData as any[]).length > 0) {
+      const visibleIds: string[] = [];
+      const groups = paginatedGroupedData as any[];
+      const isMultiLevel = groups.length > 0 && 'level1Key' in groups[0];
+
+      if (isMultiLevel) {
+        (groups as MultiLevelGroupedData<T>[]).forEach((l1) => {
+          const l1Key = `level1:${l1.level1Key}`;
+          if (collapsedGroupsSet.has(l1Key)) return;
+          if (l1.level2Groups?.length) {
+            l1.level2Groups.forEach((l2) => {
+              const l2Key = `${l1Key}|level2:${l2.groupKey}`;
+              if (collapsedGroupsSet.has(l2Key)) return;
+              l2.items.forEach((item) => {
+                const id = getRowIdValue(item);
+                if (id) visibleIds.push(id);
+              });
+            });
+          }
+          if (l1.items?.length) {
+            l1.items.forEach((item) => {
+              const id = getRowIdValue(item);
+              if (id) visibleIds.push(id);
+            });
+          }
+        });
+        return visibleIds;
+      }
+
+      (groups as GroupedData<T>[]).forEach((group) => {
+        const groupKey = `group:${group.groupKey}`;
+        if (collapsedGroupsSet.has(groupKey)) return;
+        group.items.forEach((item) => {
+          const id = getRowIdValue(item);
+          if (id) visibleIds.push(id);
+        });
+      });
+      return visibleIds;
+    }
+
+    return tableInstance.getRowModel().rows.map((row) => getRowIdValue(row.original));
+  }, [paginatedGroupedData, collapsedGroupsSet, getRowIdValue, tableInstance]);
 
   const handleToggleRow = useCallback((rowId: string, checked: boolean, shiftKey?: boolean, rowIndex?: number) => {
+    const visibleIds = getVisibleRowIdsInOrder();
+    const resolvedRowIndex = visibleIds.indexOf(rowId);
+    const effectiveRowIndex = resolvedRowIndex === -1 ? rowIndex : resolvedRowIndex;
+
     if (selectAllAcrossPages) {
       setSelectAllAcrossPages(false);
       const next = new Set(currentPageIds);
       if (!checked) next.delete(rowId);
       setSelectedRowIds(next);
-      setLastClickedRowIndex(rowIndex ?? null);
+      setLastClickedRowIndex(effectiveRowIndex ?? null);
       return;
     }
 
-    if (shiftKey && lastClickedRowIndex !== null && rowIndex !== undefined) {
-      const visibleIds = getVisibleRowIdsInOrder();
-      const start = Math.min(lastClickedRowIndex, rowIndex);
-      const end = Math.max(lastClickedRowIndex, rowIndex);
+    if (shiftKey && lastClickedRowIndex !== null && effectiveRowIndex !== undefined) {
+      const start = Math.min(lastClickedRowIndex, effectiveRowIndex);
+      const end = Math.max(lastClickedRowIndex, effectiveRowIndex);
       const idsInRange = visibleIds.slice(start, end + 1);
       const lastRowId = visibleIds[lastClickedRowIndex];
       const shouldSelect = selectedRowIds.has(lastRowId);
@@ -701,9 +751,9 @@ export function DataTable<T extends Record<string, any>>({
         else next.delete(rowId);
         return next;
       });
-      setLastClickedRowIndex(rowIndex ?? null);
+      setLastClickedRowIndex(effectiveRowIndex ?? null);
     }
-  }, [resourceKey, dispatch, getVisibleRowIdsInOrder, currentPageIds, selectAllAcrossPages, selectedRowIds, lastClickedRowIndex, setSelectedRowIds, setSelectAllAcrossPages, setLastClickedRowIndex]);
+  }, [getVisibleRowIdsInOrder, currentPageIds, selectAllAcrossPages, selectedRowIds, lastClickedRowIndex, setSelectedRowIds, setSelectAllAcrossPages, setLastClickedRowIndex]);
 
   // 9. Table UI Event Handlers
   const getSortIcon = (columnId: string) => {
@@ -853,7 +903,25 @@ function TableContent<T>({
                 });
               }
               if (l1.items?.length) l1Rows.push({ type: 'level1-rows', key: `${l1Key}-items`, rows: l1.items.map(i => table.getRowModel().rows.find((r: any) => getRowIdValue?.(r.original) === getRowIdValue?.(i))).filter(Boolean) });
-              const getL1VisIds = () => { if (!enableRowSelection || !getRowIdValue) return []; const ids: string[] = []; if (!isL1Collapsed) l1Rows.forEach(item => item.rows.forEach((r: any) => { const id = getRowIdValue(r.original); if (id) ids.push(id); })); return ids; };
+              const getL1VisIds = () => {
+                if (!enableRowSelection || !getRowIdValue) return [];
+                const ids: string[] = [];
+                if (l1.level2Groups?.length) {
+                  l1.level2Groups.forEach((l2) => {
+                    l2.items.forEach((item) => {
+                      const id = getRowIdValue(item);
+                      if (id) ids.push(id);
+                    });
+                  });
+                }
+                if (l1.items?.length) {
+                  l1.items.forEach((item) => {
+                    const id = getRowIdValue(item);
+                    if (id) ids.push(id);
+                  });
+                }
+                return ids;
+              };
               const l1VisIds = getL1VisIds(), l1SelCount = l1VisIds.filter(id => selectAllAcrossPages || selectedRowIds?.has(id)).length;
               const l1AllSel = l1VisIds.length > 0 && l1SelCount === l1VisIds.length, l1SomeSel = l1SelCount > 0 && !l1AllSel;
 
