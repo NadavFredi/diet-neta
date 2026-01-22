@@ -682,7 +682,25 @@ export function DataTable<T extends Record<string, any>>({
     return columns.map((col) => col.id);
   });
 
-  const columnOrder = resourceKey ? (reduxColumnOrder.length > 0 ? reduxColumnOrder : columns.map((col) => col.id)) : localColumnOrder;
+  // Build column order: use Redux order if available, but ensure all visible columns are included
+  const columnOrder = useMemo(() => {
+    if (resourceKey) {
+      if (reduxColumnOrder.length > 0) {
+        // Use Redux order, but append any columns that are visible but missing from order
+        const validOrder = reduxColumnOrder.filter((id) =>
+          columns.some((col) => col.id === id)
+        );
+        const missingColumns = columns
+          .filter((col) => !validOrder.includes(col.id))
+          .map((col) => col.id);
+        return [...validOrder, ...missingColumns];
+      }
+      // If no Redux order, use all column IDs
+      return columns.map((col) => col.id);
+    }
+    return localColumnOrder;
+  }, [resourceKey, reduxColumnOrder, columns, localColumnOrder]);
+  
   const derivedColumnOrder = enableRowSelection
     ? [SELECTION_COLUMN_ID, ...columnOrder.filter((id) => id !== SELECTION_COLUMN_ID)]
     : columnOrder;

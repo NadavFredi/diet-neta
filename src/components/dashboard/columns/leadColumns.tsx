@@ -2,6 +2,9 @@ import { type ColumnDef } from '@tanstack/react-table';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { formatDate } from '@/utils/dashboard';
 import type { DataTableColumn } from '@/components/ui/DataTable';
+import { getEntityRelationships } from '@/utils/entityRelationships';
+import { budgetColumns } from '@/components/dashboard/BudgetsDataTable';
+import { nutritionTemplateColumns } from '@/components/dashboard/columns/templateColumns';
 
 /**
  * Strict column definitions for Leads table.
@@ -283,6 +286,45 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       return <span className="text-gray-900 font-semibold">{value} ק"ג</span>;
     },
   },
+];
+
+/**
+ * Get related entity columns for leads
+ */
+function getRelatedEntityColumns(): DataTableColumn<Lead>[] {
+  const relationships = getEntityRelationships('leads');
+  const relatedColumns: DataTableColumn<Lead>[] = [];
+  
+  for (const relationship of relationships) {
+    let entityColumns: DataTableColumn<any>[] | undefined;
+    
+    // Map entity names to their column definitions
+    if (relationship.entityName === 'budget') {
+      entityColumns = budgetColumns;
+    } else if (relationship.entityName === 'menu') {
+      entityColumns = nutritionTemplateColumns;
+    }
+    
+    const columns = relationship.getColumns(entityColumns);
+    relatedColumns.push(...columns.map(col => ({
+      ...col,
+      meta: {
+        ...col.meta,
+        relatedEntity: relationship.entityName,
+        relatedEntityLabel: relationship.label,
+      },
+    })));
+  }
+  
+  return relatedColumns;
+}
+
+/**
+ * All lead columns including related entity columns
+ */
+export const allLeadColumns: DataTableColumn<Lead>[] = [
+  ...leadColumns,
+  ...getRelatedEntityColumns(),
 ];
 
 /**

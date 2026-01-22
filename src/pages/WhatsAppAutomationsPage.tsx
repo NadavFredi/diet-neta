@@ -34,7 +34,6 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { WhatsAppAutomationsDataTable } from '@/components/dashboard/WhatsAppAutomationsDataTable';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector } from '@/store/hooks';
 import { useDefaultView } from '@/hooks/useDefaultView';
@@ -54,8 +53,6 @@ export const WhatsAppAutomationsPage: React.FC = () => {
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'whatsapp_automations'));
   
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
-  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
-  const [viewToEdit, setViewToEdit] = useState<any>(null);
   
   // Auto-navigate to default view if no view_id is present
   useEffect(() => {
@@ -66,11 +63,6 @@ export const WhatsAppAutomationsPage: React.FC = () => {
   
   const handleSaveViewClick = useCallback((resourceKey: string) => {
     setIsSaveViewModalOpen(true);
-  }, []);
-  
-  const handleEditViewClick = useCallback((view: any) => {
-    setViewToEdit(view);
-    setIsEditViewModalOpen(true);
   }, []);
   
   const getCurrentFilterConfig = useCallback(() => {
@@ -126,7 +118,7 @@ export const WhatsAppAutomationsPage: React.FC = () => {
         <DashboardHeader
           userEmail={user?.email}
           onLogout={handleLogout}
-          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
         />
         <div className="flex-1 flex items-center justify-center" style={{ marginRight: `${sidebarWidth.width}px` }}>
           <div className="text-center">
@@ -287,21 +279,6 @@ export const WhatsAppAutomationsPage: React.FC = () => {
         filterConfig={getCurrentFilterConfig()}
       />
 
-      {/* Edit View Modal */}
-      <EditViewModal
-        isOpen={isEditViewModalOpen}
-        onOpenChange={(open) => {
-          setIsEditViewModalOpen(open);
-          if (!open) setViewToEdit(null);
-        }}
-        view={viewToEdit}
-        currentFilterConfig={getCurrentFilterConfig()}
-        filterFields={[]}
-        onSuccess={() => {
-          setIsEditViewModalOpen(false);
-          setViewToEdit(null);
-        }}
-      />
     </>
   );
 };

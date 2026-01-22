@@ -10,7 +10,6 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { CollectionsDataTable } from '@/components/dashboard/CollectionsDataTable';
 import { Pagination } from '@/components/dashboard/Pagination';
@@ -51,8 +50,6 @@ const CollectionsManagement = () => {
   const { defaultView } = useDefaultView('collections');
   const { data: savedView } = useSavedView(viewId);
   
-  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
-  const [viewToEdit, setViewToEdit] = useState<any>(null);
   const [isAddCollectionDialogOpen, setIsAddCollectionDialogOpen] = useState(false);
 
   // Auto-navigate to default view if no view_id is present
@@ -62,10 +59,6 @@ const CollectionsManagement = () => {
     }
   }, [viewId, defaultView, navigate]);
 
-  const handleEditViewClick = useCallback((view: any) => {
-    setViewToEdit(view);
-    setIsEditViewModalOpen(true);
-  }, []);
 
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'collections'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'collections'));
@@ -111,7 +104,7 @@ const CollectionsManagement = () => {
       <DashboardHeader
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
       />
 
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
@@ -193,19 +186,6 @@ const CollectionsManagement = () => {
         onOpenChange={setIsSaveViewModalOpen}
         resourceKey="collections"
         filterConfig={getCurrentFilterConfig(activeFilters)}
-      />
-
-      {/* Edit View Modal */}
-      <EditViewModal
-        isOpen={isEditViewModalOpen}
-        onOpenChange={setIsEditViewModalOpen}
-        view={viewToEdit}
-        currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={useMemo(() => generateFilterFieldsFromColumns(filteredCollections || [], collectionColumns), [filteredCollections])}
-        onSuccess={() => {
-          setIsEditViewModalOpen(false);
-          setViewToEdit(null);
-        }}
       />
 
       {/* Add Collection Dialog */}

@@ -30,6 +30,10 @@ import {
 import { generateFilterFieldsFromColumns } from '@/utils/columnToFilterUtils';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import type { DataTableColumn } from '@/components/ui/DataTable';
+import { getEntityRelationships } from '@/utils/entityRelationships';
+import { budgetColumns } from '@/components/dashboard/BudgetsDataTable';
+import { nutritionTemplateColumns } from '@/components/dashboard/columns/templateColumns';
+import { exerciseColumns } from '@/components/dashboard/columns/exerciseColumns';
 
 export interface FilterConfig {
   filters: ActiveFilter[];
@@ -150,6 +154,7 @@ export const LEAD_FILTER_FIELDS_BASE: FilterField[] = [
 /**
  * Get filter fields for Leads table with dynamic options from data
  * Now automatically includes all renderable columns as filterable
+ * Also includes related entity fields (subscription, budget, menu)
  */
 export function getLeadFilterFields(
   leads: Lead[] = [],
@@ -191,35 +196,67 @@ export function getLeadFilterFields(
     },
   };
   
+  // Get base fields (direct lead fields)
+  let baseFields: FilterField[] = [];
+  
   // If columns are provided, generate filter fields from them
   if (columns && columns.length > 0) {
-    return generateFilterFieldsFromColumns(
+    baseFields = generateFilterFieldsFromColumns(
       columns,
       leads,
       LEAD_FILTER_FIELDS_BASE, // Merge with existing base fields for backward compatibility
       customFieldConfigs
     );
+  } else {
+    // Fallback to existing logic if columns not provided
+    baseFields = LEAD_FILTER_FIELDS_BASE.map(field => {
+      if (field.id === 'status' && dynamicOptions.status.length > 0) {
+        return { ...field, dynamicOptions: dynamicOptions.status };
+      }
+      if (field.id === 'fitnessGoal' && dynamicOptions.fitnessGoal.length > 0) {
+        return { ...field, dynamicOptions: dynamicOptions.fitnessGoal };
+      }
+      if (field.id === 'activityLevel' && dynamicOptions.activityLevel.length > 0) {
+        return { ...field, dynamicOptions: dynamicOptions.activityLevel };
+      }
+      if (field.id === 'preferredTime' && dynamicOptions.preferredTime.length > 0) {
+        return { ...field, dynamicOptions: dynamicOptions.preferredTime };
+      }
+      if (field.id === 'source' && dynamicOptions.source.length > 0) {
+        return { ...field, dynamicOptions: dynamicOptions.source };
+      }
+      return field;
+    });
   }
   
-  // Fallback to existing logic if columns not provided
-  return LEAD_FILTER_FIELDS_BASE.map(field => {
-    if (field.id === 'status' && dynamicOptions.status.length > 0) {
-      return { ...field, dynamicOptions: dynamicOptions.status };
+  // Get related entity fields - pass column definitions for dynamic generation
+  const relationships = getEntityRelationships('leads');
+  const relatedFields: FilterField[] = [];
+  
+  for (const relationship of relationships) {
+    let entityColumns: DataTableColumn<any>[] | undefined;
+    let entityData: any[] | undefined;
+    
+    // Map entity names to their column definitions
+    if (relationship.entityName === 'budget') {
+      entityColumns = budgetColumns;
+      // Note: We don't have budget data here, but columns alone can generate basic fields
+    } else if (relationship.entityName === 'menu') {
+      // Menu comes from nutrition_templates
+      entityColumns = nutritionTemplateColumns;
+      // Note: We don't have nutrition template data here, but columns alone can generate basic fields
     }
-    if (field.id === 'fitnessGoal' && dynamicOptions.fitnessGoal.length > 0) {
-      return { ...field, dynamicOptions: dynamicOptions.fitnessGoal };
-    }
-    if (field.id === 'activityLevel' && dynamicOptions.activityLevel.length > 0) {
-      return { ...field, dynamicOptions: dynamicOptions.activityLevel };
-    }
-    if (field.id === 'preferredTime' && dynamicOptions.preferredTime.length > 0) {
-      return { ...field, dynamicOptions: dynamicOptions.preferredTime };
-    }
-    if (field.id === 'source' && dynamicOptions.source.length > 0) {
-      return { ...field, dynamicOptions: dynamicOptions.source };
-    }
-    return field;
-  });
+    
+    const fields = relationship.getFilterFields(entityColumns, entityData);
+    relatedFields.push(...fields.map(field => ({
+      ...field,
+      relatedEntity: relationship.entityName,
+      relatedEntityLabel: relationship.label,
+    })));
+  }
+  
+  // Combine base fields and related entity fields
+  return [...baseFields, ...relatedFields];
 }
 
 // For backward compatibility, export base fields
@@ -765,9 +802,52 @@ export const useTableFilters = (initialFilters: ActiveFilter[] = []) => {
   };
 };
 
-
-
-
+/**
+ * Get filter fields for Exercises table
+ * Now automatically includes all renderable columns as filterable
+ */
+export function getExerciseFilterFields<T>(
+  exercises: T[] = [],
+  columns?: DataTableColumn<T>[]
+): FilterField[] {
+  // If columns are provided, generate filter fields from them
+  if (columns && columns.length > 0) {
+    return generateFilterFieldsFromColumns(
+      columns,
+      exercises,
+      [], // No base fields needed, all from columns
+      {}
+    );
+  }
+  
+  // Fallback to basic fields if columns not provided
+  return [
+    {
+      id: 'name',
+      label: 'שם התרגיל',
+      type: 'text',
+      operators: ['contains', 'notContains', 'equals', 'notEquals'],
+    },
+    {
+      id: 'repetitions',
+      label: 'חזרות',
+      type: 'number',
+      operators: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
+    },
+    {
+      id: 'weight',
+      label: 'משקל (ק״ג)',
+      type: 'number',
+      operators: ['equals', 'greaterThan', 'lessThan', 'notEquals'],
+    },
+    {
+      id: 'created_at',
+      label: 'תאריך יצירה',
+      type: 'date',
+      operators: ['equals', 'before', 'after', 'between'],
+    },
+  ];
+}
 
 
 

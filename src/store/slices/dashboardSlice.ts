@@ -52,6 +52,32 @@ export interface Lead {
   workoutProgramsHistory: WorkoutProgram[];
   stepsHistory: StepsHistory[];
   customerId?: string; // Link to customer
+  // Related entity data (for column accessors)
+  subscription_months?: number | null;
+  subscription_initial_price?: number | null;
+  subscription_renewal_price?: number | null;
+  budget_assignments?: Array<{
+    id: string;
+    budgets?: {
+      id: string;
+      name: string;
+      description?: string;
+      steps_goal?: number;
+      is_public?: boolean;
+      nutrition_template_id?: string;
+      nutrition_templates?: {
+        id: string;
+        name: string;
+        description?: string;
+        targets?: {
+          calories?: number;
+          protein?: number;
+          carbs?: number;
+          fat?: number;
+        };
+      };
+    };
+  }>;
 }
 
 interface DashboardState {

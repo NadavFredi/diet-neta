@@ -4,10 +4,9 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { LeadsDataTable } from '@/components/dashboard/LeadsDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { Pagination } from '@/components/dashboard/Pagination';
-import { leadColumns } from '@/components/dashboard/columns/leadColumns';
+import { allLeadColumns } from '@/components/dashboard/columns/leadColumns';
 import { useDashboardLogic } from '@/hooks/useDashboardLogic';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
@@ -110,9 +109,9 @@ const Dashboard = () => {
   useEffect(() => {
   }, [filteredLeads, isLoading]);
 
-  // Get filter fields with dynamic options from data - now includes all renderable columns
+  // Get filter fields with dynamic options from data - now includes all renderable columns and related entities
   const leadFilterFields = useMemo(() => {
-    return getLeadFilterFields(filteredLeads || [], leadColumns);
+    return getLeadFilterFields(filteredLeads || [], allLeadColumns);
   }, [filteredLeads]);
   
   // Calculate total groups when grouping is active (after filteredLeads is defined)
@@ -187,8 +186,6 @@ const Dashboard = () => {
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
-  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
-  const [viewToEdit, setViewToEdit] = useState<any>(null);
   const hasShownSaveSuggestion = useRef(false);
   const previousFiltersRef = useRef<string>('');
   const lastAppliedViewIdRef = useRef<string | null>(null);
@@ -315,17 +312,12 @@ const Dashboard = () => {
     previousFiltersRef.current = currentFiltersStr;
   }, [activeFilters, filterGroup, searchQuery, isLoading, viewId, toast, handleSaveViewClick]);
 
-  const handleEditViewClick = useCallback((view: any) => {
-    setViewToEdit(view);
-    setIsEditViewModalOpen(true);
-  }, []);
-
   return (
     <>
       <DashboardHeader
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
       />
 
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
@@ -355,7 +347,7 @@ const Dashboard = () => {
                 enableFilters={true}
                 enableGroupBy={true}
                 enableSearch={true}
-                columns={leadColumns}
+                columns={allLeadColumns}
                 legacySearchQuery={searchQuery}
                 legacyOnSearchChange={handleSearchChangeWithSource}
                 legacyActiveFilters={activeFilters}
@@ -431,23 +423,6 @@ const Dashboard = () => {
         filterConfig={getCurrentFilterConfig(activeFilters)}
       />
 
-      {/* Edit View Modal */}
-      <EditViewModal
-        isOpen={isEditViewModalOpen}
-        onOpenChange={setIsEditViewModalOpen}
-        view={viewToEdit}
-        currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={
-          viewToEdit?.resource_key === 'customers' ? CUSTOMER_FILTER_FIELDS :
-            viewToEdit?.resource_key === 'templates' ? TEMPLATE_FILTER_FIELDS :
-              viewToEdit?.resource_key === 'nutrition_templates' ? NUTRITION_TEMPLATE_FILTER_FIELDS :
-                leadFilterFields
-        }
-        onSuccess={() => {
-          setIsEditViewModalOpen(false);
-          setViewToEdit(null);
-        }}
-      />
     </>
   );
 };

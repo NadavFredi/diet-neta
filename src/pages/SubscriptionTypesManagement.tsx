@@ -9,7 +9,6 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { SubscriptionTypesDataTable, subscriptionTypeColumns } from '@/components/dashboard/SubscriptionTypesDataTable';
 import { useSubscriptionTypesManagement } from './SubscriptionTypesManagement';
@@ -118,20 +117,13 @@ const SubscriptionTypesManagement = () => {
     return getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns);
   }, [subscriptionTypes]);
 
-  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
-  const [viewToEdit, setViewToEdit] = useState<any>(null);
-
-  const handleEditViewClick = useCallback((view: any) => {
-    setViewToEdit(view);
-    setIsEditViewModalOpen(true);
-  }, []);
 
   return (
     <>
       <DashboardHeader 
         userEmail={user?.email} 
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
       />
           
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
@@ -241,18 +233,6 @@ const SubscriptionTypesManagement = () => {
         filterConfig={getCurrentFilterConfig(activeFilters)}
       />
 
-      {/* Edit View Modal */}
-      <EditViewModal
-        isOpen={isEditViewModalOpen}
-        onOpenChange={setIsEditViewModalOpen}
-        view={viewToEdit}
-        currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns)}
-        onSuccess={() => {
-          setIsEditViewModalOpen(false);
-          setViewToEdit(null);
-        }}
-      />
     </>
   );
 };

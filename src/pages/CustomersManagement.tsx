@@ -9,7 +9,6 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { Pagination } from '@/components/dashboard/Pagination';
@@ -148,14 +147,7 @@ const CustomersManagement = () => {
     previousFiltersRef.current = currentFiltersStr;
   }, [activeFilters, searchQuery, isLoadingCustomers, viewId, toast, handleSaveViewClick]);
 
-  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
-  const [viewToEdit, setViewToEdit] = useState<any>(null);
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
-
-  const handleEditViewClick = useCallback((view: any) => {
-    setViewToEdit(view);
-    setIsEditViewModalOpen(true);
-  }, []);
 
   const handleAddLead = useCallback(() => {
     setIsAddLeadDialogOpen(true);
@@ -172,7 +164,7 @@ const CustomersManagement = () => {
       <DashboardHeader
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
       />
 
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
@@ -261,18 +253,6 @@ const CustomersManagement = () => {
         filterConfig={getCurrentFilterConfig(activeFilters)}
       />
 
-      {/* Edit View Modal */}
-      <EditViewModal
-        isOpen={isEditViewModalOpen}
-        onOpenChange={setIsEditViewModalOpen}
-        view={viewToEdit}
-        currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={customerFilterFields}
-        onSuccess={() => {
-          setIsEditViewModalOpen(false);
-          setViewToEdit(null);
-        }}
-      />
     </>
   );
 };

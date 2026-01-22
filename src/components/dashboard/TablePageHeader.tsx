@@ -277,23 +277,23 @@ export const TablePageHeader = ({
       );
     }
     
-    // Leads: use legacy ColumnSettings component
-    if (resourceKey === 'leads' && leadsColumnVisibility) {
-      return (
-        <ColumnSettings
-          columnVisibility={leadsColumnVisibility}
-          onToggleColumn={handleToggleColumn as any}
-        />
-      );
-    }
-    
-    // Generic column settings for customers and other resources (using Redux)
+    // Generic column settings (preferred when columns are provided - supports related entity columns)
     if (columns && columns.length > 0) {
       return (
         <GenericColumnSettings
           resourceKey={resourceKey}
           columns={columns}
           columnOrder={columnOrder.length > 0 ? columnOrder : columns.map((col) => col.id)}
+        />
+      );
+    }
+    
+    // Leads: fallback to legacy ColumnSettings component (only if columns not provided)
+    if (resourceKey === 'leads' && leadsColumnVisibility) {
+      return (
+        <ColumnSettings
+          columnVisibility={leadsColumnVisibility}
+          onToggleColumn={handleToggleColumn as any}
         />
       );
     }

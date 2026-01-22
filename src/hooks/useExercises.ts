@@ -1,0 +1,244 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabaseClient';
+import { useAppSelector } from '@/store/hooks';
+import type { FilterGroup } from '@/components/dashboard/TableFilter';
+import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
+import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+
+export interface Exercise {
+  id: string;
+  name: string;
+  repetitions: number | null;
+  weight: number | null;
+  image: string | null;
+  video_link: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+// Fetch all exercises
+export const useExercises = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
+}) => {
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useQuery({
+    queryKey: ['exercises', filters, user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const page = filters?.page ?? 1;
+      const pageSize = filters?.pageSize ?? 100;
+      
+      const fieldConfigs: FilterFieldConfigMap = {
+        created_at: { column: 'created_at', type: 'date' },
+        name: { column: 'name', type: 'text' },
+        repetitions: { column: 'repetitions', type: 'number' },
+        weight: { column: 'weight', type: 'number' },
+      };
+
+      const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name']) : null;
+      const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
+
+      // When grouping is active, fetch ALL matching records (no pagination)
+      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
+      
+      // Map groupBy columns to database columns
+      const groupByMap: Record<string, string> = {
+        name: 'name',
+        created_at: 'created_at',
+      };
+
+      let query = supabase
+        .from('exercises')
+        .select('*');
+
+      // Only apply pagination if grouping is NOT active
+      if (!isGroupingActive) {
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+      if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+        query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+      }
+      if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+        query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+      }
+      
+      // Apply default sorting if no grouping
+      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      if (combinedGroup) {
+        query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+          throw new Error('טבלת התרגילים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
+        }
+        throw error;
+      }
+      return data as Exercise[];
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+// Fetch a single exercise by ID
+export const useExercise = (exerciseId: string | null) => {
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useQuery({
+    queryKey: ['exercise', exerciseId, user?.id],
+    queryFn: async () => {
+      if (!exerciseId) return null;
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('id', exerciseId)
+        .single();
+
+      if (error) throw error;
+      return data as Exercise | null;
+    },
+    enabled: !!exerciseId && !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+// Create a new exercise
+export const useCreateExercise = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useMutation({
+    mutationFn: async ({
+      name,
+      repetitions,
+      weight,
+      image,
+      video_link,
+    }: {
+      name: string;
+      repetitions?: number | null;
+      weight?: number | null;
+      image?: string | null;
+      video_link?: string | null;
+    }) => {
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const userId = user.id;
+
+      const { data, error } = await supabase
+        .from('exercises')
+        .insert({
+          name,
+          repetitions: repetitions ?? null,
+          weight: weight ?? null,
+          image: image ?? null,
+          video_link: video_link ?? null,
+          created_by: userId,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+          throw new Error('טבלת התרגילים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
+        }
+        throw error;
+      }
+      return data as Exercise;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exercises'] });
+    },
+  });
+};
+
+// Update an existing exercise
+export const useUpdateExercise = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useMutation({
+    mutationFn: async ({
+      exerciseId,
+      name,
+      repetitions,
+      weight,
+      image,
+      video_link,
+    }: {
+      exerciseId: string;
+      name?: string;
+      repetitions?: number | null;
+      weight?: number | null;
+      image?: string | null;
+      video_link?: string | null;
+    }) => {
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const updateData: Partial<Exercise> = {};
+      if (name !== undefined) updateData.name = name;
+      if (repetitions !== undefined) updateData.repetitions = repetitions;
+      if (weight !== undefined) updateData.weight = weight;
+      if (image !== undefined) updateData.image = image;
+      if (video_link !== undefined) updateData.video_link = video_link;
+
+      const { data, error } = await supabase
+        .from('exercises')
+        .update(updateData)
+        .eq('id', exerciseId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Exercise;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['exercises'] });
+      queryClient.invalidateQueries({ queryKey: ['exercise', data.id] });
+    },
+  });
+};
+
+// Delete an exercise
+export const useDeleteExercise = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useMutation({
+    mutationFn: async (exerciseId: string) => {
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const { error } = await supabase
+        .from('exercises')
+        .delete()
+        .eq('id', exerciseId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exercises'] });
+    },
+  });
+};

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt, BarChart3 } from 'lucide-react';
+import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt, BarChart3, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection, setSectionExpanded } from '@/store/slices/sidebarSlice';
@@ -67,6 +67,13 @@ const navigationItems: NavItem[] = [
     label: 'תכניות אימונים',
     icon: Dumbbell,
     path: '/dashboard/templates',
+  },
+  {
+    id: 'exercises',
+    resourceKey: 'exercises',
+    label: 'תרגילים',
+    icon: Target,
+    path: '/dashboard/exercises',
   },
   {
     id: 'nutrition-templates',
@@ -294,7 +301,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
 
     const activeItem = navigationItems.find(item => isActive(item.path));
     if (activeItem) {
-      const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(activeItem.resourceKey);
+      const supportsViews = ['leads', 'customers', 'templates', 'exercises', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(activeItem.resourceKey);
       // Only auto-expand if it supports views and isn't already expanded
       if (supportsViews && !expandedSections[activeItem.resourceKey]) {
         // Collapse all sections first
@@ -331,6 +338,10 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
       return location.pathname === '/dashboard/meetings' ||
         location.pathname.startsWith('/dashboard/meetings/');
     }
+    if (path === '/dashboard/exercises') {
+      // Active for exercises page
+      return location.pathname === '/dashboard/exercises';
+    }
     if (path === '/dashboard/subscription-types') {
       // Active for subscription types list
       return location.pathname === '/dashboard/subscription-types';
@@ -364,7 +375,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   };
 
   const handleResourceClick = (item: NavItem) => {
-    const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(item.resourceKey);
+    const supportsViews = ['leads', 'customers', 'templates', 'exercises', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(item.resourceKey);
 
     if (supportsViews) {
       // Expand the section to show views

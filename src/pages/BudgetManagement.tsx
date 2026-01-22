@@ -9,7 +9,6 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { BudgetsDataTable } from '@/components/dashboard/BudgetsDataTable';
 import { useBudgetManagement } from './BudgetManagement';
@@ -125,8 +124,6 @@ const BudgetManagement = () => {
     return getBudgetFilterFields(budgets || [], budgetColumns);
   }, [budgets]);
 
-  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
-  const [viewToEdit, setViewToEdit] = useState<any>(null);
   const [viewingBudgetId, setViewingBudgetId] = useState<string | null>(null);
 
   // Open modal when budget_id is in URL
@@ -138,18 +135,12 @@ const BudgetManagement = () => {
     }
   }, [budgetId]);
 
-  const handleEditViewClick = useCallback((view: any) => {
-    setViewToEdit(view);
-    setIsEditViewModalOpen(true);
-  }, []);
-
-
   return (
     <>
       <DashboardHeader 
         userEmail={user?.email} 
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
       />
           
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
@@ -270,19 +261,6 @@ const BudgetManagement = () => {
         onOpenChange={setIsSaveViewModalOpen}
         resourceKey="budgets"
         filterConfig={getCurrentFilterConfig(activeFilters)}
-      />
-
-      {/* Edit View Modal */}
-      <EditViewModal
-        isOpen={isEditViewModalOpen}
-        onOpenChange={setIsEditViewModalOpen}
-        view={viewToEdit}
-        currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={getBudgetFilterFields(budgets)}
-        onSuccess={() => {
-          setIsEditViewModalOpen(false);
-          setViewToEdit(null);
-        }}
       />
 
       {/* Send Budget Modal */}

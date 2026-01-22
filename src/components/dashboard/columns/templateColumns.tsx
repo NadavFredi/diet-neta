@@ -62,21 +62,30 @@ export const nutritionTemplateColumns: DataTableColumn<NutritionTemplate>[] = [
       align: 'right',
     },
     cell: ({ row }) => {
-      const targets = row.original.targets;
+      const targets = row.original?.targets;
+      if (!targets) return <span className="text-gray-400">-</span>;
       return (
         <div className="flex gap-2 flex-wrap">
-          <Badge variant="outline" className="text-xs">
-            {targets.calories} קק״ל
-          </Badge>
-          <Badge variant="outline" className="text-xs">
-            {targets.protein}ג חלבון
-          </Badge>
-          <Badge variant="outline" className="text-xs">
-            {targets.carbs}ג פחמימות
-          </Badge>
-          <Badge variant="outline" className="text-xs">
-            {targets.fat}ג שומן
-          </Badge>
+          {targets.calories != null && (
+            <Badge variant="outline" className="text-xs">
+              {targets.calories} קק״ל
+            </Badge>
+          )}
+          {targets.protein != null && (
+            <Badge variant="outline" className="text-xs">
+              {targets.protein}ג חלבון
+            </Badge>
+          )}
+          {targets.carbs != null && (
+            <Badge variant="outline" className="text-xs">
+              {targets.carbs}ג פחמימות
+            </Badge>
+          )}
+          {targets.fat != null && (
+            <Badge variant="outline" className="text-xs">
+              {targets.fat}ג שומן
+            </Badge>
+          )}
         </div>
       );
     },
@@ -93,12 +102,19 @@ export const nutritionTemplateColumns: DataTableColumn<NutritionTemplate>[] = [
       align: 'right',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      return (
-        <span className="text-gray-600">
-          {format(new Date(value), 'dd/MM/yyyy', { locale: he })}
-        </span>
-      );
+      const value = getValue() as string | null | undefined;
+      if (!value) return <span className="text-gray-400">-</span>;
+      try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return <span className="text-gray-400">-</span>;
+        return (
+          <span className="text-gray-600">
+            {format(date, 'dd/MM/yyyy', { locale: he })}
+          </span>
+        );
+      } catch {
+        return <span className="text-gray-400">-</span>;
+      }
     },
   },
   {
@@ -214,12 +230,19 @@ export const workoutTemplateColumns: DataTableColumn<WorkoutTemplate>[] = [
       align: 'right',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      return (
-        <span className="text-gray-600">
-          {format(new Date(value), 'dd/MM/yyyy', { locale: he })}
-        </span>
-      );
+      const value = getValue() as string | null | undefined;
+      if (!value) return <span className="text-gray-400">-</span>;
+      try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return <span className="text-gray-400">-</span>;
+        return (
+          <span className="text-gray-600">
+            {format(date, 'dd/MM/yyyy', { locale: he })}
+          </span>
+        );
+      } catch {
+        return <span className="text-gray-400">-</span>;
+      }
     },
   },
   {

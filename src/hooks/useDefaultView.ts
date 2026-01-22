@@ -121,6 +121,11 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
         searchQuery: '',
         selectedDate: null,
       };
+    case 'exercises':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+      };
     default:
       return {
         searchQuery: '',

@@ -10,7 +10,6 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { PaymentsDataTable } from '@/components/dashboard/PaymentsDataTable';
 import { Pagination } from '@/components/dashboard/Pagination';
@@ -75,8 +74,6 @@ const PaymentsManagement = () => {
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize] = useState(50);
 
-  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
-  const [viewToEdit, setViewToEdit] = useState<any>(null);
   const [isAddPaymentDialogOpen, setIsAddPaymentDialogOpen] = useState(false);
 
   // Auto-navigate to default view if no view_id is present
@@ -86,10 +83,6 @@ const PaymentsManagement = () => {
     }
   }, [viewId, defaultView, navigate]);
 
-  const handleEditViewClick = useCallback((view: any) => {
-    setViewToEdit(view);
-    setIsEditViewModalOpen(true);
-  }, []);
 
   // Calculate total groups when grouping is active
   const totalGroups = useMemo(() => {
@@ -123,7 +116,7 @@ const PaymentsManagement = () => {
       <DashboardHeader
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
       />
 
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
@@ -230,18 +223,6 @@ const PaymentsManagement = () => {
         filterConfig={getCurrentFilterConfig(activeFilters)}
       />
 
-      {/* Edit View Modal */}
-      <EditViewModal
-        isOpen={isEditViewModalOpen}
-        onOpenChange={setIsEditViewModalOpen}
-        view={viewToEdit}
-        currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={paymentFilterFields}
-        onSuccess={() => {
-          setIsEditViewModalOpen(false);
-          setViewToEdit(null);
-        }}
-      />
 
       {/* Add Payment Dialog */}
       <AddPaymentDialog

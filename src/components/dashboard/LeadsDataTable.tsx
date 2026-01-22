@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataTable } from '@/components/ui/DataTable';
 import type { Lead } from '@/store/slices/dashboardSlice';
-import { leadColumns } from './columns/leadColumns';
+import { allLeadColumns } from './columns/leadColumns';
 import { useAppSelector } from '@/store/hooks';
 
 interface LeadsDataTableProps {
@@ -36,19 +36,23 @@ export const LeadsDataTable = ({
   const sortOrder = externalSortOrder ?? reduxSortOrder;
   const navigate = useNavigate();
 
-  // CRITICAL: Pass ALL columns from schema to DataTable
-  // This ensures the column visibility popover shows ONLY Lead columns (not Customer or Template columns)
+  // CRITICAL: Pass ALL columns from schema to DataTable (including related entity columns)
+  // This ensures the column visibility popover shows ALL available columns
   const columns = useMemo(() => {
-    return leadColumns;
+    return allLeadColumns;
   }, []);
 
   // Default column visibility - DataTable will read from Redux tableStateSlice after initialization
   // This is only used for initial setup if Redux state doesn't exist yet
   const initialVisibility = useMemo(() => {
     const visibility: Record<string, boolean> = {};
-    leadColumns.forEach((col) => {
-      // Default: all columns visible except hidden ones
-      visibility[col.id] = col.enableHiding !== false;
+    allLeadColumns.forEach((col) => {
+      // Default: related entity columns are hidden by default, direct columns follow their enableHiding setting
+      if (col.meta?.relatedEntity) {
+        visibility[col.id] = false; // Hide related entity columns by default
+      } else {
+        visibility[col.id] = col.enableHiding !== false;
+      }
     });
     return visibility;
   }, []);

@@ -13,6 +13,7 @@ import Login from "./pages/Login.tsx";
 import Register from "./pages/Register.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import TemplatesManagement from "./pages/TemplatesManagement.tsx";
+import ExercisesManagement from "./pages/ExercisesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
 import BudgetManagement from "./pages/BudgetManagement.tsx";
 import SubscriptionTypesManagement from "./pages/SubscriptionTypesManagement.tsx";
@@ -106,6 +107,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <TemplatesManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/exercises"
+            element={
+              <ProtectedRoute>
+                <ExercisesManagement />
               </ProtectedRoute>
             }
           />

@@ -9,7 +9,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
-import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+import { createSearchGroup, mergeFilterGroups, flattenFilterGroup } from '@/utils/filterGroupUtils';
 
 // =====================================================
 // Types (matching database schema)
@@ -66,6 +66,29 @@ export interface LeadFromDB {
   subscription_months: number | null;
   subscription_initial_price: number | null;
   subscription_renewal_price: number | null;
+  // Related entities (from joins)
+  budget_assignments?: Array<{
+    id: string;
+    budgets?: {
+      id: string;
+      name: string;
+      description?: string;
+      steps_goal?: number;
+      is_public?: boolean;
+      nutrition_template_id?: string;
+      nutrition_templates?: {
+        id: string;
+        name: string;
+        description?: string;
+        targets?: {
+          calories?: number;
+          protein?: number;
+          carbs?: number;
+          fat?: number;
+        };
+      };
+    };
+  }>;
 }
 
 export interface LeadFilterOptions {
@@ -103,6 +126,143 @@ const leadFieldConfigs: FilterFieldConfigMap = {
   activity_level: { column: 'activity_level', type: 'text' },
   preferred_time: { column: 'preferred_time', type: 'text' },
   source_text: { column: 'source', type: 'text' },
+  // Related entity: Subscription (JSONB) - Entity exists
+  'subscription.exists': {
+    column: 'subscription_data',
+    type: 'select',
+    relatedEntity: 'subscription',
+    relatedPath: 'subscription_data',
+    joinType: 'jsonb',
+    custom: (filter, negate) => {
+      // Check if subscription_data exists (is not null and not empty object)
+      const hasValue = filter.values[0] === 'כן' || filter.values[0] === 'true' || filter.values[0] === 'yes';
+      const shouldExist = filter.operator === 'is' ? hasValue : !hasValue;
+      const finalNegate = negate ? !shouldExist : shouldExist;
+      
+      if (finalNegate) {
+        // subscription_data IS NOT NULL AND subscription_data != '{}'::jsonb
+        // For PostgREST, we use not.is.null and neq operators
+        return [[
+          { column: 'subscription_data', operator: 'eq', value: null, negate: true },
+          { column: "subscription_data", operator: 'neq', value: '{}' },
+        ]];
+      } else {
+        // subscription_data IS NULL OR subscription_data = '{}'::jsonb
+        // Use OR logic: either null or empty object
+        return [
+          [{ column: 'subscription_data', operator: 'eq', value: null }],
+          [{ column: "subscription_data", operator: 'eq', value: '{}' }],
+        ];
+      }
+    },
+  },
+  'subscription.months': { 
+    column: "subscription_data->>'months'", 
+    type: 'number',
+    relatedEntity: 'subscription',
+    relatedPath: "subscription_data->>'months'",
+    joinType: 'jsonb',
+    valueMap: (v) => Number(v)
+  },
+  'subscription.initialPrice': { 
+    column: "subscription_data->>'initialPrice'", 
+    type: 'number',
+    relatedEntity: 'subscription',
+    relatedPath: "subscription_data->>'initialPrice'",
+    joinType: 'jsonb',
+    valueMap: (v) => Number(v)
+  },
+  'subscription.renewalPrice': { 
+    column: "subscription_data->>'renewalPrice'", 
+    type: 'number',
+    relatedEntity: 'subscription',
+    relatedPath: "subscription_data->>'renewalPrice'",
+    joinType: 'jsonb',
+    valueMap: (v) => Number(v)
+  },
+  // Related entity: Budget (through budget_assignments) - Entity exists
+  'budget.exists': {
+    column: 'budget_assignments.id',
+    type: 'select',
+    relatedEntity: 'budgets',
+    relatedPath: 'budget_assignments.id',
+    joinType: 'through',
+    custom: (filter, negate) => {
+      // Check if budget_assignment exists for this lead
+      const hasValue = filter.values[0] === 'כן' || filter.values[0] === 'true' || filter.values[0] === 'yes';
+      const shouldExist = filter.operator === 'is' ? hasValue : !hasValue;
+      const finalNegate = negate ? !shouldExist : shouldExist;
+      
+      // For "exists" filters on through relationships, we check if the joined id is not null
+      // The join type (inner/left) is handled in the query builder
+      return [[
+        { column: 'budget_assignments.id', operator: 'eq', value: null, negate: !finalNegate },
+      ]];
+    },
+  },
+  'budget.name': { 
+    column: 'budgets.name', 
+    type: 'text',
+    relatedEntity: 'budgets',
+    relatedPath: 'budgets.name',
+    joinType: 'through'
+  },
+  'budget.steps_goal': { 
+    column: 'budgets.steps_goal', 
+    type: 'number',
+    relatedEntity: 'budgets',
+    relatedPath: 'budgets.steps_goal',
+    joinType: 'through',
+    valueMap: (v) => Number(v)
+  },
+  'budget.is_public': { 
+    column: 'budgets.is_public', 
+    type: 'select',
+    relatedEntity: 'budgets',
+    relatedPath: 'budgets.is_public',
+    joinType: 'through'
+  },
+  // Related entity: Menu (through budgets -> nutrition_templates) - Entity exists
+  'menu.exists': {
+    column: 'nutrition_templates.id',
+    type: 'select',
+    relatedEntity: 'nutrition_templates',
+    relatedPath: 'nutrition_templates.id',
+    joinType: 'through',
+    custom: (filter, negate) => {
+      // Check if nutrition_template exists (through budget -> nutrition_template)
+      const hasValue = filter.values[0] === 'כן' || filter.values[0] === 'true' || filter.values[0] === 'yes';
+      const shouldExist = filter.operator === 'is' ? hasValue : !hasValue;
+      const finalNegate = negate ? !shouldExist : shouldExist;
+      
+      return [[
+        { column: 'nutrition_templates.id', operator: 'eq', value: null, negate: !finalNegate },
+      ]];
+    },
+  },
+  'menu.nutrition_template_name': { 
+    column: 'nutrition_templates.name', 
+    type: 'text',
+    relatedEntity: 'nutrition_templates',
+    relatedPath: 'nutrition_templates.name',
+    joinType: 'through'
+  },
+  'menu.calories': { 
+    column: 'nutrition_templates.targets->>calories', 
+    type: 'number',
+    relatedEntity: 'nutrition_templates',
+    relatedPath: 'nutrition_templates.targets->>calories',
+    joinType: 'through',
+    valueMap: (v) => Number(v)
+  },
+  'menu.protein': { 
+    column: 'nutrition_templates.targets->>protein', 
+    type: 'number',
+    relatedEntity: 'nutrition_templates',
+    relatedPath: 'nutrition_templates.targets->>protein',
+    joinType: 'through',
+    valueMap: (v) => Number(v)
+  },
 };
 
 const leadSearchColumns = [
@@ -139,9 +299,48 @@ export async function fetchFilteredLeads(
     // This ensures grouping works correctly across all data, not just the current page
     const isGroupingActive = !!(filters.groupByLevel1 || filters.groupByLevel2);
 
+    // Check if we need inner joins for "entity exists" filters
+    const hasEntityExistsFilters = combinedGroup && 
+      flattenFilterGroup(combinedGroup).some(filter => 
+        filter.fieldId === 'subscription.exists' ||
+        filter.fieldId === 'budget.exists' ||
+        filter.fieldId === 'menu.exists'
+      );
+
+    // Always fetch related entities (using left joins) so columns can display the data
+    // Use inner joins only when filtering by "entity exists = yes"
+    const budgetJoinType = hasEntityExistsFilters && 
+      flattenFilterGroup(combinedGroup || { id: '', operator: 'and', children: [] }).some(f => 
+        f.fieldId === 'budget.exists' && f.values[0] === 'כן'
+      )
+      ? '!inner' : '';
+    const menuJoinType = hasEntityExistsFilters && 
+      flattenFilterGroup(combinedGroup || { id: '', operator: 'and', children: [] }).some(f => 
+        f.fieldId === 'menu.exists' && f.values[0] === 'כן'
+      )
+      ? '!inner' : '';
+
     let query = supabase
       .from('v_leads_with_customer')
-      .select('*');
+      .select(`
+        *,
+        budget_assignments${budgetJoinType}(
+          budgets${budgetJoinType}(
+            id,
+            name,
+            description,
+            steps_goal,
+            is_public,
+            nutrition_template_id,
+            nutrition_templates:nutrition_template_id${menuJoinType}(
+              id,
+              name,
+              description,
+              targets
+            )
+          )
+        )
+      `);
 
     // Only apply pagination if grouping is NOT active
     if (!isGroupingActive) {
@@ -372,9 +571,10 @@ export async function getLeadFilterOptions(): Promise<LeadFilterOptions> {
 /**
  * Transform database lead to UI format
  * Minimal transformation - most fields already calculated in PostgreSQL
+ * Preserves related entity data for column accessors
  */
 export function mapLeadToUIFormat(dbLead: LeadFromDB) {
-  return {
+  const mapped = {
     id: dbLead.id,
     name: dbLead.customer_name,
     createdDate: dbLead.created_date_formatted,
@@ -404,5 +604,12 @@ export function mapLeadToUIFormat(dbLead: LeadFromDB) {
     workoutProgramsHistory: [], // Would need to extract from workout_history if needed
     stepsHistory: [], // Would need to extract from steps_history if needed
     customerId: dbLead.customer_id,
+    // Preserve related entity data for column accessors
+    subscription_months: dbLead.subscription_months,
+    subscription_initial_price: dbLead.subscription_initial_price,
+    subscription_renewal_price: dbLead.subscription_renewal_price,
+    budget_assignments: dbLead.budget_assignments,
   };
+  
+  return mapped;
 }

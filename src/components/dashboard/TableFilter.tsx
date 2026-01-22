@@ -23,6 +23,7 @@ import { DateRangePicker } from './DateRangePicker';
 import { cn } from '@/lib/utils';
 import { FilterGroupDialog } from '@/components/dashboard/FilterGroupDialog';
 import { isAdvancedFilterGroup } from '@/utils/filterGroupUtils';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export type FilterOperator = 'is' | 'isNot' | 'contains' | 'notContains' | 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'before' | 'after' | 'between';
 
@@ -36,6 +37,8 @@ export interface FilterField {
   dynamicOptions?: string[]; // For select/multiselect - dynamically extracted from data
   operators?: FilterOperator[]; // Available operators for this field
   filterKey?: string; // Optional key for mapping filters to backend params
+  relatedEntity?: string; // If this field belongs to a related entity (e.g., 'subscription', 'budget')
+  relatedEntityLabel?: string; // Display label for the related entity
 }
 
 export interface ActiveFilter {
@@ -308,17 +311,81 @@ export const TableFilter: React.FC<TableFilterProps> = ({
               <CommandInput placeholder="חפש שדה לסינון..." dir="rtl" />
               <CommandList>
                 <CommandEmpty>לא נמצאו שדות</CommandEmpty>
-                <CommandGroup heading="בחר שדה לסינון">
-                  {availableFields.map((field) => (
-                    <CommandItem
-                      key={field.id}
-                      onSelect={() => handleFieldSelect(field)}
-                      className="cursor-pointer"
-                    >
-                      {field.label}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                {(() => {
+                  // Group fields by related entity
+                  const directFields = availableFields.filter(f => !f.relatedEntity);
+                  const relatedEntityGroups = new Map<string, FilterField[]>();
+                  
+                  availableFields.forEach(field => {
+                    if (field.relatedEntity) {
+                      if (!relatedEntityGroups.has(field.relatedEntity)) {
+                        relatedEntityGroups.set(field.relatedEntity, []);
+                      }
+                      relatedEntityGroups.get(field.relatedEntity)!.push(field);
+                    }
+                  });
+
+                  return (
+                    <>
+                      {directFields.length > 0 && (
+                        <CommandGroup heading="שדות ישירים">
+                          {directFields.map((field) => (
+                            <CommandItem
+                              key={field.id}
+                              onSelect={() => handleFieldSelect(field)}
+                              className="cursor-pointer"
+                            >
+                              {field.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+                      {Array.from(relatedEntityGroups.entries()).length > 0 && (
+                        <div className="px-2 py-1">
+                          <Accordion type="multiple" className="w-full">
+                            {Array.from(relatedEntityGroups.entries()).map(([entityName, fields]) => {
+                              const entityLabel = fields[0]?.relatedEntityLabel || entityName;
+                              // Check if there's an "entity exists" field (field id ends with .exists or is just the entity name)
+                              const entityExistsField = fields.find(f => f.id === `${entityName}.exists` || f.id === entityName);
+                              const entityFields = fields.filter(f => f.id !== `${entityName}.exists` && f.id !== entityName);
+                              
+                              return (
+                                <AccordionItem key={entityName} value={entityName} className="border-0">
+                                  <AccordionTrigger className="py-2 px-3 hover:no-underline bg-gray-50 rounded-md mb-1 text-sm font-medium text-gray-700 hover:bg-gray-100">
+                                    {entityLabel}
+                                  </AccordionTrigger>
+                                  <AccordionContent className="pb-1 pt-1">
+                                    <div className="space-y-0.5">
+                                      {/* Entity exists filter (if available) */}
+                                      {entityExistsField && (
+                                        <CommandItem
+                                          onSelect={() => handleFieldSelect(entityExistsField)}
+                                          className="cursor-pointer text-sm py-2 px-3 rounded-md hover:bg-gray-50"
+                                        >
+                                          {entityExistsField.label}
+                                        </CommandItem>
+                                      )}
+                                      {/* Entity fields */}
+                                      {entityFields.map((field) => (
+                                        <CommandItem
+                                          key={field.id}
+                                          onSelect={() => handleFieldSelect(field)}
+                                          className="cursor-pointer text-sm py-2 px-3 rounded-md hover:bg-gray-50"
+                                        >
+                                          {field.label}
+                                        </CommandItem>
+                                      ))}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              );
+                            })}
+                          </Accordion>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </CommandList>
               {filterGroup && onFilterGroupChange && (
                 <div className="p-3 border-t bg-white">
@@ -341,7 +408,14 @@ export const TableFilter: React.FC<TableFilterProps> = ({
             <div className="p-0">
               <div className="p-3 border-b bg-gray-50">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">{selectedField.label}</span>
+                  <div className="flex flex-col">
+                    {selectedField.relatedEntity && (
+                      <span className="text-xs text-gray-500 mb-0.5">
+                        {selectedField.relatedEntityLabel || selectedField.relatedEntity}
+                      </span>
+                    )}
+                    <span className="text-sm font-medium text-gray-700">{selectedField.label}</span>
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"

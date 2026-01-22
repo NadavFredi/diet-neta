@@ -12,7 +12,6 @@ import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { MeetingsDataTable } from '@/components/dashboard/MeetingsDataTable';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { meetingColumns } from '@/components/dashboard/columns/meetingColumns';
 import { useMeetingsManagement } from './MeetingsManagement';
@@ -43,8 +42,6 @@ const MeetingsManagement = () => {
   const { data: savedView } = useSavedView(viewId);
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('meetings');
-  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
-  const [viewToEdit, setViewToEdit] = useState<any>(null);
   const [isAddMeetingDialogOpen, setIsAddMeetingDialogOpen] = useState(false);
   
   const {
@@ -104,17 +101,12 @@ const MeetingsManagement = () => {
     setIsSaveViewModalOpen(true);
   }, []);
 
-  const handleEditViewClick = useCallback((view: any) => {
-    setViewToEdit(view);
-    setIsEditViewModalOpen(true);
-  }, []);
-
   return (
     <>
       <DashboardHeader 
         userEmail={user?.email} 
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
       />
           
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
@@ -196,19 +188,6 @@ const MeetingsManagement = () => {
         onOpenChange={setIsSaveViewModalOpen}
         resourceKey={saveViewResourceKey}
         filterConfig={getCurrentFilterConfig(activeFilters)}
-      />
-
-      {/* Edit View Modal */}
-      <EditViewModal
-        isOpen={isEditViewModalOpen}
-        onOpenChange={setIsEditViewModalOpen}
-        view={viewToEdit}
-        currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={getMeetingFilterFields(meetings || [])}
-        onSuccess={() => {
-          setIsEditViewModalOpen(false);
-          setViewToEdit(null);
-        }}
       />
 
       {/* Add Meeting Dialog */}

@@ -18,8 +18,22 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ChevronDown, Plus, Edit2, X, GripVertical, Copy, Folder, ArrowUpDown, ArrowUp, ArrowDown, FolderPlus } from 'lucide-react';
-import { useSavedViews, type SavedView, useCreateSavedView } from '@/hooks/useSavedViews';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import { ChevronDown, Plus, Edit2, X, GripVertical, Copy, Folder, ArrowUpDown, ArrowUp, ArrowDown, FolderPlus, MoreVertical, Check } from 'lucide-react';
+import { useSavedViews, type SavedView, useCreateSavedView, useUpdateSavedView } from '@/hooks/useSavedViews';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useToast } from '@/hooks/use-toast';
 import { DeleteViewDialog } from './DeleteViewDialog';
@@ -45,6 +59,7 @@ import { useUpdatePageOrders } from '@/hooks/usePageOrder';
 import { useFolders, useUpdateFolderOrders, useDeleteFolder, type InterfaceFolder } from '@/hooks/useFolders';
 import { CreateFolderDialog } from './CreateFolderDialog';
 import { AssignPageToFolderDialog } from './AssignPageToFolderDialog';
+import { Input } from '@/components/ui/input';
 
 interface NavItem {
   id: string;
@@ -139,8 +154,11 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   const [pageToAssign, setPageToAssign] = useState<SavedView | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null); // null = use display_order, 'asc'/'desc' = sort by name
+  const [editingViewId, setEditingViewId] = useState<string | null>(null);
+  const [editingViewName, setEditingViewName] = useState<string>('');
   const updatePageOrders = useUpdatePageOrders();
   const createSavedView = useCreateSavedView();
+  const updateSavedView = useUpdateSavedView();
 
   // Fetch folders for this interface
   const { data: folders = [] } = useFolders(shouldFetchData ? item.resourceKey : null);
@@ -297,8 +315,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   // Main interface is active if: active route AND (has specific view OR no view_id specified)
   const isMainInterfaceActive = active && (hasActiveView || !activeViewId);
 
-  const handleDeleteClick = (e: React.MouseEvent, view: SavedView) => {
-    e.stopPropagation();
+  const handleDeleteClick = (view: SavedView, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (view.is_default) {
       toast({
         title: 'לא ניתן למחוק',
@@ -311,8 +329,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     setDeleteDialogOpen(true);
   };
 
-  const handleDuplicateClick = async (e: React.MouseEvent, view: SavedView) => {
-    e.stopPropagation();
+  const handleDuplicateClick = async (view: SavedView, e?: React.MouseEvent) => {
+    e?.stopPropagation();
 
     try {
       // Create a new view with the same filter config but with a modified name
@@ -333,6 +351,49 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       toast({
         title: 'שגיאה',
         description: error?.message || 'לא ניתן לשכפל את הדף. אנא נסה שוב.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleStartEdit = (view: SavedView, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingViewId(view.id);
+    setEditingViewName(view.view_name);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingViewId(null);
+    setEditingViewName('');
+  };
+
+  const handleSaveEdit = async (viewId: string) => {
+    if (!editingViewName.trim()) {
+      toast({
+        title: 'שגיאה',
+        description: 'אנא הזן שם לתצוגה',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await updateSavedView.mutateAsync({
+        viewId,
+        viewName: editingViewName.trim(),
+      });
+
+      toast({
+        title: 'הצלחה',
+        description: 'שם התצוגה עודכן בהצלחה',
+      });
+
+      setEditingViewId(null);
+      setEditingViewName('');
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון שם התצוגה. אנא נסה שוב.',
         variant: 'destructive',
       });
     }
@@ -365,31 +426,33 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
 
   // Main button content
   const buttonContent = (
-    <div className="group relative">
-      <button
-        onClick={handleResourceClick}
-        className={cn(
-          'flex items-center gap-2.5 py-2.5 transition-all duration-300 relative',
-          'text-sm font-medium',
-          // Parent (Level 0) - Full-width rectangular
-          isParent && [
-            'w-full px-3 rounded-lg',
-            isMainInterfaceActive
-              ? 'text-gray-800 bg-white shadow-sm font-semibold'
-              : 'text-white hover:bg-white/10',
-          ],
-          // Child (Level 1+) - Same rectangular style as parent but with margins (shorter width to show nesting)
-          isChild && [
-            'mx-5 px-3 rounded-lg',
-            isMainInterfaceActive
-              ? 'text-gray-800 bg-white shadow-sm font-semibold'
-              : 'text-white hover:bg-white/10',
-          ],
-          isCollapsed && 'justify-center px-2 w-full mx-0'
-        )}
-        aria-label={item.label}
-        aria-expanded={supportsViews ? isExpanded : undefined}
-      >
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div className="group relative">
+          <button
+            onClick={handleResourceClick}
+            className={cn(
+              'flex items-center gap-2.5 py-2.5 transition-all duration-300 relative',
+              'text-sm font-medium',
+              // Parent (Level 0) - Full-width rectangular
+              isParent && [
+                'w-full px-3 rounded-lg',
+                isMainInterfaceActive
+                  ? 'text-gray-800 bg-white shadow-sm font-semibold'
+                  : 'text-white hover:bg-white/10',
+              ],
+              // Child (Level 1+) - Same rectangular style as parent but with margins (shorter width to show nesting)
+              isChild && [
+                'mx-5 px-3 rounded-lg',
+                isMainInterfaceActive
+                  ? 'text-gray-800 bg-white shadow-sm font-semibold'
+                  : 'text-white hover:bg-white/10',
+              ],
+              isCollapsed && 'justify-center px-2 w-full mx-0'
+            )}
+            aria-label={item.label}
+            aria-expanded={supportsViews ? isExpanded : undefined}
+          >
         {/* Drag handle inside button - positioned relative to button container */}
         {isSortable && dragHandleProps && !isCollapsed && (
           <div
@@ -448,62 +511,101 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
             <span className="flex-1 text-right">{item.label}</span>
             {supportsViews && (
               <div className="flex items-center gap-1 relative">
-                {/* Sort controls placeholder - maintains spacing */}
-                <div className="w-0 overflow-hidden group-hover:w-auto transition-all duration-200" />
-                {/* Create folder button - hidden and takes 0 space when not hovered */}
-                <div
-                  className={cn(
-                    'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
-                    'w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0',
-                    isMainInterfaceActive
-                      ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                      : 'text-white/60 hover:text-white hover:bg-white/10'
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCreateFolderDialogOpen(true);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setCreateFolderDialogOpen(true);
-                    }
-                  }}
-                  title="צור תיקייה חדשה"
-                  role="button"
-                  tabIndex={0}
-                >
-                  <FolderPlus className="h-3.5 w-3.5" />
+                {/* 3-dots menu for parent item actions */}
+                <div className="w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0 transition-all duration-200 flex-shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className={cn(
+                          'p-1 rounded-md transition-colors cursor-pointer',
+                          isMainInterfaceActive
+                            ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                            : 'text-white/60 hover:text-white hover:bg-white/10'
+                        )}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }
+                        }}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" dir="rtl" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onResourceClick();
+                        }}
+                      >
+                        <Plus className="h-4 w-4 ml-2" />
+                        הוסף פריט חדש
+                      </DropdownMenuItem>
+                      {onSaveViewClick && (
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSaveViewClick(item.resourceKey);
+                          }}
+                        >
+                          <Plus className="h-4 w-4 ml-2" />
+                          הוסף דף חדש
+                        </DropdownMenuItem>
+                      )}
+                      {supportsViews && (
+                        <>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCreateFolderDialogOpen(true);
+                            }}
+                          >
+                            <FolderPlus className="h-4 w-4 ml-2" />
+                            צור תיקייה חדשה
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {sortOrder === null && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSortOrder('asc');
+                              }}
+                            >
+                              <ArrowUpDown className="h-4 w-4 ml-2" />
+                              מיין לפי שם (א-ב)
+                            </DropdownMenuItem>
+                          )}
+                          {sortOrder === 'asc' && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSortOrder('desc');
+                              }}
+                            >
+                              <ArrowDown className="h-4 w-4 ml-2" />
+                              מיין לפי שם (ב-א)
+                            </DropdownMenuItem>
+                          )}
+                          {sortOrder === 'desc' && (
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSortOrder(null);
+                              }}
+                            >
+                              <ArrowUp className="h-4 w-4 ml-2" />
+                              בטל מיון (החזר לסדר ידני)
+                            </DropdownMenuItem>
+                          )}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                {/* Create page button - hidden and takes 0 space when not hovered */}
-                {onSaveViewClick && (
-                  <div
-                    className={cn(
-                      'p-1 rounded-md transition-all duration-200 flex-shrink-0 cursor-pointer',
-                      'w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0',
-                      isMainInterfaceActive
-                        ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                        : 'text-white/60 hover:text-white hover:bg-white/10'
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSaveViewClick(item.resourceKey);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onSaveViewClick(item.resourceKey);
-                      }
-                    }}
-                    title="הוסף דף חדש"
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </div>
-                )}
                 {/* Expand/collapse button - always visible */}
                 <ChevronDown
                   className={cn(
@@ -517,72 +619,78 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           </>
         )}
       </button>
-      {/* Sort controls - positioned outside button to avoid nesting, aligned between label and action buttons */}
-      {!isCollapsed && supportsViews && (
-        <div className="absolute top-1/2 -translate-y-1/2 flex items-center gap-0.5 w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 opacity-0 transition-all duration-200 z-20 pointer-events-none"
-          style={{ 
-            right: 'calc(100% - 100px)' // Position to align with action buttons area
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent dir="rtl" onClick={(e) => e.stopPropagation()}>
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onResourceClick();
           }}
         >
-          <div className="flex items-center gap-0.5 pointer-events-auto">
+          <Plus className="h-4 w-4 ml-2" />
+          הוסף פריט חדש
+        </ContextMenuItem>
+        {supportsViews && (
+          <>
+            {onSaveViewClick && (
+              <ContextMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSaveViewClick(item.resourceKey);
+                }}
+              >
+                <Plus className="h-4 w-4 ml-2" />
+                הוסף דף חדש
+              </ContextMenuItem>
+            )}
+            <ContextMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                setCreateFolderDialogOpen(true);
+              }}
+            >
+              <FolderPlus className="h-4 w-4 ml-2" />
+              צור תיקייה חדשה
+            </ContextMenuItem>
+            <ContextMenuSeparator />
             {sortOrder === null && (
-              <button
-                type="button"
+              <ContextMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
                   setSortOrder('asc');
                 }}
-                className={cn(
-                  'p-1 rounded-md transition-colors',
-                  isMainInterfaceActive
-                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                )}
-                title="מיין לפי שם (א-ב)"
               >
-                <ArrowUpDown className="h-3.5 w-3.5" />
-              </button>
+                <ArrowUpDown className="h-4 w-4 ml-2" />
+                מיין לפי שם (א-ב)
+              </ContextMenuItem>
             )}
             {sortOrder === 'asc' && (
-              <button
-                type="button"
+              <ContextMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
                   setSortOrder('desc');
                 }}
-                className={cn(
-                  'p-1 rounded-md transition-colors',
-                  isMainInterfaceActive
-                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                )}
-                title="מיין לפי שם (ב-א)"
               >
-                <ArrowDown className="h-3.5 w-3.5" />
-              </button>
+                <ArrowDown className="h-4 w-4 ml-2" />
+                מיין לפי שם (ב-א)
+              </ContextMenuItem>
             )}
             {sortOrder === 'desc' && (
-              <button
-                type="button"
+              <ContextMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
                   setSortOrder(null);
                 }}
-                className={cn(
-                  'p-1 rounded-md transition-colors',
-                  isMainInterfaceActive
-                    ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                )}
-                title="בטל מיון (החזר לסדר ידני)"
               >
-                <ArrowUp className="h-3.5 w-3.5" />
-              </button>
+                <ArrowUp className="h-4 w-4 ml-2" />
+                בטל מיון (החזר לסדר ידני)
+              </ContextMenuItem>
             )}
-          </div>
-        </div>
-      )}
-    </div>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 
   // Sub-views list - show if we have any views (from savedViews or defaultView)
@@ -680,101 +788,202 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         isActive={isViewActive}
         isDefaultView={isDefaultView}
       >
-        <div
-          className={cn(
-            'group/view-item relative flex items-center',
-            !isInFolder && 'mx-5'
-          )}
-        >
-          <button
-            onClick={() => {
-              onViewClick(view, item.path);
-              setPopoverOpen(false);
-            }}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
-              'text-right w-full rounded-lg',
-              isViewActive
-                ? 'text-gray-800 bg-white shadow-sm font-semibold'
-                : isInPopover
-                  ? 'text-gray-700 hover:bg-white/10'
-                  : isInFolder
-                    ? 'text-white bg-white/5 hover:bg-white/10'
-                    : 'text-white/80 hover:bg-white/10'
-            )}
-          >
-            <span className="flex-1 truncate">{view.view_name}</span>
-            <div className="flex items-center gap-1 opacity-0 group-hover/view-item:opacity-100 transition-opacity">
-              {!isDefaultView && (
-                <>
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDuplicateClick(e, view);
-                    }}
-                    className={cn(
-                      'p-1 rounded cursor-pointer transition-colors',
-                      isViewActive
-                        ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                        : 'text-white/90 hover:text-white hover:bg-white/20'
-                    )}
-                    title="שכפל"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </div>
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPageToAssign(view);
-                      setAssignPageDialogOpen(true);
-                    }}
-                    className={cn(
-                      'p-1 rounded cursor-pointer transition-colors',
-                      isViewActive
-                        ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                        : 'text-white/90 hover:text-white hover:bg-white/20'
-                    )}
-                    title="העבר לתיקייה"
-                  >
-                    <Folder className="h-3.5 w-3.5" />
-                  </div>
-                  {onEditViewClick && (
-                    <div
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div
+              className={cn(
+                'group/view-item relative flex items-center',
+                !isInFolder && 'mx-5'
+              )}
+            >
+              <button
+                onClick={() => {
+                  onViewClick(view, item.path);
+                  setPopoverOpen(false);
+                }}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
+                  'text-right w-full rounded-lg',
+                  isViewActive
+                    ? 'text-gray-800 bg-white shadow-sm font-semibold'
+                    : isInPopover
+                      ? 'text-gray-700 hover:bg-white/10'
+                      : isInFolder
+                        ? 'text-white bg-white/5 hover:bg-white/10'
+                        : 'text-white/80 hover:bg-white/10'
+                )}
+              >
+                {editingViewId === view.id ? (
+                  <div className="flex-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      value={editingViewName}
+                      onChange={(e) => setEditingViewName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSaveEdit(view.id);
+                        } else if (e.key === 'Escape') {
+                          handleCancelEdit();
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-7 text-sm flex-1 text-gray-900"
+                      dir="rtl"
+                      autoFocus
+                      disabled={updateSavedView.isPending}
+                    />
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onEditViewClick(view);
+                        handleSaveEdit(view.id);
                       }}
+                      disabled={updateSavedView.isPending}
                       className={cn(
-                        'p-1 rounded cursor-pointer transition-colors',
+                        'p-1 rounded transition-colors flex-shrink-0',
+                        isViewActive
+                          ? 'text-green-600 hover:text-green-800 hover:bg-green-100'
+                          : 'text-green-400 hover:text-green-300 hover:bg-white/20'
+                      )}
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCancelEdit();
+                      }}
+                      disabled={updateSavedView.isPending}
+                      className={cn(
+                        'p-1 rounded transition-colors flex-shrink-0',
                         isViewActive
                           ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
                           : 'text-white/90 hover:text-white hover:bg-white/20'
                       )}
-                      title="ערוך"
                     >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </div>
-                  )}
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteClick(e, view);
-                    }}
-                    className={cn(
-                      'p-1 rounded cursor-pointer transition-colors',
-                      isViewActive
-                        ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
-                        : 'text-white/90 hover:text-white hover:bg-red-500/20'
-                    )}
-                    title="מחק"
-                  >
-                    <X className="h-3.5 w-3.5" />
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
-                </>
-              )}
+                ) : (
+                  <>
+                    <span className="flex-1 truncate">{view.view_name}</span>
+                    {!isDefaultView && (
+                      <div className="w-0 overflow-hidden group-hover/view-item:w-auto group-hover/view-item:opacity-100 opacity-0 transition-all duration-200 flex-shrink-0">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className={cn(
+                                'p-1 rounded transition-colors cursor-pointer',
+                                isViewActive
+                                  ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                                  : 'text-white/90 hover:text-white hover:bg-white/20'
+                              )}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }
+                              }}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" dir="rtl" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDuplicateClick(view, e);
+                              }}
+                            >
+                              <Copy className="h-4 w-4 ml-2" />
+                              שכפל
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPageToAssign(view);
+                                setAssignPageDialogOpen(true);
+                              }}
+                            >
+                              <Folder className="h-4 w-4 ml-2" />
+                              העבר לתיקייה
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartEdit(view, e);
+                              }}
+                            >
+                              <Edit2 className="h-4 w-4 ml-2" />
+                              ערוך
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(view, e);
+                              }}
+                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                            >
+                              <X className="h-4 w-4 ml-2" />
+                              מחק
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    )}
+                  </>
+                )}
+              </button>
             </div>
-          </button>
-        </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent dir="rtl" onClick={(e) => e.stopPropagation()}>
+            {!isDefaultView && (
+              <>
+                <ContextMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDuplicateClick(view, e);
+                  }}
+                >
+                  <Copy className="h-4 w-4 ml-2" />
+                  שכפל
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPageToAssign(view);
+                    setAssignPageDialogOpen(true);
+                  }}
+                >
+                  <Folder className="h-4 w-4 ml-2" />
+                  העבר לתיקייה
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartEdit(view, e);
+                  }}
+                >
+                  <Edit2 className="h-4 w-4 ml-2" />
+                  ערוך
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(view, e);
+                  }}
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <X className="h-4 w-4 ml-2" />
+                  מחק
+                </ContextMenuItem>
+              </>
+            )}
+          </ContextMenuContent>
+        </ContextMenu>
       </SortableViewItem>
     );
   };
@@ -791,65 +1000,109 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
 
     return (
       <SortableFolderItem key={folder.id} folder={folder} isActive={hasActivePage}>
-        <div className="mx-5 mb-1">
-          <button
-            onClick={() => {
-              const newExpanded = new Set(expandedFolders);
-              if (isExpanded) {
-                newExpanded.delete(folder.id);
-              } else {
-                newExpanded.add(folder.id);
-              }
-              setExpandedFolders(newExpanded);
-            }}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
-              'text-right w-full rounded-lg',
-              hasActivePage
-                ? 'text-gray-800 bg-white shadow-sm font-semibold'
-                : 'text-white bg-white/5 hover:bg-white/10'
-            )}
-          >
-            <Folder className={cn(
-              'h-4 w-4 flex-shrink-0',
-              hasActivePage ? 'text-gray-800' : 'text-white'
-            )} />
-            <span className={cn(
-              'flex-1 truncate',
-              hasActivePage ? 'text-gray-800' : 'text-white'
-            )}>{folder.name}</span>
-            <div className="flex items-center gap-1 opacity-0 group-hover/folder-drag:opacity-100 transition-opacity">
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteFolder.mutate(folder.id, {
-                    onSuccess: () => {
-                      toast({
-                        title: 'תיקייה נמחקה',
-                        description: `תיקייה "${folder.name}" נמחקה בהצלחה.`,
-                      });
-                    },
-                  });
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div className="mx-5 mb-1 group/folder-item">
+              <button
+                onClick={() => {
+                  const newExpanded = new Set(expandedFolders);
+                  if (isExpanded) {
+                    newExpanded.delete(folder.id);
+                  } else {
+                    newExpanded.add(folder.id);
+                  }
+                  setExpandedFolders(newExpanded);
                 }}
                 className={cn(
-                  'p-1 rounded cursor-pointer transition-colors',
+                  'flex items-center gap-2 px-3 py-2 text-sm transition-all duration-300 ease-in-out',
+                  'text-right w-full rounded-lg',
                   hasActivePage
-                    ? 'text-red-600 hover:text-red-800 hover:bg-red-100'
-                    : 'text-white/90 hover:text-white hover:bg-red-500/20'
+                    ? 'text-gray-800 bg-white shadow-sm font-semibold'
+                    : 'text-white bg-white/5 hover:bg-white/10'
                 )}
-                title="מחק תיקייה"
               >
-                <X className="h-3.5 w-3.5" />
-              </div>
+                <Folder className={cn(
+                  'h-4 w-4 flex-shrink-0',
+                  hasActivePage ? 'text-gray-800' : 'text-white'
+                )} />
+                <span className={cn(
+                  'flex-1 truncate',
+                  hasActivePage ? 'text-gray-800' : 'text-white'
+                )}>{folder.name}</span>
+                <div className="w-0 overflow-hidden group-hover/folder-item:w-auto group-hover/folder-item:opacity-100 opacity-0 transition-all duration-200 flex-shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className={cn(
+                          'p-1 rounded transition-colors cursor-pointer',
+                          hasActivePage
+                            ? 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                            : 'text-white/90 hover:text-white hover:bg-white/20'
+                        )}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }
+                        }}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" dir="rtl" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteFolder.mutate(folder.id, {
+                            onSuccess: () => {
+                              toast({
+                                title: 'תיקייה נמחקה',
+                                description: `תיקייה "${folder.name}" נמחקה בהצלחה.`,
+                              });
+                            },
+                          });
+                        }}
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                      >
+                        <X className="h-4 w-4 ml-2" />
+                        מחק תיקייה
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+                    hasActivePage ? 'text-gray-700' : 'text-white/80',
+                    isExpanded ? 'rotate-0' : '-rotate-90'
+                  )}
+                />
+              </button>
             </div>
-            <ChevronDown
-              className={cn(
-                'h-4 w-4 flex-shrink-0 transition-transform duration-200',
-                hasActivePage ? 'text-gray-700' : 'text-white/80',
-                isExpanded ? 'rotate-0' : '-rotate-90'
-              )}
-            />
-          </button>
+          </ContextMenuTrigger>
+          <ContextMenuContent dir="rtl" onClick={(e) => e.stopPropagation()}>
+            <ContextMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteFolder.mutate(folder.id, {
+                  onSuccess: () => {
+                    toast({
+                      title: 'תיקייה נמחקה',
+                      description: `תיקייה "${folder.name}" נמחקה בהצלחה.`,
+                    });
+                  },
+                });
+              }}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <X className="h-4 w-4 ml-2" />
+              מחק תיקייה
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
 
           {isExpanded && folderPages.length > 0 && (
             <DndContext
@@ -867,7 +1120,6 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
               </SortableContext>
             </DndContext>
           )}
-        </div>
       </SortableFolderItem>
     );
   };
