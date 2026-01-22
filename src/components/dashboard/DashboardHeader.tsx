@@ -205,7 +205,7 @@ export const DashboardHeader = ({
         <div
           className={cn(
             'border-b border-white/10 flex items-center transition-all duration-300 relative',
-            sidebarWidth.isCollapsed ? 'px-2 py-4 justify-center' : 'px-4 py-5 justify-between'
+            sidebarWidth.isCollapsed ? 'px-2 py-4 justify-center' : 'px-4 py-5 justify-center'
           )}
           style={{
             height: '88px',
@@ -219,13 +219,13 @@ export const DashboardHeader = ({
             />
           )}
           
-          {/* Mobile Close Button */}
+          {/* Mobile Close Button - Positioned absolutely */}
           {!sidebarWidth.isCollapsed && (
             <Button
               variant="ghost"
               size="icon"
               onClick={handleCloseMobileMenu}
-              className="lg:hidden h-8 w-8 text-white hover:bg-white/20"
+              className="lg:hidden h-8 w-8 text-white hover:bg-white/20 absolute left-4"
             >
               <X className="h-5 w-5" />
             </Button>
