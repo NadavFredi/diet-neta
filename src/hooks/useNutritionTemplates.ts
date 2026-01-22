@@ -144,9 +144,6 @@ export const useNutritionTemplates = (filters?: {
       const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name', 'description']) : null;
       const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
 
-      // When grouping is active, we still limit to pageSize for performance
-      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
-      
       // Map groupBy columns to database columns
       const groupByMap: Record<string, string> = {
         name: 'name',
@@ -182,21 +179,19 @@ export const useNutritionTemplates = (filters?: {
         query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
-      // Get total count for pagination (only when not grouping)
+      // Get total count for pagination
       let totalCount = 0;
-      if (!isGroupingActive) {
-        let countQuery = supabase
-          .from('nutrition_templates_with_ranges')
-          .select('id', { count: 'exact', head: true });
+      let countQuery = supabase
+        .from('nutrition_templates_with_ranges')
+        .select('id', { count: 'exact', head: true });
 
-        if (combinedGroup) {
-          countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
-        }
-
-        const { count, error: countError } = await countQuery;
-        if (countError) throw countError;
-        totalCount = count || 0;
+      if (combinedGroup) {
+        countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
       }
+
+      const { count, error: countError } = await countQuery;
+      if (countError) throw countError;
+      totalCount = count || 0;
 
       const { data, error } = await query;
 
@@ -205,11 +200,6 @@ export const useNutritionTemplates = (filters?: {
           throw new Error('טבלת התבניות לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
         throw error;
-      }
-
-      // When grouping is active, totalCount is the length of all fetched data
-      if (isGroupingActive) {
-        totalCount = (data || []).length;
       }
 
       return { data: (data || []) as NutritionTemplate[], totalCount };
@@ -390,7 +380,6 @@ export const useDeleteNutritionTemplate = () => {
     },
   });
 };
-
 
 
 

@@ -718,6 +718,25 @@ export function DataTable<T extends Record<string, any>>({
     return tableInstance.getRowModel().rows.map((row) => getRowIdValue(row.original));
   }, [paginatedGroupedData, collapsedGroupsSet, getRowIdValue, tableInstance]);
 
+  const handleToggleGroupRows = useCallback((ids: string[], checked: boolean) => {
+    const pageIdSet = new Set(currentPageIds);
+    const filteredIds = ids.filter((id) => pageIdSet.has(id));
+
+    if (selectAllAcrossPages) {
+      setSelectAllAcrossPages(false);
+    }
+
+    setSelectedRowIds((prev) => {
+      const next = selectAllAcrossPages ? new Set(currentPageIds) : new Set(prev);
+      filteredIds.forEach((id) => {
+        if (checked) next.add(id);
+        else next.delete(id);
+      });
+      return next;
+    });
+    setLastClickedRowIndex(null);
+  }, [currentPageIds, selectAllAcrossPages, setSelectedRowIds, setSelectAllAcrossPages, setLastClickedRowIndex]);
+
   const handleToggleRow = useCallback((rowId: string, checked: boolean, shiftKey?: boolean, rowIndex?: number) => {
     const visibleIds = getVisibleRowIdsInOrder();
     const resolvedRowIndex = visibleIds.indexOf(rowId);
@@ -933,7 +952,7 @@ function TableContent<T>({
                         <span className="text-sm font-bold text-slate-900">{l1Header}: {formatGVal(l1.level1Key, groupByKeys[0], false)}</span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">{l1.items.length + (l1.level2Groups?.reduce((acc, g) => acc + g.items.length, 0) || 0)} {singularLabel}</span>
                         <div className="flex-shrink-0 transition-transform duration-200">{isL1Collapsed ? <ChevronRight className="h-4 w-4 text-slate-600" /> : <ChevronDown className="h-4 w-4 text-slate-600" />}</div>
-                        {enableRowSelection && handleToggleRow && getRowIdValue && <div className="flex-shrink-0"><Checkbox checked={l1AllSel ? true : l1SomeSel ? 'indeterminate' : false} onCheckedChange={(v) => l1VisIds.forEach(id => handleToggleRow(id, v === true))} aria-label="בחר כל הקבוצה" onClick={(e) => e.stopPropagation()} /></div>}
+                        {enableRowSelection && handleToggleGroupRows && getRowIdValue && <div className="flex-shrink-0"><Checkbox checked={l1AllSel ? true : l1SomeSel ? 'indeterminate' : false} onCheckedChange={(v) => handleToggleGroupRows(l1VisIds, v === true)} aria-label="בחר כל הקבוצה" onClick={(e) => e.stopPropagation()} /></div>}
                       </div>
                     </td>
                   </tr>
@@ -949,7 +968,7 @@ function TableContent<T>({
                               <span className="text-sm font-semibold text-slate-700">{item.header}: {formatGVal(item.group.groupKey, groupByKeys[1], true)}</span>
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">{item.group.items.length} {singularLabel}</span>
                               <div className="flex-shrink-0 transition-transform duration-200">{item.isCollapsed ? <ChevronRight className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}</div>
-                              {enableRowSelection && handleToggleRow && getRowIdValue && <div className="flex-shrink-0"><Checkbox checked={l2AllSel ? true : l2SomeSel ? 'indeterminate' : false} onCheckedChange={(v) => l2VisIds.forEach((id: string) => handleToggleRow(id, v === true))} aria-label="בחר כל הקבוצה" onClick={(e) => e.stopPropagation()} /></div>}
+                              {enableRowSelection && handleToggleGroupRows && getRowIdValue && <div className="flex-shrink-0"><Checkbox checked={l2AllSel ? true : l2SomeSel ? 'indeterminate' : false} onCheckedChange={(v) => handleToggleGroupRows(l2VisIds, v === true)} aria-label="בחר כל הקבוצה" onClick={(e) => e.stopPropagation()} /></div>}
                             </div>
                           </td>
                         </tr>
@@ -960,7 +979,7 @@ function TableContent<T>({
                           {row.getVisibleCells().map((cell: any) => {
                             const col = table.getColumn(cell.column.id), isSelection = cell.column.id === SELECTION_COLUMN_ID, width = columnSizing[cell.column.id] || cell.column.getSize();
                             return (
-                              <td key={cell.id} className={cn('px-2 py-1 text-sm overflow-hidden truncate', `text-${col?.columnDef.meta?.align || (dir === 'rtl' ? 'right' : 'left')}`, isSelection && 'cursor-pointer')} style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }} onClick={isSelection ? (e) => { e.stopPropagation(); const id = getRowIdValue?.(row.original); if (id) handleToggleRow?.(id, !(selectAllAcrossPages || selectedRowIds?.has(id)), e.shiftKey, getRowIndex(id)); } : undefined}>
+                              <td key={cell.id} className={cn('px-2 py-1.5 text-sm overflow-hidden truncate', `text-${col?.columnDef.meta?.align || (dir === 'rtl' ? 'right' : 'left')}`, isSelection && 'cursor-pointer')} style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }} onClick={isSelection ? (e) => { e.stopPropagation(); const id = getRowIdValue?.(row.original); if (id) handleToggleRow?.(id, !(selectAllAcrossPages || selectedRowIds?.has(id)), e.shiftKey, getRowIndex(id)); } : undefined}>
                                 {getCellContent(cell, cell.column)}
                               </td>
                             );
@@ -988,7 +1007,7 @@ function TableContent<T>({
                         <span className="text-sm font-bold text-slate-900">{header}: {formatGVal(group.groupKey, groupByKey || groupByKeys[0], false)}</span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">{group.items.length} {singularLabel}</span>
                         <div className="flex-shrink-0 transition-transform duration-200">{isCollapsed ? <ChevronRight className="h-4 w-4 text-slate-600" /> : <ChevronDown className="h-4 w-4 text-slate-600" />}</div>
-                        {enableRowSelection && handleToggleRow && getRowIdValue && <div className="flex-shrink-0"><Checkbox checked={gAllSel ? true : gSomeSel ? 'indeterminate' : false} onCheckedChange={(v) => groupVisIds.forEach((id: string) => handleToggleRow(id, v === true))} aria-label="בחר כל הקבוצה" onClick={(e) => e.stopPropagation()} /></div>}
+                        {enableRowSelection && handleToggleGroupRows && getRowIdValue && <div className="flex-shrink-0"><Checkbox checked={gAllSel ? true : gSomeSel ? 'indeterminate' : false} onCheckedChange={(v) => handleToggleGroupRows(groupVisIds, v === true)} aria-label="בחר כל הקבוצה" onClick={(e) => e.stopPropagation()} /></div>}
                       </div>
                     </td>
                   </tr>
@@ -1000,7 +1019,7 @@ function TableContent<T>({
                         {row.getVisibleCells().map((cell: any) => {
                           const col = table.getColumn(cell.column.id), isSelection = cell.column.id === SELECTION_COLUMN_ID, width = columnSizing[cell.column.id] || cell.column.getSize();
                           return (
-                            <td key={cell.id} className={cn('px-2 py-4 text-sm overflow-hidden truncate', `text-${col?.columnDef.meta?.align || (dir === 'rtl' ? 'right' : 'left')}`, isSelection && 'cursor-pointer')} style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }} onClick={isSelection ? (e) => { e.stopPropagation(); const id = getRowIdValue?.(row.original); if (id) handleToggleRow?.(id, !(selectAllAcrossPages || selectedRowIds?.has(id)), e.shiftKey, getRowIndex(id)); } : undefined}>
+                            <td key={cell.id} className={cn('px-2 py-1.5 text-sm overflow-hidden truncate', `text-${col?.columnDef.meta?.align || (dir === 'rtl' ? 'right' : 'left')}`, isSelection && 'cursor-pointer')} style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }} onClick={isSelection ? (e) => { e.stopPropagation(); const id = getRowIdValue?.(row.original); if (id) handleToggleRow?.(id, !(selectAllAcrossPages || selectedRowIds?.has(id)), e.shiftKey, getRowIndex(id)); } : undefined}>
                               {getCellContent(cell, cell.column)}
                             </td>
                           );
