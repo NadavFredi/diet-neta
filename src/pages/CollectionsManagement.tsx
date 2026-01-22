@@ -168,6 +168,8 @@ const CollectionsManagement = () => {
                 onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoadingCollections}
+                singularLabel="גבייה"
+                pluralLabel="גבייות"
               />
             </div>
           )}

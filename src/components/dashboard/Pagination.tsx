@@ -25,6 +25,8 @@ interface PaginationProps {
   className?: string;
   isLoading?: boolean;
   showIfSinglePage?: boolean;
+  singularLabel?: string; // Singular form of the item label (e.g., "ליד")
+  pluralLabel?: string; // Plural form of the item label (e.g., "לידים")
 }
 
 export const Pagination = ({
@@ -36,6 +38,8 @@ export const Pagination = ({
   className,
   isLoading = false,
   showIfSinglePage = false,
+  singularLabel = 'פריט',
+  pluralLabel = 'פריטים',
 }: PaginationProps) => {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -139,7 +143,7 @@ export const Pagination = ({
             'אין תוצאות'
           ) : (
             <>
-              מציג {startItem}-{endItem} מתוך {totalItems} לידים
+              מציג {startItem}-{endItem} מתוך {totalItems} {totalItems === 1 ? singularLabel : pluralLabel}
             </>
           )}
         </div>

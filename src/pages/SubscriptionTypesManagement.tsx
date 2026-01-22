@@ -195,6 +195,8 @@ const SubscriptionTypesManagement = () => {
                 onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
+                singularLabel="סוג מנוי"
+                pluralLabel="סוגי מנויים"
               />
             </div>
           )}

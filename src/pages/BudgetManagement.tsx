@@ -215,6 +215,8 @@ const BudgetManagement = () => {
                 onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
+                singularLabel="תקציב"
+                pluralLabel="תקציבים"
               />
             </div>
           )}

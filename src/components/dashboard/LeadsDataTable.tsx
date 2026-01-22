@@ -16,6 +16,8 @@ interface LeadsDataTableProps {
   onBulkEdit?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number; updates: Record<string, any> }) => Promise<void> | void;
   groupCurrentPage?: number;
   groupPageSize?: number;
+  singularLabel?: string;
+  pluralLabel?: string;
 }
 
 export const LeadsDataTable = ({ 
@@ -29,6 +31,8 @@ export const LeadsDataTable = ({
   onBulkEdit,
   groupCurrentPage,
   groupPageSize,
+  singularLabel = 'ליד',
+  pluralLabel = 'לידים',
 }: LeadsDataTableProps) => {
   // Get sorting state from Redux if not provided as props
   const reduxSortBy = useAppSelector((state) => state.dashboard.sortBy);
@@ -106,9 +110,11 @@ export const LeadsDataTable = ({
       totalCount={totalCount}
       onBulkDelete={onBulkDelete}
       onBulkEdit={onBulkEdit}
-      selectionLabel="לידים"
+      selectionLabel={pluralLabel}
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      singularLabel={singularLabel}
+      pluralLabel={pluralLabel}
     />
   );
 };

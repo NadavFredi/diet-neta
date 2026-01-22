@@ -151,6 +151,8 @@ const ExercisesManagement = () => {
                 onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
+                singularLabel="תרגיל"
+                pluralLabel="תרגילים"
               />
             </div>
           )}

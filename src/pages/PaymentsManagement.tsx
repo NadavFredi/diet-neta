@@ -204,6 +204,8 @@ const PaymentsManagement = () => {
                 onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoadingPayments}
+                singularLabel="תשלום"
+                pluralLabel="תשלומים"
               />
             </div>
           )}

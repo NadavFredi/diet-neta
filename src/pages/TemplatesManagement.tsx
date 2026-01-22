@@ -158,6 +158,8 @@ const TemplatesManagement = () => {
                 onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
+                singularLabel="תוכנית"
+                pluralLabel="תוכניות"
               />
             </div>
           )}

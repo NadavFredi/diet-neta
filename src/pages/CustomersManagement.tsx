@@ -227,6 +227,8 @@ const CustomersManagement = () => {
                 onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoadingCustomers}
+                singularLabel="לקוח"
+                pluralLabel="לקוחות"
               />
             </div>
           )}

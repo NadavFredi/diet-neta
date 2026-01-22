@@ -77,14 +77,26 @@ export function BulkEditModal<T extends Record<string, any>>({
         setPairs(pairs.map((p) => (p.id === id ? { ...p, ...updates } : p)));
     };
 
+    // Helper to get the actual field name (accessorKey) from column ID
+    const getFieldNameFromColumnId = (columnId: string): string | null => {
+        const column = editableColumns.find((col) => col.id === columnId);
+        if (!column) return null;
+        // Use accessorKey if available, otherwise fall back to column id
+        return column.accessorKey ? String(column.accessorKey) : column.id;
+    };
+
     const handleConfirm = async () => {
         // Build updates object from pairs
         const updates: Record<string, any> = {};
 
         pairs.forEach((pair) => {
             if (pair.field) {
-                // Convert empty strings to null for optional fields
-                updates[pair.field] = pair.value === '' ? null : pair.value;
+                // pair.field is the column ID, we need to get the actual field name
+                const fieldName = getFieldNameFromColumnId(pair.field);
+                if (fieldName) {
+                    // Convert empty strings to null for optional fields
+                    updates[fieldName] = pair.value === '' ? null : pair.value;
+                }
             }
         });
 
@@ -103,18 +115,7 @@ export function BulkEditModal<T extends Record<string, any>>({
         onOpenChange(false);
     };
 
-    const getColumnHeader = (fieldValue: string) => {
-        const column = editableColumns.find(
-            (col) => (col.accessorKey ? String(col.accessorKey) : col.id) === fieldValue
-        );
-        return column
-            ? typeof column.header === 'string'
-                ? column.header
-                : column.id
-            : fieldValue;
-    };
-
-    // Get used fields to prevent duplicates
+    // Get used fields to prevent duplicates (using column IDs)
     const usedFields = pairs.map((p) => p.field).filter(Boolean);
 
     return (
@@ -152,15 +153,14 @@ export function BulkEditModal<T extends Record<string, any>>({
                                         {editableColumns.map((col) => {
                                             const headerText =
                                                 typeof col.header === 'string' ? col.header : col.id;
-                                            const fieldValue = col.accessorKey
-                                                ? String(col.accessorKey)
-                                                : col.id;
-                                            const isUsed = usedFields.includes(fieldValue) && pair.field !== fieldValue;
+                                            // Use column ID as the value to ensure uniqueness
+                                            const columnId = col.id;
+                                            const isUsed = usedFields.includes(columnId) && pair.field !== columnId;
 
                                             return (
                                                 <SelectItem
                                                     key={col.id}
-                                                    value={fieldValue}
+                                                    value={columnId}
                                                     disabled={isUsed}
                                                 >
                                                     {headerText}

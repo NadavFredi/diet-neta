@@ -171,6 +171,8 @@ const MeetingsManagement = () => {
                 onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoadingMeetings}
+                singularLabel="פגישה"
+                pluralLabel="פגישות"
               />
             </div>
           )}

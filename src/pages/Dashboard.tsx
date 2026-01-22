@@ -377,6 +377,8 @@ const Dashboard = () => {
                 onBulkEdit={handleBulkEdit}
                 groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
                 groupPageSize={isGroupingActive ? groupPageSize : undefined}
+                singularLabel="ליד"
+                pluralLabel="לידים"
               />
             </div>
           ) : (
@@ -403,6 +405,8 @@ const Dashboard = () => {
                 onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
+                singularLabel="ליד"
+                pluralLabel="לידים"
               />
             </div>
           )}

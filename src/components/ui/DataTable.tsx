@@ -125,6 +125,9 @@ export interface DataTableProps<T> {
   // Group pagination (when grouping is active, paginate groups instead of records)
   groupCurrentPage?: number;
   groupPageSize?: number;
+  // Labels for displaying item counts
+  singularLabel?: string; // Singular form of the item label (e.g., "ליד")
+  pluralLabel?: string; // Plural form of the item label (e.g., "לידים")
 }
 
 // Helper function to get header text and smart truncate
@@ -407,6 +410,8 @@ export function DataTable<T extends Record<string, any>>({
   onBulkEdit,
   groupCurrentPage,
   groupPageSize = 50,
+  singularLabel = 'פריט',
+  pluralLabel = 'פריטים',
 }: DataTableProps<T>) {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
@@ -1372,6 +1377,8 @@ export function DataTable<T extends Record<string, any>>({
               handleToggleRow={handleToggleRow}
               selectedRowIds={selectedRowIds}
               selectAllAcrossPages={selectAllAcrossPages}
+              singularLabel={singularLabel}
+              pluralLabel={pluralLabel}
             />
           </DndContext>
         ) : (
@@ -1476,6 +1483,8 @@ function TableContent<T>({
   handleToggleRow,
   selectedRowIds,
   selectAllAcrossPages,
+  singularLabel = 'פריט',
+  pluralLabel = 'פריטים',
 }: {
   table: any;
   tableColumns: any[];
@@ -1503,6 +1512,8 @@ function TableContent<T>({
   handleToggleRow?: (rowId: string, checked: boolean) => void;
   selectedRowIds?: Set<string>;
   selectAllAcrossPages?: boolean;
+  singularLabel?: string;
+  pluralLabel?: string;
 }) {
   // Helper to check if groupedData is multi-level
   const isMultiLevelGrouping = (data: any): data is MultiLevelGroupedData<T>[] => {
@@ -1912,7 +1923,7 @@ function TableContent<T>({
                           {level1Header}: {formatGroupValue(level1Group.level1Key, groupByKeys[0], false)}
                         </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
-                          {totalItems} {totalItems === 1 ? 'ליד' : 'לידים'}
+                          {totalItems} {totalItems === 1 ? (singularLabel || 'פריט') : (pluralLabel || 'פריטים')}
                         </span>
                         {enableRowSelection && handleToggleRow && getRowIdValue && (
                           <div className="flex-shrink-0">
@@ -1989,7 +2000,7 @@ function TableContent<T>({
                                 {item.header}: {formatGroupValue(item.group.groupKey, groupByKeys[1], true)}
                               </span>
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
-                                {item.group.items.length} {item.group.items.length === 1 ? 'ליד' : 'לידים'}
+                                {item.group.items.length} {item.group.items.length === 1 ? (singularLabel || 'פריט') : (pluralLabel || 'פריטים')}
                               </span>
                               {enableRowSelection && handleToggleRow && getRowIdValue && (
                                 <div className="flex-shrink-0">
@@ -2135,7 +2146,7 @@ function TableContent<T>({
                           {getGroupColumnHeader(originalGroupByKey || groupByKey)}: {formatGroupValue(group.groupKey, groupByKey, false)}
                         </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200">
-                          {group.items.length} {group.items.length === 1 ? 'ליד' : 'לידים'}
+                          {group.items.length} {group.items.length === 1 ? (singularLabel || 'פריט') : (pluralLabel || 'פריטים')}
                         </span>
                       </div>
                     </td>

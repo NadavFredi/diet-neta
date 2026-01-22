@@ -153,6 +153,8 @@ const NutritionTemplatesManagement = () => {
                 onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
+                singularLabel="תבנית"
+                pluralLabel="תבניות"
               />
             </div>
           )}
