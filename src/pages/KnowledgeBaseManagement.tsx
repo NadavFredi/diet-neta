@@ -42,16 +42,16 @@ const KnowledgeBaseManagement = () => {
         sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
       />
           
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
+      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
         <main 
-          className="bg-gray-50 overflow-y-auto" 
+          className="bg-gray-50 overflow-y-auto transition-all duration-300" 
           style={{ 
             marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 88px)',
+            minHeight: 'calc(100vh - 60px)',
           }}
         >
-          <div className="p-6 w-full">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="pr-6">
+            <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" dir="rtl">
                 <div className="border-b border-gray-200 px-6 pt-4">
                   <TabsList className="grid w-full max-w-md grid-cols-2 h-10 bg-gray-100">

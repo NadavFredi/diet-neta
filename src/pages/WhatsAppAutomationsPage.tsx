@@ -140,14 +140,14 @@ export const WhatsAppAutomationsPage: React.FC = () => {
 
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
         <main
-          className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out"
+          className="bg-gray-50 overflow-y-auto transition-all duration-300"
           style={{
             marginRight: `${sidebarWidth.width}px`,
             minHeight: 'calc(100vh - 60px)',
           }}
         >
-          <div className="p-6">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="pr-6">
+            <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
               <TableActionHeader
                 resourceKey="whatsapp_automations"
                 title={pageTitle}

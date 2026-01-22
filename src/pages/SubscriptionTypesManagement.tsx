@@ -126,17 +126,17 @@ const SubscriptionTypesManagement = () => {
         sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
       />
           
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
+      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
         <main 
-          className="bg-gray-50 overflow-y-auto" 
+          className="bg-gray-50 overflow-y-auto transition-all duration-300" 
           style={{ 
             marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 88px)',
+            minHeight: 'calc(100vh - 60px)',
           }}
         >
-          <div className="p-6 w-full">
+          <div className="pr-6">
             {/* Show subscription types table */}
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
                 <TableActionHeader
                   resourceKey="subscription_types"
                   title={pageTitle}
