@@ -208,8 +208,6 @@ const CustomersManagement = () => {
               <CustomersDataTable 
                 customers={filteredCustomers} 
                 onBulkDelete={handleBulkDelete}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
               />
             </div>
           ) : (
@@ -231,11 +229,11 @@ const CustomersManagement = () => {
           {!isLoadingCustomers && totalCustomers > 0 && (
             <div className="flex-shrink-0">
               <Pagination
-                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                pageSize={isGroupingActive ? groupPageSize : pageSize}
-                totalItems={isGroupingActive ? totalGroups : totalCustomers}
-                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                onPageSizeChange={isGroupingActive ? handleGroupPageSizeChange : handlePageSizeChange}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalCustomers}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoadingCustomers}
                 singularLabel="לקוח"

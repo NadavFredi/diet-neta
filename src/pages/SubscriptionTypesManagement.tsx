@@ -176,8 +176,6 @@ const SubscriptionTypesManagement = () => {
                 onEdit={handleEditSubscriptionType}
                 onDelete={handleDeleteClick}
                 onBulkDelete={handleBulkDelete}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
               />
             </div>
           ) : (
@@ -199,11 +197,11 @@ const SubscriptionTypesManagement = () => {
           {!isLoading && totalSubscriptionTypes > 0 && (
             <div className="flex-shrink-0">
               <Pagination
-                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                pageSize={isGroupingActive ? groupPageSize : pageSize}
-                totalItems={isGroupingActive ? totalGroups : totalSubscriptionTypes}
-                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                onPageSizeChange={isGroupingActive ? handleGroupPageSizeChange : handlePageSizeChange}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalSubscriptionTypes}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
                 singularLabel="סוג מנוי"

@@ -187,8 +187,6 @@ const PaymentsManagement = () => {
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 totalCount={totalPayments}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
               />
             </div>
           ) : (
@@ -208,11 +206,11 @@ const PaymentsManagement = () => {
           {!isLoadingPayments && totalPayments > 0 && (
             <div className="flex-shrink-0">
               <Pagination
-                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                pageSize={isGroupingActive ? groupPageSize : pageSize}
-                totalItems={isGroupingActive ? totalGroups : totalPayments}
-                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                onPageSizeChange={isGroupingActive ? handleGroupPageSizeChange : handlePageSizeChange}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalPayments}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoadingPayments}
                 singularLabel="תשלום"

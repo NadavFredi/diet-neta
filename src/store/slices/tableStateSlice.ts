@@ -34,6 +34,10 @@ export interface TableState {
   currentPage: number;
   pageSize: number; // 50 or 100
   totalCount: number; // Total count from server (for pagination)
+  // Selection state
+  selectedRowIds: string[];
+  lastClickedRowIndex: number | null;
+  selectAllAcrossPages: boolean;
 }
 
 interface TableStateMap {
@@ -93,6 +97,9 @@ const tableStateSlice = createSlice({
           currentPage: 1,
           pageSize: 100, // Default to 100, can be changed to 50
           totalCount: 0,
+          selectedRowIds: [],
+          lastClickedRowIndex: null,
+          selectAllAcrossPages: false,
         };
       }
     },
@@ -534,6 +541,128 @@ const tableStateSlice = createSlice({
       state.tables[resourceKey].sortOrder = sortOrder;
       state.tables[resourceKey].currentPage = 1; // Reset to first page when sort order changes
     },
+    // Selection reducers
+    setSelectedRowIds: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        ids: string[];
+      }>
+    ) => {
+      const { resourceKey, ids } = action.payload;
+      if (!state.tables[resourceKey]) return;
+      state.tables[resourceKey].selectedRowIds = ids;
+    },
+    setLastClickedRowIndex: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        index: number | null;
+      }>
+    ) => {
+      const { resourceKey, index } = action.payload;
+      if (!state.tables[resourceKey]) return;
+      state.tables[resourceKey].lastClickedRowIndex = index;
+    },
+    setSelectAllAcrossPages: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        selectAll: boolean;
+      }>
+    ) => {
+      const { resourceKey, selectAll } = action.payload;
+      if (!state.tables[resourceKey]) return;
+      state.tables[resourceKey].selectAllAcrossPages = selectAll;
+    },
+    clearSelection: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+      }>
+    ) => {
+      const { resourceKey } = action.payload;
+      if (!state.tables[resourceKey]) return;
+      state.tables[resourceKey].selectedRowIds = [];
+      state.tables[resourceKey].lastClickedRowIndex = null;
+      state.tables[resourceKey].selectAllAcrossPages = false;
+    },
+    toggleRow: (
+      state,
+      action: PayloadAction<{
+        resourceKey: ResourceKey;
+        rowId: string;
+        visibleRowIds: string[];
+        checked: boolean;
+        shiftKey: boolean;
+        rowIndex?: number;
+        currentPageIds: string[];
+      }>
+    ) => {
+      const { resourceKey, rowId, visibleRowIds, checked, shiftKey, rowIndex, currentPageIds } = action.payload;
+      if (!state.tables[resourceKey]) return;
+
+      const table = state.tables[resourceKey];
+      let selectedIds = new Set(table.selectedRowIds);
+      const lastIndex = table.lastClickedRowIndex;
+
+      // Handle shift-click range selection
+      if (shiftKey && rowIndex !== undefined && lastIndex !== null && visibleRowIds.length > 0) {
+        const startIndex = Math.min(lastIndex, rowIndex);
+        const endIndex = Math.max(lastIndex, rowIndex);
+        
+        // Determine the target state based on the last clicked row's state
+        const lastRowId = visibleRowIds[lastIndex];
+        const wasLastClickedSelected = table.selectAllAcrossPages || (lastRowId ? selectedIds.has(lastRowId) : false);
+        
+        const rangeIds = visibleRowIds.slice(startIndex, endIndex + 1);
+        
+        if (table.selectAllAcrossPages) {
+          selectedIds = new Set(currentPageIds);
+          if (wasLastClickedSelected) {
+            rangeIds.forEach(id => selectedIds.delete(id));
+          } else {
+            rangeIds.forEach(id => selectedIds.add(id));
+          }
+          table.selectAllAcrossPages = false;
+        } else {
+          if (wasLastClickedSelected) {
+            rangeIds.forEach(id => selectedIds.delete(id));
+          } else {
+            rangeIds.forEach(id => selectedIds.add(id));
+          }
+        }
+        
+        table.lastClickedRowIndex = rowIndex;
+      } else {
+        // Normal toggle
+        if (table.selectAllAcrossPages) {
+          selectedIds = new Set(currentPageIds);
+          if (checked) {
+            selectedIds.add(rowId);
+          } else {
+            selectedIds.delete(rowId);
+          }
+          table.selectAllAcrossPages = false;
+        } else {
+          if (checked) {
+            selectedIds.add(rowId);
+          } else {
+            selectedIds.delete(rowId);
+          }
+        }
+        
+        // Update last clicked index
+        if (rowIndex !== undefined) {
+          table.lastClickedRowIndex = rowIndex;
+        } else {
+          const idx = visibleRowIds.indexOf(rowId);
+          if (idx !== -1) table.lastClickedRowIndex = idx;
+        }
+      }
+
+      table.selectedRowIds = Array.from(selectedIds);
+    },
   },
 });
 
@@ -564,6 +693,11 @@ export const {
   toggleGroupCollapse,
   setSortBy,
   setSortOrder,
+  setSelectedRowIds,
+  setLastClickedRowIndex,
+  setSelectAllAcrossPages,
+  clearSelection,
+  toggleRow,
 } = tableStateSlice.actions;
 
 export default tableStateSlice.reducer;
@@ -680,4 +814,20 @@ export const selectSortBy = (state: { tableState: TableStateState }, resourceKey
 
 export const selectSortOrder = (state: { tableState: TableStateState }, resourceKey: ResourceKey): 'ASC' | 'DESC' | null => {
   return state.tableState.tables[resourceKey]?.sortOrder ?? null;
+};
+
+// Selection selectors
+export const selectSelectedRowIds = createSelector(
+  [selectTableStateByKey],
+  (tableState) => {
+    return tableState?.selectedRowIds ?? [];
+  }
+);
+
+export const selectLastClickedRowIndex = (state: { tableState: TableStateState }, resourceKey: ResourceKey): number | null => {
+  return state.tableState.tables[resourceKey]?.lastClickedRowIndex ?? null;
+};
+
+export const selectAllAcrossPages = (state: { tableState: TableStateState }, resourceKey: ResourceKey): boolean => {
+  return state.tableState.tables[resourceKey]?.selectAllAcrossPages ?? false;
 };

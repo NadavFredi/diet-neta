@@ -153,8 +153,6 @@ const TemplatesManagement = () => {
                 onEdit={handleEditTemplate}
                 onDelete={handleDeleteClick}
                 onBulkDelete={handleBulkDelete}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
               />
             </div>
           )}
@@ -162,11 +160,11 @@ const TemplatesManagement = () => {
           {!isLoading && totalTemplates > 0 && (
             <div className="flex-shrink-0">
               <Pagination
-                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                pageSize={isGroupingActive ? groupPageSize : pageSize}
-                totalItems={isGroupingActive ? totalGroups : totalTemplates}
-                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                onPageSizeChange={isGroupingActive ? handleGroupPageSizeChange : handlePageSizeChange}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalTemplates}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
                 singularLabel="תוכנית"

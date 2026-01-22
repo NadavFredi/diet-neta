@@ -201,71 +201,74 @@ export const ExerciseForm = ({
         </div>
 
         <div>
-          <Label htmlFor="image" className="text-sm font-medium mb-2 block">
+          <Label htmlFor="image-upload" className="text-sm font-medium mb-2 block cursor-pointer">
             תמונה
           </Label>
           <div className="space-y-2">
-            {imagePreview ? (
-              <div className="relative">
-                <img
-                  src={imagePreview}
-                  alt="תצוגה מקדימה"
-                  className="w-full h-48 object-cover rounded-lg border border-gray-300"
+            <div className="relative">
+              <label
+                htmlFor="image-upload"
+                className={`relative block cursor-pointer group border-2 border-dashed rounded-lg overflow-hidden transition-all ${
+                  isUploadingImage 
+                    ? 'opacity-50 pointer-events-none border-gray-200' 
+                    : 'border-gray-300 hover:border-primary/50 hover:bg-gray-50'
+                }`}
+              >
+                {imagePreview ? (
+                  <div className="relative h-48">
+                    <img
+                      src={imagePreview}
+                      alt="תצוגה מקדימה"
+                      className="w-full h-full object-cover"
+                    />
+                    {isUploadingImage && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    )}
+                    {!isUploadingImage && (
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                        <Upload className="text-white opacity-0 group-hover:opacity-100 h-8 w-8" />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center h-48 flex flex-col items-center justify-center">
+                    {isUploadingImage ? (
+                      <Loader2 className="h-12 w-12 text-primary animate-spin mb-2" />
+                    ) : (
+                      <ImageIcon className="h-12 w-12 text-gray-400 mb-2 group-hover:text-primary transition-colors" />
+                    )}
+                    <p className="text-sm text-gray-600">
+                      {isUploadingImage ? 'מעלה...' : 'לחץ להעלאת תמונה'}
+                    </p>
+                  </div>
+                )}
+                
+                <Input
+                  ref={imageFileInputRef}
+                  id="image-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFileUpload}
+                  disabled={isUploadingImage}
+                  className="hidden"
                 />
+              </label>
+
+              {imagePreview && !isUploadingImage && (
                 <Button
                   type="button"
                   variant="destructive"
                   size="sm"
-                  onClick={handleRemoveImage}
-                  className="absolute top-2 left-2"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleRemoveImage();
+                  }}
+                  className="absolute top-2 left-2 z-10 shadow-md"
                 >
                   <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-2">אין תמונה</p>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Input
-                ref={imageFileInputRef}
-                id="image"
-                type="file"
-                accept="image/*"
-                onChange={handleImageFileUpload}
-                disabled={isUploadingImage}
-                className="hidden"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => imageFileInputRef.current?.click()}
-                disabled={isUploadingImage}
-                className="flex-1"
-              >
-                {isUploadingImage ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    מעלה...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    {imagePreview ? 'החלף תמונה' : 'העלה תמונה'}
-                  </>
-                )}
-              </Button>
-              {imagePreview && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleRemoveImage}
-                  className="flex-1"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  הסר תמונה
                 </Button>
               )}
             </div>

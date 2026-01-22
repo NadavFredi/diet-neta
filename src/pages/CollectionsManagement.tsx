@@ -42,6 +42,7 @@ const CollectionsManagement = () => {
     getCurrentFilterConfig,
     activeFilters,
     handleBulkDelete,
+    totalCollections,
   } = useCollectionsManagement();
 
   const { defaultView } = useDefaultView('collections');
@@ -156,8 +157,6 @@ const CollectionsManagement = () => {
               <CollectionsDataTable
                 collections={filteredCollections}
                 onBulkDelete={handleBulkDelete}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
               />
             </div>
           ) : (
@@ -172,11 +171,11 @@ const CollectionsManagement = () => {
           {!isLoadingCollections && filteredCollections && filteredCollections.length > 0 && (
             <div className="flex-shrink-0">
               <Pagination
-                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                pageSize={isGroupingActive ? groupPageSize : pageSize}
-                totalItems={isGroupingActive ? totalGroups : filteredCollections.length}
-                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                onPageSizeChange={isGroupingActive ? handleGroupPageSizeChange : handlePageSizeChange}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalCollections}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoadingCollections}
                 singularLabel="גבייה"
