@@ -52,6 +52,12 @@ const initialState: TableStateState = {
   tables: {},
 };
 
+const resetSelectionState = (table: TableState) => {
+  table.selectedRowIds = [];
+  table.lastClickedRowIndex = null;
+  table.selectAllAcrossPages = false;
+};
+
 const tableStateSlice = createSlice({
   name: 'tableState',
   initialState,
@@ -230,6 +236,7 @@ const tableStateSlice = createSlice({
         return;
       }
       state.tables[resourceKey].searchQuery = query;
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     // Add a filter
@@ -249,6 +256,7 @@ const tableStateSlice = createSlice({
       const nextGroup = addFilterToGroup(currentGroup, filter, parentGroupId);
       state.tables[resourceKey].filterGroup = nextGroup;
       state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     // Update a filter by id
@@ -267,6 +275,7 @@ const tableStateSlice = createSlice({
       const nextGroup = updateFilterInGroup(currentGroup, filter);
       state.tables[resourceKey].filterGroup = nextGroup;
       state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     // Remove a filter
@@ -285,6 +294,7 @@ const tableStateSlice = createSlice({
       const nextGroup = removeFilterFromGroup(currentGroup, filterId);
       state.tables[resourceKey].filterGroup = nextGroup;
       state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     // Clear all filters
@@ -301,6 +311,7 @@ const tableStateSlice = createSlice({
       const nextGroup = createRootGroup([]);
       state.tables[resourceKey].filterGroup = nextGroup;
       state.tables[resourceKey].activeFilters = [];
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     // Replace all filters (used for loading saved views)
@@ -318,6 +329,7 @@ const tableStateSlice = createSlice({
       const nextGroup = createRootGroup(filters as any);
       state.tables[resourceKey].filterGroup = nextGroup;
       state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     addFilterGroup: (
@@ -336,6 +348,7 @@ const tableStateSlice = createSlice({
       const nextGroup = addGroupToGroup(currentGroup, group, parentGroupId);
       state.tables[resourceKey].filterGroup = nextGroup;
       state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     updateFilterGroup: (
@@ -354,6 +367,7 @@ const tableStateSlice = createSlice({
       const nextGroup = updateGroupInGroup(currentGroup, groupId, updates);
       state.tables[resourceKey].filterGroup = nextGroup;
       state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     removeFilterGroup: (
@@ -371,6 +385,7 @@ const tableStateSlice = createSlice({
       const nextGroup = removeGroupFromGroup(currentGroup, groupId);
       state.tables[resourceKey].filterGroup = nextGroup;
       state.tables[resourceKey].activeFilters = flattenFilterGroup(nextGroup);
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     // Set group by key (legacy - for backward compatibility)
@@ -390,6 +405,7 @@ const tableStateSlice = createSlice({
       state.tables[resourceKey].groupByKeys = [groupByKey, null];
       // Reset collapsed groups when changing group by
       state.tables[resourceKey].collapsedGroups = [];
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     // Set multi-level group by keys
@@ -409,6 +425,7 @@ const tableStateSlice = createSlice({
       state.tables[resourceKey].groupByKey = groupByKeys[0];
       // Reset collapsed groups when changing group by
       state.tables[resourceKey].collapsedGroups = [];
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     // Set group sorting for a specific level
@@ -426,6 +443,7 @@ const tableStateSlice = createSlice({
       }
       const key = level === 1 ? 'level1' : 'level2';
       state.tables[resourceKey].groupSorting[key] = direction;
+      resetSelectionState(state.tables[resourceKey]);
     },
 
     // Toggle group collapse
