@@ -74,7 +74,7 @@ export const useMeetings = (filters?: {
 }) => {
   const queryClient = useQueryClient();
 
-  const query = useQuery({
+  const query = useQuery<{ data: Meeting[]; totalCount: number }>({
     queryKey: ['meetings', filters],
     queryFn: async () => {
       const meetingDateKeys = [
@@ -181,6 +181,29 @@ export const useMeetings = (filters?: {
         query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
+      // Get total count for pagination (only when not grouping)
+      let totalCount = 0;
+      if (!isGroupingActive) {
+        // Build count query with same JOINs and filters (needed for filters on joined tables)
+        let countQuery = supabase
+          .from('meetings')
+          .select(
+            `
+            id,
+            customer:customers(id)
+            `,
+            { count: 'exact', head: true }
+          );
+
+        if (combinedGroup) {
+          countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
+        }
+
+        const { count, error: countError } = await countQuery;
+        if (countError) throw countError;
+        totalCount = count || 0;
+      }
+
       const { data, error } = await query;
 
       if (error) throw error;
@@ -197,7 +220,12 @@ export const useMeetings = (filters?: {
         return meeting;
       });
       
-      return mappedData as Meeting[];
+      // When grouping is active, totalCount is the length of all fetched data
+      if (isGroupingActive) {
+        totalCount = mappedData.length;
+      }
+      
+      return { data: mappedData as Meeting[], totalCount };
     },
     // Refetch every 10 seconds to catch new meetings
     refetchInterval: 10000,

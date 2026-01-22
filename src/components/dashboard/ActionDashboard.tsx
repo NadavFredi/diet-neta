@@ -158,7 +158,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
 
   // Fetch meetings and payments data
-  const { data: allMeetings = [] } = useMeetings();
+  const { data: allMeetingsData } = useMeetings();
+  const allMeetings = allMeetingsData?.data || [];
   const { data: paymentHistory = [] } = usePaymentHistory(customer?.id || '', leadId || null);
 
   // Filter meetings by lead_id or customer_id

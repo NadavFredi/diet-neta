@@ -43,6 +43,7 @@ const SubscriptionTypesManagement = () => {
   // Get subscription types data first before using it in useMemo
   const {
     subscriptionTypes,
+    totalSubscriptionTypes,
     editingSubscriptionType,
     subscriptionTypeToDelete,
     isLoading,
@@ -127,7 +128,7 @@ const SubscriptionTypesManagement = () => {
           <TableActionHeader
             resourceKey="subscription_types"
             title={pageTitle}
-            dataCount={subscriptionTypes.length}
+            dataCount={totalSubscriptionTypes}
             singularLabel="סוג מנוי"
             pluralLabel="סוגי מנויים"
             filterFields={useMemo(() => getSubscriptionTypeFilterFields(subscriptionTypes || [], subscriptionTypeColumns), [subscriptionTypes])}
@@ -169,7 +170,7 @@ const SubscriptionTypesManagement = () => {
                   <Pagination
                     currentPage={isGroupingActive ? groupCurrentPage : currentPage}
                     pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : subscriptionTypes.length}
+                    totalItems={isGroupingActive ? totalGroups : totalSubscriptionTypes}
                     onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
                     onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                     isLoading={isLoading}

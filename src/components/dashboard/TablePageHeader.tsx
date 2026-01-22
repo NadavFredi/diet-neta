@@ -173,6 +173,16 @@ export const TablePageHeader = ({
     ? useAppSelector((state) => selectColumnVisibility(state, resourceKey))
     : undefined;
 
+  // Check if filters are currently active (applied to the page)
+  const hasActiveFilters = useMemo(() => {
+    // Check if there are active filters
+    const hasFilters = activeFilters && activeFilters.length > 0;
+    // Check if there's an advanced filter group
+    const hasAdvancedFilterGroup = filterGroup && isAdvancedFilterGroup(filterGroup);
+    
+    return hasFilters || hasAdvancedFilterGroup;
+  }, [activeFilters, filterGroup]);
+
   // Check if filters are dirty (different from saved/default state)
   const filtersDirty = useMemo(() => {
     const targetView = viewId ? activeView : defaultView;
@@ -346,6 +356,7 @@ export const TablePageHeader = ({
       className={className}
       filtersDirty={filtersDirty}
       onSaveFilters={handleSaveFilters}
+      hasActiveFilters={hasActiveFilters}
       actions={
         <div className="flex items-center gap-3">
           {/* Search Input */}

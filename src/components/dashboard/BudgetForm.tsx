@@ -111,8 +111,10 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     if (enableAssignment && mode === 'create') {
     }
   }, [enableAssignment, mode]);
-  const { data: nutritionTemplates = [] } = useNutritionTemplates();
-  const { data: workoutTemplates = [] } = useWorkoutTemplates();
+  const { data: nutritionTemplatesData } = useNutritionTemplates();
+  const { data: workoutTemplatesData } = useWorkoutTemplates();
+  const nutritionTemplates = nutritionTemplatesData?.data || [];
+  const workoutTemplates = workoutTemplatesData?.data || [];
   const createWorkoutTemplate = useCreateWorkoutTemplate();
   const createNutritionTemplate = useCreateNutritionTemplate();
   const updateWorkoutTemplate = useUpdateWorkoutTemplate();

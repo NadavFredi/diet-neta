@@ -31,6 +31,7 @@ const NutritionTemplatesManagement = () => {
   
   const {
     templates,
+    totalTemplates,
     savedView,
     editingTemplate,
     templateToDelete,
@@ -108,7 +109,7 @@ const NutritionTemplatesManagement = () => {
           <TableActionHeader
             resourceKey="nutrition_templates"
             title={savedView?.view_name || 'תבניות תזונה'}
-            dataCount={templates.length}
+            dataCount={totalTemplates}
             singularLabel="תבנית"
             pluralLabel="תבניות"
             filterFields={nutritionTemplateFilterFields}
@@ -147,7 +148,7 @@ const NutritionTemplatesManagement = () => {
                   <Pagination
                     currentPage={isGroupingActive ? groupCurrentPage : currentPage}
                     pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : templates.length}
+                    totalItems={isGroupingActive ? totalGroups : totalTemplates}
                     onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
                     onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                     isLoading={isLoading}

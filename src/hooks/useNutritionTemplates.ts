@@ -183,6 +183,22 @@ export const useNutritionTemplates = (filters?: {
         query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
+      // Get total count for pagination (only when not grouping)
+      let totalCount = 0;
+      if (!isGroupingActive) {
+        let countQuery = supabase
+          .from('nutrition_templates_with_ranges')
+          .select('id', { count: 'exact', head: true });
+
+        if (combinedGroup) {
+          countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
+        }
+
+        const { count, error: countError } = await countQuery;
+        if (countError) throw countError;
+        totalCount = count || 0;
+      }
+
       const { data, error } = await query;
 
       if (error) {
@@ -191,7 +207,13 @@ export const useNutritionTemplates = (filters?: {
         }
         throw error;
       }
-      return data as NutritionTemplate[];
+
+      // When grouping is active, totalCount is the length of all fetched data
+      if (isGroupingActive) {
+        totalCount = (data || []).length;
+      }
+
+      return { data: (data || []) as NutritionTemplate[], totalCount };
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change often

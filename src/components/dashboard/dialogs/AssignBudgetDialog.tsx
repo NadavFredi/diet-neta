@@ -48,7 +48,8 @@ export const AssignBudgetDialog = ({
   const [notes, setNotes] = useState('');
   const [isAddBudgetDialogOpen, setIsAddBudgetDialogOpen] = useState(false);
   // Refetch budgets when dialog opens to ensure we have the latest data
-  const { data: budgets = [], isLoading: isLoadingBudgets, refetch: refetchBudgets } = useBudgets();
+  const { data: budgetsData, isLoading: isLoadingBudgets, refetch: refetchBudgets } = useBudgets();
+  const budgets = budgetsData?.data || [];
   const assignToLead = useAssignBudgetToLead();
   const assignToCustomer = useAssignBudgetToCustomer();
   const createBudget = useCreateBudget();

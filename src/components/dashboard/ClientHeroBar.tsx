@@ -110,7 +110,8 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { data: allMeetings = [], isLoading: isLoadingMeetings } = useMeetings();
+  const { data: allMeetingsData, isLoading: isLoadingMeetings } = useMeetings();
+  const allMeetings = allMeetingsData?.data || [];
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<'lead' | 'customer' | null>(null);

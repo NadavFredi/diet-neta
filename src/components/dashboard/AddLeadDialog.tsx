@@ -71,7 +71,8 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
   } = useAddLead();
 
   // Fetch subscription types and budgets when dialog opens
-  const { data: budgets = [], isLoading: isLoadingBudgets } = useBudgets();
+  const { data: budgetsData, isLoading: isLoadingBudgets } = useBudgets();
+  const budgets = budgetsData?.data || [];
 
   useEffect(() => {
     if (isOpen) {

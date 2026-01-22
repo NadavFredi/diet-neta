@@ -31,6 +31,7 @@ interface PageHeaderProps {
   dataCount?: number; // Total number of results
   singularLabel?: string; // e.g., "ליד"
   pluralLabel?: string; // e.g., "לידים"
+  hasActiveFilters?: boolean; // Whether filters are currently applied
 }
 
 export const PageHeader = ({
@@ -48,6 +49,7 @@ export const PageHeader = ({
   dataCount,
   singularLabel,
   pluralLabel,
+  hasActiveFilters = false,
 }: PageHeaderProps) => {
   // Sync preferences on mount
   useInterfaceIconPreferences();
@@ -155,8 +157,8 @@ export const PageHeader = ({
                   {subtitle}
                 </p>
               )}
-              {/* Chevron icon for expanding/collapsing filters */}
-              {filters && (
+              {/* Chevron icon for expanding/collapsing filters - only show if filters are applied */}
+              {filters && hasActiveFilters && (
                 <button
                   type="button"
                   onClick={() => setFiltersExpanded(!filtersExpanded)}

@@ -62,7 +62,7 @@ export const useNutritionTemplatesManagement = () => {
   const pageSize = useAppSelector((state) => selectPageSize(state, 'nutrition_templates'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'nutrition_templates'));
   
-  const { data: templates = [], isLoading } = useNutritionTemplates({
+  const { data: templatesData, isLoading } = useNutritionTemplates({
     search: searchQuery,
     filterGroup,
     page: currentPage,
@@ -70,6 +70,9 @@ export const useNutritionTemplatesManagement = () => {
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
   });
+  
+  const templates = templatesData?.data || [];
+  const totalTemplates = templatesData?.totalCount || 0;
   
   // Reset to page 1 when filters, search, or grouping change
   const prevFiltersRef = useRef<string>('');
@@ -233,6 +236,7 @@ export const useNutritionTemplatesManagement = () => {
   return {
     // Data
     templates: filteredTemplates,
+    totalTemplates,
     savedView,
     editingTemplate,
     templateToDelete,

@@ -62,7 +62,7 @@ export const useTemplatesManagement = () => {
   const pageSize = useAppSelector((state) => selectPageSize(state, 'templates'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'templates'));
   
-  const { data: templates = [], isLoading } = useWorkoutTemplates({
+  const { data: templatesData, isLoading } = useWorkoutTemplates({
     search: searchQuery,
     filterGroup,
     page: currentPage,
@@ -70,6 +70,9 @@ export const useTemplatesManagement = () => {
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
   });
+  
+  const templates = templatesData?.data || [];
+  const totalTemplates = templatesData?.totalCount || 0;
   
   // Reset to page 1 when filters, search, or grouping change
   const prevFiltersRef = useRef<string>('');
@@ -235,6 +238,7 @@ export const useTemplatesManagement = () => {
   return {
     // Data
     templates: filteredTemplates,
+    totalTemplates,
     allTags,
     savedView,
     editingTemplate,

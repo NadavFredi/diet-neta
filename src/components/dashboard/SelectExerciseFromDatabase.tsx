@@ -16,7 +16,8 @@ interface SelectExerciseFromDatabaseProps {
 
 export const SelectExerciseFromDatabase = ({ onSelect }: SelectExerciseFromDatabaseProps) => {
   const [value, setValue] = useState('');
-  const { data: exercises = [], isLoading } = useExercises({ pageSize: 1000 });
+  const { data: exercisesData, isLoading } = useExercises({ pageSize: 1000 });
+  const exercises = exercisesData?.data || [];
 
   const handleSelect = (selectedValue: string) => {
     if (selectedValue) {

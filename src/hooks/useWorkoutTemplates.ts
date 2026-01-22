@@ -31,7 +31,7 @@ export const useWorkoutTemplates = (filters?: {
 }) => {
   const { user } = useAppSelector((state) => state.auth);
 
-  return useQuery({
+  return useQuery<{ data: WorkoutTemplate[]; totalCount: number }>({
     queryKey: ['workoutTemplates', filters, user?.id], // filters includes groupByLevel1 and groupByLevel2
     queryFn: async () => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -115,6 +115,22 @@ export const useWorkoutTemplates = (filters?: {
         query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
+      // Get total count for pagination (only when not grouping)
+      let totalCount = 0;
+      if (!isGroupingActive) {
+        let countQuery = supabase
+          .from('workout_templates_with_leads')
+          .select('id', { count: 'exact', head: true });
+
+        if (combinedGroup) {
+          countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
+        }
+
+        const { count, error: countError } = await countQuery;
+        if (countError) throw countError;
+        totalCount = count || 0;
+      }
+
       const { data, error } = await query;
 
       if (error) {
@@ -124,7 +140,13 @@ export const useWorkoutTemplates = (filters?: {
         }
         throw error;
       }
-      return data as WorkoutTemplate[];
+
+      // When grouping is active, totalCount is the length of all fetched data
+      if (isGroupingActive) {
+        totalCount = (data || []).length;
+      }
+
+      return { data: (data || []) as WorkoutTemplate[], totalCount };
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change often

@@ -35,6 +35,7 @@ const TemplatesManagement = () => {
 
   const {
     templates = [],
+    totalTemplates,
     savedView,
     editingTemplate,
     templateToDelete,
@@ -113,7 +114,7 @@ const TemplatesManagement = () => {
           <TableActionHeader
             resourceKey="templates"
             title={savedView?.view_name || 'תכניות אימונים'}
-            dataCount={templates?.length || 0}
+            dataCount={totalTemplates || 0}
             singularLabel="תוכנית"
             pluralLabel="תוכניות"
             filterFields={workoutTemplateFilterFields}
@@ -152,7 +153,7 @@ const TemplatesManagement = () => {
                   <Pagination
                     currentPage={isGroupingActive ? groupCurrentPage : currentPage}
                     pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : templates.length}
+                    totalItems={isGroupingActive ? totalGroups : totalTemplates}
                     onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
                     onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                     isLoading={isLoading}

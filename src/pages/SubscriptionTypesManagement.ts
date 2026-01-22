@@ -67,7 +67,7 @@ export const useSubscriptionTypesManagement = () => {
   const pageSize = useAppSelector((state) => selectPageSize(state, 'subscription_types'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'subscription_types'));
   
-  const { data: subscriptionTypes = [], isLoading } = useSubscriptionTypes({
+  const { data: subscriptionTypesData, isLoading } = useSubscriptionTypes({
     search: searchQuery,
     filterGroup,
     page: currentPage,
@@ -75,6 +75,9 @@ export const useSubscriptionTypesManagement = () => {
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
   });
+  
+  const subscriptionTypes = subscriptionTypesData?.data || [];
+  const totalSubscriptionTypes = subscriptionTypesData?.totalCount || 0;
   
   // Reset to page 1 when filters, search, or grouping change
   const prevFiltersRef = useRef<string>('');
@@ -244,6 +247,7 @@ export const useSubscriptionTypesManagement = () => {
   return {
     // Data
     subscriptionTypes: filteredSubscriptionTypes,
+    totalSubscriptionTypes,
     editingSubscriptionType,
     subscriptionTypeToDelete,
     isLoading,

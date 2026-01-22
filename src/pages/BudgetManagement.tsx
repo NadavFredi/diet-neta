@@ -43,6 +43,7 @@ const BudgetManagement = () => {
   // Get budgets data first before using it in useMemo
   const {
     budgets,
+    totalBudgets,
     editingBudget,
     budgetToDelete,
     isLoading,
@@ -144,7 +145,7 @@ const BudgetManagement = () => {
           <TableActionHeader
             resourceKey="budgets"
             title={pageTitle}
-            dataCount={budgets.length}
+            dataCount={totalBudgets}
             singularLabel="תקציב"
             pluralLabel="תקציבים"
             filterFields={budgetFilterFields}
@@ -195,7 +196,7 @@ const BudgetManagement = () => {
                   <Pagination
                     currentPage={isGroupingActive ? groupCurrentPage : currentPage}
                     pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : budgets.length}
+                    totalItems={isGroupingActive ? totalGroups : totalBudgets}
                     onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
                     onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                     isLoading={isLoading}

@@ -44,6 +44,7 @@ const MeetingsManagement = () => {
   const {
     meetings,
     filteredMeetings,
+    totalMeetings,
     isLoadingMeetings,
     handleLogout,
     getCurrentFilterConfig,
@@ -110,7 +111,7 @@ const MeetingsManagement = () => {
           <TableActionHeader
             resourceKey="meetings"
             title={savedView?.view_name || 'כל הפגישות'}
-            dataCount={filteredMeetings?.length || 0}
+            dataCount={totalMeetings || 0}
             singularLabel="פגישה"
             pluralLabel="פגישות"
             filterFields={useMemo(() => getMeetingFilterFields(meetings || [], meetingColumns), [meetings])}
@@ -153,12 +154,12 @@ const MeetingsManagement = () => {
                 />
               </div>
               {/* Pagination Footer - Always visible */}
-              {filteredMeetings && filteredMeetings.length > 0 && (
+              {totalMeetings > 0 && (
                 <div className="flex-shrink-0">
                   <Pagination
                     currentPage={isGroupingActive ? groupCurrentPage : currentPage}
                     pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : filteredMeetings.length}
+                    totalItems={isGroupingActive ? totalGroups : totalMeetings}
                     onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
                     onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                     isLoading={isLoadingMeetings}

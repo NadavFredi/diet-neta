@@ -31,6 +31,7 @@ const ExercisesManagement = () => {
 
   const {
     exercises,
+    totalExercises,
     savedView,
     editingExercise,
     exerciseToDelete,
@@ -106,7 +107,7 @@ const ExercisesManagement = () => {
           <TableActionHeader
             resourceKey="exercises"
             title={savedView?.view_name || 'תרגילים'}
-            dataCount={exercises.length}
+            dataCount={totalExercises}
             singularLabel="תרגיל"
             pluralLabel="תרגילים"
             filterFields={exerciseFilterFields}
@@ -145,7 +146,7 @@ const ExercisesManagement = () => {
                   <Pagination
                     currentPage={isGroupingActive ? groupCurrentPage : currentPage}
                     pageSize={isGroupingActive ? groupPageSize : pageSize}
-                    totalItems={isGroupingActive ? totalGroups : exercises.length}
+                    totalItems={isGroupingActive ? totalGroups : totalExercises}
                     onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
                     onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
                     isLoading={isLoading}

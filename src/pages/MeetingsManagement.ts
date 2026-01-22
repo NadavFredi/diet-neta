@@ -44,7 +44,7 @@ export const useMeetingsManagement = () => {
   const pageSize = useAppSelector((state) => selectPageSize(state, 'meetings'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'meetings'));
 
-  const { data: meetings = [], isLoading: isLoadingMeetings } = useMeetings({
+  const { data: meetingsData, isLoading: isLoadingMeetings } = useMeetings({
     search: searchQuery,
     filterGroup,
     page: currentPage,
@@ -52,6 +52,9 @@ export const useMeetingsManagement = () => {
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
   });
+  
+  const meetings = meetingsData?.data || [];
+  const totalMeetings = meetingsData?.totalCount || 0;
   
   // Reset to page 1 when filters, search, or grouping change
   const prevFiltersRef = useRef<string>('');
@@ -142,6 +145,7 @@ export const useMeetingsManagement = () => {
   return {
     meetings,
     filteredMeetings,
+    totalMeetings,
     isLoadingMeetings,
     handleLogout,
     getCurrentFilterConfig,

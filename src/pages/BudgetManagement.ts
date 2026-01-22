@@ -98,7 +98,7 @@ export const useBudgetManagement = () => {
   const pageSize = useAppSelector((state) => selectPageSize(state, 'budgets'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'budgets'));
   
-  const { data: budgets = [], isLoading } = useBudgets({
+  const { data: budgetsData, isLoading } = useBudgets({
     search: searchQuery,
     filterGroup,
     page: currentPage,
@@ -106,6 +106,9 @@ export const useBudgetManagement = () => {
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
   });
+  
+  const budgets = budgetsData?.data || [];
+  const totalBudgets = budgetsData?.totalCount || 0;
   
   // Reset to page 1 when filters, search, or grouping change
   const prevFiltersRef = useRef<string>('');
@@ -376,6 +379,7 @@ export const useBudgetManagement = () => {
   return {
     // Data
     budgets: filteredBudgets,
+    totalBudgets,
     editingBudget,
     budgetToDelete,
     isLoading,

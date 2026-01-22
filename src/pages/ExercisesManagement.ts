@@ -52,7 +52,7 @@ export const useExercisesManagement = () => {
   const pageSize = useAppSelector((state) => selectPageSize(state, 'exercises'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'exercises'));
   
-  const { data: exercises = [], isLoading } = useExercises({
+  const { data: exercisesData, isLoading } = useExercises({
     search: searchQuery,
     filterGroup,
     page: currentPage,
@@ -60,6 +60,9 @@ export const useExercisesManagement = () => {
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
   });
+  
+  const exercises = exercisesData?.data || [];
+  const totalExercises = exercisesData?.totalCount || 0;
   
   // Reset to page 1 when filters, search, or grouping change
   const prevFiltersRef = useRef<string>('');
@@ -213,6 +216,7 @@ export const useExercisesManagement = () => {
   return {
     // Data
     exercises: filteredExercises,
+    totalExercises,
     savedView,
     editingExercise,
     exerciseToDelete,

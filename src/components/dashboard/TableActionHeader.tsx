@@ -346,6 +346,18 @@ export const TableActionHeader = ({
     return null;
   };
 
+  // Check if filters are currently active (applied to the page)
+  const hasActiveFilters = useMemo(() => {
+    // Check if there are active filters
+    const hasFilters = activeFilters && activeFilters.length > 0;
+    // Check if there's an advanced filter group
+    const hasAdvancedFilterGroup = filterGroup && isAdvancedFilterGroup(filterGroup);
+    // Check if grouping is active
+    const hasGrouping = !!(groupByKeys[0] || groupByKeys[1]);
+    
+    return hasFilters || hasAdvancedFilterGroup || hasGrouping;
+  }, [activeFilters, filterGroup, groupByKeys]);
+
   // Check if filters are dirty (different from saved/default state)
   const filtersDirty = useMemo(() => {
     const targetView = viewId ? activeView : defaultView;
@@ -485,6 +497,7 @@ export const TableActionHeader = ({
       dataCount={dataCount}
       singularLabel={singularLabel}
       pluralLabel={pluralLabel}
+      hasActiveFilters={hasActiveFilters}
       actions={
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap" dir="rtl">
           {/* Search Input - Rightmost (first in RTL flex) */}
