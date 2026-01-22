@@ -131,16 +131,16 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     dispatch(setError(null));
 
     try {
-      // Calculate offset from current page and page size
       const offset = (currentPage - 1) * pageSize;
+      const limit = pageSize;
 
       // Build filter params from Redux state
       const filterParams: LeadFilterParams = {
         searchQuery: debouncedSearchQuery || null, // Use debounced search
         filterGroup: options?.filterGroup || null,
         // Pagination
-        limit: pageSize,
-        offset: offset,
+        limit,
+        offset,
         // Sorting
         sortBy: sortBy,
         sortOrder: sortOrder,

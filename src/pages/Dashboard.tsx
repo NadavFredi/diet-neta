@@ -386,8 +386,6 @@ const Dashboard = () => {
                 totalCount={totalLeads}
                 onBulkDelete={handleBulkDelete}
                 onBulkEdit={handleBulkEdit}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
                 singularLabel="ליד"
                 pluralLabel="לידים"
               />
@@ -409,11 +407,11 @@ const Dashboard = () => {
           {!isLoading && totalLeads > 0 && (
             <div className="flex-shrink-0">
               <Pagination
-                currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                pageSize={isGroupingActive ? groupPageSize : pageSize}
-                totalItems={isGroupingActive ? totalGroups : totalLeads}
-                onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                onPageSizeChange={isGroupingActive ? handleGroupPageSizeChange : handlePageSizeChange}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalLeads}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
                 singularLabel="ליד"

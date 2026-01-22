@@ -445,6 +445,8 @@ export function DataTable<T extends Record<string, any>>({
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [isBulkEditing, setIsBulkEditing] = useState(false);
+  const [lastClickedRowIndex, setLastClickedRowIndex] = useState<number | null>(null);
+  const handleToggleRowRef = React.useRef<((rowId: string, checked: boolean, shiftKey?: boolean, rowIndex?: number) => void) | null>(null);
 
   const getRowIdValue = useCallback(
     (row: T): string => {
@@ -484,33 +486,10 @@ export function DataTable<T extends Record<string, any>>({
     });
   };
 
-  const handleToggleRow = (rowId: string, checked: boolean) => {
-    if (!rowId) return;
-    if (selectAllAcrossPages) {
-      const next = new Set(currentPageIds);
-      if (checked) {
-        next.add(rowId);
-      } else {
-        next.delete(rowId);
-      }
-      setSelectAllAcrossPages(false);
-      setSelectedRowIds(next);
-      return;
-    }
-    setSelectedRowIds((prev) => {
-      const next = new Set(prev);
-      if (checked) {
-        next.add(rowId);
-      } else {
-        next.delete(rowId);
-      }
-      return next;
-    });
-  };
-
   const handleClearSelection = () => {
     setSelectAllAcrossPages(false);
     setSelectedRowIds(new Set());
+    setLastClickedRowIndex(null);
   };
 
   const handleConfirmBulkDelete = async () => {
@@ -832,16 +811,26 @@ export function DataTable<T extends Record<string, any>>({
             />
           </div>
         ),
-        cell: ({ row }: any) => {
+        cell: ({ row, rowIndex }: any) => {
           const rowId = getRowIdValue(row.original);
           const checked = selectAllAcrossPages ? true : selectedRowIds.has(rowId);
           return (
-            <div className="flex items-center justify-center" onClick={(event) => event.stopPropagation()}>
+            <div
+              className="flex items-center justify-center"
+              onClick={(event) => {
+                event.stopPropagation();
+                const shiftKey = event.shiftKey;
+                handleToggleRowRef.current?.(rowId, !checked, shiftKey, rowIndex);
+              }}
+            >
               <Checkbox
                 checked={checked}
-                onCheckedChange={(value) => handleToggleRow(rowId, value === true)}
+                onCheckedChange={(value) => {
+                  // This handles programmatic changes, but click is handled by parent div
+                }}
                 aria-label="בחר שורה"
                 disabled={!rowId}
+                onClick={(e) => e.stopPropagation()}
               />
             </div>
           );
@@ -909,7 +898,7 @@ export function DataTable<T extends Record<string, any>>({
     selectedRowIds,
     getRowIdValue,
     handleToggleAllPage,
-    handleToggleRow,
+    handleToggleRowRef,
   ]);
 
   const table = useReactTable({
@@ -1200,6 +1189,165 @@ export function DataTable<T extends Record<string, any>>({
     return Array.isArray(data) && data.length > 0 && 'level1Key' in data[0];
   };
 
+  // Get all visible row IDs in order (for shift-click range selection)
+  const getVisibleRowIdsInOrder = useCallback((): string[] => {
+    const rowIds: string[] = [];
+    const dataToUse = paginatedGroupedData || groupedData;
+
+    if (dataToUse) {
+      // Handle grouped data
+      if (Array.isArray(dataToUse) && dataToUse.length > 0) {
+        // Check if it's multi-level grouping
+        const isMultiLevel = 'level1Key' in dataToUse[0];
+
+        if (isMultiLevel) {
+          // Multi-level grouping
+          (dataToUse as MultiLevelGroupedData<T>[]).forEach((level1Group) => {
+            const level1Key = `level1:${level1Group.level1Key}`;
+            if (collapsedGroupsSet.has(level1Key)) {
+              return; // Skip collapsed groups
+            }
+
+            // For multi-level grouping, use level2Groups if available, otherwise items
+            const level2Groups = level1Group.level2Groups || [];
+            if (level2Groups && Array.isArray(level2Groups)) {
+              level2Groups.forEach((level2Group) => {
+                if (!level2Group || !level2Group.groupKey) return;
+                const level2Key = `${level1Key}|level2:${level2Group.groupKey}`;
+                if (collapsedGroupsSet.has(level2Key)) {
+                  return; // Skip collapsed level 2 groups
+                }
+
+                // level2Group.items contains the raw data items
+                if (level2Group.items && Array.isArray(level2Group.items)) {
+                  level2Group.items.forEach((item) => {
+                    const rowId = getRowIdValue(item);
+                    if (rowId) rowIds.push(rowId);
+                  });
+                }
+              });
+            }
+
+            // Also handle items that don't have level2 grouping (when only level1 is set)
+            if (level1Group.items && level1Group.items.length > 0) {
+              level1Group.items.forEach((item) => {
+                const rowId = getRowIdValue(item);
+                if (rowId) rowIds.push(rowId);
+              });
+            }
+          });
+        } else {
+          // Single-level grouping
+          (dataToUse as GroupedData<T>[]).forEach((group) => {
+            if (collapsedGroupsSet.has(group.groupKey)) {
+              return; // Skip collapsed groups
+            }
+
+            group.items.forEach((item) => {
+              const rowId = getRowIdValue(item);
+              if (rowId) rowIds.push(rowId);
+            });
+          });
+        }
+      }
+    } else {
+      // Ungrouped data - use table row model
+      table.getRowModel().rows.forEach((row: any) => {
+        const rowId = getRowIdValue(row.original);
+        if (rowId) rowIds.push(rowId);
+      });
+    }
+
+    return rowIds;
+  }, [paginatedGroupedData, groupedData, collapsedGroupsSet, getRowIdValue, table]);
+
+  const handleToggleRow = useCallback((rowId: string, checked: boolean, shiftKey: boolean = false, rowIndex?: number) => {
+    if (!rowId) return;
+
+    // Handle shift-click range selection
+    if (shiftKey && rowIndex !== undefined && lastClickedRowIndex !== null) {
+      const visibleRowIds = getVisibleRowIdsInOrder();
+      const startIndex = Math.min(lastClickedRowIndex, rowIndex);
+      const endIndex = Math.max(lastClickedRowIndex, rowIndex);
+
+      // Determine the target state based on the last clicked row
+      const lastClickedRowId = visibleRowIds[lastClickedRowIndex];
+      const wasLastClickedSelected = selectAllAcrossPages
+        ? true
+        : (lastClickedRowId ? selectedRowIds.has(lastClickedRowId) : false);
+
+      // Select/deselect all rows in the range
+      const rangeRowIds = visibleRowIds.slice(startIndex, endIndex + 1);
+
+      if (selectAllAcrossPages) {
+        const next = new Set(currentPageIds);
+        if (wasLastClickedSelected) {
+          // Deselect range
+          rangeRowIds.forEach((id) => next.delete(id));
+        } else {
+          // Select range
+          rangeRowIds.forEach((id) => next.add(id));
+        }
+        setSelectAllAcrossPages(false);
+        setSelectedRowIds(next);
+      } else {
+        setSelectedRowIds((prev) => {
+          const next = new Set(prev);
+          if (wasLastClickedSelected) {
+            // Deselect range
+            rangeRowIds.forEach((id) => next.delete(id));
+          } else {
+            // Select range
+            rangeRowIds.forEach((id) => next.add(id));
+          }
+          return next;
+        });
+      }
+
+      // Update last clicked index for potential next range
+      setLastClickedRowIndex(rowIndex);
+      return;
+    }
+
+    // Normal single row toggle
+    if (selectAllAcrossPages) {
+      const next = new Set(currentPageIds);
+      if (checked) {
+        next.add(rowId);
+      } else {
+        next.delete(rowId);
+      }
+      setSelectAllAcrossPages(false);
+      setSelectedRowIds(next);
+    } else {
+      setSelectedRowIds((prev) => {
+        const next = new Set(prev);
+        if (checked) {
+          next.add(rowId);
+        } else {
+          next.delete(rowId);
+        }
+        return next;
+      });
+    }
+
+    // Update last clicked index
+    if (rowIndex !== undefined) {
+      setLastClickedRowIndex(rowIndex);
+    } else {
+      // Find the index if not provided
+      const visibleRowIds = getVisibleRowIdsInOrder();
+      const index = visibleRowIds.indexOf(rowId);
+      if (index !== -1) {
+        setLastClickedRowIndex(index);
+      }
+    }
+  }, [selectAllAcrossPages, selectedRowIds, currentPageIds, lastClickedRowIndex, getVisibleRowIdsInOrder]);
+
+  React.useEffect(() => {
+    handleToggleRowRef.current = handleToggleRow;
+  }, [handleToggleRow]);
+
   const getCellContent = (cell: any, column: any) => {
     const content = flexRender(cell.column.columnDef.cell, cell.getContext());
     const meta = column?.columnDef.meta;
@@ -1412,6 +1560,7 @@ export function DataTable<T extends Record<string, any>>({
             handleToggleRow={handleToggleRow}
             selectedRowIds={selectedRowIds}
             selectAllAcrossPages={selectAllAcrossPages}
+            getVisibleRowIdsInOrder={getVisibleRowIdsInOrder}
           />
         )}
       </div>
@@ -1486,6 +1635,7 @@ function TableContent<T>({
   handleToggleRow,
   selectedRowIds,
   selectAllAcrossPages,
+  getVisibleRowIdsInOrder,
   singularLabel = 'פריט',
   pluralLabel = 'פריטים',
 }: {
@@ -1512,12 +1662,20 @@ function TableContent<T>({
   getGroupColumnHeader: (columnId?: string | null) => string;
   enableRowSelection?: boolean;
   getRowIdValue?: (row: T) => string;
-  handleToggleRow?: (rowId: string, checked: boolean) => void;
+  handleToggleRow?: (rowId: string, checked: boolean, shiftKey?: boolean, rowIndex?: number) => void;
   selectedRowIds?: Set<string>;
   selectAllAcrossPages?: boolean;
+  getVisibleRowIdsInOrder?: () => string[];
   singularLabel?: string;
   pluralLabel?: string;
 }) {
+  // Helper to get row index from visible row IDs
+  const getRowIndex = useCallback((rowId: string): number | undefined => {
+    if (!getVisibleRowIdsInOrder || !enableRowSelection) return undefined;
+    const visibleRowIds = getVisibleRowIdsInOrder();
+    const index = visibleRowIds.indexOf(rowId);
+    return index !== -1 ? index : undefined;
+  }, [getVisibleRowIdsInOrder, enableRowSelection]);
   // Helper to check if groupedData is multi-level
   const isMultiLevelGrouping = (data: any): data is MultiLevelGroupedData<T>[] => {
     return Array.isArray(data) && data.length > 0 && 'level1Key' in data[0];
@@ -2088,7 +2246,9 @@ function TableContent<T>({
                                       const rowId = getRowIdValue(row.original);
                                       if (rowId) {
                                         const checked = selectAllAcrossPages ? true : selectedRowIds.has(rowId);
-                                        handleToggleRow(rowId, !checked);
+                                        const shiftKey = e.shiftKey;
+                                        const rowIndex = getRowIndex(rowId);
+                                        handleToggleRow(rowId, !checked, shiftKey, rowIndex);
                                       }
                                     } : undefined}
                                   >
@@ -2243,7 +2403,9 @@ function TableContent<T>({
                                   const rowId = getRowIdValue(row.original);
                                   if (rowId) {
                                     const checked = selectAllAcrossPages ? true : selectedRowIds.has(rowId);
-                                    handleToggleRow(rowId, !checked);
+                                    const shiftKey = e.shiftKey;
+                                    const rowIndex = getRowIndex(rowId);
+                                    handleToggleRow(rowId, !checked, shiftKey, rowIndex);
                                   }
                                 } : undefined}
                               >
@@ -2304,12 +2466,14 @@ function TableContent<T>({
                       maxWidth: `${width}px`,
                     }}
                     title={typeof cell.getValue() === 'string' ? cell.getValue() : undefined}
-                    onClick={isSelectionColumn ? (e) => {
+                    onClick={isSelectionColumn && enableRowSelection && getRowIdValue && handleToggleRow && selectedRowIds && selectAllAcrossPages !== undefined ? (e) => {
                       e.stopPropagation();
                       const rowId = getRowIdValue(row.original);
                       if (rowId) {
                         const checked = selectAllAcrossPages ? true : selectedRowIds.has(rowId);
-                        handleToggleRow(rowId, !checked);
+                        const shiftKey = e.shiftKey;
+                        const rowIndex = getRowIndex(rowId);
+                        handleToggleRow(rowId, !checked, shiftKey, rowIndex);
                       }
                     } : undefined}
                   >

@@ -289,13 +289,10 @@ export async function fetchFilteredLeads(
   filters: LeadFilterParams
 ): Promise<LeadFromDB[]> {
   try {
-    const limit = filters.limit || 100;
-    const offset = filters.offset || 0;
-
     const searchGroup = filters.searchQuery ? createSearchGroup(filters.searchQuery, leadSearchColumns) : null;
     const combinedGroup = mergeFilterGroups(filters.filterGroup || null, searchGroup);
 
-    // When grouping is active, we still limit to max 100 records per request for performance
+    // When grouping is active, we may skip pagination to allow full client-side grouping.
     const isGroupingActive = !!(filters.groupByLevel1 || filters.groupByLevel2);
 
     // Check if we need inner joins for "entity exists" filters
@@ -341,9 +338,13 @@ export async function fetchFilteredLeads(
         )
       `);
 
-    // Always apply pagination limit (max 100 records per request for performance)
-    const maxLimit = Math.min(limit, 100);
-    query = query.range(offset, offset + maxLimit - 1);
+    const hasPagination = typeof filters.limit === 'number' || typeof filters.offset === 'number';
+    if (hasPagination) {
+      const limit = typeof filters.limit === 'number' ? filters.limit : 100;
+      const offset = typeof filters.offset === 'number' ? filters.offset : 0;
+      const maxLimit = isGroupingActive ? limit : Math.min(limit, 100);
+      query = query.range(offset, offset + maxLimit - 1);
+    }
 
     if (combinedGroup) {
       query = applyFilterGroupToQuery(query, combinedGroup, leadFieldConfigs);
