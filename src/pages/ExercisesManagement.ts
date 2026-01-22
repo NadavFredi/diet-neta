@@ -25,9 +25,13 @@ import {
   selectSearchQuery, 
   selectCurrentPage,
   selectPageSize,
+  selectSortBy,
+  selectSortOrder,
   selectGroupByKeys,
   setCurrentPage,
   setPageSize,
+  setSortBy,
+  setSortOrder,
 } from '@/store/slices/tableStateSlice';
 
 export const useExercisesManagement = () => {
@@ -50,6 +54,8 @@ export const useExercisesManagement = () => {
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'exercises'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'exercises'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'exercises'));
+  const sortBy = useAppSelector((state) => selectSortBy(state, 'exercises'));
+  const sortOrder = useAppSelector((state) => selectSortOrder(state, 'exercises'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'exercises'));
   
   const { data: exercisesData, isLoading } = useExercises({
@@ -59,6 +65,8 @@ export const useExercisesManagement = () => {
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
   
   const exercises = exercisesData?.data || [];
@@ -197,6 +205,11 @@ export const useExercisesManagement = () => {
     });
   };
 
+  const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
+    dispatch(setSortBy({ resourceKey: 'exercises', sortBy: columnId }));
+    dispatch(setSortOrder({ resourceKey: 'exercises', sortOrder: order }));
+  };
+
   const handleSaveViewClick = () => {
     setIsSaveViewModalOpen(true);
   };
@@ -228,6 +241,8 @@ export const useExercisesManagement = () => {
     isEditDialogOpen,
     deleteDialogOpen,
     isSaveViewModalOpen,
+    sortBy,
+    sortOrder,
     
     // Setters
     setIsAddDialogOpen,
@@ -243,6 +258,7 @@ export const useExercisesManagement = () => {
     handleDeleteClick,
     handleConfirmDelete,
     handleBulkDelete,
+    handleSortChange,
     handleSaveViewClick,
     getCurrentFilterConfig,
     

@@ -221,13 +221,13 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     id: 'notes',
     header: 'הערות',
     accessorKey: 'notes',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 250,
     meta: {
       align: 'right',
-      sortKey: 'customer_email',
+      sortKey: 'notes',
     },
     cell: ({ row }) => {
       const notes = row.original.notes;
@@ -359,7 +359,6 @@ export const defaultLeadColumnVisibility: Record<string, boolean> = {
   source: false,
   notes: false,
 };
-
 
 
 

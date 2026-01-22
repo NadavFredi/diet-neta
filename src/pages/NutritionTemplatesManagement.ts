@@ -26,9 +26,13 @@ import {
   selectSearchQuery, 
   selectCurrentPage,
   selectPageSize,
+  selectSortBy,
+  selectSortOrder,
   selectGroupByKeys,
   setCurrentPage,
   setPageSize,
+  setSortBy,
+  setSortOrder,
 } from '@/store/slices/tableStateSlice';
 
 export const useNutritionTemplatesManagement = () => {
@@ -60,6 +64,8 @@ export const useNutritionTemplatesManagement = () => {
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'nutrition_templates'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'nutrition_templates'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'nutrition_templates'));
+  const sortBy = useAppSelector((state) => selectSortBy(state, 'nutrition_templates'));
+  const sortOrder = useAppSelector((state) => selectSortOrder(state, 'nutrition_templates'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'nutrition_templates'));
   
   const { data: templatesData, isLoading } = useNutritionTemplates({
@@ -69,6 +75,8 @@ export const useNutritionTemplatesManagement = () => {
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
   
   const templates = templatesData?.data || [];
@@ -208,6 +216,11 @@ export const useNutritionTemplatesManagement = () => {
     }
   };
 
+  const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
+    dispatch(setSortBy({ resourceKey: 'nutrition_templates', sortBy: columnId }));
+    dispatch(setSortOrder({ resourceKey: 'nutrition_templates', sortOrder: order }));
+  };
+
   const handleBulkDelete = async (payload: { ids: string[] }) => {
     await bulkDeleteTemplates.mutateAsync(payload.ids);
     toast({
@@ -249,6 +262,8 @@ export const useNutritionTemplatesManagement = () => {
     deleteDialogOpen,
     isSaveViewModalOpen,
     isSettingsOpen,
+    sortBy,
+    sortOrder,
     columnVisibility,
     
     // Setters
@@ -266,6 +281,7 @@ export const useNutritionTemplatesManagement = () => {
     handleSaveTemplate,
     handleDeleteClick,
     handleConfirmDelete,
+    handleSortChange,
     handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,

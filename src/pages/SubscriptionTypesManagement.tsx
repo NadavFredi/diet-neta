@@ -72,6 +72,9 @@ const SubscriptionTypesManagement = () => {
     handleSaveViewClick,
     getCurrentFilterConfig,
     deleteSubscriptionType,
+    sortBy,
+    sortOrder,
+    handleSortChange,
   } = useSubscriptionTypesManagement();
 
   // Calculate total groups when grouping is active
@@ -176,6 +179,9 @@ const SubscriptionTypesManagement = () => {
                 onEdit={handleEditSubscriptionType}
                 onDelete={handleDeleteClick}
                 onBulkDelete={handleBulkDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
               />
             </div>
           ) : (

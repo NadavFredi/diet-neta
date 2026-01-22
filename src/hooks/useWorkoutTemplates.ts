@@ -4,6 +4,7 @@ import { useAppSelector } from '@/store/hooks';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+import { applySort } from '@/utils/supabaseSort';
 
 export interface WorkoutTemplate {
   id: string;
@@ -12,6 +13,8 @@ export interface WorkoutTemplate {
   goal_tags: string[];
   routine_data: any; // JSONB matching workout_plans.custom_attributes.data.weeklyWorkout schema
   is_public: boolean;
+  has_leads?: boolean;
+  leads_count?: number | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -28,6 +31,8 @@ export const useWorkoutTemplates = (filters?: {
   pageSize?: number;
   groupByLevel1?: string | null;
   groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
 }) => {
   const { user } = useAppSelector((state) => state.auth);
 
@@ -83,6 +88,13 @@ export const useWorkoutTemplates = (filters?: {
         has_leads: 'has_leads',
         created_at: 'created_at',
       };
+      const sortMap: Record<string, string> = {
+        name: 'name',
+        description: 'description',
+        goal_tags: 'goal_tags',
+        connected_leads: 'has_leads',
+        created_at: 'created_at',
+      };
 
       let query = supabase
         .from('workout_templates_with_leads')
@@ -102,8 +114,9 @@ export const useWorkoutTemplates = (filters?: {
         query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
       }
       
-      // Apply default sorting if no grouping
-      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+      if (filters?.sortBy && filters?.sortOrder) {
+        query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+      } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
         query = query.order('created_at', { ascending: false });
       }
 

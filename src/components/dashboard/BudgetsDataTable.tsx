@@ -23,6 +23,9 @@ interface BudgetsDataTableProps {
   onSendWhatsApp?: (budget: Budget) => void;
   onViewDetails?: (budget: Budget) => void;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
   groupCurrentPage?: number;
   groupPageSize?: number;
 }
@@ -52,7 +55,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'workout_template',
     header: 'תכנית אימונים',
     accessorKey: 'workout_template_id',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -69,7 +72,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'nutrition_template',
     header: 'תבנית תזונה',
     accessorKey: 'nutrition_template_id',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -86,7 +89,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'nutrition_targets',
     header: 'יעדי תזונה',
     accessorKey: 'nutrition_targets',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -104,7 +107,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'supplements',
     header: 'תוספים',
     accessorKey: 'supplements',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -128,7 +131,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'eating_order',
     header: 'סדר אכילה',
     accessorKey: 'eating_order',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -144,7 +147,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'eating_rules',
     header: 'כללי אכילה',
     accessorKey: 'eating_rules',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -172,7 +175,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'steps_instructions',
     header: 'הוראות צעדים',
     accessorKey: 'steps_instructions',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -221,6 +224,9 @@ export const BudgetsDataTable = ({
   onSendWhatsApp,
   onViewDetails,
   onBulkDelete,
+  onSortChange,
+  sortBy,
+  sortOrder,
   groupCurrentPage,
   groupPageSize,
 }: BudgetsDataTableProps) => {
@@ -380,6 +386,10 @@ export const BudgetsDataTable = ({
       selectionLabel="תקציבים"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      onSortChange={onSortChange}
+      serverSideSorting={!!onSortChange}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
     />
   );
 };

@@ -54,12 +54,17 @@ export const nutritionTemplateColumns: DataTableColumn<NutritionTemplate>[] = [
     id: 'targets',
     header: 'מקרו-נוטריאנטים',
     accessorKey: 'targets',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: false, // Always visible - core data
     size: 350,
     meta: {
       align: 'right',
+    },
+    sortingFn: (rowA, rowB) => {
+      const aCalories = rowA.original?.targets?.calories ?? 0;
+      const bCalories = rowB.original?.targets?.calories ?? 0;
+      return aCalories - bCalories;
     },
     cell: ({ row }) => {
       const targets = row.original?.targets;
@@ -179,12 +184,17 @@ export const workoutTemplateColumns: DataTableColumn<WorkoutTemplate>[] = [
     id: 'goal_tags',
     header: 'תגיות',
     accessorKey: 'goal_tags',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 200,
     meta: {
       align: 'right',
+    },
+    sortingFn: (rowA, rowB) => {
+      const aTags = (rowA.original.goal_tags || []).join(', ');
+      const bTags = (rowB.original.goal_tags || []).join(', ');
+      return aTags.localeCompare(bTags, 'he');
     },
     cell: ({ row }) => {
       const tags = row.original.goal_tags || [];
@@ -207,12 +217,17 @@ export const workoutTemplateColumns: DataTableColumn<WorkoutTemplate>[] = [
     id: 'connected_leads',
     header: 'לידים מחוברים',
     accessorKey: 'id', // Use id to access the template for connected leads lookup
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 180,
     meta: {
       align: 'right',
+    },
+    sortingFn: (rowA, rowB) => {
+      const aCount = rowA.original.leads_count ?? (rowA.original.has_leads ? 1 : 0);
+      const bCount = rowB.original.leads_count ?? (rowB.original.has_leads ? 1 : 0);
+      return aCount - bCount;
     },
     cell: ({ row }) => {
       return <TemplateLeadsCell templateId={row.original.id} />;
@@ -283,7 +298,6 @@ export const defaultWorkoutTemplateColumnVisibility: Record<string, boolean> = {
   connected_leads: true,
   created_at: true,
 };
-
 
 
 

@@ -10,6 +10,9 @@ interface ExercisesDataTableProps {
   onEdit: (exercise: Exercise) => void;
   onDelete: (exercise: Exercise) => void;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
   groupCurrentPage?: number;
   groupPageSize?: number;
 }
@@ -19,6 +22,9 @@ export const ExercisesDataTable = ({
   onEdit,
   onDelete,
   onBulkDelete,
+  onSortChange,
+  sortBy,
+  sortOrder,
   groupCurrentPage,
   groupPageSize,
 }: ExercisesDataTableProps) => {
@@ -90,6 +96,10 @@ export const ExercisesDataTable = ({
       selectionLabel="תרגילים"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      onSortChange={onSortChange}
+      serverSideSorting={!!onSortChange}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
     />
   );
 };

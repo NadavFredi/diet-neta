@@ -4,6 +4,7 @@ import { useAppSelector } from '@/store/hooks';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+import { applySort } from '@/utils/supabaseSort';
 
 export interface Customer {
   id: string;
@@ -76,6 +77,8 @@ export const useCustomers = (filters?: {
   pageSize?: number;
   groupByLevel1?: string | null;
   groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
 }) => {
   const { user } = useAppSelector((state) => state.auth);
   const page = filters?.page ?? 1;
@@ -129,6 +132,15 @@ export const useCustomers = (filters?: {
           membership_tier: 'membership_tier',
           created_at: 'created_at',
         };
+        const sortMap: Record<string, string> = {
+          full_name: 'full_name',
+          phone: 'phone',
+          email: 'email',
+          total_leads: 'total_leads',
+          total_spent: 'total_spent',
+          membership_tier: 'membership_tier',
+          created_at: 'created_at',
+        };
 
         // When grouping is active, we still limit to pageSize for performance
         const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
@@ -151,8 +163,9 @@ export const useCustomers = (filters?: {
           query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
         }
         
-        // Apply default sorting if no grouping
-        if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+        if (filters?.sortBy && filters?.sortOrder) {
+          query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+        } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
           query = query.order('created_at', { ascending: false });
         }
 

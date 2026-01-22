@@ -10,6 +10,9 @@ interface NutritionTemplatesDataTableProps {
   onEdit: (template: NutritionTemplate) => void;
   onDelete: (template: NutritionTemplate) => void;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
   groupCurrentPage?: number;
   groupPageSize?: number;
 }
@@ -19,6 +22,9 @@ export const NutritionTemplatesDataTable = ({
   onEdit,
   onDelete,
   onBulkDelete,
+  onSortChange,
+  sortBy,
+  sortOrder,
   groupCurrentPage,
   groupPageSize,
 }: NutritionTemplatesDataTableProps) => {
@@ -90,7 +96,10 @@ export const NutritionTemplatesDataTable = ({
       selectionLabel="תבניות תזונה"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      onSortChange={onSortChange}
+      serverSideSorting={!!onSortChange}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
     />
   );
 };
-

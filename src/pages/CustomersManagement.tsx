@@ -48,6 +48,9 @@ const CustomersManagement = () => {
     handlePageChange,
     handlePageSizeChange,
     handleBulkDelete,
+    sortBy,
+    sortOrder,
+    handleSortChange,
   } = useCustomersManagement();
 
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'customers'));
@@ -208,6 +211,9 @@ const CustomersManagement = () => {
               <CustomersDataTable 
                 customers={filteredCustomers} 
                 onBulkDelete={handleBulkDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
               />
             </div>
           ) : (

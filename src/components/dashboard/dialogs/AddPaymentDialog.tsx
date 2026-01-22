@@ -57,7 +57,7 @@ export const AddPaymentDialog = ({
   const { data: leadCollections = [], isLoading: isLoadingLeadCollections } = useCollectionsByLead(leadId || null);
   
   // Fetch all collections if no leadId is provided
-  const { data: allCollections = [], isLoading: isLoadingAllCollections } = useAllCollections();
+  const { data: allCollectionsData, isLoading: isLoadingAllCollections } = useAllCollections();
 
   // Fetch leads for selection (only when not pre-filled)
   const [leads, setLeads] = useState<Array<{ id: string; customer_id: string; customer?: { full_name: string; phone?: string } }>>([]);
@@ -138,8 +138,8 @@ export const AddPaymentDialog = ({
     }
     
     // If no leadId, return all collections
-    return allCollections;
-  }, [leadId, formData.lead_id, leadCollections, dynamicLeadCollections, allCollections]);
+    return allCollectionsData?.data || [];
+  }, [leadId, formData.lead_id, leadCollections, dynamicLeadCollections, allCollectionsData]);
 
   const isLoadingCollections = 
     (formData.lead_id && !leadId) ? isLoadingDynamicLeadCollections :

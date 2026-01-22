@@ -56,6 +56,9 @@ const MeetingsManagement = () => {
     getCurrentFilterConfig,
     activeFilters,
     handleBulkDelete,
+    sortBy,
+    sortOrder,
+    handleSortChange,
   } = useMeetingsManagement();
 
   // Generate filter fields with all renderable columns
@@ -159,6 +162,9 @@ const MeetingsManagement = () => {
               <MeetingsDataTable
                 meetings={filteredMeetings}
                 onBulkDelete={handleBulkDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
               />
             </div>
           ) : (

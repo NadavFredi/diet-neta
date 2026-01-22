@@ -54,6 +54,9 @@ const ExercisesManagement = () => {
     handleSaveViewClick,
     getCurrentFilterConfig,
     deleteExercise,
+    sortBy,
+    sortOrder,
+    handleSortChange,
   } = useExercisesManagement();
 
   // Group pagination state (separate from record pagination)
@@ -146,6 +149,9 @@ const ExercisesManagement = () => {
                 onEdit={handleEditExercise}
                 onDelete={handleDeleteClick}
                 onBulkDelete={handleBulkDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
               />
             </div>
           )}

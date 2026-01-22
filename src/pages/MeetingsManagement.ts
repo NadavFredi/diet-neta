@@ -18,10 +18,14 @@ import {
   selectActiveFilters,
   selectCurrentPage,
   selectPageSize,
+  selectSortBy,
+  selectSortOrder,
   selectGroupByKeys,
   setCurrentPage,
   setPageSize,
   setSearchQuery,
+  setSortBy,
+  setSortOrder,
   addFilter as addFilterAction,
   removeFilter as removeFilterAction,
   clearFilters as clearFiltersAction,
@@ -42,6 +46,8 @@ export const useMeetingsManagement = () => {
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'meetings'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'meetings'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'meetings'));
+  const sortBy = useAppSelector((state) => selectSortBy(state, 'meetings'));
+  const sortOrder = useAppSelector((state) => selectSortOrder(state, 'meetings'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'meetings'));
 
   const { data: meetingsData, isLoading: isLoadingMeetings } = useMeetings({
@@ -51,6 +57,8 @@ export const useMeetingsManagement = () => {
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
   
   const meetings = meetingsData?.data || [];
@@ -97,6 +105,11 @@ export const useMeetingsManagement = () => {
 
   const handleSearchChange = (value: string) => {
     dispatch(setSearchQuery({ resourceKey: 'meetings', query: value }));
+  };
+
+  const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
+    dispatch(setSortBy({ resourceKey: 'meetings', sortBy: columnId }));
+    dispatch(setSortOrder({ resourceKey: 'meetings', sortOrder: order }));
   };
 
   const addFilter = (filter: ActiveFilter) => {
@@ -151,6 +164,9 @@ export const useMeetingsManagement = () => {
     getCurrentFilterConfig,
     searchQuery,
     handleSearchChange,
+    sortBy,
+    sortOrder,
+    handleSortChange,
     addFilter,
     removeFilter,
     clearFilters,

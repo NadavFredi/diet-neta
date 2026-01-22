@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabaseClient';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+import { applySort } from '@/utils/supabaseSort';
 
 export interface AllCollectionRecord {
   id: string;
@@ -28,10 +29,19 @@ export interface AllCollectionRecord {
   remaining_amount?: number; // Calculated: total_amount - paid_amount
 }
 
-export const useAllCollections = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
-  return useQuery({
+export const useAllCollections = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
+}) => {
+  return useQuery<{ data: AllCollectionRecord[]; totalCount: number }>({
     queryKey: ['all-collections', filters],
-    queryFn: async (): Promise<AllCollectionRecord[]> => {
+    queryFn: async () => {
       try {
         const fieldConfigs: FilterFieldConfigMap = {
           created_at: { column: 'created_at', type: 'date' },
@@ -54,6 +64,47 @@ export const useAllCollections = (filters?: { search?: string; filterGroup?: Fil
           : null;
         const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
 
+        const groupByMap: Record<string, string> = {
+          created_at: 'created_at',
+          due_date: 'due_date',
+          status: 'status',
+          customer: 'customer_id',
+          lead: 'lead_id',
+          total_amount: 'total_amount',
+          paid_amount: 'total_amount',
+          remaining_amount: 'total_amount',
+          description: 'description',
+        };
+        const sortMap: Record<string, string> = {
+          created_at: 'created_at',
+          due_date: 'due_date',
+          status: 'status',
+          customer: 'customer.full_name',
+          lead: 'lead_id',
+          total_amount: 'total_amount',
+          paid_amount: 'total_amount',
+          remaining_amount: 'total_amount',
+          description: 'description',
+        };
+
+        const page = filters?.page ?? 1;
+        const pageSize = filters?.pageSize ?? 50;
+
+        // Build count query first (same filters, no pagination)
+        let countQuery = supabase
+          .from('collections')
+          .select('id', { count: 'exact', head: true });
+
+        if (combinedGroup) {
+          countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
+        }
+
+        const { count, error: countError } = await countQuery;
+        if (countError) {
+          throw countError;
+        }
+        const totalCount = count || 0;
+
         let query = supabase
           .from('collections')
           .select(
@@ -62,19 +113,38 @@ export const useAllCollections = (filters?: { search?: string; filterGroup?: Fil
             lead:leads(id, customer:customers(full_name)),
             customer:customers(full_name)
           `
-          )
-          .order('created_at', { ascending: false });
+          );
+
+        // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+        if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+          query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+        }
+        if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+          query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+        }
+
+        if (filters?.sortBy && filters?.sortOrder) {
+          query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+        } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+          query = query.order('created_at', { ascending: false });
+        }
 
         if (combinedGroup) {
           query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
         }
+
+        // Always apply pagination limit (max 100 records per request for performance)
+        const maxPageSize = Math.min(pageSize, 100);
+        const from = (page - 1) * maxPageSize;
+        const to = from + maxPageSize - 1;
+        query = query.range(from, to);
 
         const { data, error } = await query;
 
         if (error) {
           // If table doesn't exist yet, return empty array (graceful degradation)
           if (error.code === '42P01' || error.message.includes('does not exist')) {
-            return [];
+            return { data: [], totalCount: 0 };
           }
           throw error;
         }
@@ -114,11 +184,11 @@ export const useAllCollections = (filters?: { search?: string; filterGroup?: Fil
           })
         );
 
-        return collectionsWithPayments;
+        return { data: collectionsWithPayments, totalCount };
       } catch (error: any) {
         // Graceful degradation if collections table doesn't exist
         if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          return [];
+          return { data: [], totalCount: 0 };
         }
         
         throw error;

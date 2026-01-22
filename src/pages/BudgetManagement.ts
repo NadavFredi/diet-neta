@@ -30,9 +30,13 @@ import {
   selectSearchQuery, 
   selectCurrentPage,
   selectPageSize,
+  selectSortBy,
+  selectSortOrder,
   selectGroupByKeys,
   setCurrentPage,
   setPageSize,
+  setSortBy,
+  setSortOrder,
 } from '@/store/slices/tableStateSlice';
 
 export interface BudgetColumnVisibility {
@@ -96,6 +100,8 @@ export const useBudgetManagement = () => {
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'budgets'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'budgets'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'budgets'));
+  const sortBy = useAppSelector((state) => selectSortBy(state, 'budgets'));
+  const sortOrder = useAppSelector((state) => selectSortOrder(state, 'budgets'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'budgets'));
   
   const { data: budgetsData, isLoading } = useBudgets({
@@ -105,6 +111,8 @@ export const useBudgetManagement = () => {
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
   
   const budgets = budgetsData?.data || [];
@@ -357,6 +365,11 @@ export const useBudgetManagement = () => {
     setSendingBudget(budget);
   };
 
+  const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
+    dispatch(setSortBy({ resourceKey: 'budgets', sortBy: columnId }));
+    dispatch(setSortOrder({ resourceKey: 'budgets', sortOrder: order }));
+  };
+
   const getCurrentFilterConfig = (
     advancedFilters?: any[],
     columnOrder?: string[],
@@ -394,6 +407,8 @@ export const useBudgetManagement = () => {
     isSaveViewModalOpen,
     isSettingsOpen,
     columnVisibility,
+    sortBy,
+    sortOrder,
     
     // Setters
     setIsAddDialogOpen,
@@ -415,6 +430,7 @@ export const useBudgetManagement = () => {
     handleExportPDF,
     handleSendWhatsApp,
     getCurrentFilterConfig,
+    handleSortChange,
     
     // Mutations
     deleteBudget,

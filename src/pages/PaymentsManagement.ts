@@ -72,6 +72,8 @@ export const usePaymentsManagement = () => {
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
   
   const payments = paymentsData?.data || [];

@@ -11,6 +11,7 @@ import { useAppSelector } from '@/store/hooks';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+import { applySort } from '@/utils/supabaseSort';
 
 // =====================================================
 // Types
@@ -42,6 +43,8 @@ export const useSubscriptionTypes = (filters?: {
   pageSize?: number;
   groupByLevel1?: string | null;
   groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
 }) => {
   const { user } = useAppSelector((state) => state.auth);
 
@@ -66,6 +69,12 @@ export const useSubscriptionTypes = (filters?: {
         name: 'name',
         created_at: 'created_at',
       };
+      const sortMap: Record<string, string> = {
+        name: 'name',
+        duration: 'duration',
+        price: 'price',
+        created_at: 'created_at',
+      };
 
       let query = supabase
         .from('subscription_types')
@@ -85,8 +94,9 @@ export const useSubscriptionTypes = (filters?: {
         query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
       }
       
-      // Apply default sorting if no grouping
-      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+      if (filters?.sortBy && filters?.sortOrder) {
+        query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+      } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
         query = query.order('created_at', { ascending: false });
       }
 

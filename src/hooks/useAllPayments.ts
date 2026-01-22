@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabaseClient';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+import { applySort } from '@/utils/supabaseSort';
 
 export interface AllPaymentRecord {
   id: string;
@@ -33,6 +34,8 @@ export const useAllPayments = (filters?: {
   pageSize?: number;
   groupByLevel1?: string | null;
   groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
 }) => {
   return useQuery<{ data: AllPaymentRecord[]; totalCount: number }>({
     queryKey: ['all-payments', filters],
@@ -59,8 +62,23 @@ export const useAllPayments = (filters?: {
           : null;
         const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
 
-        // When grouping is active, we still limit to max 100 records per request for performance
-        const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
+        const groupByMap: Record<string, string> = {
+          date: 'created_at',
+          status: 'status',
+          lead: 'lead_id',
+          customer: 'customer_id',
+          amount: 'amount',
+          product: 'product_name',
+        };
+        const sortMap: Record<string, string> = {
+          date: 'created_at',
+          status: 'status',
+          lead: 'lead_id',
+          customer: 'customer.full_name',
+          amount: 'amount',
+          product: 'product_name',
+        };
+
         const page = filters?.page ?? 1;
         const pageSize = filters?.pageSize ?? 50;
 
@@ -88,8 +106,21 @@ export const useAllPayments = (filters?: {
             customer:customers(full_name),
             lead:leads(id, customer:customers(full_name))
           `
-          )
-          .order('created_at', { ascending: false });
+          );
+
+        // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+        if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+          query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+        }
+        if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+          query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+        }
+
+        if (filters?.sortBy && filters?.sortOrder) {
+          query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+        } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+          query = query.order('created_at', { ascending: false });
+        }
 
         if (combinedGroup) {
           query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);

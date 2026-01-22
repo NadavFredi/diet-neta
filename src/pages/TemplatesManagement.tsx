@@ -65,6 +65,9 @@ const TemplatesManagement = () => {
     handleSaveViewClick,
     getCurrentFilterConfig,
     deleteTemplate,
+    sortBy,
+    sortOrder,
+    handleSortChange,
   } = useTemplatesManagement();
   
   // Calculate total groups when grouping is active
@@ -153,6 +156,9 @@ const TemplatesManagement = () => {
                 onEdit={handleEditTemplate}
                 onDelete={handleDeleteClick}
                 onBulkDelete={handleBulkDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
               />
             </div>
           )}

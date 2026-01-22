@@ -25,9 +25,13 @@ import {
   selectSearchQuery, 
   selectCurrentPage,
   selectPageSize,
+  selectSortBy,
+  selectSortOrder,
   selectGroupByKeys,
   setCurrentPage,
   setPageSize,
+  setSortBy,
+  setSortOrder,
 } from '@/store/slices/tableStateSlice';
 
 export interface SubscriptionTypeColumnVisibility {
@@ -65,6 +69,8 @@ export const useSubscriptionTypesManagement = () => {
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'subscription_types'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'subscription_types'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'subscription_types'));
+  const sortBy = useAppSelector((state) => selectSortBy(state, 'subscription_types'));
+  const sortOrder = useAppSelector((state) => selectSortOrder(state, 'subscription_types'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'subscription_types'));
   
   const { data: subscriptionTypesData, isLoading } = useSubscriptionTypes({
@@ -74,6 +80,8 @@ export const useSubscriptionTypesManagement = () => {
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
   
   const subscriptionTypes = subscriptionTypesData?.data || [];
@@ -213,6 +221,11 @@ export const useSubscriptionTypesManagement = () => {
     }
   };
 
+  const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
+    dispatch(setSortBy({ resourceKey: 'subscription_types', sortBy: columnId }));
+    dispatch(setSortOrder({ resourceKey: 'subscription_types', sortOrder: order }));
+  };
+
   const handleBulkDelete = async (payload: { ids: string[] }) => {
     await bulkDeleteSubscriptionTypes.mutateAsync(payload.ids);
     toast({
@@ -260,6 +273,8 @@ export const useSubscriptionTypesManagement = () => {
     deleteDialogOpen,
     isSaveViewModalOpen,
     columnVisibility,
+    sortBy,
+    sortOrder,
     
     // Setters
     setIsAddDialogOpen,
@@ -275,6 +290,7 @@ export const useSubscriptionTypesManagement = () => {
     handleSaveSubscriptionType,
     handleDeleteClick,
     handleConfirmDelete,
+    handleSortChange,
     handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,

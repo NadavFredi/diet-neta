@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import type { FilterGroup, ActiveFilter } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap, type FilterDnf } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+import { applySort } from '@/utils/supabaseSort';
 
 export interface Meeting {
   id: string;
@@ -71,6 +72,8 @@ export const useMeetings = (filters?: {
   pageSize?: number;
   groupByLevel1?: string | null;
   groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
 }) => {
   const queryClient = useQueryClient();
 
@@ -143,6 +146,17 @@ export const useMeetings = (filters?: {
         meeting_date: 'meeting_data->>date',
         customer_name: 'customer.full_name',
       };
+      const sortMap: Record<string, string> = {
+        customer_name: 'customer.full_name',
+        meeting_date: 'meeting_data->>date',
+        meeting_time: 'meeting_data->>event_start_time',
+        phone: 'customer.phone',
+        status: 'meeting_data->>status',
+        email: 'customer.email',
+        meeting_type: 'meeting_data->>meeting_type',
+        notes: 'meeting_data->>notes',
+        created_at: 'created_at',
+      };
 
       let query = supabase
         .from('meetings')
@@ -168,8 +182,9 @@ export const useMeetings = (filters?: {
         query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
       }
       
-      // Apply default sorting if no grouping
-      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+      if (filters?.sortBy && filters?.sortOrder) {
+        query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+      } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
         query = query.order('created_at', { ascending: false });
       }
 
@@ -297,7 +312,6 @@ export const useDeleteMeeting = () => {
     },
   });
 };
-
 
 
 

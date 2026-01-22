@@ -71,12 +71,19 @@ export const exerciseColumns: DataTableColumn<Exercise>[] = [
     id: 'media',
     header: 'מדיה',
     accessorKey: 'id',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 100,
     meta: {
       align: 'right',
+    },
+    sortingFn: (rowA, rowB) => {
+      const a = rowA.original;
+      const b = rowB.original;
+      const aScore = (a.image && a.image.trim() ? 1 : 0) + (a.video_link && a.video_link.trim() ? 2 : 0);
+      const bScore = (b.image && b.image.trim() ? 1 : 0) + (b.video_link && b.video_link.trim() ? 2 : 0);
+      return aScore - bScore;
     },
     cell: ({ row }) => {
       const exercise = row.original;

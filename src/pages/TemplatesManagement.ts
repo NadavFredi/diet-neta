@@ -26,9 +26,13 @@ import {
   selectSearchQuery, 
   selectCurrentPage,
   selectPageSize,
+  selectSortBy,
+  selectSortOrder,
   selectGroupByKeys,
   setCurrentPage,
   setPageSize,
+  setSortBy,
+  setSortOrder,
 } from '@/store/slices/tableStateSlice';
 
 export const useTemplatesManagement = () => {
@@ -60,6 +64,8 @@ export const useTemplatesManagement = () => {
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'templates'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'templates'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'templates'));
+  const sortBy = useAppSelector((state) => selectSortBy(state, 'templates'));
+  const sortOrder = useAppSelector((state) => selectSortOrder(state, 'templates'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'templates'));
   
   const { data: templatesData, isLoading } = useWorkoutTemplates({
@@ -69,6 +75,8 @@ export const useTemplatesManagement = () => {
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
   
   const templates = templatesData?.data || [];
@@ -210,6 +218,11 @@ export const useTemplatesManagement = () => {
     }
   };
 
+  const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
+    dispatch(setSortBy({ resourceKey: 'templates', sortBy: columnId }));
+    dispatch(setSortOrder({ resourceKey: 'templates', sortOrder: order }));
+  };
+
   const handleBulkDelete = async (payload: { ids: string[] }) => {
     await bulkDeleteTemplates.mutateAsync(payload.ids);
     toast({
@@ -252,6 +265,8 @@ export const useTemplatesManagement = () => {
     deleteDialogOpen,
     isSaveViewModalOpen,
     isSettingsOpen,
+    sortBy,
+    sortOrder,
     columnVisibility,
     
     // Setters
@@ -269,6 +284,7 @@ export const useTemplatesManagement = () => {
     handleSaveTemplate,
     handleDeleteClick,
     handleConfirmDelete,
+    handleSortChange,
     handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,

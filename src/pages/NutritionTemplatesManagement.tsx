@@ -55,6 +55,9 @@ const NutritionTemplatesManagement = () => {
     handleSaveViewClick,
     getCurrentFilterConfig,
     deleteTemplate,
+    sortBy,
+    sortOrder,
+    handleSortChange,
   } = useNutritionTemplatesManagement();
   
   // Group pagination state (separate from record pagination)
@@ -148,6 +151,9 @@ const NutritionTemplatesManagement = () => {
                 onEdit={handleEditTemplate}
                 onDelete={handleDeleteClick}
                 onBulkDelete={handleBulkDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
               />
             </div>
           )}

@@ -43,6 +43,9 @@ const CollectionsManagement = () => {
     activeFilters,
     handleBulkDelete,
     totalCollections,
+    sortBy,
+    sortOrder,
+    handleSortChange,
   } = useCollectionsManagement();
 
   const { defaultView } = useDefaultView('collections');
@@ -157,6 +160,9 @@ const CollectionsManagement = () => {
               <CollectionsDataTable
                 collections={filteredCollections}
                 onBulkDelete={handleBulkDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
               />
             </div>
           ) : (

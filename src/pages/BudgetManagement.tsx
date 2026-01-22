@@ -69,6 +69,9 @@ const BudgetManagement = () => {
     handleExportPDF,
     handleSendWhatsApp,
     sendingBudget,
+    sortBy,
+    sortOrder,
+    handleSortChange,
   } = useBudgetManagement();
 
   // Group pagination state (separate from record pagination)
@@ -189,6 +192,9 @@ const BudgetManagement = () => {
                 onExportPDF={handleExportPDF}
                 onSendWhatsApp={handleSendWhatsApp}
                 onBulkDelete={handleBulkDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
                 onViewDetails={(budget) => {
                   setViewingBudgetId(budget.id);
                   // Update URL to include budget_id for shareable link

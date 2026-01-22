@@ -69,6 +69,10 @@ export const useCollectionsManagement = () => {
   const { data: collections, isLoading: isLoadingCollections, error } = useAllCollections({
     search: searchQuery,
     filterGroup: effectiveFilterGroup,
+    page: currentPage,
+    pageSize,
+    sortBy,
+    sortOrder,
   });
   const { defaultView } = useDefaultView('collections');
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
@@ -172,8 +176,9 @@ export const useCollectionsManagement = () => {
     }
   };
 
-  const filteredCollections = useMemo(() => collections || [], [collections]);
-  const totalCollections = collections?.length || 0;
+  const collectionRows = collections?.data || [];
+  const filteredCollections = useMemo(() => collectionRows, [collectionRows]);
+  const totalCollections = collections?.totalCount || 0;
 
   return {
     collections: filteredCollections,

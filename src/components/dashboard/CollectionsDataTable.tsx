@@ -13,6 +13,9 @@ import { collectionColumns, defaultCollectionColumnVisibility } from './columns/
 interface CollectionsDataTableProps {
   collections: AllCollectionRecord[];
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
   groupCurrentPage?: number;
   groupPageSize?: number;
 }
@@ -20,6 +23,9 @@ interface CollectionsDataTableProps {
 export const CollectionsDataTable = ({ 
   collections, 
   onBulkDelete,
+  onSortChange,
+  sortBy,
+  sortOrder,
   groupCurrentPage,
   groupPageSize,
 }: CollectionsDataTableProps) => {
@@ -49,6 +55,10 @@ export const CollectionsDataTable = ({
       selectionLabel="גבייות"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      onSortChange={onSortChange}
+      serverSideSorting={!!onSortChange}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
     />
   );
 };

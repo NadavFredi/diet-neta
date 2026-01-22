@@ -13,6 +13,7 @@ import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/post
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
 import type { Budget, BudgetAssignment, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
 import { syncPlansFromBudget } from '@/services/budgetPlanSync';
+import { applySort } from '@/utils/supabaseSort';
 
 // Note: We now use user.id from Redux auth state instead of getUserIdFromEmail
 // This eliminates redundant API calls to getUser() and profiles table
@@ -25,6 +26,8 @@ export const useBudgets = (filters?: {
   pageSize?: number;
   groupByLevel1?: string | null;
   groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
 }) => {
   const { user } = useAppSelector((state) => state.auth);
 
@@ -77,6 +80,19 @@ export const useBudgets = (filters?: {
         created_at: 'created_at',
         steps_goal: 'steps_goal',
       };
+      const sortMap: Record<string, string> = {
+        name: 'name',
+        description: 'description',
+        workout_template: 'workout_template.name',
+        nutrition_template: 'nutrition_template.name',
+        nutrition_targets: 'nutrition_targets->>calories',
+        supplements: 'supplements',
+        eating_order: 'eating_order',
+        eating_rules: 'eating_rules',
+        steps_goal: 'steps_goal',
+        steps_instructions: 'steps_instructions',
+        created_at: 'created_at',
+      };
 
       let query = supabase
         .from('budgets')
@@ -100,8 +116,9 @@ export const useBudgets = (filters?: {
         query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
       }
       
-      // Apply default sorting if no grouping
-      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+      if (filters?.sortBy && filters?.sortOrder) {
+        query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+      } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
         query = query.order('created_at', { ascending: false });
       }
 
