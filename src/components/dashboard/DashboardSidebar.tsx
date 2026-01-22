@@ -29,6 +29,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useInterfaceOrder, useUpdateInterfaceOrders } from '@/hooks/useInterfaceOrder';
 import { useToast } from '@/hooks/use-toast';
+import { useDefaultView } from '@/hooks/useDefaultView';
 
 interface NavItem {
   id: string;
@@ -147,6 +148,11 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
 
   // Get sidebar state from Redux
   const { isCollapsed, expandedSections } = useAppSelector((state) => state.sidebar);
+
+  // Fetch default views for resources that support views
+  // We fetch them all so we can navigate directly to default view on click
+  const subscriptionTypesDefaultView = useDefaultView('subscription_types');
+  const whatsappAutomationsDefaultView = useDefaultView('whatsapp_automations');
 
   // Fetch preferences on mount to sync with database (populates Redux)
   useInterfaceIconPreferences();
@@ -288,7 +294,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
 
     const activeItem = navigationItems.find(item => isActive(item.path));
     if (activeItem) {
-      const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings'].includes(activeItem.resourceKey);
+      const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(activeItem.resourceKey);
       // Only auto-expand if it supports views and isn't already expanded
       if (supportsViews && !expandedSections[activeItem.resourceKey]) {
         // Collapse all sections first
@@ -358,9 +364,33 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   };
 
   const handleResourceClick = (item: NavItem) => {
-    // For resources that support views, navigate to base path
-    // The page component will automatically redirect to default view if needed
-    navigate(item.path);
+    const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(item.resourceKey);
+
+    if (supportsViews) {
+      // Expand the section to show views
+      if (!expandedSections[item.resourceKey]) {
+        dispatch(setSectionExpanded({ resourceKey: item.resourceKey, expanded: true }));
+      }
+
+      // For resources that support views, navigate directly to default view if available
+      let defaultView = null;
+
+      if (item.resourceKey === 'subscription_types') {
+        defaultView = subscriptionTypesDefaultView.defaultView;
+      } else if (item.resourceKey === 'whatsapp_automations') {
+        defaultView = whatsappAutomationsDefaultView.defaultView;
+      }
+
+      // If we have a default view, navigate directly to it
+      // Otherwise, navigate to base path and let page component handle redirect
+      if (defaultView) {
+        navigate(`${item.path}?view_id=${defaultView.id}`);
+      } else {
+        navigate(item.path);
+      }
+    } else {
+      navigate(item.path);
+    }
   };
 
   const handleToggleSection = (resourceKey: string) => {

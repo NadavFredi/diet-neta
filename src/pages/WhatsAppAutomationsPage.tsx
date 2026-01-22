@@ -4,7 +4,8 @@
  * Pure presentation component - all logic is in WhatsAppAutomationsPage.ts
  */
 
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,14 +33,53 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { WhatsAppAutomationsDataTable } from '@/components/dashboard/WhatsAppAutomationsDataTable';
+import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
+import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector } from '@/store/hooks';
+import { useDefaultView } from '@/hooks/useDefaultView';
+import { useSavedView } from '@/hooks/useSavedViews';
 import { useWhatsAppAutomationsPage } from './WhatsAppAutomationsPage';
 import { createWhatsAppAutomationColumns } from '@/components/dashboard/columns/whatsappAutomationColumns';
+import { selectActiveFilters } from '@/store/slices/tableStateSlice';
 
 export const WhatsAppAutomationsPage: React.FC = () => {
   const sidebarWidth = useSidebarWidth();
   const { user } = useAppSelector((state) => state.auth);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const viewId = searchParams.get('view_id');
+  const { defaultView } = useDefaultView('whatsapp_automations');
+  const { data: savedView } = useSavedView(viewId);
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'whatsapp_automations'));
+  
+  const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
+  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
+  const [viewToEdit, setViewToEdit] = useState<any>(null);
+  
+  // Auto-navigate to default view if no view_id is present
+  useEffect(() => {
+    if (!viewId && defaultView) {
+      navigate(`/dashboard/whatsapp-automations?view_id=${defaultView.id}`, { replace: true });
+    }
+  }, [viewId, defaultView, navigate]);
+  
+  const handleSaveViewClick = useCallback((resourceKey: string) => {
+    setIsSaveViewModalOpen(true);
+  }, []);
+  
+  const handleEditViewClick = useCallback((view: any) => {
+    setViewToEdit(view);
+    setIsEditViewModalOpen(true);
+  }, []);
+  
+  const getCurrentFilterConfig = useCallback(() => {
+    // Return empty filter config for now since WhatsApp automations doesn't have filters yet
+    return {
+      searchQuery: '',
+      selectedDate: null,
+    };
+  }, []);
 
   const {
     automations,
@@ -75,13 +115,18 @@ export const WhatsAppAutomationsPage: React.FC = () => {
     [handleEdit, handleDelete]
   );
 
+  // Determine the title to show
+  const pageTitle = viewId && savedView?.view_name 
+    ? savedView.view_name 
+    : 'כל האוטומציות';
+
   if (isLoading) {
     return (
       <div className="bg-gray-50 flex flex-col min-h-screen" dir="rtl">
         <DashboardHeader
           userEmail={user?.email}
           onLogout={handleLogout}
-          sidebarContent={<DashboardSidebar />}
+          sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
         />
         <div className="flex-1 flex items-center justify-center" style={{ marginRight: `${sidebarWidth.width}px` }}>
           <div className="text-center">
@@ -98,7 +143,7 @@ export const WhatsAppAutomationsPage: React.FC = () => {
       <DashboardHeader
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar />}
+        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
       />
 
       <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
@@ -113,7 +158,7 @@ export const WhatsAppAutomationsPage: React.FC = () => {
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
               <TableActionHeader
                 resourceKey="whatsapp_automations"
-                title="אוטומציית WhatsApp"
+                title={pageTitle}
                 icon={Send}
                 dataCount={automations?.length || 0}
                 singularLabel="אוטומציה"
@@ -233,6 +278,30 @@ export const WhatsAppAutomationsPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Save View Modal */}
+      <SaveViewModal
+        isOpen={isSaveViewModalOpen}
+        onOpenChange={setIsSaveViewModalOpen}
+        resourceKey="whatsapp_automations"
+        filterConfig={getCurrentFilterConfig()}
+      />
+
+      {/* Edit View Modal */}
+      <EditViewModal
+        isOpen={isEditViewModalOpen}
+        onOpenChange={(open) => {
+          setIsEditViewModalOpen(open);
+          if (!open) setViewToEdit(null);
+        }}
+        view={viewToEdit}
+        currentFilterConfig={getCurrentFilterConfig()}
+        filterFields={[]}
+        onSuccess={() => {
+          setIsEditViewModalOpen(false);
+          setViewToEdit(null);
+        }}
+      />
     </>
   );
 };

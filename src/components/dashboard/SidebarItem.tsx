@@ -105,7 +105,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     item.resourceKey === 'budgets' ||
     item.resourceKey === 'payments' ||
     item.resourceKey === 'collections' ||
-    item.resourceKey === 'meetings';
+    item.resourceKey === 'meetings' ||
+    item.resourceKey === 'subscription_types' ||
+    item.resourceKey === 'whatsapp_automations';
 
   // Only fetch saved views and default view for:
   // 1. The current resource (when on that page) - always fetch

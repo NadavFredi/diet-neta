@@ -111,6 +111,16 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
         searchQuery: '',
         selectedDate: null,
       };
+    case 'subscription_types':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+      };
+    case 'whatsapp_automations':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+      };
     default:
       return {
         searchQuery: '',
@@ -165,6 +175,10 @@ export const useDefaultView = (resourceKey: string | null) => {
           ? 'כל התשלומים'
           : resourceKey === 'meetings'
           ? 'כל הפגישות'
+          : resourceKey === 'subscription_types'
+          ? 'כל סוגי המנויים'
+          : resourceKey === 'whatsapp_automations'
+          ? 'כל האוטומציות'
           : 'כל התכניות';
 
         const { data: newView, error } = await supabase

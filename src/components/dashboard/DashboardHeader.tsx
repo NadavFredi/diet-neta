@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { NetaLogo } from '@/components/ui/NetaLogo';
 import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { useUpdateSidebarWidthPreference } from '@/hooks/useSidebarWidthPreference';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { toggleSidebar } from '@/store/slices/sidebarSlice';
+import { toggleSidebar, setSidebarWidth } from '@/store/slices/sidebarSlice';
 import { ChevronRight, ChevronLeft, LogOut, Eye, Menu, X, UserSearch } from 'lucide-react';
 import { stopImpersonation } from '@/store/slices/impersonationSlice';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -43,6 +44,7 @@ export const DashboardHeader = ({
   clientHeroContent,
 }: DashboardHeaderProps) => {
   const sidebarWidth = useSidebarWidth();
+  const updateWidthMutation = useUpdateSidebarWidthPreference();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,7 +52,14 @@ export const DashboardHeader = ({
   const { isImpersonating, previousLocation } = useAppSelector((state) => state.impersonation);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isImpersonationDialogOpen, setIsImpersonationDialogOpen] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const isDesktop = useIsDesktop();
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(sidebarWidth.expandedWidth);
+  const currentWidthRef = useRef<number>(sidebarWidth.expandedWidth);
+  
+  const MIN_WIDTH = 200;
+  const MAX_WIDTH = 500;
 
   // Check if we're on a general header (not on leads, profile, or client pages)
   const isGeneralHeader = !location.pathname.startsWith('/leads/') &&
@@ -79,6 +88,69 @@ export const DashboardHeader = ({
     }
   }, [isDesktop, isMobileMenuOpen]);
 
+  // Handle mouse down on resize handle
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    if (sidebarWidth.isCollapsed) return; // Don't allow resizing when collapsed
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = sidebarWidth.expandedWidth;
+    currentWidthRef.current = sidebarWidth.expandedWidth;
+    
+    // Prevent text selection during drag
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+  }, [sidebarWidth.isCollapsed, sidebarWidth.expandedWidth]);
+
+  // Handle mouse move during resize
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // In RTL: sidebar is on right, handle is on left edge
+      // Moving mouse left (decreasing clientX) should increase sidebar width
+      // Moving mouse right (increasing clientX) should decrease sidebar width
+      const deltaX = startXRef.current - e.clientX; // Inverted for left-edge handle in RTL
+      const newWidth = Math.max(
+        MIN_WIDTH,
+        Math.min(MAX_WIDTH, startWidthRef.current + deltaX)
+      );
+      
+      // Update Redux immediately for instant UI feedback (no API call during drag)
+      dispatch(setSidebarWidth(newWidth));
+      currentWidthRef.current = newWidth;
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      
+      // Save final width to database only on mouse up (single API call)
+      const finalWidth = currentWidthRef.current;
+      if (finalWidth !== startWidthRef.current) {
+        updateWidthMutation.mutate(finalWidth, {
+          onError: () => {
+            // On error, revert to start width in both Redux and DB
+            dispatch(setSidebarWidth(startWidthRef.current));
+            updateWidthMutation.mutate(startWidthRef.current);
+          }
+        });
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizing, updateWidthMutation, dispatch]);
+
   return (
     <>
       {/* Mobile Menu Overlay */}
@@ -97,7 +169,9 @@ export const DashboardHeader = ({
           'border-l border-white/10 shadow-lg',
           // Mobile: slide in/out from right
           'lg:translate-x-0',
-          isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
+          isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0',
+          // Disable transition during resize for smooth dragging
+          isResizing && 'transition-none'
         )}
         style={{
           width: `${sidebarWidth.width}px`,
@@ -106,6 +180,27 @@ export const DashboardHeader = ({
         }}
         dir="rtl"
       >
+        {/* Resize Handle - Only visible when expanded and on desktop */}
+        {!sidebarWidth.isCollapsed && isDesktop && (
+          <div
+            onMouseDown={handleResizeMouseDown}
+            className={cn(
+              'absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-50',
+              'hover:bg-white/30 transition-colors',
+              'group'
+            )}
+            style={{
+              // Make it slightly wider for easier grabbing
+              width: '4px',
+              marginLeft: '-2px',
+            }}
+            title="גרור לשינוי רוחב התפריט"
+            aria-label="גרור לשינוי רוחב התפריט"
+          >
+            {/* Visual indicator on hover */}
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 bg-white/0 group-hover:bg-white/50 transition-colors" />
+          </div>
+        )}
         {/* Logo Section - Top of sidebar */}
         <div
           className={cn(
