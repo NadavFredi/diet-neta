@@ -31,6 +31,7 @@ import { he } from 'date-fns/locale';
 import { useWorkoutBoard, DAYS } from '@/hooks/useWorkoutBoard';
 import type { Exercise, WeeklyWorkout } from '@/components/dashboard/WeeklyWorkoutBuilder';
 import { QuickAddExercise } from './QuickAddExercise';
+import { SelectExerciseFromDatabase } from './SelectExerciseFromDatabase';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -843,6 +844,18 @@ const DayColumn = ({
         {/* Quick Add Footer */}
         {dayData.isActive && (
           <div className="p-2 border-t border-gray-200 bg-white flex-shrink-0 space-y-2">
+            <SelectExerciseFromDatabase
+              onSelect={(exercise) => {
+                onAddExercise({
+                  id: `${Date.now()}-${Math.random()}`,
+                  name: exercise.name,
+                  sets: 3,
+                  reps: exercise.repetitions || 10,
+                  image_url: exercise.image || undefined,
+                  video_url: exercise.video_link || undefined,
+                });
+              }}
+            />
             <QuickAddExercise
               onSelect={(name) => {
                 onAddExercise({

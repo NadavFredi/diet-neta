@@ -700,7 +700,7 @@ export function DataTable<T extends Record<string, any>>({
     }
     return localColumnOrder;
   }, [resourceKey, reduxColumnOrder, columns, localColumnOrder]);
-  
+
   const derivedColumnOrder = enableRowSelection
     ? [SELECTION_COLUMN_ID, ...columnOrder.filter((id) => id !== SELECTION_COLUMN_ID)]
     : columnOrder;
@@ -2066,7 +2066,7 @@ function TableContent<T>({
                   <td
                     key={cell.id}
                     className={cn(
-                      'px-2 py-4 text-sm transition-colors overflow-hidden',
+                      'px-2 py-2 text-sm transition-colors overflow-hidden',
                       `text-${align}`,
                       isNumeric
                         ? 'font-mono tabular-nums text-gray-900'
