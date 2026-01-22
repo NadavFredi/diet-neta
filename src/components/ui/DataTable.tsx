@@ -1170,15 +1170,18 @@ export function DataTable<T extends Record<string, any>>({
 
   // Paginate groups when grouping is active
   const paginatedGroupedData = useMemo(() => {
-    if (!groupedData || !groupCurrentPage) {
+    if (!groupedData) {
       return groupedData;
     }
 
-    const startIndex = (groupCurrentPage - 1) * groupPageSize;
-    const endIndex = startIndex + groupPageSize;
+    // Only paginate if groupCurrentPage and groupPageSize are provided
+    if (groupCurrentPage !== undefined && groupPageSize !== undefined) {
+      const startIndex = (groupCurrentPage - 1) * groupPageSize;
+      const endIndex = startIndex + groupPageSize;
 
-    if (Array.isArray(groupedData)) {
-      return groupedData.slice(startIndex, endIndex);
+      if (Array.isArray(groupedData)) {
+        return groupedData.slice(startIndex, endIndex);
+      }
     }
 
     return groupedData;

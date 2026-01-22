@@ -31,7 +31,7 @@ const MeetingsManagement = () => {
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'meetings'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'meetings'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
-  
+
   // Group pagination state (separate from record pagination)
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize] = useState(50);
@@ -40,7 +40,7 @@ const MeetingsManagement = () => {
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('meetings');
   const [isAddMeetingDialogOpen, setIsAddMeetingDialogOpen] = useState(false);
-  
+
   const {
     meetings,
     filteredMeetings,
@@ -51,38 +51,38 @@ const MeetingsManagement = () => {
     activeFilters,
     handleBulkDelete,
   } = useMeetingsManagement();
-  
+
   // Generate filter fields with all renderable columns
   const meetingFilterFields = useMemo(() => {
     return getMeetingFilterFields(meetings || [], meetingColumns);
   }, [meetings]);
-  
+
   // Calculate total groups when grouping is active (after filteredMeetings is defined)
   const totalGroups = useMemo(() => {
     if (!isGroupingActive || !filteredMeetings || filteredMeetings.length === 0) {
       return 0;
     }
-    
+
     // Group the data to count groups
     const groupedData = groupDataByKeys(filteredMeetings, groupByKeys, { level1: null, level2: null });
     return getTotalGroupsCount(groupedData);
   }, [isGroupingActive, filteredMeetings, groupByKeys]);
-  
+
   // Reset group pagination when grouping changes
   useEffect(() => {
     if (isGroupingActive) {
       setGroupCurrentPage(1);
     }
   }, [isGroupingActive, groupByKeys]);
-  
+
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
   }, []);
-  
+
   const handlePageChange = useCallback((page: number) => {
     dispatch(setCurrentPage({ resourceKey: 'meetings', page }));
   }, [dispatch]);
-  
+
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     dispatch(setPageSize({ resourceKey: 'meetings', pageSize: newPageSize }));
   }, [dispatch]);
@@ -145,8 +145,8 @@ const MeetingsManagement = () => {
             </div>
           ) : filteredMeetings && Array.isArray(filteredMeetings) && filteredMeetings.length > 0 ? (
             <div className="flex-1 min-h-0">
-              <MeetingsDataTable 
-                meetings={filteredMeetings} 
+              <MeetingsDataTable
+                meetings={filteredMeetings}
                 onBulkDelete={handleBulkDelete}
                 groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
                 groupPageSize={isGroupingActive ? groupPageSize : undefined}
