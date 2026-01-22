@@ -1510,7 +1510,7 @@ function TableContent<T>({
 
   return (
     <table className="border-collapse" style={{ tableLayout: 'auto', width: '100%', minWidth: `${totalWidth}px` }}>
-      <thead className="sticky top-0 z-10 bg-gray-50/50 backdrop-blur-sm">
+      <thead className="sticky top-0 z-10 bg-gray-50">
         {table.getHeaderGroups().map((headerGroup: any) => {
           const headers = headerGroup.headers;
 
@@ -1711,7 +1711,7 @@ function TableContent<T>({
           return (
             <tr
               key={headerGroup.id}
-              className="bg-gray-50/50 border-b border-gray-100"
+              className="bg-gray-50 border-b border-gray-100"
             >
               {enableColumnReordering ? (
                 <SortableContext
@@ -2067,7 +2067,7 @@ function TableContent<T>({
                   <td
                     key={cell.id}
                     className={cn(
-                      'px-2 py-2 text-sm transition-colors overflow-hidden',
+                      'px-2 py-1 text-sm transition-colors overflow-hidden',
                       `text-${align}`,
                       isNumeric
                         ? 'font-mono tabular-nums text-gray-900'

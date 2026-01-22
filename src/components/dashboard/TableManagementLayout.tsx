@@ -57,14 +57,18 @@ export const TableManagementLayout: React.FC<TableManagementLayoutProps> = ({
 
             <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
                 <main
-                    className={`bg-gray-50 overflow-y-auto transition-all duration-300 ${className || ''}`}
+                    className={`bg-gray-50 transition-all duration-300 ${className || ''}`}
                     style={{
                         marginRight: isDesktop ? `${sidebarWidth.width}px` : 0,
-                        minHeight: 'calc(100vh - 60px)',
+                        height: 'calc(100vh - 60px)',
+                        paddingBottom: 0,
+                        marginBottom: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
                     }}
                 >
-                    <div className="pr-6">
-                        <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 100px)' }}>
+                    <div className="pr-6 flex-1 min-h-0" style={{ paddingBottom: 0, marginBottom: 0 }}>
+                        <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
                             {children}
                         </div>
                     </div>
