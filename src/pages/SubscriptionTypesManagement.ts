@@ -28,19 +28,14 @@ import {
   selectSortBy,
   selectSortOrder,
   selectGroupByKeys,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   setCurrentPage,
   setPageSize,
   setSortBy,
   setSortOrder,
 } from '@/store/slices/tableStateSlice';
-
-export interface SubscriptionTypeColumnVisibility {
-  name: boolean;
-  duration: boolean;
-  price: boolean;
-  createdDate: boolean;
-  actions: boolean;
-}
 
 export const useSubscriptionTypesManagement = () => {
   const navigate = useNavigate();
@@ -55,13 +50,6 @@ export const useSubscriptionTypesManagement = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [subscriptionTypeToDelete, setSubscriptionTypeToDelete] = useState<SubscriptionType | null>(null);
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
-  const [columnVisibility, setColumnVisibility] = useState<SubscriptionTypeColumnVisibility>({
-    name: true,
-    duration: true,
-    price: true,
-    createdDate: true,
-    actions: true,
-  });
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('subscription_types');
@@ -72,6 +60,9 @@ export const useSubscriptionTypesManagement = () => {
   const sortBy = useAppSelector((state) => selectSortBy(state, 'subscription_types'));
   const sortOrder = useAppSelector((state) => selectSortOrder(state, 'subscription_types'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'subscription_types'));
+  const tableColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'subscription_types'));
+  const tableColumnOrder = useAppSelector((state) => selectColumnOrder(state, 'subscription_types'));
+  const tableColumnSizing = useAppSelector((state) => selectColumnSizing(state, 'subscription_types'));
   
   const { data: subscriptionTypesData, isLoading } = useSubscriptionTypes({
     search: searchQuery,
@@ -131,13 +122,6 @@ export const useSubscriptionTypesManagement = () => {
     } catch (error) {
       navigate('/login');
     }
-  };
-
-  const handleToggleColumn = (key: keyof SubscriptionTypeColumnVisibility) => {
-    setColumnVisibility((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
   };
 
   const handleAddSubscriptionType = () => {
@@ -239,18 +223,14 @@ export const useSubscriptionTypesManagement = () => {
   };
 
   const getCurrentFilterConfig = (
-    advancedFilters?: any[],
-    columnOrder?: string[],
-    columnWidths?: Record<string, number>,
-    sortBy?: string,
-    sortOrder?: 'asc' | 'desc'
+    advancedFilters?: any[]
   ) => {
     return {
       searchQuery: searchQuery || '',
       filterGroup,
-      columnVisibility: columnVisibility || {},
-      columnOrder: columnOrder || [],
-      columnWidths: columnWidths || {},
+      columnVisibility: tableColumnVisibility || {},
+      columnOrder: tableColumnOrder || [],
+      columnWidths: tableColumnSizing || {},
       sortBy: sortBy || null,
       sortOrder: sortOrder || 'asc',
       advancedFilters: advancedFilters || [],
@@ -272,7 +252,6 @@ export const useSubscriptionTypesManagement = () => {
     isEditDialogOpen,
     deleteDialogOpen,
     isSaveViewModalOpen,
-    columnVisibility,
     sortBy,
     sortOrder,
     
@@ -284,7 +263,6 @@ export const useSubscriptionTypesManagement = () => {
     
     // Handlers
     handleLogout,
-    handleToggleColumn,
     handleAddSubscriptionType,
     handleEditSubscriptionType,
     handleSaveSubscriptionType,

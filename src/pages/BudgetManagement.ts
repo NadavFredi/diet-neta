@@ -33,26 +33,14 @@ import {
   selectSortBy,
   selectSortOrder,
   selectGroupByKeys,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   setCurrentPage,
   setPageSize,
   setSortBy,
   setSortOrder,
 } from '@/store/slices/tableStateSlice';
-
-export interface BudgetColumnVisibility {
-  name: boolean;
-  description: boolean;
-  workout_template: boolean;
-  nutrition_template: boolean;
-  nutrition_targets: boolean;
-  supplements: boolean;
-  eating_order: boolean;
-  eating_rules: boolean;
-  steps_goal: boolean;
-  steps_instructions: boolean;
-  createdDate: boolean;
-  actions: boolean;
-}
 
 export const useBudgetManagement = () => {
   const navigate = useNavigate();
@@ -79,20 +67,6 @@ export const useBudgetManagement = () => {
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [sendingBudget, setSendingBudget] = useState<Budget | null>(null);
-  const [columnVisibility, setColumnVisibility] = useState<BudgetColumnVisibility>({
-    name: true,
-    description: true,
-    workout_template: true,
-    nutrition_template: true,
-    nutrition_targets: false,
-    supplements: false,
-    eating_order: false,
-    eating_rules: false,
-    steps_goal: true,
-    steps_instructions: false,
-    createdDate: true,
-    actions: true,
-  });
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('budgets');
@@ -103,6 +77,9 @@ export const useBudgetManagement = () => {
   const sortBy = useAppSelector((state) => selectSortBy(state, 'budgets'));
   const sortOrder = useAppSelector((state) => selectSortOrder(state, 'budgets'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'budgets'));
+  const tableColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'budgets'));
+  const tableColumnOrder = useAppSelector((state) => selectColumnOrder(state, 'budgets'));
+  const tableColumnSizing = useAppSelector((state) => selectColumnSizing(state, 'budgets'));
   
   const { data: budgetsData, isLoading } = useBudgets({
     search: searchQuery,
@@ -166,13 +143,6 @@ export const useBudgetManagement = () => {
       // Navigate to login even if logout fails
       navigate('/login');
     }
-  };
-
-  const handleToggleColumn = (key: keyof BudgetColumnVisibility) => {
-    setColumnVisibility((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
   };
 
   const handleAddBudget = () => {
@@ -371,18 +341,14 @@ export const useBudgetManagement = () => {
   };
 
   const getCurrentFilterConfig = (
-    advancedFilters?: any[],
-    columnOrder?: string[],
-    columnWidths?: Record<string, number>,
-    sortBy?: string,
-    sortOrder?: 'asc' | 'desc'
+    advancedFilters?: any[]
   ) => {
     return {
       searchQuery: searchQuery || '',
       filterGroup,
-      columnVisibility: columnVisibility || {},
-      columnOrder: columnOrder || [],
-      columnWidths: columnWidths || {},
+      columnVisibility: tableColumnVisibility || {},
+      columnOrder: tableColumnOrder || [],
+      columnWidths: tableColumnSizing || {},
       sortBy: sortBy || null,
       sortOrder: sortOrder || 'asc',
       advancedFilters: advancedFilters || [],
@@ -406,7 +372,6 @@ export const useBudgetManagement = () => {
     deleteDialogOpen,
     isSaveViewModalOpen,
     isSettingsOpen,
-    columnVisibility,
     sortBy,
     sortOrder,
     
@@ -419,7 +384,6 @@ export const useBudgetManagement = () => {
     
     // Handlers
     handleLogout,
-    handleToggleColumn,
     handleAddBudget,
     handleEditBudget,
     handleSaveBudget,

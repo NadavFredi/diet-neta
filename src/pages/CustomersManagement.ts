@@ -22,6 +22,9 @@ import {
   selectSortBy,
   selectSortOrder,
   selectGroupByKeys,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   setCurrentPage,
   setPageSize,
   setTotalCount,
@@ -48,6 +51,9 @@ export const useCustomersManagement = () => {
   const sortBy = useAppSelector((state) => selectSortBy(state, 'customers'));
   const sortOrder = useAppSelector((state) => selectSortOrder(state, 'customers'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'customers'));
+  const columnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'customers'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'customers'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'customers'));
 
   const { data: customersResult, isLoading: isLoadingCustomers } = useCustomers({
     search: searchQuery,
@@ -115,12 +121,13 @@ export const useCustomersManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
-  const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
+  const getCurrentFilterConfig = (advancedFilters?: any[]) => {
     return {
       searchQuery,
       filterGroup,
+      columnVisibility,
       columnOrder,
-      columnWidths,
+      columnWidths: columnSizing,
       sortBy,
       sortOrder,
       advancedFilters,

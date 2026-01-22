@@ -55,7 +55,6 @@ const TemplatesManagement = () => {
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
     handleLogout,
-    handleToggleColumn,
     handleAddTemplate,
     handleEditTemplate,
     handleSaveTemplate,

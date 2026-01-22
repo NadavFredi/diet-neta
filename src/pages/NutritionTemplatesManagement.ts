@@ -20,7 +20,6 @@ import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
-import { TemplateColumnVisibility } from '@/components/dashboard/TemplateColumnSettings';
 import { 
   selectFilterGroup, 
   selectSearchQuery, 
@@ -29,6 +28,9 @@ import {
   selectSortBy,
   selectSortOrder,
   selectGroupByKeys,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   setCurrentPage,
   setPageSize,
   setSortBy,
@@ -49,14 +51,6 @@ export const useNutritionTemplatesManagement = () => {
   const [templateToDelete, setTemplateToDelete] = useState<NutritionTemplate | null>(null);
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [columnVisibility, setColumnVisibility] = useState<TemplateColumnVisibility>({
-    name: true,
-    description: true,
-    tags: false,
-    connectedLeads: false,
-    createdDate: true,
-    actions: true,
-  });
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('nutrition_templates');
@@ -67,6 +61,9 @@ export const useNutritionTemplatesManagement = () => {
   const sortBy = useAppSelector((state) => selectSortBy(state, 'nutrition_templates'));
   const sortOrder = useAppSelector((state) => selectSortOrder(state, 'nutrition_templates'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'nutrition_templates'));
+  const tableColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'nutrition_templates'));
+  const tableColumnOrder = useAppSelector((state) => selectColumnOrder(state, 'nutrition_templates'));
+  const tableColumnSizing = useAppSelector((state) => selectColumnSizing(state, 'nutrition_templates'));
   
   const { data: templatesData, isLoading } = useNutritionTemplates({
     search: searchQuery,
@@ -127,13 +124,6 @@ export const useNutritionTemplatesManagement = () => {
       // Navigate to login even if logout fails
       navigate('/login');
     }
-  };
-
-  const handleToggleColumn = (key: keyof TemplateColumnVisibility) => {
-    setColumnVisibility((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
   };
 
   const handleAddTemplate = () => {
@@ -233,13 +223,13 @@ export const useNutritionTemplatesManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
-  const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
+  const getCurrentFilterConfig = (advancedFilters?: any[]) => {
     return {
       searchQuery,
       filterGroup,
-      columnVisibility,
-      columnOrder,
-      columnWidths,
+      columnVisibility: tableColumnVisibility,
+      columnOrder: tableColumnOrder,
+      columnWidths: tableColumnSizing,
       sortBy,
       sortOrder,
       advancedFilters,
@@ -264,7 +254,6 @@ export const useNutritionTemplatesManagement = () => {
     isSettingsOpen,
     sortBy,
     sortOrder,
-    columnVisibility,
     
     // Setters
     setIsAddDialogOpen,
@@ -275,7 +264,6 @@ export const useNutritionTemplatesManagement = () => {
     
     // Handlers
     handleLogout,
-    handleToggleColumn,
     handleAddTemplate,
     handleEditTemplate,
     handleSaveTemplate,

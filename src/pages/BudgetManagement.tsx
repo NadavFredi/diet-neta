@@ -56,7 +56,6 @@ const BudgetManagement = () => {
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
     handleLogout,
-    handleToggleColumn,
     handleAddBudget,
     handleEditBudget,
     handleSaveBudget,

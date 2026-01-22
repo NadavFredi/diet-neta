@@ -28,6 +28,9 @@ import {
   selectSortBy,
   selectSortOrder,
   selectGroupByKeys,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   setCurrentPage,
   setPageSize,
   setSortBy,
@@ -57,6 +60,9 @@ export const useExercisesManagement = () => {
   const sortBy = useAppSelector((state) => selectSortBy(state, 'exercises'));
   const sortOrder = useAppSelector((state) => selectSortOrder(state, 'exercises'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'exercises'));
+  const columnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'exercises'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'exercises'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'exercises'));
   
   const { data: exercisesData, isLoading } = useExercises({
     search: searchQuery,
@@ -214,12 +220,13 @@ export const useExercisesManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
-  const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
+  const getCurrentFilterConfig = (advancedFilters?: any[]) => {
     return {
       searchQuery,
       filterGroup,
+      columnVisibility,
       columnOrder,
-      columnWidths,
+      columnWidths: columnSizing,
       sortBy,
       sortOrder,
       advancedFilters,

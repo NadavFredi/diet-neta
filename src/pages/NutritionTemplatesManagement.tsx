@@ -45,7 +45,6 @@ const NutritionTemplatesManagement = () => {
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
     handleLogout,
-    handleToggleColumn,
     handleAddTemplate,
     handleEditTemplate,
     handleSaveTemplate,

@@ -39,6 +39,13 @@ import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
 import { useWhatsAppAutomationsPage } from './WhatsAppAutomationsPage';
 import { createWhatsAppAutomationColumns } from '@/components/dashboard/columns/whatsappAutomationColumns';
+import {
+  selectSearchQuery,
+  selectFilterGroup,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
+} from '@/store/slices/tableStateSlice';
 
 export const WhatsAppAutomationsPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -47,6 +54,11 @@ export const WhatsAppAutomationsPage: React.FC = () => {
   const viewId = searchParams.get('view_id');
   const { defaultView } = useDefaultView('whatsapp_automations');
   const { data: savedView } = useSavedView(viewId);
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'whatsapp_automations'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'whatsapp_automations'));
+  const columnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'whatsapp_automations'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'whatsapp_automations'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'whatsapp_automations'));
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
 
@@ -62,12 +74,15 @@ export const WhatsAppAutomationsPage: React.FC = () => {
   }, []);
 
   const getCurrentFilterConfig = useCallback(() => {
-    // Return empty filter config for now since WhatsApp automations doesn't have filters yet
     return {
-      searchQuery: '',
-      selectedDate: null,
+      searchQuery: searchQuery || '',
+      filterGroup,
+      columnVisibility,
+      columnOrder,
+      columnWidths: columnSizing,
+      advancedFilters: [],
     };
-  }, []);
+  }, [searchQuery, filterGroup, columnVisibility, columnOrder, columnSizing]);
 
   const {
     automations,

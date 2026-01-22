@@ -21,6 +21,9 @@ import {
   selectSortBy,
   selectSortOrder,
   selectGroupByKeys,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   setCurrentPage,
   setPageSize,
   setSearchQuery,
@@ -49,6 +52,9 @@ export const useMeetingsManagement = () => {
   const sortBy = useAppSelector((state) => selectSortBy(state, 'meetings'));
   const sortOrder = useAppSelector((state) => selectSortOrder(state, 'meetings'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'meetings'));
+  const columnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'meetings'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'meetings'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'meetings'));
 
   const { data: meetingsData, isLoading: isLoadingMeetings } = useMeetings({
     search: searchQuery,
@@ -124,12 +130,13 @@ export const useMeetingsManagement = () => {
     dispatch(clearFiltersAction({ resourceKey: 'meetings' }));
   };
 
-  const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
+  const getCurrentFilterConfig = (advancedFilters?: any[]) => {
     return {
       searchQuery: searchQuery || '',
       filterGroup,
+      columnVisibility,
       columnOrder,
-      columnWidths,
+      columnWidths: columnSizing,
       sortBy,
       sortOrder,
       advancedFilters,

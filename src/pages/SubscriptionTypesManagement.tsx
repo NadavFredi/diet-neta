@@ -62,7 +62,6 @@ const SubscriptionTypesManagement = () => {
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
     handleLogout,
-    handleToggleColumn,
     handleAddSubscriptionType,
     handleEditSubscriptionType,
     handleSaveSubscriptionType,
