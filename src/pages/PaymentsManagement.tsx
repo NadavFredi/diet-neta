@@ -115,84 +115,97 @@ const PaymentsManagement = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        <TableActionHeader
-          resourceKey="payments"
-          title={pageTitle}
-          dataCount={totalPayments || 0}
-          singularLabel="תשלום"
-          pluralLabel="תשלומים"
-          filterFields={paymentFilterFields}
-          searchPlaceholder="חיפוש לפי מוצר, לקוח או תאריך..."
-          enableColumnVisibility={true}
-          enableFilters={true}
-          enableGroupBy={true}
-          enableSearch={true}
-          columns={paymentColumns}
-          legacySearchQuery={searchQuery}
-          legacyOnSearchChange={handleSearchChange}
-          legacyActiveFilters={activeFilters}
-          legacyFilterGroup={filterGroup}
-          legacyOnFilterAdd={addFilter}
-          legacyOnFilterRemove={removeFilter}
-          legacyOnFilterClear={clearFilters}
-          legacyOnFilterGroupChange={setFilterGroup}
-          customActions={
-            <Button
-              onClick={() => setIsAddPaymentDialogOpen(true)}
-              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
-              size="sm"
-            >
-              <Plus className="h-4 w-4" />
-              <span>צור תשלום</span>
-            </Button>
-          }
-        />
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="payments"
+            title={pageTitle}
+            dataCount={totalPayments || 0}
+            singularLabel="תשלום"
+            pluralLabel="תשלומים"
+            filterFields={paymentFilterFields}
+            searchPlaceholder="חיפוש לפי מוצר, לקוח או תאריך..."
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={paymentColumns}
+            legacySearchQuery={searchQuery}
+            legacyOnSearchChange={handleSearchChange}
+            legacyActiveFilters={activeFilters}
+            legacyFilterGroup={filterGroup}
+            legacyOnFilterAdd={addFilter}
+            legacyOnFilterRemove={removeFilter}
+            legacyOnFilterClear={clearFilters}
+            legacyOnFilterGroupChange={setFilterGroup}
+            customActions={
+              <Button
+                onClick={() => setIsAddPaymentDialogOpen(true)}
+                className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
+                size="sm"
+              >
+                <Plus className="h-4 w-4" />
+                <span>צור תשלום</span>
+              </Button>
+            }
+          />
+        </div>
 
-        {/* Table Section - Data Area */}
-        <div className="bg-white">
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
           {isLoadingPayments ? (
-            <div className="p-8 text-center text-gray-500">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-              <p>טוען נתונים...</p>
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p>טוען נתונים...</p>
+              </div>
             </div>
           ) : error ? (
-            <div className="p-8 text-center text-red-500">
-              <p className="text-lg font-medium mb-2">שגיאה בטעינת התשלומים</p>
-              <p className="text-sm">{error.message}</p>
+            <div className="p-8 text-center text-red-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">שגיאה בטעינת התשלומים</p>
+                <p className="text-sm">{error.message}</p>
+              </div>
             </div>
           ) : filteredPayments && Array.isArray(filteredPayments) && filteredPayments.length > 0 ? (
             <>
-              <PaymentsDataTable
-                payments={filteredPayments}
-                enableColumnVisibility={false}
-                onSortChange={handleSortChange}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                totalCount={totalPayments}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
-              />
-              {/* Pagination Footer */}
-              {totalPayments > 0 && (
-                <Pagination
-                  currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                  pageSize={isGroupingActive ? groupPageSize : pageSize}
-                  totalItems={isGroupingActive ? totalGroups : totalPayments}
-                  onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                  onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                  isLoading={isLoadingPayments}
+              <div className="flex-1 min-h-0">
+                <PaymentsDataTable
+                  payments={filteredPayments}
+                  enableColumnVisibility={false}
+                  onSortChange={handleSortChange}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  totalCount={totalPayments}
+                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
                 />
+              </div>
+              {/* Pagination Footer - Always visible */}
+              {totalPayments > 0 && (
+                <div className="flex-shrink-0">
+                  <Pagination
+                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                    pageSize={isGroupingActive ? groupPageSize : pageSize}
+                    totalItems={isGroupingActive ? totalGroups : totalPayments}
+                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                    isLoading={isLoadingPayments}
+                  />
+                </div>
               )}
             </>
           ) : (
-            <div className="p-8 text-center text-gray-500">
-              <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
-              <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-              {!isLoadingPayments && totalPayments === 0 && (
-                <p className="text-xs text-gray-400 mt-2">
-                  מספר תשלומים: 0
-                </p>
-              )}
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
+                <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+                {!isLoadingPayments && totalPayments === 0 && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    מספר תשלומים: 0
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>

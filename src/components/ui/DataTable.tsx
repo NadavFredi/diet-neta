@@ -1230,7 +1230,7 @@ export function DataTable<T extends Record<string, any>>({
   }
 
   return (
-    <div className={cn('w-full', className)} dir={dir}>
+    <div className={cn('w-full h-full flex flex-col', className)} dir={dir}>
       {enableRowSelection && (selectedRowIds.size > 0 || selectAllAcrossPages) && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-indigo-100 bg-indigo-50/40 px-4 py-3 mb-4">
           <div className="text-sm text-slate-700">
@@ -1271,10 +1271,10 @@ export function DataTable<T extends Record<string, any>>({
           </div>
         </div>
       )}
-      {/* Table with Horizontal Scroll */}
+      {/* Table with Horizontal and Vertical Scroll */}
       <div
         ref={tableRef}
-        className="w-full overflow-x-auto overflow-y-visible"
+        className="w-full overflow-auto flex-1 min-h-0"
         style={{
           scrollbarWidth: 'thin',
           scrollbarColor: '#cbd5e1 #f1f5f9',
@@ -1282,6 +1282,7 @@ export function DataTable<T extends Record<string, any>>({
       >
         <style>{`
           div::-webkit-scrollbar {
+            width: 8px;
             height: 8px;
           }
           div::-webkit-scrollbar-track {
@@ -1509,7 +1510,7 @@ function TableContent<T>({
 
   return (
     <table className="border-collapse" style={{ tableLayout: 'auto', width: '100%', minWidth: `${totalWidth}px` }}>
-      <thead>
+      <thead className="sticky top-0 z-10 bg-gray-50/50 backdrop-blur-sm">
         {table.getHeaderGroups().map((headerGroup: any) => {
           const headers = headerGroup.headers;
 

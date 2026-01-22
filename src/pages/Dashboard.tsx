@@ -295,74 +295,84 @@ const Dashboard = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        {/* Header Section - Control Deck */}
-        <TableActionHeader
-          resourceKey="leads"
-          title={savedView?.view_name || 'ניהול לידים'}
-          dataCount={totalLeads || 0}
-          singularLabel="ליד"
-          pluralLabel="לידים"
-          filterFields={leadFilterFields}
-          searchPlaceholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
-          addButtonLabel="הוסף ליד"
-          onAddClick={handleAddLead}
-          enableColumnVisibility={true}
-          enableFilters={true}
-          enableGroupBy={true}
-          enableSearch={true}
-          columns={allLeadColumns}
-          legacySearchQuery={searchQuery}
-          legacyOnSearchChange={handleSearchChangeWithSource}
-          legacyActiveFilters={activeFilters}
-          legacyFilterGroup={filterGroup}
-          legacyOnFilterAdd={addFilter}
-          legacyOnFilterUpdate={updateFilter}
-          legacyOnFilterRemove={removeFilter}
-          legacyOnFilterClear={clearFilters}
-          legacyOnFilterGroupChange={setFilterGroup}
-        />
+        {/* Header Section - Control Deck - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="leads"
+            title={savedView?.view_name || 'ניהול לידים'}
+            dataCount={totalLeads || 0}
+            singularLabel="ליד"
+            pluralLabel="לידים"
+            filterFields={leadFilterFields}
+            searchPlaceholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
+            addButtonLabel="הוסף ליד"
+            onAddClick={handleAddLead}
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={allLeadColumns}
+            legacySearchQuery={searchQuery}
+            legacyOnSearchChange={handleSearchChangeWithSource}
+            legacyActiveFilters={activeFilters}
+            legacyFilterGroup={filterGroup}
+            legacyOnFilterAdd={addFilter}
+            legacyOnFilterUpdate={updateFilter}
+            legacyOnFilterRemove={removeFilter}
+            legacyOnFilterClear={clearFilters}
+            legacyOnFilterGroupChange={setFilterGroup}
+          />
+        </div>
 
-        {/* Table Section - Data Area */}
-        <div className="bg-white">
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
           {isLoading ? (
-            <div className="p-8 text-center text-gray-500">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-              <p>טוען נתונים...</p>
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p>טוען נתונים...</p>
+              </div>
             </div>
           ) : filteredLeads && Array.isArray(filteredLeads) && filteredLeads.length > 0 ? (
             <>
-              <LeadsDataTable
-                leads={filteredLeads}
-                enableColumnVisibility={false}
-                onSortChange={handleSortChange}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                totalCount={totalLeads}
-                onBulkDelete={handleBulkDelete}
-                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                groupPageSize={isGroupingActive ? groupPageSize : undefined}
-              />
-              {/* Pagination Footer */}
-              {totalLeads > 0 && (
-                <Pagination
-                  currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                  pageSize={isGroupingActive ? groupPageSize : pageSize}
-                  totalItems={isGroupingActive ? totalGroups : totalLeads}
-                  onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                  onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                  isLoading={isLoading}
+              <div className="flex-1 min-h-0">
+                <LeadsDataTable
+                  leads={filteredLeads}
+                  enableColumnVisibility={false}
+                  onSortChange={handleSortChange}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  totalCount={totalLeads}
+                  onBulkDelete={handleBulkDelete}
+                  groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                  groupPageSize={isGroupingActive ? groupPageSize : undefined}
                 />
+              </div>
+              {/* Pagination Footer - Always visible */}
+              {totalLeads > 0 && (
+                <div className="flex-shrink-0">
+                  <Pagination
+                    currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                    pageSize={isGroupingActive ? groupPageSize : pageSize}
+                    totalItems={isGroupingActive ? totalGroups : totalLeads}
+                    onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                    onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                    isLoading={isLoading}
+                  />
+                </div>
               )}
             </>
           ) : (
-            <div className="p-8 text-center text-gray-500">
-              <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
-              <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-              {!isLoading && totalLeads === 0 && (
-                <p className="text-xs text-gray-400 mt-2">
-                  מספר לידים: 0
-                </p>
-              )}
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
+                <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+                {!isLoading && totalLeads === 0 && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    מספר לידים: 0
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>

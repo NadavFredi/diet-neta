@@ -64,7 +64,7 @@ export const TableManagementLayout: React.FC<TableManagementLayoutProps> = ({
                     }}
                 >
                     <div className="pr-6">
-                        <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
+                        <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 100px)' }}>
                             {children}
                         </div>
                     </div>
