@@ -86,20 +86,29 @@ const Dashboard = () => {
     return backendColumns.map((beCol: any) => {
        const localCol = localColumnsMap.get(beCol.id);
        
-       if (localCol) {
-         // Merge: Use backend label if provided, keep local renderer
-         return {
-           ...localCol,
-           header: beCol.label || localCol.header,
-           // We could also respect backend visibility here if we want to force it
-           // enableHiding: beCol.visible !== false 
-         };
-       }
-       
-       // Handle columns that exist in backend but not locally (if any)
-       // For now, we only show columns we have local renderers for, or simple text columns
-       // If we want to support dynamic new columns without code changes, we'd add a generic renderer here.
-       return null; 
+       const baseCol = localCol || {
+         id: beCol.id,
+         accessorKey: beCol.id,
+         header: beCol.label || beCol.id,
+         // Default generic cell renderer for new columns
+         cell: ({ row }: any) => {
+           const val = row.getValue(beCol.id);
+           if (val === null || val === undefined) return '-';
+           if (typeof val === 'boolean') return val ? 'כן' : 'לא';
+           if (beCol.type === 'date') return new Date(val).toLocaleDateString('he-IL');
+           return String(val);
+         }
+       };
+
+       return {
+         ...baseCol,
+         header: beCol.label || baseCol.header,
+         meta: {
+           ...baseCol.meta,
+           relatedEntity: beCol.category, // Map category to relatedEntity for grouping
+           relatedEntityLabel: beCol.category // Use same label for now
+         }
+       };
     }).filter(Boolean) as typeof allLeadColumns;
 
     // Note: We might want to append local columns that aren't in backend config if we want to keep them available but hidden?
@@ -117,6 +126,8 @@ const Dashboard = () => {
         options: f.options, // Options from backend (for selects)
         operators: f.operators, // Operators from backend
         // Map to existing UI properties if needed
+        relatedEntity: f.category, // Map category to relatedEntity for grouping
+        relatedEntityLabel: f.category // Use same label
      }));
   }, [entityConfig]);
 

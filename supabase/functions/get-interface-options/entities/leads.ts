@@ -17,161 +17,252 @@ export const getLeadsConfig = async (supabase: SupabaseClient) => {
     tableName: 'v_leads_with_customer',
     defaultSort: { field: 'created_at', direction: 'desc' },
     columns: [
+      // Customers Entity
       {
         id: 'customer_name',
         label: 'שם מלא',
         type: 'text',
         sortable: true,
-        visible: true
+        visible: true,
+        category: 'לקוחות'
       },
       {
         id: 'customer_phone',
         label: 'טלפון',
         type: 'text',
         sortable: true,
-        visible: true
+        visible: true,
+        category: 'לקוחות'
+      },
+      {
+        id: 'customer_email',
+        label: 'אימייל',
+        type: 'text',
+        sortable: true,
+        visible: false,
+        category: 'לקוחות'
+      },
+
+      // Leads Entity
+      {
+        id: 'city',
+        label: 'עיר',
+        type: 'text',
+        sortable: true,
+        visible: false,
+        category: 'לידים'
+      },
+      {
+        id: 'age',
+        label: 'גיל',
+        type: 'number',
+        sortable: true,
+        visible: true,
+        category: 'לידים'
+      },
+      {
+        id: 'gender',
+        label: 'מין',
+        type: 'text',
+        sortable: true,
+        visible: false,
+        category: 'לידים'
       },
       {
         id: 'status_main',
         label: 'סטטוס',
         type: 'badge',
         sortable: true,
-        visible: true
+        visible: true,
+        category: 'לידים'
       },
       {
         id: 'status_sub',
         label: 'תת-סטטוס',
         type: 'text',
         sortable: true,
-        visible: false
+        visible: false,
+        category: 'לידים'
+      },
+      {
+        id: 'source',
+        label: 'מקור',
+        type: 'text',
+        sortable: true,
+        visible: true,
+        category: 'לידים'
       },
       {
         id: 'created_at',
         label: 'תאריך הצטרפות',
         type: 'date',
         sortable: true,
-        visible: true
-      },
-      {
-        id: 'source',
-        label: 'מקור',
-        type: 'text',
-        sortable: true,
-        visible: true
+        visible: true,
+        category: 'לידים'
       },
       {
         id: 'fitness_goal',
         label: 'מטרה',
         type: 'text',
         sortable: true,
-        visible: false
+        visible: false,
+        category: 'לידים'
       },
       {
         id: 'activity_level',
         label: 'רמת פעילות',
         type: 'text',
         sortable: true,
-        visible: false
+        visible: false,
+        category: 'לידים'
       },
        {
         id: 'preferred_time',
         label: 'זמן מועדף',
         type: 'text',
         sortable: true,
-        visible: false
+        visible: false,
+        category: 'לידים'
       },
-       {
-        id: 'age',
-        label: 'גיל',
+      {
+        id: 'height',
+        label: 'גובה',
         type: 'number',
         sortable: true,
-        visible: false
+        visible: false,
+        category: 'לידים'
+      },
+      {
+        id: 'weight',
+        label: 'משקל',
+        type: 'number',
+        sortable: true,
+        visible: false,
+        category: 'לידים'
       }
     ],
     filters: [
-      {
-        id: 'status_main',
-        label: 'סטטוס',
-        type: 'select',
-        operators: ['eq', 'in', 'neq'],
-        options: getOptions('statuses')
-      },
+      // Customers
       {
         id: 'customer_name',
         label: 'שם',
         type: 'text',
-        operators: ['ilike', 'eq']
+        operators: ['ilike', 'eq'],
+        category: 'לקוחות'
       },
       {
         id: 'customer_phone',
         label: 'טלפון',
         type: 'text',
-        operators: ['ilike', 'eq']
+        operators: ['ilike', 'eq'],
+        category: 'לקוחות'
       },
       {
-        id: 'created_at',
-        label: 'תאריך',
-        type: 'date_range',
-        operators: ['gte', 'lte']
+        id: 'customer_email',
+        label: 'אימייל',
+        type: 'text',
+        operators: ['ilike', 'eq'],
+        category: 'לקוחות'
+      },
+
+      // Leads
+      {
+        id: 'status_main',
+        label: 'סטטוס',
+        type: 'select',
+        operators: ['eq', 'in', 'neq'],
+        options: getOptions('statuses'),
+        category: 'לידים'
       },
       {
         id: 'source',
         label: 'מקור',
         type: 'select',
         operators: ['eq', 'in'],
-        options: getOptions('sources')
+        options: getOptions('sources'),
+        category: 'לידים'
       },
       {
-        id: 'fitness_goal',
-        label: 'מטרה',
-        type: 'select',
-        operators: ['eq', 'in'],
-        options: getOptions('fitness_goals')
-      },
-      {
-        id: 'activity_level',
-        label: 'רמת פעילות',
-        type: 'select',
-        operators: ['eq', 'in'],
-        options: getOptions('activity_levels')
-      },
-       {
-        id: 'preferred_time',
-        label: 'זמן מועדף',
-        type: 'select',
-        operators: ['eq', 'in'],
-        options: getOptions('preferred_times')
+        id: 'created_at',
+        label: 'תאריך הצטרפות',
+        type: 'date_range',
+        operators: ['gte', 'lte'],
+        category: 'לידים'
       },
       {
         id: 'age',
         label: 'גיל',
         type: 'number',
         operators: ['eq', 'gte', 'lte'],
-        // For age we might not want to list every single age as an option unless it's a small set
-        // but since get_lead_filter_options returns it, we can include it
-        options: getOptions('ages')
+        options: getOptions('ages'),
+        category: 'לידים'
+      },
+      {
+        id: 'fitness_goal',
+        label: 'מטרה',
+        type: 'select',
+        operators: ['eq', 'in'],
+        options: getOptions('fitness_goals'),
+        category: 'לידים'
+      },
+      {
+        id: 'activity_level',
+        label: 'רמת פעילות',
+        type: 'select',
+        operators: ['eq', 'in'],
+        options: getOptions('activity_levels'),
+        category: 'לידים'
+      },
+      {
+        id: 'preferred_time',
+        label: 'זמן מועדף',
+        type: 'select',
+        operators: ['eq', 'in'],
+        options: getOptions('preferred_times'),
+        category: 'לידים'
+      },
+      {
+        id: 'height',
+        label: 'גובה',
+        type: 'number',
+        operators: ['eq', 'gte', 'lte'],
+        options: getOptions('heights'),
+        category: 'לידים'
+      },
+      {
+        id: 'weight',
+        label: 'משקל',
+        type: 'number',
+        operators: ['eq', 'gte', 'lte'],
+        options: getOptions('weights'),
+        category: 'לידים'
       }
     ],
     grouping: [
       {
         id: 'status_main',
-        label: 'לפי סטטוס'
+        label: 'לפי סטטוס',
+        category: 'לידים'
       },
       {
         id: 'source',
-        label: 'לפי מקור'
+        label: 'לפי מקור',
+        category: 'לידים'
       },
       {
         id: 'fitness_goal',
-        label: 'לפי מטרה'
+        label: 'לפי מטרה',
+        category: 'לידים'
       },
       {
         id: 'activity_level',
-        label: 'לפי רמת פעילות'
+        label: 'לפי רמת פעילות',
+        category: 'לידים'
       },
       {
         id: 'preferred_time',
-        label: 'לפי זמן מועדף'
+        label: 'לפי זמן מועדף',
+        category: 'לידים'
       }
     ]
   }
