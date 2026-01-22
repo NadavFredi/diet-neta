@@ -69,7 +69,7 @@ interface NavItem {
   path: string;
 }
 
-interface SidebarItemProps {
+export interface SidebarItemProps {
   item: NavItem;
   active: boolean;
   activeViewId: string | null;
@@ -88,6 +88,7 @@ interface SidebarItemProps {
     listeners: any;
   };
   isSortable?: boolean;
+  searchQuery?: string;
 }
 
 export const SidebarItem: React.FC<SidebarItemProps> = ({
@@ -106,6 +107,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   level = 0, // Default to parent level
   dragHandleProps,
   isSortable = false,
+  searchQuery = '',
 }) => {
   const Icon = customIcon || item.icon;
   const [lastClickTime, setLastClickTime] = useState(0);
@@ -712,6 +714,14 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       views = [...savedViews];
     }
 
+    // Filter by search query if provided
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      views = views.filter((view) => 
+        view.view_name.toLowerCase().includes(query)
+      );
+    }
+
     // Sort by name if sortOrder is set, otherwise by display_order
     if (sortOrder === 'asc' || sortOrder === 'desc') {
       return views.sort((a, b) => {
@@ -730,25 +740,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       const orderB = b.display_order ?? 999;
       return orderA - orderB;
     });
-  }, [savedViews, defaultView, supportsViews, sortOrder]);
-
-  // Sort folders
-  const sortedFolders = useMemo(() => {
-    if (sortOrder === 'asc' || sortOrder === 'desc') {
-      const sorted = [...folders].sort((a, b) => {
-        const comparison = a.name.localeCompare(b.name, 'he');
-        return sortOrder === 'asc' ? comparison : -comparison;
-      });
-      return sorted;
-    }
-
-    // Default: sort by display_order
-    return [...folders].sort((a, b) => {
-      const orderA = a.display_order ?? 999;
-      const orderB = b.display_order ?? 999;
-      return orderA - orderB;
-    });
-  }, [folders, sortOrder]);
+  }, [savedViews, defaultView, supportsViews, sortOrder, searchQuery]);
 
   // Group views by folder - default view is always separate and first
   const viewsByFolder = useMemo(() => {
@@ -774,6 +766,44 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
 
     return { grouped, rootViews, defaultView: defaultViewItem };
   }, [allViews]);
+
+  // Sort folders and filter by search query
+  const sortedFolders = useMemo(() => {
+    let filteredFolders = [...folders];
+
+    // Filter folders that contain matching views if search query is provided
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      filteredFolders = folders.filter((folder) => {
+        const folderPages = viewsByFolder.grouped[folder.id] || [];
+        // Include folder if its name matches or if it has matching views
+        return folder.name.toLowerCase().includes(query) ||
+          folderPages.some(view => view.view_name.toLowerCase().includes(query));
+      });
+    }
+
+    if (sortOrder === 'asc' || sortOrder === 'desc') {
+      const sorted = filteredFolders.sort((a, b) => {
+        const comparison = a.name.localeCompare(b.name, 'he');
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+      return sorted;
+    }
+
+    // Default: sort by display_order
+    return filteredFolders.sort((a, b) => {
+      const orderA = a.display_order ?? 999;
+      const orderB = b.display_order ?? 999;
+      return orderA - orderB;
+    });
+  }, [folders, sortOrder, searchQuery, viewsByFolder.grouped]);
+
+  // Auto-expand section if search query matches views
+  useEffect(() => {
+    if (searchQuery.trim() && supportsViews && allViews.length > 0 && !isExpanded) {
+      onToggle();
+    }
+  }, [searchQuery, supportsViews, allViews.length, isExpanded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Render a single page/view
   const renderPage = (view: SavedView, isInPopover = false, isInFolder = false) => {
@@ -990,8 +1020,20 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
 
   // Render a folder with its pages
   const renderFolder = (folder: InterfaceFolder) => {
-    const folderPages = viewsByFolder.grouped[folder.id] || [];
-    const isExpanded = expandedFolders.has(folder.id);
+    let folderPages = viewsByFolder.grouped[folder.id] || [];
+    
+    // Filter folder pages by search query if provided
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      folderPages = folderPages.filter((view) => 
+        view.view_name.toLowerCase().includes(query)
+      );
+    }
+
+    // Auto-expand folder if search query matches its pages
+    const shouldAutoExpand = searchQuery.trim() && folderPages.length > 0;
+    const isExpanded = shouldAutoExpand || expandedFolders.has(folder.id);
+    
     // Check if any page inside this folder is active
     const hasActivePage = folderPages.some(view =>
       activeViewId === view.id ||

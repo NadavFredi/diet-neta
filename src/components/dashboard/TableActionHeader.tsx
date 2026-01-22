@@ -138,6 +138,7 @@ export const TableActionHeader = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGroupByOpen, setIsGroupByOpen] = useState(false);
   const [editingFilter, setEditingFilter] = useState<ActiveFilter | null>(null);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAppSelector((state) => state.auth);
@@ -358,6 +359,13 @@ export const TableActionHeader = ({
     return hasFilters || hasAdvancedFilterGroup || hasGrouping;
   }, [activeFilters, filterGroup, groupByKeys]);
 
+  // Reset filtersExpanded when navigating to a page without active filters
+  useEffect(() => {
+    if (!hasActiveFilters && filtersExpanded) {
+      setFiltersExpanded(false);
+    }
+  }, [hasActiveFilters, filtersExpanded]);
+
   // Check if filters are dirty (different from saved/default state)
   const filtersDirty = useMemo(() => {
     const targetView = viewId ? activeView : defaultView;
@@ -498,6 +506,8 @@ export const TableActionHeader = ({
       singularLabel={singularLabel}
       pluralLabel={pluralLabel}
       hasActiveFilters={hasActiveFilters}
+      filtersExpanded={filtersExpanded}
+      onFiltersExpandedChange={setFiltersExpanded}
       actions={
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap" dir="rtl">
           {/* Search Input - Rightmost (first in RTL flex) */}
@@ -572,6 +582,9 @@ export const TableActionHeader = ({
               onFilterGroupChange={handleFilterGroupChange}
               editFilter={editingFilter}
               onEditApplied={() => setEditingFilter(null)}
+              hasActiveFilters={hasActiveFilters}
+              filtersExpanded={filtersExpanded}
+              onToggleFiltersExpanded={() => setFiltersExpanded(!filtersExpanded)}
             />
           )}
 

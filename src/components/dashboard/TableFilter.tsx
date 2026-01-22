@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Filter, X, Check, Calendar, ChevronDown } from 'lucide-react';
+import { Filter, X, Check, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -73,6 +73,9 @@ interface TableFilterProps {
   editFilter?: ActiveFilter | null;
   onEditApplied?: () => void;
   className?: string;
+  hasActiveFilters?: boolean; // Whether filters are currently applied
+  filtersExpanded?: boolean; // Whether filters section is expanded
+  onToggleFiltersExpanded?: () => void; // Callback to toggle filters expansion
 }
 
 export const OPERATOR_LABELS: Record<FilterOperator, string> = {
@@ -111,6 +114,9 @@ export const TableFilter: React.FC<TableFilterProps> = ({
   editFilter,
   onEditApplied,
   className,
+  hasActiveFilters = false,
+  filtersExpanded = false,
+  onToggleFiltersExpanded,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
@@ -278,28 +284,53 @@ export const TableFilter: React.FC<TableFilterProps> = ({
     ? fields
     : fields.filter((field) => !activeFilters.some((f) => f.fieldId === field.id));
 
+  const hasFilters = activeFilters.length > 0 || isAdvancedGroup;
+
   return (
     <div className={cn('flex items-center gap-2', className)} dir="rtl">
-      {/* Filter Button */}
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild>
+      {/* Split Filter Button */}
+      <div className="flex items-center" dir="rtl">
+        {/* Chevron Toggle Button (right part in RTL) - only show if hasActiveFilters */}
+        {hasActiveFilters && onToggleFiltersExpanded && (
           <Button
             variant="outline"
             size="sm"
+            onClick={onToggleFiltersExpanded}
             className={cn(
-              "gap-2 h-11",
-              activeFilters.length > 0 && "bg-slate-50 border-slate-300"
+              "h-11 px-2 rounded-l-none border-l-0",
+              hasFilters && "border-indigo-400"
             )}
+            aria-label={filtersExpanded ? 'סגור מסננים' : 'פתח מסננים'}
           >
-            <Filter className="h-4 w-4" />
-            <span>{buttonLabel || 'סינון'}</span>
-            {isAdvancedGroup && (
-              <Badge variant="secondary" className="text-[11px] px-2 py-0.5 bg-indigo-100 text-indigo-700">
-                מתקדם
-              </Badge>
+            {filtersExpanded ? (
+              <ChevronUp className="h-4 w-4 text-gray-600" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-gray-600" />
             )}
           </Button>
-        </PopoverTrigger>
+        )}
+        
+        {/* Filter Button (left part in RTL) */}
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "gap-2 h-11",
+                hasActiveFilters && onToggleFiltersExpanded ? "rounded-r-none" : "",
+                hasFilters && "border-indigo-400 bg-indigo-50/30"
+              )}
+            >
+              <Filter className="h-4 w-4" />
+              <span>{buttonLabel || 'סינון'}</span>
+              {isAdvancedGroup && (
+                <Badge variant="secondary" className="text-[11px] px-2 py-0.5 bg-indigo-100 text-indigo-700">
+                  מתקדם
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
         <PopoverContent 
           className="w-80 p-0 shadow-xl" 
           align="end" 
@@ -617,6 +648,7 @@ export const TableFilter: React.FC<TableFilterProps> = ({
           )}
         </PopoverContent>
       </Popover>
+      </div>
       {filterGroup && onFilterGroupChange && (
         <FilterGroupDialog
           open={isGroupDialogOpen}

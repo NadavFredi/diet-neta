@@ -32,6 +32,8 @@ interface PageHeaderProps {
   singularLabel?: string; // e.g., "ליד"
   pluralLabel?: string; // e.g., "לידים"
   hasActiveFilters?: boolean; // Whether filters are currently applied
+  filtersExpanded?: boolean; // Controlled state for filters expansion
+  onFiltersExpandedChange?: (expanded: boolean) => void; // Callback for filters expansion toggle
 }
 
 export const PageHeader = ({
@@ -50,6 +52,8 @@ export const PageHeader = ({
   singularLabel,
   pluralLabel,
   hasActiveFilters = false,
+  filtersExpanded: controlledFiltersExpanded,
+  onFiltersExpandedChange,
 }: PageHeaderProps) => {
   // Sync preferences on mount
   useInterfaceIconPreferences();
@@ -61,14 +65,20 @@ export const PageHeader = ({
 
   const [editIconDialogOpen, setEditIconDialogOpen] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
+
+  // Use controlled state if provided, otherwise use internal state
+  const [internalFiltersExpanded, setInternalFiltersExpanded] = useState(false);
+  const filtersExpanded = controlledFiltersExpanded !== undefined
+    ? controlledFiltersExpanded
+    : internalFiltersExpanded;
+  const setFiltersExpanded = onFiltersExpandedChange || setInternalFiltersExpanded;
 
   // Reset filtersExpanded when navigating to a page without active filters
   useEffect(() => {
-    if (!hasActiveFilters) {
+    if (!hasActiveFilters && filtersExpanded) {
       setFiltersExpanded(false);
     }
-  }, [hasActiveFilters]);
+  }, [hasActiveFilters, filtersExpanded, setFiltersExpanded]);
 
   // Determine which icon to use
   let Icon: LucideIcon;
@@ -163,21 +173,6 @@ export const PageHeader = ({
                 <p className="text-sm text-gray-500 font-normal ml-3">
                   {subtitle}
                 </p>
-              )}
-              {/* Chevron icon for expanding/collapsing filters - only show if filters are applied */}
-              {filters && hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={() => setFiltersExpanded(!filtersExpanded)}
-                  className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-md hover:bg-gray-100 transition-colors ml-2"
-                  aria-label={filtersExpanded ? 'סגור מסננים' : 'פתח מסננים'}
-                >
-                  {filtersExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-gray-600" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-gray-600" />
-                  )}
-                </button>
               )}
             </div>
 

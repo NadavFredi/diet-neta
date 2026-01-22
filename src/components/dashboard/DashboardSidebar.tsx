@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt, BarChart3, Target } from 'lucide-react';
+import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt, BarChart3, Target, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection, setSectionExpanded } from '@/store/slices/sidebarSlice';
 import { SidebarItem } from './SidebarItem';
@@ -177,6 +178,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     label: string;
     currentIconName?: string | null;
   } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -224,6 +226,26 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
       return rest as NavItem;
     });
   }, [interfaceOrder]);
+
+  // Filter navigation items based on search query
+  // Show items that match the label OR show all items (views will be filtered within each item)
+  // This allows users to find views even if they don't remember the item name
+  const filteredNavigationItems = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return sortedNavigationItems;
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    // Filter items by label - views will be filtered within each item
+    // This way users can find items by name, and views will be filtered too
+    const matchingItems = sortedNavigationItems.filter((item) => {
+      return item.label.toLowerCase().includes(query);
+    });
+
+    // If we have matching items, show only those. Otherwise show all (for view searching)
+    // This balances between focused results and discoverability
+    return matchingItems.length > 0 ? matchingItems : sortedNavigationItems;
+  }, [sortedNavigationItems, searchQuery]);
 
   // Handle drag end for interfaces
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -412,6 +434,35 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     <>
       {/* Navigation Content - This will be rendered inside the header */}
       <div className="flex-1 flex flex-col min-h-0">
+        {/* Search Filter */}
+        {!isCollapsed && (
+          <div className="px-2 pb-3 pt-4">
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/60" />
+              <Input
+                type="text"
+                placeholder="חפש אובייקטים ותצוגות..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={cn(
+                  "w-full pr-9 pl-9 h-9 text-sm",
+                  "bg-white/10 border-white/20 text-white placeholder:text-white/60",
+                  "focus-visible:ring-white/30 focus-visible:border-white/40"
+                )}
+                dir="rtl"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-white/10 transition-colors"
+                  aria-label="נקה חיפוש"
+                >
+                  <X className="h-4 w-4 text-white/60 hover:text-white" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <nav
           className="flex-1 py-4 overflow-y-auto text-base transition-all duration-300"
           dir="rtl"
@@ -445,31 +496,38 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={sortedNavigationItems.map((item) => item.id)}
+              items={filteredNavigationItems.map((item) => item.id)}
               strategy={verticalListSortingStrategy}
             >
               <ul className={cn(
                 'space-y-1 w-full px-2',
                 isCollapsed && 'px-1'
               )} dir="rtl">
-                {sortedNavigationItems.map((item) => (
-                  <SortableSidebarItem
-                    key={item.id}
-                    item={item}
-                    active={isActive(item.path)}
-                    activeViewId={activeViewId}
-                    isExpanded={effectiveExpandedSections[item.resourceKey] ?? false}
-                    onToggle={() => handleToggleSection(item.resourceKey)}
-                    onResourceClick={() => handleResourceClick(item)}
-                    onViewClick={handleViewClick}
-                    onSaveViewClick={onSaveViewClick}
-                    onEditViewClick={onEditViewClick}
-                    onEditIconClick={handleEditIconClick}
-                    customIcon={getIconForItem(item)}
-                    isCollapsed={isCollapsed}
-                    isSortable={true}
-                  />
-                ))}
+                {filteredNavigationItems.length > 0 ? (
+                  filteredNavigationItems.map((item) => (
+                    <SortableSidebarItem
+                      key={item.id}
+                      item={item}
+                      active={isActive(item.path)}
+                      activeViewId={activeViewId}
+                      isExpanded={effectiveExpandedSections[item.resourceKey] ?? false}
+                      onToggle={() => handleToggleSection(item.resourceKey)}
+                      onResourceClick={() => handleResourceClick(item)}
+                      onViewClick={handleViewClick}
+                      onSaveViewClick={onSaveViewClick}
+                      onEditViewClick={onEditViewClick}
+                      onEditIconClick={handleEditIconClick}
+                      customIcon={getIconForItem(item)}
+                      isCollapsed={isCollapsed}
+                      isSortable={true}
+                      searchQuery={searchQuery}
+                    />
+                  ))
+                ) : (
+                  <li className="px-3 py-4 text-center text-white/60 text-sm">
+                    לא נמצאו תוצאות
+                  </li>
+                )}
               </ul>
             </SortableContext>
           </DndContext>
