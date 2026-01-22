@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { LeadsDataTable } from '@/components/dashboard/LeadsDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
@@ -14,30 +13,11 @@ import { useTableFilters, getLeadFilterFields, CUSTOMER_FILTER_FIELDS, TEMPLATE_
 import { fetchLeadIdsByFilter } from '@/services/leadService';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActiveFilter } from '@/components/dashboard/TableFilter';
-import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectGroupByKeys } from '@/store/slices/tableStateSlice';
 import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
-
-// Custom hook to detect if screen is desktop (lg breakpoint = 1024px)
-const useIsDesktop = () => {
-  const [isDesktop, setIsDesktop] = useState(
-    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
-  );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 1024);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return isDesktop;
-};
 import { setSearchQuery } from '@/store/slices/dashboardSlice';
 
 const Dashboard = () => {
@@ -46,8 +26,6 @@ const Dashboard = () => {
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
   // Removed duplicate useDefaultView and useSavedView - they're already called in useDashboardLogic
-  const sidebarWidth = useSidebarWidth();
-  const isDesktop = useIsDesktop();
   const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
@@ -63,6 +41,12 @@ const Dashboard = () => {
       return;
     }
   }, [authUser, isAuthenticated, authIsLoading]);
+
+  const handleSaveViewClick = useCallback((resourceKey: string) => {
+    setSaveViewResourceKey(resourceKey);
+    setIsSaveViewModalOpen(true);
+    hasShownSaveSuggestion.current = false; // Reset when user opens save modal
+  }, []);
 
   // Auto-navigate to default view is handled in useDashboardLogic
 
@@ -191,13 +175,6 @@ const Dashboard = () => {
   const lastAppliedViewIdRef = useRef<string | null>(null);
   const lastAppliedDefaultIdRef = useRef<string | null>(null);
 
-  // Memoized handler to prevent unnecessary re-renders
-  const handleSaveViewClick = useCallback((resourceKey: string) => {
-    setSaveViewResourceKey(resourceKey);
-    setIsSaveViewModalOpen(true);
-    hasShownSaveSuggestion.current = false; // Reset when user opens save modal
-  }, []);
-
   // Get default view to load filters from it
   const { defaultView, isLoading: isLoadingDefaultView } = useDefaultView('leads');
 
@@ -314,99 +291,84 @@ const Dashboard = () => {
 
   return (
     <>
-      <DashboardHeader
+      <TableManagementLayout
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} />}
-      />
+        onSaveViewClick={handleSaveViewClick}
+      >
+        {/* Header Section - Control Deck */}
+        <TableActionHeader
+          resourceKey="leads"
+          title={savedView?.view_name || 'ניהול לידים'}
+          dataCount={totalLeads || 0}
+          singularLabel="ליד"
+          pluralLabel="לידים"
+          filterFields={leadFilterFields}
+          searchPlaceholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
+          addButtonLabel="הוסף ליד"
+          onAddClick={handleAddLead}
+          enableColumnVisibility={true}
+          enableFilters={true}
+          enableGroupBy={true}
+          enableSearch={true}
+          columns={allLeadColumns}
+          legacySearchQuery={searchQuery}
+          legacyOnSearchChange={handleSearchChangeWithSource}
+          legacyActiveFilters={activeFilters}
+          legacyFilterGroup={filterGroup}
+          legacyOnFilterAdd={addFilter}
+          legacyOnFilterUpdate={updateFilter}
+          legacyOnFilterRemove={removeFilter}
+          legacyOnFilterClear={clearFilters}
+          legacyOnFilterGroupChange={setFilterGroup}
+        />
 
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
-        {/* Main content */}
-        <main
-          className="bg-gray-50 overflow-y-auto transition-all duration-300"
-          style={{
-            marginRight: isDesktop ? `${sidebarWidth.width}px` : 0,
-            minHeight: 'calc(100vh - 60px)',
-          }}
-        >
-          <div className='pr-6'>
-            {/* Unified Workspace Panel - Master Container */}
-            <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
-              {/* Header Section - Control Deck */}
-              <TableActionHeader
-                resourceKey="leads"
-                title={savedView?.view_name || 'ניהול לידים'}
-                dataCount={totalLeads || 0}
-                singularLabel="ליד"
-                pluralLabel="לידים"
-                filterFields={leadFilterFields}
-                searchPlaceholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
-                addButtonLabel="הוסף ליד"
-                onAddClick={handleAddLead}
-                enableColumnVisibility={true}
-                enableFilters={true}
-                enableGroupBy={true}
-                enableSearch={true}
-                columns={allLeadColumns}
-                legacySearchQuery={searchQuery}
-                legacyOnSearchChange={handleSearchChangeWithSource}
-                legacyActiveFilters={activeFilters}
-                legacyFilterGroup={filterGroup}
-                legacyOnFilterAdd={addFilter}
-                legacyOnFilterUpdate={updateFilter}
-                legacyOnFilterRemove={removeFilter}
-                legacyOnFilterClear={clearFilters}
-                legacyOnFilterGroupChange={setFilterGroup}
-              />
-
-              {/* Table Section - Data Area */}
-              <div className="bg-white">
-                {isLoading ? (
-                  <div className="p-8 text-center text-gray-500">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <p>טוען נתונים...</p>
-                  </div>
-                ) : filteredLeads && Array.isArray(filteredLeads) && filteredLeads.length > 0 ? (
-                  <>
-                    <LeadsDataTable
-                      leads={filteredLeads}
-                      enableColumnVisibility={false}
-                      onSortChange={handleSortChange}
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      totalCount={totalLeads}
-                      onBulkDelete={handleBulkDelete}
-                      groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                      groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                    />
-                    {/* Pagination Footer */}
-                    {totalLeads > 0 && (
-                      <Pagination
-                        currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                        pageSize={isGroupingActive ? groupPageSize : pageSize}
-                        totalItems={isGroupingActive ? totalGroups : totalLeads}
-                        onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                        onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                        isLoading={isLoading}
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
-                    <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-                    {!isLoading && totalLeads === 0 && (
-                      <p className="text-xs text-gray-400 mt-2">
-                        מספר לידים: 0
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+        {/* Table Section - Data Area */}
+        <div className="bg-white">
+          {isLoading ? (
+            <div className="p-8 text-center text-gray-500">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+              <p>טוען נתונים...</p>
             </div>
-          </div>
-        </main>
-      </div>
+          ) : filteredLeads && Array.isArray(filteredLeads) && filteredLeads.length > 0 ? (
+            <>
+              <LeadsDataTable
+                leads={filteredLeads}
+                enableColumnVisibility={false}
+                onSortChange={handleSortChange}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                totalCount={totalLeads}
+                onBulkDelete={handleBulkDelete}
+                groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
+                groupPageSize={isGroupingActive ? groupPageSize : undefined}
+              />
+              {/* Pagination Footer */}
+              {totalLeads > 0 && (
+                <Pagination
+                  currentPage={isGroupingActive ? groupCurrentPage : currentPage}
+                  pageSize={isGroupingActive ? groupPageSize : pageSize}
+                  totalItems={isGroupingActive ? totalGroups : totalLeads}
+                  onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
+                  onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
+                  isLoading={isLoading}
+                />
+              )}
+            </>
+          ) : (
+            <div className="p-8 text-center text-gray-500">
+              <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
+              <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+              {!isLoading && totalLeads === 0 && (
+                <p className="text-xs text-gray-400 mt-2">
+                  מספר לידים: 0
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+      </TableManagementLayout>
 
       {/* Add Lead Dialog */}
       <AddLeadDialog
@@ -422,7 +384,6 @@ const Dashboard = () => {
         resourceKey={saveViewResourceKey}
         filterConfig={getCurrentFilterConfig(activeFilters)}
       />
-
     </>
   );
 };

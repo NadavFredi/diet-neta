@@ -60,7 +60,7 @@ const PaymentsManagement = () => {
     filterGroup,
     setFilterGroup,
   } = usePaymentsManagement();
-  
+
   // Generate filter fields with all renderable columns
   const paymentFilterFields = useMemo(() => {
     return getPaymentFilterFields(filteredPayments || [], paymentColumns);
@@ -69,7 +69,7 @@ const PaymentsManagement = () => {
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'payments'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'payments'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
-  
+
   // Group pagination state (separate from record pagination)
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize] = useState(50);
@@ -89,26 +89,26 @@ const PaymentsManagement = () => {
     if (!isGroupingActive || !filteredPayments || filteredPayments.length === 0) {
       return 0;
     }
-    
+
     // Group the data to count groups
     const groupedData = groupDataByKeys(filteredPayments, groupByKeys, { level1: null, level2: null });
     return getTotalGroupsCount(groupedData);
   }, [isGroupingActive, filteredPayments, groupByKeys]);
-  
+
   // Reset group pagination when grouping changes
   useEffect(() => {
     if (isGroupingActive) {
       setGroupCurrentPage(1);
     }
   }, [isGroupingActive, groupByKeys]);
-  
+
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
   }, []);
 
   // Determine the title to show
-  const pageTitle = viewId && savedView?.view_name 
-    ? savedView.view_name 
+  const pageTitle = viewId && savedView?.view_name
+    ? savedView.view_name
     : 'כל התשלומים';
 
   return (
@@ -176,8 +176,8 @@ const PaymentsManagement = () => {
                   </div>
                 ) : filteredPayments && Array.isArray(filteredPayments) && filteredPayments.length > 0 ? (
                   <>
-                    <PaymentsDataTable 
-                      payments={filteredPayments} 
+                    <PaymentsDataTable
+                      payments={filteredPayments}
                       enableColumnVisibility={false}
                       onSortChange={handleSortChange}
                       sortBy={sortBy}
