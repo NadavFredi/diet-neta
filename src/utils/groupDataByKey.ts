@@ -90,12 +90,12 @@ export function getAllGroupKeys<T extends Record<string, any>>(
       }
     });
   } else if (groupByKeys[0]) {
-    // Single-level grouping (level 1 only) - use multi-level structure but only level 1
-    // The DataTable uses multi-level structure even when only level 1 is set
-    const groupedData = groupDataByKeys(data, [groupByKeys[0], null]);
-    groupedData.forEach((level1Group) => {
-      const level1Key = `level1:${level1Group.level1Key}`;
-      groupKeys.push(level1Key);
+    // Single-level grouping (level 1 only)
+    // The DataTable uses "group:" prefix for single-level grouping
+    const groupedData = groupDataByKey(data, groupByKeys[0]);
+    groupedData.forEach((group) => {
+      const groupKey = `group:${group.groupKey}`;
+      groupKeys.push(groupKey);
     });
   }
 
