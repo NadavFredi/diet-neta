@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -65,59 +64,55 @@ export const SupplementTemplateForm = ({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0" dir="rtl">
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 bg-slate-50/50 min-h-0">
-        <div className="grid grid-cols-1 gap-4 mb-4">
-          <Card className="bg-white border-0 shadow-sm rounded-xl">
-            <CardContent className="px-4 py-6 space-y-4">
-              <div className="space-y-1">
-                <Label className="text-xs text-slate-500">שם התוסף</Label>
-                <Input
-                  value={supplementName}
-                  onChange={(e) => setSupplementName(e.target.value)}
-                  placeholder="שם התוסף"
-                  className="bg-white border-slate-200"
-                  dir="rtl"
-                  required
-                />
-              </div>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-1 min-h-0">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-slate-700">שם התוסף</Label>
+            <Input
+              value={supplementName}
+              onChange={(e) => setSupplementName(e.target.value)}
+              placeholder="שם התוסף"
+              className="bg-white"
+              dir="rtl"
+              required
+            />
+          </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                <div className="space-y-1">
-                  <Label className="text-xs text-slate-500 flex items-center gap-1">
-                    <LinkIcon className="h-3 w-3" />
-                    קישור 1
-                  </Label>
-                  <Input
-                    value={link1}
-                    onChange={(e) => setLink1(e.target.value)}
-                    placeholder="https://..."
-                    className="bg-white border-slate-200 text-left"
-                    dir="ltr"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-slate-500 flex items-center gap-1">
-                    <LinkIcon className="h-3 w-3" />
-                    קישור 2
-                  </Label>
-                  <Input
-                    value={link2}
-                    onChange={(e) => setLink2(e.target.value)}
-                    placeholder="https://..."
-                    className="bg-white border-slate-200 text-left"
-                    dir="ltr"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                <LinkIcon className="h-3.5 w-3.5 text-slate-400" />
+                קישור 1
+              </Label>
+              <Input
+                value={link1}
+                onChange={(e) => setLink1(e.target.value)}
+                placeholder="https://..."
+                className="bg-white text-left"
+                dir="ltr"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                <LinkIcon className="h-3.5 w-3.5 text-slate-400" />
+                קישור 2
+              </Label>
+              <Input
+                value={link2}
+                onChange={(e) => setLink2(e.target.value)}
+                placeholder="https://..."
+                className="bg-white text-left"
+                dir="ltr"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="border-t bg-white px-4 py-3 flex gap-3 flex-shrink-0" dir="rtl">
+      <div className="mt-6 flex gap-3 flex-shrink-0" dir="rtl">
         <Button
           type="submit"
-          className="h-9 text-sm bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-3xl font-semibold px-6"
+          className="h-10 text-sm bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg font-medium px-8 min-w-[100px]"
           disabled={isSubmitting || !supplementName.trim()}
         >
           {isSubmitting ? 'שומר...' : 'שמור תוסף'}
@@ -126,7 +121,7 @@ export const SupplementTemplateForm = ({
           type="button"
           variant="outline"
           onClick={onCancel}
-          className="h-9 text-sm rounded-3xl font-semibold px-6"
+          className="h-10 text-sm rounded-lg font-medium px-6 text-slate-600 hover:text-slate-800"
         >
           ביטול
         </Button>
