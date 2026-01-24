@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, Eye, FileText, Send, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
+import { DayWorkoutDialog } from './dialogs/DayWorkoutDialog';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
 import { AddWorkoutPlanDialog } from './dialogs/AddWorkoutPlanDialog';
 import { AddNutritionPlanDialog } from './dialogs/AddNutritionPlanDialog';
@@ -55,6 +56,7 @@ interface WorkoutHistoryItem {
   budget_id?: string;
   created_at?: string;
   is_active?: boolean;
+  weeklyWorkout?: any;
 }
 
 interface StepsHistoryItem {
@@ -154,6 +156,7 @@ export const PlansCard = ({
   const [editingWorkoutPlan, setEditingWorkoutPlan] = useState<any>(null);
   const [editingNutritionPlan, setEditingNutritionPlan] = useState<any>(null);
   const [editingStepsPlan, setEditingStepsPlan] = useState<any>(null);
+  const [selectedDayWorkout, setSelectedDayWorkout] = useState<{ dayName: string, exercises: any[] } | null>(null);
 
   // Modal states for details
   const [selectedWorkoutPlan, setSelectedWorkoutPlan] = useState<WorkoutHistoryItem | null>(null);
@@ -254,6 +257,7 @@ export const PlansCard = ({
           steps_goal: originalBudget.steps_goal,
           steps_instructions: originalBudget.steps_instructions || null,
           workout_template_id: originalBudget.workout_template_id,
+          supplement_template_id: originalBudget.supplement_template_id,
           supplements: originalBudget.supplements || [],
           eating_order: originalBudget.eating_order || null,
           eating_rules: originalBudget.eating_rules || null,
@@ -289,6 +293,7 @@ export const PlansCard = ({
         steps_goal: data.steps_goal,
         steps_instructions: data.steps_instructions ?? null,
         workout_template_id: data.workout_template_id ?? null,
+        supplement_template_id: data.supplement_template_id ?? null,
         supplements: data.supplements || [],
         eating_order: data.eating_order ?? null,
         eating_rules: data.eating_rules ?? null,
@@ -459,7 +464,7 @@ export const PlansCard = ({
           {/* Nutrition Plan Card */}
           <div 
             className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeNutrition ? 'bg-orange-50/30 border-orange-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
-            onClick={() => activeNutrition ? setViewingBudgetId(effectiveBudgetId) : onAddDietPlan()}
+            onClick={() => activeNutrition ? handleEditNutrition(activeNutrition) : onAddDietPlan()}
           >
              <div className="flex items-center gap-2 mb-2">
                 <div className={`p-1.5 rounded-md ${activeNutrition ? 'bg-orange-100 text-orange-600' : 'bg-gray-200 text-gray-500'}`}>
@@ -497,7 +502,7 @@ export const PlansCard = ({
           {/* Workout Plan Card */}
           <div 
             className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeWorkout ? 'bg-blue-50/30 border-blue-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
-             onClick={() => activeWorkout ? setViewingBudgetId(effectiveBudgetId) : onAddWorkoutPlan()}
+             onClick={() => activeWorkout ? handleEditWorkout(activeWorkout) : onAddWorkoutPlan()}
           >
              <div className="flex items-center gap-2 mb-2">
                 <div className={`p-1.5 rounded-md ${activeWorkout ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
@@ -508,19 +513,71 @@ export const PlansCard = ({
              {activeWorkout ? (
                <div className="space-y-2">
                  <p className="text-xs text-gray-600 font-medium truncate">{activeWorkout.description || activeWorkout.name || 'ללא תיאור'}</p>
-                 <div className="flex flex-col gap-1">
-                   <div className="flex justify-between items-center bg-white rounded-md p-1.5 border border-blue-100">
-                     <span className="text-[10px] text-gray-500">פיצול</span>
-                     <span className="text-xs font-bold text-gray-700">
-                      {activeWorkout.split ? 
-                        `${activeWorkout.split.strength || 0}/${activeWorkout.split.cardio || 0}/${activeWorkout.split.intervals || 0}` : 
-                        'ללא פיצול'}
-                     </span>
-                   </div>
-                   <div className="flex justify-between items-center bg-white rounded-md p-1.5 border border-blue-100">
-                     <span className="text-[10px] text-gray-500">תוקף</span>
-                     <span className="text-xs font-bold text-gray-700">{activeWorkout.validUntil ? formatDate(activeWorkout.validUntil) : '-'}</span>
-                   </div>
+                 
+                 {/* Weekly Overview */}
+                 <div className="flex justify-between items-center gap-1 my-2">
+                   {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((dayKey) => {
+                     const dayLabels: Record<string, string> = {
+                        sunday: 'א', monday: 'ב', tuesday: 'ג', wednesday: 'ד', thursday: 'ה', friday: 'ו', saturday: 'ש'
+                     };
+                     const dayData = activeWorkout.weeklyWorkout?.days?.[dayKey];
+                     const isActive = dayData?.isActive && dayData?.exercises?.length > 0;
+                     const isToday = new Date().getDay() === ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(dayKey);
+                     
+                     return (
+                       <div 
+                         key={dayKey} 
+                         className="flex flex-col items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (dayData?.exercises?.length > 0) {
+                             setSelectedDayWorkout({
+                               dayName: dayLabels[dayKey],
+                               exercises: dayData.exercises
+                             });
+                           } else {
+                             toast({
+                               description: `אין אימון ליום ${dayLabels[dayKey]}`,
+                               duration: 2000,
+                             });
+                           }
+                         }}
+                       >
+                         <span className={`text-[9px] ${isToday ? 'font-bold text-blue-700' : 'text-gray-400'}`}>{dayLabels[dayKey]}</span>
+                         <div className={`w-2 h-2 rounded-full ${isActive ? (isToday ? 'bg-blue-600' : 'bg-blue-300') : 'bg-gray-200'}`} />
+                       </div>
+                     );
+                   })}
+                 </div>
+
+                 {/* Today's Workout Summary */}
+                 <div className="bg-white rounded-md p-1.5 border border-blue-100">
+                   {(() => {
+                     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                     const todayKey = days[new Date().getDay()];
+                     const todayData = activeWorkout.weeklyWorkout?.days?.[todayKey];
+                     const hasWorkout = todayData?.isActive && todayData?.exercises?.length > 0;
+                     
+                     if (hasWorkout) {
+                       const exerciseCount = todayData.exercises.length;
+                       const firstExercise = todayData.exercises[0]?.name;
+                       return (
+                         <div className="flex justify-between items-center">
+                           <span className="text-[10px] text-gray-500">היום:</span>
+                           <span className="text-xs font-bold text-gray-700 truncate max-w-[100px]">
+                             {firstExercise ? `${firstExercise}${exerciseCount > 1 ? ` +${exerciseCount - 1}` : ''}` : 'אימון'}
+                           </span>
+                         </div>
+                       );
+                     } else {
+                       return (
+                         <div className="flex justify-between items-center">
+                           <span className="text-[10px] text-gray-500">היום:</span>
+                           <span className="text-xs font-bold text-gray-400">יום מנוחה</span>
+                         </div>
+                       );
+                     }
+                   })()}
                  </div>
                </div>
              ) : (
@@ -531,7 +588,7 @@ export const PlansCard = ({
           {/* Steps Plan Card */}
           <div 
             className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeSteps ? 'bg-cyan-50/30 border-cyan-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
-            onClick={() => activeSteps ? setViewingBudgetId(effectiveBudgetId) : null}
+            onClick={() => activeSteps ? handleEditSteps(activeSteps) : null}
           >
              <div className="flex items-center gap-2 mb-2">
                 <div className={`p-1.5 rounded-md ${activeSteps ? 'bg-cyan-100 text-cyan-600' : 'bg-gray-200 text-gray-500'}`}>
@@ -557,7 +614,7 @@ export const PlansCard = ({
           {/* Supplements Plan Card */}
           <div 
             className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeSupplements ? 'bg-green-50/30 border-green-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
-            onClick={() => activeSupplements ? setViewingBudgetId(effectiveBudgetId) : onAddSupplementsPlan()}
+            onClick={() => activeSupplements ? setSelectedSupplementPlan(activeSupplements) : onAddSupplementsPlan()}
           >
              <div className="flex items-center gap-2 mb-2">
                 <div className={`p-1.5 rounded-md ${activeSupplements ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-500'}`}>
@@ -709,6 +766,13 @@ export const PlansCard = ({
         } : null}
         leadId={leadId}
         customerId={customerId}
+      />
+
+      <DayWorkoutDialog
+        isOpen={!!selectedDayWorkout}
+        onOpenChange={(open) => !open && setSelectedDayWorkout(null)}
+        dayName={selectedDayWorkout?.dayName || ''}
+        exercises={selectedDayWorkout?.exercises || []}
       />
     </Card>
   );

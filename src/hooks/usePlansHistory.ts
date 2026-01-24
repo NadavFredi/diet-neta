@@ -220,6 +220,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
               cardio: plan.cardio || 0,
               intervals: plan.intervals || 0
             },
+            weeklyWorkout: plan.custom_attributes?.data?.weeklyWorkout || plan.routine_data?.weeklyWorkout || null,
             budget_id: plan.budget_id,
             created_at: plan.created_at,
             is_active: isActive,

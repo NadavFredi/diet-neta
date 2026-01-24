@@ -164,6 +164,7 @@ export const useBudgetManagement = () => {
       steps_goal: number;
       steps_instructions?: string | null;
       workout_template_id?: string | null;
+      supplement_template_id?: string | null;
       supplements: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
@@ -180,6 +181,7 @@ export const useBudgetManagement = () => {
           steps_goal: (data as any).steps_goal,
           steps_instructions: (data as any).steps_instructions ?? null,
           workout_template_id: (data as any).workout_template_id ?? null,
+          supplement_template_id: (data as any).supplement_template_id ?? null,
           supplements: (data as any).supplements,
           eating_order: (data as any).eating_order ?? null,
           eating_rules: (data as any).eating_rules ?? null,
@@ -241,6 +243,7 @@ export const useBudgetManagement = () => {
           steps_goal: (data as any).steps_goal,
           steps_instructions: (data as any).steps_instructions,
           workout_template_id: (data as any).workout_template_id,
+          supplement_template_id: (data as any).supplement_template_id,
           supplements: (data as any).supplements,
           eating_order: (data as any).eating_order,
           eating_rules: (data as any).eating_rules,

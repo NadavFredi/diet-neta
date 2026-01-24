@@ -273,6 +273,7 @@ export const useCreateBudget = () => {
       steps_goal: number;
       steps_instructions?: string | null;
       workout_template_id?: string | null;
+      supplement_template_id?: string | null;
       supplements: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
@@ -292,6 +293,7 @@ export const useCreateBudget = () => {
           steps_goal,
           steps_instructions: steps_instructions || null,
           workout_template_id: workout_template_id || null,
+          supplement_template_id: supplement_template_id || null,
           supplements,
           eating_order: eating_order || null,
           eating_rules: eating_rules || null,
@@ -336,6 +338,7 @@ export const useUpdateBudget = () => {
       steps_goal?: number;
       steps_instructions?: string | null;
       workout_template_id?: string | null;
+      supplement_template_id?: string | null;
       supplements?: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
@@ -355,6 +358,11 @@ export const useUpdateBudget = () => {
       // Explicitly ensure workout_template_id is included if provided (even if null)
       if ('workout_template_id' in updates) {
         updateData.workout_template_id = updates.workout_template_id ?? null;
+      }
+      
+      // Explicitly ensure supplement_template_id is included if provided (even if null)
+      if ('supplement_template_id' in updates) {
+        updateData.supplement_template_id = updates.supplement_template_id ?? null;
       }
 
       const { data, error } = await supabase

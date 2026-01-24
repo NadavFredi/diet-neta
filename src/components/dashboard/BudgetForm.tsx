@@ -544,6 +544,16 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       setIsEditNutritionTemplateDialogOpen(true);
     }
   };
+
+  // Handle editing supplement template
+  const handleEditSupplementTemplate = () => {
+    if (!supplementTemplateId) return;
+    const template = supplementTemplates.find((t) => t.id === supplementTemplateId);
+    if (template) {
+      setEditingSupplementTemplate(template);
+      setIsEditSupplementTemplateDialogOpen(true);
+    }
+  };
   
   // Handle saving edited nutrition template
   const handleUpdateNutritionTemplate = async (data: any) => {
@@ -589,6 +599,41 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       });
     }
   };
+
+  // Handle saving edited supplement template
+  const handleUpdateSupplementTemplate = async (data: any) => {
+    if (!editingSupplementTemplate) return;
+    try {
+      const updated = await updateSupplementTemplate.mutateAsync({
+        templateId: editingSupplementTemplate.id,
+        ...data,
+      });
+      
+      // Close only the edit template dialog first, keep budget dialog open
+      setIsEditSupplementTemplateDialogOpen(false);
+      setEditingSupplementTemplate(null);
+      
+      // Update supplements if they changed
+      if (updated?.supplements) {
+        setSupplements(updated.supplements);
+      }
+      
+      // Refresh templates list without closing parent dialog
+      await queryClient.refetchQueries({ queryKey: ['supplementTemplates'] });
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תבנית התוספים עודכנה בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון תבנית התוספים',
+        variant: 'destructive',
+      });
+    }
+  };
+
   
 
   return (
@@ -816,7 +861,57 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
                 <Pill className="h-3.5 w-3.5 text-slate-400" />
-                תוספים
+                תבנית תוספים
+              </Label>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={supplementTemplateId || 'none'}
+                  onValueChange={handleSupplementTemplateChange}
+                >
+                  <SelectTrigger className={cn(
+                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
+                    "text-slate-900 font-medium text-sm"
+                  )} dir="rtl">
+                    <SelectValue placeholder="בחר תבנית תוספים" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value="none">ללא תבנית</SelectItem>
+                    {supplementTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {supplementTemplateId && canEditTemplates && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleEditSupplementTemplate}
+                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                    title="ערוך תבנית תוספים"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSupplementTemplateDialogOpen(true)}
+                  className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                  title="צור תבנית תוספים חדשה"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                <Pill className="h-3.5 w-3.5 text-slate-400" />
+                תוספים (עריכה ידנית)
               </Label>
               <div className="space-y-2">
                 {supplements.length === 0 ? (
@@ -958,6 +1053,12 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         onOpenChange={setIsNutritionTemplateDialogOpen}
         onSave={handleCreateNutritionTemplate}
       />
+
+      <AddSupplementTemplateDialog
+        isOpen={isSupplementTemplateDialogOpen}
+        onOpenChange={setIsSupplementTemplateDialogOpen}
+        onSave={handleCreateSupplementTemplate}
+      />
       
       {/* Template Edit Dialogs */}
       <EditWorkoutTemplateDialog
@@ -972,6 +1073,13 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         onOpenChange={setIsEditNutritionTemplateDialogOpen}
         editingTemplate={editingNutritionTemplate}
         onSave={handleUpdateNutritionTemplate}
+      />
+
+      <EditSupplementTemplateDialog
+        isOpen={isEditSupplementTemplateDialogOpen}
+        onOpenChange={setIsEditSupplementTemplateDialogOpen}
+        editingTemplate={editingSupplementTemplate}
+        onSave={handleUpdateSupplementTemplate}
       />
     </form>
   );

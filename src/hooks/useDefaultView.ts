@@ -74,6 +74,19 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
           actions: true,
         },
       };
+    case 'supplement_templates':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+        columnVisibility: {
+          name: true,
+          description: true,
+          tags: false, // Not applicable
+          connectedLeads: false, // Not applicable
+          createdDate: true,
+          actions: true,
+        },
+      };
     case 'budgets':
       return {
         searchQuery: '',
@@ -174,6 +187,8 @@ export const useDefaultView = (resourceKey: string | null) => {
           ? 'כל התכניות'
           : resourceKey === 'nutrition_templates'
           ? 'כל תבניות התזונה'
+          : resourceKey === 'supplement_templates'
+          ? 'כל תבניות התוספים'
           : resourceKey === 'budgets'
           ? 'כל התקציבים'
           : resourceKey === 'payments'
