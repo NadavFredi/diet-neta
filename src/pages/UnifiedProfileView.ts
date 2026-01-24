@@ -141,7 +141,13 @@ export const useUnifiedProfileView = () => {
   );
 
   // Handlers
-  const handleBack = () => navigate('/dashboard');
+  const handleBack = () => {
+    if (isCustomerRoute) {
+      navigate('/dashboard/customers');
+    } else {
+      navigate('/dashboard');
+    }
+  };
 
   const handleCall = () => {
     if (customer?.phone) {

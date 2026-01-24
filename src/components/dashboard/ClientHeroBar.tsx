@@ -65,6 +65,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { AddLeadDialogWithCustomer } from './AddLeadDialogWithCustomer';
+import { AvatarUpload } from './AvatarUpload';
 
 interface LeadData {
   id: string;
@@ -317,6 +318,17 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           <ArrowRight className="h-4 w-4 sm:h-3.5 sm:w-3.5 sm:ml-1" />
           <span className="hidden sm:inline">חזור</span>
         </Button>
+
+        {/* Avatar */}
+        {customer && (
+          <AvatarUpload
+            customerId={customer.id}
+            currentAvatarUrl={customer.avatar_url}
+            name={customer.full_name}
+            size="sm"
+            editable={true}
+          />
+        )}
 
         {/* Name - Page Title - Clickable to navigate to customer page */}
         {onViewCustomerProfile ? (

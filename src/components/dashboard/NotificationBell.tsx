@@ -36,6 +36,7 @@ const NOTIFICATION_TYPES: Record<string, { label: string; color: string; bgColor
   weight_updated: { label: 'עדכון משקל', color: 'text-orange-700', bgColor: 'bg-orange-100 border-orange-200' },
   meal_logged: { label: 'ארוחה נרשמה', color: 'text-cyan-700', bgColor: 'bg-cyan-100 border-cyan-200' },
   appointment_created: { label: 'תור נוצר', color: 'text-indigo-700', bgColor: 'bg-indigo-100 border-indigo-200' },
+  subscription_ending: { label: 'סיום מנוי', color: 'text-red-700', bgColor: 'bg-red-100 border-red-200' },
   default: { label: 'התראה', color: 'text-gray-700', bgColor: 'bg-gray-100 border-gray-200' },
 };
 

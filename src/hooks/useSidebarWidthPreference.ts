@@ -48,7 +48,7 @@ export const useSidebarWidthPreference = () => {
           .select('numeric_value')
           .eq('user_id', userId)
           .eq('interface_key', 'sidebar_width')
-          .single();
+          .maybeSingle();
 
         if (error || !data) {
           return DEFAULT_SIDEBAR_WIDTH;

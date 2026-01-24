@@ -25,6 +25,14 @@ import {
   setSortBy,
   setSortOrder,
 } from '@/store/slices/tableStateSlice';
+import { 
+  getActiveFlows, 
+  saveCustomFlows, 
+  loadCustomFlows,
+  loadDeletedDefaultFlows,
+  saveDeletedDefaultFlows,
+  DEFAULT_FLOW_CONFIGS
+} from '@/utils/whatsappAutomationFlows';
 
 export const useWhatsAppAutomationsPage = () => {
   const dispatch = useAppDispatch();
@@ -40,6 +48,10 @@ export const useWhatsAppAutomationsPage = () => {
   const [newFlowLabel, setNewFlowLabel] = useState('');
   const [newFlowKey, setNewFlowKey] = useState('');
   const [deletingFlowKey, setDeletingFlowKey] = useState<string | null>(null);
+  
+  // Local state for immediate updates
+  const [customFlows, setCustomFlows] = useState(loadCustomFlows());
+  const [deletedDefaultFlows, setDeletedDefaultFlows] = useState(loadDeletedDefaultFlows());
 
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'whatsapp_automations'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'whatsapp_automations'));
@@ -56,16 +68,58 @@ export const useWhatsAppAutomationsPage = () => {
   });
 
   const templatesList = flowTemplatesData?.data || [];
-  const totalTemplates = flowTemplatesData?.totalCount || 0;
-
+  // Use templatesList count if pagination is handled by backend, but here we are merging lists so it's tricky.
+  // Actually, we should probably do client-side merging and then paginate? 
+  // Or just display all for now since the list is small?
+  // The useWhatsAppFlowTemplates hook seems to support server-side pagination.
+  // BUT the default flows might NOT be in the DB yet.
+  
+  // For the purpose of "ensuring all automations exist", we should merge the active flows (defaults + customs)
+  // with the DB results.
+  
   const automations: WhatsAppAutomation[] = useMemo(() => {
-    return templatesList.map((template) => ({
-      key: template.flow_key,
-      label: template.flow_key,
-      hasTemplate: !!template.template_content?.trim(),
-      isAutoTrigger: false,
-    }));
-  }, [templatesList]);
+    // 1. Get all active flows (defaults + customs)
+    // We recreate the logic from getActiveFlows locally using the state to ensure reactivity
+    const activeDefaultFlows = DEFAULT_FLOW_CONFIGS.filter(flow => !deletedDefaultFlows.includes(flow.key));
+    const defaultFlowKeys = new Set(activeDefaultFlows.map(f => f.key));
+    const labelOverrides = new Map(customFlows.filter(f => defaultFlowKeys.has(f.key)).map(f => [f.key, f.label]));
+    const pureCustomFlows = customFlows.filter(f => !defaultFlowKeys.has(f.key));
+    
+    const activeFlows = [
+      ...activeDefaultFlows.map(flow => ({
+        ...flow,
+        label: labelOverrides.get(flow.key) || flow.label
+      })),
+      ...pureCustomFlows
+    ];
+
+    // 2. Map to WhatsAppAutomation format
+    const mergedAutomations = activeFlows.map(flow => {
+      // Find matching template from DB results if available (for hasTemplate check)
+      // Note: templatesList might only contain a subset if paginated.
+      // Ideally, we should check the full 'templates' map from Redux which is loaded via fetchTemplates()
+      const template = templates[flow.key];
+      
+      return {
+        key: flow.key,
+        label: flow.label,
+        hasTemplate: !!template?.template_content?.trim(),
+        isAutoTrigger: false, // This info is not available in flow config yet
+      };
+    });
+
+    // 3. Filter by search query if client-side filtering needed (since we added defaults that might not be in DB)
+    if (searchQuery) {
+      return mergedAutomations.filter(a => 
+        a.label.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        a.key.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    return mergedAutomations;
+  }, [templatesList, templates, customFlows, deletedDefaultFlows, searchQuery]);
+
+  const totalTemplates = automations.length;
 
   // Fetch templates on mount and migrate from localStorage if needed
   useEffect(() => {
@@ -147,8 +201,35 @@ export const useWhatsAppAutomationsPage = () => {
         localStorage.setItem(localStorageKey, templateContent);
       }
 
+      // Handle label update using the shared logic
       if (label && label.trim()) {
-        setEditingFlowLabel(label.trim());
+        const isDefaultFlow = DEFAULT_FLOW_CONFIGS.some(f => f.key === flowKey);
+        const defaultFlowLabel = DEFAULT_FLOW_CONFIGS.find(f => f.key === flowKey)?.label;
+        const customFlow = customFlows.find(f => f.key === flowKey);
+        
+        const currentLabel = customFlow?.label || defaultFlowLabel || '';
+        
+        if (currentLabel !== label.trim()) {
+          let updatedCustomFlows;
+          if (isDefaultFlow) {
+            const existingCustomIndex = customFlows.findIndex(f => f.key === flowKey);
+            if (existingCustomIndex >= 0) {
+               updatedCustomFlows = customFlows.map((flow, idx) => 
+                idx === existingCustomIndex ? { ...flow, label: label.trim() } : flow
+              );
+            } else {
+              updatedCustomFlows = [...customFlows, { key: flowKey, label: label.trim() }];
+            }
+          } else {
+            updatedCustomFlows = customFlows.map(flow => 
+              flow.key === flowKey ? { ...flow, label: label.trim() } : flow
+            );
+          }
+          
+          setCustomFlows(updatedCustomFlows);
+          saveCustomFlows(updatedCustomFlows);
+          setEditingFlowLabel(label.trim());
+        }
       }
 
       await queryClient.invalidateQueries({ queryKey: ['whatsapp-flow-templates'] });
@@ -186,6 +267,12 @@ export const useWhatsAppAutomationsPage = () => {
       return;
     }
 
+    // Add to custom flows
+    const newFlow = { key: newFlowKey.trim(), label: newFlowLabel.trim() };
+    const updatedFlows = [...customFlows, newFlow];
+    setCustomFlows(updatedFlows);
+    saveCustomFlows(updatedFlows);
+
     toast({
       title: 'הצלחה',
       description: 'האוטומציה נוספה בהצלחה',
@@ -200,33 +287,33 @@ export const useWhatsAppAutomationsPage = () => {
   };
 
   const handleDeleteAutomation = async (flowKey: string) => {
+    // Check if it's a default flow
+    const isDefaultFlow = DEFAULT_FLOW_CONFIGS.some(flow => flow.key === flowKey);
+    
+    if (isDefaultFlow) {
+      // Mark default flow as deleted in localStorage
+      const updatedDeleted = [...deletedDefaultFlows, flowKey];
+      setDeletedDefaultFlows(updatedDeleted);
+      saveDeletedDefaultFlows(updatedDeleted);
+    } else {
+      // Remove from custom flows in localStorage
+      const updatedFlows = customFlows.filter(flow => flow.key !== flowKey);
+      setCustomFlows(updatedFlows);
+      saveCustomFlows(updatedFlows);
+    }
+
+    // Also remove the template from DB if it exists
     const { data: auth } = await supabase.auth.getUser();
     const userId = auth.user?.id;
-    if (!userId) {
-      toast({
-        title: 'שגיאה',
-        description: 'משתמש לא מחובר',
-        variant: 'destructive',
-      });
-      return;
+    if (userId) {
+       await supabase
+        .from('whatsapp_flow_templates')
+        .delete()
+        .eq('user_id', userId)
+        .eq('flow_key', flowKey);
+       
+       await queryClient.invalidateQueries({ queryKey: ['whatsapp-flow-templates'] });
     }
-
-    const { error } = await supabase
-      .from('whatsapp_flow_templates')
-      .delete()
-      .eq('user_id', userId)
-      .eq('flow_key', flowKey);
-
-    if (error) {
-      toast({
-        title: 'שגיאה',
-        description: error.message || 'נכשל במחיקת האוטומציה',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    await queryClient.invalidateQueries({ queryKey: ['whatsapp-flow-templates'] });
 
     if (editingFlowKey === flowKey) {
       setEditingFlowKey(null);

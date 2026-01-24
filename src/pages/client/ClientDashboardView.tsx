@@ -26,13 +26,7 @@ import {
   Image as ImageIcon,
   Menu,
   BookOpen,
-  Loader2,
-  Upload,
 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { supabase } from '@/lib/supabaseClient';
-import { setUser } from '@/store/slices/authSlice';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
 import { DailyCheckInView } from '@/components/client/DailyCheckInView';
@@ -55,6 +49,7 @@ import { useClientRealtime } from '@/hooks/useClientRealtime';
 import { useToast } from '@/hooks/use-toast';
 import { updateClientLead } from '@/store/slices/clientSlice';
 import { InlineEditableField } from '@/components/dashboard/InlineEditableField';
+import { AvatarUpload } from '@/components/dashboard/AvatarUpload';
 import { NetaLogo } from '@/components/ui/NetaLogo';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -75,86 +70,6 @@ export const ClientDashboardView: React.FC = () => {
   const [activeTab, setActiveTab] = useState(tabParam || 'workout');
   const [isMultiDayModalOpen, setIsMultiDayModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'שגיאה',
-        description: 'אנא בחר קובץ תמונה תקין',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'שגיאה',
-        description: 'גודל הקובץ חייב להיות קטן מ-5MB',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      // 1. Upload to storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file, {
-          upsert: true
-        });
-
-      if (uploadError) throw uploadError;
-
-      // 2. Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
-
-      // 3. Update profile
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      // 4. Update Redux state
-      dispatch(setUser({ ...user, avatar_url: publicUrl }));
-      
-      toast({
-        title: 'הצלחה',
-        description: 'תמונת פרופיל עודכנה בהצלחה',
-      });
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      toast({
-        title: 'שגיאה',
-        description: 'שגיאה בעדכון תמונת פרופיל',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUploading(false);
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
 
   // Sync activeTab with URL param
   useEffect(() => {
@@ -469,6 +384,22 @@ export const ClientDashboardView: React.FC = () => {
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-[#334155] flex-1 text-right" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
                 {greeting}
               </h1>
+              
+              {customer && (
+                <AvatarUpload
+                  customerId={customer.id}
+                  currentAvatarUrl={customer.avatar_url}
+                  name={customer.full_name}
+                  size="sm"
+                  editable={true}
+                  onUploadComplete={(url) => {
+                    // Dispatch update to client slice to update UI immediately
+                    // The useUpdateCustomer hook already invalidates queries, but we might want to update local state too if needed
+                    // For now, the query invalidation should trigger a re-fetch
+                  }}
+                />
+              )}
+
               {isImpersonating ? (
                 <Button
                   variant="outline"
@@ -490,72 +421,16 @@ export const ClientDashboardView: React.FC = () => {
                   <span className="sm:hidden">צא</span>
                 </Button>
               ) : (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button className="flex items-center justify-center rounded-full border-2 border-[#5B6FB9] hover:border-[#5B6FB9]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] focus:ring-offset-2">
-                      <Avatar className="h-9 w-9 sm:h-10 sm:w-10 cursor-pointer">
-                        <AvatarImage src={user?.avatar_url || ''} alt={user?.email} className="object-cover" />
-                        <AvatarFallback className="bg-[#5B6FB9] text-white font-semibold text-xs sm:text-sm">
-                          {user?.email ? user.email.substring(0, 2).toUpperCase() : 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 max-w-[calc(100vw-2rem)] p-4" align="end" side="bottom" dir="rtl">
-                    <div className="flex flex-col gap-3">
-                      
-                      {/* Avatar Upload Section */}
-                      <div className="flex flex-col items-center justify-center gap-2 mb-2">
-                        <div 
-                          className="relative group cursor-pointer" 
-                          onClick={handleAvatarClick}
-                          title="לחץ לשינוי תמונה"
-                        >
-                          <Avatar className="h-20 w-20 border-2 border-[#5B6FB9]">
-                            <AvatarImage src={user?.avatar_url || ''} alt={user?.email} className="object-cover" />
-                            <AvatarFallback className="bg-[#5B6FB9] text-white font-semibold text-xl">
-                              {user?.email ? user.email.substring(0, 2).toUpperCase() : 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            {isUploading ? (
-                              <Loader2 className="w-6 h-6 text-white animate-spin" />
-                            ) : (
-                              <Upload className="w-6 h-6 text-white" />
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500">לחץ לשינוי תמונה</p>
-                        <input 
-                          type="file" 
-                          ref={fileInputRef} 
-                          className="hidden" 
-                          accept="image/*"
-                          onChange={handleFileChange}
-                          disabled={isUploading}
-                        />
-                      </div>
-                      
-                      <div className="h-px bg-gray-200" />
-
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs text-gray-500 font-medium">משתמש מחובר</span>
-                        <span className="text-sm sm:text-base font-semibold text-gray-900 break-all">{user?.email}</span>
-                      </div>
-                      <div className="h-px bg-gray-200" />
-
-                      <Button
-                        variant="outline"
-                        size="default"
-                        onClick={handleLogout}
-                        className="w-full border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-base font-semibold rounded-lg px-4 py-2 transition-all duration-200 justify-start"
-                      >
-                        <LogOut className="h-4 w-4 ml-2" />
-                        התנתק
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={handleLogout}
+                  className="border-[#5B6FB9] bg-transparent text-[#5B6FB9] hover:bg-[#5B6FB9]/10 hover:text-[#5B6FB9] hover:border-[#5B6FB9] text-xs sm:text-sm md:text-base font-semibold rounded-lg px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 transition-all duration-200"
+                >
+                  <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
+                  <span className="hidden sm:inline">התנתק</span>
+                  <span className="sm:hidden">יציאה</span>
+                </Button>
               )}
             </div>
             {/* 7-Day Averages Header - Responsive Cards */}

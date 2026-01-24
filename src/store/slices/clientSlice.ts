@@ -66,6 +66,7 @@ export interface ClientCustomer {
   email: string | null;
   created_at: string;
   updated_at: string;
+  avatar_url?: string | null;
   daily_protocol?: any; // Customer-level daily protocol (stepsGoal, workoutGoal, supplements)
   workout_history?: any; // Customer-level workout history
   steps_history?: any; // Customer-level steps history

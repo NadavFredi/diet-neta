@@ -49,7 +49,7 @@ export const initializeAuth = createAsyncThunk(
       // Fetch user profile with role
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, role, is_active, avatar_url')
+        .select('id, email, full_name, role, is_active')
         .eq('id', session.user.id)
         .single();
       
@@ -70,16 +70,18 @@ export const initializeAuth = createAsyncThunk(
       
       // For trainees, fetch customer_id (optional - might not exist yet)
       let customer_id: string | null = null;
+      let avatar_url: string | null = null;
       if (profile.role === 'trainee') {
         try {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
-            .select('id')
+            .select('id, avatar_url')
             .eq('user_id', session.user.id)
             .maybeSingle(); // Use maybeSingle() instead of single() to handle no results gracefully
           
           if (!customerError && customer) {
             customer_id = customer.id;
+            avatar_url = customer.avatar_url;
           }
         } catch (error) {
           // Ignore exceptions
@@ -95,6 +97,7 @@ export const initializeAuth = createAsyncThunk(
           full_name: profile.full_name,
           customer_id,
           is_active: profile.is_active ?? true,
+          avatar_url,
         },
       };
       
@@ -127,7 +130,7 @@ export const loginUser = createAsyncThunk(
       // Fetch user profile with timeout protection
       const profilePromise = supabase
         .from('profiles')
-        .select('id, email, full_name, role, is_active, avatar_url')
+        .select('id, email, full_name, role, is_active')
         .eq('id', data.user.id)
         .single();
       
@@ -207,16 +210,18 @@ export const loginUser = createAsyncThunk(
       
       // For trainees, fetch customer_id
       let customer_id: string | null = null;
+      let avatar_url: string | null = null;
       if (userRole === 'trainee') {
         try {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
-            .select('id')
+            .select('id, avatar_url')
             .eq('user_id', data.user.id)
             .maybeSingle(); // Use maybeSingle() instead of single() to handle no results gracefully
           
           if (!customerError && customer) {
             customer_id = customer.id;
+            avatar_url = customer.avatar_url;
           }
         } catch (error) {
           // Ignore
@@ -232,6 +237,7 @@ export const loginUser = createAsyncThunk(
           full_name: profile.full_name,
           customer_id,
           is_active: profile.is_active ?? true,
+          avatar_url,
         },
       };
       

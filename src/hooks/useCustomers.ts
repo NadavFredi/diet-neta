@@ -219,6 +219,7 @@ export const useCustomer = (customerId: string | undefined) => {
         phone: data.phone,
         email: data.email,
         user_id: data.user_id || null, // Include user_id for trainee account link
+        avatar_url: data.avatar_url,
         created_at: data.created_at,
         updated_at: data.updated_at,
         daily_protocol: data.daily_protocol || {},

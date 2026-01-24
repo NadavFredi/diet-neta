@@ -330,6 +330,7 @@ export const ClientHero: React.FC<ClientHeroProps> = ({
           traineeName={customer.full_name}
           customerPhone={customer.phone}
           customerId={customer.id}
+          avatarUrl={customer.avatar_url}
         />
       )}
     </div>

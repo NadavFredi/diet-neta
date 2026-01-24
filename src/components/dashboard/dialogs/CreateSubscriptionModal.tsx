@@ -16,13 +16,17 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSubscriptionTypes } from '@/store/slices/subscriptionTypesSlice';
 import { useCreateSubscriptionType } from '@/hooks/useSubscriptionTypes';
 import { useToast } from '@/hooks/use-toast';
-import { Plus } from 'lucide-react';
-import type { Currency, DurationUnit } from '@/store/slices/subscriptionTypesSlice';
+import { Plus, Check, Trash2 } from 'lucide-react';
+import type { Currency, DurationUnit, SubscriptionType } from '@/store/slices/subscriptionTypesSlice';
+import { Separator } from '@/components/ui/separator';
 
 interface CreateSubscriptionModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (subscriptionType: { name: string; duration: number; duration_unit: DurationUnit; price: number; status: string }) => void;
+  onConfirm: (
+    subscription1: { name: string; duration: number; duration_unit: DurationUnit; price: number; currency?: Currency; status: string },
+    subscription2?: { name: string; duration: number; duration_unit: DurationUnit; price: number; currency?: Currency; status: string }
+  ) => void;
 }
 
 // Helper function to get duration unit label in Hebrew
@@ -49,7 +53,15 @@ export const CreateSubscriptionModal = ({
   const { subscriptionTypes, isLoading } = useAppSelector((state) => state.subscriptionTypes);
   const createSubscriptionType = useCreateSubscriptionType();
   
-  const [selectedSubscriptionTypeId, setSelectedSubscriptionTypeId] = useState<string>('');
+  // Selection state for two periods
+  const [selectedSubscriptionTypeId1, setSelectedSubscriptionTypeId1] = useState<string>('');
+  const [selectedStatus1, setSelectedStatus1] = useState<string>('פעיל');
+  
+  const [selectedSubscriptionTypeId2, setSelectedSubscriptionTypeId2] = useState<string>('');
+  const [selectedStatus2, setSelectedStatus2] = useState<string>('פעיל');
+  const [hasSecondPeriod, setHasSecondPeriod] = useState(false);
+
+  // New subscription creation state
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   
   // New subscription type form fields
@@ -59,7 +71,6 @@ export const CreateSubscriptionModal = ({
   const [newPrice, setNewPrice] = useState<number>(0);
   const [newCurrency, setNewCurrency] = useState<Currency>('ILS');
   const [newStatus, setNewStatus] = useState<string>('פעיל');
-  const [selectedStatus, setSelectedStatus] = useState<string>('פעיל');
   const [isSaving, setIsSaving] = useState(false);
 
   // Fetch subscription types when modal opens
@@ -69,8 +80,12 @@ export const CreateSubscriptionModal = ({
     }
   }, [isOpen, dispatch]);
 
-  const selectedSubscriptionType = subscriptionTypes.find(
-    (st) => st.id === selectedSubscriptionTypeId
+  const selectedSubscriptionType1 = subscriptionTypes.find(
+    (st) => st.id === selectedSubscriptionTypeId1
+  );
+
+  const selectedSubscriptionType2 = subscriptionTypes.find(
+    (st) => st.id === selectedSubscriptionTypeId2
   );
 
   // Get currency symbol for display
@@ -88,22 +103,37 @@ export const CreateSubscriptionModal = ({
   };
 
   const handleConfirm = () => {
-    if (!selectedSubscriptionType) {
+    if (!selectedSubscriptionType1) {
       toast({
         title: 'שגיאה',
-        description: 'נא לבחור סוג מנוי',
+        description: 'נא לבחור מנוי לתקופה הראשונה',
         variant: 'destructive',
       });
       return;
     }
 
-    onConfirm({
-      name: selectedSubscriptionType.name,
-      duration: selectedSubscriptionType.duration,
-      duration_unit: selectedSubscriptionType.duration_unit || 'months',
-      price: selectedSubscriptionType.price,
-      status: selectedStatus,
-    });
+    const sub1 = {
+      name: selectedSubscriptionType1.name,
+      duration: selectedSubscriptionType1.duration,
+      duration_unit: selectedSubscriptionType1.duration_unit || 'months',
+      price: selectedSubscriptionType1.price,
+      currency: selectedSubscriptionType1.currency || 'ILS',
+      status: selectedStatus1,
+    };
+
+    let sub2;
+    if (hasSecondPeriod && selectedSubscriptionType2) {
+      sub2 = {
+        name: selectedSubscriptionType2.name,
+        duration: selectedSubscriptionType2.duration,
+        duration_unit: selectedSubscriptionType2.duration_unit || 'months',
+        price: selectedSubscriptionType2.price,
+        currency: selectedSubscriptionType2.currency || 'ILS',
+        status: selectedStatus2,
+      };
+    }
+
+    onConfirm(sub1, sub2);
     resetForm();
     onOpenChange(false);
   };
@@ -152,15 +182,20 @@ export const CreateSubscriptionModal = ({
         description: `סוג המנוי "${newName}" נוסף למערכת`,
       });
 
-      // Use the new subscription type for the lead
-      onConfirm({
+      // For simplicity, we only use the newly created type for the FIRST period
+      // and reset the second period if active, or just set it as the first one.
+      // The user can then add a second period if they want.
+      
+      const sub1 = {
         name: newName.trim(),
         duration: newDuration,
         duration_unit: newDurationUnit,
         price: newPrice,
         status: newStatus,
-      });
+      };
 
+      onConfirm(sub1);
+      
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
@@ -175,7 +210,12 @@ export const CreateSubscriptionModal = ({
   };
 
   const resetForm = () => {
-    setSelectedSubscriptionTypeId('');
+    setSelectedSubscriptionTypeId1('');
+    setSelectedStatus1('פעיל');
+    setSelectedSubscriptionTypeId2('');
+    setSelectedStatus2('פעיל');
+    setHasSecondPeriod(false);
+    
     setIsCreatingNew(false);
     setNewName('');
     setNewDuration(1);
@@ -183,7 +223,6 @@ export const CreateSubscriptionModal = ({
     setNewPrice(0);
     setNewCurrency('ILS');
     setNewStatus('פעיל');
-    setSelectedStatus('פעיל');
   };
 
   const handleCancel = () => {
@@ -198,96 +237,145 @@ export const CreateSubscriptionModal = ({
     }
   }, [isOpen]);
 
+  const renderSubscriptionSelect = (
+    label: string,
+    selectedId: string,
+    setSelectedId: (id: string) => void,
+    selectedStatus: string,
+    setSelectedStatus: (status: string) => void,
+    selectedType: SubscriptionType | undefined
+  ) => (
+    <div className="space-y-4 p-4 border rounded-lg bg-gray-50/50">
+      <h3 className="font-semibold text-gray-900">{label}</h3>
+      <div className="space-y-2">
+        <Label>בחר סוג מנוי</Label>
+        <Select
+          value={selectedId}
+          onValueChange={setSelectedId}
+          dir="rtl"
+        >
+          <SelectTrigger dir="rtl" className="bg-white">
+            <SelectValue placeholder="בחר סוג מנוי" />
+          </SelectTrigger>
+          <SelectContent dir="rtl">
+            {isLoading ? (
+              <SelectItem value="loading" disabled>
+                טוען...
+              </SelectItem>
+            ) : subscriptionTypes.length === 0 ? (
+              <SelectItem value="empty" disabled>
+                אין סוגי מנויים זמינים
+              </SelectItem>
+            ) : (
+              subscriptionTypes.map((st) => {
+                const currencySymbol = st.currency === 'USD' ? '$' : 
+                                      st.currency === 'EUR' ? '€' : '₪';
+                const durationUnit = st.duration_unit || 'months';
+                return (
+                  <SelectItem key={st.id} value={st.id}>
+                    {st.name} - {st.duration} {getDurationUnitLabel(durationUnit, st.duration)} - {currencySymbol}{st.price.toLocaleString('he-IL')}
+                  </SelectItem>
+                );
+              })
+            )}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selectedType && (
+        <div className="space-y-4">
+          <div className="text-sm text-gray-600 space-y-1 bg-white p-3 rounded border">
+            <p>שם: {selectedType.name}</p>
+            <p>תוקף: {selectedType.duration} {getDurationUnitLabel(selectedType.duration_unit || 'months', selectedType.duration)}</p>
+            <p>מחיר: {
+              selectedType.currency === 'USD' ? '$' : 
+              selectedType.currency === 'EUR' ? '€' : '₪'
+            }{selectedType.price.toLocaleString('he-IL')}</p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>סטטוס</Label>
+            <Select
+              value={selectedStatus}
+              onValueChange={setSelectedStatus}
+              dir="rtl"
+            >
+              <SelectTrigger dir="rtl" className="bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent dir="rtl">
+                <SelectItem value="פעיל">פעיל</SelectItem>
+                <SelectItem value="לא פעיל">לא פעיל</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange} dir="rtl">
-      <DialogContent className="max-w-md" dir="rtl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
           <DialogTitle>צור מנוי</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           {!isCreatingNew ? (
             <>
-              {/* Select existing subscription type */}
-              <div className="space-y-2">
-                <Label htmlFor="subscription-type">בחר סוג מנוי</Label>
-                <Select
-                  value={selectedSubscriptionTypeId}
-                  onValueChange={setSelectedSubscriptionTypeId}
-                  dir="rtl"
-                >
-                  <SelectTrigger id="subscription-type" dir="rtl">
-                    <SelectValue placeholder="בחר סוג מנוי" />
-                  </SelectTrigger>
-                  <SelectContent dir="rtl">
-                    {isLoading ? (
-                      <SelectItem value="loading" disabled>
-                        טוען...
-                      </SelectItem>
-                    ) : subscriptionTypes.length === 0 ? (
-                      <SelectItem value="empty" disabled>
-                        אין סוגי מנויים זמינים
-                      </SelectItem>
-                    ) : (
-                      subscriptionTypes.map((st) => {
-                        const currencySymbol = st.currency === 'USD' ? '$' : 
-                                              st.currency === 'EUR' ? '€' : '₪';
-                        const durationUnit = st.duration_unit || 'months';
-                        return (
-                          <SelectItem key={st.id} value={st.id}>
-                            {st.name} - {st.duration} {getDurationUnitLabel(durationUnit, st.duration)} - {currencySymbol}{st.price.toLocaleString('he-IL')}
-                          </SelectItem>
-                        );
-                      })
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Show selected subscription type details */}
-              {selectedSubscriptionType && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                    <p className="text-sm font-semibold text-gray-700">פרטי המנוי שנבחר:</p>
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <p>שם: {selectedSubscriptionType.name}</p>
-                      <p>תוקף: {selectedSubscriptionType.duration} {getDurationUnitLabel(selectedSubscriptionType.duration_unit || 'months', selectedSubscriptionType.duration)}</p>
-                      <p>מחיר: {
-                        selectedSubscriptionType.currency === 'USD' ? '$' : 
-                        selectedSubscriptionType.currency === 'EUR' ? '€' : '₪'
-                      }{selectedSubscriptionType.price.toLocaleString('he-IL')}</p>
-                      <p>סטטוס: {selectedStatus}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Status selection */}
-                  <div className="space-y-2">
-                    <Label htmlFor="subscription-status">סטטוס</Label>
-                    <Select
-                      value={selectedStatus}
-                      onValueChange={setSelectedStatus}
-                      dir="rtl"
-                    >
-                      <SelectTrigger id="subscription-status" dir="rtl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent dir="rtl">
-                        <SelectItem value="פעיל">פעיל</SelectItem>
-                        <SelectItem value="לא פעיל">לא פעיל</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+              {renderSubscriptionSelect(
+                "תקופה ראשונה",
+                selectedSubscriptionTypeId1,
+                setSelectedSubscriptionTypeId1,
+                selectedStatus1,
+                setSelectedStatus1,
+                selectedSubscriptionType1
               )}
 
-              {/* Button to switch to create new mode */}
-              <div className="pt-2 border-t">
+              {hasSecondPeriod ? (
+                <div className="relative">
+                  {renderSubscriptionSelect(
+                    "תקופה שנייה",
+                    selectedSubscriptionTypeId2,
+                    setSelectedSubscriptionTypeId2,
+                    selectedStatus2,
+                    setSelectedStatus2,
+                    selectedSubscriptionType2
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-4 left-4 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => {
+                      setHasSecondPeriod(false);
+                      setSelectedSubscriptionTypeId2('');
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 ml-2" />
+                    הסר
+                  </Button>
+                </div>
+              ) : (
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full border-dashed"
+                  onClick={() => setHasSecondPeriod(true)}
+                >
+                  <Plus className="h-4 w-4 ml-2" />
+                  הוסף תקופה שנייה
+                </Button>
+              )}
+
+              <Separator className="my-4" />
+
+              <div className="pt-2">
+                <Button
+                  variant="ghost"
+                  className="w-full text-gray-600"
                   onClick={() => setIsCreatingNew(true)}
                 >
                   <Plus className="h-4 w-4 ml-2" />
-                  הוסף סוג מנוי חדש
+                  צור סוג מנוי חדש
                 </Button>
               </div>
             </>
@@ -408,7 +496,7 @@ export const CreateSubscriptionModal = ({
                   className="w-full text-gray-600"
                   onClick={() => setIsCreatingNew(false)}
                 >
-                  חזור לבחירת סוג מנוי קיים
+                  חזור לבחירת מנוי קיים
                 </Button>
               </div>
             </>
@@ -419,7 +507,7 @@ export const CreateSubscriptionModal = ({
             ביטול
           </Button>
           {!isCreatingNew ? (
-            <Button onClick={handleConfirm} disabled={!selectedSubscriptionType || !selectedStatus}>
+            <Button onClick={handleConfirm} disabled={!selectedSubscriptionType1}>
               צור מנוי
             </Button>
           ) : (

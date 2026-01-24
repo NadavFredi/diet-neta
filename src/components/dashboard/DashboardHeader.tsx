@@ -6,16 +6,13 @@ import { useUpdateSidebarWidthPreference } from '@/hooks/useSidebarWidthPreferen
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSidebar, setSidebarWidth } from '@/store/slices/sidebarSlice';
-import { ChevronRight, ChevronLeft, LogOut, Eye, Menu, X, UserSearch, Upload, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, LogOut, Eye, Menu, X, UserSearch } from 'lucide-react';
 import { stopImpersonation } from '@/store/slices/impersonationSlice';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NotificationBell } from '@/components/dashboard/NotificationBell';
 import { UserImpersonationDialog } from '@/components/dashboard/UserImpersonationDialog';
-import { supabase } from '@/lib/supabaseClient';
-import { setUser } from '@/store/slices/authSlice';
-import { toast } from 'sonner';
 
 // Custom hook to detect if screen is desktop (lg breakpoint = 1024px)
 const useIsDesktop = () => {
@@ -56,8 +53,6 @@ export const DashboardHeader = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isImpersonationDialogOpen, setIsImpersonationDialogOpen] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const isDesktop = useIsDesktop();
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(sidebarWidth.expandedWidth);
@@ -107,75 +102,6 @@ export const DashboardHeader = ({
     document.body.style.userSelect = 'none';
     document.body.style.cursor = 'col-resize';
   }, [sidebarWidth.isCollapsed, sidebarWidth.expandedWidth]);
-
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('אנא בחר קובץ תמונה תקין');
-      return;
-    }
-
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('גודל הקובץ חייב להיות קטן מ-5MB');
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      // 1. Upload to storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      // Remove old avatar if exists (optional cleanup)
-      // For now, we just upload new one.
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file, {
-          upsert: true
-        });
-
-      if (uploadError) throw uploadError;
-
-      // 2. Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
-
-      // 3. Update profile
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      // 4. Update Redux state
-      // We need to preserve all existing user properties and only update avatar_url
-      if (user) {
-        dispatch(setUser({ ...user, avatar_url: publicUrl }));
-      }
-      
-      toast.success('תמונת פרופיל עודכנה בהצלחה');
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      toast.error('שגיאה בעדכון תמונת פרופיל');
-    } finally {
-      setIsUploading(false);
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
 
   // Handle mouse move during resize
   useEffect(() => {
@@ -418,9 +344,9 @@ export const DashboardHeader = ({
             {/* Avatar with Popover */}
             <Popover>
               <PopoverTrigger asChild>
-                <button className="flex items-center justify-center rounded-full border-2 border-[#5B6FB9] hover:border-[#5B6FB9]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] focus:ring-offset-2 relative">
+                <button className="flex items-center justify-center rounded-full border-2 border-[#5B6FB9] hover:border-[#5B6FB9]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] focus:ring-offset-2">
                   <Avatar className="h-9 w-9 sm:h-10 sm:w-10 cursor-pointer">
-                    <AvatarImage src={user?.avatar_url || ''} alt={userEmail} className="object-cover" />
+                    <AvatarImage src={user?.avatar_url || undefined} alt={userEmail} className="object-cover" />
                     <AvatarFallback className="bg-[#5B6FB9] text-white font-semibold text-xs sm:text-sm">
                       {userEmail ? userEmail.substring(0, 2).toUpperCase() : 'U'}
                     </AvatarFallback>
@@ -429,41 +355,6 @@ export const DashboardHeader = ({
               </PopoverTrigger>
               <PopoverContent className="w-64 max-w-[calc(100vw-2rem)] p-4" align="end" side="bottom" dir="rtl">
                 <div className="flex flex-col gap-3">
-                  
-                  {/* Avatar Upload Section */}
-                  <div className="flex flex-col items-center justify-center gap-2 mb-2">
-                    <div 
-                      className="relative group cursor-pointer" 
-                      onClick={handleAvatarClick}
-                      title="לחץ לשינוי תמונה"
-                    >
-                      <Avatar className="h-20 w-20 border-2 border-[#5B6FB9]">
-                        <AvatarImage src={user?.avatar_url || ''} alt={userEmail} className="object-cover" />
-                        <AvatarFallback className="bg-[#5B6FB9] text-white font-semibold text-xl">
-                          {userEmail ? userEmail.substring(0, 2).toUpperCase() : 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        {isUploading ? (
-                          <Loader2 className="w-6 h-6 text-white animate-spin" />
-                        ) : (
-                          <Upload className="w-6 h-6 text-white" />
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500">לחץ לשינוי תמונה</p>
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      className="hidden" 
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      disabled={isUploading}
-                    />
-                  </div>
-                  
-                  <div className="h-px bg-gray-200" />
-
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-gray-500 font-medium">משתמש מחובר</span>
                     <span className="text-sm sm:text-base font-semibold text-gray-900 break-all">{userEmail}</span>
