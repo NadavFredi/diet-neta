@@ -676,7 +676,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         {/* Row 1: 3-Column Grid - Subscription, CRM Status, Personal Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Card 1: Subscription Details (Combined Current & Future) */}
-          <Card className="col-span-1 md:col-span-2 p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col">
+          <Card className="col-span-1 md:col-span-2 p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-100">
@@ -973,7 +973,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Card 3: CRM Status & Info */}
-          <Card className="p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col">
+          <Card className="p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <CardHeaderWithActions
               icon={Target}
               iconBgColor="bg-indigo-100"
@@ -983,7 +983,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               onSave={handleCrmSave}
               onCancel={handleCrmCancel}
             />
-            <div className="grid grid-cols-2 gap-3 flex-1 auto-rows-min">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 flex-1 auto-rows-min">
               <InlineEditableSelect
                 ref={statusRef}
                 label="סטטוס"
@@ -1094,7 +1094,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Card 4: Personal Details */}
-          <Card className="p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col">
+          <Card className="p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <CardHeaderWithActions
               icon={Target}
               iconBgColor="bg-cyan-100"
@@ -1104,7 +1104,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               onSave={handlePersonalSave}
               onCancel={handlePersonalCancel}
             />
-            <div className="grid grid-cols-2 gap-3 flex-1 auto-rows-min">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 flex-1 auto-rows-min">
               <InlineEditableField
                 ref={ageRef}
                 label="גיל"

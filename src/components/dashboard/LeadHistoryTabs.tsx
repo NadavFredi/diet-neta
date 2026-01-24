@@ -9,6 +9,8 @@ import { WeeklyCheckInsList } from './WeeklyCheckInsList';
 import { DailyCheckInDetailModal } from './dialogs/DailyCheckInDetailModal';
 
 // Interfaces (keeping compatible for now, though many are unused in this component)
+import { BudgetHistoryList } from './BudgetHistoryList';
+
 interface WorkoutHistoryItem {
   id?: string;
   name?: string;
@@ -96,9 +98,13 @@ export const LeadHistoryTabs = ({
   leadId,
   customerId,
   onAddWeeklyCheckIn,
+  budgetAssignments,
 }: LeadHistoryTabsProps) => {
   const [activeTab, setActiveTab] = useState('daily-activity');
   const [selectedCheckIn, setSelectedCheckIn] = useState<any | null>(null);
+
+  // Find active budget
+  const activeBudget = budgetAssignments?.find(b => b.is_active) || budgetAssignments?.[0];
 
   // Get the appropriate button for the active tab
   const getActionButton = () => {
@@ -132,7 +138,7 @@ export const LeadHistoryTabs = ({
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="w-full">
         <div className="relative mb-4 -mx-3 px-3">
           <div className="overflow-x-auto scrollbar-hide pb-1">
-            <TabsList className="inline-flex min-w-full lg:grid lg:grid-cols-2 h-10 bg-gray-100 rounded-lg p-1 gap-1">
+            <TabsList className="inline-flex min-w-full lg:grid lg:grid-cols-3 h-10 bg-gray-100 rounded-lg p-1 gap-1">
               <TabsTrigger 
                 value="daily-activity" 
                 className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
@@ -144,6 +150,12 @@ export const LeadHistoryTabs = ({
                 className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
               >
                 דיווח שבועי
+              </TabsTrigger>
+              <TabsTrigger 
+                value="budget-history" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
+              >
+                היסטוריית תקציב
               </TabsTrigger>
             </TabsList>
           </div>
@@ -167,6 +179,11 @@ export const LeadHistoryTabs = ({
             customerPhone={null}
             customerName={null}
           />
+        </TabsContent>
+
+        {/* Budget History Tab */}
+        <TabsContent value="budget-history" className="mt-0">
+          <BudgetHistoryList budgetId={activeBudget?.budget_id} />
         </TabsContent>
       </Tabs>
 
