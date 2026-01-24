@@ -17,11 +17,11 @@ export const EditSupplementTemplateDialog = ({
 }: EditSupplementTemplateDialogProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-[98vw] !w-[98vw] !h-[95vh] !max-h-[95vh] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%] !rounded-none" dir="rtl">
+      <DialogContent className="max-w-2xl w-full max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl" dir="rtl">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-          <DialogTitle>עריכת תבנית תוספים</DialogTitle>
+          <DialogTitle>ערוך תוסף</DialogTitle>
           <DialogDescription className="sr-only">
-            טופס לעריכת תבנית תוספים קיימת
+            טופס לעריכת תוסף קיים
           </DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, Eye, FileText, Send, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
-import { DayWorkoutDialog } from './dialogs/DayWorkoutDialog';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
 import { AddWorkoutPlanDialog } from './dialogs/AddWorkoutPlanDialog';
 import { AddNutritionPlanDialog } from './dialogs/AddNutritionPlanDialog';
@@ -35,6 +34,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 // Interfaces (copied from LeadHistoryTabs to avoid circular deps or refactoring for now)
 interface WorkoutHistoryItem {
@@ -156,7 +161,6 @@ export const PlansCard = ({
   const [editingWorkoutPlan, setEditingWorkoutPlan] = useState<any>(null);
   const [editingNutritionPlan, setEditingNutritionPlan] = useState<any>(null);
   const [editingStepsPlan, setEditingStepsPlan] = useState<any>(null);
-  const [selectedDayWorkout, setSelectedDayWorkout] = useState<{ dayName: string, exercises: any[] } | null>(null);
 
   // Modal states for details
   const [selectedWorkoutPlan, setSelectedWorkoutPlan] = useState<WorkoutHistoryItem | null>(null);
@@ -514,70 +518,54 @@ export const PlansCard = ({
                <div className="space-y-2">
                  <p className="text-xs text-gray-600 font-medium truncate">{activeWorkout.description || activeWorkout.name || 'ללא תיאור'}</p>
                  
-                 {/* Weekly Overview */}
-                 <div className="flex justify-between items-center gap-1 my-2">
-                   {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((dayKey) => {
-                     const dayLabels: Record<string, string> = {
-                        sunday: 'א', monday: 'ב', tuesday: 'ג', wednesday: 'ד', thursday: 'ה', friday: 'ו', saturday: 'ש'
-                     };
-                     const dayData = activeWorkout.weeklyWorkout?.days?.[dayKey];
-                     const isActive = dayData?.isActive && dayData?.exercises?.length > 0;
-                     const isToday = new Date().getDay() === ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(dayKey);
-                     
-                     return (
-                       <div 
-                         key={dayKey} 
-                         className="flex flex-col items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity"
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           if (dayData?.exercises?.length > 0) {
-                             setSelectedDayWorkout({
-                               dayName: dayLabels[dayKey],
-                               exercises: dayData.exercises
-                             });
-                           } else {
-                             toast({
-                               description: `אין אימון ליום ${dayLabels[dayKey]}`,
-                               duration: 2000,
-                             });
-                           }
-                         }}
-                       >
-                         <span className={`text-[9px] ${isToday ? 'font-bold text-blue-700' : 'text-gray-400'}`}>{dayLabels[dayKey]}</span>
-                         <div className={`w-2 h-2 rounded-full ${isActive ? (isToday ? 'bg-blue-600' : 'bg-blue-300') : 'bg-gray-200'}`} />
-                       </div>
-                     );
-                   })}
-                 </div>
-
-                 {/* Today's Workout Summary */}
-                 <div className="bg-white rounded-md p-1.5 border border-blue-100">
-                   {(() => {
-                     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-                     const todayKey = days[new Date().getDay()];
-                     const todayData = activeWorkout.weeklyWorkout?.days?.[todayKey];
-                     const hasWorkout = todayData?.isActive && todayData?.exercises?.length > 0;
-                     
-                     if (hasWorkout) {
-                       const exerciseCount = todayData.exercises.length;
-                       const firstExercise = todayData.exercises[0]?.name;
+                 <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                   <Accordion type="single" collapsible className="w-full">
+                     {['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((dayKey) => {
+                       const dayLabels: Record<string, string> = {
+                          sunday: 'ראשון', monday: 'שני', tuesday: 'שלישי', wednesday: 'רביעי', thursday: 'חמישי', friday: 'שישי', saturday: 'שבת'
+                       };
+                       const dayData = activeWorkout.weeklyWorkout?.days?.[dayKey];
+                       const isActive = dayData?.isActive && dayData?.exercises?.length > 0;
+                       const isToday = new Date().getDay() === ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(dayKey);
+                       
                        return (
-                         <div className="flex justify-between items-center">
-                           <span className="text-[10px] text-gray-500">היום:</span>
-                           <span className="text-xs font-bold text-gray-700 truncate max-w-[100px]">
-                             {firstExercise ? `${firstExercise}${exerciseCount > 1 ? ` +${exerciseCount - 1}` : ''}` : 'אימון'}
-                           </span>
-                         </div>
+                         <AccordionItem value={dayKey} key={dayKey} className="border-b-0 mb-1 last:mb-0">
+                           <AccordionTrigger className={`py-2 px-2 hover:no-underline hover:bg-blue-50 rounded-md ${isActive ? 'bg-blue-50/50' : ''}`}>
+                             <div className="flex items-center gap-2">
+                               <div className={`w-2 h-2 rounded-full ${isActive ? (isToday ? 'bg-blue-600' : 'bg-blue-400') : 'bg-gray-200'}`} />
+                               <span className={`text-sm ${isToday ? 'font-bold text-blue-700' : 'text-gray-600'}`}>
+                                 {dayLabels[dayKey]}
+                               </span>
+                               {isActive && (
+                                 <span className="text-xs text-gray-400 mr-2">
+                                   ({dayData.exercises.length} תרגילים)
+                                 </span>
+                               )}
+                             </div>
+                           </AccordionTrigger>
+                           <AccordionContent className="px-2 pb-2 pt-1">
+                             {isActive ? (
+                               <div className="space-y-2 mt-1">
+                                 {dayData.exercises.map((ex: any, idx: number) => (
+                                   <div key={idx} className="flex items-start gap-2 text-xs bg-white p-1.5 rounded border border-blue-100">
+                                     {ex.image_url && (
+                                       <img src={ex.image_url} alt="" className="w-8 h-8 object-cover rounded bg-gray-100" />
+                                     )}
+                                     <div className="flex-1 min-w-0">
+                                       <p className="font-medium text-gray-700 truncate">{ex.name}</p>
+                                       <p className="text-gray-500">{ex.sets} סטים x {ex.reps} חזרות</p>
+                                     </div>
+                                   </div>
+                                 ))}
+                               </div>
+                             ) : (
+                               <p className="text-xs text-gray-400 py-1 pr-4">יום מנוחה</p>
+                             )}
+                           </AccordionContent>
+                         </AccordionItem>
                        );
-                     } else {
-                       return (
-                         <div className="flex justify-between items-center">
-                           <span className="text-[10px] text-gray-500">היום:</span>
-                           <span className="text-xs font-bold text-gray-400">יום מנוחה</span>
-                         </div>
-                       );
-                     }
-                   })()}
+                     })}
+                   </Accordion>
                  </div>
                </div>
              ) : (
@@ -768,12 +756,6 @@ export const PlansCard = ({
         customerId={customerId}
       />
 
-      <DayWorkoutDialog
-        isOpen={!!selectedDayWorkout}
-        onOpenChange={(open) => !open && setSelectedDayWorkout(null)}
-        dayName={selectedDayWorkout?.dayName || ''}
-        exercises={selectedDayWorkout?.exercises || []}
-      />
     </Card>
   );
 };

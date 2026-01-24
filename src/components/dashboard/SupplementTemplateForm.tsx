@@ -51,8 +51,11 @@ export const SupplementTemplateForm = ({
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      // Auto-generate name from first supplement if not provided
+      const generatedName = name.trim() || (supplements.length > 0 ? supplements[0].name : 'תוסף חדש');
+      
       const data = {
-        name,
+        name: generatedName,
         description,
         supplements: supplements.filter(s => s.name.trim() !== ''),
       };
@@ -68,37 +71,6 @@ export const SupplementTemplateForm = ({
     <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0" dir="rtl">
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 bg-slate-50/50 min-h-0">
         <div className="grid grid-cols-1 gap-4 mb-4">
-          <Card className="bg-white border-0 shadow-sm rounded-xl">
-            <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-base font-semibold text-slate-900">פרטי התבנית</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="name" className="text-sm font-medium text-slate-500">שם התבנית *</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="לדוגמה: תוספים לחיטוב"
-                  required
-                  className="h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20"
-                  dir="rtl"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="description" className="text-sm font-medium text-slate-500">תיאור</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="תיאור קצר של התבנית..."
-                  className="min-h-[60px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none"
-                  dir="rtl"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
           <Card className="bg-white border-0 shadow-sm rounded-xl">
             <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-center justify-between">
               <CardTitle className="text-base font-semibold text-slate-900">רשימת תוספים</CardTitle>
@@ -123,33 +95,13 @@ export const SupplementTemplateForm = ({
                   {supplements.map((supplement, index) => (
                     <div key={index} className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-3">
                       <div className="flex gap-2 items-start">
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div className="flex-1">
                           <div className="space-y-1">
                             <Label className="text-xs text-slate-500">שם התוסף</Label>
                             <Input
                               value={supplement.name}
                               onChange={(e) => updateSupplement(index, 'name', e.target.value)}
                               placeholder="שם התוסף"
-                              className="h-8 bg-white border-0 text-sm"
-                              dir="rtl"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-slate-500">מינון</Label>
-                            <Input
-                              value={supplement.dosage}
-                              onChange={(e) => updateSupplement(index, 'dosage', e.target.value)}
-                              placeholder="מינון"
-                              className="h-8 bg-white border-0 text-sm"
-                              dir="rtl"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-slate-500">זמן נטילה</Label>
-                            <Input
-                              value={supplement.timing}
-                              onChange={(e) => updateSupplement(index, 'timing', e.target.value)}
-                              placeholder="זמן נטילה"
                               className="h-8 bg-white border-0 text-sm"
                               dir="rtl"
                             />
@@ -204,13 +156,13 @@ export const SupplementTemplateForm = ({
       </div>
 
       <div className="border-t bg-white px-4 py-3 flex gap-3 flex-shrink-0" dir="rtl">
-        <Button
-          type="submit"
-          className="h-9 text-sm bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-3xl font-semibold px-6"
-          disabled={isSubmitting || !name.trim()}
-        >
-          {isSubmitting ? 'שומר...' : 'שמור תבנית'}
-        </Button>
+          <Button
+            type="submit"
+            className="h-9 text-sm bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-3xl font-semibold px-6"
+            disabled={isSubmitting || supplements.length === 0}
+          >
+            {isSubmitting ? 'שומר...' : 'שמור תוסף'}
+          </Button>
         <Button
           type="button"
           variant="outline"
