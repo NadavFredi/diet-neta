@@ -113,6 +113,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   const location = useLocation();
   const { toast } = useToast();
   const [isCreateSubscriptionModalOpen, setIsCreateSubscriptionModalOpen] = useState(false);
+  const [shouldAddSecondPeriod, setShouldAddSecondPeriod] = useState(false);
   const [isAddPaymentDialogOpen, setIsAddPaymentDialogOpen] = useState(false);
   const [isAddMeetingDialogOpen, setIsAddMeetingDialogOpen] = useState(false);
 
@@ -708,7 +709,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 )}
                 {!isSubscriptionEditing && (
                   <Button
-                    onClick={() => setIsCreateSubscriptionModalOpen(true)}
+                    onClick={() => {
+                      setShouldAddSecondPeriod(false);
+                      setIsCreateSubscriptionModalOpen(true);
+                    }}
                     size="sm"
                     variant="default"
                     className="h-9 sm:h-8 px-4 sm:px-3 text-xs sm:text-xs"
@@ -959,7 +963,10 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                           variant="outline" 
                           size="sm" 
                           className="bg-white/90 shadow-sm hover:bg-white border-dashed border-gray-300"
-                          onClick={() => setIsCreateSubscriptionModalOpen(true)}
+                          onClick={() => {
+                            setShouldAddSecondPeriod(true);
+                            setIsCreateSubscriptionModalOpen(true);
+                          }}
                         >
                           <Plus className="h-3 w-3 ml-1" />
                           הוסף תקופה שנייה
@@ -1413,6 +1420,14 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       <CreateSubscriptionModal
         isOpen={isCreateSubscriptionModalOpen}
         onOpenChange={setIsCreateSubscriptionModalOpen}
+        defaultHasSecondPeriod={shouldAddSecondPeriod}
+        initialSubscription1={subscriptionData ? {
+          duration: subscriptionData.months || 0,
+          duration_unit: (subscriptionData.duration_unit as 'days' | 'weeks' | 'months') || 'months',
+          price: subscriptionData.initialPrice || 0,
+          currency: (subscriptionData.currency as 'ILS' | 'USD' | 'EUR') || 'ILS',
+          status: subscriptionData.status || 'פעיל',
+        } : undefined}
         onConfirm={async (sub1, sub2) => {
           try {
             const today = new Date();

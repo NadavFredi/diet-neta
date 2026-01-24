@@ -23,6 +23,14 @@ import { Separator } from '@/components/ui/separator';
 interface CreateSubscriptionModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  initialSubscription1?: {
+    duration: number;
+    duration_unit: DurationUnit;
+    price: number;
+    currency?: Currency;
+    status: string;
+  };
+  defaultHasSecondPeriod?: boolean;
   onConfirm: (
     subscription1: { name: string; duration: number; duration_unit: DurationUnit; price: number; currency?: Currency; status: string },
     subscription2?: { name: string; duration: number; duration_unit: DurationUnit; price: number; currency?: Currency; status: string }
@@ -47,6 +55,8 @@ export const CreateSubscriptionModal = ({
   isOpen,
   onOpenChange,
   onConfirm,
+  initialSubscription1,
+  defaultHasSecondPeriod = false,
 }: CreateSubscriptionModalProps) => {
   const { toast } = useToast();
   const dispatch = useAppDispatch();
@@ -79,6 +89,30 @@ export const CreateSubscriptionModal = ({
       dispatch(fetchSubscriptionTypes());
     }
   }, [isOpen, dispatch]);
+
+  // Set default state for second period
+  useEffect(() => {
+    if (isOpen) {
+      setHasSecondPeriod(defaultHasSecondPeriod);
+    }
+  }, [isOpen, defaultHasSecondPeriod]);
+
+  // Try to match initial subscription to an existing type
+  useEffect(() => {
+    if (isOpen && initialSubscription1 && subscriptionTypes.length > 0 && !selectedSubscriptionTypeId1) {
+      const match = subscriptionTypes.find(st => 
+        st.duration === initialSubscription1.duration &&
+        st.duration_unit === initialSubscription1.duration_unit &&
+        st.price === initialSubscription1.price &&
+        st.currency === (initialSubscription1.currency || 'ILS')
+      );
+      
+      if (match) {
+        setSelectedSubscriptionTypeId1(match.id);
+        setSelectedStatus1(initialSubscription1.status || 'פעיל');
+      }
+    }
+  }, [isOpen, initialSubscription1, subscriptionTypes, selectedSubscriptionTypeId1]);
 
   const selectedSubscriptionType1 = subscriptionTypes.find(
     (st) => st.id === selectedSubscriptionTypeId1
