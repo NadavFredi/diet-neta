@@ -676,7 +676,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         {/* Row 1: 3-Column Grid - Subscription, CRM Status, Personal Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
           {/* Card 1: Subscription Details (Combined Current & Future) */}
-          <Card className="col-span-1 md:col-span-2 p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
+          <Card className="col-span-1 md:col-span-2 p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-100">
@@ -719,11 +719,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
             </div>
             
-            <div className="flex-1 flex flex-col gap-6 relative">
+            <div className="flex-1 flex flex-col gap-5 relative">
               {/* Current Subscription Column */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 auto-rows-min">
-                <div className="col-span-1 sm:col-span-3">
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">תקופה 1 (נוכחי)</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3 auto-rows-min">
+                <div className="col-span-2 sm:col-span-4 xl:col-span-6">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">תקופה 1 (נוכחי)</h4>
                 </div>
                 <InlineEditableField
                   ref={joinDateRef}
@@ -831,11 +831,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               </div>
 
               {/* Separator */}
-              <div className="border-t border-slate-100 my-2"></div>
+              <div className="border-t border-slate-100"></div>
 
               {/* Future Subscription Column */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 auto-rows-min">
-                <div className="col-span-1 sm:col-span-3 flex items-center gap-2 mb-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3 auto-rows-min">
+                <div className="col-span-2 sm:col-span-4 xl:col-span-6 flex items-center gap-2 mb-1">
                   <Clock className="h-3.5 w-3.5 text-blue-600" />
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">תקופה 2 (עתידי)</h4>
                 </div>
@@ -930,8 +930,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                     />
                   </>
                 ) : (
-                  <div className="col-span-1 sm:col-span-3 relative">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 auto-rows-min opacity-50 pointer-events-none select-none filter grayscale">
+                  <div className="col-span-2 sm:col-span-4 xl:col-span-6 relative">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3 auto-rows-min opacity-50 pointer-events-none select-none filter grayscale">
                       <div className="flex flex-col gap-1">
                         <span className="text-xs text-gray-500 font-medium">תאריך התחלה מתוכנן</span>
                         <span className="text-sm font-semibold text-gray-300">-</span>
@@ -973,7 +973,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Card 3: CRM Status & Info */}
-          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
+          <Card className="p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col">
             <CardHeaderWithActions
               icon={Target}
               iconBgColor="bg-indigo-100"
@@ -983,7 +983,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               onSave={handleCrmSave}
               onCancel={handleCrmCancel}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 auto-rows-min">
+            <div className="grid grid-cols-2 gap-3 flex-1 auto-rows-min">
               <InlineEditableSelect
                 ref={statusRef}
                 label="סטטוס"
@@ -1094,7 +1094,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           </Card>
 
           {/* Card 4: Personal Details */}
-          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
+          <Card className="p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col">
             <CardHeaderWithActions
               icon={Target}
               iconBgColor="bg-cyan-100"
@@ -1104,7 +1104,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               onSave={handlePersonalSave}
               onCancel={handlePersonalCancel}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 auto-rows-min">
+            <div className="grid grid-cols-2 gap-3 flex-1 auto-rows-min">
               <InlineEditableField
                 ref={ageRef}
                 label="גיל"
