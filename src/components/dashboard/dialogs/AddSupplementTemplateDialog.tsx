@@ -21,7 +21,7 @@ export const AddSupplementTemplateDialog = ({
             טופס להוספת תוסף חדש
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
+        <div className="flex-1 overflow-hidden min-h-0">
           <SupplementTemplateForm
             onSave={onSave}
             onCancel={() => onOpenChange(false)}

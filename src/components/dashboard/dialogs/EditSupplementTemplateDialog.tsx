@@ -24,7 +24,7 @@ export const EditSupplementTemplateDialog = ({
             טופס לעריכת תוסף קיים
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
+        <div className="flex-1 overflow-hidden min-h-0">
           {editingTemplate && (
             <SupplementTemplateForm
               initialData={editingTemplate}

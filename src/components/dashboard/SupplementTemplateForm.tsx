@@ -64,8 +64,8 @@ export const SupplementTemplateForm = ({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0" dir="rtl">
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-1 min-h-0">
-        <div className="space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+        <div className="px-6 py-6 space-y-4">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-slate-700">שם התוסף</Label>
             <Input
@@ -109,7 +109,7 @@ export const SupplementTemplateForm = ({
         </div>
       </div>
 
-      <div className="mt-6 flex gap-3 flex-shrink-0" dir="rtl">
+      <div className="px-6 pb-6 pt-2 flex gap-3 flex-shrink-0" dir="rtl">
         <Button
           type="submit"
           className="h-10 text-sm bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg font-medium px-8 min-w-[100px]"
