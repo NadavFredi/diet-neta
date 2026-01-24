@@ -459,7 +459,7 @@ export const PlansCard = ({
           {/* Nutrition Plan Card */}
           <div 
             className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeNutrition ? 'bg-orange-50/30 border-orange-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
-            onClick={() => activeNutrition ? handleEditNutrition(activeNutrition) : onAddDietPlan()}
+            onClick={() => activeNutrition ? setViewingBudgetId(effectiveBudgetId) : onAddDietPlan()}
           >
              <div className="flex items-center gap-2 mb-2">
                 <div className={`p-1.5 rounded-md ${activeNutrition ? 'bg-orange-100 text-orange-600' : 'bg-gray-200 text-gray-500'}`}>
@@ -468,15 +468,25 @@ export const PlansCard = ({
                 <span className={`text-sm font-semibold ${activeNutrition ? 'text-gray-900' : 'text-gray-500'}`}>תזונה</span>
              </div>
              {activeNutrition ? (
-               <div className="space-y-1">
+               <div className="space-y-2">
                  <p className="text-xs text-gray-600 font-medium truncate">{activeNutrition.description || 'ללא תיאור'}</p>
-                 <div className="flex flex-wrap gap-1 mt-2">
-                   {activeNutrition.targets?.calories && (
-                     <Badge variant="secondary" className="text-[10px] px-1 h-5 bg-white text-gray-700 border-gray-200">{activeNutrition.targets.calories} קל׳</Badge>
-                   )}
-                   {activeNutrition.targets?.protein && (
-                     <Badge variant="secondary" className="text-[10px] px-1 h-5 bg-white text-gray-700 border-gray-200">ח: {activeNutrition.targets.protein}ג</Badge>
-                   )}
+                 <div className="grid grid-cols-2 gap-1.5">
+                   <div className="flex flex-col bg-white rounded-md p-1 border border-orange-100 items-center">
+                     <span className="text-[9px] text-gray-400 font-medium">קלוריות</span>
+                     <span className="text-xs font-bold text-gray-700">{activeNutrition.targets?.calories || '-'}</span>
+                   </div>
+                   <div className="flex flex-col bg-white rounded-md p-1 border border-orange-100 items-center">
+                     <span className="text-[9px] text-gray-400 font-medium">חלבון</span>
+                     <span className="text-xs font-bold text-gray-700">{activeNutrition.targets?.protein || '-'}</span>
+                   </div>
+                   <div className="flex flex-col bg-white rounded-md p-1 border border-orange-100 items-center">
+                     <span className="text-[9px] text-gray-400 font-medium">פחמימה</span>
+                     <span className="text-xs font-bold text-gray-700">{activeNutrition.targets?.carbs || '-'}</span>
+                   </div>
+                   <div className="flex flex-col bg-white rounded-md p-1 border border-orange-100 items-center">
+                     <span className="text-[9px] text-gray-400 font-medium">שומן</span>
+                     <span className="text-xs font-bold text-gray-700">{activeNutrition.targets?.fat || '-'}</span>
+                   </div>
                  </div>
                </div>
              ) : (
@@ -487,7 +497,7 @@ export const PlansCard = ({
           {/* Workout Plan Card */}
           <div 
             className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeWorkout ? 'bg-blue-50/30 border-blue-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
-             onClick={() => activeWorkout ? handleEditWorkout(activeWorkout) : onAddWorkoutPlan()}
+             onClick={() => activeWorkout ? setViewingBudgetId(effectiveBudgetId) : onAddWorkoutPlan()}
           >
              <div className="flex items-center gap-2 mb-2">
                 <div className={`p-1.5 rounded-md ${activeWorkout ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
@@ -496,14 +506,21 @@ export const PlansCard = ({
                 <span className={`text-sm font-semibold ${activeWorkout ? 'text-gray-900' : 'text-gray-500'}`}>אימונים</span>
              </div>
              {activeWorkout ? (
-               <div className="space-y-1">
+               <div className="space-y-2">
                  <p className="text-xs text-gray-600 font-medium truncate">{activeWorkout.description || activeWorkout.name || 'ללא תיאור'}</p>
-                 <div className="flex flex-wrap gap-1 mt-2">
-                   <Badge variant="secondary" className="text-[10px] px-1 h-5 bg-white text-gray-700 border-gray-200">
-                    {activeWorkout.split ? 
-                      `${activeWorkout.split.strength || 0}/${activeWorkout.split.cardio || 0}/${activeWorkout.split.intervals || 0}` : 
-                      'ללא פיצול'}
-                   </Badge>
+                 <div className="flex flex-col gap-1">
+                   <div className="flex justify-between items-center bg-white rounded-md p-1.5 border border-blue-100">
+                     <span className="text-[10px] text-gray-500">פיצול</span>
+                     <span className="text-xs font-bold text-gray-700">
+                      {activeWorkout.split ? 
+                        `${activeWorkout.split.strength || 0}/${activeWorkout.split.cardio || 0}/${activeWorkout.split.intervals || 0}` : 
+                        'ללא פיצול'}
+                     </span>
+                   </div>
+                   <div className="flex justify-between items-center bg-white rounded-md p-1.5 border border-blue-100">
+                     <span className="text-[10px] text-gray-500">תוקף</span>
+                     <span className="text-xs font-bold text-gray-700">{activeWorkout.validUntil ? formatDate(activeWorkout.validUntil) : '-'}</span>
+                   </div>
                  </div>
                </div>
              ) : (
@@ -514,7 +531,7 @@ export const PlansCard = ({
           {/* Steps Plan Card */}
           <div 
             className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeSteps ? 'bg-cyan-50/30 border-cyan-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
-            onClick={() => activeSteps ? handleEditSteps(activeSteps) : null}
+            onClick={() => activeSteps ? setViewingBudgetId(effectiveBudgetId) : null}
           >
              <div className="flex items-center gap-2 mb-2">
                 <div className={`p-1.5 rounded-md ${activeSteps ? 'bg-cyan-100 text-cyan-600' : 'bg-gray-200 text-gray-500'}`}>
@@ -523,9 +540,14 @@ export const PlansCard = ({
                 <span className={`text-sm font-semibold ${activeSteps ? 'text-gray-900' : 'text-gray-500'}`}>צעדים</span>
              </div>
              {activeSteps ? (
-               <div className="space-y-1">
-                 <p className="text-lg font-bold text-cyan-700">{(activeSteps.target || 0).toLocaleString()} <span className="text-xs font-normal text-gray-500">ליום</span></p>
-                 <p className="text-[10px] text-gray-400">{activeSteps.week || activeSteps.weekNumber || 'יעד נוכחי'}</p>
+               <div className="space-y-2 text-center py-2">
+                 <div>
+                   <p className="text-2xl font-bold text-cyan-700 leading-none">{(activeSteps.target || 0).toLocaleString()}</p>
+                   <p className="text-[10px] text-gray-500 mt-1">צעדים ליום</p>
+                 </div>
+                 <div className="inline-block bg-white rounded-md px-2 py-0.5 border border-cyan-100">
+                   <p className="text-[10px] text-gray-400">{activeSteps.week || activeSteps.weekNumber || 'יעד נוכחי'}</p>
+                 </div>
                </div>
              ) : (
                 <div className="h-16 flex items-center justify-center text-xs text-gray-400">אין יעד פעיל</div>
@@ -535,7 +557,7 @@ export const PlansCard = ({
           {/* Supplements Plan Card */}
           <div 
             className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeSupplements ? 'bg-green-50/30 border-green-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
-            onClick={() => activeSupplements ? setSelectedSupplementPlan(activeSupplements) : onAddSupplementsPlan()}
+            onClick={() => activeSupplements ? setViewingBudgetId(effectiveBudgetId) : onAddSupplementsPlan()}
           >
              <div className="flex items-center gap-2 mb-2">
                 <div className={`p-1.5 rounded-md ${activeSupplements ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-500'}`}>
@@ -544,12 +566,19 @@ export const PlansCard = ({
                 <span className={`text-sm font-semibold ${activeSupplements ? 'text-gray-900' : 'text-gray-500'}`}>תוספים</span>
              </div>
              {activeSupplements ? (
-               <div className="space-y-1">
+               <div className="space-y-2">
                  <p className="text-xs text-gray-600 font-medium truncate">{activeSupplements.description || 'ללא תיאור'}</p>
-                 <div className="flex flex-wrap gap-1 mt-2">
-                    <Badge variant="secondary" className="text-[10px] px-1 h-5 bg-white text-gray-700 border-gray-200">
-                      {activeSupplements.supplements?.length || 0} פריטים
-                    </Badge>
+                 <div className="bg-white rounded-md p-1.5 border border-green-100">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10px] text-gray-500">פריטים</span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-green-50 text-green-700 border-green-100">
+                        {activeSupplements.supplements?.length || 0}
+                      </Badge>
+                    </div>
+                    <div className="text-[10px] text-gray-400 truncate">
+                      {activeSupplements.supplements?.slice(0, 2).map((s: any) => s.name || s).join(', ') || '-'}
+                      {(activeSupplements.supplements?.length || 0) > 2 ? '...' : ''}
+                    </div>
                  </div>
                </div>
              ) : (

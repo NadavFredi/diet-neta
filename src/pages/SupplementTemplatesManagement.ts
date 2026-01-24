@@ -1,9 +1,3 @@
-/**
- * SupplementTemplatesManagement Logic
- * 
- * Handles all business logic, data fetching, and state management
- */
-
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
@@ -15,7 +9,6 @@ import {
   useCreateSupplementTemplate,
   useUpdateSupplementTemplate,
   type SupplementTemplate,
-  type SupplementItem,
 } from '@/hooks/useSupplementTemplates';
 import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -33,7 +26,6 @@ import {
   selectColumnOrder,
   selectColumnSizing,
   setCurrentPage,
-  setPageSize,
   setSortBy,
   setSortOrder,
 } from '@/store/slices/tableStateSlice';
@@ -80,7 +72,6 @@ export const useSupplementTemplatesManagement = () => {
   const templates = templatesData?.data || [];
   const totalTemplates = templatesData?.totalCount || 0;
   
-  // Reset to page 1 when filters, search, or grouping change
   const prevFiltersRef = useRef<string>('');
   useEffect(() => {
     const currentFilters = JSON.stringify({ 
@@ -107,17 +98,14 @@ export const useSupplementTemplatesManagement = () => {
 
   useSyncSavedViewFilters('supplement_templates', savedView, isLoadingView);
 
-  // Auto-navigate to default view
   useEffect(() => {
     if (!viewId && defaultView) {
       navigate(`/dashboard/supplement-templates?view_id=${defaultView.id}`, { replace: true });
     }
   }, [viewId, defaultView, navigate]);
 
-  // Filter templates
   const filteredTemplates = useMemo(() => templates, [templates]);
 
-  // Handlers
   const handleLogout = async () => {
     try {
       await dispatch(logoutUser()).unwrap();
@@ -137,16 +125,12 @@ export const useSupplementTemplatesManagement = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleSaveTemplate = async (
-    data: { name: string; description: string; supplements: SupplementItem[] }
-  ) => {
+  const handleSaveTemplate = async (data: any) => {
     try {
       if (editingTemplate) {
         await updateTemplate.mutateAsync({
           templateId: editingTemplate.id,
-          name: data.name,
-          description: data.description,
-          supplements: data.supplements,
+          ...data,
         });
         toast({
           title: 'הצלחה',
@@ -156,9 +140,7 @@ export const useSupplementTemplatesManagement = () => {
         setEditingTemplate(null);
       } else {
         await createTemplate.mutateAsync({
-          name: data.name,
-          description: data.description,
-          supplements: data.supplements,
+          ...data,
           is_public: false,
         });
         toast({
@@ -232,7 +214,6 @@ export const useSupplementTemplatesManagement = () => {
   };
 
   return {
-    // Data
     templates: filteredTemplates,
     totalTemplates,
     savedView,
@@ -240,8 +221,6 @@ export const useSupplementTemplatesManagement = () => {
     templateToDelete,
     isLoading,
     isLoadingView,
-    
-    // State
     isAddDialogOpen,
     isEditDialogOpen,
     deleteDialogOpen,
@@ -249,15 +228,11 @@ export const useSupplementTemplatesManagement = () => {
     isSettingsOpen,
     sortBy,
     sortOrder,
-    
-    // Setters
     setIsAddDialogOpen,
     setIsEditDialogOpen,
     setDeleteDialogOpen,
     setIsSaveViewModalOpen,
     setIsSettingsOpen,
-    
-    // Handlers
     handleLogout,
     handleAddTemplate,
     handleEditTemplate,
@@ -268,8 +243,6 @@ export const useSupplementTemplatesManagement = () => {
     handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,
-    
-    // Mutations
     deleteTemplate,
   };
 };

@@ -14,7 +14,7 @@ export const AddSupplementTemplateDialog = ({
 }: AddSupplementTemplateDialogProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-[800px] !w-[95vw] !h-[90vh] !max-h-[90vh] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%]" dir="rtl">
+      <DialogContent className="!max-w-[98vw] !w-[98vw] !h-[95vh] !max-h-[95vh] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%] !rounded-none" dir="rtl">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle>יצירת תבנית תוספים חדשה</DialogTitle>
           <DialogDescription className="sr-only">

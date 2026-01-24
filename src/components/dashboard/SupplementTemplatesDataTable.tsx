@@ -81,11 +81,11 @@ export const SupplementTemplatesDataTable = ({
       emptyMessage={
         templates.length === 0
           ? 'אין תבניות תוספים. צור תבנית חדשה כדי להתחיל'
-          : 'לא נמצאו תבניות תוספים התואמות לחיפוש'
+          : 'לא נמצאו תבניות התואמות לחיפוש'
       }
       enableColumnVisibility={false}
       enableColumnReordering={true}
-      resourceKey="supplement_templates"
+      resourceKey="templates"
       enableRowSelection
       totalCount={templates.length}
       onBulkDelete={onBulkDelete}

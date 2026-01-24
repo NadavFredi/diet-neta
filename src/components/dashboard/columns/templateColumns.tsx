@@ -50,7 +50,7 @@ export const supplementTemplateColumns: DataTableColumn<SupplementTemplate>[] = 
     },
   },
   {
-    id: 'supplements',
+    id: 'supplements_count',
     header: 'מספר תוספים',
     accessorKey: 'supplements',
     enableSorting: false,
@@ -61,12 +61,8 @@ export const supplementTemplateColumns: DataTableColumn<SupplementTemplate>[] = 
       align: 'right',
     },
     cell: ({ row }) => {
-      const supplements = row.original.supplements || [];
-      return (
-        <Badge variant="outline" className="text-xs">
-          {supplements.length} תוספים
-        </Badge>
-      );
+      const count = row.original.supplements?.length || 0;
+      return <Badge variant="outline">{count} תוספים</Badge>;
     },
   },
   {
@@ -99,7 +95,7 @@ export const supplementTemplateColumns: DataTableColumn<SupplementTemplate>[] = 
   {
     id: 'actions',
     header: 'פעולות',
-    accessorKey: 'id',
+    accessorKey: 'id', // Use id as accessor for actions column
     enableSorting: false,
     enableResizing: true,
     enableHiding: true,
@@ -107,6 +103,8 @@ export const supplementTemplateColumns: DataTableColumn<SupplementTemplate>[] = 
     meta: {
       align: 'right',
     },
+    // Note: cell renderer will be provided by the component using this column
+    // to allow passing onEdit and onDelete handlers
   },
 ];
 
@@ -407,9 +405,10 @@ export const defaultWorkoutTemplateColumnVisibility: Record<string, boolean> = {
 export const defaultSupplementTemplateColumnVisibility: Record<string, boolean> = {
   name: true,
   description: true,
-  supplements: true,
+  supplements_count: true,
   created_at: true,
 };
+
 
 
 

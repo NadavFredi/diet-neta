@@ -25,15 +25,14 @@ export const DeleteSupplementTemplateDialog = ({
   isDeleting,
   onConfirm,
 }: DeleteSupplementTemplateDialogProps) => {
-  if (!templateToDelete) return null;
-
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       <AlertDialogContent dir="rtl">
         <AlertDialogHeader>
-          <AlertDialogTitle>האם אתה בטוח שברצונך למחוק את התבנית?</AlertDialogTitle>
+          <AlertDialogTitle>האם אתה בטוח?</AlertDialogTitle>
           <AlertDialogDescription>
-            פעולה זו תמחק את התבנית "{templateToDelete.name}" לצמיתות. לא ניתן יהיה לשחזר את המידע.
+            פעולה זו תמחק את התבנית "{templateToDelete?.name}" לצמיתות.
+            לא ניתן יהיה לשחזר את התבנית לאחר המחיקה.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -44,7 +43,7 @@ export const DeleteSupplementTemplateDialog = ({
               onConfirm();
             }}
             disabled={isDeleting}
-            className="bg-red-600 hover:bg-red-700"
+            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
           >
             {isDeleting ? 'מוחק...' : 'מחק תבנית'}
           </AlertDialogAction>

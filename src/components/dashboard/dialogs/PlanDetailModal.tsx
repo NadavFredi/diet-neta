@@ -171,8 +171,6 @@ export const PlanDetailModal = ({
                 name: name,
                 dosage: '',
                 timing: '',
-                link1: '',
-                link2: '',
               }));
             } else {
               // New format: Supplement[]
@@ -305,7 +303,7 @@ export const PlanDetailModal = ({
   const handleAddSupplement = () => {
     setSupplementForm({
       ...supplementForm,
-      supplements: [...supplementForm.supplements, { name: '', dosage: '', timing: '', link1: '', link2: '' }],
+      supplements: [...supplementForm.supplements, { name: '', dosage: '', timing: '' }],
     });
   };
 
@@ -591,22 +589,6 @@ export const PlanDetailModal = ({
                             placeholder="זמן נטילה"
                             className="h-8 bg-white border-0 text-xs"
                             dir="rtl"
-                            disabled={!isEditing}
-                          />
-                          <Input
-                            value={supplement.link1 || ''}
-                            onChange={(e) => handleUpdateSupplement(index, 'link1', e.target.value)}
-                            placeholder="קישור 1"
-                            className="h-8 bg-white border-0 text-xs"
-                            dir="ltr"
-                            disabled={!isEditing}
-                          />
-                          <Input
-                            value={supplement.link2 || ''}
-                            onChange={(e) => handleUpdateSupplement(index, 'link2', e.target.value)}
-                            placeholder="קישור 2"
-                            className="h-8 bg-white border-0 text-xs"
-                            dir="ltr"
                             disabled={!isEditing}
                           />
                         </div>

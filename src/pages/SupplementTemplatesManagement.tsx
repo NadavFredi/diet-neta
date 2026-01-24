@@ -1,9 +1,3 @@
-/**
- * SupplementTemplatesManagement UI Component
- * 
- * Pure presentation component - all logic is in SupplementTemplatesManagement.ts
- */
-
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
@@ -59,28 +53,22 @@ const SupplementTemplatesManagement = () => {
     handleSortChange,
   } = useSupplementTemplatesManagement();
   
-  // Group pagination state (separate from record pagination)
-  // Use the same pageSize as regular pagination for consistency, but allow it to be changed
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
-  const [groupPageSize, setGroupPageSize] = useState(pageSize); // Start with regular page size, but allow changes
+  const [groupPageSize, setGroupPageSize] = useState(pageSize);
   
-  // Sync groupPageSize with pageSize when pageSize changes
   useEffect(() => {
     setGroupPageSize(pageSize);
   }, [pageSize]);
   
-  // Calculate total groups when grouping is active
   const totalGroups = useMemo(() => {
     if (!isGroupingActive || !templates || templates.length === 0) {
       return 0;
     }
     
-    // Group the data to count groups
     const groupedData = groupDataByKeys(templates, groupByKeys, { level1: null, level2: null });
     return getTotalGroupsCount(groupedData);
   }, [isGroupingActive, templates, groupByKeys]);
   
-  // Reset group pagination when grouping changes
   useEffect(() => {
     if (isGroupingActive) {
       setGroupCurrentPage(1);
@@ -93,7 +81,7 @@ const SupplementTemplatesManagement = () => {
 
   const handleGroupPageSizeChange = useCallback((newPageSize: number) => {
     setGroupPageSize(newPageSize);
-    setGroupCurrentPage(1); // Reset to first page when page size changes
+    setGroupCurrentPage(1);
   }, []);
   
   const handlePageChange = useCallback((page: number) => {
@@ -104,11 +92,9 @@ const SupplementTemplatesManagement = () => {
     dispatch(setPageSize({ resourceKey: 'supplement_templates', pageSize: newPageSize }));
   }, [dispatch]);
 
-  // Generate filter fields with all renderable columns
   const supplementTemplateFilterFields = useMemo(() => {
     return getSupplementTemplateFilterFields(templates || [], supplementTemplateColumns);
   }, [templates]);
-
 
   return (
     <>
@@ -117,7 +103,6 @@ const SupplementTemplatesManagement = () => {
         onLogout={handleLogout}
         onSaveViewClick={handleSaveViewClick}
       >
-        {/* Header Section - Always visible */}
         <div className="flex-shrink-0">
           <TableActionHeader
             resourceKey="supplement_templates"
@@ -137,7 +122,6 @@ const SupplementTemplatesManagement = () => {
           />
         </div>
 
-        {/* Table Section - Scrollable area */}
         <div className="flex-1 min-h-0 flex flex-col bg-white">
           {isLoading ? (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
@@ -156,7 +140,6 @@ const SupplementTemplatesManagement = () => {
               />
             </div>
           )}
-          {/* Pagination Footer - Always visible when there's data */}
           {!isLoading && totalTemplates > 0 && (
             <div className="flex-shrink-0">
               <Pagination
@@ -175,14 +158,12 @@ const SupplementTemplatesManagement = () => {
         </div>
       </TableManagementLayout>
 
-      {/* Add Template Dialog */}
       <AddSupplementTemplateDialog
         isOpen={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         onSave={handleSaveTemplate}
       />
 
-      {/* Edit Template Dialog */}
       <EditSupplementTemplateDialog
         isOpen={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
@@ -190,7 +171,6 @@ const SupplementTemplatesManagement = () => {
         onSave={handleSaveTemplate}
       />
 
-      {/* Delete Confirmation Dialog */}
       <DeleteSupplementTemplateDialog
         isOpen={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -199,7 +179,6 @@ const SupplementTemplatesManagement = () => {
         onConfirm={handleConfirmDelete}
       />
 
-      {/* Save View Modal */}
       <SaveViewModal
         isOpen={isSaveViewModalOpen}
         onOpenChange={setIsSaveViewModalOpen}
@@ -207,7 +186,6 @@ const SupplementTemplatesManagement = () => {
         filterConfig={getCurrentFilterConfig(activeFilters)}
         onSuccess={() => setIsSaveViewModalOpen(false)}
       />
-
     </>
   );
 };

@@ -275,20 +275,14 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       setSupplementTemplateId(templateId);
       const template = supplementTemplates.find((t) => t.id === templateId);
       if (template && template.supplements) {
-        setSupplements(template.supplements.map(s => ({
-          name: s.name,
-          dosage: '', 
-          timing: '',
-          link1: s.link1,
-          link2: s.link2
-        })));
+        setSupplements(template.supplements);
       }
     }
   };
 
   // Supplements management
   const addSupplement = () => {
-    setSupplements([...supplements, { name: '', dosage: '', timing: '', link1: '', link2: '' }]);
+    setSupplements([...supplements, { name: '', dosage: '', timing: '' }]);
   };
 
   const removeSupplement = (index: number) => {
@@ -466,6 +460,37 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       });
     }
   };
+
+  // Handle creating new supplement template
+  const handleCreateSupplementTemplate = async (data: any) => {
+    try {
+      const newTemplate = await createSupplementTemplate.mutateAsync(data);
+      
+      // Refresh templates list
+      queryClient.invalidateQueries({ queryKey: ['supplementTemplates'] });
+      
+      // Auto-select the newly created template
+      setSupplementTemplateId(newTemplate.id);
+      
+      if (newTemplate.supplements) {
+        setSupplements(newTemplate.supplements);
+      }
+      
+      // Close dialog
+      setIsSupplementTemplateDialogOpen(false);
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תבנית התוספים נוצרה בהצלחה ונבחרה אוטומטית',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת תבנית התוספים',
+        variant: 'destructive',
+      });
+    }
+  };
   
   // Handle editing workout template
   const handleEditWorkoutTemplate = () => {
@@ -560,93 +585,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון תבנית התזונה',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // Handle creating new supplement template
-  const handleCreateSupplementTemplate = async (data: any) => {
-    try {
-      const newTemplate = await createSupplementTemplate.mutateAsync(data);
-      
-      // Refresh templates list
-      queryClient.invalidateQueries({ queryKey: ['supplementTemplates'] });
-      
-      // Auto-select the newly created template
-      setSupplementTemplateId(newTemplate.id);
-      
-      if (newTemplate.supplements) {
-        setSupplements(newTemplate.supplements.map(s => ({
-          name: s.name,
-          dosage: '', 
-          timing: '',
-          link1: s.link1,
-          link2: s.link2
-        })));
-      }
-      
-      // Close dialog
-      setIsSupplementTemplateDialogOpen(false);
-      
-      toast({
-        title: 'הצלחה',
-        description: 'תבנית התוספים נוצרה בהצלחה ונבחרה אוטומטית',
-      });
-    } catch (error: any) {
-      toast({
-        title: 'שגיאה',
-        description: error?.message || 'נכשל ביצירת תבנית התוספים',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // Handle editing supplement template
-  const handleEditSupplementTemplate = () => {
-    if (!supplementTemplateId) return;
-    const template = supplementTemplates.find((t) => t.id === supplementTemplateId);
-    if (template) {
-      setEditingSupplementTemplate(template);
-      setIsEditSupplementTemplateDialogOpen(true);
-    }
-  };
-
-  // Handle saving edited supplement template
-  const handleUpdateSupplementTemplate = async (data: any) => {
-    if (!editingSupplementTemplate) return;
-    try {
-      const updated = await updateSupplementTemplate.mutateAsync({
-        templateId: editingSupplementTemplate.id,
-        ...data,
-      });
-      
-      // Close only the edit template dialog first, keep budget dialog open
-      setIsEditSupplementTemplateDialogOpen(false);
-      setEditingSupplementTemplate(null);
-      
-      // Update supplements if they changed
-      if (updated?.supplements) {
-        setSupplements(updated.supplements.map(s => ({
-          name: s.name,
-          dosage: '', 
-          timing: '',
-          link1: s.link1,
-          link2: s.link2
-        })));
-      }
-      
-      // Refresh templates list without closing parent dialog
-      await queryClient.refetchQueries({ queryKey: ['supplementTemplates'] });
-      
-      toast({
-        title: 'הצלחה',
-        description: 'תבנית התוספים עודכנה בהצלחה',
-      });
-    } catch (error: any) {
-      toast({
-        title: 'שגיאה',
-        description: error?.message || 'נכשל בעדכון תבנית התוספים',
         variant: 'destructive',
       });
     }
@@ -878,57 +816,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
                 <Pill className="h-3.5 w-3.5 text-slate-400" />
-                תבנית תוספים
-              </Label>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={supplementTemplateId || 'none'}
-                  onValueChange={handleSupplementTemplateChange}
-                >
-                  <SelectTrigger className={cn(
-                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
-                    "text-slate-900 font-medium text-sm"
-                  )} dir="rtl">
-                    <SelectValue placeholder="בחר תבנית תוספים" />
-                  </SelectTrigger>
-                  <SelectContent dir="rtl">
-                    <SelectItem value="none">ללא תבנית</SelectItem>
-                    {supplementTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {supplementTemplateId && canEditTemplates && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleEditSupplementTemplate}
-                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
-                    title="ערוך תבנית תוספים"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsSupplementTemplateDialogOpen(true)}
-                  className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
-                  title="צור תבנית תוספים חדשה"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Pill className="h-3.5 w-3.5 text-slate-400" />
-                רשימת תוספים
+                תוספים
               </Label>
               <div className="space-y-2">
                 {supplements.length === 0 ? (
@@ -949,46 +837,28 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   <div className="space-y-2">
                     {supplements.map((supplement, index) => (
                       <div key={index} className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
-                        <div className="flex-1 grid grid-cols-1 gap-1.5">
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <Input
-                              value={supplement.name}
-                              onChange={(e) => updateSupplement(index, 'name', e.target.value)}
-                              placeholder="שם התוסף"
-                              className="h-8 bg-white border-0 text-xs"
-                              dir="rtl"
-                            />
-                            <Input
-                              value={supplement.dosage}
-                              onChange={(e) => updateSupplement(index, 'dosage', e.target.value)}
-                              placeholder="מינון"
-                              className="h-8 bg-white border-0 text-xs"
-                              dir="rtl"
-                            />
-                            <Input
-                              value={supplement.timing}
-                              onChange={(e) => updateSupplement(index, 'timing', e.target.value)}
-                              placeholder="זמן נטילה"
-                              className="h-8 bg-white border-0 text-xs"
-                              dir="rtl"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            <Input
-                              value={supplement.link1 || ''}
-                              onChange={(e) => updateSupplement(index, 'link1', e.target.value)}
-                              placeholder="קישור 1"
-                              className="h-8 bg-white border-0 text-xs"
-                              dir="ltr"
-                            />
-                            <Input
-                              value={supplement.link2 || ''}
-                              onChange={(e) => updateSupplement(index, 'link2', e.target.value)}
-                              placeholder="קישור 2"
-                              className="h-8 bg-white border-0 text-xs"
-                              dir="ltr"
-                            />
-                          </div>
+                        <div className="flex-1 grid grid-cols-3 gap-1.5">
+                          <Input
+                            value={supplement.name}
+                            onChange={(e) => updateSupplement(index, 'name', e.target.value)}
+                            placeholder="שם התוסף"
+                            className="h-8 bg-white border-0 text-xs"
+                            dir="rtl"
+                          />
+                          <Input
+                            value={supplement.dosage}
+                            onChange={(e) => updateSupplement(index, 'dosage', e.target.value)}
+                            placeholder="מינון"
+                            className="h-8 bg-white border-0 text-xs"
+                            dir="rtl"
+                          />
+                          <Input
+                            value={supplement.timing}
+                            onChange={(e) => updateSupplement(index, 'timing', e.target.value)}
+                            placeholder="זמן נטילה"
+                            className="h-8 bg-white border-0 text-xs"
+                            dir="rtl"
+                          />
                         </div>
                         <Button
                           type="button"
@@ -1102,19 +972,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         onOpenChange={setIsEditNutritionTemplateDialogOpen}
         editingTemplate={editingNutritionTemplate}
         onSave={handleUpdateNutritionTemplate}
-      />
-      
-      <AddSupplementTemplateDialog
-        isOpen={isSupplementTemplateDialogOpen}
-        onOpenChange={setIsSupplementTemplateDialogOpen}
-        onSave={handleCreateSupplementTemplate}
-      />
-      
-      <EditSupplementTemplateDialog
-        isOpen={isEditSupplementTemplateDialogOpen}
-        onOpenChange={setIsEditSupplementTemplateDialogOpen}
-        editingTemplate={editingSupplementTemplate}
-        onSave={handleUpdateSupplementTemplate}
       />
     </form>
   );
