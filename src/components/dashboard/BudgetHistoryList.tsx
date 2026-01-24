@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useBudgetHistory, BudgetHistoryItem } from '@/hooks/useBudgetHistory';
 import { formatDate } from '@/utils/dashboard';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { History, ArrowLeft } from 'lucide-react';
+import { useNutritionTemplates } from '@/hooks/useNutritionTemplates';
+import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates';
+import { useSupplementTemplates } from '@/hooks/useSupplementTemplates';
 
 interface BudgetHistoryListProps {
   budgetId?: string | null;
@@ -12,6 +15,33 @@ interface BudgetHistoryListProps {
 
 export const BudgetHistoryList: React.FC<BudgetHistoryListProps> = ({ budgetId }) => {
   const { data: history, isLoading } = useBudgetHistory(budgetId);
+  
+  // Fetch all templates for ID to name resolution
+  const { data: nutritionTemplatesData } = useNutritionTemplates();
+  const { data: workoutTemplatesData } = useWorkoutTemplates();
+  const { data: supplementTemplatesData } = useSupplementTemplates();
+  
+  // Create lookup maps for template IDs to names
+  const templateNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    
+    // Nutrition templates
+    nutritionTemplatesData?.data?.forEach(template => {
+      map.set(template.id, template.name);
+    });
+    
+    // Workout templates
+    workoutTemplatesData?.data?.forEach(template => {
+      map.set(template.id, template.name);
+    });
+    
+    // Supplement templates
+    supplementTemplatesData?.data?.forEach(template => {
+      map.set(template.id, template.name);
+    });
+    
+    return map;
+  }, [nutritionTemplatesData, workoutTemplatesData, supplementTemplatesData]);
 
   if (!budgetId) {
     return (
@@ -43,15 +73,15 @@ export const BudgetHistoryList: React.FC<BudgetHistoryListProps> = ({ budgetId }
     <ScrollArea className="h-[400px] w-full pl-4" dir="rtl">
       <div className="space-y-4">
         {history.map((item) => (
-          <HistoryItem key={item.id} item={item} />
+          <HistoryItem key={item.id} item={item} templateNameMap={templateNameMap} />
         ))}
       </div>
     </ScrollArea>
   );
 };
 
-const HistoryItem = ({ item }: { item: BudgetHistoryItem }) => {
-  const changes = getReadableChanges(item);
+const HistoryItem = ({ item, templateNameMap }: { item: BudgetHistoryItem; templateNameMap: Map<string, string> }) => {
+  const changes = getReadableChanges(item, templateNameMap);
   const changeTypeMap: Record<string, string> = {
     'create': 'יצירה',
     'update': 'עדכון',
@@ -88,9 +118,9 @@ const HistoryItem = ({ item }: { item: BudgetHistoryItem }) => {
                 <div key={idx} className="flex items-center gap-1.5 text-xs whitespace-nowrap">
                   <span className="font-medium text-slate-700">{getFieldLabel(change.field)}:</span>
                   <div className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-                    <span className="text-slate-400 line-through opacity-70 max-w-[120px] truncate">{formatValue(change.oldVal)}</span>
+                    <span className="text-slate-400 line-through opacity-70 max-w-[120px] truncate">{formatValue(change.oldVal, change.field, templateNameMap)}</span>
                     <ArrowLeft className="h-3 w-3 text-slate-300" />
-                    <span className="text-slate-900 font-medium">{formatValue(change.newVal)}</span>
+                    <span className="text-slate-900 font-medium">{formatValue(change.newVal, change.field, templateNameMap)}</span>
                   </div>
                   {idx < changes.length - 1 && <span className="text-slate-300">|</span>}
                 </div>
@@ -144,9 +174,22 @@ const getFieldLabel = (field: string) => {
   return labels[field] || field;
 };
 
-const formatValue = (val: any): string => {
+const formatValue = (val: any, field?: string, templateNameMap?: Map<string, string>): string => {
   if (val === null || val === undefined) return '-';
   if (typeof val === 'boolean') return val ? 'כן' : 'לא';
+  
+  // Check if this is a template ID field and resolve to name
+  if (typeof val === 'string' && templateNameMap && field) {
+    const templateIdFields = ['workout_template_id', 'nutrition_template_id', 'supplement_template_id'];
+    if (templateIdFields.includes(field)) {
+      const templateName = templateNameMap.get(val);
+      if (templateName) {
+        return templateName;
+      }
+      // If template not found, return the ID but truncated
+      return val.length > 20 ? `${val.substring(0, 20)}...` : val;
+    }
+  }
   
   if (typeof val === 'object') {
     if (Array.isArray(val)) {
@@ -245,7 +288,7 @@ const getWeeklyWorkoutChanges = (oldWeekly: any, newWeekly: any) => {
   return changes;
 };
 
-const getReadableChanges = (item: BudgetHistoryItem) => {
+const getReadableChanges = (item: BudgetHistoryItem, templateNameMap: Map<string, string>) => {
   const changes: { field: string, oldVal: any, newVal: any }[] = [];
   const oldData = item.changes?.old;
   const newData = item.changes?.new;

@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget } from '@/hooks/useBudgets';
 import { useNavigate } from 'react-router-dom';
+import { syncSupplementPlansFromBudgetUpdate } from '@/services/budgetPlanSync';
 import {
   Tooltip,
   TooltipContent,
@@ -303,6 +304,9 @@ export const PlansCard = ({
         eating_rules: data.eating_rules ?? null,
       });
 
+      const supplements = (data.supplements || []).filter((s: any) => s?.name?.trim?.());
+      await syncSupplementPlansFromBudgetUpdate(editingBudget.id, data.name ?? editingBudget.name, supplements);
+
       toast({ title: 'הצלחה', description: 'התקציב עודכן בהצלחה' });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['budgets'] }),
@@ -311,6 +315,8 @@ export const PlansCard = ({
         queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
         queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
         queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
       ]);
       setEditingBudgetId(null);
       setCurrentAssignment(null);
@@ -357,11 +363,22 @@ export const PlansCard = ({
           .eq('id', plan.id)
           .single();
         if (error) throw error;
-        setEditingNutritionPlan(data);
+        
+        // Ensure targets are properly formatted (handle JSONB from database)
+        const formattedData = data ? {
+          ...data,
+          targets: data.targets || plan.targets || {},
+        } : null;
+        
+        setEditingNutritionPlan(formattedData);
         setIsNutritionPlanDialogOpen(true);
       } catch (error: any) {
         toast({ title: 'שגיאה', description: error?.message || 'נכשל בטעינת תוכנית התזונה', variant: 'destructive' });
       }
+    } else {
+      // If no ID, use the plan data directly (it already has targets from nutritionHistory)
+      setEditingNutritionPlan(plan);
+      setIsNutritionPlanDialogOpen(true);
     }
   };
 
@@ -610,29 +627,33 @@ export const PlansCard = ({
                         {activeSupplements.supplements?.length || 0}
                       </Badge>
                     </div>
-                    <div className="space-y-2 max-h-[100px] overflow-y-auto scrollbar-hide">
+                    <div className="space-y-2.5 max-h-[140px] overflow-y-auto scrollbar-hide">
                       {activeSupplements.supplements?.length ? (
-                        activeSupplements.supplements.slice(0, 3).map((s: any, idx: number) => {
-                          const name = typeof s === 'string' ? s : s.name;
-                          const dosage = typeof s === 'string' ? '' : s.dosage;
-                          const timing = typeof s === 'string' ? '' : s.timing;
-                          
+                        activeSupplements.supplements.slice(0, 6).map((s: any, idx: number) => {
+                          const name = typeof s === 'string' ? s : (s?.name ?? '');
+                          const dosage = typeof s === 'string' ? '' : (s?.dosage ?? s?.mg ?? '');
+                          const timing = typeof s === 'string' ? '' : (s?.timing ?? s?.when ?? '');
+                          const dosageDisplay = (typeof dosage === 'string' && dosage.trim()) ? dosage.trim() : '—';
+                          const timingDisplay = (typeof timing === 'string' && timing.trim()) ? timing.trim() : '—';
                           return (
-                            <div key={idx} className="flex flex-col border-b border-gray-50 last:border-0 pb-1.5 last:pb-0">
-                               <div className="flex justify-between items-start gap-2">
-                                 <span className="text-xs font-medium text-gray-700 truncate flex-1 text-right">{name}</span>
-                                 {dosage && <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0 dir-ltr">{dosage}</span>}
+                            <div key={idx} className="flex flex-col gap-0.5 border-b border-green-50 last:border-0 pb-2 last:pb-0">
+                               <span className="text-xs font-semibold text-gray-800 truncate text-right">{name || '—'}</span>
+                               <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px]">
+                                 <span className="text-gray-500">מינון:</span>
+                                 <span className="text-gray-700 font-medium dir-ltr">{dosageDisplay}</span>
+                                 <span className="text-gray-400">|</span>
+                                 <span className="text-gray-500">מתי לקחת:</span>
+                                 <span className="text-gray-700 font-medium">{timingDisplay}</span>
                                </div>
-                               {timing && <span className="text-[10px] text-gray-400 mt-0.5 text-right">{timing}</span>}
                             </div>
                           );
                         })
                       ) : (
-                        <span className="text-[10px] text-gray-400">-</span>
+                        <span className="text-[10px] text-gray-400">אין תוספים בתכנית</span>
                       )}
-                      {(activeSupplements.supplements?.length || 0) > 3 && (
-                        <div className="text-[9px] text-gray-400 text-center pt-1 border-t border-gray-50 mt-1">
-                          +{activeSupplements.supplements!.length - 3} נוספים
+                      {(activeSupplements.supplements?.length || 0) > 6 && (
+                        <div className="text-[9px] text-gray-400 text-center pt-1 border-t border-green-50 mt-1">
+                          +{activeSupplements.supplements!.length - 6} נוספים — לחץ לצפייה
                         </div>
                       )}
                     </div>
