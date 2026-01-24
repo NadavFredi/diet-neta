@@ -1,5 +1,6 @@
 import type { NutritionTemplate } from '@/hooks/useNutritionTemplates';
 import type { WorkoutTemplate } from '@/hooks/useWorkoutTemplates';
+import type { SupplementTemplate } from '@/hooks/useSupplementTemplates';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +8,107 @@ import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { TemplateLeadsCell } from '../TemplateLeadsCell';
+
+/**
+ * Strict column definitions for Supplement Templates table.
+ */
+export const supplementTemplateColumns: DataTableColumn<SupplementTemplate>[] = [
+  {
+    id: 'name',
+    header: 'שם התבנית',
+    accessorKey: 'name',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
+    size: 200,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ getValue }) => {
+      const value = getValue() as string;
+      return <span className="font-medium text-gray-900">{value}</span>;
+    },
+  },
+  {
+    id: 'description',
+    header: 'תיאור',
+    accessorKey: 'description',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
+    size: 300,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ getValue }) => {
+      const value = getValue() as string | null;
+      return (
+        <span className="text-gray-600 max-w-md truncate block">
+          {value || '-'}
+        </span>
+      );
+    },
+  },
+  {
+    id: 'supplements',
+    header: 'מספר תוספים',
+    accessorKey: 'supplements',
+    enableSorting: false,
+    enableResizing: true,
+    enableHiding: true,
+    size: 150,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ row }) => {
+      const supplements = row.original.supplements || [];
+      return (
+        <Badge variant="outline" className="text-xs">
+          {supplements.length} תוספים
+        </Badge>
+      );
+    },
+  },
+  {
+    id: 'created_at',
+    header: 'תאריך יצירה',
+    accessorKey: 'created_at',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
+    size: 150,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ getValue }) => {
+      const value = getValue() as string | null | undefined;
+      if (!value) return <span className="text-gray-400">-</span>;
+      try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return <span className="text-gray-400">-</span>;
+        return (
+          <span className="text-gray-600">
+            {format(date, 'dd/MM/yyyy', { locale: he })}
+          </span>
+        );
+      } catch {
+        return <span className="text-gray-400">-</span>;
+      }
+    },
+  },
+  {
+    id: 'actions',
+    header: 'פעולות',
+    accessorKey: 'id',
+    enableSorting: false,
+    enableResizing: true,
+    enableHiding: true,
+    size: 120,
+    meta: {
+      align: 'right',
+    },
+  },
+];
 
 /**
  * Strict column definitions for Nutrition Templates table.
@@ -296,6 +398,16 @@ export const defaultWorkoutTemplateColumnVisibility: Record<string, boolean> = {
   description: true,
   goal_tags: true,
   connected_leads: true,
+  created_at: true,
+};
+
+/**
+ * Default column visibility for Supplement Templates table.
+ */
+export const defaultSupplementTemplateColumnVisibility: Record<string, boolean> = {
+  name: true,
+  description: true,
+  supplements: true,
   created_at: true,
 };
 

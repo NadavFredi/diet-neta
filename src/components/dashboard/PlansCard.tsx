@@ -200,10 +200,29 @@ export const PlansCard = ({
     return supplementsHistory.find(s => s.is_active) || supplementsHistory[0];
   }, [supplementsHistory]);
 
+  // Determine fallback budget ID if activeAssignment is missing
+  const fallbackBudgetId = useMemo(() => {
+    return activeWorkout?.budget_id || 
+           activeNutrition?.budget_id || 
+           activeSteps?.budget_id || 
+           activeSupplements?.budget_id || null;
+  }, [activeWorkout, activeNutrition, activeSteps, activeSupplements]);
+
+  // Fetch fallback budget details if needed
+  const { data: fallbackBudget } = useBudget(fallbackBudgetId);
+
+  // Effective budget name
+  const effectiveBudgetName = activeAssignment?.budget_name || fallbackBudget?.name || 'תקציב פעיל';
+  const effectiveBudgetId = activeAssignment?.budget_id || fallbackBudgetId;
+
   // Handlers
   const handleDeleteClick = (assignment: BudgetAssignmentItem) => {
     setAssignmentToDelete(assignment);
     setDeleteDialogOpen(true);
+  };
+
+  const handleEditBudgetById = async (budgetId: string) => {
+    setEditingBudgetId(budgetId);
   };
 
   const handleEditBudgetFromLead = async (assignment: BudgetAssignmentItem) => {
@@ -357,7 +376,7 @@ export const PlansCard = ({
     }
   };
 
-  if (!activeAssignment && !workoutHistory?.length && !nutritionHistory?.length) {
+  if (!activeAssignment && !effectiveBudgetId && !workoutHistory?.length && !nutritionHistory?.length) {
     return (
       <Card className="p-6 border border-slate-100 rounded-lg shadow-sm bg-white mt-3 text-center">
         <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[#E8EDF7] flex items-center justify-center">
@@ -385,7 +404,7 @@ export const PlansCard = ({
           </div>
           <div>
             <h3 className="text-base font-bold text-gray-900">
-              {activeAssignment ? (activeAssignment.budget_name || 'תקציב פעיל') : 'סקירת תכניות'}
+              {effectiveBudgetName !== 'תקציב פעיל' ? effectiveBudgetName : 'סקירת תכניות'}
             </h3>
             <div className="text-xs text-gray-500 flex gap-2">
               {activeAssignment && (
@@ -395,33 +414,37 @@ export const PlansCard = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {activeAssignment && (
-            <div className="flex gap-1">
+          {effectiveBudgetId && (
+            <div className="flex items-center gap-1">
+               <Button 
+                 variant="outline" 
+                 size="sm" 
+                 onClick={() => activeAssignment ? handleEditBudgetFromLead(activeAssignment) : handleEditBudgetById(effectiveBudgetId)} 
+                 className="gap-2 h-8 ml-2 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+               >
+                 <Edit className="h-3.5 w-3.5" />
+                 <span>ערוך תקציב</span>
+               </Button>
+
                <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => setViewingBudgetId(activeAssignment.budget_id)} className="h-8 w-8 p-0">
+                    <Button variant="ghost" size="sm" onClick={() => setViewingBudgetId(effectiveBudgetId)} className="h-8 w-8 p-0">
                       <Eye className="h-4 w-4 text-gray-500" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent><p>תצוגה מהירה</p></TooltipContent>
                 </Tooltip>
-                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => handleEditBudgetFromLead(activeAssignment)} className="h-8 w-8 p-0">
-                      <Edit className="h-4 w-4 text-gray-500" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>ערוך תקציב</p></TooltipContent>
-                </Tooltip>
-                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(activeAssignment)} className="h-8 w-8 p-0 hover:text-red-600">
-                      <Trash2 className="h-4 w-4 text-gray-500" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>מחק תקציב</p></TooltipContent>
-                </Tooltip>
+                 {activeAssignment && (
+                   <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(activeAssignment)} className="h-8 w-8 p-0 hover:text-red-600">
+                        <Trash2 className="h-4 w-4 text-gray-500" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>מחק תקציב</p></TooltipContent>
+                  </Tooltip>
+                 )}
                </TooltipProvider>
             </div>
           )}

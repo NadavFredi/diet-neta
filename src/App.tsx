@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import TemplatesManagement from "./pages/TemplatesManagement.tsx";
 import ExercisesManagement from "./pages/ExercisesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
+import SupplementTemplatesManagement from "./pages/SupplementTemplatesManagement.tsx";
 import BudgetManagement from "./pages/BudgetManagement.tsx";
 import SubscriptionTypesManagement from "./pages/SubscriptionTypesManagement.tsx";
 import PaymentsManagement from "./pages/PaymentsManagement.tsx";
@@ -124,6 +125,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <NutritionTemplatesManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/supplement-templates"
+            element={
+              <ProtectedRoute>
+                <SupplementTemplatesManagement />
               </ProtectedRoute>
             }
           />

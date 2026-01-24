@@ -375,6 +375,9 @@ export const useUpdateBudget = () => {
       // Invalidate all budget queries to ensure updated budget appears everywhere
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget', data.id] });
+      // Invalidate history so the new log entry appears
+      queryClient.invalidateQueries({ queryKey: ['budget-history', data.id] });
+      
       // Also refetch immediately to update UI
       queryClient.refetchQueries({ queryKey: ['budgets'] });
     },

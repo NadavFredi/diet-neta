@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt, BarChart3, Target, Search, X } from 'lucide-react';
+import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt, BarChart3, Target, Search, X, Pill } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -82,6 +82,13 @@ const navigationItems: NavItem[] = [
     label: 'תבניות תזונה',
     icon: Apple,
     path: '/dashboard/nutrition-templates',
+  },
+  {
+    id: 'supplement-templates',
+    resourceKey: 'supplement_templates',
+    label: 'תבניות תוספים',
+    icon: Pill,
+    path: '/dashboard/supplement-templates',
   },
   {
     id: 'budgets',
@@ -323,7 +330,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
 
     const activeItem = navigationItems.find(item => isActive(item.path));
     if (activeItem) {
-      const supportsViews = ['leads', 'customers', 'templates', 'exercises', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(activeItem.resourceKey);
+      const supportsViews = ['leads', 'customers', 'templates', 'exercises', 'nutrition_templates', 'supplement_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(activeItem.resourceKey);
       // Only auto-expand if it supports views and isn't already expanded
       if (supportsViews && !expandedSections[activeItem.resourceKey]) {
         // Collapse all sections first
@@ -397,7 +404,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   };
 
   const handleResourceClick = (item: NavItem) => {
-    const supportsViews = ['leads', 'customers', 'templates', 'exercises', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(item.resourceKey);
+    const supportsViews = ['leads', 'customers', 'templates', 'exercises', 'nutrition_templates', 'supplement_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(item.resourceKey);
 
     if (supportsViews) {
       // Expand the section to show views

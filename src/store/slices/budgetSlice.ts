@@ -24,6 +24,8 @@ export interface Supplement {
   name: string;
   dosage: string;
   timing: string; // e.g., "בבוקר", "לערב לפני השינה", "רבע שעה לפני האוכל"
+  link1?: string;
+  link2?: string;
 }
 
 export interface Budget {
@@ -35,6 +37,7 @@ export interface Budget {
   steps_goal: number;
   steps_instructions: string | null;
   workout_template_id: string | null;
+  supplement_template_id: string | null;
   supplements: Supplement[];
   eating_order: string | null;
   eating_rules: string | null;

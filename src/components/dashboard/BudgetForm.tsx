@@ -21,13 +21,16 @@ import {
 import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints, Edit2 } from 'lucide-react';
 import { useNutritionTemplates } from '@/hooks/useNutritionTemplates';
 import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates';
+import { useSupplementTemplates, useCreateSupplementTemplate, useUpdateSupplementTemplate } from '@/hooks/useSupplementTemplates';
 import { useNavigate } from 'react-router-dom';
 import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
 import { cn } from '@/lib/utils';
 import { AddWorkoutTemplateDialog } from '@/components/dashboard/dialogs/AddWorkoutTemplateDialog';
 import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
+import { AddSupplementTemplateDialog } from '@/components/dashboard/dialogs/AddSupplementTemplateDialog';
 import { EditWorkoutTemplateDialog } from '@/components/dashboard/dialogs/EditWorkoutTemplateDialog';
 import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/EditNutritionTemplateDialog';
+import { EditSupplementTemplateDialog } from '@/components/dashboard/dialogs/EditSupplementTemplateDialog';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useCreateWorkoutTemplate, useUpdateWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
 import { useCreateNutritionTemplate, useUpdateNutritionTemplate } from '@/hooks/useNutritionTemplates';
@@ -113,12 +116,16 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   }, [enableAssignment, mode]);
   const { data: nutritionTemplatesData } = useNutritionTemplates();
   const { data: workoutTemplatesData } = useWorkoutTemplates();
+  const { data: supplementTemplatesData } = useSupplementTemplates();
   const nutritionTemplates = nutritionTemplatesData?.data || [];
   const workoutTemplates = workoutTemplatesData?.data || [];
+  const supplementTemplates = supplementTemplatesData?.data || [];
   const createWorkoutTemplate = useCreateWorkoutTemplate();
   const createNutritionTemplate = useCreateNutritionTemplate();
+  const createSupplementTemplate = useCreateSupplementTemplate();
   const updateWorkoutTemplate = useUpdateWorkoutTemplate();
   const updateNutritionTemplate = useUpdateNutritionTemplate();
+  const updateSupplementTemplate = useUpdateSupplementTemplate();
   const assignToLead = useAssignBudgetToLead();
   
   // Fetch all leads for assignment dropdown
@@ -157,10 +164,13 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   // Template creation/editing dialog states
   const [isWorkoutTemplateDialogOpen, setIsWorkoutTemplateDialogOpen] = useState(false);
   const [isNutritionTemplateDialogOpen, setIsNutritionTemplateDialogOpen] = useState(false);
+  const [isSupplementTemplateDialogOpen, setIsSupplementTemplateDialogOpen] = useState(false);
   const [isEditWorkoutTemplateDialogOpen, setIsEditWorkoutTemplateDialogOpen] = useState(false);
   const [isEditNutritionTemplateDialogOpen, setIsEditNutritionTemplateDialogOpen] = useState(false);
+  const [isEditSupplementTemplateDialogOpen, setIsEditSupplementTemplateDialogOpen] = useState(false);
   const [editingWorkoutTemplate, setEditingWorkoutTemplate] = useState<any>(null);
   const [editingNutritionTemplate, setEditingNutritionTemplate] = useState<any>(null);
+  const [editingSupplementTemplate, setEditingSupplementTemplate] = useState<any>(null);
   
   // Assignment state
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
@@ -188,6 +198,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const [workoutTemplateId, setWorkoutTemplateId] = useState<string | null>(null);
   
   // Supplements
+  const [supplementTemplateId, setSupplementTemplateId] = useState<string | null>(null);
   const [supplements, setSupplements] = useState<Supplement[]>([]);
   
   // Guidelines
@@ -213,6 +224,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       setStepsGoal(initialData.steps_goal || 0);
       setStepsInstructions(initialData.steps_instructions || '');
       setWorkoutTemplateId(initialData.workout_template_id);
+      setSupplementTemplateId(initialData.supplement_template_id);
       setSupplements(initialData.supplements || []);
       setEatingOrder(initialData.eating_order || '');
       setEatingRules(initialData.eating_rules || '');
@@ -254,9 +266,29 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     }
   };
 
+  // Handle supplement template selection
+  const handleSupplementTemplateChange = (templateId: string) => {
+    if (templateId === 'none') {
+      setSupplementTemplateId(null);
+      setSupplements([]);
+    } else {
+      setSupplementTemplateId(templateId);
+      const template = supplementTemplates.find((t) => t.id === templateId);
+      if (template && template.supplements) {
+        setSupplements(template.supplements.map(s => ({
+          name: s.name,
+          dosage: '', 
+          timing: '',
+          link1: s.link1,
+          link2: s.link2
+        })));
+      }
+    }
+  };
+
   // Supplements management
   const addSupplement = () => {
-    setSupplements([...supplements, { name: '', dosage: '', timing: '' }]);
+    setSupplements([...supplements, { name: '', dosage: '', timing: '', link1: '', link2: '' }]);
   };
 
   const removeSupplement = (index: number) => {
@@ -283,6 +315,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         steps_goal: stepsGoal,
         steps_instructions: stepsInstructions || null,
         workout_template_id: workoutTemplateId || null,
+        supplement_template_id: supplementTemplateId || null,
         supplements: supplements.filter((s) => s.name.trim() !== ''),
         eating_order: eatingOrder || null,
         eating_rules: eatingRules || null,
@@ -531,6 +564,93 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       });
     }
   };
+
+  // Handle creating new supplement template
+  const handleCreateSupplementTemplate = async (data: any) => {
+    try {
+      const newTemplate = await createSupplementTemplate.mutateAsync(data);
+      
+      // Refresh templates list
+      queryClient.invalidateQueries({ queryKey: ['supplementTemplates'] });
+      
+      // Auto-select the newly created template
+      setSupplementTemplateId(newTemplate.id);
+      
+      if (newTemplate.supplements) {
+        setSupplements(newTemplate.supplements.map(s => ({
+          name: s.name,
+          dosage: '', 
+          timing: '',
+          link1: s.link1,
+          link2: s.link2
+        })));
+      }
+      
+      // Close dialog
+      setIsSupplementTemplateDialogOpen(false);
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תבנית התוספים נוצרה בהצלחה ונבחרה אוטומטית',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת תבנית התוספים',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Handle editing supplement template
+  const handleEditSupplementTemplate = () => {
+    if (!supplementTemplateId) return;
+    const template = supplementTemplates.find((t) => t.id === supplementTemplateId);
+    if (template) {
+      setEditingSupplementTemplate(template);
+      setIsEditSupplementTemplateDialogOpen(true);
+    }
+  };
+
+  // Handle saving edited supplement template
+  const handleUpdateSupplementTemplate = async (data: any) => {
+    if (!editingSupplementTemplate) return;
+    try {
+      const updated = await updateSupplementTemplate.mutateAsync({
+        templateId: editingSupplementTemplate.id,
+        ...data,
+      });
+      
+      // Close only the edit template dialog first, keep budget dialog open
+      setIsEditSupplementTemplateDialogOpen(false);
+      setEditingSupplementTemplate(null);
+      
+      // Update supplements if they changed
+      if (updated?.supplements) {
+        setSupplements(updated.supplements.map(s => ({
+          name: s.name,
+          dosage: '', 
+          timing: '',
+          link1: s.link1,
+          link2: s.link2
+        })));
+      }
+      
+      // Refresh templates list without closing parent dialog
+      await queryClient.refetchQueries({ queryKey: ['supplementTemplates'] });
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תבנית התוספים עודכנה בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון תבנית התוספים',
+        variant: 'destructive',
+      });
+    }
+  };
   
 
   return (
@@ -758,7 +878,57 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
                 <Pill className="h-3.5 w-3.5 text-slate-400" />
-                תוספים
+                תבנית תוספים
+              </Label>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={supplementTemplateId || 'none'}
+                  onValueChange={handleSupplementTemplateChange}
+                >
+                  <SelectTrigger className={cn(
+                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
+                    "text-slate-900 font-medium text-sm"
+                  )} dir="rtl">
+                    <SelectValue placeholder="בחר תבנית תוספים" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value="none">ללא תבנית</SelectItem>
+                    {supplementTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {supplementTemplateId && canEditTemplates && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleEditSupplementTemplate}
+                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                    title="ערוך תבנית תוספים"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSupplementTemplateDialogOpen(true)}
+                  className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                  title="צור תבנית תוספים חדשה"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                <Pill className="h-3.5 w-3.5 text-slate-400" />
+                רשימת תוספים
               </Label>
               <div className="space-y-2">
                 {supplements.length === 0 ? (
@@ -779,28 +949,46 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   <div className="space-y-2">
                     {supplements.map((supplement, index) => (
                       <div key={index} className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
-                        <div className="flex-1 grid grid-cols-3 gap-1.5">
-                          <Input
-                            value={supplement.name}
-                            onChange={(e) => updateSupplement(index, 'name', e.target.value)}
-                            placeholder="שם התוסף"
-                            className="h-8 bg-white border-0 text-xs"
-                            dir="rtl"
-                          />
-                          <Input
-                            value={supplement.dosage}
-                            onChange={(e) => updateSupplement(index, 'dosage', e.target.value)}
-                            placeholder="מינון"
-                            className="h-8 bg-white border-0 text-xs"
-                            dir="rtl"
-                          />
-                          <Input
-                            value={supplement.timing}
-                            onChange={(e) => updateSupplement(index, 'timing', e.target.value)}
-                            placeholder="זמן נטילה"
-                            className="h-8 bg-white border-0 text-xs"
-                            dir="rtl"
-                          />
+                        <div className="flex-1 grid grid-cols-1 gap-1.5">
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <Input
+                              value={supplement.name}
+                              onChange={(e) => updateSupplement(index, 'name', e.target.value)}
+                              placeholder="שם התוסף"
+                              className="h-8 bg-white border-0 text-xs"
+                              dir="rtl"
+                            />
+                            <Input
+                              value={supplement.dosage}
+                              onChange={(e) => updateSupplement(index, 'dosage', e.target.value)}
+                              placeholder="מינון"
+                              className="h-8 bg-white border-0 text-xs"
+                              dir="rtl"
+                            />
+                            <Input
+                              value={supplement.timing}
+                              onChange={(e) => updateSupplement(index, 'timing', e.target.value)}
+                              placeholder="זמן נטילה"
+                              className="h-8 bg-white border-0 text-xs"
+                              dir="rtl"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <Input
+                              value={supplement.link1 || ''}
+                              onChange={(e) => updateSupplement(index, 'link1', e.target.value)}
+                              placeholder="קישור 1"
+                              className="h-8 bg-white border-0 text-xs"
+                              dir="ltr"
+                            />
+                            <Input
+                              value={supplement.link2 || ''}
+                              onChange={(e) => updateSupplement(index, 'link2', e.target.value)}
+                              placeholder="קישור 2"
+                              className="h-8 bg-white border-0 text-xs"
+                              dir="ltr"
+                            />
+                          </div>
                         </div>
                         <Button
                           type="button"
@@ -914,6 +1102,19 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         onOpenChange={setIsEditNutritionTemplateDialogOpen}
         editingTemplate={editingNutritionTemplate}
         onSave={handleUpdateNutritionTemplate}
+      />
+      
+      <AddSupplementTemplateDialog
+        isOpen={isSupplementTemplateDialogOpen}
+        onOpenChange={setIsSupplementTemplateDialogOpen}
+        onSave={handleCreateSupplementTemplate}
+      />
+      
+      <EditSupplementTemplateDialog
+        isOpen={isEditSupplementTemplateDialogOpen}
+        onOpenChange={setIsEditSupplementTemplateDialogOpen}
+        editingTemplate={editingSupplementTemplate}
+        onSave={handleUpdateSupplementTemplate}
       />
     </form>
   );
