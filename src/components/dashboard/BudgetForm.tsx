@@ -18,19 +18,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints, Edit2, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints, Edit2, ChevronDown, Check, ChevronsUpDown } from 'lucide-react';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useNutritionTemplates } from '@/hooks/useNutritionTemplates';
 import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates';
-import { useSupplementTemplates, useCreateSupplementTemplate, useUpdateSupplementTemplate } from '@/hooks/useSupplementTemplates';
+import { useSupplementTemplates } from '@/hooks/useSupplementTemplates';
 import { useNavigate } from 'react-router-dom';
 import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
 import { cn } from '@/lib/utils';
 import { AddWorkoutTemplateDialog } from '@/components/dashboard/dialogs/AddWorkoutTemplateDialog';
 import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
-import { AddSupplementTemplateDialog } from '@/components/dashboard/dialogs/AddSupplementTemplateDialog';
 import { EditWorkoutTemplateDialog } from '@/components/dashboard/dialogs/EditWorkoutTemplateDialog';
 import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/EditNutritionTemplateDialog';
-import { EditSupplementTemplateDialog } from '@/components/dashboard/dialogs/EditSupplementTemplateDialog';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useCreateWorkoutTemplate, useUpdateWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
 import { useCreateNutritionTemplate, useUpdateNutritionTemplate } from '@/hooks/useNutritionTemplates';
@@ -100,6 +111,131 @@ const MacroSplitBar = ({ protein, carbs, fat }: { protein: number; carbs: number
   );
 };
 
+interface SupplementRowProps {
+  index: number;
+  supplement: Supplement;
+  templates: any[];
+  onUpdate: (index: number, field: keyof Supplement, value: string) => void;
+  onRemove: (index: number) => void;
+}
+
+const SupplementRow = ({ index, supplement, templates, onUpdate, onRemove }: SupplementRowProps) => {
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  return (
+    <div className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
+      <div className="flex-1 grid grid-cols-3 gap-1.5">
+        <div className="relative">
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="w-full h-8 justify-between bg-white border-0 text-xs text-slate-900 px-3"
+              >
+                <span className="truncate">{supplement.name || "בחר תוסף..."}</span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0" align="start">
+              <Command>
+                <CommandInput 
+                  placeholder="חפש תוסף..." 
+                  value={searchTerm}
+                  onValueChange={setSearchTerm}
+                  className="text-right" 
+                />
+                <CommandList>
+                  <CommandEmpty>
+                    {searchTerm && (
+                      <div 
+                        className="p-2 text-sm text-slate-500 cursor-pointer hover:bg-slate-100 flex items-center gap-2"
+                        onClick={() => {
+                          onUpdate(index, 'name', searchTerm);
+                          setOpen(false);
+                        }}
+                      >
+                        <Plus className="h-3 w-3" />
+                        הוסף "{searchTerm}"
+                      </div>
+                    )}
+                    {!searchTerm && "לא נמצאו תוצאות"}
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {templates.map((template) => (
+                      <CommandItem
+                        key={template.id}
+                        value={template.name}
+                        onSelect={() => {
+                          onUpdate(index, 'name', template.name);
+                          if (template.supplements && template.supplements.length > 0) {
+                            const firstSup = template.supplements[0];
+                            if (firstSup.dosage) onUpdate(index, 'dosage', firstSup.dosage);
+                            if (firstSup.timing) onUpdate(index, 'timing', firstSup.timing);
+                          }
+                          setOpen(false);
+                        }}
+                        className="text-right flex-row-reverse"
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            supplement.name === template.name ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {template.name}
+                      </CommandItem>
+                    ))}
+                    {searchTerm && !templates.some(t => t.name === searchTerm) && (
+                      <CommandItem
+                        value={searchTerm + "_custom"}
+                        onSelect={() => {
+                          onUpdate(index, 'name', searchTerm);
+                          setOpen(false);
+                        }}
+                        className="text-right flex-row-reverse"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        הוסף "{searchTerm}"
+                      </CommandItem>
+                    )}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+        
+        <Input
+          value={supplement.dosage}
+          onChange={(e) => onUpdate(index, 'dosage', e.target.value)}
+          placeholder="מינון"
+          className="h-8 bg-white border-0 text-xs"
+          dir="rtl"
+        />
+        <Input
+          value={supplement.timing}
+          onChange={(e) => onUpdate(index, 'timing', e.target.value)}
+          placeholder="זמן נטילה"
+          className="h-8 bg-white border-0 text-xs"
+          dir="rtl"
+        />
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={() => onRemove(index)}
+        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+};
+
 export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignment = false }: BudgetFormProps) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -122,10 +258,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const supplementTemplates = supplementTemplatesData?.data || [];
   const createWorkoutTemplate = useCreateWorkoutTemplate();
   const createNutritionTemplate = useCreateNutritionTemplate();
-  const createSupplementTemplate = useCreateSupplementTemplate();
   const updateWorkoutTemplate = useUpdateWorkoutTemplate();
   const updateNutritionTemplate = useUpdateNutritionTemplate();
-  const updateSupplementTemplate = useUpdateSupplementTemplate();
   const assignToLead = useAssignBudgetToLead();
   
   // Fetch all leads for assignment dropdown
@@ -164,13 +298,10 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   // Template creation/editing dialog states
   const [isWorkoutTemplateDialogOpen, setIsWorkoutTemplateDialogOpen] = useState(false);
   const [isNutritionTemplateDialogOpen, setIsNutritionTemplateDialogOpen] = useState(false);
-  const [isSupplementTemplateDialogOpen, setIsSupplementTemplateDialogOpen] = useState(false);
   const [isEditWorkoutTemplateDialogOpen, setIsEditWorkoutTemplateDialogOpen] = useState(false);
   const [isEditNutritionTemplateDialogOpen, setIsEditNutritionTemplateDialogOpen] = useState(false);
-  const [isEditSupplementTemplateDialogOpen, setIsEditSupplementTemplateDialogOpen] = useState(false);
   const [editingWorkoutTemplate, setEditingWorkoutTemplate] = useState<any>(null);
   const [editingNutritionTemplate, setEditingNutritionTemplate] = useState<any>(null);
-  const [editingSupplementTemplate, setEditingSupplementTemplate] = useState<any>(null);
   
   // Assignment state
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
@@ -266,19 +397,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     }
   };
 
-  // Handle supplement template selection
-  const handleSupplementTemplateChange = (templateId: string) => {
-    if (templateId === 'none') {
-      setSupplementTemplateId(null);
-      setSupplements([]);
-    } else {
-      setSupplementTemplateId(templateId);
-      const template = supplementTemplates.find((t) => t.id === templateId);
-      if (template && template.supplements) {
-        setSupplements(template.supplements);
-      }
-    }
-  };
 
   // Supplements management
   const addSupplement = () => {
@@ -461,36 +579,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     }
   };
 
-  // Handle creating new supplement template
-  const handleCreateSupplementTemplate = async (data: any) => {
-    try {
-      const newTemplate = await createSupplementTemplate.mutateAsync(data);
-      
-      // Refresh templates list
-      queryClient.invalidateQueries({ queryKey: ['supplementTemplates'] });
-      
-      // Auto-select the newly created template
-      setSupplementTemplateId(newTemplate.id);
-      
-      if (newTemplate.supplements) {
-        setSupplements(newTemplate.supplements);
-      }
-      
-      // Close dialog
-      setIsSupplementTemplateDialogOpen(false);
-      
-      toast({
-        title: 'הצלחה',
-        description: 'תבנית התוספים נוצרה בהצלחה ונבחרה אוטומטית',
-      });
-    } catch (error: any) {
-      toast({
-        title: 'שגיאה',
-        description: error?.message || 'נכשל ביצירת תבנית התוספים',
-        variant: 'destructive',
-      });
-    }
-  };
   
   // Handle editing workout template
   const handleEditWorkoutTemplate = () => {
@@ -545,15 +633,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     }
   };
 
-  // Handle editing supplement template
-  const handleEditSupplementTemplate = () => {
-    if (!supplementTemplateId) return;
-    const template = supplementTemplates.find((t) => t.id === supplementTemplateId);
-    if (template) {
-      setEditingSupplementTemplate(template);
-      setIsEditSupplementTemplateDialogOpen(true);
-    }
-  };
   
   // Handle saving edited nutrition template
   const handleUpdateNutritionTemplate = async (data: any) => {
@@ -600,39 +679,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     }
   };
 
-  // Handle saving edited supplement template
-  const handleUpdateSupplementTemplate = async (data: any) => {
-    if (!editingSupplementTemplate) return;
-    try {
-      const updated = await updateSupplementTemplate.mutateAsync({
-        templateId: editingSupplementTemplate.id,
-        ...data,
-      });
-      
-      // Close only the edit template dialog first, keep budget dialog open
-      setIsEditSupplementTemplateDialogOpen(false);
-      setEditingSupplementTemplate(null);
-      
-      // Update supplements if they changed
-      if (updated?.supplements) {
-        setSupplements(updated.supplements);
-      }
-      
-      // Refresh templates list without closing parent dialog
-      await queryClient.refetchQueries({ queryKey: ['supplementTemplates'] });
-      
-      toast({
-        title: 'הצלחה',
-        description: 'תבנית התוספים עודכנה בהצלחה',
-      });
-    } catch (error: any) {
-      toast({
-        title: 'שגיאה',
-        description: error?.message || 'נכשל בעדכון תבנית התוספים',
-        variant: 'destructive',
-      });
-    }
-  };
 
   
 
@@ -858,55 +904,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Pill className="h-3.5 w-3.5 text-slate-400" />
-                תבנית תוספים
-              </Label>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={supplementTemplateId || 'none'}
-                  onValueChange={handleSupplementTemplateChange}
-                >
-                  <SelectTrigger className={cn(
-                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
-                    "text-slate-900 font-medium text-sm"
-                  )} dir="rtl">
-                    <SelectValue placeholder="בחר תבנית תוספים" />
-                  </SelectTrigger>
-                  <SelectContent dir="rtl">
-                    <SelectItem value="none">ללא תבנית</SelectItem>
-                    {supplementTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {supplementTemplateId && canEditTemplates && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleEditSupplementTemplate}
-                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
-                    title="ערוך תבנית תוספים"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsSupplementTemplateDialogOpen(true)}
-                  className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
-                  title="צור תבנית תוספים חדשה"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
 
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
@@ -931,71 +928,14 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                 ) : (
                   <div className="space-y-2">
                     {supplements.map((supplement, index) => (
-                      <div key={index} className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
-                        <div className="flex-1 grid grid-cols-3 gap-1.5">
-                          <div className="flex gap-1">
-                            <Input
-                              value={supplement.name}
-                              onChange={(e) => updateSupplement(index, 'name', e.target.value)}
-                              placeholder="שם התוסף"
-                              className="h-8 bg-white border-0 text-xs flex-1"
-                              dir="rtl"
-                            />
-                            <Select
-                              value=""
-                              onValueChange={(value) => {
-                                if (value) {
-                                  const template = supplementTemplates.find(t => t.id === value);
-                                  if (template) {
-                                    updateSupplement(index, 'name', template.name);
-                                    // Also try to pre-fill dosage/timing if available in the template's first supplement
-                                    if (template.supplements && template.supplements.length > 0) {
-                                      const firstSup = template.supplements[0];
-                                      if (firstSup.dosage) updateSupplement(index, 'dosage', firstSup.dosage);
-                                      if (firstSup.timing) updateSupplement(index, 'timing', firstSup.timing);
-                                    }
-                                  }
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="h-8 w-8 px-0 border-0 bg-transparent hover:bg-slate-100 focus:ring-0 flex items-center justify-center">
-                                <span className="sr-only">בחר מהרשימה</span>
-                                <ChevronDown className="h-4 w-4 opacity-50" />
-                              </SelectTrigger>
-                              <SelectContent dir="rtl">
-                                {supplementTemplates.map((template) => (
-                                  <SelectItem key={template.id} value={template.id}>
-                                    {template.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <Input
-                            value={supplement.dosage}
-                            onChange={(e) => updateSupplement(index, 'dosage', e.target.value)}
-                            placeholder="מינון"
-                            className="h-8 bg-white border-0 text-xs"
-                            dir="rtl"
-                          />
-                          <Input
-                            value={supplement.timing}
-                            onChange={(e) => updateSupplement(index, 'timing', e.target.value)}
-                            placeholder="זמן נטילה"
-                            className="h-8 bg-white border-0 text-xs"
-                            dir="rtl"
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeSupplement(index)}
-                          className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                      <SupplementRow
+                        key={index}
+                        index={index}
+                        supplement={supplement}
+                        templates={supplementTemplates}
+                        onUpdate={updateSupplement}
+                        onRemove={removeSupplement}
+                      />
                     ))}
                     <Button
                       type="button"
@@ -1085,12 +1025,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         onSave={handleCreateNutritionTemplate}
       />
 
-      <AddSupplementTemplateDialog
-        isOpen={isSupplementTemplateDialogOpen}
-        onOpenChange={setIsSupplementTemplateDialogOpen}
-        onSave={handleCreateSupplementTemplate}
-      />
-      
       {/* Template Edit Dialogs */}
       <EditWorkoutTemplateDialog
         isOpen={isEditWorkoutTemplateDialogOpen}
@@ -1106,12 +1040,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         onSave={handleUpdateNutritionTemplate}
       />
 
-      <EditSupplementTemplateDialog
-        isOpen={isEditSupplementTemplateDialogOpen}
-        onOpenChange={setIsEditSupplementTemplateDialogOpen}
-        editingTemplate={editingSupplementTemplate}
-        onSave={handleUpdateSupplementTemplate}
-      />
     </form>
   );
 };
