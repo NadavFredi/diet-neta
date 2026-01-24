@@ -40,7 +40,7 @@ export const BudgetHistoryList: React.FC<BudgetHistoryListProps> = ({ budgetId }
   }
 
   return (
-    <ScrollArea className="h-[400px] w-full pr-4">
+    <ScrollArea className="h-[400px] w-full pl-4" dir="rtl">
       <div className="space-y-4">
         {history.map((item) => (
           <HistoryItem key={item.id} item={item} />
@@ -52,47 +52,61 @@ export const BudgetHistoryList: React.FC<BudgetHistoryListProps> = ({ budgetId }
 
 const HistoryItem = ({ item }: { item: BudgetHistoryItem }) => {
   const changes = getReadableChanges(item);
+  const changeTypeMap: Record<string, string> = {
+    'create': 'יצירה',
+    'update': 'עדכון',
+    'nutrition_create': 'יצירת תוכנית תזונה',
+    'nutrition_update': 'עדכון תוכנית תזונה',
+    'workout_create': 'יצירת תוכנית אימונים',
+    'workout_update': 'עדכון תוכנית אימונים'
+  };
 
   return (
-    <Card className="p-3 border border-slate-100 bg-white hover:bg-slate-50 transition-colors">
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200">
-            {formatDate(item.changed_at)}
-            {' '}
-            {new Date(item.changed_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-          </Badge>
-          <span className="text-xs text-gray-500">עודכן על ידי: {item.changer_name}</span>
-        </div>
+    <Card className="px-4 py-2 border border-slate-100 bg-white hover:bg-slate-50 transition-colors">
+      <div className="flex items-center justify-between gap-4">
+        {/* Badge */}
         <Badge 
+          variant="outline"
           className={
-            item.change_type === 'create' 
-              ? 'bg-green-100 text-green-700 hover:bg-green-100' 
-              : 'bg-blue-100 text-blue-700 hover:bg-blue-100'
+            item.change_type.includes('create')
+              ? 'bg-green-50 text-green-700 border-green-200 shrink-0' 
+              : 'bg-blue-50 text-blue-700 border-blue-200 shrink-0'
           }
         >
-          {item.change_type === 'create' ? 'יצירה' : 'עדכון'}
+          {changeTypeMap[item.change_type] || item.change_type}
         </Badge>
-      </div>
-      
-      <div className="space-y-2 text-sm">
-        {item.change_type === 'create' ? (
-          <div className="text-gray-600">נוצר תקציב חדש: {item.snapshot?.name}</div>
-        ) : (
-          <div className="space-y-1">
-            {changes.map((change, idx) => (
-              <div key={idx} className="flex items-start gap-2 text-gray-700 bg-slate-50 p-2 rounded text-xs">
-                <span className="font-semibold min-w-[80px]">{getFieldLabel(change.field)}:</span>
-                <div className="flex items-center gap-2 flex-1 flex-wrap">
-                  <span className="text-red-500 line-through opacity-70 bg-white px-1 rounded">{formatValue(change.oldVal)}</span>
-                  <ArrowLeft className="h-3 w-3 text-slate-400" />
-                  <span className="text-green-600 font-medium bg-white px-1 rounded border border-green-100">{formatValue(change.newVal)}</span>
+
+        {/* Content */}
+        <div className="flex-1 flex justify-start items-center overflow-hidden">
+          {item.change_type === 'create' ? (
+            <span className="text-xs text-slate-600 truncate">נוצר תקציב חדש: {item.snapshot?.name}</span>
+          ) : item.change_type.includes('create') ? (
+             <span className="text-xs text-slate-600 truncate">נוצרה תוכנית חדשה</span>
+          ) : (
+            <div className="flex items-center gap-4 overflow-x-auto scrollbar-hide no-scrollbar px-2">
+              {changes.map((change, idx) => (
+                <div key={idx} className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+                  <span className="font-medium text-slate-700">{getFieldLabel(change.field)}:</span>
+                  <div className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                    <span className="text-slate-400 line-through opacity-70 max-w-[120px] truncate">{formatValue(change.oldVal)}</span>
+                    <ArrowLeft className="h-3 w-3 text-slate-300" />
+                    <span className="text-slate-900 font-medium">{formatValue(change.newVal)}</span>
+                  </div>
+                  {idx < changes.length - 1 && <span className="text-slate-300">|</span>}
                 </div>
-              </div>
-            ))}
-            {changes.length === 0 && <div className="text-gray-400 italic">ללא שינויים מהותיים</div>}
-          </div>
-        )}
+              ))}
+              {changes.length === 0 && <span className="text-xs text-slate-400 italic">ללא שינויים מהותיים</span>}
+            </div>
+          )}
+        </div>
+
+        {/* Meta Info */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 shrink-0">
+          <span>{formatDate(item.changed_at)}</span>
+          <span>{new Date(item.changed_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="text-slate-300">|</span>
+          <span>{item.changer_name}</span>
+        </div>
       </div>
     </Card>
   );
@@ -111,16 +125,124 @@ const getFieldLabel = (field: string) => {
     supplements: 'תוספים',
     is_public: 'ציבורי',
     workout_template_id: 'תבנית אימון',
-    nutrition_template_id: 'תבנית תזונה'
+    nutrition_template_id: 'תבנית תזונה',
+    supplement_template_id: 'תבנית תוספים',
+    start_date: 'תאריך התחלה',
+    strength: 'אימוני כוח',
+    cardio: 'אימוני אירובי',
+    intervals: 'אימוני אינטרוולים',
+    custom_attributes: 'פרטים נוספים',
+    workout_goals: 'מטרות האימון',
+    workout_day_sunday: 'אימון ראשון',
+    workout_day_monday: 'אימון שני',
+    workout_day_tuesday: 'אימון שלישי',
+    workout_day_wednesday: 'אימון רביעי',
+    workout_day_thursday: 'אימון חמישי',
+    workout_day_friday: 'אימון שישי',
+    workout_day_saturday: 'אימון שבת',
   };
   return labels[field] || field;
 };
 
 const formatValue = (val: any): string => {
   if (val === null || val === undefined) return '-';
-  if (typeof val === 'object') return JSON.stringify(val); // Simplified for objects
   if (typeof val === 'boolean') return val ? 'כן' : 'לא';
+  
+  if (typeof val === 'object') {
+    if (Array.isArray(val)) {
+      if (val.length === 0) return 'אין';
+      // Supplements array
+      if (val[0] && typeof val[0] === 'object' && 'name' in val[0]) {
+        return val.map((s: any) => `${s.name} (${s.dosage || '-'}, ${s.timing || '-'})`).join(', ');
+      }
+      return JSON.stringify(val);
+    }
+    
+    // Nutrition targets
+    if ('calories' in val || 'protein' in val) {
+       const parts = [];
+       if (val.calories) parts.push(`${val.calories} קלוריות`);
+       if (val.protein) parts.push(`${val.protein}ג חלבון`);
+       if (val.carbs) parts.push(`${val.carbs}ג פחמימה`);
+       if (val.fat) parts.push(`${val.fat}ג שומן`);
+       if (val.fiber_min) parts.push(`${val.fiber_min}ג סיבים`);
+       if (val.water_min) parts.push(`${val.water_min}ל מים`);
+       return parts.length > 0 ? parts.join(', ') : JSON.stringify(val);
+    }
+
+    // Workout Plan (custom_attributes) - fallback if not handled by detailed diff
+    if ('schema' in val && 'data' in val) {
+       if (val.data && val.data.weeklyWorkout) {
+         return 'עודכן לוח זמנים שבועי';
+       }
+       return 'עודכנו פרטים בתוכנית';
+    }
+    
+    return JSON.stringify(val); 
+  }
+  
   return String(val);
+};
+
+const getWeeklyWorkoutChanges = (oldWeekly: any, newWeekly: any) => {
+  const changes: { field: string, oldVal: any, newVal: any }[] = [];
+  
+  // Check General Goals
+  const oldGoals = oldWeekly?.generalGoals || '';
+  const newGoals = newWeekly?.generalGoals || '';
+  if (oldGoals !== newGoals) {
+    changes.push({
+      field: 'workout_goals',
+      oldVal: oldGoals || '-',
+      newVal: newGoals || '-'
+    });
+  }
+
+  // Check Days
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  
+  days.forEach(day => {
+    const oldDay = oldWeekly?.days?.[day];
+    const newDay = newWeekly?.days?.[day];
+    
+    // Skip if both are missing/empty
+    if (!oldDay && !newDay) return;
+    
+    // Helper to format day summary
+    const formatDay = (d: any) => {
+      if (!d || !d.isActive) return 'יום מנוחה';
+      const count = d.exercises?.length || 0;
+      if (count === 0) return 'ללא תרגילים';
+      
+      const exercises = d.exercises.map((e: any) => e.name).filter(Boolean).join(', ');
+      return `${count} תרגילים: ${exercises}`;
+    };
+
+    const oldSummary = formatDay(oldDay);
+    const newSummary = formatDay(newDay);
+    
+    // Detect changes
+    // We check deeper to catch updates even if summary is similar (though summary includes names so it captures adds/removes/renames)
+    // If we want to catch changes in sets/reps, we need a smarter check.
+    
+    const isDifferent = JSON.stringify(oldDay) !== JSON.stringify(newDay);
+    
+    if (isDifferent) {
+      // If summary is the same but details changed (e.g. reps changed), append "(עודכן)"
+      let finalNewSummary = newSummary;
+      if (oldSummary === newSummary && isDifferent) {
+         finalNewSummary += ' (עודכנו סטים/חזרות)';
+      }
+      
+      changes.push({
+        field: `workout_day_${day}`,
+        oldVal: oldSummary,
+        newVal: finalNewSummary
+      });
+    }
+  });
+
+  return changes;
 };
 
 const getReadableChanges = (item: BudgetHistoryItem) => {
@@ -135,9 +257,39 @@ const getReadableChanges = (item: BudgetHistoryItem) => {
   Object.keys(newData).forEach(key => {
     if (ignoreFields.includes(key)) return;
     
+    // Special handling for workout plan details
+    if (key === 'custom_attributes') {
+      const oldWeekly = oldData[key]?.data?.weeklyWorkout;
+      const newWeekly = newData[key]?.data?.weeklyWorkout;
+      
+      if (oldWeekly || newWeekly) {
+        const weeklyChanges = getWeeklyWorkoutChanges(oldWeekly, newWeekly);
+        if (weeklyChanges.length > 0) {
+          changes.push(...weeklyChanges);
+          return;
+        }
+      }
+    }
+    
     // Simple comparison
     if (JSON.stringify(oldData[key]) !== JSON.stringify(newData[key])) {
-       // Special handling for objects if needed, for now just push
+       // If we already handled custom_attributes above, we don't want to add it again
+       // But if getWeeklyWorkoutChanges returned empty (no visible changes in weekly workout), 
+       // but custom_attributes changed in some other way (e.g. schema), we might want to show it.
+       // For now, if it's custom_attributes and we didn't return above, we assume no meaningful weekly workout change 
+       // or it's a non-weekly-workout change.
+       
+       if (key === 'custom_attributes') {
+          // If we are here, it means either:
+          // 1. Not a weekly workout update
+          // 2. Weekly workout update but no detected changes (unlikely if stringify differs)
+          
+          // Let's fallback to default behavior ONLY if it's NOT weekly workout data
+          // If it IS weekly workout data but getWeeklyWorkoutChanges found nothing, then we shouldn't show a confusing generic message.
+          const isWeeklyWorkout = oldData[key]?.data?.weeklyWorkout || newData[key]?.data?.weeklyWorkout;
+          if (isWeeklyWorkout) return; // Skip generic message for weekly workout
+       }
+
        changes.push({
          field: key,
          oldVal: oldData[key],

@@ -46,9 +46,6 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useCreateWorkoutTemplate, useUpdateWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
 import { useCreateNutritionTemplate, useUpdateNutritionTemplate } from '@/hooks/useNutritionTemplates';
 import { useToast } from '@/hooks/use-toast';
-import { useAssignBudgetToLead } from '@/hooks/useBudgets';
-import { fetchFilteredLeads, mapLeadToUIFormat } from '@/services/leadService';
-import { supabase } from '@/lib/supabaseClient';
 import { useAppSelector } from '@/store/hooks';
 
 interface BudgetFormProps {
@@ -245,11 +242,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   // Only managers/admins can edit templates
   const canEditTemplates = user?.role === 'admin' || user?.role === 'user';
   
-  // Debug: Log assignment state
-  useEffect(() => {
-    if (enableAssignment && mode === 'create') {
-    }
-  }, [enableAssignment, mode]);
   const { data: nutritionTemplatesData } = useNutritionTemplates();
   const { data: workoutTemplatesData } = useWorkoutTemplates();
   const { data: supplementTemplatesData } = useSupplementTemplates();
@@ -260,40 +252,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const createNutritionTemplate = useCreateNutritionTemplate();
   const updateWorkoutTemplate = useUpdateWorkoutTemplate();
   const updateNutritionTemplate = useUpdateNutritionTemplate();
-  const assignToLead = useAssignBudgetToLead();
-  
-  // Fetch all leads for assignment dropdown
-  const { data: leads = [] } = useQuery({
-    queryKey: ['allLeadsForAssignment'],
-    queryFn: async () => {
-      const dbLeads = await fetchFilteredLeads({
-        limit: 1000,
-        offset: 0,
-      });
-      return dbLeads.map(mapLeadToUIFormat);
-    },
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
-  
-  // Fetch current lead assignment for this budget (if editing)
-  const { data: currentLeadAssignment } = useQuery({
-    queryKey: ['budgetLeadAssignment', initialData?.id],
-    queryFn: async () => {
-      if (!initialData?.id) return null;
-      const { data, error } = await supabase
-        .from('budget_assignments')
-        .select('lead_id')
-        .eq('budget_id', initialData.id)
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      if (error) {
-        return null;
-      }
-      return data?.lead_id || null;
-    },
-    enabled: !!initialData?.id && mode === 'edit',
-  });
   
   // Template creation/editing dialog states
   const [isWorkoutTemplateDialogOpen, setIsWorkoutTemplateDialogOpen] = useState(false);
@@ -303,8 +261,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const [editingWorkoutTemplate, setEditingWorkoutTemplate] = useState<any>(null);
   const [editingNutritionTemplate, setEditingNutritionTemplate] = useState<any>(null);
   
-  // Assignment state
-  const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   
   // Basic info
   const [name, setName] = useState('');
@@ -362,12 +318,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     }
   }, [initialData]);
   
-  // Initialize lead assignment from current assignment
-  useEffect(() => {
-    if (currentLeadAssignment) {
-      setSelectedLeadId(currentLeadAssignment);
-    }
-  }, [currentLeadAssignment]);
 
   // Handle nutrition template selection
   const handleNutritionTemplateChange = (templateId: string) => {
@@ -438,74 +388,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       // Get the budget ID - use initialData.id for edit mode, or savedBudget.id if returned
       const budgetId = (mode === 'edit' && initialData?.id) ? initialData.id : (savedBudget as Budget | undefined)?.id;
       
-      // Handle lead assignment (works in both create and edit modes)
-      if (budgetId && selectedLeadId) {
-        try {
-          // Use the same assignment hook that's used from the lead page
-          // This ensures the same sync logic is applied
-          await assignToLead.mutateAsync({
-            budgetId: budgetId,
-            leadId: selectedLeadId,
-            notes: undefined, // No notes from budget form
-          });
-          
-          // Invalidate all the same queries as AssignBudgetDialog to ensure consistency
-          await Promise.all([
-            queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', selectedLeadId] }),
-            queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
-            queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
-            queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
-            queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
-            queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-            queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
-            queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
-            queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
-            queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
-          ]);
-          
-          // Force refetch to ensure UI updates immediately
-          queryClient.refetchQueries({ queryKey: ['plans-history'] });
-          
-          toast({
-            title: 'הצלחה',
-            description: 'התקציב הוקצה לליד בהצלחה. תכניות אימונים, תזונה ותוספים נוצרו אוטומטית.',
-          });
-        } catch (error: any) {
-          toast({
-            title: 'שגיאה',
-            description: error?.message || 'נכשל בהקצאת התקציב לליד',
-            variant: 'destructive',
-          });
-        }
-      } else if (budgetId && !selectedLeadId && currentLeadAssignment) {
-        // If lead was unselected, deactivate the assignment
-        try {
-          await supabase
-            .from('budget_assignments')
-            .update({ is_active: false })
-            .eq('budget_id', budgetId)
-            .eq('lead_id', currentLeadAssignment)
-            .eq('is_active', true);
-          
-          // Invalidate queries to refresh data
-          await Promise.all([
-            queryClient.invalidateQueries({ queryKey: ['budgetAssignment', 'lead', currentLeadAssignment] }),
-            queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
-            queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
-            queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
-            queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
-            queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-            queryClient.invalidateQueries({ queryKey: ['workout-plans'] }),
-            queryClient.invalidateQueries({ queryKey: ['nutrition-plans'] }),
-            queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
-            queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
-          ]);
-          
-          queryClient.refetchQueries({ queryKey: ['plans-history'] });
-        } catch (error: any) {
-          // Silent failure
-        }
-      }
       
     } catch (error) {
       // Silent failure
@@ -762,38 +644,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                 />
               </div>
               
-              {/* Budget Assignment - Right under eating instructions */}
-              <div className="pt-2 border-t border-slate-100">
-                <div className="space-y-3">
-                  {/* Assignment Title */}
-                  <h3 className="text-base font-semibold text-slate-900 pb-1">הקצאת תקציב</h3>
-                  
-                  {/* Lead Assignment */}
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium text-slate-500">הקצה תקציב לליד</Label>
-                    <Select
-                      value={selectedLeadId || 'none'}
-                      onValueChange={(value) => setSelectedLeadId(value === 'none' ? '' : value)}
-                    >
-                      <SelectTrigger className={cn(
-                        "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                        "text-slate-900 font-medium text-sm"
-                      )} dir="rtl">
-                        <SelectValue placeholder="בחר ליד" />
-                      </SelectTrigger>
-                      <SelectContent dir="rtl" className="max-h-[300px]">
-                        <SelectItem value="none">ללא הקצאה</SelectItem>
-                        {leads.map((lead) => (
-                          <SelectItem key={lead.id} value={lead.id}>
-                            {lead.name} {lead.phone && `- ${lead.phone}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

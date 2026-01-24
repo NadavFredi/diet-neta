@@ -374,13 +374,11 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
           return dateB.localeCompare(dateA);
         });
 
-        // Handle supplements - can be array of strings or array of objects
+        // Handle supplements - preserve object structure if available
         supplementsHistory.push(...sortedPlans.map((plan: any) => {
-          let supplementsArray: string[] = [];
+          let supplementsArray: any[] = [];
           if (Array.isArray(plan.supplements)) {
-            supplementsArray = plan.supplements.map((sup: any) =>
-              typeof sup === 'string' ? sup : sup.name || JSON.stringify(sup)
-            );
+            supplementsArray = plan.supplements;
           }
 
           // Only mark as active if it's the most recent plan from the active budget

@@ -26,7 +26,8 @@ export const useBudgetHistory = (budgetId: string | undefined | null) => {
         .select(`
           *,
           changer:changed_by (
-            email
+            email,
+            full_name
           )
         `)
         .eq('budget_id', budgetId)
@@ -40,7 +41,7 @@ export const useBudgetHistory = (budgetId: string | undefined | null) => {
       // Map changer email to a displayable name if possible, or just use it
       return data.map((item: any) => ({
         ...item,
-        changer_name: item.changer?.email || 'מערכת'
+        changer_name: item.changer?.full_name || item.changer?.email || 'מערכת'
       })) as BudgetHistoryItem[];
     },
     enabled: !!budgetId,

@@ -97,7 +97,7 @@ interface SupplementsHistoryItem {
   id?: string;
   startDate?: string;
   endDate?: string;
-  supplements?: string[];
+  supplements?: any[];
   description?: string;
   budget_id?: string;
   created_at?: string;
@@ -603,16 +603,38 @@ export const PlansCard = ({
              {activeSupplements ? (
                <div className="space-y-2">
                  <p className="text-xs text-gray-600 font-medium truncate">{activeSupplements.description || 'ללא תיאור'}</p>
-                 <div className="bg-white rounded-md p-1.5 border border-green-100">
+                 <div className="bg-white rounded-md p-2 border border-green-100 flex flex-col gap-1">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] text-gray-500">פריטים</span>
+                      <span className="text-[10px] text-gray-500 font-medium">פריטים</span>
                       <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-green-50 text-green-700 border-green-100">
                         {activeSupplements.supplements?.length || 0}
                       </Badge>
                     </div>
-                    <div className="text-[10px] text-gray-400 truncate">
-                      {activeSupplements.supplements?.slice(0, 2).map((s: any) => s.name || s).join(', ') || '-'}
-                      {(activeSupplements.supplements?.length || 0) > 2 ? '...' : ''}
+                    <div className="space-y-2 max-h-[100px] overflow-y-auto scrollbar-hide">
+                      {activeSupplements.supplements?.length ? (
+                        activeSupplements.supplements.slice(0, 3).map((s: any, idx: number) => {
+                          const name = typeof s === 'string' ? s : s.name;
+                          const dosage = typeof s === 'string' ? '' : s.dosage;
+                          const timing = typeof s === 'string' ? '' : s.timing;
+                          
+                          return (
+                            <div key={idx} className="flex flex-col border-b border-gray-50 last:border-0 pb-1.5 last:pb-0">
+                               <div className="flex justify-between items-start gap-2">
+                                 <span className="text-xs font-medium text-gray-700 truncate flex-1 text-right">{name}</span>
+                                 {dosage && <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0 dir-ltr">{dosage}</span>}
+                               </div>
+                               {timing && <span className="text-[10px] text-gray-400 mt-0.5 text-right">{timing}</span>}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <span className="text-[10px] text-gray-400">-</span>
+                      )}
+                      {(activeSupplements.supplements?.length || 0) > 3 && (
+                        <div className="text-[9px] text-gray-400 text-center pt-1 border-t border-gray-50 mt-1">
+                          +{activeSupplements.supplements!.length - 3} נוספים
+                        </div>
+                      )}
                     </div>
                  </div>
                </div>

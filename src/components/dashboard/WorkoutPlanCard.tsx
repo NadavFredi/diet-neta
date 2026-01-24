@@ -44,6 +44,7 @@ export interface WorkoutPlan {
   customer_id?: string;
   template_id?: string;
   budget_id?: string | null;
+  name?: string;
   start_date: string;
   description?: string;
   strength: number;
@@ -205,7 +206,9 @@ export const WorkoutPlanCard = ({
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center gap-2 mb-4">
             <Dumbbell className="h-5 w-5 text-green-600" />
-            <h3 className="text-xl font-bold text-gray-800">תוכנית אימונים</h3>
+            <h3 className="text-xl font-bold text-gray-800">
+              {workoutPlan.name || 'תוכנית אימונים'}
+            </h3>
           </div>
           
           <div className="mb-4">
