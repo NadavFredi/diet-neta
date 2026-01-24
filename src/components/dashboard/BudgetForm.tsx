@@ -963,7 +963,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                                 <ChevronDown className="h-4 w-4 opacity-50" />
                               </SelectTrigger>
                               <SelectContent dir="rtl">
-                                <SelectItem value="" disabled className="hidden">בחר</SelectItem>
                                 {supplementTemplates.map((template) => (
                                   <SelectItem key={template.id} value={template.id}>
                                     {template.name}
