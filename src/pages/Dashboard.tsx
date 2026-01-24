@@ -58,6 +58,7 @@ const Dashboard = () => {
     getCurrentFilterConfig,
     isLoading,
     isLoadingView,
+    error,
     savedView, // Get savedView from useDashboardLogic instead of duplicate call
     refreshLeads,
     // Pagination state and handlers
@@ -299,7 +300,20 @@ const Dashboard = () => {
 
         {/* Table Section - Scrollable area */}
         <div className="flex-1 min-h-0 flex flex-col bg-white">
-          {isLoading ? (
+          {error ? (
+            <div className="p-8 text-center text-red-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">Error loading leads</p>
+                <p className="text-sm">{error}</p>
+                <button 
+                  onClick={() => refreshLeads()}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : isLoading ? (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
               <div>
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>

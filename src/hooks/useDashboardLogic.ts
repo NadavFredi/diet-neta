@@ -35,6 +35,8 @@ import {
   setAllColumnVisibility as setAllTableColumnVisibility,
   setColumnOrder as setTableColumnOrder,
   setSearchQuery as setTableSearchQuery,
+  setActiveFilters,
+  clearFilters,
 } from '@/store/slices/tableStateSlice';
 import { useEntityQuery } from '@/hooks/useEntityQuery';
 
@@ -248,6 +250,15 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
       if (filterConfig.columnWidths) {
         dispatch(setAllColumnSizing({ resourceKey: 'leads', sizing: filterConfig.columnWidths }));
       }
+
+      // Sync filters
+      if (filterConfig.filterGroup) {
+        dispatch(setActiveFilters({ resourceKey: 'leads', filters: filterConfig.filterGroup }));
+      } else {
+        // If no filter group in saved view, clear existing filters (so we don't keep filters from previous page)
+        dispatch(clearFilters({ resourceKey: 'leads' }));
+      }
+
       setHasAppliedView(true);
     }
   }, [savedView, hasAppliedView, isLoadingView, viewId, dispatch]);

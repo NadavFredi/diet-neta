@@ -371,12 +371,42 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
         )}
 
         {/* Email - On same line (optional, can be hidden on smaller screens) */}
-        {onUpdateCustomer && customer && customer.email && (
-          <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
+        {onUpdateCustomer && customer && (
+          <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0 group/email">
             <Mail className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-            <span className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
-              {customer.email}
-            </span>
+            <div className="relative">
+              {customer.email ? (
+                <InlineEditableField
+                  label=""
+                  value={customer.email}
+                  onSave={async (newValue) => {
+                    if (customer.id) {
+                      await onUpdateCustomer({ email: String(newValue) });
+                    }
+                  }}
+                  type="email"
+                  className="border-0 p-0 m-0 [&>span:first-child]:hidden"
+                  valueClassName="text-sm font-semibold text-gray-900 truncate max-w-[200px] cursor-pointer hover:text-blue-600 transition-colors"
+                />
+              ) : (
+                <InlineEditableField
+                  label=""
+                  value=""
+                  onSave={async (newValue) => {
+                    if (customer.id) {
+                      await onUpdateCustomer({ email: String(newValue) });
+                    }
+                  }}
+                  type="email"
+                  className="border-0 p-0 m-0 [&>span:first-child]:hidden"
+                  valueClassName="text-sm font-semibold text-gray-500 truncate max-w-[200px] cursor-pointer hover:text-blue-600 transition-colors italic"
+                  formatValue={(val) => {
+                    const str = String(val);
+                    return str || 'לחץ להוספת אימייל';
+                  }}
+                />
+              )}
+            </div>
           </div>
         )}
 

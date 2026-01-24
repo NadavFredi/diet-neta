@@ -12,6 +12,7 @@ export interface AuthUser {
   full_name?: string | null;
   customer_id?: string | null; // For trainees, link to their customer record
   is_active?: boolean | null;
+  avatar_url?: string | null;
 }
 
 interface AuthState {
@@ -48,7 +49,7 @@ export const initializeAuth = createAsyncThunk(
       // Fetch user profile with role
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email, full_name, role, is_active')
+        .select('id, email, full_name, role, is_active, avatar_url')
         .eq('id', session.user.id)
         .single();
       
@@ -126,7 +127,7 @@ export const loginUser = createAsyncThunk(
       // Fetch user profile with timeout protection
       const profilePromise = supabase
         .from('profiles')
-        .select('id, email, full_name, role, is_active')
+        .select('id, email, full_name, role, is_active, avatar_url')
         .eq('id', data.user.id)
         .single();
       
@@ -170,6 +171,7 @@ export const loginUser = createAsyncThunk(
               full_name: newProfile.full_name,
               customer_id: null,
               is_active: true,
+              avatar_url: null,
             },
           };
         }
