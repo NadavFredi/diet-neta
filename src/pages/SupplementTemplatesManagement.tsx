@@ -106,13 +106,13 @@ const SupplementTemplatesManagement = () => {
         <div className="flex-shrink-0">
           <TableActionHeader
             resourceKey="supplement_templates"
-            title={savedView?.view_name || 'תבניות תוספים'}
+            title={savedView?.view_name || 'תוספים'}
             dataCount={totalTemplates}
-            singularLabel="תבנית"
-            pluralLabel="תבניות"
+            singularLabel="תוסף"
+            pluralLabel="תוספים"
             filterFields={supplementTemplateFilterFields}
             searchPlaceholder="חיפוש לפי שם או תיאור..."
-            addButtonLabel="הוסף תבנית"
+            addButtonLabel="הוסף תוסף"
             onAddClick={handleAddTemplate}
             enableColumnVisibility={true}
             enableFilters={true}
@@ -150,8 +150,8 @@ const SupplementTemplatesManagement = () => {
                 onPageSizeChange={handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
-                singularLabel="תבנית"
-                pluralLabel="תבניות"
+                singularLabel="תוסף"
+                pluralLabel="תוספים"
               />
             </div>
           )}

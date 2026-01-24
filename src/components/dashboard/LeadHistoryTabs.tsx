@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -39,6 +39,8 @@ interface StepsHistoryItem {
   endDate?: string;
   dates?: string;
   target?: number;
+  budget_id?: string;
+  is_active?: boolean;
 }
 
 interface NutritionHistoryItem {
@@ -99,12 +101,35 @@ export const LeadHistoryTabs = ({
   customerId,
   onAddWeeklyCheckIn,
   budgetAssignments,
+  workoutHistory,
+  stepsHistory,
+  nutritionHistory,
+  supplementsHistory,
 }: LeadHistoryTabsProps) => {
   const [activeTab, setActiveTab] = useState('daily-activity');
   const [selectedCheckIn, setSelectedCheckIn] = useState<any | null>(null);
 
-  // Find active budget
-  const activeBudget = budgetAssignments?.find(b => b.is_active) || budgetAssignments?.[0];
+  // Find active budget from assignments
+  const activeAssignment = useMemo(() => {
+    return budgetAssignments?.find(b => b.is_active) || budgetAssignments?.[0];
+  }, [budgetAssignments]);
+
+  // Fallback: find budget from plans if no assignment
+  const fallbackBudgetId = useMemo(() => {
+     if (activeAssignment?.budget_id) return activeAssignment.budget_id;
+     
+     const activeWorkout = workoutHistory?.find(w => w.is_active) || workoutHistory?.[0];
+     const activeNutrition = nutritionHistory?.find(n => n.is_active) || nutritionHistory?.[0];
+     const activeSteps = stepsHistory?.find(s => s.is_active) || stepsHistory?.[0];
+     const activeSupplements = supplementsHistory?.find(s => s.is_active) || supplementsHistory?.[0];
+     
+     return activeWorkout?.budget_id || 
+            activeNutrition?.budget_id || 
+            activeSteps?.budget_id || 
+            activeSupplements?.budget_id || null;
+  }, [activeAssignment, workoutHistory, nutritionHistory, stepsHistory, supplementsHistory]);
+
+  const budgetIdToDisplay = activeAssignment?.budget_id || fallbackBudgetId;
 
   // Get the appropriate button for the active tab
   const getActionButton = () => {
@@ -183,7 +208,7 @@ export const LeadHistoryTabs = ({
 
         {/* Budget History Tab */}
         <TabsContent value="budget-history" className="mt-0">
-          <BudgetHistoryList budgetId={activeBudget?.budget_id} />
+          <BudgetHistoryList budgetId={budgetIdToDisplay} />
         </TabsContent>
       </Tabs>
 

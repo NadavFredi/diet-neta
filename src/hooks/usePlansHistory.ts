@@ -479,6 +479,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
             id: plan.id,
             weekNumber: weekNumber,
             target: plan.steps_goal || 0,
+            stepsInstructions: plan.steps_instructions || '',
             startDate: plan.start_date,
             endDate: plan.end_date || null,
             dates: plan.start_date ? formatDate(plan.start_date) : '',

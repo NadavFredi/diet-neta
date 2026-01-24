@@ -366,23 +366,13 @@ export const PlansCard = ({
   };
 
   const handleEditSteps = async (step: any) => {
-     if (customerId) {
-      try {
-        const { data, error } = await supabase
-          .from('customers')
-          .select('daily_protocol')
-          .eq('id', customerId)
-          .single();
-        if (error) throw error;
-        setEditingStepsPlan({
-          stepsGoal: data?.daily_protocol?.stepsGoal || step.target || 0,
-          stepsInstructions: '',
-        });
-        setIsStepsPlanDialogOpen(true);
-      } catch (error: any) {
-        toast({ title: 'שגיאה', description: error?.message || 'נכשל בטעינת יעד הצעדים', variant: 'destructive' });
-      }
-    }
+    setEditingStepsPlan({
+      id: step.id,
+      stepsGoal: step.target || 0,
+      stepsInstructions: step.stepsInstructions || '',
+      budgetId: step.budget_id,
+    });
+    setIsStepsPlanDialogOpen(true);
   };
 
   if (!activeAssignment && !effectiveBudgetId && !workoutHistory?.length && !nutritionHistory?.length) {
@@ -526,7 +516,7 @@ export const PlansCard = ({
                        };
                        const dayData = activeWorkout.weeklyWorkout?.days?.[dayKey];
                        const isActive = dayData?.isActive && dayData?.exercises?.length > 0;
-                       const isToday = new Date().getDay() === ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(dayKey);
+                       const isToday = dayKey !== 'saturday' && new Date().getDay() === ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(dayKey);
                        
                        return (
                          <AccordionItem value={dayKey} key={dayKey} className="border-b-0 mb-1 last:mb-0">
@@ -717,6 +707,7 @@ export const PlansCard = ({
         customerId={customerId}
         leadId={leadId}
         initialData={editingStepsPlan}
+        budgetId={effectiveBudgetId}
       />
 
       <BudgetDetailsModal

@@ -85,7 +85,7 @@ export const SupplementTemplatesDataTable = ({
       }
       enableColumnVisibility={false}
       enableColumnReordering={true}
-      resourceKey="templates"
+      resourceKey="supplement_templates"
       enableRowSelection
       totalCount={templates.length}
       onBulkDelete={onBulkDelete}

@@ -900,7 +900,7 @@ function TableContent<T>({
       <thead className="sticky top-0 z-20">
         {table.getHeaderGroups().map((headerGroup: any) => (
           <tr key={headerGroup.id} className="bg-slate-50 shadow-[0_1px_0_rgba(0,0,0,0.05)]">
-            <SortableContext items={tableColumns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
+            <SortableContext items={table.getState().columnOrder} strategy={horizontalListSortingStrategy}>
               {headerGroup.headers.map((header: any) => (
                 <SortableHeader key={header.id} header={header} table={table} dir={dir} onHeaderClick={handleHeaderClick} getSortIcon={getSortIcon} onResizeStart={handleResizeStart} width={columnSizing[header.id] || header.column.getSize()} isResizing={isResizing === header.id} onHideColumn={onHideColumn} />
               ))}

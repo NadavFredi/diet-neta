@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Link as LinkIcon } from 'lucide-react';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { TemplateLeadsCell } from '../TemplateLeadsCell';
 
@@ -15,7 +15,7 @@ import { TemplateLeadsCell } from '../TemplateLeadsCell';
 export const supplementTemplateColumns: DataTableColumn<SupplementTemplate>[] = [
   {
     id: 'name',
-    header: 'שם התבנית',
+    header: 'שם התוסף',
     accessorKey: 'name',
     enableSorting: true,
     enableResizing: true,
@@ -30,39 +30,65 @@ export const supplementTemplateColumns: DataTableColumn<SupplementTemplate>[] = 
     },
   },
   {
-    id: 'description',
-    header: 'תיאור',
-    accessorKey: 'description',
-    enableSorting: true,
-    enableResizing: true,
-    enableHiding: true,
-    size: 300,
-    meta: {
-      align: 'right',
-    },
-    cell: ({ getValue }) => {
-      const value = getValue() as string | null;
-      return (
-        <span className="text-gray-600 max-w-md truncate block">
-          {value || '-'}
-        </span>
-      );
-    },
-  },
-  {
-    id: 'supplements_count',
-    header: 'מספר תוספים',
+    id: 'link1',
+    header: 'קישור 1',
     accessorKey: 'supplements',
     enableSorting: false,
     enableResizing: true,
     enableHiding: true,
-    size: 150,
+    size: 200,
     meta: {
       align: 'right',
     },
     cell: ({ row }) => {
-      const count = row.original.supplements?.length || 0;
-      return <Badge variant="outline">{count} תוספים</Badge>;
+      const supplements = row.original.supplements;
+      const link = supplements && supplements.length > 0 ? supplements[0].link1 : null;
+      
+      if (!link) return <span className="text-gray-400">-</span>;
+      
+      return (
+        <a 
+          href={link} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center gap-1 text-[#5B6FB9] hover:underline"
+          title={link}
+        >
+          <LinkIcon className="h-3 w-3" />
+          <span className="truncate max-w-[180px] block" dir="ltr">{link}</span>
+        </a>
+      );
+    },
+  },
+  {
+    id: 'link2',
+    header: 'קישור 2',
+    accessorKey: 'supplements',
+    enableSorting: false,
+    enableResizing: true,
+    enableHiding: true,
+    size: 200,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ row }) => {
+      const supplements = row.original.supplements;
+      const link = supplements && supplements.length > 0 ? supplements[0].link2 : null;
+      
+      if (!link) return <span className="text-gray-400">-</span>;
+      
+      return (
+        <a 
+          href={link} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center gap-1 text-[#5B6FB9] hover:underline"
+          title={link}
+        >
+          <LinkIcon className="h-3 w-3" />
+          <span className="truncate max-w-[180px] block" dir="ltr">{link}</span>
+        </a>
+      );
     },
   },
   {
@@ -404,26 +430,7 @@ export const defaultWorkoutTemplateColumnVisibility: Record<string, boolean> = {
  */
 export const defaultSupplementTemplateColumnVisibility: Record<string, boolean> = {
   name: true,
-  description: true,
-  supplements_count: true,
+  link1: true,
+  link2: true,
   created_at: true,
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

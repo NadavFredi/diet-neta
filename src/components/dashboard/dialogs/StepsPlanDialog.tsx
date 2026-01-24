@@ -22,9 +22,12 @@ interface StepsPlanDialogProps {
   onOpenChange: (open: boolean) => void;
   customerId?: string;
   leadId?: string;
+  budgetId?: string | null;
   initialData?: {
+    id?: string;
     stepsGoal?: number;
     stepsInstructions?: string;
+    budgetId?: string;
   };
 }
 
@@ -33,6 +36,7 @@ export const StepsPlanDialog = ({
   onOpenChange,
   customerId,
   leadId,
+  budgetId: propBudgetId,
   initialData,
 }: StepsPlanDialogProps) => {
   const { toast } = useToast();
@@ -52,10 +56,10 @@ export const StepsPlanDialog = ({
   }, [initialData, isOpen]);
 
   const handleSave = async () => {
-    if (!customerId) {
+    if (!customerId && !leadId) {
       toast({
         title: 'שגיאה',
-        description: 'נדרש מזהה לקוח',
+        description: 'נדרש מזהה לקוח או ליד',
         variant: 'destructive',
       });
       return;
@@ -63,32 +67,63 @@ export const StepsPlanDialog = ({
 
     setIsSaving(true);
     try {
-      // Get current customer data
-      const { data: customer, error: fetchError } = await supabase
-        .from('customers')
-        .select('daily_protocol')
-        .eq('id', customerId)
-        .single();
+      const budgetId = initialData?.budgetId || propBudgetId;
 
-      if (fetchError) throw fetchError;
+      if (initialData?.id) {
+        // Update existing plan
+        const { error } = await supabase
+          .from('steps_plans')
+          .update({
+            steps_goal: stepsGoal,
+            steps_instructions: stepsInstructions,
+          })
+          .eq('id', initialData.id);
 
-      // Update daily_protocol with steps goal
-      const dailyProtocol = customer?.daily_protocol || {};
-      const updatedProtocol = {
-        ...dailyProtocol,
-        stepsGoal: stepsGoal,
-      };
+        if (error) throw error;
+      } else {
+        // Create new plan (e.g. overriding budget default)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
 
-      const { error: updateError } = await supabase
-        .from('customers')
-        .update({ daily_protocol: updatedProtocol })
-        .eq('id', customerId);
+        const { error } = await supabase
+          .from('steps_plans')
+          .insert({
+            user_id: user.id,
+            customer_id: customerId || null,
+            lead_id: leadId || null,
+            budget_id: budgetId || null,
+            start_date: new Date().toISOString().split('T')[0],
+            steps_goal: stepsGoal,
+            steps_instructions: stepsInstructions,
+            is_active: true,
+          });
 
-      if (updateError) throw updateError;
+        if (error) throw error;
+      }
+
+      // Sync with budget if budgetId is present (to trigger history log)
+      if (budgetId) {
+        const { error: budgetError } = await supabase
+          .from('budgets')
+          .update({
+            steps_goal: stepsGoal,
+            steps_instructions: stepsInstructions,
+          })
+          .eq('id', budgetId);
+          
+        if (budgetError) {
+          console.error('Error syncing budget:', budgetError);
+        } else {
+          // Invalidate budget history query
+          queryClient.invalidateQueries({ queryKey: ['budget-history', budgetId] });
+          queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
+        }
+      }
 
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
       queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+      if (customerId) queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+      if (leadId) queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
 
       toast({
         title: 'הצלחה',
@@ -97,6 +132,7 @@ export const StepsPlanDialog = ({
   
       onOpenChange(false);
     } catch (error: any) {
+      console.error('Error saving steps plan:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון יעד הצעדים',
@@ -108,7 +144,7 @@ export const StepsPlanDialog = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange} dir="rtl">
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl" dir="rtl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -180,7 +216,3 @@ export const StepsPlanDialog = ({
     </Dialog>
   );
 };
-
-
-
-

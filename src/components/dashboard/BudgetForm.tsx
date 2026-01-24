@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints, Edit2, ChevronDown } from 'lucide-react';
 import { useNutritionTemplates } from '@/hooks/useNutritionTemplates';
 import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates';
 import { useSupplementTemplates, useCreateSupplementTemplate, useUpdateSupplementTemplate } from '@/hooks/useSupplementTemplates';
@@ -933,13 +933,45 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                     {supplements.map((supplement, index) => (
                       <div key={index} className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
                         <div className="flex-1 grid grid-cols-3 gap-1.5">
-                          <Input
-                            value={supplement.name}
-                            onChange={(e) => updateSupplement(index, 'name', e.target.value)}
-                            placeholder="שם התוסף"
-                            className="h-8 bg-white border-0 text-xs"
-                            dir="rtl"
-                          />
+                          <div className="flex gap-1">
+                            <Input
+                              value={supplement.name}
+                              onChange={(e) => updateSupplement(index, 'name', e.target.value)}
+                              placeholder="שם התוסף"
+                              className="h-8 bg-white border-0 text-xs flex-1"
+                              dir="rtl"
+                            />
+                            <Select
+                              value=""
+                              onValueChange={(value) => {
+                                if (value) {
+                                  const template = supplementTemplates.find(t => t.id === value);
+                                  if (template) {
+                                    updateSupplement(index, 'name', template.name);
+                                    // Also try to pre-fill dosage/timing if available in the template's first supplement
+                                    if (template.supplements && template.supplements.length > 0) {
+                                      const firstSup = template.supplements[0];
+                                      if (firstSup.dosage) updateSupplement(index, 'dosage', firstSup.dosage);
+                                      if (firstSup.timing) updateSupplement(index, 'timing', firstSup.timing);
+                                    }
+                                  }
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8 w-8 px-0 border-0 bg-transparent hover:bg-slate-100 focus:ring-0 flex items-center justify-center">
+                                <span className="sr-only">בחר מהרשימה</span>
+                                <ChevronDown className="h-4 w-4 opacity-50" />
+                              </SelectTrigger>
+                              <SelectContent dir="rtl">
+                                <SelectItem value="" disabled className="hidden">בחר</SelectItem>
+                                {supplementTemplates.map((template) => (
+                                  <SelectItem key={template.id} value={template.id}>
+                                    {template.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                           <Input
                             value={supplement.dosage}
                             onChange={(e) => updateSupplement(index, 'dosage', e.target.value)}
