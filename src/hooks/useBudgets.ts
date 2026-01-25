@@ -167,7 +167,13 @@ export const useBudgets = (filters?: {
   });
 };
 
-// Fetch a single budget by ID
+// Extended Budget type when fetched with joined templates (for edit form display)
+export interface BudgetWithTemplates extends Budget {
+  workout_template?: { id: string; name: string } | null;
+  nutrition_template?: { id: string; name: string } | null;
+}
+
+// Fetch a single budget by ID (with joined workout + nutrition templates for edit form)
 export const useBudget = (budgetId: string | null) => {
   const { user } = useAppSelector((state) => state.auth);
 
@@ -181,13 +187,17 @@ export const useBudget = (budgetId: string | null) => {
 
       const { data, error } = await supabase
         .from('budgets')
-        .select('*')
+        .select(`
+          *,
+          workout_template:workout_templates(id, name),
+          nutrition_template:nutrition_templates(id, name)
+        `)
         .eq('id', budgetId)
         .or(`is_public.eq.true,created_by.eq.${userId}`)
         .single();
 
       if (error) throw error;
-      return data as Budget | null;
+      return data as BudgetWithTemplates | null;
     },
     enabled: !!budgetId && !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -388,6 +398,7 @@ export const useUpdateBudget = () => {
       
       // Also refetch immediately to update UI
       queryClient.refetchQueries({ queryKey: ['budgets'] });
+      queryClient.refetchQueries({ queryKey: ['budget-history', data.id] });
     },
   });
 };

@@ -728,11 +728,11 @@ export const NutritionTemplateForm = ({
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "text-xs font-medium transition-colors",
-                          calculatorInputs.caloricDeficitMode === 'percent' 
+                          calculatorInputs.caloricDeficitMode === 'calories' 
                             ? "text-foreground font-semibold" 
                             : "text-muted-foreground"
                         )}>
-                          אחוז
+                          קלוריות
                         </span>
                         <div dir="ltr" className="inline-block">
                           <Switch
@@ -745,11 +745,11 @@ export const NutritionTemplateForm = ({
                         </div>
                         <span className={cn(
                           "text-xs font-medium transition-colors",
-                          calculatorInputs.caloricDeficitMode === 'calories' 
+                          calculatorInputs.caloricDeficitMode === 'percent' 
                             ? "text-foreground font-semibold" 
                             : "text-muted-foreground"
                         )}>
-                          קלוריות
+                          אחוז
                         </span>
                       </div>
                     </div>

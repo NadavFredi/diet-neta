@@ -5,7 +5,7 @@
  * Changes only affect the user/lead plan, not the budget template
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,12 +18,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, X, Trash2, Plus } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { supabase } from '@/lib/supabaseClient';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Supplement } from '@/store/slices/budgetSlice';
+import { useSupplementTemplates } from '@/hooks/useSupplementTemplates';
 
 interface WorkoutPlanData {
   id?: string;
@@ -85,6 +93,21 @@ export const PlanDetailModal = ({
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Fetch supplement templates to get the list of available supplements
+  const { data: supplementTemplatesData } = useSupplementTemplates();
+  
+  // Extract unique supplement names from templates
+  const availableSupplementNames = useMemo(() => {
+    if (!supplementTemplatesData?.data) return [];
+    const names = new Set<string>();
+    supplementTemplatesData.data.forEach(template => {
+      if (template.name) {
+        names.add(template.name);
+      }
+    });
+    return Array.from(names).sort();
+  }, [supplementTemplatesData]);
 
   // Form state based on plan type
   const [workoutForm, setWorkoutForm] = useState({
@@ -281,6 +304,12 @@ export const PlanDetailModal = ({
       queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
       queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
       queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+      
+      // Invalidate budget history if the plan is linked to a budget
+      if (planData.budget_id) {
+        queryClient.invalidateQueries({ queryKey: ['budget-history', planData.budget_id] });
+        queryClient.refetchQueries({ queryKey: ['budget-history', planData.budget_id] });
+      }
 
       toast({
         title: 'הצלחה',
@@ -567,14 +596,38 @@ export const PlanDetailModal = ({
                     {supplementForm.supplements.map((supplement, index) => (
                       <div key={index} className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
                         <div className="flex-1 grid grid-cols-3 gap-1.5">
-                          <Input
-                            value={supplement.name}
-                            onChange={(e) => handleUpdateSupplement(index, 'name', e.target.value)}
-                            placeholder="שם התוסף"
-                            className="h-8 bg-white border-0 text-xs"
-                            dir="rtl"
-                            disabled={!isEditing}
-                          />
+                          {isEditing ? (
+                            <Select
+                              value={supplement.name}
+                              onValueChange={(value) => handleUpdateSupplement(index, 'name', value)}
+                              disabled={!isEditing}
+                            >
+                              <SelectTrigger className="h-8 bg-white border-0 text-xs" dir="rtl">
+                                <SelectValue placeholder="בחר תוסף" />
+                              </SelectTrigger>
+                              <SelectContent dir="rtl">
+                                {availableSupplementNames.length > 0 ? (
+                                  availableSupplementNames.map((name) => (
+                                    <SelectItem key={name} value={name}>
+                                      {name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="" disabled>
+                                    אין תוספים זמינים
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              value={supplement.name}
+                              placeholder="שם התוסף"
+                              className="h-8 bg-white border-0 text-xs"
+                              dir="rtl"
+                              disabled={true}
+                            />
+                          )}
                           <Input
                             value={supplement.dosage}
                             onChange={(e) => handleUpdateSupplement(index, 'dosage', e.target.value)}

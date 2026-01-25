@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Check, Trash2 } from 'lucide-react';
 import type { Currency, DurationUnit, SubscriptionType } from '@/store/slices/subscriptionTypesSlice';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 interface CreateSubscriptionModalProps {
   isOpen: boolean;
@@ -110,6 +111,22 @@ export const CreateSubscriptionModal = ({
       if (match) {
         setSelectedSubscriptionTypeId1(match.id);
         setSelectedStatus1(initialSubscription1.status || 'פעיל');
+        
+        // If this subscription type has a second period, enable it
+        if (match.second_period) {
+          setHasSecondPeriod(true);
+          // Find a matching subscription type for the second period
+          const secondMatch = subscriptionTypes.find(st =>
+            st.duration === match.second_period?.duration &&
+            st.duration_unit === match.second_period?.duration_unit &&
+            st.price === match.second_period?.price &&
+            st.currency === match.second_period?.currency
+          );
+          if (secondMatch) {
+            setSelectedSubscriptionTypeId2(secondMatch.id);
+            setSelectedStatus2('ממתין');
+          }
+        }
       }
     }
   }, [isOpen, initialSubscription1, subscriptionTypes, selectedSubscriptionTypeId1]);
@@ -121,6 +138,24 @@ export const CreateSubscriptionModal = ({
   const selectedSubscriptionType2 = subscriptionTypes.find(
     (st) => st.id === selectedSubscriptionTypeId2
   );
+
+  // Auto-populate second period when a bundle subscription type is selected
+  useEffect(() => {
+    if (selectedSubscriptionType1?.second_period) {
+      setHasSecondPeriod(true);
+      // Try to find a matching subscription type for the second period
+      const secondMatch = subscriptionTypes.find(st =>
+        st.duration === selectedSubscriptionType1.second_period?.duration &&
+        st.duration_unit === selectedSubscriptionType1.second_period?.duration_unit &&
+        st.price === selectedSubscriptionType1.second_period?.price &&
+        st.currency === selectedSubscriptionType1.second_period?.currency
+      );
+      if (secondMatch) {
+        setSelectedSubscriptionTypeId2(secondMatch.id);
+        setSelectedStatus2('ממתין');
+      }
+    }
+  }, [selectedSubscriptionType1, subscriptionTypes]);
 
   // Get currency symbol for display
   const getCurrencySymbol = (currency: Currency): string => {
@@ -156,7 +191,18 @@ export const CreateSubscriptionModal = ({
     };
 
     let sub2;
-    if (hasSecondPeriod && selectedSubscriptionType2) {
+    // If the selected subscription type has a second_period (bundle), use it
+    if (selectedSubscriptionType1.second_period) {
+      sub2 = {
+        name: selectedSubscriptionType1.name + ' - תקופה שנייה',
+        duration: selectedSubscriptionType1.second_period.duration,
+        duration_unit: selectedSubscriptionType1.second_period.duration_unit || 'months',
+        price: selectedSubscriptionType1.second_period.price,
+        currency: selectedSubscriptionType1.second_period.currency || 'ILS',
+        status: selectedStatus2,
+      };
+    } else if (hasSecondPeriod && selectedSubscriptionType2) {
+      // Otherwise, use the manually selected second period
       sub2 = {
         name: selectedSubscriptionType2.name,
         duration: selectedSubscriptionType2.duration,
@@ -368,32 +414,72 @@ export const CreateSubscriptionModal = ({
 
               {hasSecondPeriod ? (
                 <div className="relative">
-                  {renderSubscriptionSelect(
-                    "תקופה שנייה",
-                    selectedSubscriptionTypeId2,
-                    setSelectedSubscriptionTypeId2,
-                    selectedStatus2,
-                    setSelectedStatus2,
-                    selectedSubscriptionType2
+                  {selectedSubscriptionType1?.second_period ? (
+                    // Show bundle second period (read-only)
+                    <div className="space-y-4 p-4 border rounded-lg bg-blue-50/50">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-gray-900">תקופה שנייה (חבילה)</h3>
+                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                          חבילה
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-gray-600 space-y-1 bg-white p-3 rounded border">
+                        <p>תוקף: {selectedSubscriptionType1.second_period.duration} {getDurationUnitLabel(selectedSubscriptionType1.second_period.duration_unit || 'months', selectedSubscriptionType1.second_period.duration)}</p>
+                        <p>מחיר: {
+                          selectedSubscriptionType1.second_period.currency === 'USD' ? '$' : 
+                          selectedSubscriptionType1.second_period.currency === 'EUR' ? '€' : '₪'
+                        }{selectedSubscriptionType1.second_period.price.toLocaleString('he-IL')}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>סטטוס</Label>
+                        <Select
+                          value={selectedStatus2}
+                          onValueChange={setSelectedStatus2}
+                          dir="rtl"
+                        >
+                          <SelectTrigger dir="rtl" className="bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl">
+                            <SelectItem value="ממתין">ממתין</SelectItem>
+                            <SelectItem value="פעיל">פעיל</SelectItem>
+                            <SelectItem value="בוטל">בוטל</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ) : (
+                    // Show manual second period selection
+                    <>
+                      {renderSubscriptionSelect(
+                        "תקופה שנייה",
+                        selectedSubscriptionTypeId2,
+                        setSelectedSubscriptionTypeId2,
+                        selectedStatus2,
+                        setSelectedStatus2,
+                        selectedSubscriptionType2
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-4 left-4 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                          setHasSecondPeriod(false);
+                          setSelectedSubscriptionTypeId2('');
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 ml-2" />
+                        הסר
+                      </Button>
+                    </>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute top-4 left-4 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => {
-                      setHasSecondPeriod(false);
-                      setSelectedSubscriptionTypeId2('');
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 ml-2" />
-                    הסר
-                  </Button>
                 </div>
               ) : (
                 <Button
                   variant="outline"
                   className="w-full border-dashed"
                   onClick={() => setHasSecondPeriod(true)}
+                  disabled={!!selectedSubscriptionType1?.second_period}
                 >
                   <Plus className="h-4 w-4 ml-2" />
                   הוסף תקופה שנייה

@@ -29,6 +29,12 @@ export interface SubscriptionType {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  second_period?: {
+    duration: number;
+    duration_unit: DurationUnit;
+    price: number;
+    currency: Currency;
+  } | null;
 }
 
 // =====================================================
@@ -172,12 +178,19 @@ export const useCreateSubscriptionType = () => {
       duration_unit = 'months',
       price,
       currency = 'ILS',
+      second_period,
     }: {
       name: string;
       duration: number;
       duration_unit?: DurationUnit;
       price: number;
       currency?: Currency;
+      second_period?: {
+        duration: number;
+        duration_unit: DurationUnit;
+        price: number;
+        currency: Currency;
+      } | null;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
 
@@ -191,6 +204,7 @@ export const useCreateSubscriptionType = () => {
           duration_unit,
           price,
           currency,
+          second_period: second_period || null,
           created_by: userId,
         })
         .select()
@@ -226,6 +240,12 @@ export const useUpdateSubscriptionType = () => {
       duration_unit?: DurationUnit;
       price?: number;
       currency?: Currency;
+      second_period?: {
+        duration: number;
+        duration_unit: DurationUnit;
+        price: number;
+        currency: Currency;
+      } | null;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
 

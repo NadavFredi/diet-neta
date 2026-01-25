@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, Eye, FileText, Send, ChevronDown, ChevronUp } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, Eye, FileText, Send, ChevronDown, ChevronUp, ListOrdered, ScrollText } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
@@ -16,7 +16,7 @@ import { EditBudgetDialog } from './dialogs/EditBudgetDialog';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget } from '@/hooks/useBudgets';
+import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget, type BudgetWithTemplates } from '@/hooks/useBudgets';
 import { useNavigate } from 'react-router-dom';
 import { syncSupplementPlansFromBudgetUpdate } from '@/services/budgetPlanSync';
 import {
@@ -216,12 +216,17 @@ export const PlansCard = ({
            activeSupplements?.budget_id || null;
   }, [activeWorkout, activeNutrition, activeSteps, activeSupplements]);
 
-  // Fetch fallback budget details if needed
+  // Effective budget ID (assignment wins, else fallback from plans)
+  const effectiveBudgetId = activeAssignment?.budget_id || fallbackBudgetId;
+
+  // Fetch fallback budget details if needed (for name when no assignment)
   const { data: fallbackBudget } = useBudget(fallbackBudgetId);
+
+  // Fetch full budget for overview (all form fields: description, eating order/rules, steps instructions, template names)
+  const { data: overviewBudget } = useBudget(effectiveBudgetId);
 
   // Effective budget name
   const effectiveBudgetName = activeAssignment?.budget_name || fallbackBudget?.name || 'תקציב פעיל';
-  const effectiveBudgetId = activeAssignment?.budget_id || fallbackBudgetId;
 
   // Handlers
   const handleDeleteClick = (assignment: BudgetAssignmentItem) => {
@@ -471,7 +476,49 @@ export const PlansCard = ({
       </div>
 
       {expanded && (
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 space-y-4">
+          {/* Budget overview: all form fields (description, eating order/rules) */}
+          {overviewBudget && (overviewBudget.description?.trim() || overviewBudget.eating_order?.trim() || overviewBudget.eating_rules?.trim()) && (
+            <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200/60">
+                <div className="w-8 h-8 rounded-lg bg-[#E8EDF7] flex items-center justify-center">
+                  <FileText className="h-4 w-4 text-[#5B6FB9]" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800">פרטי תקציב</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {overviewBudget.description?.trim() && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      <FileText className="h-3 w-3" />
+                      תיאור
+                    </div>
+                    <p className="text-sm text-slate-800 leading-relaxed">{overviewBudget.description}</p>
+                  </div>
+                )}
+                {overviewBudget.eating_order?.trim() && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      <ListOrdered className="h-3 w-3" />
+                      סדר האכילה
+                    </div>
+                    <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{overviewBudget.eating_order}</p>
+                  </div>
+                )}
+                {overviewBudget.eating_rules?.trim() && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      <ScrollText className="h-3 w-3" />
+                      כללי אכילה
+                    </div>
+                    <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{overviewBudget.eating_rules}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Nutrition Plan Card */}
           <div 
             className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeNutrition ? 'bg-orange-50/30 border-orange-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
@@ -481,7 +528,12 @@ export const PlansCard = ({
                 <div className={`p-1.5 rounded-md ${activeNutrition ? 'bg-orange-100 text-orange-600' : 'bg-gray-200 text-gray-500'}`}>
                   <UtensilsCrossed className="h-4 w-4" />
                 </div>
-                <span className={`text-sm font-semibold ${activeNutrition ? 'text-gray-900' : 'text-gray-500'}`}>תזונה</span>
+                <div className="flex-1 min-w-0">
+                  <span className={`text-sm font-semibold block ${activeNutrition ? 'text-gray-900' : 'text-gray-500'}`}>תזונה</span>
+                  {(overviewBudget as BudgetWithTemplates | null)?.nutrition_template?.name && (
+                    <span className="text-[10px] text-slate-500 truncate block">תבנית: {(overviewBudget as BudgetWithTemplates).nutrition_template?.name}</span>
+                  )}
+                </div>
              </div>
              {activeNutrition ? (
                <div className="space-y-2">
@@ -519,7 +571,12 @@ export const PlansCard = ({
                 <div className={`p-1.5 rounded-md ${activeWorkout ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
                   <Dumbbell className="h-4 w-4" />
                 </div>
-                <span className={`text-sm font-semibold ${activeWorkout ? 'text-gray-900' : 'text-gray-500'}`}>אימונים</span>
+                <div className="flex-1 min-w-0">
+                  <span className={`text-sm font-semibold block ${activeWorkout ? 'text-gray-900' : 'text-gray-500'}`}>אימונים</span>
+                  {(overviewBudget as BudgetWithTemplates | null)?.workout_template?.name && (
+                    <span className="text-[10px] text-slate-500 truncate block">תבנית: {(overviewBudget as BudgetWithTemplates).workout_template?.name}</span>
+                  )}
+                </div>
              </div>
              {activeWorkout ? (
                <div className="space-y-2">
@@ -533,14 +590,13 @@ export const PlansCard = ({
                        };
                        const dayData = activeWorkout.weeklyWorkout?.days?.[dayKey];
                        const isActive = dayData?.isActive && dayData?.exercises?.length > 0;
-                       const isToday = dayKey !== 'saturday' && new Date().getDay() === ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(dayKey);
                        
                        return (
                          <AccordionItem value={dayKey} key={dayKey} className="border-b-0 mb-1 last:mb-0">
                            <AccordionTrigger className={`py-2 px-2 hover:no-underline hover:bg-blue-50 rounded-md ${isActive ? 'bg-blue-50/50' : ''}`}>
                              <div className="flex items-center gap-2">
-                               <div className={`w-2 h-2 rounded-full ${isActive ? (isToday ? 'bg-blue-600' : 'bg-blue-400') : 'bg-gray-200'}`} />
-                               <span className={`text-sm ${isToday ? 'font-bold text-blue-700' : 'text-gray-600'}`}>
+                               <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-blue-400' : 'bg-gray-200'}`} />
+                               <span className="text-sm text-gray-900">
                                  {dayLabels[dayKey]}
                                </span>
                                {isActive && (
@@ -582,24 +638,32 @@ export const PlansCard = ({
 
           {/* Steps Plan Card */}
           <div 
-            className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeSteps ? 'bg-cyan-50/30 border-cyan-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
+            className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeSteps || overviewBudget?.steps_goal ? 'bg-cyan-50/30 border-cyan-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
             onClick={() => activeSteps ? handleEditSteps(activeSteps) : null}
           >
              <div className="flex items-center gap-2 mb-2">
-                <div className={`p-1.5 rounded-md ${activeSteps ? 'bg-cyan-100 text-cyan-600' : 'bg-gray-200 text-gray-500'}`}>
+                <div className={`p-1.5 rounded-md ${activeSteps || overviewBudget?.steps_goal ? 'bg-cyan-100 text-cyan-600' : 'bg-gray-200 text-gray-500'}`}>
                   <Footprints className="h-4 w-4" />
                 </div>
-                <span className={`text-sm font-semibold ${activeSteps ? 'text-gray-900' : 'text-gray-500'}`}>צעדים</span>
+                <span className={`text-sm font-semibold ${activeSteps || overviewBudget?.steps_goal ? 'text-gray-900' : 'text-gray-500'}`}>צעדים</span>
              </div>
-             {activeSteps ? (
-               <div className="space-y-2 text-center py-2">
-                 <div>
-                   <p className="text-2xl font-bold text-cyan-700 leading-none">{(activeSteps.target || 0).toLocaleString()}</p>
+             {activeSteps || overviewBudget?.steps_goal ? (
+               <div className="space-y-2 py-2">
+                 <div className="text-center">
+                   <p className="text-2xl font-bold text-cyan-700 leading-none">{(activeSteps?.target ?? overviewBudget?.steps_goal ?? 0).toLocaleString()}</p>
                    <p className="text-[10px] text-gray-500 mt-1">צעדים ליום</p>
                  </div>
-                 <div className="inline-block bg-white rounded-md px-2 py-0.5 border border-cyan-100">
-                   <p className="text-[10px] text-gray-400">{activeSteps.week || activeSteps.weekNumber || 'יעד נוכחי'}</p>
-                 </div>
+                 {(activeSteps?.week || activeSteps?.weekNumber) && (
+                   <div className="inline-block bg-white rounded-md px-2 py-0.5 border border-cyan-100 w-full text-center">
+                     <p className="text-[10px] text-gray-400">{activeSteps.week || activeSteps.weekNumber}</p>
+                   </div>
+                 )}
+                 {overviewBudget?.steps_instructions?.trim() && (
+                   <div className="mt-2 pt-2 border-t border-cyan-100/60">
+                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">הוראות צעדים</p>
+                     <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{overviewBudget.steps_instructions}</p>
+                   </div>
+                 )}
                </div>
              ) : (
                 <div className="h-16 flex items-center justify-center text-xs text-gray-400">אין יעד פעיל</div>
@@ -662,6 +726,7 @@ export const PlansCard = ({
              ) : (
                 <div className="h-16 flex items-center justify-center text-xs text-gray-400">לחץ להוספה</div>
              )}
+          </div>
           </div>
         </div>
       )}

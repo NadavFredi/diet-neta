@@ -24,6 +24,12 @@ export interface SubscriptionType {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  second_period?: {
+    duration: number;
+    duration_unit: DurationUnit;
+    price: number;
+    currency: Currency;
+  } | null;
 }
 
 interface SubscriptionTypesState {

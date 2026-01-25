@@ -45,5 +45,8 @@ export const useBudgetHistory = (budgetId: string | undefined | null) => {
       })) as BudgetHistoryItem[];
     },
     enabled: !!budgetId,
+    // Only refetch on mount and window focus, rely on cache invalidation for updates
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+    refetchOnMount: true, // Refetch when component mounts
   });
 };

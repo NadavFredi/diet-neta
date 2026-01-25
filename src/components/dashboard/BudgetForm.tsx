@@ -37,6 +37,7 @@ import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates';
 import { useSupplementTemplates } from '@/hooks/useSupplementTemplates';
 import { useNavigate } from 'react-router-dom';
 import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
+import type { BudgetWithTemplates } from '@/hooks/useBudgets';
 import { cn } from '@/lib/utils';
 import { AddWorkoutTemplateDialog } from '@/components/dashboard/dialogs/AddWorkoutTemplateDialog';
 import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
@@ -50,7 +51,7 @@ import { useAppSelector } from '@/store/hooks';
 
 interface BudgetFormProps {
   mode: 'create' | 'edit';
-  initialData?: Budget | null;
+  initialData?: Budget | BudgetWithTemplates | null;
   onSave: (data: any) => Promise<Budget | void> | void;
   onCancel: () => void;
   enableAssignment?: boolean; // Deprecated: kept for backwards compatibility, always allows lead assignment
@@ -146,19 +147,8 @@ const SupplementRow = ({ index, supplement, templates, onUpdate, onRemove }: Sup
                 />
                 <CommandList>
                   <CommandEmpty>
-                    {searchTerm && (
-                      <div 
-                        className="p-2 text-sm text-slate-500 cursor-pointer hover:bg-slate-100 flex items-center gap-2"
-                        onClick={() => {
-                          onUpdate(index, 'name', searchTerm);
-                          setOpen(false);
-                        }}
-                      >
-                        <Plus className="h-3 w-3" />
-                        הוסף "{searchTerm}"
-                      </div>
-                    )}
                     {!searchTerm && "לא נמצאו תוצאות"}
+                    {searchTerm && "לא נמצאו תוצאות. בחר מתוך הרשימה"}
                   </CommandEmpty>
                   <CommandGroup>
                     {templates.map((template) => (
@@ -185,19 +175,6 @@ const SupplementRow = ({ index, supplement, templates, onUpdate, onRemove }: Sup
                         {template.name}
                       </CommandItem>
                     ))}
-                    {searchTerm && !templates.some(t => t.name === searchTerm) && (
-                      <CommandItem
-                        value={searchTerm + "_custom"}
-                        onSelect={() => {
-                          onUpdate(index, 'name', searchTerm);
-                          setOpen(false);
-                        }}
-                        className="text-right flex-row-reverse"
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        הוסף "{searchTerm}"
-                      </CommandItem>
-                    )}
                   </CommandGroup>
                 </CommandList>
               </Command>
@@ -299,7 +276,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     if (initialData) {
       setName(initialData.name || '');
       setDescription(initialData.description || '');
-      setNutritionTemplateId(initialData.nutrition_template_id);
+      setNutritionTemplateId(initialData.nutrition_template_id ?? null);
       setNutritionTargets(initialData.nutrition_targets || {
         calories: 0,
         protein: 0,
@@ -310,14 +287,33 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       });
       setStepsGoal(initialData.steps_goal || 0);
       setStepsInstructions(initialData.steps_instructions || '');
-      setWorkoutTemplateId(initialData.workout_template_id);
-      setSupplementTemplateId(initialData.supplement_template_id);
+      setWorkoutTemplateId(initialData.workout_template_id ?? null);
+      setSupplementTemplateId(initialData.supplement_template_id ?? null);
       setSupplements(initialData.supplements || []);
       setEatingOrder(initialData.eating_order || '');
       setEatingRules(initialData.eating_rules || '');
     }
   }, [initialData]);
-  
+
+  // Merge dropdown options with budget's linked templates (from useBudget join) so connected
+  // plans always appear even if not in the paginated templates list
+  const workoutOptions = useMemo((): Array<{ id: string; name: string }> => {
+    const list: Array<{ id: string; name: string }> = (workoutTemplates || []).map((t) => ({ id: t.id, name: t.name }));
+    const b = initialData as BudgetWithTemplates | undefined;
+    if (b?.workout_template_id && b?.workout_template && !list.some((t) => t.id === b.workout_template_id)) {
+      list.unshift({ id: b.workout_template.id, name: b.workout_template.name });
+    }
+    return list;
+  }, [workoutTemplates, initialData]);
+
+  const nutritionOptions = useMemo((): Array<{ id: string; name: string }> => {
+    const list: Array<{ id: string; name: string }> = (nutritionTemplates || []).map((t) => ({ id: t.id, name: t.name }));
+    const b = initialData as BudgetWithTemplates | undefined;
+    if (b?.nutrition_template_id && b?.nutrition_template && !list.some((t) => t.id === b.nutrition_template_id)) {
+      list.unshift({ id: b.nutrition_template.id, name: b.nutrition_template.name });
+    }
+    return list;
+  }, [nutritionTemplates, initialData]);
 
   // Handle nutrition template selection
   const handleNutritionTemplateChange = (templateId: string) => {
@@ -334,7 +330,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     } else {
       setNutritionTemplateId(templateId);
       const template = nutritionTemplates.find((t) => t.id === templateId);
-      if (template && template.targets) {
+      if (template?.targets) {
         setNutritionTargets({
           calories: template.targets.calories || 0,
           protein: template.targets.protein || 0,
@@ -672,14 +668,14 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   </SelectTrigger>
                   <SelectContent dir="rtl">
                     <SelectItem value="none">ללא תבנית</SelectItem>
-                    {workoutTemplates.map((template) => (
+                    {workoutOptions.map((template) => (
                       <SelectItem key={template.id} value={template.id}>
                         {template.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {workoutTemplateId && canEditTemplates && (
+                {workoutTemplateId && canEditTemplates && workoutTemplates.some((t) => t.id === workoutTemplateId) && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -722,14 +718,14 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   </SelectTrigger>
                   <SelectContent dir="rtl">
                     <SelectItem value="none">ללא תבנית</SelectItem>
-                    {nutritionTemplates.map((template) => (
+                    {nutritionOptions.map((template) => (
                       <SelectItem key={template.id} value={template.id}>
                         {template.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {nutritionTemplateId && canEditTemplates && (
+                {nutritionTemplateId && canEditTemplates && nutritionTemplates.some((t) => t.id === nutritionTemplateId) && (
                   <Button
                     type="button"
                     variant="ghost"

@@ -135,7 +135,20 @@ export const useSubscriptionTypesManagement = () => {
   };
 
   const handleSaveSubscriptionType = async (
-    data: { subscriptionTypeId?: string; name: string; duration: number; duration_unit?: string; price: number; currency?: string }
+    data: { 
+      subscriptionTypeId?: string; 
+      name: string; 
+      duration: number; 
+      duration_unit?: string; 
+      price: number; 
+      currency?: string;
+      second_period?: {
+        duration: number;
+        duration_unit: string;
+        price: number;
+        currency: string;
+      } | null;
+    }
   ) => {
     try {
       if (editingSubscriptionType) {
@@ -146,6 +159,12 @@ export const useSubscriptionTypesManagement = () => {
           duration_unit: (data.duration_unit || 'months') as any,
           price: data.price,
           currency: data.currency as any,
+          second_period: data.second_period ? {
+            duration: data.second_period.duration,
+            duration_unit: data.second_period.duration_unit as any,
+            price: data.second_period.price,
+            currency: data.second_period.currency as any,
+          } : null,
         });
         
         toast({
@@ -161,6 +180,12 @@ export const useSubscriptionTypesManagement = () => {
           duration_unit: (data.duration_unit || 'months') as any,
           price: data.price,
           currency: (data.currency || 'ILS') as any,
+          second_period: data.second_period ? {
+            duration: data.second_period.duration,
+            duration_unit: data.second_period.duration_unit as any,
+            price: data.second_period.price,
+            currency: data.second_period.currency as any,
+          } : null,
         });
         
         toast({
