@@ -945,23 +945,23 @@ export const PlansCard = ({
 
             {/* Workout Plan Card */}
             <div
-              className={`border rounded-xl p-4 relative hover:shadow-md transition-all cursor-pointer ${activeWorkout ? 'bg-blue-50/30 border-blue-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
+              className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeWorkout ? 'bg-blue-50/30 border-blue-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
               onClick={() => activeWorkout ? handleEditWorkout(activeWorkout) : onAddWorkoutPlan()}
             >
-              <div className="flex items-center gap-2 mb-3">
-                <div className={`p-2 rounded-md ${activeWorkout ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
-                  <Dumbbell className="h-5 w-5" />
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`p-1.5 rounded-md ${activeWorkout ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
+                  <Dumbbell className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className={`text-base font-semibold block ${activeWorkout ? 'text-gray-900' : 'text-gray-500'}`}>אימונים</span>
+                  <span className={`text-sm font-semibold block ${activeWorkout ? 'text-gray-900' : 'text-gray-500'}`}>אימונים</span>
                   {(overviewBudget as BudgetWithTemplates | null)?.workout_template?.name && (
-                    <span className="text-xs text-slate-500 truncate block">תבנית: {(overviewBudget as BudgetWithTemplates).workout_template?.name}</span>
+                    <span className="text-[10px] text-slate-500 truncate block">תבנית: {(overviewBudget as BudgetWithTemplates).workout_template?.name}</span>
                   )}
                 </div>
               </div>
               {activeWorkout ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-gray-600 font-medium truncate">{activeWorkout.description || activeWorkout.name || 'ללא תיאור'}</p>
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-600 font-medium truncate">{activeWorkout.description || activeWorkout.name || 'ללא תיאור'}</p>
 
                   <div className="mt-2" onClick={(e) => e.stopPropagation()}>
                     <Accordion type="single" collapsible className="w-full">
@@ -973,52 +973,37 @@ export const PlansCard = ({
                         const isActive = dayData?.isActive && dayData?.exercises?.length > 0;
 
                         return (
-                          <AccordionItem value={dayKey} key={dayKey} className="border-b-0 mb-2 last:mb-0">
-                            <AccordionTrigger className={`py-3 px-3 hover:no-underline hover:bg-blue-50 rounded-md ${isActive ? 'bg-blue-50/50' : ''}`}>
-                              <div className="flex items-center gap-2 flex-1 text-right">
-                                <div className={`w-2.5 h-2.5 rounded-full ${isActive ? 'bg-blue-400' : 'bg-gray-200'}`} />
-                                <span className="text-base font-semibold text-gray-900">
+                          <AccordionItem value={dayKey} key={dayKey} className="border-b-0 mb-1 last:mb-0">
+                            <AccordionTrigger className={`py-2 px-2 hover:no-underline hover:bg-blue-50 rounded-md ${isActive ? 'bg-blue-50/50' : ''}`}>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-blue-400' : 'bg-gray-200'}`} />
+                                <span className="text-sm text-gray-900">
                                   {dayLabels[dayKey]}
                                 </span>
                                 {isActive && (
-                                  <div className="flex-1 mr-2 flex flex-col items-end gap-1">
-                                    <span className="text-sm text-gray-500">
-                                      ({dayData.exercises.length} תרגילים)
-                                    </span>
-                                    <div className="flex flex-wrap gap-1.5 justify-end">
-                                      {dayData.exercises.slice(0, 3).map((ex: any, idx: number) => (
-                                        <span key={idx} className="text-sm font-medium text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
-                                          {ex.name || 'תרגיל ללא שם'}
-                                        </span>
-                                      ))}
-                                      {dayData.exercises.length > 3 && (
-                                        <span className="text-xs text-gray-500">+{dayData.exercises.length - 3} נוספים</span>
-                                      )}
-                                    </div>
-                                  </div>
+                                  <span className="text-xs text-gray-400 mr-2">
+                                    ({dayData.exercises.length} תרגילים)
+                                  </span>
                                 )}
                               </div>
                             </AccordionTrigger>
-                            <AccordionContent className="px-3 pb-3 pt-2">
+                            <AccordionContent className="px-2 pb-2 pt-1">
                               {isActive ? (
-                                <div className="space-y-2.5 mt-1">
+                                <div className="space-y-2 mt-1">
                                   {dayData.exercises.map((ex: any, idx: number) => (
-                                    <div key={idx} className="flex items-start gap-3 text-sm bg-white p-2.5 rounded border border-blue-100">
+                                    <div key={idx} className="flex items-start gap-2 text-xs bg-white p-1.5 rounded border border-blue-100">
                                       {ex.image_url && (
-                                        <img src={ex.image_url} alt="" className="w-12 h-12 object-cover rounded bg-gray-100 flex-shrink-0" />
+                                        <img src={ex.image_url} alt="" className="w-8 h-8 object-cover rounded bg-gray-100" />
                                       )}
                                       <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-base text-gray-800 truncate">{ex.name || 'תרגיל ללא שם'}</p>
-                                        <p className="text-sm text-gray-600 mt-0.5">{ex.sets || '—'} סטים x {ex.reps || '—'} חזרות</p>
-                                        {ex.notes && (
-                                          <p className="text-xs text-gray-500 mt-1">{ex.notes}</p>
-                                        )}
+                                        <p className="font-medium text-gray-700 truncate">{ex.name}</p>
+                                        <p className="text-gray-500">{ex.sets} סטים x {ex.reps} חזרות</p>
                                       </div>
                                     </div>
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-sm text-gray-400 py-2 pr-4">יום מנוחה</p>
+                                <p className="text-xs text-gray-400 py-1 pr-4">יום מנוחה</p>
                               )}
                             </AccordionContent>
                           </AccordionItem>
@@ -1028,7 +1013,7 @@ export const PlansCard = ({
                   </div>
                 </div>
               ) : (
-                <div className="h-16 flex items-center justify-center text-sm text-gray-400">לחץ להוספה</div>
+                <div className="h-16 flex items-center justify-center text-xs text-gray-400">לחץ להוספה</div>
               )}
             </div>
 

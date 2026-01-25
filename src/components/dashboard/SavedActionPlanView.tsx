@@ -78,19 +78,19 @@ export const SavedActionPlanView = ({ planId, isOpen, onClose }: SavedActionPlan
                 {snapshot.workout_template ? (
                   <div className="space-y-1.5">
                     <div>
-                      <span className="text-[10px] font-semibold text-slate-500">שם:</span>
-                      <span className="text-[11px] font-semibold text-slate-900 mr-1">{snapshot.workout_template.name}</span>
+                      <span className="text-sm font-semibold text-slate-500">שם:</span>
+                      <span className="text-base font-semibold text-slate-900 mr-1">{snapshot.workout_template.name}</span>
                     </div>
                     {snapshot.workout_template.description && (
                       <div>
-                        <span className="text-[10px] font-semibold text-slate-500">תיאור:</span>
-                        <span className="text-[11px] text-slate-700 mr-1">{snapshot.workout_template.description}</span>
+                        <span className="text-sm font-semibold text-slate-500">תיאור:</span>
+                        <span className="text-base text-slate-700 mr-1">{snapshot.workout_template.description}</span>
                       </div>
                     )}
                     {snapshot.workout_template.routine_data?.weeklyWorkout?.days && (
                       <div>
-                        <span className="text-[10px] font-semibold text-slate-500 block mb-0.5">לוח זמנים שבועי:</span>
-                        <p className="text-[11px] text-slate-700 leading-relaxed">
+                        <span className="text-sm font-semibold text-slate-500 block mb-1">לוח זמנים שבועי:</span>
+                        <div className="space-y-1.5">
                           {(() => {
                             const days = snapshot.workout_template.routine_data.weeklyWorkout.days;
                             const dayLabels: Record<string, string> = {
@@ -102,19 +102,28 @@ export const SavedActionPlanView = ({ planId, isOpen, onClose }: SavedActionPlan
                             ).map(day => {
                               const dayData = days[day];
                               const dayName = dayLabels[day] || day;
-                              const exerciseCount = dayData.exercises?.length || 0;
-                              return `${dayName} (${exerciseCount} תרגילים)`;
+                              const exercises = dayData.exercises || [];
+                              const exerciseNames = exercises.map((ex: any) => ex.name || ex.exercise_name || 'תרגיל').filter(Boolean);
+                              return { dayName, exerciseNames };
                             });
-                            return activeDays.length > 0 
-                              ? activeDays.join(', ')
-                              : 'אין ימים פעילים';
+                            
+                            if (activeDays.length === 0) {
+                              return <p className="text-base text-slate-500">אין ימים פעילים</p>;
+                            }
+                            
+                            return activeDays.map(({ dayName, exerciseNames }, idx) => (
+                              <div key={idx} className="text-base text-slate-700">
+                                <span className="font-semibold">{dayName}:</span>
+                                <span className="mr-1"> {exerciseNames.join(', ')}</span>
+                              </div>
+                            ));
                           })()}
-                        </p>
+                        </div>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-slate-500">אין תוכנית אימונים</p>
+                  <p className="text-base text-slate-500">אין תוכנית אימונים</p>
                 )}
               </div>
 
