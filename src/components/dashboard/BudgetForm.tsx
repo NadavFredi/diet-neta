@@ -142,9 +142,9 @@ const SupplementRow = ({ index, supplement, templates, onUpdate, onRemove, onEdi
             {supplement.link1 && (
               <div className="space-y-1">
                 <span className="text-xs text-slate-500">קישור 1</span>
-                <a 
-                  href={supplement.link1} 
-                  target="_blank" 
+                <a
+                  href={supplement.link1}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 hover:text-blue-800 underline truncate block"
                   dir="ltr"
@@ -156,9 +156,9 @@ const SupplementRow = ({ index, supplement, templates, onUpdate, onRemove, onEdi
             {supplement.link2 && (
               <div className="space-y-1">
                 <span className="text-xs text-slate-500">קישור 2</span>
-                <a 
-                  href={supplement.link2} 
-                  target="_blank" 
+                <a
+                  href={supplement.link2}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 hover:text-blue-800 underline truncate block"
                   dir="ltr"
@@ -290,18 +290,18 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const nutritionTemplates = nutritionTemplatesData?.data || [];
   const workoutTemplates = workoutTemplatesData?.data || [];
   const supplementTemplates = supplementTemplatesData?.data || [];
-  
+
   // Fetch full template data for linked templates when editing (in case they're not in paginated list)
   const linkedNutritionTemplateId = (initialData as BudgetWithTemplates | undefined)?.nutrition_template_id;
   const linkedWorkoutTemplateId = (initialData as BudgetWithTemplates | undefined)?.workout_template_id;
   const { data: linkedNutritionTemplate } = useNutritionTemplate(
-    linkedNutritionTemplateId && !nutritionTemplates.some(t => t.id === linkedNutritionTemplateId) 
-      ? linkedNutritionTemplateId 
+    linkedNutritionTemplateId && !nutritionTemplates.some(t => t.id === linkedNutritionTemplateId)
+      ? linkedNutritionTemplateId
       : null
   );
   const { data: linkedWorkoutTemplate } = useWorkoutTemplate(
-    linkedWorkoutTemplateId && !workoutTemplates.some(t => t.id === linkedWorkoutTemplateId) 
-      ? linkedWorkoutTemplateId 
+    linkedWorkoutTemplateId && !workoutTemplates.some(t => t.id === linkedWorkoutTemplateId)
+      ? linkedWorkoutTemplateId
       : null
   );
   const createWorkoutTemplate = useCreateWorkoutTemplate();
@@ -492,7 +492,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       setNutritionTemplateId(templateId);
       // Try to find template in the templates list first
       let template = nutritionTemplates.find((t) => t.id === templateId);
-      
+
       // If not found, check if it's the linked template from initialData
       if (!template) {
         const b = initialData as BudgetWithTemplates | undefined;
@@ -503,7 +503,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           return;
         }
       }
-      
+
       if (template?.targets) {
         setNutritionTargets({
           calories: template.targets.calories || 0,

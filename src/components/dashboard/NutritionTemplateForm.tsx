@@ -123,16 +123,16 @@ export const NutritionTemplateForm = ({
   } = useNutritionBuilder(mode, initialData);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Local state for input values to prevent focus loss while typing
   const [localInputValues, setLocalInputValues] = useState<Record<string, { mets?: string; minutes?: string }>>({});
-  
+
   // Initialize local input values from activityEntries (only when entries are added/removed, not on value changes)
   useEffect(() => {
     setLocalInputValues((prev) => {
       const newLocalValues: Record<string, { mets?: string; minutes?: string }> = {};
       let hasNewEntries = false;
-      
+
       activityEntries.forEach((entry) => {
         // Only initialize if this entry doesn't have local state yet (new entry or first load)
         if (!prev[entry.id]) {
@@ -145,7 +145,7 @@ export const NutritionTemplateForm = ({
           newLocalValues[entry.id] = prev[entry.id];
         }
       });
-      
+
       // Only update if there are new entries or entries were removed
       if (hasNewEntries || Object.keys(prev).length !== activityEntries.length) {
         return newLocalValues;
@@ -157,9 +157,9 @@ export const NutritionTemplateForm = ({
   // Auto-apply calculated values when inputs change (only if not manually overridden)
   useEffect(() => {
     // Only auto-apply if at least one field is not manually overridden
-    const hasAutoFields = !manualOverride.calories || !manualOverride.protein || 
-                         !manualOverride.carbs || !manualOverride.fat || !manualOverride.fiber;
-    
+    const hasAutoFields = !manualOverride.calories || !manualOverride.protein ||
+      !manualOverride.carbs || !manualOverride.fat || !manualOverride.fiber;
+
     if (hasAutoFields) {
       const timer = setTimeout(() => {
         if (calculatorInputs.weight > 0 && calculatorInputs.height > 0 && calculatorInputs.age > 0) {
@@ -235,7 +235,7 @@ export const NutritionTemplateForm = ({
         borderColor: '#e5e7eb',
         borderRadius: 8,
         shadow: { color: 'rgba(0, 0, 0, 0.1)', width: 2 },
-        formatter: function() {
+        formatter: function () {
           return `<b>${this.point.name}</b><br/>${this.percentage.toFixed(1)}% (${this.y} קק״ל)`;
         },
       },
@@ -292,7 +292,7 @@ export const NutritionTemplateForm = ({
       // Save any pending local input values before submitting
       // This ensures values typed but not yet saved (via Enter) are persisted
       const pendingUpdates: Array<{ id: string; updates: Partial<ActivityEntry> }> = [];
-      
+
       Object.entries(localInputValues).forEach(([entryId, localValues]) => {
         const entry = activityEntries.find(e => e.id === entryId);
         if (entry) {
@@ -318,15 +318,15 @@ export const NutritionTemplateForm = ({
           }
         }
       });
-      
+
       // Apply all pending updates
       pendingUpdates.forEach(({ id, updates }) => {
         updateActivityEntry(id, updates);
       });
-      
+
       // Small delay to ensure state updates are applied
       await new Promise(resolve => setTimeout(resolve, 50));
-      
+
       const data = getNutritionData(mode);
       if (mode === 'template' && data.templateData) {
         onSave(data.templateData);
@@ -363,14 +363,14 @@ export const NutritionTemplateForm = ({
   }) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const [localValue, setLocalValue] = useState<string>(value != null ? String(value) : '');
-    
+
     // Sync local value when prop value changes (but not while user is typing)
     useEffect(() => {
       if (document.activeElement !== inputRef.current) {
         setLocalValue(value != null ? String(value) : '');
       }
     }, [value]);
-    
+
     const handleLockToggle = () => {
       // Save current input value when lock is clicked
       if (inputRef.current) {
@@ -384,85 +384,85 @@ export const NutritionTemplateForm = ({
         onLockToggle();
       }
     };
-    
+
     return (
-    <Card className={cn(
-      "border border-slate-200 hover:border-opacity-80 transition-colors rounded-2xl shadow-sm flex flex-col",
-      isManual && "ring-2 ring-amber-400/50"
-    )} style={{ borderColor: color }}>
-      <CardHeader className="pb-1.5 pt-2 px-2.5 flex-shrink-0">
-        <div className="flex items-center justify-between gap-1.5">
-          <div className="flex items-center gap-1.5 flex-1">
-            <div className="p-0.5 rounded" style={{ backgroundColor: `${color}15` }}>
-              <Icon className="h-3 w-3" style={{ color }} />
+      <Card className={cn(
+        "border border-slate-200 hover:border-opacity-80 transition-colors rounded-2xl shadow-sm flex flex-col",
+        isManual && "ring-2 ring-amber-400/50"
+      )} style={{ borderColor: color }}>
+        <CardHeader className="pb-1.5 pt-2 px-2.5 flex-shrink-0">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 flex-1">
+              <div className="p-0.5 rounded" style={{ backgroundColor: `${color}15` }}>
+                <Icon className="h-3 w-3" style={{ color }} />
+              </div>
+              <CardTitle className="text-lg font-semibold">{label}</CardTitle>
             </div>
-            <CardTitle className="text-lg font-semibold">{label}</CardTitle>
+            {onLockToggle && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLockToggle}
+                    className="h-6 w-6 p-0"
+                  >
+                    {isManual ? (
+                      <Lock className="h-3 w-3 text-amber-600" />
+                    ) : (
+                      <Unlock className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  {isManual ? 'נלחץ ידנית - לחץ לשחרור' : 'חישוב אוטומטי - לחץ לנעילה'}
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
-          {onLockToggle && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLockToggle}
-                  className="h-6 w-6 p-0"
-                >
-                  {isManual ? (
-                    <Lock className="h-3 w-3 text-amber-600" />
-                  ) : (
-                    <Unlock className="h-3 w-3 text-muted-foreground" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                {isManual ? 'נלחץ ידנית - לחץ לשחרור' : 'חישוב אוטומטי - לחץ לנעילה'}
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="px-2.5 pb-2.5 pt-0 flex-1 flex items-center">
-        <div className="flex items-center gap-1.5 w-full">
-          <Input
-            ref={inputRef}
-            type="text"
-            inputMode="decimal"
-            value={localValue}
-            onChange={(e) => {
-              const val = (e.target as HTMLInputElement).value;
-              // Allow empty string, numbers, and decimal point while typing
-              if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                // Update local state only (no parent re-render)
-                setLocalValue(val);
-              }
-            }}
-            onKeyDown={(e) => {
-              // Save on Enter key
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                const target = e.target as HTMLInputElement;
-                const val = target.value.trim();
-                const numVal = val === '' ? 0 : parseFloat(val);
-                const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
-                onChange(finalVal);
-                setLocalValue(finalVal === 0 ? '' : String(finalVal));
-                target.blur();
-              }
-            }}
-            onBlur={(e) => {
-              // Don't save on blur - restore original value
-              setLocalValue(value != null ? String(value) : '');
-            }}
-            className="text-xl font-bold text-center h-12 rounded-lg flex-1"
-            dir="ltr"
-            placeholder="0"
-          />
-          <span className="text-base font-semibold text-muted-foreground whitespace-nowrap">{unit}</span>
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardHeader>
+        <CardContent className="px-2.5 pb-2.5 pt-0 flex-1 flex items-center">
+          <div className="flex items-center gap-1.5 w-full">
+            <Input
+              ref={inputRef}
+              type="text"
+              inputMode="decimal"
+              value={localValue}
+              onChange={(e) => {
+                const val = (e.target as HTMLInputElement).value;
+                // Allow empty string, numbers, and decimal point while typing
+                if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                  // Update local state only (no parent re-render)
+                  setLocalValue(val);
+                }
+              }}
+              onKeyDown={(e) => {
+                // Save on Enter key
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const target = e.target as HTMLInputElement;
+                  const val = target.value.trim();
+                  const numVal = val === '' ? 0 : parseFloat(val);
+                  const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+                  onChange(finalVal);
+                  setLocalValue(finalVal === 0 ? '' : String(finalVal));
+                  target.blur();
+                }
+              }}
+              onBlur={(e) => {
+                // Don't save on blur - restore original value
+                setLocalValue(value != null ? String(value) : '');
+              }}
+              className="text-xl font-bold text-center h-12 rounded-lg flex-1"
+              dir="ltr"
+              placeholder="0"
+            />
+            <span className="text-base font-semibold text-muted-foreground whitespace-nowrap">{unit}</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
@@ -652,11 +652,11 @@ export const NutritionTemplateForm = ({
                     <HighchartsReact
                       highcharts={Highcharts}
                       options={donutChartOptions}
-                      containerProps={{ 
-                        style: { 
-                          height: '100%', 
+                      containerProps={{
+                        style: {
+                          height: '100%',
                           width: '100%',
-                        } 
+                        }
                       }}
                     />
                   </div>
@@ -708,8 +708,8 @@ export const NutritionTemplateForm = ({
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-1.5">
                         <Label className="text-base font-semibold text-right">
-                          {calculatorInputs.caloricDeficitMode === 'percent' 
-                            ? 'גרעון/עודף קלורי (%)' 
+                          {calculatorInputs.caloricDeficitMode === 'percent'
+                            ? 'גרעון/עודף קלורי (%)'
                             : 'גרעון/עודף קלורי (קק"ל)'}
                         </Label>
                         <Tooltip>
@@ -728,32 +728,30 @@ export const NutritionTemplateForm = ({
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "text-xs font-medium transition-colors",
-                          calculatorInputs.caloricDeficitMode === 'calories' 
-                            ? "text-foreground font-semibold" 
+                          calculatorInputs.caloricDeficitMode === 'calories'
+                            ? "text-foreground font-semibold"
                             : "text-muted-foreground"
                         )}>
                           קלוריות
                         </span>
-                        <div dir="ltr" className="inline-block">
-                          <Switch
-                            checked={calculatorInputs.caloricDeficitMode === 'calories'}
-                            onCheckedChange={(checked) => {
-                              setCalculatorInput('caloricDeficitMode', checked ? 'calories' : 'percent');
-                            }}
-                            className="data-[state=checked]:bg-primary"
-                          />
-                        </div>
+                        <Switch
+                          checked={calculatorInputs.caloricDeficitMode === 'percent'}
+                          onCheckedChange={(checked) => {
+                            setCalculatorInput('caloricDeficitMode', checked ? 'percent' : 'calories');
+                          }}
+                          className="data-[state=checked]:bg-primary"
+                        />
                         <span className={cn(
                           "text-xs font-medium transition-colors",
-                          calculatorInputs.caloricDeficitMode === 'percent' 
-                            ? "text-foreground font-semibold" 
+                          calculatorInputs.caloricDeficitMode === 'percent'
+                            ? "text-foreground font-semibold"
                             : "text-muted-foreground"
                         )}>
                           אחוז
                         </span>
                       </div>
                     </div>
-                    
+
                     {calculatorInputs.caloricDeficitMode === 'percent' ? (
                       <>
                         <div className="mb-2">
@@ -795,11 +793,11 @@ export const NutritionTemplateForm = ({
                           <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">קק"ל</span>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {calculatorInputs.caloricDeficitCalories > 0 
-                            ? `+${calculatorInputs.caloricDeficitCalories} קק"ל (עודף)` 
+                          {calculatorInputs.caloricDeficitCalories > 0
+                            ? `+${calculatorInputs.caloricDeficitCalories} קק"ל (עודף)`
                             : calculatorInputs.caloricDeficitCalories < 0
-                            ? `${calculatorInputs.caloricDeficitCalories} קק"ל (גרעון)`
-                            : '0 קק"ל (ללא שינוי)'}
+                              ? `${calculatorInputs.caloricDeficitCalories} קק"ל (גרעון)`
+                              : '0 קק"ל (ללא שינוי)'}
                         </p>
                       </div>
                     )}
@@ -841,143 +839,143 @@ export const NutritionTemplateForm = ({
                       <TableBody>
                         {activityEntries.map((entry) => {
                           // Use local state for input values to prevent focus loss while typing
-                          const metsDisplayValue = localInputValues[entry.id]?.mets ?? 
+                          const metsDisplayValue = localInputValues[entry.id]?.mets ??
                             (entry.mets != null && typeof entry.mets === 'number' && !isNaN(entry.mets) ? String(entry.mets) : '');
-                          const minutesDisplayValue = localInputValues[entry.id]?.minutes ?? 
+                          const minutesDisplayValue = localInputValues[entry.id]?.minutes ??
                             (entry.minutesPerWeek != null && typeof entry.minutesPerWeek === 'number' && !isNaN(entry.minutesPerWeek) ? String(entry.minutesPerWeek) : '');
-                          
+
                           return (
-                          <TableRow key={entry.id}>
-                            <TableCell className="p-2">
-                              <Input
-                                value={entry.activityType}
-                                onChange={(e) => updateActivityEntry(entry.id, { activityType: e.target.value })}
-                                placeholder="פעילות"
-                                className="h-8 text-sm"
-                                dir="rtl"
-                              />
-                            </TableCell>
-                            <TableCell className="p-2" style={{ minWidth: '80px', width: '80px' }}>
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                value={metsDisplayValue}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  // Allow empty string, numbers, and decimal point while typing
-                                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                                    // Update local state only (no re-render of parent)
-                                    setLocalInputValues((prev) => ({
-                                      ...prev,
-                                      [entry.id]: { ...prev[entry.id], mets: val }
-                                    }));
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  // Save on Enter key
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
+                            <TableRow key={entry.id}>
+                              <TableCell className="p-2">
+                                <Input
+                                  value={entry.activityType}
+                                  onChange={(e) => updateActivityEntry(entry.id, { activityType: e.target.value })}
+                                  placeholder="פעילות"
+                                  className="h-8 text-sm"
+                                  dir="rtl"
+                                />
+                              </TableCell>
+                              <TableCell className="p-2" style={{ minWidth: '80px', width: '80px' }}>
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={metsDisplayValue}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    // Allow empty string, numbers, and decimal point while typing
+                                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                      // Update local state only (no re-render of parent)
+                                      setLocalInputValues((prev) => ({
+                                        ...prev,
+                                        [entry.id]: { ...prev[entry.id], mets: val }
+                                      }));
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    // Save on Enter key
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      const target = e.target as HTMLInputElement;
+                                      const val = target.value.trim();
+                                      const numVal = val === '' ? 0 : parseFloat(val);
+                                      const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+                                      // Save to parent state immediately
+                                      updateActivityEntry(entry.id, { mets: finalVal });
+                                      // Update local state to match saved value
+                                      setLocalInputValues((prev) => ({
+                                        ...prev,
+                                        [entry.id]: { ...prev[entry.id], mets: finalVal === 0 ? '' : String(finalVal) }
+                                      }));
+                                      target.blur();
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    // On blur, if value changed but wasn't saved (no Enter), save it
                                     const target = e.target as HTMLInputElement;
                                     const val = target.value.trim();
                                     const numVal = val === '' ? 0 : parseFloat(val);
                                     const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
-                                    // Save to parent state immediately
-                                    updateActivityEntry(entry.id, { mets: finalVal });
-                                    // Update local state to match saved value
-                                    setLocalInputValues((prev) => ({
-                                      ...prev,
-                                      [entry.id]: { ...prev[entry.id], mets: finalVal === 0 ? '' : String(finalVal) }
-                                    }));
-                                    target.blur();
-                                  }
-                                }}
-                                onBlur={(e) => {
-                                  // On blur, if value changed but wasn't saved (no Enter), save it
-                                  const target = e.target as HTMLInputElement;
-                                  const val = target.value.trim();
-                                  const numVal = val === '' ? 0 : parseFloat(val);
-                                  const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
-                                  // Check if value differs from current entry value
-                                  if (finalVal !== entry.mets) {
-                                    updateActivityEntry(entry.id, { mets: finalVal });
-                                    setLocalInputValues((prev) => ({
-                                      ...prev,
-                                      [entry.id]: { ...prev[entry.id], mets: finalVal === 0 ? '' : String(finalVal) }
-                                    }));
-                                  }
-                                }}
-                                dir="ltr"
-                                className="h-8 text-sm text-center w-full"
-                                style={{ minWidth: '60px' }}
-                                placeholder="0.0"
-                              />
-                            </TableCell>
-                            <TableCell className="p-2">
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                value={minutesDisplayValue}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  // Allow only digits while typing
-                                  if (val === '' || /^\d+$/.test(val)) {
-                                    // Update local state only (no re-render of parent)
-                                    setLocalInputValues((prev) => ({
-                                      ...prev,
-                                      [entry.id]: { ...prev[entry.id], minutes: val }
-                                    }));
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  // Save on Enter key
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
+                                    // Check if value differs from current entry value
+                                    if (finalVal !== entry.mets) {
+                                      updateActivityEntry(entry.id, { mets: finalVal });
+                                      setLocalInputValues((prev) => ({
+                                        ...prev,
+                                        [entry.id]: { ...prev[entry.id], mets: finalVal === 0 ? '' : String(finalVal) }
+                                      }));
+                                    }
+                                  }}
+                                  dir="ltr"
+                                  className="h-8 text-sm text-center w-full"
+                                  style={{ minWidth: '60px' }}
+                                  placeholder="0.0"
+                                />
+                              </TableCell>
+                              <TableCell className="p-2">
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={minutesDisplayValue}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    // Allow only digits while typing
+                                    if (val === '' || /^\d+$/.test(val)) {
+                                      // Update local state only (no re-render of parent)
+                                      setLocalInputValues((prev) => ({
+                                        ...prev,
+                                        [entry.id]: { ...prev[entry.id], minutes: val }
+                                      }));
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    // Save on Enter key
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      const target = e.target as HTMLInputElement;
+                                      const val = target.value.trim();
+                                      const numVal = val === '' ? 0 : parseInt(val, 10);
+                                      const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+                                      // Save to parent state immediately
+                                      updateActivityEntry(entry.id, { minutesPerWeek: finalVal });
+                                      // Update local state to match saved value
+                                      setLocalInputValues((prev) => ({
+                                        ...prev,
+                                        [entry.id]: { ...prev[entry.id], minutes: finalVal === 0 ? '' : String(finalVal) }
+                                      }));
+                                      target.blur();
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    // On blur, if value changed but wasn't saved (no Enter), save it
                                     const target = e.target as HTMLInputElement;
                                     const val = target.value.trim();
                                     const numVal = val === '' ? 0 : parseInt(val, 10);
                                     const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
-                                    // Save to parent state immediately
-                                    updateActivityEntry(entry.id, { minutesPerWeek: finalVal });
-                                    // Update local state to match saved value
-                                    setLocalInputValues((prev) => ({
-                                      ...prev,
-                                      [entry.id]: { ...prev[entry.id], minutes: finalVal === 0 ? '' : String(finalVal) }
-                                    }));
-                                    target.blur();
-                                  }
-                                }}
-                                onBlur={(e) => {
-                                  // On blur, if value changed but wasn't saved (no Enter), save it
-                                  const target = e.target as HTMLInputElement;
-                                  const val = target.value.trim();
-                                  const numVal = val === '' ? 0 : parseInt(val, 10);
-                                  const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
-                                  // Check if value differs from current entry value
-                                  if (finalVal !== entry.minutesPerWeek) {
-                                    updateActivityEntry(entry.id, { minutesPerWeek: finalVal });
-                                    setLocalInputValues((prev) => ({
-                                      ...prev,
-                                      [entry.id]: { ...prev[entry.id], minutes: finalVal === 0 ? '' : String(finalVal) }
-                                    }));
-                                  }
-                                }}
-                                dir="ltr"
-                                className="h-8 text-sm text-center"
-                                placeholder="0"
-                              />
-                            </TableCell>
-                            <TableCell className="p-1.5">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeActivityEntry(entry.id)}
-                                className="h-6 w-6 p-0"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
+                                    // Check if value differs from current entry value
+                                    if (finalVal !== entry.minutesPerWeek) {
+                                      updateActivityEntry(entry.id, { minutesPerWeek: finalVal });
+                                      setLocalInputValues((prev) => ({
+                                        ...prev,
+                                        [entry.id]: { ...prev[entry.id], minutes: finalVal === 0 ? '' : String(finalVal) }
+                                      }));
+                                    }
+                                  }}
+                                  dir="ltr"
+                                  className="h-8 text-sm text-center"
+                                  placeholder="0"
+                                />
+                              </TableCell>
+                              <TableCell className="p-1.5">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeActivityEntry(entry.id)}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
                           );
                         })}
                       </TableBody>
@@ -1136,7 +1134,7 @@ export const NutritionTemplateForm = ({
                       <p className="text-xs text-muted-foreground mt-0.5">קק״ל/יום</p>
                     </div>
                   </div>
-                  
+
                   {/* BMR Formula Details */}
                   <div className="mt-1.5 pt-1.5 border-t grid grid-cols-3 gap-1.5 flex-shrink-0">
                     <div className="text-center">

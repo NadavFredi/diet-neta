@@ -446,16 +446,36 @@ export const useUpdateBudget = () => {
         updateData.interval_training = updates.interval_training ?? null;
       }
 
+      // Check if user is the creator
+      const { data: budget } = await supabase
+        .from('budgets')
+        .select('created_by')
+        .eq('id', budgetId)
+        .single();
+
+      if (!budget) {
+        throw new Error('תכנית הפעולה לא נמצאה');
+      }
+
+      // Only allow update if user is the creator
+      // For shared budgets, user should create a copy first (handled in PlansCard.handleEditBudgetFromLead)
+      if (budget.created_by !== userId) {
+        throw new Error('אין לך הרשאה לערוך תכנית פעולה זו. אנא לחץ על "ערוך תכנית פעולה" כדי ליצור עותק פרטי לעריכה.');
+      }
+
       const { data, error } = await supabase
         .from('budgets')
         .update(updateData)
         .eq('id', budgetId)
-        .eq('created_by', userId)
         .select()
         .single();
 
       if (error) {
         throw error;
+      }
+
+      if (!data) {
+        throw new Error('העדכון נכשל - לא נמצאו שורות לעדכון');
       }
 
       return data as Budget;

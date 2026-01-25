@@ -31,7 +31,8 @@ import { formatDate } from '@/utils/dashboard';
 import { supabase } from '@/lib/supabaseClient';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Supplement } from '@/store/slices/budgetSlice';
-import { useSupplementTemplates } from '@/hooks/useSupplementTemplates';
+import { useSupplementTemplates, useCreateSupplementTemplate } from '@/hooks/useSupplementTemplates';
+import { AddSupplementTemplateDialog } from './AddSupplementTemplateDialog';
 
 interface WorkoutPlanData {
   id?: string;
@@ -93,9 +94,11 @@ export const PlanDetailModal = ({
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isAddSupplementDialogOpen, setIsAddSupplementDialogOpen] = useState(false);
 
   // Fetch supplement templates to get the list of available supplements
-  const { data: supplementTemplatesData } = useSupplementTemplates();
+  const { data: supplementTemplatesData, refetch: refetchSupplementTemplates } = useSupplementTemplates();
+  const createSupplementTemplate = useCreateSupplementTemplate();
   
   // Extract unique supplement names from templates
   const availableSupplementNames = useMemo(() => {
@@ -241,14 +244,6 @@ export const PlanDetailModal = ({
       return;
     }
 
-    if (planType === 'supplements' && !supplementForm.startDate) {
-      toast({
-        title: 'שגיאה',
-        description: 'נא להזין תאריך התחלה',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     setIsSaving(true);
     try {
@@ -287,12 +282,13 @@ export const PlanDetailModal = ({
       } else if (planType === 'supplements') {
         // Filter out supplements with empty names before saving
         const validSupplements = supplementForm.supplements.filter((s) => s.name.trim() !== '');
+        const supplementData = planData as SupplementPlanData;
         const { error } = await supabase
           .from('supplement_plans')
           .update({
-            start_date: supplementForm.startDate,
-            end_date: supplementForm.endDate || null,
-            description: supplementForm.description,
+            start_date: supplementData.startDate || null,
+            end_date: supplementData.endDate || null,
+            description: supplementData.description || null,
             supplements: validSupplements,
           })
           .eq('id', planData.id);
@@ -350,6 +346,42 @@ export const PlanDetailModal = ({
       ...supplementForm,
       supplements: updated,
     });
+  };
+
+  const handleCreateNewSupplement = async (data: any) => {
+    try {
+      const newTemplate = await createSupplementTemplate.mutateAsync({
+        name: data.name,
+        description: data.description || null,
+        supplements: data.supplements || [],
+        is_public: false,
+      });
+
+      // Refresh supplement templates list
+      await refetchSupplementTemplates();
+
+      // Optionally add the new supplement to the current plan
+      if (newTemplate.supplements && newTemplate.supplements.length > 0) {
+        const newSupplement = newTemplate.supplements[0];
+        setSupplementForm({
+          ...supplementForm,
+          supplements: [...supplementForm.supplements, newSupplement],
+        });
+      }
+
+      toast({
+        title: 'הצלחה',
+        description: 'התוסף נוצר בהצלחה והוסף לתוכנית',
+      });
+
+      setIsAddSupplementDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת התוסף',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (!planData) return null;
@@ -540,56 +572,35 @@ export const PlanDetailModal = ({
 
           {planType === 'supplements' && (
             <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">תאריך התחלה</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={supplementForm.startDate}
-                    onChange={(e) => setSupplementForm({ ...supplementForm, startDate: e.target.value })}
-                    disabled={!isEditing}
-                    className="bg-slate-50"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">תאריך סיום</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={supplementForm.endDate}
-                    onChange={(e) => setSupplementForm({ ...supplementForm, endDate: e.target.value })}
-                    disabled={!isEditing}
-                    className="bg-slate-50"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">תיאור</Label>
-                <Textarea
-                  id="description"
-                  value={supplementForm.description}
-                  onChange={(e) => setSupplementForm({ ...supplementForm, description: e.target.value })}
-                  disabled={!isEditing}
-                  className="bg-slate-50"
-                  rows={2}
-                />
-              </div>
               <div className="space-y-2">
                 <Label>תוספים</Label>
                 {supplementForm.supplements.length === 0 ? (
                   <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
                     <p className="text-xs text-slate-400 mb-2">אין תוספים</p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleAddSupplement}
-                      className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                    >
-                      <Plus className="h-4 w-4 ml-1" />
-                      הוסף תוסף
-                    </Button>
+                    <div className="flex gap-2 justify-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleAddSupplement}
+                        className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                      >
+                        <Plus className="h-4 w-4 ml-1" />
+                        הוסף תוסף
+                      </Button>
+                      {isEditing && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsAddSupplementDialogOpen(true)}
+                          className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border-[#5B6FB9]/20"
+                        >
+                          <Plus className="h-4 w-4 ml-1" />
+                          צור תוסף חדש
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -597,28 +608,40 @@ export const PlanDetailModal = ({
                       <div key={index} className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
                         <div className="flex-1 grid grid-cols-3 gap-1.5">
                           {isEditing ? (
-                            <Select
-                              value={supplement.name}
-                              onValueChange={(value) => handleUpdateSupplement(index, 'name', value)}
-                              disabled={!isEditing}
-                            >
-                              <SelectTrigger className="h-8 bg-white border-0 text-xs" dir="rtl">
-                                <SelectValue placeholder="בחר תוסף" />
-                              </SelectTrigger>
-                              <SelectContent dir="rtl">
-                                {availableSupplementNames.length > 0 ? (
-                                  availableSupplementNames.map((name) => (
-                                    <SelectItem key={name} value={name}>
-                                      {name}
+                            <div className="flex gap-1">
+                              <Select
+                                value={supplement.name}
+                                onValueChange={(value) => handleUpdateSupplement(index, 'name', value)}
+                                disabled={!isEditing}
+                              >
+                                <SelectTrigger className="h-8 bg-white border-0 text-xs flex-1" dir="rtl">
+                                  <SelectValue placeholder="בחר תוסף" />
+                                </SelectTrigger>
+                                <SelectContent dir="rtl">
+                                  {availableSupplementNames.length > 0 ? (
+                                    availableSupplementNames.map((name) => (
+                                      <SelectItem key={name} value={name}>
+                                        {name}
+                                      </SelectItem>
+                                    ))
+                                  ) : (
+                                    <SelectItem value="" disabled>
+                                      אין תוספים זמינים
                                     </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="" disabled>
-                                    אין תוספים זמינים
-                                  </SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setIsAddSupplementDialogOpen(true)}
+                                className="h-8 w-8 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border-[#5B6FB9]/20"
+                                title="הוסף תוסף חדש"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           ) : (
                             <Input
                               value={supplement.name}
@@ -659,16 +682,28 @@ export const PlanDetailModal = ({
                       </div>
                     ))}
                     {isEditing && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleAddSupplement}
-                        className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                      >
-                        <Plus className="h-4 w-4 ml-1" />
-                        הוסף תוסף נוסף
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleAddSupplement}
+                          className="flex-1 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                        >
+                          <Plus className="h-4 w-4 ml-1" />
+                          הוסף תוסף נוסף
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsAddSupplementDialogOpen(true)}
+                          className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border-[#5B6FB9]/20"
+                        >
+                          <Plus className="h-4 w-4 ml-1" />
+                          צור תוסף חדש
+                        </Button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -676,6 +711,13 @@ export const PlanDetailModal = ({
             </>
           )}
         </div>
+
+        {/* Add Supplement Template Dialog */}
+        <AddSupplementTemplateDialog
+          isOpen={isAddSupplementDialogOpen}
+          onOpenChange={setIsAddSupplementDialogOpen}
+          onSave={handleCreateNewSupplement}
+        />
 
         <div className="flex justify-end gap-3 pt-4 border-t">
           {!isEditing ? (

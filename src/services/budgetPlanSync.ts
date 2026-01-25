@@ -561,6 +561,71 @@ export async function syncSupplementPlansFromBudgetUpdate(
 }
 
 /**
+ * Syncs steps_plans when a budget is updated (e.g. user edits steps_goal via inline edit).
+ * Updates existing plans for this budget, or creates new ones for each assignment if none exist.
+ */
+export async function syncStepsPlansFromBudgetUpdate(
+  budgetId: string,
+  budgetName: string,
+  stepsGoal: number,
+  stepsInstructions?: string | null
+): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  if (!stepsGoal || stepsGoal <= 0) return;
+
+  const description = `תוכנית צעדים מתקציב: ${budgetName}`;
+
+  // Update existing steps plans for this budget
+  const { data: existing } = await supabase
+    .from('steps_plans')
+    .select('id')
+    .eq('budget_id', budgetId);
+
+  if (existing && existing.length > 0) {
+    await supabase
+      .from('steps_plans')
+      .update({ 
+        steps_goal: stepsGoal, 
+        steps_instructions: stepsInstructions || null,
+        description 
+      })
+      .eq('budget_id', budgetId);
+    return;
+  }
+
+  // If no existing plans, create new ones for each assignment
+  const { data: assignments } = await supabase
+    .from('budget_assignments')
+    .select('customer_id, lead_id')
+    .eq('budget_id', budgetId);
+
+  const seen = new Set<string>();
+  for (const a of assignments ?? []) {
+    const cid = a.customer_id ?? null;
+    const lid = a.lead_id ?? null;
+    if (!cid && !lid) continue;
+    const key = `${cid ?? ''}|${lid ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    await supabase.from('steps_plans').insert({
+      user_id: user.id,
+      customer_id: cid,
+      lead_id: lid,
+      budget_id: budgetId,
+      start_date: new Date().toISOString().split('T')[0],
+      description,
+      steps_goal: stepsGoal,
+      steps_instructions: stepsInstructions || null,
+      is_active: true,
+      created_by: user.id,
+    });
+  }
+}
+
+/**
  * Gets associated plans for a budget assignment
  */
 export async function getAssociatedPlans(budgetId: string): Promise<{

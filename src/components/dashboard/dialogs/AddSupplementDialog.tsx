@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Link as LinkIcon } from 'lucide-react';
+import { Link as LinkIcon, Plus } from 'lucide-react';
 import type { Supplement } from '@/store/slices/budgetSlice';
+import { useCreateSupplementTemplate } from '@/hooks/useSupplementTemplates';
+import { useToast } from '@/hooks/use-toast';
 
 interface AddSupplementDialogProps {
   isOpen: boolean;
@@ -28,15 +30,24 @@ export const AddSupplementDialog = ({
   const [link2, setLink2] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [selectedSupplementName, setSelectedSupplementName] = useState<string>('');
+  const [showCreateNew, setShowCreateNew] = useState(false);
+  
+  const { toast } = useToast();
+  const createSupplementTemplate = useCreateSupplementTemplate();
 
-  // Extract all individual supplements from templates
-  const allSupplements = supplementTemplates.flatMap(template => 
-    (template.supplements || []).map(sup => ({
-      ...sup,
-      templateName: template.name,
-      templateId: template.id,
-    }))
-  );
+  // Extract all individual supplements from templates and get unique supplements by name
+  const allSupplements = useMemo(() => {
+    const supplementsMap = new Map<string, Supplement>();
+    supplementTemplates.forEach(template => {
+      (template.supplements || []).forEach(sup => {
+        if (sup.name && !supplementsMap.has(sup.name)) {
+          supplementsMap.set(sup.name, sup);
+        }
+      });
+    });
+    return Array.from(supplementsMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [supplementTemplates]);
 
   useEffect(() => {
     if (isOpen) {
@@ -54,6 +65,8 @@ export const AddSupplementDialog = ({
         setLink1('');
         setLink2('');
         setSelectedTemplateId('');
+        setSelectedSupplementName('');
+        setShowCreateNew(false);
       }
     }
   }, [initialData, isOpen]);
@@ -72,6 +85,13 @@ export const AddSupplementDialog = ({
   };
 
   const handleSupplementSelect = (supplementName: string) => {
+    if (!supplementName) {
+      setSelectedSupplementName('');
+      setShowCreateNew(false);
+      return;
+    }
+    
+    setSelectedSupplementName(supplementName);
     const supplement = allSupplements.find(s => s.name === supplementName);
     if (supplement) {
       setName(supplement.name || '');
@@ -79,6 +99,48 @@ export const AddSupplementDialog = ({
       setTiming(supplement.timing || '');
       setLink1(supplement.link1 || '');
       setLink2(supplement.link2 || '');
+      setShowCreateNew(false);
+    } else {
+      // Supplement not found - show option to create new
+      setShowCreateNew(true);
+    }
+  };
+
+  const handleCreateNewSupplementTemplate = async () => {
+    if (!name.trim()) {
+      toast({
+        title: 'שגיאה',
+        description: 'אנא הזן שם תוסף',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await createSupplementTemplate.mutateAsync({
+        name: `תבנית: ${name.trim()}`,
+        supplements: [{
+          name: name.trim(),
+          dosage: dosage.trim(),
+          timing: timing.trim(),
+          link1: link1.trim() || undefined,
+          link2: link2.trim() || undefined,
+        }],
+        is_public: false,
+      });
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תבנית תוסף חדשה נוצרה',
+      });
+      
+      setShowCreateNew(false);
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת תבנית תוסף',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -103,6 +165,8 @@ export const AddSupplementDialog = ({
       setLink1('');
       setLink2('');
       setSelectedTemplateId('');
+      setSelectedSupplementName('');
+      setShowCreateNew(false);
       onOpenChange(false);
     } catch (error) {
       console.error('Error saving supplement:', error);
@@ -119,6 +183,8 @@ export const AddSupplementDialog = ({
     setLink1('');
     setLink2('');
     setSelectedTemplateId('');
+    setSelectedSupplementName('');
+    setShowCreateNew(false);
     onOpenChange(false);
   };
 
@@ -134,29 +200,40 @@ export const AddSupplementDialog = ({
         <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
           <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
             <div className="px-6 py-6 space-y-4">
-              {/* Template Selection */}
-              {supplementTemplates.length > 0 && (
+              {/* Supplement Selection - PRIMARY METHOD */}
+              {!initialData && allSupplements.length > 0 && (
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">בחר מתבנית (אופציונלי)</Label>
+                  <Label className="text-sm font-medium text-slate-700">בחר תוסף מהרשימה *</Label>
                   <select
-                    value={selectedTemplateId}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        handleTemplateSelect(e.target.value);
-                      } else {
-                        setSelectedTemplateId('');
-                      }
-                    }}
+                    value={selectedSupplementName}
+                    onChange={(e) => handleSupplementSelect(e.target.value)}
                     className="w-full h-10 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] focus:border-[#5B6FB9]"
                     dir="rtl"
+                    required={!initialData}
                   >
-                    <option value="">ללא תבנית</option>
-                    {supplementTemplates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.name}
+                    <option value="">-- בחר תוסף --</option>
+                    {allSupplements.map((sup, idx) => (
+                      <option key={`${sup.name}-${idx}`} value={sup.name}>
+                        {sup.name}
                       </option>
                     ))}
                   </select>
+                  {showCreateNew && (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="text-xs text-blue-800 mb-2">התוסף לא נמצא ברשימה</p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCreateNewSupplementTemplate}
+                        disabled={createSupplementTemplate.isPending || !name.trim()}
+                        className="w-full text-blue-700 border-blue-300 hover:bg-blue-100"
+                      >
+                        <Plus className="h-3 w-3 ml-1" />
+                        {createSupplementTemplate.isPending ? 'יוצר...' : 'צור תוסף חדש ברשימה'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -165,31 +242,19 @@ export const AddSupplementDialog = ({
                 <Label className="text-sm font-medium text-slate-700">שם התוסף *</Label>
                 <Input
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (selectedSupplementName && e.target.value !== selectedSupplementName) {
+                      setSelectedSupplementName('');
+                      setShowCreateNew(false);
+                    }
+                  }}
                   placeholder="שם התוסף"
                   className="bg-white"
                   dir="rtl"
                   required
+                  disabled={!!selectedSupplementName && !showCreateNew}
                 />
-                {allSupplements.length > 0 && (
-                  <select
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        handleSupplementSelect(e.target.value);
-                      }
-                    }}
-                    className="w-full h-9 px-3 rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] focus:border-[#5B6FB9] mt-2"
-                    dir="rtl"
-                    defaultValue=""
-                  >
-                    <option value="">או בחר מתוספים קיימים...</option>
-                    {allSupplements.map((sup, idx) => (
-                      <option key={`${sup.name}-${idx}`} value={sup.name}>
-                        {sup.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
               </div>
 
               {/* Dosage and Timing */}
