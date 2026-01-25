@@ -366,7 +366,7 @@ export const PlanDetailModal = ({
           <DialogDescription>
             {planData.budget_id && (
               <Badge variant="outline" className="mt-2">
-                קשור לתקציב
+                קשור לתכנית פעולה
               </Badge>
             )}
             {planData.created_at && (

@@ -47,7 +47,7 @@ export const BudgetHistoryList: React.FC<BudgetHistoryListProps> = ({ budgetId }
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center text-gray-500 min-h-[200px]">
         <History className="h-10 w-10 mb-3 text-gray-300" />
-        <p>לא נבחר תקציב להצגה</p>
+        <p>לא נבחרה תכנית פעולה להצגה</p>
       </div>
     );
   }
@@ -64,7 +64,7 @@ export const BudgetHistoryList: React.FC<BudgetHistoryListProps> = ({ budgetId }
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center text-gray-500 min-h-[200px]">
         <History className="h-10 w-10 mb-3 text-gray-300" />
-        <p>אין היסטוריית שינויים עבור תקציב זה</p>
+        <p>אין היסטוריית שינויים עבור תכנית פעולה זו</p>
       </div>
     );
   }
@@ -109,7 +109,7 @@ const HistoryItem = ({ item, templateNameMap }: { item: BudgetHistoryItem; templ
         {/* Content */}
         <div className="flex-1 flex justify-start items-center overflow-hidden">
           {item.change_type === 'create' ? (
-            <span className="text-xs text-slate-600 truncate">נוצר תקציב חדש: {item.snapshot?.name}</span>
+            <span className="text-xs text-slate-600 truncate">נוצרה תכנית פעולה חדשה: {item.snapshot?.name}</span>
           ) : item.change_type.includes('create') ? (
              <span className="text-xs text-slate-600 truncate">נוצרה תוכנית חדשה</span>
           ) : (

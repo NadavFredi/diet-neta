@@ -60,10 +60,10 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
         <CardContent className="p-8 text-center">
           <Target className="h-10 w-10 mx-auto mb-3 text-gray-400" />
           <p className="text-sm font-medium text-gray-500 mb-1">
-            אין תקציב פעיל
+            אין תכנית פעולה פעילה
           </p>
           <p className="text-xs text-gray-400">
-            המאמן שלך יוסיף תקציב בקרוב
+            המאמן שלך יוסיף תכנית פעולה בקרוב
           </p>
         </CardContent>
       </Card>
@@ -100,7 +100,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
                 className="h-8 px-3 text-xs border-[#5B6FB9] text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white"
               >
                 <FileText className="h-3.5 w-3.5 ml-1.5" />
-                הדפס תקציב
+                הדפס תכנית פעולה
               </Button>
             </div>
           </div>

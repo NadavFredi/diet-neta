@@ -222,7 +222,7 @@ export const WeeklySummariesView: React.FC<WeeklySummariesViewProps> = ({
                   </div>
                 )}
 
-                {/* Action Plan */}
+                {/* תכנית פעולה */}
                 {review.action_plan && (
                   <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
                     <div className="flex items-center gap-2 mb-2">

@@ -37,11 +37,11 @@ interface SendBudgetModalProps {
 
 const DEFAULT_BUDGET_TEMPLATE = `שלום {{name}},
 
-התקציב שלך מוכן!
+תכנית הפעולה שלך מוכנה!
 
-📋 שם התקציב: {{budget_name}}
+📋 שם תכנית הפעולה: {{budget_name}}
 
-לצפייה בתקציב המלא:
+לצפייה בתכנית הפעולה המלאה:
 {{budget_link}}
 
 בברכה,
@@ -81,7 +81,7 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
     return defaultLabel;
   };
 
-  const budgetFlowLabel = getFlowLabel('budget', 'שליחת תקציב');
+  const budgetFlowLabel = getFlowLabel('budget', 'שליחת תכנית פעולה');
 
   // Load template from database first, fallback to localStorage
   useEffect(() => {
@@ -209,7 +209,7 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
       if (result.success) {
         toast({
           title: 'נשלח בהצלחה',
-          description: 'התקציב נשלח ללקוח ב-WhatsApp',
+          description: 'תכנית הפעולה נשלחה ללקוח ב-WhatsApp',
         });
         onOpenChange(false);
       } else {
@@ -270,9 +270,9 @@ export const SendBudgetModal: React.FC<SendBudgetModalProps> = ({
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[500px]" dir="rtl">
           <DialogHeader>
-            <DialogTitle>שלח תקציב ב-WhatsApp</DialogTitle>
+            <DialogTitle>שלח תכנית פעולה ב-WhatsApp</DialogTitle>
             <DialogDescription>
-              שלח את התקציב "{budget.name}" ללקוח באמצעות WhatsApp
+              שלח את תכנית הפעולה "{budget.name}" ללקוח באמצעות WhatsApp
             </DialogDescription>
           </DialogHeader>
 

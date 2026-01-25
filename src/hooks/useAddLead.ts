@@ -322,7 +322,7 @@ export const useAddLead = () => {
           // Don't fail the entire operation if budget assignment fails
           toast({
             title: 'אזהרה',
-            description: 'הליד נוצר בהצלחה, אך נכשל בהקצאת התקציב. ניתן להקצות תקציב מאוחר יותר.',
+            description: 'הליד נוצר בהצלחה, אך נכשל בהקצאת תכנית הפעולה. ניתן להקצות תכנית פעולה מאוחר יותר.',
             variant: 'destructive',
           });
         }

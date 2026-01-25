@@ -28,6 +28,24 @@ export interface Supplement {
   link2?: string;
 }
 
+export interface CardioTraining {
+  id?: string; // Unique identifier for list items
+  name: string;
+  type: string; // e.g., "Walking", "Running", "Cycling", "Elliptical", "Swimming"
+  duration_minutes: number;
+  workouts_per_week: number; // 1-7
+  notes: string;
+}
+
+export interface IntervalTraining {
+  id?: string; // Unique identifier for list items
+  name: string;
+  type: string; // e.g., "HIIT", "Tabata", "Circuit"
+  duration_minutes: number;
+  workouts_per_week: number; // 1-7
+  notes: string;
+}
+
 export interface Budget {
   id: string;
   name: string;
@@ -41,6 +59,8 @@ export interface Budget {
   supplements: Supplement[];
   eating_order: string | null;
   eating_rules: string | null;
+  cardio_training: CardioTraining[] | null;
+  interval_training: IntervalTraining[] | null;
   is_public: boolean;
   created_at: string;
   updated_at: string;

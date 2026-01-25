@@ -594,7 +594,7 @@ export const BUDGET_FILTER_FIELDS: FilterField[] = [
   },
   {
     id: 'is_public',
-    label: 'תקציב ציבורי',
+    label: 'תכנית פעולה ציבורית',
     type: 'select',
     options: ['כן', 'לא'],
     operators: ['is', 'isNot'],

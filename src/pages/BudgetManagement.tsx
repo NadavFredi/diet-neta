@@ -128,7 +128,7 @@ const BudgetManagement = () => {
   // Determine the title to show
   const pageTitle = viewId && savedView?.view_name
     ? savedView.view_name
-    : 'כל התקציבים';
+    : 'כל תכניות הפעולה';
 
   // Generate filter fields with all renderable columns
   const budgetFilterFields = useMemo(() => {
@@ -159,11 +159,11 @@ const BudgetManagement = () => {
             resourceKey="budgets"
             title={pageTitle}
             dataCount={totalBudgets}
-            singularLabel="תקציב"
-            pluralLabel="תקציבים"
+            singularLabel="תכנית פעולה"
+            pluralLabel="תכניות פעולה"
             filterFields={budgetFilterFields}
             searchPlaceholder="חיפוש לפי שם או תיאור..."
-            addButtonLabel="הוסף תקציב"
+            addButtonLabel="הוסף תכנית פעולה"
             onAddClick={handleAddBudget}
             enableColumnVisibility={true}
             enableFilters={true}
@@ -211,7 +211,7 @@ const BudgetManagement = () => {
                 {!isLoading && (
                   <p className="text-xs text-gray-400 mt-2">
                     {budgets && budgets.length > 0
-                      ? `מספר תקציבים: ${budgets.length}`
+                      ? `מספר תכניות פעולה: ${budgets.length}`
                       : 'אין נתונים זמינים'}
                   </p>
                 )}
@@ -229,8 +229,8 @@ const BudgetManagement = () => {
                 onPageSizeChange={handlePageSizeChange}
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoading}
-                singularLabel="תקציב"
-                pluralLabel="תקציבים"
+                singularLabel="תכנית פעולה"
+                pluralLabel="תכניות פעולה"
               />
             </div>
           )}

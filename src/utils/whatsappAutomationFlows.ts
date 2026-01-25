@@ -22,7 +22,7 @@ export const DEFAULT_FLOW_CONFIGS: FlowConfig[] = [
   },
   {
     key: 'budget',
-    label: 'שליחת תקציב',
+    label: 'שליחת תכנית פעולה',
   },
   {
     key: 'payment_request',

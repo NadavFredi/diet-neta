@@ -80,7 +80,7 @@ export const SupplementTemplatesDataTable = ({
       dir="rtl"
       emptyMessage={
         templates.length === 0
-          ? 'אין תבניות תוספים. צור תבנית חדשה כדי להתחיל'
+          ? 'אין תוספים. צור תבנית חדשה כדי להתחיל'
           : 'לא נמצאו תבניות התואמות לחיפוש'
       }
       enableColumnVisibility={false}
@@ -89,7 +89,7 @@ export const SupplementTemplatesDataTable = ({
       enableRowSelection
       totalCount={templates.length}
       onBulkDelete={onBulkDelete}
-      selectionLabel="תבניות תוספים"
+      selectionLabel="תוספים"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
       onSortChange={onSortChange}

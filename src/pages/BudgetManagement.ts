@@ -230,7 +230,7 @@ export const useBudgetManagement = () => {
         
         toast({
           title: 'הצלחה',
-          description: 'התקציב עודכן בהצלחה',
+          description: 'תכנית הפעולה עודכנה בהצלחה',
         });
         setIsEditDialogOpen(false);
         setEditingBudgetId(null);
@@ -252,7 +252,7 @@ export const useBudgetManagement = () => {
         
         toast({
           title: 'הצלחה',
-          description: 'תבנית התקציב נוצרה בהצלחה. ניתן להקצות אותה ללקוחות מהדף שלהם.',
+          description: 'תכנית הפעולה נוצרה בהצלחה. ניתן להקצות אותה ללקוחות מהדף שלהם.',
         });
         setIsAddDialogOpen(false);
         
@@ -262,7 +262,7 @@ export const useBudgetManagement = () => {
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל בשמירת התקציב',
+        description: error?.message || 'נכשל בשמירת תכנית הפעולה',
         variant: 'destructive',
       });
     }
@@ -290,14 +290,14 @@ export const useBudgetManagement = () => {
       
       toast({
         title: 'הצלחה',
-        description: 'התקציב נמחק בהצלחה',
+        description: 'תכנית הפעולה נמחקה בהצלחה',
       });
       setDeleteDialogOpen(false);
       setBudgetToDelete(null);
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל במחיקת התקציב',
+        description: error?.message || 'נכשל במחיקת תכנית הפעולה',
         variant: 'destructive',
       });
     }
@@ -307,7 +307,7 @@ export const useBudgetManagement = () => {
     await bulkDeleteBudgets.mutateAsync(payload.ids);
     toast({
       title: 'הצלחה',
-      description: 'התקציבים נמחקו בהצלחה',
+      description: 'תכניות הפעולה נמחקו בהצלחה',
     });
   };
 

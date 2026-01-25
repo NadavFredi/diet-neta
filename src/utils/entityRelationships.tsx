@@ -134,7 +134,7 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
     },
     {
       entityName: 'budget',
-      label: 'תקציב',
+      label: 'תכנית פעולה',
       joinType: 'through',
       junctionTable: 'budget_assignments',
       junctionSourceColumn: 'lead_id',
@@ -147,7 +147,7 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
         // Add "entity exists" filter first
         fields.push({
           id: 'budget.exists',
-          label: 'יש תקציב',
+          label: 'יש תכנית פעולה',
           type: 'select',
           operators: ['is', 'isNot'],
           options: ['כן', 'לא'],
@@ -166,7 +166,7 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
           fields.push(
             {
               id: 'budget.name',
-              label: 'שם תקציב',
+              label: 'שם תכנית פעולה',
               type: 'text',
               operators: ['contains', 'notContains', 'equals', 'notEquals'],
             },
@@ -178,7 +178,7 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
             },
             {
               id: 'budget.is_public',
-              label: 'תקציב ציבורי',
+              label: 'תכנית פעולה ציבורית',
               type: 'select',
               operators: ['is', 'isNot'],
             }
@@ -205,7 +205,7 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
         return [
           {
             id: 'budget.name',
-            header: 'שם תקציב',
+            header: 'שם תכנית פעולה',
             accessorFn: (row: any) => row.budget_assignments?.[0]?.budgets?.name,
             enableSorting: true,
             enableResizing: true,

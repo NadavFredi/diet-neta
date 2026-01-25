@@ -70,7 +70,7 @@ export const AssignBudgetDialog = ({
     if (!selectedBudgetId) {
       toast({
         title: 'שגיאה',
-        description: 'אנא בחר תקציב',
+        description: 'אנא בחר תכנית פעולה',
         variant: 'destructive',
       });
       return;
@@ -142,7 +142,7 @@ export const AssignBudgetDialog = ({
 
       toast({
         title: 'הצלחה',
-        description: 'התקציב הוקצה בהצלחה. תכניות אימונים, תזונה, תוספים וצעדים נוצרו אוטומטית.',
+        description: 'תכנית הפעולה הוקצתה בהצלחה. תכניות אימונים, תזונה, תוספים וצעדים נוצרו אוטומטית.',
       });
 
       onSuccess?.();
@@ -150,7 +150,7 @@ export const AssignBudgetDialog = ({
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל בהקצאת התקציב',
+        description: error?.message || 'נכשל בהקצאת תכנית הפעולה',
         variant: 'destructive',
       });
     }
@@ -181,7 +181,7 @@ export const AssignBudgetDialog = ({
 
       toast({
         title: 'הצלחה',
-        description: 'התקציב נוצר בהצלחה ונבחר אוטומטית',
+        description: 'תכנית הפעולה נוצרה בהצלחה ונבחרה אוטומטית',
       });
 
       setIsAddBudgetDialogOpen(false);
@@ -189,7 +189,7 @@ export const AssignBudgetDialog = ({
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל ביצירת התקציב',
+        description: error?.message || 'נכשל ביצירת תכנית הפעולה',
         variant: 'destructive',
       });
       throw error;
@@ -203,9 +203,9 @@ export const AssignBudgetDialog = ({
       <Dialog open={isOpen} onOpenChange={onOpenChange} dir="rtl">
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
-            <DialogTitle>הקצאת תקציב</DialogTitle>
+            <DialogTitle>הקצאת תכנית פעולה</DialogTitle>
             <DialogDescription>
-              בחר תקציב להקצאה ל{leadId ? 'ליד' : 'לקוח'} זה. התקציב ייצור אוטומטית תכניות אימונים, תזונה ותוספים.
+              בחר תכנית פעולה להקצאה ל{leadId ? 'ליד' : 'לקוח'} זה. תכנית הפעולה תיצור אוטומטית תכניות אימונים, תזונה ותוספים.
             </DialogDescription>
           </DialogHeader>
 
@@ -213,7 +213,7 @@ export const AssignBudgetDialog = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="budget" className="text-sm font-semibold">
-                  תקציב *
+                  תכנית פעולה *
                 </Label>
                 <Button
                   type="button"
@@ -224,7 +224,7 @@ export const AssignBudgetDialog = ({
                   className="h-8 px-2"
                 >
                   <Plus className="h-4 w-4 ml-1" />
-                  תקציב חדש
+                  תכנית פעולה חדשה
                 </Button>
               </div>
               <Select
@@ -233,7 +233,7 @@ export const AssignBudgetDialog = ({
                 disabled={isLoadingBudgets || isSubmitting}
               >
                 <SelectTrigger id="budget" className="border-slate-200" dir="rtl">
-                  <SelectValue placeholder="בחר תקציב" />
+                  <SelectValue placeholder="בחר תכנית פעולה" />
                 </SelectTrigger>
                 <SelectContent dir="rtl">
                   {budgets.map((budget) => (
@@ -284,7 +284,7 @@ export const AssignBudgetDialog = ({
                 מקצה...
               </>
             ) : (
-              'הקצה תקציב'
+              'הקצה תכנית פעולה'
             )}
           </Button>
         </div>

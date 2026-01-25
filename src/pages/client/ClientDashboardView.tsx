@@ -313,7 +313,7 @@ export const ClientDashboardView: React.FC = () => {
               )}
             >
               <Wallet className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm font-medium">תקציב</span>
+              <span className="text-sm font-medium">תכנית פעולה</span>
             </button>
             <button
               onClick={() => {

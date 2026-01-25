@@ -190,7 +190,7 @@ export const useDefaultView = (resourceKey: string | null) => {
           : resourceKey === 'supplement_templates'
           ? 'כל תבניות התוספים'
           : resourceKey === 'budgets'
-          ? 'כל התקציבים'
+          ? 'כל תכניות הפעולה'
           : resourceKey === 'payments'
           ? 'כל התשלומים'
           : resourceKey === 'meetings'

@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints, Edit2, ChevronDown, Check, ChevronsUpDown } from 'lucide-react';
+import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints, Edit2, ChevronDown, Check, ChevronsUpDown, Heart, Zap } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -269,6 +269,26 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const [eatingOrder, setEatingOrder] = useState('');
   const [eatingRules, setEatingRules] = useState('');
   
+  // Cardio Training - Array of workouts
+  const [cardioTrainings, setCardioTrainings] = useState<Array<{
+    id: string;
+    name: string;
+    type: string;
+    duration_minutes: number;
+    workouts_per_week: number;
+    notes: string;
+  }>>([]);
+  
+  // Interval Training - Array of workouts
+  const [intervalTrainings, setIntervalTrainings] = useState<Array<{
+    id: string;
+    name: string;
+    type: string;
+    duration_minutes: number;
+    workouts_per_week: number;
+    notes: string;
+  }>>([]);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize form with initial data
@@ -292,6 +312,36 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       setSupplements(initialData.supplements || []);
       setEatingOrder(initialData.eating_order || '');
       setEatingRules(initialData.eating_rules || '');
+      
+      // Initialize cardio trainings array
+      const cardioData = initialData.cardio_training;
+      if (Array.isArray(cardioData) && cardioData.length > 0) {
+        setCardioTrainings(cardioData.map((item, index) => ({
+          id: item.id || `cardio-${Date.now()}-${index}`,
+          name: item.name || '',
+          type: item.type || '',
+          duration_minutes: item.duration_minutes || 0,
+          workouts_per_week: item.workouts_per_week || 0,
+          notes: item.notes || '',
+        })));
+      } else {
+        setCardioTrainings([]);
+      }
+      
+      // Initialize interval trainings array
+      const intervalData = initialData.interval_training;
+      if (Array.isArray(intervalData) && intervalData.length > 0) {
+        setIntervalTrainings(intervalData.map((item, index) => ({
+          id: item.id || `interval-${Date.now()}-${index}`,
+          name: item.name || '',
+          type: item.type || '',
+          duration_minutes: item.duration_minutes || 0,
+          workouts_per_week: item.workouts_per_week || 0,
+          notes: item.notes || '',
+        })));
+      } else {
+        setIntervalTrainings([]);
+      }
     }
   }, [initialData]);
 
@@ -377,6 +427,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         supplements: supplements.filter((s) => s.name.trim() !== ''),
         eating_order: eatingOrder || null,
         eating_rules: eatingRules || null,
+        cardio_training: (cardioTraining.name.trim() || cardioTraining.type.trim() || cardioTraining.duration_minutes > 0 || cardioTraining.workouts_per_week > 0) ? cardioTraining : null,
+        interval_training: (intervalTraining.name.trim() || intervalTraining.type.trim() || intervalTraining.duration_minutes > 0 || intervalTraining.workouts_per_week > 0) ? intervalTraining : null,
       };
       
       const savedBudget = await onSave(budgetData);
@@ -573,12 +625,12 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
             </CardHeader>
             <CardContent className="space-y-3 px-4 pb-4">
               <div className="space-y-1.5">
-                <Label htmlFor="name" className="text-sm font-medium text-slate-500">שם התקציב *</Label>
+                <Label htmlFor="name" className="text-sm font-medium text-slate-500">שם תכנית הפעולה *</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="לדוגמה: תקציב 1700 קלוריות"
+                  placeholder="לדוגמה: תכנית פעולה 1700 קלוריות"
                   required
                   className={cn(
                     "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all",
@@ -594,7 +646,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="תיאור קצר של התקציב"
+                  placeholder="תיאור קצר של תכנית הפעולה"
                   className={cn(
                     "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
                     "text-slate-900 font-medium text-sm"
@@ -640,6 +692,214 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                 />
               </div>
               
+            </CardContent>
+          </Card>
+
+          {/* Cardio Training Card */}
+          <Card className="bg-white border-0 shadow-sm rounded-xl">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <Heart className="h-4 w-4 text-slate-400" />
+                אימון אירובי
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 px-4 pb-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="cardio_name" className="text-sm font-medium text-slate-500">שם האימון</Label>
+                <Input
+                  id="cardio_name"
+                  value={cardioTraining.name}
+                  onChange={(e) => setCardioTraining({ ...cardioTraining, name: e.target.value })}
+                  placeholder="לדוגמה: הליכה מהירה, ריצה קלה"
+                  className={cn(
+                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all",
+                    "text-slate-900 font-medium text-sm"
+                  )}
+                  dir="rtl"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="cardio_type" className="text-sm font-medium text-slate-500">סוג אירובי</Label>
+                <Select
+                  value={cardioTraining.type || 'none'}
+                  onValueChange={(value) => setCardioTraining({ ...cardioTraining, type: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger className={cn(
+                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                    "text-slate-900 font-medium text-sm"
+                  )} dir="rtl">
+                    <SelectValue placeholder="בחר סוג אירובי" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value="none">ללא בחירה</SelectItem>
+                    <SelectItem value="Walking">הליכה</SelectItem>
+                    <SelectItem value="Running">ריצה</SelectItem>
+                    <SelectItem value="Cycling">רכיבה על אופניים</SelectItem>
+                    <SelectItem value="Elliptical">אליפטיקל</SelectItem>
+                    <SelectItem value="Swimming">שחייה</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cardio_duration" className="text-sm font-medium text-slate-500">משך האימון (דקות)</Label>
+                  <Input
+                    id="cardio_duration"
+                    type="number"
+                    min="0"
+                    value={cardioTraining.duration_minutes || ''}
+                    onChange={(e) => setCardioTraining({ ...cardioTraining, duration_minutes: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                    className={cn(
+                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-medium text-sm"
+                    )}
+                    dir="ltr"
+                  />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <Label htmlFor="cardio_workouts_per_week" className="text-sm font-medium text-slate-500">אימונים בשבוע</Label>
+                  <Input
+                    id="cardio_workouts_per_week"
+                    type="number"
+                    min="0"
+                    max="7"
+                    value={cardioTraining.workouts_per_week || ''}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setCardioTraining({ ...cardioTraining, workouts_per_week: Math.min(7, Math.max(0, val)) });
+                    }}
+                    placeholder="0"
+                    className={cn(
+                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-medium text-sm"
+                    )}
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="cardio_notes" className="text-sm font-medium text-slate-500">הנחיות והסברים</Label>
+                <Textarea
+                  id="cardio_notes"
+                  value={cardioTraining.notes}
+                  onChange={(e) => setCardioTraining({ ...cardioTraining, notes: e.target.value })}
+                  placeholder="הנחיות, הוראות ביצוע או טיפים נוספים"
+                  className={cn(
+                    "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
+                    "text-slate-900 font-medium text-sm"
+                  )}
+                  dir="rtl"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Interval Training Card */}
+          <Card className="bg-white border-0 shadow-sm rounded-xl">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <Zap className="h-4 w-4 text-slate-400" />
+                אימון אינטרוולים
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 px-4 pb-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="interval_name" className="text-sm font-medium text-slate-500">שם האימון</Label>
+                <Input
+                  id="interval_name"
+                  value={intervalTraining.name}
+                  onChange={(e) => setIntervalTraining({ ...intervalTraining, name: e.target.value })}
+                  placeholder="לדוגמה: HIIT, Tabata"
+                  className={cn(
+                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all",
+                    "text-slate-900 font-medium text-sm"
+                  )}
+                  dir="rtl"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="interval_type" className="text-sm font-medium text-slate-500">סוג אינטרוולים</Label>
+                <Select
+                  value={intervalTraining.type || 'none'}
+                  onValueChange={(value) => setIntervalTraining({ ...intervalTraining, type: value === 'none' ? '' : value })}
+                >
+                  <SelectTrigger className={cn(
+                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                    "text-slate-900 font-medium text-sm"
+                  )} dir="rtl">
+                    <SelectValue placeholder="בחר סוג אינטרוולים" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value="none">ללא בחירה</SelectItem>
+                    <SelectItem value="HIIT">HIIT</SelectItem>
+                    <SelectItem value="Tabata">Tabata</SelectItem>
+                    <SelectItem value="Circuit">Circuit</SelectItem>
+                    <SelectItem value="AMRAP">AMRAP</SelectItem>
+                    <SelectItem value="EMOM">EMOM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="interval_duration" className="text-sm font-medium text-slate-500">משך האימון (דקות)</Label>
+                  <Input
+                    id="interval_duration"
+                    type="number"
+                    min="0"
+                    value={intervalTraining.duration_minutes || ''}
+                    onChange={(e) => setIntervalTraining({ ...intervalTraining, duration_minutes: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                    className={cn(
+                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-medium text-sm"
+                    )}
+                    dir="ltr"
+                  />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <Label htmlFor="interval_workouts_per_week" className="text-sm font-medium text-slate-500">אימונים בשבוע</Label>
+                  <Input
+                    id="interval_workouts_per_week"
+                    type="number"
+                    min="0"
+                    max="7"
+                    value={intervalTraining.workouts_per_week || ''}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setIntervalTraining({ ...intervalTraining, workouts_per_week: Math.min(7, Math.max(0, val)) });
+                    }}
+                    placeholder="0"
+                    className={cn(
+                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "text-slate-900 font-medium text-sm"
+                    )}
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="interval_notes" className="text-sm font-medium text-slate-500">הנחיות והסברים</Label>
+                <Textarea
+                  id="interval_notes"
+                  value={intervalTraining.notes}
+                  onChange={(e) => setIntervalTraining({ ...intervalTraining, notes: e.target.value })}
+                  placeholder="לדוגמה: יחס עבודה/מנוחה, רמת עצימות, הוראות מיוחדות"
+                  className={cn(
+                    "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
+                    "text-slate-900 font-medium text-sm"
+                  )}
+                  dir="rtl"
+                />
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -845,7 +1105,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
             "shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
           )}
         >
-          {isSubmitting ? 'שומר...' : mode === 'create' ? 'צור תקציב' : 'שמור שינויים'}
+          {isSubmitting ? 'שומר...' : mode === 'create' ? 'צור תכנית פעולה' : 'שמור שינויים'}
         </Button>
         <Button 
           type="button" 

@@ -77,7 +77,7 @@ export const BudgetDetailsModal = ({
         dir="rtl"
       >
         <DialogHeader className="px-4 py-3 border-b border-slate-200 flex-shrink-0 bg-slate-50">
-          <DialogTitle className="text-sm font-bold text-slate-900 uppercase tracking-wide">תצוגה מהירה - פרטי תקציב</DialogTitle>
+          <DialogTitle className="text-sm font-bold text-slate-900 uppercase tracking-wide">תצוגה מהירה - פרטי תכנית פעולה</DialogTitle>
         </DialogHeader>
 
         {/* Main Content - Fixed height with custom scrollbar */}
@@ -108,8 +108,8 @@ export const BudgetDetailsModal = ({
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <FileText className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-slate-700 mb-1">תקציב לא נמצא</p>
-                <p className="text-xs text-slate-600">התקציב המבוקש לא קיים או שאין לך הרשאה לצפות בו</p>
+                <p className="text-sm font-semibold text-slate-700 mb-1">תכנית פעולה לא נמצאה</p>
+                <p className="text-xs text-slate-600">תכנית הפעולה המבוקשת לא קיימת או שאין לך הרשאה לצפות בה</p>
               </div>
             </div>
           ) : (

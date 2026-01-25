@@ -285,7 +285,7 @@ export const BudgetsDataTable = ({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>הדפס תקציב</p>
+                          <p>הדפס תכנית פעולה</p>
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -310,7 +310,7 @@ export const BudgetsDataTable = ({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>שלח תקציב</p>
+                          <p>שלח תכנית פעולה</p>
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -374,8 +374,8 @@ export const BudgetsDataTable = ({
       dir="rtl"
       emptyMessage={
         budgets.length === 0
-          ? 'אין תקציבים. צור תקציב חדש כדי להתחיל'
-          : 'לא נמצאו תקציבים התואמים לחיפוש'
+          ? 'אין תכניות פעולה. צור תכנית פעולה חדשה כדי להתחיל'
+          : 'לא נמצאו תכניות פעולה התואמות לחיפוש'
       }
       enableColumnVisibility={false}
       enableColumnReordering={true}
@@ -383,7 +383,7 @@ export const BudgetsDataTable = ({
       enableRowSelection
       totalCount={budgets.length}
       onBulkDelete={onBulkDelete}
-      selectionLabel="תקציבים"
+      selectionLabel="תכניות פעולה"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
       onSortChange={onSortChange}

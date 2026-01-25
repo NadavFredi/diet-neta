@@ -25,9 +25,9 @@ export const AddBudgetDialog = ({
         dir="rtl"
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-          <DialogTitle className="text-base font-bold">יצירת תקציב חדש</DialogTitle>
+          <DialogTitle className="text-base font-bold">יצירת תכנית פעולה חדשה</DialogTitle>
           <DialogDescription className="sr-only">
-            יצירת תקציב חדש עם אפשרות להקצאה ללקוחות
+            יצירת תכנית פעולה חדשה עם אפשרות להקצאה ללקוחות
           </DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">

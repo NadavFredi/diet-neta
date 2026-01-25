@@ -11,7 +11,7 @@ import { useAppSelector } from '@/store/hooks';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
-import type { Budget, BudgetAssignment, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
+import type { Budget, BudgetAssignment, NutritionTargets, Supplement, CardioTraining, IntervalTraining } from '@/store/slices/budgetSlice';
 import { syncPlansFromBudget } from '@/services/budgetPlanSync';
 import { applySort } from '@/utils/supabaseSort';
 
@@ -144,7 +144,7 @@ export const useBudgets = (filters?: {
   
         if (error) {
           if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
-          throw new Error('טבלת התקציבים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
+          throw new Error('טבלת תכניות הפעולה לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
         throw error;
       }
@@ -274,6 +274,8 @@ export const useCreateBudget = () => {
       supplements,
       eating_order,
       eating_rules,
+      cardio_training,
+      interval_training,
       is_public = false,
     }: {
       name: string;
@@ -287,6 +289,8 @@ export const useCreateBudget = () => {
       supplements: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
+      cardio_training?: CardioTraining | null;
+      interval_training?: IntervalTraining | null;
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -315,7 +319,7 @@ export const useCreateBudget = () => {
   
         if (error) {
           if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
-          throw new Error('טבלת התקציבים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
+          throw new Error('טבלת תכניות הפעולה לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
         throw error;
       }
@@ -352,6 +356,8 @@ export const useUpdateBudget = () => {
       supplements?: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
+      cardio_training?: CardioTraining | null;
+      interval_training?: IntervalTraining | null;
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');

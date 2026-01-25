@@ -226,7 +226,7 @@ export const PlansCard = ({
   const { data: overviewBudget } = useBudget(effectiveBudgetId);
 
   // Effective budget name
-  const effectiveBudgetName = activeAssignment?.budget_name || fallbackBudget?.name || 'תקציב פעיל';
+  const effectiveBudgetName = activeAssignment?.budget_name || fallbackBudget?.name || 'תכנית פעולה פעילה';
 
   // Handlers
   const handleDeleteClick = (assignment: BudgetAssignmentItem) => {
@@ -281,13 +281,13 @@ export const PlansCard = ({
 
         if (updateError) throw updateError;
         budgetIdToEdit = newBudget.id;
-        toast({ title: 'הצלחה', description: 'נוצר עותק פרטי של התקציב. שינויים יעשו רק על הליד הזה.' });
+        toast({ title: 'הצלחה', description: 'נוצר עותק פרטי של תכנית הפעולה. שינויים יעשו רק על הליד הזה.' });
       }
 
       setCurrentAssignment(assignment);
       setEditingBudgetId(budgetIdToEdit);
     } catch (error: any) {
-      toast({ title: 'שגיאה', description: error?.message || 'נכשל בעריכת התקציב', variant: 'destructive' });
+      toast({ title: 'שגיאה', description: error?.message || 'נכשל בעריכת תכנית הפעולה', variant: 'destructive' });
     }
   };
 
@@ -312,7 +312,7 @@ export const PlansCard = ({
       const supplements = (data.supplements || []).filter((s: any) => s?.name?.trim?.());
       await syncSupplementPlansFromBudgetUpdate(editingBudget.id, data.name ?? editingBudget.name, supplements);
 
-      toast({ title: 'הצלחה', description: 'התקציב עודכן בהצלחה' });
+      toast({ title: 'הצלחה', description: 'תכנית הפעולה עודכנה בהצלחה' });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['budgets'] }),
         queryClient.invalidateQueries({ queryKey: ['budget', editingBudget.id] }),
@@ -326,7 +326,7 @@ export const PlansCard = ({
       setEditingBudgetId(null);
       setCurrentAssignment(null);
     } catch (error: any) {
-      toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון התקציב', variant: 'destructive' });
+      toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון תכנית הפעולה', variant: 'destructive' });
     }
   };
 
@@ -334,11 +334,11 @@ export const PlansCard = ({
     if (!assignmentToDelete) return;
     try {
       await deleteBudgetAssignment.mutateAsync(assignmentToDelete.id);
-      toast({ title: 'הצלחה', description: 'התקציב והתכניות המקושרות נמחקו בהצלחה' });
+      toast({ title: 'הצלחה', description: 'תכנית הפעולה והתכניות המקושרות נמחקו בהצלחה' });
       setDeleteDialogOpen(false);
       setAssignmentToDelete(null);
     } catch (error: any) {
-      toast({ title: 'שגיאה', description: error?.message || 'נכשל במחיקת התקציב', variant: 'destructive' });
+      toast({ title: 'שגיאה', description: error?.message || 'נכשל במחיקת תכנית הפעולה', variant: 'destructive' });
     }
   };
 
@@ -404,13 +404,13 @@ export const PlansCard = ({
           <Wallet className="h-6 w-6 text-[#5B6FB9]" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">אין תכניות פעילות</h3>
-        <p className="text-gray-500 text-sm mb-4">הקצה תקציב כדי ליצור תכניות אימון, תזונה וצעדים</p>
+        <p className="text-gray-500 text-sm mb-4">הקצה תכנית פעולה כדי ליצור תכניות אימון, תזונה וצעדים</p>
         <Button 
           onClick={onAssignBudget}
           className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
         >
           <Plus className="h-4 w-4" />
-          הקצה תקציב
+          הקצה תכנית פעולה
         </Button>
       </Card>
     );
@@ -425,7 +425,7 @@ export const PlansCard = ({
           </div>
           <div>
             <h3 className="text-base font-bold text-gray-900">
-              {effectiveBudgetName !== 'תקציב פעיל' ? effectiveBudgetName : 'סקירת תכניות'}
+              {effectiveBudgetName !== 'תכנית פעולה פעילה' ? effectiveBudgetName : 'סקירת תכניות'}
             </h3>
             <div className="text-xs text-gray-500 flex gap-2">
               {activeAssignment && (
@@ -444,7 +444,7 @@ export const PlansCard = ({
                  className="gap-2 h-8 ml-2 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
                >
                  <Edit className="h-3.5 w-3.5" />
-                 <span>ערוך תקציב</span>
+                 <span>ערוך תכנית פעולה</span>
                </Button>
 
                <TooltipProvider>
@@ -463,7 +463,7 @@ export const PlansCard = ({
                         <Trash2 className="h-4 w-4 text-gray-500" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>מחק תקציב</p></TooltipContent>
+                    <TooltipContent><p>מחק תכנית פעולה</p></TooltipContent>
                   </Tooltip>
                  )}
                </TooltipProvider>
@@ -484,7 +484,7 @@ export const PlansCard = ({
                 <div className="w-8 h-8 rounded-lg bg-[#E8EDF7] flex items-center justify-center">
                   <FileText className="h-4 w-4 text-[#5B6FB9]" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-800">פרטי תקציב</h4>
+                <h4 className="text-sm font-bold text-slate-800">פרטי תכנית פעולה</h4>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {overviewBudget.description?.trim() && (
@@ -735,9 +735,9 @@ export const PlansCard = ({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>מחיקת הקצאת תקציב</AlertDialogTitle>
+            <AlertDialogTitle>מחיקת הקצאת תכנית פעולה</AlertDialogTitle>
             <AlertDialogDescription>
-              האם אתה בטוח שברצונך למחוק את הקצאת התקציב?
+              האם אתה בטוח שברצונך למחוק את הקצאת תכנית הפעולה?
               פעולה זו תמחק גם את כל התכניות המקושרות.
             </AlertDialogDescription>
           </AlertDialogHeader>

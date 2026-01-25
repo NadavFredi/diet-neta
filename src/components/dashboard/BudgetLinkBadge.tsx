@@ -40,7 +40,7 @@ export const BudgetLinkBadge = ({ budgetId, className }: BudgetLinkBadgeProps) =
       dir="rtl"
     >
       <Link className="h-3 w-3" />
-      מקושר לתקציב: {budget.name}
+      מקושר לתכנית פעולה: {budget.name}
     </Badge>
   );
 };

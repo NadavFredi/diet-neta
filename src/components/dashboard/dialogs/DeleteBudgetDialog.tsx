@@ -65,10 +65,10 @@ export const DeleteBudgetDialog = ({
     <AlertDialog open={isOpen} onOpenChange={onOpenChange} dir="rtl">
       <AlertDialogContent dir="rtl" className="max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle>מחיקת תקציב</AlertDialogTitle>
+          <AlertDialogTitle>מחיקת תכנית פעולה</AlertDialogTitle>
           <AlertDialogDescription className="space-y-3">
             <p>
-              האם אתה בטוח שברצונך למחוק את התקציב "{budgetToDelete.name}"?
+              האם אתה בטוח שברצונך למחוק את תכנית הפעולה "{budgetToDelete.name}"?
               פעולה זו לא ניתנת לביטול.
             </p>
             
@@ -77,7 +77,7 @@ export const DeleteBudgetDialog = ({
             ) : hasAssociatedPlans ? (
               <div className="space-y-2 pt-2 border-t">
                 <p className="text-sm font-semibold text-gray-700">
-                  נמצאו תכניות מקושרות לתקציב זה:
+                  נמצאו תכניות מקושרות לתכנית פעולה זו:
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
                   {associatedPlans.workoutPlans.length > 0 && (
@@ -105,7 +105,7 @@ export const DeleteBudgetDialog = ({
                 </div>
                 {!deletePlans && (
                   <p className="text-xs text-gray-500">
-                    אם לא תבחר באפשרות זו, התכניות יישארו אך הקישור לתקציב יוסר.
+                    אם לא תבחר באפשרות זו, התכניות יישארו אך הקישור לתכנית הפעולה יוסר.
                   </p>
                 )}
               </div>

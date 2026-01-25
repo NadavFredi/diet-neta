@@ -93,7 +93,7 @@ export const generateBudgetPDF = async (budget: Budget): Promise<void> => {
     pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight, undefined, 'FAST');
 
     // Save PDF
-    const fileName = `תקציב_${budget.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = `תכנית_פעולה_${budget.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
     pdf.save(fileName);
 
     // Clean up
@@ -150,7 +150,7 @@ const buildBudgetHTML = (budget: Budget): string => {
             <img src="${logoUrl}" alt="DietNeta Logo" style="height: 45px; width: auto; max-width: 220px; filter: brightness(0) invert(1); opacity: 0.95;" />
           </div>
           <div style="font-size: 14px; font-weight: 400; color: #333333; letter-spacing: 0.5px;">
-            תקציב אימון ותזונה מקצועי
+            תכנית פעולה אימון ותזונה מקצועית
           </div>
         </div>
 
@@ -361,7 +361,7 @@ const buildBudgetHTML = (budget: Budget): string => {
           <div style="text-align: center; font-size: 11px; font-weight: 300; color: rgba(255, 255, 255, 0.8); line-height: 1.6;">
             <div style="margin-bottom: 4px;">נוצר בתאריך: ${new Date(budget.created_at).toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
             <div style="font-weight: 400; color: rgba(255, 255, 255, 0.95); font-size: 12px;">
-              DietNeta - תקציב מקצועי לאימון ותזונה
+              DietNeta - תכנית פעולה מקצועית לאימון ותזונה
             </div>
           </div>
         </div>

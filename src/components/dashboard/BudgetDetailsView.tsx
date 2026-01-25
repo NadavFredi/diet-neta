@@ -71,8 +71,8 @@ export const BudgetDetailsView = ({
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <FileText className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-slate-700 mb-1">תקציב לא נמצא</p>
-            <p className="text-xs text-slate-600">התקציב המבוקש לא קיים או שאין לך הרשאה לצפות בו</p>
+            <p className="text-sm font-semibold text-slate-700 mb-1">תכנית פעולה לא נמצאה</p>
+            <p className="text-xs text-slate-600">תכנית הפעולה המבוקשת לא קיימת או שאין לך הרשאה לצפות בה</p>
           </div>
         </div>
       ) : (

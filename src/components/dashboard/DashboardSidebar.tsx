@@ -86,14 +86,14 @@ const navigationItems: NavItem[] = [
   {
     id: 'supplement-templates',
     resourceKey: 'supplement_templates',
-    label: 'תבניות תוספים',
+    label: 'תוספים',
     icon: Pill,
     path: '/dashboard/supplement-templates',
   },
   {
     id: 'budgets',
     resourceKey: 'budgets',
-    label: 'תקציבים',
+    label: 'תכניות פעולה',
     icon: Calculator,
     path: '/dashboard/budgets',
   },
