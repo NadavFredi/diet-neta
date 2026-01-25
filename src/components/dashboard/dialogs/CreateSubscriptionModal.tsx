@@ -16,7 +16,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSubscriptionTypes } from '@/store/slices/subscriptionTypesSlice';
 import { useCreateSubscriptionType } from '@/hooks/useSubscriptionTypes';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Check, Trash2 } from 'lucide-react';
+import { Plus, Check } from 'lucide-react';
 import type { Currency, DurationUnit, SubscriptionType } from '@/store/slices/subscriptionTypesSlice';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +31,6 @@ interface CreateSubscriptionModalProps {
     currency?: Currency;
     status: string;
   };
-  defaultHasSecondPeriod?: boolean;
   onConfirm: (
     subscription1: { name: string; duration: number; duration_unit: DurationUnit; price: number; currency?: Currency; status: string },
     subscription2?: { name: string; duration: number; duration_unit: DurationUnit; price: number; currency?: Currency; status: string }
@@ -57,20 +56,21 @@ export const CreateSubscriptionModal = ({
   onOpenChange,
   onConfirm,
   initialSubscription1,
-  defaultHasSecondPeriod = false,
 }: CreateSubscriptionModalProps) => {
   const { toast } = useToast();
   const dispatch = useAppDispatch();
   const { subscriptionTypes, isLoading } = useAppSelector((state) => state.subscriptionTypes);
   const createSubscriptionType = useCreateSubscriptionType();
   
-  // Selection state for two periods
-  const [selectedSubscriptionTypeId1, setSelectedSubscriptionTypeId1] = useState<string>('');
+  // Selection state for subscription
+  const [selectedSubscriptionTypeId, setSelectedSubscriptionTypeId] = useState<string>('');
   const [selectedStatus1, setSelectedStatus1] = useState<string>('פעיל');
-  
-  const [selectedSubscriptionTypeId2, setSelectedSubscriptionTypeId2] = useState<string>('');
   const [selectedStatus2, setSelectedStatus2] = useState<string>('פעיל');
-  const [hasSecondPeriod, setHasSecondPeriod] = useState(false);
+
+  // Second subscription state (manual addition)
+  const [addSecondSubscription, setAddSecondSubscription] = useState(false);
+  const [selectedSubscriptionTypeId2, setSelectedSubscriptionTypeId2] = useState<string>('');
+  const [selectedStatus2Manual, setSelectedStatus2Manual] = useState<string>('פעיל');
 
   // New subscription creation state
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -84,6 +84,15 @@ export const CreateSubscriptionModal = ({
   const [newStatus, setNewStatus] = useState<string>('פעיל');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Second subscription creation state (for new subscription type mode)
+  const [addSecondSubscriptionNew, setAddSecondSubscriptionNew] = useState(false);
+  const [newName2, setNewName2] = useState('');
+  const [newDuration2, setNewDuration2] = useState<number>(1);
+  const [newDurationUnit2, setNewDurationUnit2] = useState<DurationUnit>('months');
+  const [newPrice2, setNewPrice2] = useState<number>(0);
+  const [newCurrency2, setNewCurrency2] = useState<Currency>('ILS');
+  const [newStatus2, setNewStatus2] = useState<string>('פעיל');
+
   // Fetch subscription types when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -91,16 +100,9 @@ export const CreateSubscriptionModal = ({
     }
   }, [isOpen, dispatch]);
 
-  // Set default state for second period
-  useEffect(() => {
-    if (isOpen) {
-      setHasSecondPeriod(defaultHasSecondPeriod);
-    }
-  }, [isOpen, defaultHasSecondPeriod]);
-
   // Try to match initial subscription to an existing type
   useEffect(() => {
-    if (isOpen && initialSubscription1 && subscriptionTypes.length > 0 && !selectedSubscriptionTypeId1) {
+    if (isOpen && initialSubscription1 && subscriptionTypes.length > 0 && !selectedSubscriptionTypeId) {
       const match = subscriptionTypes.find(st => 
         st.duration === initialSubscription1.duration &&
         st.duration_unit === initialSubscription1.duration_unit &&
@@ -109,53 +111,15 @@ export const CreateSubscriptionModal = ({
       );
       
       if (match) {
-        setSelectedSubscriptionTypeId1(match.id);
+        setSelectedSubscriptionTypeId(match.id);
         setSelectedStatus1(initialSubscription1.status || 'פעיל');
-        
-        // If this subscription type has a second period, enable it
-        if (match.second_period) {
-          setHasSecondPeriod(true);
-          // Find a matching subscription type for the second period
-          const secondMatch = subscriptionTypes.find(st =>
-            st.duration === match.second_period?.duration &&
-            st.duration_unit === match.second_period?.duration_unit &&
-            st.price === match.second_period?.price &&
-            st.currency === match.second_period?.currency
-          );
-          if (secondMatch) {
-            setSelectedSubscriptionTypeId2(secondMatch.id);
-            setSelectedStatus2('ממתין');
-          }
-        }
       }
     }
-  }, [isOpen, initialSubscription1, subscriptionTypes, selectedSubscriptionTypeId1]);
+  }, [isOpen, initialSubscription1, subscriptionTypes, selectedSubscriptionTypeId]);
 
-  const selectedSubscriptionType1 = subscriptionTypes.find(
-    (st) => st.id === selectedSubscriptionTypeId1
+  const selectedSubscriptionType = subscriptionTypes.find(
+    (st) => st.id === selectedSubscriptionTypeId
   );
-
-  const selectedSubscriptionType2 = subscriptionTypes.find(
-    (st) => st.id === selectedSubscriptionTypeId2
-  );
-
-  // Auto-populate second period when a bundle subscription type is selected
-  useEffect(() => {
-    if (selectedSubscriptionType1?.second_period) {
-      setHasSecondPeriod(true);
-      // Try to find a matching subscription type for the second period
-      const secondMatch = subscriptionTypes.find(st =>
-        st.duration === selectedSubscriptionType1.second_period?.duration &&
-        st.duration_unit === selectedSubscriptionType1.second_period?.duration_unit &&
-        st.price === selectedSubscriptionType1.second_period?.price &&
-        st.currency === selectedSubscriptionType1.second_period?.currency
-      );
-      if (secondMatch) {
-        setSelectedSubscriptionTypeId2(secondMatch.id);
-        setSelectedStatus2('ממתין');
-      }
-    }
-  }, [selectedSubscriptionType1, subscriptionTypes]);
 
   // Get currency symbol for display
   const getCurrencySymbol = (currency: Currency): string => {
@@ -172,45 +136,49 @@ export const CreateSubscriptionModal = ({
   };
 
   const handleConfirm = () => {
-    if (!selectedSubscriptionType1) {
+    if (!selectedSubscriptionType) {
       toast({
         title: 'שגיאה',
-        description: 'נא לבחור מנוי לתקופה הראשונה',
+        description: 'נא לבחור מנוי',
         variant: 'destructive',
       });
       return;
     }
 
     const sub1 = {
-      name: selectedSubscriptionType1.name,
-      duration: selectedSubscriptionType1.duration,
-      duration_unit: selectedSubscriptionType1.duration_unit || 'months',
-      price: selectedSubscriptionType1.price,
-      currency: selectedSubscriptionType1.currency || 'ILS',
+      name: selectedSubscriptionType.name,
+      duration: selectedSubscriptionType.duration,
+      duration_unit: selectedSubscriptionType.duration_unit || 'months',
+      price: selectedSubscriptionType.price,
+      currency: selectedSubscriptionType.currency || 'ILS',
       status: selectedStatus1,
     };
 
+    // Check for second subscription: bundle first, then manual selection
     let sub2;
-    // If the selected subscription type has a second_period (bundle), use it
-    if (selectedSubscriptionType1.second_period) {
+    if (selectedSubscriptionType.second_period) {
+      // Bundle second period (automatic)
       sub2 = {
-        name: selectedSubscriptionType1.name + ' - תקופה שנייה',
-        duration: selectedSubscriptionType1.second_period.duration,
-        duration_unit: selectedSubscriptionType1.second_period.duration_unit || 'months',
-        price: selectedSubscriptionType1.second_period.price,
-        currency: selectedSubscriptionType1.second_period.currency || 'ILS',
+        name: selectedSubscriptionType.name + ' - תקופה שנייה',
+        duration: selectedSubscriptionType.second_period.duration,
+        duration_unit: selectedSubscriptionType.second_period.duration_unit || 'months',
+        price: selectedSubscriptionType.second_period.price,
+        currency: selectedSubscriptionType.second_period.currency || 'ILS',
         status: selectedStatus2,
       };
-    } else if (hasSecondPeriod && selectedSubscriptionType2) {
-      // Otherwise, use the manually selected second period
-      sub2 = {
-        name: selectedSubscriptionType2.name,
-        duration: selectedSubscriptionType2.duration,
-        duration_unit: selectedSubscriptionType2.duration_unit || 'months',
-        price: selectedSubscriptionType2.price,
-        currency: selectedSubscriptionType2.currency || 'ILS',
-        status: selectedStatus2,
-      };
+    } else if (addSecondSubscription && selectedSubscriptionTypeId2) {
+      // Manual second subscription selection
+      const selectedType2 = subscriptionTypes.find(st => st.id === selectedSubscriptionTypeId2);
+      if (selectedType2) {
+        sub2 = {
+          name: selectedType2.name,
+          duration: selectedType2.duration,
+          duration_unit: selectedType2.duration_unit || 'months',
+          price: selectedType2.price,
+          currency: selectedType2.currency || 'ILS',
+          status: selectedStatus2Manual,
+        };
+      }
     }
 
     onConfirm(sub1, sub2);
@@ -246,9 +214,39 @@ export const CreateSubscriptionModal = ({
       return;
     }
 
+    // Validate second subscription if enabled
+    if (addSecondSubscriptionNew) {
+      if (!newName2.trim()) {
+        toast({
+          title: 'שגיאה',
+          description: 'נא להזין שם מנוי לתקופה שנייה',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (newDuration2 <= 0) {
+        toast({
+          title: 'שגיאה',
+          description: 'נא להזין תוקף תקין לתקופה שנייה (מספר חיובי)',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (newPrice2 <= 0) {
+        toast({
+          title: 'שגיאה',
+          description: 'נא להזין מחיר תקין לתקופה שנייה (מספר חיובי)',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
-      // Create the new subscription type
+      // Create the new subscription type for first period
       await createSubscriptionType.mutateAsync({
         name: newName.trim(),
         duration: newDuration,
@@ -262,19 +260,38 @@ export const CreateSubscriptionModal = ({
         description: `סוג המנוי "${newName}" נוסף למערכת`,
       });
 
-      // For simplicity, we only use the newly created type for the FIRST period
-      // and reset the second period if active, or just set it as the first one.
-      // The user can then add a second period if they want.
-      
       const sub1 = {
         name: newName.trim(),
         duration: newDuration,
         duration_unit: newDurationUnit,
         price: newPrice,
+        currency: newCurrency,
         status: newStatus,
       };
 
-      onConfirm(sub1);
+      // Create second subscription if enabled
+      let sub2;
+      if (addSecondSubscriptionNew) {
+        // Create second subscription type
+        await createSubscriptionType.mutateAsync({
+          name: newName2.trim(),
+          duration: newDuration2,
+          duration_unit: newDurationUnit2,
+          price: newPrice2,
+          currency: newCurrency2,
+        });
+
+        sub2 = {
+          name: newName2.trim(),
+          duration: newDuration2,
+          duration_unit: newDurationUnit2,
+          price: newPrice2,
+          currency: newCurrency2,
+          status: newStatus2,
+        };
+      }
+
+      onConfirm(sub1, sub2);
       
       resetForm();
       onOpenChange(false);
@@ -290,11 +307,14 @@ export const CreateSubscriptionModal = ({
   };
 
   const resetForm = () => {
-    setSelectedSubscriptionTypeId1('');
+    setSelectedSubscriptionTypeId('');
     setSelectedStatus1('פעיל');
-    setSelectedSubscriptionTypeId2('');
     setSelectedStatus2('פעיל');
-    setHasSecondPeriod(false);
+    
+    // Reset second subscription state
+    setAddSecondSubscription(false);
+    setSelectedSubscriptionTypeId2('');
+    setSelectedStatus2Manual('פעיל');
     
     setIsCreatingNew(false);
     setNewName('');
@@ -303,6 +323,15 @@ export const CreateSubscriptionModal = ({
     setNewPrice(0);
     setNewCurrency('ILS');
     setNewStatus('פעיל');
+    
+    // Reset second subscription creation state
+    setAddSecondSubscriptionNew(false);
+    setNewName2('');
+    setNewDuration2(1);
+    setNewDurationUnit2('months');
+    setNewPrice2(0);
+    setNewCurrency2('ILS');
+    setNewStatus2('פעיל');
   };
 
   const handleCancel = () => {
@@ -404,86 +433,48 @@ export const CreateSubscriptionModal = ({
           {!isCreatingNew ? (
             <>
               {renderSubscriptionSelect(
-                "תקופה ראשונה",
-                selectedSubscriptionTypeId1,
-                setSelectedSubscriptionTypeId1,
+                "בחר מנוי",
+                selectedSubscriptionTypeId,
+                setSelectedSubscriptionTypeId,
                 selectedStatus1,
                 setSelectedStatus1,
-                selectedSubscriptionType1
+                selectedSubscriptionType
               )}
 
-              {hasSecondPeriod ? (
-                <div className="relative">
-                  {selectedSubscriptionType1?.second_period ? (
-                    // Show bundle second period (read-only)
-                    <div className="space-y-4 p-4 border rounded-lg bg-blue-50/50">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-gray-900">תקופה שנייה (חבילה)</h3>
-                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
-                          חבילה
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-gray-600 space-y-1 bg-white p-3 rounded border">
-                        <p>תוקף: {selectedSubscriptionType1.second_period.duration} {getDurationUnitLabel(selectedSubscriptionType1.second_period.duration_unit || 'months', selectedSubscriptionType1.second_period.duration)}</p>
-                        <p>מחיר: {
-                          selectedSubscriptionType1.second_period.currency === 'USD' ? '$' : 
-                          selectedSubscriptionType1.second_period.currency === 'EUR' ? '€' : '₪'
-                        }{selectedSubscriptionType1.second_period.price.toLocaleString('he-IL')}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>סטטוס</Label>
-                        <Select
-                          value={selectedStatus2}
-                          onValueChange={setSelectedStatus2}
-                          dir="rtl"
-                        >
-                          <SelectTrigger dir="rtl" className="bg-white">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent dir="rtl">
-                            <SelectItem value="ממתין">ממתין</SelectItem>
-                            <SelectItem value="פעיל">פעיל</SelectItem>
-                            <SelectItem value="בוטל">בוטל</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  ) : (
-                    // Show manual second period selection
-                    <>
-                      {renderSubscriptionSelect(
-                        "תקופה שנייה",
-                        selectedSubscriptionTypeId2,
-                        setSelectedSubscriptionTypeId2,
-                        selectedStatus2,
-                        setSelectedStatus2,
-                        selectedSubscriptionType2
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute top-4 left-4 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => {
-                          setHasSecondPeriod(false);
-                          setSelectedSubscriptionTypeId2('');
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 ml-2" />
-                        הסר
-                      </Button>
-                    </>
-                  )}
+              {/* Show second period preview if bundle exists */}
+              {selectedSubscriptionType?.second_period && (
+                <div className="space-y-4 p-4 border rounded-lg bg-blue-50/50">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900">תקופה שנייה (כלולה בחבילה)</h3>
+                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                      חבילה
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-gray-600 space-y-1 bg-white p-3 rounded border">
+                    <p>תוקף: {selectedSubscriptionType.second_period.duration} {getDurationUnitLabel(selectedSubscriptionType.second_period.duration_unit || 'months', selectedSubscriptionType.second_period.duration)}</p>
+                    <p>מחיר: {
+                      selectedSubscriptionType.second_period.currency === 'USD' ? '$' : 
+                      selectedSubscriptionType.second_period.currency === 'EUR' ? '€' : '₪'
+                    }{selectedSubscriptionType.second_period.price.toLocaleString('he-IL')}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>סטטוס תקופה שנייה</Label>
+                    <Select
+                      value={selectedStatus2}
+                      onValueChange={setSelectedStatus2}
+                      dir="rtl"
+                    >
+                      <SelectTrigger dir="rtl" className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        <SelectItem value="ממתין">ממתין</SelectItem>
+                        <SelectItem value="פעיל">פעיל</SelectItem>
+                        <SelectItem value="בוטל">בוטל</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  className="w-full border-dashed"
-                  onClick={() => setHasSecondPeriod(true)}
-                  disabled={!!selectedSubscriptionType1?.second_period}
-                >
-                  <Plus className="h-4 w-4 ml-2" />
-                  הוסף תקופה שנייה
-                </Button>
               )}
 
               <Separator className="my-4" />
@@ -599,7 +590,7 @@ export const CreateSubscriptionModal = ({
               {/* Preview of new subscription type */}
               {newName && newDuration > 0 && newPrice > 0 && (
                 <div className="p-4 bg-blue-50 rounded-lg space-y-2">
-                  <p className="text-sm font-semibold text-blue-700">סוג מנוי חדש:</p>
+                  <p className="text-sm font-semibold text-blue-700">תקופה 1 (נוכחי):</p>
                   <div className="text-sm text-blue-600 space-y-1">
                     <p>שם: {newName}</p>
                     <p>תוקף: {newDuration} {getDurationUnitLabel(newDurationUnit, newDuration)}</p>
@@ -608,6 +599,135 @@ export const CreateSubscriptionModal = ({
                   </div>
                 </div>
               )}
+
+              {/* Second subscription option for new subscription type */}
+              <Separator className="my-4" />
+              <div className="space-y-4 p-4 border rounded-lg bg-gray-50/50">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="add-second-subscription-new"
+                    checked={addSecondSubscriptionNew}
+                    onChange={(e) => setAddSecondSubscriptionNew(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <Label htmlFor="add-second-subscription-new" className="font-semibold text-gray-900 cursor-pointer">
+                    הוסף תקופה שנייה (עתידי)
+                  </Label>
+                </div>
+
+                {addSecondSubscriptionNew && (
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-name-2">שם המנוי לתקופה שנייה *</Label>
+                      <Input
+                        id="new-name-2"
+                        value={newName2}
+                        onChange={(e) => setNewName2(e.target.value)}
+                        placeholder="לדוגמה: מנוי 3 חודשים - תקופה שנייה"
+                        dir="rtl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>תוקף תקופה שנייה *</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input
+                          id="new-duration-2"
+                          type="number"
+                          min="1"
+                          value={newDuration2}
+                          onChange={(e) => setNewDuration2(parseInt(e.target.value) || 1)}
+                          dir="rtl"
+                        />
+                        <Select
+                          value={newDurationUnit2}
+                          onValueChange={(value) => setNewDurationUnit2(value as DurationUnit)}
+                        >
+                          <SelectTrigger id="new-duration-unit-2" className="w-full" dir="rtl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl">
+                            <SelectItem value="days">ימים</SelectItem>
+                            <SelectItem value="weeks">שבועות</SelectItem>
+                            <SelectItem value="months">חודשים</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {newDuration2} {getDurationUnitLabel(newDurationUnit2, newDuration2)}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="new-currency-2">מטבע *</Label>
+                        <Select
+                          value={newCurrency2}
+                          onValueChange={(value) => setNewCurrency2(value as Currency)}
+                        >
+                          <SelectTrigger id="new-currency-2" className="w-full" dir="rtl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent dir="rtl">
+                            <SelectItem value="ILS">₪ ILS (שקל)</SelectItem>
+                            <SelectItem value="USD">$ USD (דולר)</SelectItem>
+                            <SelectItem value="EUR">€ EUR (יורו)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-price-2">מחיר תקופה שנייה *</Label>
+                        <div className="relative">
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-900">
+                            {getCurrencySymbol(newCurrency2)}
+                          </span>
+                          <Input
+                            id="new-price-2"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newPrice2}
+                            onChange={(e) => setNewPrice2(parseFloat(e.target.value) || 0)}
+                            className="pr-10"
+                            dir="ltr"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Status selection for second subscription */}
+                    <div className="space-y-2">
+                      <Label htmlFor="new-status-2">סטטוס תקופה שנייה</Label>
+                      <Select
+                        value={newStatus2}
+                        onValueChange={setNewStatus2}
+                        dir="rtl"
+                      >
+                        <SelectTrigger id="new-status-2" dir="rtl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent dir="rtl">
+                          <SelectItem value="ממתין">ממתין</SelectItem>
+                          <SelectItem value="פעיל">פעיל</SelectItem>
+                          <SelectItem value="לא פעיל">לא פעיל</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Preview of second subscription */}
+                    {newName2 && newDuration2 > 0 && newPrice2 > 0 && (
+                      <div className="p-4 bg-green-50 rounded-lg space-y-2">
+                        <p className="text-sm font-semibold text-green-700">תקופה 2 (עתידי):</p>
+                        <div className="text-sm text-green-600 space-y-1">
+                          <p>שם: {newName2}</p>
+                          <p>תוקף: {newDuration2} {getDurationUnitLabel(newDurationUnit2, newDuration2)}</p>
+                          <p>מחיר: {getCurrencySymbol(newCurrency2)}{newPrice2.toLocaleString('he-IL')}</p>
+                          <p>סטטוס: {newStatus2}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Button to go back to select mode */}
               <div className="pt-2 border-t">
@@ -627,13 +747,23 @@ export const CreateSubscriptionModal = ({
             ביטול
           </Button>
           {!isCreatingNew ? (
-            <Button onClick={handleConfirm} disabled={!selectedSubscriptionType1}>
+            <Button 
+              onClick={handleConfirm} 
+              disabled={!selectedSubscriptionType}
+            >
               צור מנוי
             </Button>
           ) : (
             <Button 
               onClick={handleCreateAndConfirm} 
-              disabled={isSaving || !newName.trim() || newDuration <= 0 || newPrice <= 0 || !newStatus}
+              disabled={
+                isSaving || 
+                !newName.trim() || 
+                newDuration <= 0 || 
+                newPrice <= 0 || 
+                !newStatus ||
+                (addSecondSubscriptionNew && (!newName2.trim() || newDuration2 <= 0 || newPrice2 <= 0))
+              }
             >
               {isSaving ? 'יוצר...' : 'צור סוג מנוי ושייך ללקוח'}
             </Button>

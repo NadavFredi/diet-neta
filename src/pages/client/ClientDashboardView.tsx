@@ -253,7 +253,7 @@ export const ClientDashboardView: React.FC = () => {
               )}
             >
               <Dumbbell className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm font-medium">אימונים</span>
+              <span className="text-sm font-medium">פעילות גופנית</span>
             </button>
             <button
               onClick={() => {

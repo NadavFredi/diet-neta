@@ -48,6 +48,10 @@ export const subscriptionTypeColumns: DataTableColumn<SubscriptionType>[] = [
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
+    cell: ({ row }: { row: any }) => {
+      const name = row.original.name;
+      return <span className="text-sm font-medium">{name || '—'}</span>;
+    },
   },
   {
     id: 'duration',

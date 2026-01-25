@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, Eye, FileText, Send, ChevronDown, ChevronUp, ListOrdered, ScrollText } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, FileText, Send, ChevronDown, ChevronUp, ListOrdered, ScrollText, Save } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
@@ -17,6 +17,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget, type BudgetWithTemplates } from '@/hooks/useBudgets';
+import { useSaveActionPlan, createBudgetSnapshot } from '@/hooks/useSavedActionPlans';
+import { useBudgetDetails } from '@/hooks/useBudgetDetails';
 import { useNavigate } from 'react-router-dom';
 import { syncSupplementPlansFromBudgetUpdate } from '@/services/budgetPlanSync';
 import {
@@ -154,6 +156,7 @@ export const PlansCard = ({
   const [sendingBudgetId, setSendingBudgetId] = useState<string | null>(null);
   const [customerPhone, setCustomerPhone] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
+  const saveActionPlan = useSaveActionPlan();
 
   // Dialog states
   const [isWorkoutPlanDialogOpen, setIsWorkoutPlanDialogOpen] = useState(false);
@@ -307,6 +310,8 @@ export const PlansCard = ({
         supplements: data.supplements || [],
         eating_order: data.eating_order ?? null,
         eating_rules: data.eating_rules ?? null,
+        cardio_training: data.cardio_training ?? null,
+        interval_training: data.interval_training ?? null,
       });
 
       const supplements = (data.supplements || []).filter((s: any) => s?.name?.trim?.());
@@ -447,15 +452,89 @@ export const PlansCard = ({
                  <span>ערוך תכנית פעולה</span>
                </Button>
 
+               <Button 
+                 variant="default" 
+                 size="sm" 
+                 onClick={async () => {
+                   if (!effectiveBudgetId) return;
+                   try {
+                     const { data: budget } = await supabase
+                       .from('budgets')
+                       .select('*')
+                       .eq('id', effectiveBudgetId)
+                       .single();
+                     
+                     if (!budget) return;
+
+                     // Get nutrition and workout templates if they exist
+                     let nutritionTemplate = null;
+                     if (budget.nutrition_template_id) {
+                       const { data } = await supabase.from('nutrition_templates').select('*').eq('id', budget.nutrition_template_id).single();
+                       nutritionTemplate = data;
+                     }
+                     
+                     let workoutTemplate = null;
+                     let workoutTemplateId = budget.workout_template_id;
+                     
+                     // If budget doesn't have workout_template_id, try to get it from connected workout plan
+                     if (!workoutTemplateId) {
+                       const { data: workoutPlan } = await supabase
+                         .from('workout_plans')
+                         .select('template_id')
+                         .eq('budget_id', budget.id)
+                         .eq('is_active', true)
+                         .order('created_at', { ascending: false })
+                         .limit(1)
+                         .maybeSingle();
+                       
+                       if (workoutPlan?.template_id) {
+                         workoutTemplateId = workoutPlan.template_id;
+                       }
+                     }
+                     
+                     if (workoutTemplateId) {
+                       const { data } = await supabase.from('workout_templates').select('*').eq('id', workoutTemplateId).single();
+                       workoutTemplate = data;
+                     }
+
+                     const snapshot = createBudgetSnapshot(budget, nutritionTemplate, workoutTemplate);
+                     
+                     await saveActionPlan.mutateAsync({
+                       budget_id: budget.id,
+                       name: budget.name,
+                       description: budget.description || null,
+                       snapshot,
+                     });
+
+                     toast({
+                       title: 'הצלחה',
+                       description: 'תכנית הפעולה נשמרה בהצלחה',
+                     });
+                   } catch (error: any) {
+                     toast({
+                       title: 'שגיאה',
+                       description: error?.message || 'נכשל בשמירת תכנית הפעולה',
+                       variant: 'destructive',
+                     });
+                   }
+                 }}
+                 disabled={saveActionPlan.isPending}
+                 className="gap-2 h-8 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+               >
+                 {saveActionPlan.isPending ? (
+                   <>
+                     <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                     <span>שומר...</span>
+                   </>
+                 ) : (
+                   <>
+                     <Save className="h-3.5 w-3.5" />
+                     <span>שמור תכנית פעולה</span>
+                   </>
+                 )}
+               </Button>
+
                <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => setViewingBudgetId(effectiveBudgetId)} className="h-8 w-8 p-0">
-                      <Eye className="h-4 w-4 text-gray-500" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>תצוגה מהירה</p></TooltipContent>
-                </Tooltip>
                  {activeAssignment && (
                    <Tooltip>
                     <TooltipTrigger asChild>
@@ -521,44 +600,45 @@ export const PlansCard = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Nutrition Plan Card */}
           <div 
-            className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeNutrition ? 'bg-orange-50/30 border-orange-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
+            className={`border rounded-xl p-5 relative hover:shadow-md transition-all cursor-pointer ${activeNutrition ? 'bg-orange-50/30 border-orange-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
             onClick={() => activeNutrition ? handleEditNutrition(activeNutrition) : onAddDietPlan()}
           >
-             <div className="flex items-center gap-2 mb-2">
-                <div className={`p-1.5 rounded-md ${activeNutrition ? 'bg-orange-100 text-orange-600' : 'bg-gray-200 text-gray-500'}`}>
-                  <UtensilsCrossed className="h-4 w-4" />
-                </div>
+             <div className="flex items-center gap-3 mb-3">
                 <div className="flex-1 min-w-0">
-                  <span className={`text-sm font-semibold block ${activeNutrition ? 'text-gray-900' : 'text-gray-500'}`}>תזונה</span>
+                  <span className={`text-base font-semibold block ${activeNutrition ? 'text-gray-900' : 'text-gray-500'}`}>תזונה</span>
                   {(overviewBudget as BudgetWithTemplates | null)?.nutrition_template?.name && (
-                    <span className="text-[10px] text-slate-500 truncate block">תבנית: {(overviewBudget as BudgetWithTemplates).nutrition_template?.name}</span>
+                    <span className="text-xs text-slate-500 truncate block">תבנית: {(overviewBudget as BudgetWithTemplates).nutrition_template?.name}</span>
                   )}
                 </div>
              </div>
              {activeNutrition ? (
-               <div className="space-y-2">
-                 <p className="text-xs text-gray-600 font-medium truncate">{activeNutrition.description || 'ללא תיאור'}</p>
-                 <div className="grid grid-cols-2 gap-1.5">
-                   <div className="flex flex-col bg-white rounded-md p-1 border border-orange-100 items-center">
-                     <span className="text-[9px] text-gray-400 font-medium">קלוריות</span>
-                     <span className="text-xs font-bold text-gray-700">{activeNutrition.targets?.calories || '-'}</span>
+               <div className="space-y-3">
+                 <p className="text-sm text-gray-600 font-medium truncate">{activeNutrition.description || 'ללא תיאור'}</p>
+                 <div className="grid grid-cols-3 gap-2">
+                   <div className="flex flex-col bg-white rounded-lg p-2.5 border border-orange-100 items-center">
+                     <span className="text-xs text-gray-400 font-medium mb-1">קלוריות</span>
+                     <span className="text-base font-bold text-gray-700">{activeNutrition.targets?.calories || '-'}</span>
                    </div>
-                   <div className="flex flex-col bg-white rounded-md p-1 border border-orange-100 items-center">
-                     <span className="text-[9px] text-gray-400 font-medium">חלבון</span>
-                     <span className="text-xs font-bold text-gray-700">{activeNutrition.targets?.protein || '-'}</span>
+                   <div className="flex flex-col bg-white rounded-lg p-2.5 border border-orange-100 items-center">
+                     <span className="text-xs text-gray-400 font-medium mb-1">חלבון</span>
+                     <span className="text-base font-bold text-gray-700">{activeNutrition.targets?.protein || '-'}</span>
                    </div>
-                   <div className="flex flex-col bg-white rounded-md p-1 border border-orange-100 items-center">
-                     <span className="text-[9px] text-gray-400 font-medium">פחמימה</span>
-                     <span className="text-xs font-bold text-gray-700">{activeNutrition.targets?.carbs || '-'}</span>
+                   <div className="flex flex-col bg-white rounded-lg p-2.5 border border-orange-100 items-center">
+                     <span className="text-xs text-gray-400 font-medium mb-1">פחמימה</span>
+                     <span className="text-base font-bold text-gray-700">{activeNutrition.targets?.carbs || '-'}</span>
                    </div>
-                   <div className="flex flex-col bg-white rounded-md p-1 border border-orange-100 items-center">
-                     <span className="text-[9px] text-gray-400 font-medium">שומן</span>
-                     <span className="text-xs font-bold text-gray-700">{activeNutrition.targets?.fat || '-'}</span>
+                   <div className="flex flex-col bg-white rounded-lg p-2.5 border border-orange-100 items-center">
+                     <span className="text-xs text-gray-400 font-medium mb-1">שומן</span>
+                     <span className="text-base font-bold text-gray-700">{activeNutrition.targets?.fat || '-'}</span>
+                   </div>
+                   <div className="flex flex-col bg-white rounded-lg p-2.5 border border-orange-100 items-center col-start-2">
+                     <span className="text-xs text-gray-400 font-medium mb-1">סיבים</span>
+                     <span className="text-base font-bold text-gray-700">{activeNutrition.targets?.fiber || '-'}</span>
                    </div>
                  </div>
                </div>
              ) : (
-                <div className="h-16 flex items-center justify-center text-xs text-gray-400">לחץ להוספה</div>
+                <div className="h-20 flex items-center justify-center text-sm text-gray-400">לחץ להוספה</div>
              )}
           </div>
 
@@ -664,6 +744,43 @@ export const PlansCard = ({
                      <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{overviewBudget.steps_instructions}</p>
                    </div>
                  )}
+                 
+                 {/* Cardio and Interval Training Summary */}
+                 {(overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0) ||
+                  (overviewBudget?.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0) ? (
+                   <div className="mt-2 pt-2 border-t border-cyan-100/60 space-y-1.5">
+                     {overviewBudget.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 && (
+                       <div className="text-xs">
+                         <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">אירובי:</span>
+                         <div className="mt-0.5 space-y-0.5">
+                           {overviewBudget.cardio_training.map((cardio: any, idx: number) => (
+                             <div key={idx} className="text-[11px] text-slate-700 bg-white rounded px-1.5 py-0.5 border border-red-100">
+                               <span className="font-medium">{cardio.name || 'אירובי'}</span>
+                               {cardio.duration_minutes && <span className="mr-1"> • {cardio.duration_minutes} דקות</span>}
+                               {cardio.period_type && <span className="mr-1"> • {cardio.period_type}</span>}
+                               {cardio.notes && <span className="mr-1 text-slate-500"> • ({cardio.notes})</span>}
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+                     )}
+                     {overviewBudget.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0 && (
+                       <div className="text-xs">
+                         <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">אינטרוולים:</span>
+                         <div className="mt-0.5 space-y-0.5">
+                           {overviewBudget.interval_training.map((interval: any, idx: number) => (
+                             <div key={idx} className="text-[11px] text-slate-700 bg-white rounded px-1.5 py-0.5 border border-yellow-100">
+                               <span className="font-medium">{interval.name || 'אינטרוול'}</span>
+                               {interval.duration_minutes && <span className="mr-1"> • {interval.duration_minutes} דקות</span>}
+                               {interval.period_type && <span className="mr-1"> • {interval.period_type}</span>}
+                               {interval.notes && <span className="mr-1 text-slate-500"> • ({interval.notes})</span>}
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+                     )}
+                   </div>
+                 ) : null}
                </div>
              ) : (
                 <div className="h-16 flex items-center justify-center text-xs text-gray-400">אין יעד פעיל</div>
@@ -822,6 +939,12 @@ export const PlansCard = ({
         isOpen={!!viewingBudgetId}
         onOpenChange={(open) => { if (!open) setViewingBudgetId(null); }}
         budgetId={viewingBudgetId}
+        onEdit={() => {
+          if (viewingBudgetId) {
+            handleEditBudgetById(viewingBudgetId);
+            setViewingBudgetId(null);
+          }
+        }}
       />
 
       <SendBudgetModal

@@ -150,6 +150,7 @@ const getFieldLabel = (field: string) => {
     steps_goal: 'יעד צעדים',
     steps_instructions: 'הנחיות צעדים',
     nutrition_targets: 'ערכים תזונתיים',
+    targets: 'יעדים',
     eating_order: 'סדר ארוחות',
     eating_rules: 'כללי אכילה',
     supplements: 'תוספים',

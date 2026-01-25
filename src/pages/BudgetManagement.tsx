@@ -24,6 +24,8 @@ import { budgetColumns } from '@/components/dashboard/BudgetsDataTable';
 import { selectActiveFilters, selectGroupByKeys, selectCurrentPage, selectPageSize, setCurrentPage, setPageSize } from '@/store/slices/tableStateSlice';
 import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
 import { Pagination } from '@/components/dashboard/Pagination';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { SavedActionPlansList } from '@/components/dashboard/SavedActionPlansList';
 
 const BudgetManagement = () => {
   const navigate = useNavigate();
@@ -136,6 +138,7 @@ const BudgetManagement = () => {
   }, [budgets]);
 
   const [viewingBudgetId, setViewingBudgetId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('budgets');
 
   // Open modal when budget_id is in URL
   useEffect(() => {
@@ -173,9 +176,19 @@ const BudgetManagement = () => {
           />
         </div>
 
-        {/* Table Section - Scrollable area */}
-        <div className="flex-1 min-h-0 flex flex-col bg-white">
-          {isLoading ? (
+        {/* Tabs and Content Section */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="flex-1 min-h-0 flex flex-col bg-white">
+          {/* Tabs Header */}
+          <div className="flex-shrink-0 border-b border-slate-200 bg-white px-6 pt-4">
+            <TabsList className="w-auto">
+              <TabsTrigger value="budgets">תכניות פעולה</TabsTrigger>
+              <TabsTrigger value="saved">תכניות פעולה שמורות</TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* Tab Content - Budgets */}
+          <TabsContent value="budgets" className="flex-1 min-h-0 flex flex-col mt-0 data-[state=active]:flex">
+            {isLoading ? (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
               <div>
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
@@ -218,23 +231,29 @@ const BudgetManagement = () => {
               </div>
             </div>
           )}
-          {/* Pagination Footer - Always visible when there's data */}
-          {!isLoading && totalBudgets > 0 && (
-            <div className="flex-shrink-0">
-              <Pagination
-                currentPage={currentPage}
-                pageSize={pageSize}
-                totalItems={totalBudgets}
-                onPageChange={handlePageChange}
-                onPageSizeChange={handlePageSizeChange}
-                showIfSinglePage={isGroupingActive}
-                isLoading={isLoading}
-                singularLabel="תכנית פעולה"
-                pluralLabel="תכניות פעולה"
-              />
-            </div>
-          )}
-        </div>
+              {/* Pagination Footer - Always visible when there's data */}
+              {!isLoading && totalBudgets > 0 && (
+                <div className="flex-shrink-0">
+                  <Pagination
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    totalItems={totalBudgets}
+                    onPageChange={handlePageChange}
+                    onPageSizeChange={handlePageSizeChange}
+                    showIfSinglePage={isGroupingActive}
+                    isLoading={isLoading}
+                    singularLabel="תכנית פעולה"
+                    pluralLabel="תכניות פעולה"
+                  />
+                </div>
+              )}
+          </TabsContent>
+          
+          {/* Tab Content - Saved Plans */}
+          <TabsContent value="saved" className="flex-1 min-h-0 flex flex-col mt-0 data-[state=active]:flex">
+            <SavedActionPlansList />
+          </TabsContent>
+        </Tabs>
       </TableManagementLayout>
 
       {/* Add Budget Dialog */}
@@ -297,6 +316,15 @@ const BudgetManagement = () => {
           }
         }}
         budgetId={viewingBudgetId}
+        onEdit={() => {
+          if (viewingBudgetId) {
+            const budget = budgets.find(b => b.id === viewingBudgetId);
+            if (budget) {
+              handleEditBudget(budget);
+              setViewingBudgetId(null);
+            }
+          }
+        }}
       />
     </>
   );

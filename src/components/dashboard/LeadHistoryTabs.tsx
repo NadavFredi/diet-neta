@@ -10,6 +10,7 @@ import { DailyCheckInDetailModal } from './dialogs/DailyCheckInDetailModal';
 
 // Interfaces (keeping compatible for now, though many are unused in this component)
 import { BudgetHistoryList } from './BudgetHistoryList';
+import { SavedActionPlansList } from './SavedActionPlansList';
 
 interface WorkoutHistoryItem {
   id?: string;
@@ -163,7 +164,7 @@ export const LeadHistoryTabs = ({
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="w-full">
         <div className="relative mb-4 -mx-3 px-3">
           <div className="overflow-x-auto scrollbar-hide pb-1">
-            <TabsList className="inline-flex min-w-full lg:grid lg:grid-cols-3 h-10 bg-gray-100 rounded-lg p-1 gap-1">
+            <TabsList className="inline-flex min-w-full lg:grid lg:grid-cols-4 h-10 bg-gray-100 rounded-lg p-1 gap-1">
               <TabsTrigger 
                 value="daily-activity" 
                 className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
@@ -181,6 +182,12 @@ export const LeadHistoryTabs = ({
                 className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
               >
                 היסטוריית שינויים תכנית פעולה
+              </TabsTrigger>
+              <TabsTrigger 
+                value="saved-action-plans" 
+                className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
+              >
+                תכניות פעולה שמורות
               </TabsTrigger>
             </TabsList>
           </div>
@@ -209,6 +216,11 @@ export const LeadHistoryTabs = ({
         {/* Budget History Tab */}
         <TabsContent value="budget-history" className="mt-0">
           <BudgetHistoryList budgetId={budgetIdToDisplay} />
+        </TabsContent>
+
+        {/* Saved Action Plans Tab */}
+        <TabsContent value="saved-action-plans" className="mt-0">
+          <SavedActionPlansList leadId={leadId} customerId={customerId} />
         </TabsContent>
       </Tabs>
 

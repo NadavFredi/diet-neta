@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints, Edit2, ChevronDown, Check, ChevronsUpDown, Heart, Zap } from 'lucide-react';
+import { Plus, Trash2, Dumbbell, Apple, Pill, Footprints, Edit2, ChevronDown, Check, ChevronsUpDown, Heart } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -32,8 +32,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useNutritionTemplates } from '@/hooks/useNutritionTemplates';
-import { useWorkoutTemplates } from '@/hooks/useWorkoutTemplates';
+import { useNutritionTemplates, useNutritionTemplate } from '@/hooks/useNutritionTemplates';
+import { useWorkoutTemplates, useWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
 import { useSupplementTemplates } from '@/hooks/useSupplementTemplates';
 import { useNavigate } from 'react-router-dom';
 import type { Budget, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
@@ -43,6 +43,7 @@ import { AddWorkoutTemplateDialog } from '@/components/dashboard/dialogs/AddWork
 import { AddNutritionTemplateDialog } from '@/components/dashboard/dialogs/AddNutritionTemplateDialog';
 import { EditWorkoutTemplateDialog } from '@/components/dashboard/dialogs/EditWorkoutTemplateDialog';
 import { EditNutritionTemplateDialog } from '@/components/dashboard/dialogs/EditNutritionTemplateDialog';
+import { AddSupplementDialog } from '@/components/dashboard/dialogs/AddSupplementDialog';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useCreateWorkoutTemplate, useUpdateWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
 import { useCreateNutritionTemplate, useUpdateNutritionTemplate } from '@/hooks/useNutritionTemplates';
@@ -60,7 +61,7 @@ interface BudgetFormProps {
 // Macro Split Bar Component
 const MacroSplitBar = ({ protein, carbs, fat }: { protein: number; carbs: number; fat: number }) => {
   const totalCalories = protein * 4 + carbs * 4 + fat * 9;
-  
+
   if (totalCalories === 0) {
     return (
       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -76,16 +77,16 @@ const MacroSplitBar = ({ protein, carbs, fat }: { protein: number; carbs: number
   return (
     <div className="space-y-2">
       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex">
-        <div 
-          className="bg-blue-500 transition-all duration-300" 
+        <div
+          className="bg-blue-500 transition-all duration-300"
           style={{ width: `${proteinPercent}%` }}
         />
-        <div 
-          className="bg-green-500 transition-all duration-300" 
+        <div
+          className="bg-green-500 transition-all duration-300"
           style={{ width: `${carbsPercent}%` }}
         />
-        <div 
-          className="bg-amber-500 transition-all duration-300" 
+        <div
+          className="bg-amber-500 transition-all duration-300"
           style={{ width: `${fatPercent}%` }}
         />
       </div>
@@ -115,106 +116,91 @@ interface SupplementRowProps {
   templates: any[];
   onUpdate: (index: number, field: keyof Supplement, value: string) => void;
   onRemove: (index: number) => void;
+  onEdit: (index: number) => void;
 }
 
-const SupplementRow = ({ index, supplement, templates, onUpdate, onRemove }: SupplementRowProps) => {
-  const [open, setOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-
+const SupplementRow = ({ index, supplement, templates, onUpdate, onRemove, onEdit }: SupplementRowProps) => {
   return (
     <div className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
-      <div className="flex-1 grid grid-cols-3 gap-1.5">
-        <div className="relative">
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={open}
-                className="w-full h-8 justify-between bg-white border-0 text-xs text-slate-900 px-3"
-              >
-                <span className="truncate">{supplement.name || "בחר תוסף..."}</span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[200px] p-0" align="start">
-              <Command>
-                <CommandInput 
-                  placeholder="חפש תוסף..." 
-                  value={searchTerm}
-                  onValueChange={setSearchTerm}
-                  className="text-right" 
-                />
-                <CommandList>
-                  <CommandEmpty>
-                    {!searchTerm && "לא נמצאו תוצאות"}
-                    {searchTerm && "לא נמצאו תוצאות. בחר מתוך הרשימה"}
-                  </CommandEmpty>
-                  <CommandGroup>
-                    {templates.map((template) => (
-                      <CommandItem
-                        key={template.id}
-                        value={template.name}
-                        onSelect={() => {
-                          onUpdate(index, 'name', template.name);
-                          if (template.supplements && template.supplements.length > 0) {
-                            const firstSup = template.supplements[0];
-                            if (firstSup.dosage) onUpdate(index, 'dosage', firstSup.dosage);
-                            if (firstSup.timing) onUpdate(index, 'timing', firstSup.timing);
-                          }
-                          setOpen(false);
-                        }}
-                        className="text-right flex-row-reverse"
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            supplement.name === template.name ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {template.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+      <div className="flex-1 space-y-2">
+        <div className="grid grid-cols-3 gap-1.5">
+          <div className="space-y-1">
+            <span className="text-xs text-slate-500">שם תוסף</span>
+            <div className="text-xs font-medium text-slate-900">{supplement.name || '-'}</div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-slate-500">מינון</span>
+            <div className="text-xs font-medium text-slate-900">{supplement.dosage || '-'}</div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-slate-500">זמן נטילה</span>
+            <div className="text-xs font-medium text-slate-900">{supplement.timing || '-'}</div>
+          </div>
         </div>
-        
-        <Input
-          value={supplement.dosage}
-          onChange={(e) => onUpdate(index, 'dosage', e.target.value)}
-          placeholder="מינון"
-          className="h-8 bg-white border-0 text-xs"
-          dir="rtl"
-        />
-        <Input
-          value={supplement.timing}
-          onChange={(e) => onUpdate(index, 'timing', e.target.value)}
-          placeholder="זמן נטילה"
-          className="h-8 bg-white border-0 text-xs"
-          dir="rtl"
-        />
+        {(supplement.link1 || supplement.link2) && (
+          <div className="grid grid-cols-2 gap-1.5 pt-1">
+            {supplement.link1 && (
+              <div className="space-y-1">
+                <span className="text-xs text-slate-500">קישור 1</span>
+                <a 
+                  href={supplement.link1} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 underline truncate block"
+                  dir="ltr"
+                >
+                  {supplement.link1}
+                </a>
+              </div>
+            )}
+            {supplement.link2 && (
+              <div className="space-y-1">
+                <span className="text-xs text-slate-500">קישור 2</span>
+                <a 
+                  href={supplement.link2} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 underline truncate block"
+                  dir="ltr"
+                >
+                  {supplement.link2}
+                </a>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={() => onRemove(index)}
-        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
+      <div className="flex gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onEdit(index)}
+          className="h-8 w-8 text-slate-400 hover:text-[#5B6FB9] hover:bg-[#5B6FB9]/10"
+          title="ערוך תוסף"
+        >
+          <Edit2 className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onRemove(index)}
+          className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+          title="מחק תוסף"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
     </div>
   );
 };
 
-interface CardioTrainingRowProps {
-  cardio: {
+interface WorkoutRowProps {
+  workout: {
     id: string;
     name: string;
-    type: string;
+    type: string; // 'erobi' or 'intervals'
     duration_minutes: number;
     workouts_per_week: number;
     period_type?: string; // 'לשבוע' or 'ליום'
@@ -224,13 +210,25 @@ interface CardioTrainingRowProps {
   onRemove: (id: string) => void;
 }
 
-const CardioTrainingRow = ({ cardio, onUpdate, onRemove }: CardioTrainingRowProps) => {
+const WorkoutRow = ({ workout, onUpdate, onRemove }: WorkoutRowProps) => {
   return (
     <div className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
-      <div className="flex-1 grid grid-cols-4 gap-1.5">
+      <div className="flex-1 grid grid-cols-5 gap-1.5">
+        <Select
+          value={workout.type || 'erobi'}
+          onValueChange={(value) => onUpdate(workout.id, 'type', value)}
+        >
+          <SelectTrigger className="h-8 bg-white border-0 text-xs justify-between" dir="rtl">
+            <SelectValue>{workout.type === 'intervals' ? 'אינטרוולים' : 'אירובי'}</SelectValue>
+          </SelectTrigger>
+          <SelectContent dir="rtl">
+            <SelectItem value="erobi">אירובי</SelectItem>
+            <SelectItem value="intervals">אינטרוולים</SelectItem>
+          </SelectContent>
+        </Select>
         <Input
-          value={cardio.name}
-          onChange={(e) => onUpdate(cardio.id, 'name', e.target.value)}
+          value={workout.name}
+          onChange={(e) => onUpdate(workout.id, 'name', e.target.value)}
           placeholder="שם האימון"
           className="h-8 bg-white border-0 text-xs"
           dir="rtl"
@@ -238,18 +236,18 @@ const CardioTrainingRow = ({ cardio, onUpdate, onRemove }: CardioTrainingRowProp
         <Input
           type="number"
           min="0"
-          value={cardio.duration_minutes || ''}
-          onChange={(e) => onUpdate(cardio.id, 'duration_minutes', parseInt(e.target.value) || 0)}
+          value={workout.duration_minutes || ''}
+          onChange={(e) => onUpdate(workout.id, 'duration_minutes', parseInt(e.target.value) || 0)}
           placeholder="דקות"
           className="h-8 bg-white border-0 text-xs"
           dir="ltr"
         />
         <Select
-          value={cardio.period_type || 'לשבוע'}
-          onValueChange={(value) => onUpdate(cardio.id, 'period_type', value)}
+          value={workout.period_type || 'לשבוע'}
+          onValueChange={(value) => onUpdate(workout.id, 'period_type', value)}
         >
           <SelectTrigger className="h-8 bg-white border-0 text-xs justify-between" dir="rtl">
-            <SelectValue>{cardio.period_type || 'לשבוע'}</SelectValue>
+            <SelectValue>{workout.period_type || 'לשבוע'}</SelectValue>
           </SelectTrigger>
           <SelectContent dir="rtl">
             <SelectItem value="לשבוע">לשבוע</SelectItem>
@@ -257,8 +255,8 @@ const CardioTrainingRow = ({ cardio, onUpdate, onRemove }: CardioTrainingRowProp
           </SelectContent>
         </Select>
         <Input
-          value={cardio.notes}
-          onChange={(e) => onUpdate(cardio.id, 'notes', e.target.value)}
+          value={workout.notes}
+          onChange={(e) => onUpdate(workout.id, 'notes', e.target.value)}
           placeholder="הנחיות"
           className="h-8 bg-white border-0 text-xs"
           dir="rtl"
@@ -268,74 +266,7 @@ const CardioTrainingRow = ({ cardio, onUpdate, onRemove }: CardioTrainingRowProp
         type="button"
         variant="ghost"
         size="icon"
-        onClick={() => onRemove(cardio.id)}
-        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
-    </div>
-  );
-};
-
-interface IntervalTrainingRowProps {
-  interval: {
-    id: string;
-    name: string;
-    type: string;
-    duration_minutes: number;
-    workouts_per_week: number;
-    period_type?: string; // 'לשבוע' or 'ליום'
-    notes: string;
-  };
-  onUpdate: (id: string, field: string, value: string | number) => void;
-  onRemove: (id: string) => void;
-}
-
-const IntervalTrainingRow = ({ interval, onUpdate, onRemove }: IntervalTrainingRowProps) => {
-  return (
-    <div className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
-      <div className="flex-1 grid grid-cols-4 gap-1.5">
-        <Input
-          value={interval.name}
-          onChange={(e) => onUpdate(interval.id, 'name', e.target.value)}
-          placeholder="שם האימון"
-          className="h-8 bg-white border-0 text-xs"
-          dir="rtl"
-        />
-        <Input
-          type="number"
-          min="0"
-          value={interval.duration_minutes || ''}
-          onChange={(e) => onUpdate(interval.id, 'duration_minutes', parseInt(e.target.value) || 0)}
-          placeholder="דקות"
-          className="h-8 bg-white border-0 text-xs"
-          dir="ltr"
-        />
-        <Select
-          value={interval.period_type || 'לשבוע'}
-          onValueChange={(value) => onUpdate(interval.id, 'period_type', value)}
-        >
-          <SelectTrigger className="h-8 bg-white border-0 text-xs justify-between" dir="rtl">
-            <SelectValue>{interval.period_type || 'לשבוע'}</SelectValue>
-          </SelectTrigger>
-          <SelectContent dir="rtl">
-            <SelectItem value="לשבוע">לשבוע</SelectItem>
-            <SelectItem value="ליום">ליום</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input
-          value={interval.notes}
-          onChange={(e) => onUpdate(interval.id, 'notes', e.target.value)}
-          placeholder="הנחיות"
-          className="h-8 bg-white border-0 text-xs"
-          dir="rtl"
-        />
-      </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={() => onRemove(interval.id)}
+        onClick={() => onRemove(workout.id)}
         className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
       >
         <Trash2 className="h-3.5 w-3.5" />
@@ -349,21 +280,35 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAppSelector((state) => state.auth);
-  
+
   // Only managers/admins can edit templates
   const canEditTemplates = user?.role === 'admin' || user?.role === 'user';
-  
+
   const { data: nutritionTemplatesData } = useNutritionTemplates();
   const { data: workoutTemplatesData } = useWorkoutTemplates();
   const { data: supplementTemplatesData } = useSupplementTemplates();
   const nutritionTemplates = nutritionTemplatesData?.data || [];
   const workoutTemplates = workoutTemplatesData?.data || [];
   const supplementTemplates = supplementTemplatesData?.data || [];
+  
+  // Fetch full template data for linked templates when editing (in case they're not in paginated list)
+  const linkedNutritionTemplateId = (initialData as BudgetWithTemplates | undefined)?.nutrition_template_id;
+  const linkedWorkoutTemplateId = (initialData as BudgetWithTemplates | undefined)?.workout_template_id;
+  const { data: linkedNutritionTemplate } = useNutritionTemplate(
+    linkedNutritionTemplateId && !nutritionTemplates.some(t => t.id === linkedNutritionTemplateId) 
+      ? linkedNutritionTemplateId 
+      : null
+  );
+  const { data: linkedWorkoutTemplate } = useWorkoutTemplate(
+    linkedWorkoutTemplateId && !workoutTemplates.some(t => t.id === linkedWorkoutTemplateId) 
+      ? linkedWorkoutTemplateId 
+      : null
+  );
   const createWorkoutTemplate = useCreateWorkoutTemplate();
   const createNutritionTemplate = useCreateNutritionTemplate();
   const updateWorkoutTemplate = useUpdateWorkoutTemplate();
   const updateNutritionTemplate = useUpdateNutritionTemplate();
-  
+
   // Template creation/editing dialog states
   const [isWorkoutTemplateDialogOpen, setIsWorkoutTemplateDialogOpen] = useState(false);
   const [isNutritionTemplateDialogOpen, setIsNutritionTemplateDialogOpen] = useState(false);
@@ -371,12 +316,16 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const [isEditNutritionTemplateDialogOpen, setIsEditNutritionTemplateDialogOpen] = useState(false);
   const [editingWorkoutTemplate, setEditingWorkoutTemplate] = useState<any>(null);
   const [editingNutritionTemplate, setEditingNutritionTemplate] = useState<any>(null);
-  
-  
+
+  // Supplement dialog state
+  const [isAddSupplementDialogOpen, setIsAddSupplementDialogOpen] = useState(false);
+  const [editingSupplementIndex, setEditingSupplementIndex] = useState<number | null>(null);
+
+
   // Basic info
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  
+
   // Nutrition
   const [nutritionTemplateId, setNutritionTemplateId] = useState<string | null>(null);
   const [nutritionTargets, setNutritionTargets] = useState<NutritionTargets>({
@@ -387,42 +336,33 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     fiber_min: 20,
     water_min: 2.5,
   });
-  
+
   // Steps
   const [stepsGoal, setStepsGoal] = useState(0);
   const [stepsInstructions, setStepsInstructions] = useState('');
-  
+
   // Workout
   const [workoutTemplateId, setWorkoutTemplateId] = useState<string | null>(null);
-  
+
   // Supplements
   const [supplementTemplateId, setSupplementTemplateId] = useState<string | null>(null);
   const [supplements, setSupplements] = useState<Supplement[]>([]);
-  
+
   // Guidelines
   const [eatingOrder, setEatingOrder] = useState('');
   const [eatingRules, setEatingRules] = useState('');
-  
-  // Cardio Training - Array of workouts
-  const [cardioTrainings, setCardioTrainings] = useState<Array<{
+
+  // Unified Workout Training - Array of workouts (erobi or intervals)
+  const [workoutTrainings, setWorkoutTrainings] = useState<Array<{
     id: string;
     name: string;
-    type: string;
+    type: string; // 'erobi' or 'intervals'
     duration_minutes: number;
     workouts_per_week: number;
+    period_type?: string; // 'לשבוע' or 'ליום'
     notes: string;
   }>>([]);
-  
-  // Interval Training - Array of workouts
-  const [intervalTrainings, setIntervalTrainings] = useState<Array<{
-    id: string;
-    name: string;
-    type: string;
-    duration_minutes: number;
-    workouts_per_week: number;
-    notes: string;
-  }>>([]);
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize form with initial data
@@ -446,38 +386,49 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       setSupplements(initialData.supplements || []);
       setEatingOrder(initialData.eating_order || '');
       setEatingRules(initialData.eating_rules || '');
-      
-      // Initialize cardio trainings array
+
+      // Initialize unified workout trainings array (combining cardio and interval)
       const cardioData = initialData.cardio_training;
-      if (Array.isArray(cardioData) && cardioData.length > 0) {
-        setCardioTrainings(cardioData.map((item, index) => ({
-          id: item.id || `cardio-${Date.now()}-${index}`,
-          name: item.name || '',
-          type: item.type || '',
-          duration_minutes: item.duration_minutes || 0,
-          workouts_per_week: 1,
-          period_type: (item as any).period_type || 'לשבוע', // Default to 'לשבוע' if not set
-          notes: item.notes || '',
-        })));
-      } else {
-        setCardioTrainings([]);
-      }
-      
-      // Initialize interval trainings array
       const intervalData = initialData.interval_training;
-      if (Array.isArray(intervalData) && intervalData.length > 0) {
-        setIntervalTrainings(intervalData.map((item, index) => ({
-          id: item.id || `interval-${Date.now()}-${index}`,
-          name: item.name || '',
-          type: item.type || '',
-          duration_minutes: item.duration_minutes || 0,
-          workouts_per_week: 1,
-          period_type: (item as any).period_type || 'לשבוע', // Default to 'לשבוע' if not set
-          notes: item.notes || '',
-        })));
-      } else {
-        setIntervalTrainings([]);
+      const allWorkouts: Array<{
+        id: string;
+        name: string;
+        type: string;
+        duration_minutes: number;
+        workouts_per_week: number;
+        period_type?: string;
+        notes: string;
+      }> = [];
+
+      if (Array.isArray(cardioData) && cardioData.length > 0) {
+        cardioData.forEach((item, index) => {
+          allWorkouts.push({
+            id: item.id || `workout-${Date.now()}-${index}`,
+            name: item.name || '',
+            type: 'erobi', // Set type to 'erobi' for cardio
+            duration_minutes: item.duration_minutes || 0,
+            workouts_per_week: 1,
+            period_type: (item as any).period_type || 'לשבוע',
+            notes: item.notes || '',
+          });
+        });
       }
+
+      if (Array.isArray(intervalData) && intervalData.length > 0) {
+        intervalData.forEach((item, index) => {
+          allWorkouts.push({
+            id: item.id || `workout-${Date.now()}-${index + (cardioData?.length || 0)}`,
+            name: item.name || '',
+            type: 'intervals', // Set type to 'intervals' for interval training
+            duration_minutes: item.duration_minutes || 0,
+            workouts_per_week: 1,
+            period_type: (item as any).period_type || 'לשבוע',
+            notes: item.notes || '',
+          });
+        });
+      }
+
+      setWorkoutTrainings(allWorkouts);
     }
   }, [initialData]);
 
@@ -486,20 +437,44 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const workoutOptions = useMemo((): Array<{ id: string; name: string }> => {
     const list: Array<{ id: string; name: string }> = (workoutTemplates || []).map((t) => ({ id: t.id, name: t.name }));
     const b = initialData as BudgetWithTemplates | undefined;
-    if (b?.workout_template_id && b?.workout_template && !list.some((t) => t.id === b.workout_template_id)) {
-      list.unshift({ id: b.workout_template.id, name: b.workout_template.name });
+    // Ensure linked template appears in options even if not in paginated list
+    if (b?.workout_template_id) {
+      const existing = list.find((t) => t.id === b.workout_template_id);
+      if (!existing) {
+        // Try to get template from joined data, fetched template, or create placeholder
+        if (b?.workout_template) {
+          list.unshift({ id: b.workout_template.id, name: b.workout_template.name });
+        } else if (linkedWorkoutTemplate) {
+          list.unshift({ id: linkedWorkoutTemplate.id, name: linkedWorkoutTemplate.name });
+        } else {
+          // Template ID exists but object not loaded - add placeholder
+          list.unshift({ id: b.workout_template_id, name: `תבנית אימונים (${b.workout_template_id.slice(0, 8)}...)` });
+        }
+      }
     }
     return list;
-  }, [workoutTemplates, initialData]);
+  }, [workoutTemplates, initialData, linkedWorkoutTemplate]);
 
   const nutritionOptions = useMemo((): Array<{ id: string; name: string }> => {
     const list: Array<{ id: string; name: string }> = (nutritionTemplates || []).map((t) => ({ id: t.id, name: t.name }));
     const b = initialData as BudgetWithTemplates | undefined;
-    if (b?.nutrition_template_id && b?.nutrition_template && !list.some((t) => t.id === b.nutrition_template_id)) {
-      list.unshift({ id: b.nutrition_template.id, name: b.nutrition_template.name });
+    // Ensure linked template appears in options even if not in paginated list
+    if (b?.nutrition_template_id) {
+      const existing = list.find((t) => t.id === b.nutrition_template_id);
+      if (!existing) {
+        // Try to get template from joined data, fetched template, or create placeholder
+        if (b?.nutrition_template) {
+          list.unshift({ id: b.nutrition_template.id, name: b.nutrition_template.name });
+        } else if (linkedNutritionTemplate) {
+          list.unshift({ id: linkedNutritionTemplate.id, name: linkedNutritionTemplate.name });
+        } else {
+          // Template ID exists but object not loaded - add placeholder
+          list.unshift({ id: b.nutrition_template_id, name: `תבנית תזונה (${b.nutrition_template_id.slice(0, 8)}...)` });
+        }
+      }
     }
     return list;
-  }, [nutritionTemplates, initialData]);
+  }, [nutritionTemplates, initialData, linkedNutritionTemplate]);
 
   // Handle nutrition template selection
   const handleNutritionTemplateChange = (templateId: string) => {
@@ -515,7 +490,20 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       });
     } else {
       setNutritionTemplateId(templateId);
-      const template = nutritionTemplates.find((t) => t.id === templateId);
+      // Try to find template in the templates list first
+      let template = nutritionTemplates.find((t) => t.id === templateId);
+      
+      // If not found, check if it's the linked template from initialData
+      if (!template) {
+        const b = initialData as BudgetWithTemplates | undefined;
+        if (b?.nutrition_template_id === templateId && b?.nutrition_template) {
+          // For linked templates, we need to fetch the full template data to get targets
+          // For now, keep existing targets if they were set from initialData
+          // The targets should already be set from initialData.nutrition_targets
+          return;
+        }
+      }
+      
       if (template?.targets) {
         setNutritionTargets({
           calories: template.targets.calories || 0,
@@ -532,7 +520,27 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
 
   // Supplements management
   const addSupplement = () => {
-    setSupplements([...supplements, { name: '', dosage: '', timing: '' }]);
+    setEditingSupplementIndex(null);
+    setIsAddSupplementDialogOpen(true);
+  };
+
+  const handleSaveSupplement = (supplement: Supplement) => {
+    if (editingSupplementIndex !== null) {
+      // Update existing supplement
+      const updated = [...supplements];
+      updated[editingSupplementIndex] = supplement;
+      setSupplements(updated);
+    } else {
+      // Add new supplement
+      setSupplements([...supplements, supplement]);
+    }
+    setIsAddSupplementDialogOpen(false);
+    setEditingSupplementIndex(null);
+  };
+
+  const handleEditSupplement = (index: number) => {
+    setEditingSupplementIndex(index);
+    setIsAddSupplementDialogOpen(true);
   };
 
   const removeSupplement = (index: number) => {
@@ -545,50 +553,26 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     setSupplements(updated);
   };
 
-  // Cardio Training management
-  const addCardioTraining = () => {
-    const newCardio = {
-      id: `cardio-${Date.now()}-${Math.random()}`,
+  // Unified Workout Training management
+  const addWorkoutTraining = () => {
+    const newWorkout = {
+      id: `workout-${Date.now()}-${Math.random()}`,
       name: '',
-      type: '',
+      type: 'erobi', // Default to 'erobi'
       duration_minutes: 0,
       workouts_per_week: 1,
       period_type: 'לשבוע', // Default to 'לשבוע'
       notes: '',
     };
-    setCardioTrainings([...cardioTrainings, newCardio]);
+    setWorkoutTrainings([...workoutTrainings, newWorkout]);
   };
 
-  const removeCardioTraining = (id: string) => {
-    setCardioTrainings(cardioTrainings.filter((item) => item.id !== id));
+  const removeWorkoutTraining = (id: string) => {
+    setWorkoutTrainings(workoutTrainings.filter((item) => item.id !== id));
   };
 
-  const updateCardioTraining = (id: string, field: string, value: string | number) => {
-    setCardioTrainings(cardioTrainings.map((item) =>
-      item.id === id ? { ...item, [field]: value } : item
-    ));
-  };
-
-  // Interval Training management
-  const addIntervalTraining = () => {
-    const newInterval = {
-      id: `interval-${Date.now()}-${Math.random()}`,
-      name: '',
-      type: '',
-      duration_minutes: 0,
-      workouts_per_week: 1,
-      period_type: 'לשבוע', // Default to 'לשבוע'
-      notes: '',
-    };
-    setIntervalTrainings([...intervalTrainings, newInterval]);
-  };
-
-  const removeIntervalTraining = (id: string) => {
-    setIntervalTrainings(intervalTrainings.filter((item) => item.id !== id));
-  };
-
-  const updateIntervalTraining = (id: string, field: string, value: string | number) => {
-    setIntervalTrainings(intervalTrainings.map((item) =>
+  const updateWorkoutTraining = (id: string, field: string, value: string | number) => {
+    setWorkoutTrainings(workoutTrainings.map((item) =>
       item.id === id ? { ...item, [field]: value } : item
     ));
   };
@@ -611,47 +595,57 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         supplements: supplements.filter((s) => s.name.trim() !== ''),
         eating_order: eatingOrder || null,
         eating_rules: eatingRules || null,
-        cardio_training: cardioTrainings.filter((c) => c.name.trim() || c.duration_minutes > 0).length > 0 
-          ? cardioTrainings.filter((c) => c.name.trim() || c.duration_minutes > 0).map((c) => ({
-              ...c,
-              workouts_per_week: 1, // Always 1 week
-            }))
+        cardio_training: workoutTrainings.filter((w) => w.type === 'erobi' && (w.name.trim() || w.duration_minutes > 0)).length > 0
+          ? workoutTrainings.filter((w) => w.type === 'erobi' && (w.name.trim() || w.duration_minutes > 0)).map((w) => ({
+            id: w.id,
+            name: w.name,
+            type: w.type,
+            duration_minutes: w.duration_minutes,
+            workouts_per_week: 1, // Always 1 week
+            period_type: w.period_type,
+            notes: w.notes,
+          }))
           : null,
-        interval_training: intervalTrainings.filter((i) => i.name.trim() || i.duration_minutes > 0).length > 0 
-          ? intervalTrainings.filter((i) => i.name.trim() || i.duration_minutes > 0).map((i) => ({
-              ...i,
-              workouts_per_week: 1, // Always 1 week
-            }))
+        interval_training: workoutTrainings.filter((w) => w.type === 'intervals' && (w.name.trim() || w.duration_minutes > 0)).length > 0
+          ? workoutTrainings.filter((w) => w.type === 'intervals' && (w.name.trim() || w.duration_minutes > 0)).map((w) => ({
+            id: w.id,
+            name: w.name,
+            type: w.type,
+            duration_minutes: w.duration_minutes,
+            workouts_per_week: 1, // Always 1 week
+            period_type: w.period_type,
+            notes: w.notes,
+          }))
           : null,
       };
-      
+
       const savedBudget = await onSave(budgetData);
-      
+
       // Get the budget ID - use initialData.id for edit mode, or savedBudget.id if returned
       const budgetId = (mode === 'edit' && initialData?.id) ? initialData.id : (savedBudget as Budget | undefined)?.id;
-      
-      
+
+
     } catch (error) {
       // Silent failure
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   // Handle creating new workout template
   const handleCreateWorkoutTemplate = async (data: any) => {
     try {
       const newTemplate = await createWorkoutTemplate.mutateAsync(data);
-      
+
       // Refresh templates list
       queryClient.invalidateQueries({ queryKey: ['workoutTemplates'] });
-      
+
       // Auto-select the newly created template
       setWorkoutTemplateId(newTemplate.id);
-      
+
       // Close dialog
       setIsWorkoutTemplateDialogOpen(false);
-      
+
       toast({
         title: 'הצלחה',
         description: 'תבנית האימונים נוצרה בהצלחה ונבחרה אוטומטית',
@@ -664,18 +658,18 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       });
     }
   };
-  
+
   // Handle creating new nutrition template
   const handleCreateNutritionTemplate = async (data: any) => {
     try {
       const newTemplate = await createNutritionTemplate.mutateAsync(data);
-      
+
       // Refresh templates list
       queryClient.invalidateQueries({ queryKey: ['nutritionTemplates'] });
-      
+
       // Auto-select the newly created template and load its targets
       setNutritionTemplateId(newTemplate.id);
-      
+
       if (newTemplate.targets) {
         setNutritionTargets({
           calories: newTemplate.targets.calories || 0,
@@ -686,10 +680,10 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           water_min: nutritionTargets.water_min || 2.5,
         });
       }
-      
+
       // Close dialog
       setIsNutritionTemplateDialogOpen(false);
-      
+
       toast({
         title: 'הצלחה',
         description: 'תבנית התזונה נוצרה בהצלחה ונבחרה אוטומטית',
@@ -703,7 +697,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     }
   };
 
-  
+
   // Handle editing workout template
   const handleEditWorkoutTemplate = () => {
     if (!workoutTemplateId) return;
@@ -713,7 +707,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       setIsEditWorkoutTemplateDialogOpen(true);
     }
   };
-  
+
   // Handle saving edited workout template
   const handleUpdateWorkoutTemplate = async (data: any) => {
     if (!editingWorkoutTemplate) return;
@@ -722,18 +716,18 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         templateId: editingWorkoutTemplate.id,
         ...data,
       });
-      
+
       // Close only the edit template dialog first, keep budget dialog open
       setIsEditWorkoutTemplateDialogOpen(false);
       setEditingWorkoutTemplate(null);
-      
+
       // Refresh templates list without closing parent dialog
       // Use refetchQueries instead of invalidateQueries to avoid triggering unnecessary re-renders
       await queryClient.refetchQueries({ queryKey: ['workoutTemplates'] });
-      
+
       // The template list will refresh automatically, and the Select will show updated name
       // The pencil button will show the updated template data
-      
+
       toast({
         title: 'הצלחה',
         description: 'תבנית האימונים עודכנה בהצלחה',
@@ -746,7 +740,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       });
     }
   };
-  
+
   // Handle editing nutrition template
   const handleEditNutritionTemplate = () => {
     if (!nutritionTemplateId) return;
@@ -757,7 +751,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     }
   };
 
-  
+
   // Handle saving edited nutrition template
   const handleUpdateNutritionTemplate = async (data: any) => {
     if (!editingNutritionTemplate) return;
@@ -766,11 +760,11 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         templateId: editingNutritionTemplate.id,
         ...data,
       });
-      
+
       // Close only the edit template dialog first, keep budget dialog open
       setIsEditNutritionTemplateDialogOpen(false);
       setEditingNutritionTemplate(null);
-      
+
       // Update nutrition targets if they changed
       if (updated?.targets) {
         setNutritionTargets({
@@ -782,14 +776,14 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           water_min: nutritionTargets.water_min || 2.5,
         });
       }
-      
+
       // Refresh templates list without closing parent dialog
       // Use refetchQueries instead of invalidateQueries to avoid triggering unnecessary re-renders
       await queryClient.refetchQueries({ queryKey: ['nutritionTemplates'] });
-      
+
       // The template list will refresh automatically, and the Select will show updated name
       // The pencil button will show the updated template data
-      
+
       toast({
         title: 'הצלחה',
         description: 'תבנית התזונה עודכנה בהצלחה',
@@ -804,7 +798,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   };
 
 
-  
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2.5" dir="rtl" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
@@ -833,7 +827,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   dir="rtl"
                 />
               </div>
-              
+
               <div className="space-y-1.5">
                 <Label htmlFor="description" className="text-sm font-medium text-slate-500">תיאור</Label>
                 <Textarea
@@ -856,36 +850,38 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-base font-semibold text-slate-900">הנחיות אכילה</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="eating_order" className="text-sm font-medium text-slate-500">סדר האכילה</Label>
-                <Textarea
-                  id="eating_order"
-                  value={eatingOrder}
-                  onChange={(e) => setEatingOrder(e.target.value)}
-                  placeholder="לדוגמה: מתחילה בירקות, ממשיכה לחלבון ומסיימת בפחמימה"
-                  className={cn(
-                    "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
-                    "text-slate-900 font-medium text-sm"
-                  )}
-                  dir="rtl"
-                />
+            <CardContent className="px-4 pb-4">
+              <div className="flex flex-row gap-4">
+                <div className="flex-1 space-y-1.5">
+                  <Label htmlFor="eating_order" className="text-sm font-medium text-slate-500">סדר האכילה</Label>
+                  <Textarea
+                    id="eating_order"
+                    value={eatingOrder}
+                    onChange={(e) => setEatingOrder(e.target.value)}
+                    placeholder="לדוגמה: מתחילה בירקות, ממשיכה לחלבון ומסיימת בפחמימה"
+                    className={cn(
+                      "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
+                      "text-slate-900 font-medium text-sm"
+                    )}
+                    dir="rtl"
+                  />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <Label htmlFor="eating_rules" className="text-sm font-medium text-slate-500">כללי אכילה</Label>
+                  <Textarea
+                    id="eating_rules"
+                    value={eatingRules}
+                    onChange={(e) => setEatingRules(e.target.value)}
+                    placeholder="לדוגמה: לא תאכלי פחמימה לבדה - עם חלבון, סיבים ושומן"
+                    className={cn(
+                      "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
+                      "text-slate-900 font-medium text-sm"
+                    )}
+                    dir="rtl"
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="eating_rules" className="text-sm font-medium text-slate-500">כללי אכילה</Label>
-                <Textarea
-                  id="eating_rules"
-                  value={eatingRules}
-                  onChange={(e) => setEatingRules(e.target.value)}
-                  placeholder="לדוגמה: לא תאכלי פחמימה לבדה - עם חלבון, סיבים ושומן"
-                  className={cn(
-                    "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
-                    "text-slate-900 font-medium text-sm"
-                  )}
-                  dir="rtl"
-                />
-              </div>
-              
+
             </CardContent>
           </Card>
 
@@ -913,7 +909,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                     dir="ltr"
                   />
                 </div>
-                
+
                 <div className="space-y-1.5">
                   <Label htmlFor="steps_instructions" className="text-sm font-medium text-slate-500">הוראות צעדים</Label>
                   <Textarea
@@ -1069,6 +1065,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                         templates={supplementTemplates}
                         onUpdate={updateSupplement}
                         onRemove={removeSupplement}
+                        onEdit={handleEditSupplement}
                       />
                     ))}
                     <Button
@@ -1086,92 +1083,46 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
               </div>
             </div>
 
-            {/* Cardio Training Section - Under Supplements */}
+            {/* Unified Workout Training Section - Under Supplements */}
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
                 <Heart className="h-3.5 w-3.5 text-slate-400" />
-                אימון אירובי
+                פעילות גופנית
               </Label>
               <div className="space-y-2">
-                {cardioTrainings.length === 0 ? (
+                {workoutTrainings.length === 0 ? (
                   <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
-                    <p className="text-xs text-slate-400 mb-2">אין אימונים אירוביים</p>
+                    <p className="text-xs text-slate-400 mb-2">אין פעילות גופנית</p>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={addCardioTraining}
+                      onClick={addWorkoutTraining}
                       className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
                     >
                       <Plus className="h-4 w-4 ml-1" />
-                      הוסף אימון אירובי
+                      הוסף פעילות גופנית
                     </Button>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {cardioTrainings.map((cardio) => (
-                      <CardioTrainingRow
-                        key={cardio.id}
-                        cardio={cardio}
-                        onUpdate={updateCardioTraining}
-                        onRemove={removeCardioTraining}
+                    {workoutTrainings.map((workout) => (
+                      <WorkoutRow
+                        key={workout.id}
+                        workout={workout}
+                        onUpdate={updateWorkoutTraining}
+                        onRemove={removeWorkoutTraining}
                       />
                     ))}
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={addCardioTraining}
+                      onClick={addWorkoutTraining}
                       className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
                     >
                       <Plus className="h-4 w-4 ml-1" />
-                      הוסף אימון אירובי נוסף
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Interval Training Section - Under Cardio */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Zap className="h-3.5 w-3.5 text-slate-400" />
-                אימון אינטרוולים
-              </Label>
-              <div className="space-y-2">
-                {intervalTrainings.length === 0 ? (
-                  <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
-                    <p className="text-xs text-slate-400 mb-2">אין אימוני אינטרוולים</p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={addIntervalTraining}
-                      className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                    >
-                      <Plus className="h-4 w-4 ml-1" />
-                      הוסף אימון אינטרוולים
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {intervalTrainings.map((interval) => (
-                      <IntervalTrainingRow
-                        key={interval.id}
-                        interval={interval}
-                        onUpdate={updateIntervalTraining}
-                        onRemove={removeIntervalTraining}
-                      />
-                    ))}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={addIntervalTraining}
-                      className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                    >
-                      <Plus className="h-4 w-4 ml-1" />
-                      הוסף אימון אינטרוולים נוסף
+                      הוסף פעילות גופנית נוספת
                     </Button>
                   </div>
                 )}
@@ -1183,8 +1134,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
 
       {/* Footer Actions - Bottom Left (RTL) */}
       <div className="flex flex-row-reverse justify-start gap-2 pt-2.5 pb-1 border-t border-slate-100">
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           disabled={isSubmitting || !name.trim()}
           className={cn(
             "h-10 px-6 bg-gradient-to-r from-[#5B6FB9] to-[#5B6FB9]/90 text-white font-semibold text-sm",
@@ -1194,24 +1145,24 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         >
           {isSubmitting ? 'שומר...' : mode === 'create' ? 'צור תכנית פעולה' : 'שמור שינויים'}
         </Button>
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={onCancel} 
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
           disabled={isSubmitting}
           className="h-10 px-5 text-sm text-slate-600 hover:text-slate-900 border-slate-200 hover:border-slate-300"
         >
           ביטול
         </Button>
       </div>
-      
+
       {/* Template Creation Dialogs */}
       <AddWorkoutTemplateDialog
         isOpen={isWorkoutTemplateDialogOpen}
         onOpenChange={setIsWorkoutTemplateDialogOpen}
         onSave={handleCreateWorkoutTemplate}
       />
-      
+
       <AddNutritionTemplateDialog
         isOpen={isNutritionTemplateDialogOpen}
         onOpenChange={setIsNutritionTemplateDialogOpen}
@@ -1225,12 +1176,21 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         editingTemplate={editingWorkoutTemplate}
         onSave={handleUpdateWorkoutTemplate}
       />
-      
+
       <EditNutritionTemplateDialog
         isOpen={isEditNutritionTemplateDialogOpen}
         onOpenChange={setIsEditNutritionTemplateDialogOpen}
         editingTemplate={editingNutritionTemplate}
         onSave={handleUpdateNutritionTemplate}
+      />
+
+      {/* Add/Edit Supplement Dialog */}
+      <AddSupplementDialog
+        isOpen={isAddSupplementDialogOpen}
+        onOpenChange={setIsAddSupplementDialogOpen}
+        onSave={handleSaveSupplement}
+        initialData={editingSupplementIndex !== null ? supplements[editingSupplementIndex] : null}
+        supplementTemplates={supplementTemplates}
       />
 
     </form>

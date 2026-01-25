@@ -197,6 +197,62 @@ export const useBudget = (budgetId: string | null) => {
         .single();
 
       if (error) throw error;
+      
+      // If budget doesn't have template_id set, try to infer from connected plans
+      if (data) {
+        // Check for connected workout plan
+        if (!data.workout_template_id) {
+          const { data: workoutPlan } = await supabase
+            .from('workout_plans')
+            .select('template_id')
+            .eq('budget_id', budgetId)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (workoutPlan?.template_id) {
+            // Fetch the template to include in the response
+            const { data: template } = await supabase
+              .from('workout_templates')
+              .select('id, name')
+              .eq('id', workoutPlan.template_id)
+              .single();
+            
+            if (template) {
+              (data as any).workout_template_id = template.id;
+              (data as any).workout_template = template;
+            }
+          }
+        }
+        
+        // Check for connected nutrition plan
+        if (!data.nutrition_template_id) {
+          const { data: nutritionPlan } = await supabase
+            .from('nutrition_plans')
+            .select('template_id')
+            .eq('budget_id', budgetId)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (nutritionPlan?.template_id) {
+            // Fetch the template to include in the response
+            const { data: template } = await supabase
+              .from('nutrition_templates')
+              .select('id, name')
+              .eq('id', nutritionPlan.template_id)
+              .single();
+            
+            if (template) {
+              (data as any).nutrition_template_id = template.id;
+              (data as any).nutrition_template = template;
+            }
+          }
+        }
+      }
+      
       return data as BudgetWithTemplates | null;
     },
     enabled: !!budgetId && !!user?.id,
@@ -379,6 +435,15 @@ export const useUpdateBudget = () => {
       // Explicitly ensure supplement_template_id is included if provided (even if null)
       if ('supplement_template_id' in updates) {
         updateData.supplement_template_id = updates.supplement_template_id ?? null;
+      }
+      
+      // Explicitly ensure cardio_training and interval_training are included if provided (even if null)
+      if ('cardio_training' in updates) {
+        updateData.cardio_training = updates.cardio_training ?? null;
+      }
+      
+      if ('interval_training' in updates) {
+        updateData.interval_training = updates.interval_training ?? null;
       }
 
       const { data, error } = await supabase
