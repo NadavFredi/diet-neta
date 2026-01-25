@@ -180,7 +180,7 @@ export const LeadHistoryTabs = ({
                 value="budget-history" 
                 className="whitespace-nowrap px-3 lg:px-2 text-xs sm:text-sm font-semibold rounded-md data-[state=active]:bg-[#E0F2FE] data-[state=active]:text-[#0C4A6E] data-[state=active]:shadow-sm data-[state=inactive]:text-[#0C4A6E]/70 data-[state=inactive]:hover:bg-[#E0F2FE]/50 transition-all flex-shrink-0"
               >
-                היסטוריית תכנית פעולה
+                היסטוריית שינויים תכנית פעולה
               </TabsTrigger>
             </TabsList>
           </div>

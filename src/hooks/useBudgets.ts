@@ -289,8 +289,8 @@ export const useCreateBudget = () => {
       supplements: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
-      cardio_training?: CardioTraining | null;
-      interval_training?: IntervalTraining | null;
+      cardio_training?: CardioTraining[] | null;
+      interval_training?: IntervalTraining[] | null;
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -356,8 +356,8 @@ export const useUpdateBudget = () => {
       supplements?: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
-      cardio_training?: CardioTraining | null;
-      interval_training?: IntervalTraining | null;
+      cardio_training?: CardioTraining[] | null;
+      interval_training?: IntervalTraining[] | null;
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');

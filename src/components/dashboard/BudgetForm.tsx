@@ -210,6 +210,140 @@ const SupplementRow = ({ index, supplement, templates, onUpdate, onRemove }: Sup
   );
 };
 
+interface CardioTrainingRowProps {
+  cardio: {
+    id: string;
+    name: string;
+    type: string;
+    duration_minutes: number;
+    workouts_per_week: number;
+    period_type?: string; // 'לשבוע' or 'ליום'
+    notes: string;
+  };
+  onUpdate: (id: string, field: string, value: string | number) => void;
+  onRemove: (id: string) => void;
+}
+
+const CardioTrainingRow = ({ cardio, onUpdate, onRemove }: CardioTrainingRowProps) => {
+  return (
+    <div className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
+      <div className="flex-1 grid grid-cols-4 gap-1.5">
+        <Input
+          value={cardio.name}
+          onChange={(e) => onUpdate(cardio.id, 'name', e.target.value)}
+          placeholder="שם האימון"
+          className="h-8 bg-white border-0 text-xs"
+          dir="rtl"
+        />
+        <Input
+          type="number"
+          min="0"
+          value={cardio.duration_minutes || ''}
+          onChange={(e) => onUpdate(cardio.id, 'duration_minutes', parseInt(e.target.value) || 0)}
+          placeholder="דקות"
+          className="h-8 bg-white border-0 text-xs"
+          dir="ltr"
+        />
+        <Select
+          value={cardio.period_type || 'לשבוע'}
+          onValueChange={(value) => onUpdate(cardio.id, 'period_type', value)}
+        >
+          <SelectTrigger className="h-8 bg-white border-0 text-xs justify-between" dir="rtl">
+            <SelectValue>{cardio.period_type || 'לשבוע'}</SelectValue>
+          </SelectTrigger>
+          <SelectContent dir="rtl">
+            <SelectItem value="לשבוע">לשבוע</SelectItem>
+            <SelectItem value="ליום">ליום</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          value={cardio.notes}
+          onChange={(e) => onUpdate(cardio.id, 'notes', e.target.value)}
+          placeholder="הנחיות"
+          className="h-8 bg-white border-0 text-xs"
+          dir="rtl"
+        />
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={() => onRemove(cardio.id)}
+        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+};
+
+interface IntervalTrainingRowProps {
+  interval: {
+    id: string;
+    name: string;
+    type: string;
+    duration_minutes: number;
+    workouts_per_week: number;
+    period_type?: string; // 'לשבוע' or 'ליום'
+    notes: string;
+  };
+  onUpdate: (id: string, field: string, value: string | number) => void;
+  onRemove: (id: string) => void;
+}
+
+const IntervalTrainingRow = ({ interval, onUpdate, onRemove }: IntervalTrainingRowProps) => {
+  return (
+    <div className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
+      <div className="flex-1 grid grid-cols-4 gap-1.5">
+        <Input
+          value={interval.name}
+          onChange={(e) => onUpdate(interval.id, 'name', e.target.value)}
+          placeholder="שם האימון"
+          className="h-8 bg-white border-0 text-xs"
+          dir="rtl"
+        />
+        <Input
+          type="number"
+          min="0"
+          value={interval.duration_minutes || ''}
+          onChange={(e) => onUpdate(interval.id, 'duration_minutes', parseInt(e.target.value) || 0)}
+          placeholder="דקות"
+          className="h-8 bg-white border-0 text-xs"
+          dir="ltr"
+        />
+        <Select
+          value={interval.period_type || 'לשבוע'}
+          onValueChange={(value) => onUpdate(interval.id, 'period_type', value)}
+        >
+          <SelectTrigger className="h-8 bg-white border-0 text-xs justify-between" dir="rtl">
+            <SelectValue>{interval.period_type || 'לשבוע'}</SelectValue>
+          </SelectTrigger>
+          <SelectContent dir="rtl">
+            <SelectItem value="לשבוע">לשבוע</SelectItem>
+            <SelectItem value="ליום">ליום</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          value={interval.notes}
+          onChange={(e) => onUpdate(interval.id, 'notes', e.target.value)}
+          placeholder="הנחיות"
+          className="h-8 bg-white border-0 text-xs"
+          dir="rtl"
+        />
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={() => onRemove(interval.id)}
+        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+};
+
 export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignment = false }: BudgetFormProps) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -321,7 +455,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           name: item.name || '',
           type: item.type || '',
           duration_minutes: item.duration_minutes || 0,
-          workouts_per_week: item.workouts_per_week || 0,
+          workouts_per_week: 1,
+          period_type: (item as any).period_type || 'לשבוע', // Default to 'לשבוע' if not set
           notes: item.notes || '',
         })));
       } else {
@@ -336,7 +471,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           name: item.name || '',
           type: item.type || '',
           duration_minutes: item.duration_minutes || 0,
-          workouts_per_week: item.workouts_per_week || 0,
+          workouts_per_week: 1,
+          period_type: (item as any).period_type || 'לשבוע', // Default to 'לשבוע' if not set
           notes: item.notes || '',
         })));
       } else {
@@ -409,6 +545,54 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     setSupplements(updated);
   };
 
+  // Cardio Training management
+  const addCardioTraining = () => {
+    const newCardio = {
+      id: `cardio-${Date.now()}-${Math.random()}`,
+      name: '',
+      type: '',
+      duration_minutes: 0,
+      workouts_per_week: 1,
+      period_type: 'לשבוע', // Default to 'לשבוע'
+      notes: '',
+    };
+    setCardioTrainings([...cardioTrainings, newCardio]);
+  };
+
+  const removeCardioTraining = (id: string) => {
+    setCardioTrainings(cardioTrainings.filter((item) => item.id !== id));
+  };
+
+  const updateCardioTraining = (id: string, field: string, value: string | number) => {
+    setCardioTrainings(cardioTrainings.map((item) =>
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+  };
+
+  // Interval Training management
+  const addIntervalTraining = () => {
+    const newInterval = {
+      id: `interval-${Date.now()}-${Math.random()}`,
+      name: '',
+      type: '',
+      duration_minutes: 0,
+      workouts_per_week: 1,
+      period_type: 'לשבוע', // Default to 'לשבוע'
+      notes: '',
+    };
+    setIntervalTrainings([...intervalTrainings, newInterval]);
+  };
+
+  const removeIntervalTraining = (id: string) => {
+    setIntervalTrainings(intervalTrainings.filter((item) => item.id !== id));
+  };
+
+  const updateIntervalTraining = (id: string, field: string, value: string | number) => {
+    setIntervalTrainings(intervalTrainings.map((item) =>
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation(); // Prevent event bubbling
@@ -427,8 +611,18 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         supplements: supplements.filter((s) => s.name.trim() !== ''),
         eating_order: eatingOrder || null,
         eating_rules: eatingRules || null,
-        cardio_training: (cardioTraining.name.trim() || cardioTraining.type.trim() || cardioTraining.duration_minutes > 0 || cardioTraining.workouts_per_week > 0) ? cardioTraining : null,
-        interval_training: (intervalTraining.name.trim() || intervalTraining.type.trim() || intervalTraining.duration_minutes > 0 || intervalTraining.workouts_per_week > 0) ? intervalTraining : null,
+        cardio_training: cardioTrainings.filter((c) => c.name.trim() || c.duration_minutes > 0).length > 0 
+          ? cardioTrainings.filter((c) => c.name.trim() || c.duration_minutes > 0).map((c) => ({
+              ...c,
+              workouts_per_week: 1, // Always 1 week
+            }))
+          : null,
+        interval_training: intervalTrainings.filter((i) => i.name.trim() || i.duration_minutes > 0).length > 0 
+          ? intervalTrainings.filter((i) => i.name.trim() || i.duration_minutes > 0).map((i) => ({
+              ...i,
+              workouts_per_week: 1, // Always 1 week
+            }))
+          : null,
       };
       
       const savedBudget = await onSave(budgetData);
@@ -695,63 +889,23 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
             </CardContent>
           </Card>
 
-          {/* Cardio Training Card */}
+          {/* Steps Section - Moved to Left Column */}
           <Card className="bg-white border-0 shadow-sm rounded-xl">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                <Heart className="h-4 w-4 text-slate-400" />
-                אימון אירובי
+                <Footprints className="h-4 w-4 text-slate-400" />
+                יעד צעדים יומי
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 px-4 pb-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="cardio_name" className="text-sm font-medium text-slate-500">שם האימון</Label>
-                <Input
-                  id="cardio_name"
-                  value={cardioTraining.name}
-                  onChange={(e) => setCardioTraining({ ...cardioTraining, name: e.target.value })}
-                  placeholder="לדוגמה: הליכה מהירה, ריצה קלה"
-                  className={cn(
-                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all",
-                    "text-slate-900 font-medium text-sm"
-                  )}
-                  dir="rtl"
-                />
-              </div>
-              
-              <div className="space-y-1.5">
-                <Label htmlFor="cardio_type" className="text-sm font-medium text-slate-500">סוג אירובי</Label>
-                <Select
-                  value={cardioTraining.type || 'none'}
-                  onValueChange={(value) => setCardioTraining({ ...cardioTraining, type: value === 'none' ? '' : value })}
-                >
-                  <SelectTrigger className={cn(
-                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                    "text-slate-900 font-medium text-sm"
-                  )} dir="rtl">
-                    <SelectValue placeholder="בחר סוג אירובי" />
-                  </SelectTrigger>
-                  <SelectContent dir="rtl">
-                    <SelectItem value="none">ללא בחירה</SelectItem>
-                    <SelectItem value="Walking">הליכה</SelectItem>
-                    <SelectItem value="Running">ריצה</SelectItem>
-                    <SelectItem value="Cycling">רכיבה על אופניים</SelectItem>
-                    <SelectItem value="Elliptical">אליפטיקל</SelectItem>
-                    <SelectItem value="Swimming">שחייה</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="cardio_duration" className="text-sm font-medium text-slate-500">משך האימון (דקות)</Label>
+                  <Label className="text-sm font-medium text-slate-500">יעד צעדים</Label>
                   <Input
-                    id="cardio_duration"
                     type="number"
-                    min="0"
-                    value={cardioTraining.duration_minutes || ''}
-                    onChange={(e) => setCardioTraining({ ...cardioTraining, duration_minutes: parseInt(e.target.value) || 0 })}
-                    placeholder="0"
+                    value={stepsGoal || ''}
+                    onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
+                    placeholder="לדוגמה: 7000"
                     className={cn(
                       "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
                       "text-slate-900 font-medium text-sm"
@@ -761,144 +915,19 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                 </div>
                 
                 <div className="space-y-1.5">
-                  <Label htmlFor="cardio_workouts_per_week" className="text-sm font-medium text-slate-500">אימונים בשבוע</Label>
-                  <Input
-                    id="cardio_workouts_per_week"
-                    type="number"
-                    min="0"
-                    max="7"
-                    value={cardioTraining.workouts_per_week || ''}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      setCardioTraining({ ...cardioTraining, workouts_per_week: Math.min(7, Math.max(0, val)) });
-                    }}
-                    placeholder="0"
+                  <Label htmlFor="steps_instructions" className="text-sm font-medium text-slate-500">הוראות צעדים</Label>
+                  <Textarea
+                    id="steps_instructions"
+                    value={stepsInstructions}
+                    onChange={(e) => setStepsInstructions(e.target.value)}
+                    placeholder="הוראות והנחיות נוספות לגבי הצעדים היומיים"
                     className={cn(
-                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                      "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
                       "text-slate-900 font-medium text-sm"
                     )}
-                    dir="ltr"
+                    dir="rtl"
                   />
                 </div>
-              </div>
-              
-              <div className="space-y-1.5">
-                <Label htmlFor="cardio_notes" className="text-sm font-medium text-slate-500">הנחיות והסברים</Label>
-                <Textarea
-                  id="cardio_notes"
-                  value={cardioTraining.notes}
-                  onChange={(e) => setCardioTraining({ ...cardioTraining, notes: e.target.value })}
-                  placeholder="הנחיות, הוראות ביצוע או טיפים נוספים"
-                  className={cn(
-                    "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
-                    "text-slate-900 font-medium text-sm"
-                  )}
-                  dir="rtl"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Interval Training Card */}
-          <Card className="bg-white border-0 shadow-sm rounded-xl">
-            <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                <Zap className="h-4 w-4 text-slate-400" />
-                אימון אינטרוולים
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="interval_name" className="text-sm font-medium text-slate-500">שם האימון</Label>
-                <Input
-                  id="interval_name"
-                  value={intervalTraining.name}
-                  onChange={(e) => setIntervalTraining({ ...intervalTraining, name: e.target.value })}
-                  placeholder="לדוגמה: HIIT, Tabata"
-                  className={cn(
-                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all",
-                    "text-slate-900 font-medium text-sm"
-                  )}
-                  dir="rtl"
-                />
-              </div>
-              
-              <div className="space-y-1.5">
-                <Label htmlFor="interval_type" className="text-sm font-medium text-slate-500">סוג אינטרוולים</Label>
-                <Select
-                  value={intervalTraining.type || 'none'}
-                  onValueChange={(value) => setIntervalTraining({ ...intervalTraining, type: value === 'none' ? '' : value })}
-                >
-                  <SelectTrigger className={cn(
-                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                    "text-slate-900 font-medium text-sm"
-                  )} dir="rtl">
-                    <SelectValue placeholder="בחר סוג אינטרוולים" />
-                  </SelectTrigger>
-                  <SelectContent dir="rtl">
-                    <SelectItem value="none">ללא בחירה</SelectItem>
-                    <SelectItem value="HIIT">HIIT</SelectItem>
-                    <SelectItem value="Tabata">Tabata</SelectItem>
-                    <SelectItem value="Circuit">Circuit</SelectItem>
-                    <SelectItem value="AMRAP">AMRAP</SelectItem>
-                    <SelectItem value="EMOM">EMOM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="interval_duration" className="text-sm font-medium text-slate-500">משך האימון (דקות)</Label>
-                  <Input
-                    id="interval_duration"
-                    type="number"
-                    min="0"
-                    value={intervalTraining.duration_minutes || ''}
-                    onChange={(e) => setIntervalTraining({ ...intervalTraining, duration_minutes: parseInt(e.target.value) || 0 })}
-                    placeholder="0"
-                    className={cn(
-                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-medium text-sm"
-                    )}
-                    dir="ltr"
-                  />
-                </div>
-                
-                <div className="space-y-1.5">
-                  <Label htmlFor="interval_workouts_per_week" className="text-sm font-medium text-slate-500">אימונים בשבוע</Label>
-                  <Input
-                    id="interval_workouts_per_week"
-                    type="number"
-                    min="0"
-                    max="7"
-                    value={intervalTraining.workouts_per_week || ''}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      setIntervalTraining({ ...intervalTraining, workouts_per_week: Math.min(7, Math.max(0, val)) });
-                    }}
-                    placeholder="0"
-                    className={cn(
-                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-medium text-sm"
-                    )}
-                    dir="ltr"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-1.5">
-                <Label htmlFor="interval_notes" className="text-sm font-medium text-slate-500">הנחיות והסברים</Label>
-                <Textarea
-                  id="interval_notes"
-                  value={intervalTraining.notes}
-                  onChange={(e) => setIntervalTraining({ ...intervalTraining, notes: e.target.value })}
-                  placeholder="לדוגמה: יחס עבודה/מנוחה, רמת עצימות, הוראות מיוחדות"
-                  className={cn(
-                    "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
-                    "text-slate-900 font-medium text-sm"
-                  )}
-                  dir="rtl"
-                />
               </div>
             </CardContent>
           </Card>
@@ -1010,7 +1039,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
               </div>
             </div>
 
-
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
                 <Pill className="h-3.5 w-3.5 text-slate-400" />
@@ -1058,37 +1086,96 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
               </div>
             </div>
 
+            {/* Cardio Training Section - Under Supplements */}
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Footprints className="h-3.5 w-3.5 text-slate-400" />
-                יעד צעדים יומי
+                <Heart className="h-3.5 w-3.5 text-slate-400" />
+                אימון אירובי
               </Label>
-              <Input
-                type="number"
-                value={stepsGoal || ''}
-                onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
-                placeholder="לדוגמה: 7000"
-                className={cn(
-                  "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                  "text-slate-900 font-medium text-sm"
+              <div className="space-y-2">
+                {cardioTrainings.length === 0 ? (
+                  <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
+                    <p className="text-xs text-slate-400 mb-2">אין אימונים אירוביים</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={addCardioTraining}
+                      className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                    >
+                      <Plus className="h-4 w-4 ml-1" />
+                      הוסף אימון אירובי
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {cardioTrainings.map((cardio) => (
+                      <CardioTrainingRow
+                        key={cardio.id}
+                        cardio={cardio}
+                        onUpdate={updateCardioTraining}
+                        onRemove={removeCardioTraining}
+                      />
+                    ))}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={addCardioTraining}
+                      className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                    >
+                      <Plus className="h-4 w-4 ml-1" />
+                      הוסף אימון אירובי נוסף
+                    </Button>
+                  </div>
                 )}
-                dir="ltr"
-              />
+              </div>
             </div>
-            
+
+            {/* Interval Training Section - Under Cardio */}
             <div className="space-y-1.5">
-              <Label htmlFor="steps_instructions" className="text-sm font-medium text-slate-500">הוראות צעדים</Label>
-              <Textarea
-                id="steps_instructions"
-                value={stepsInstructions}
-                onChange={(e) => setStepsInstructions(e.target.value)}
-                placeholder="הוראות והנחיות נוספות לגבי הצעדים היומיים"
-                className={cn(
-                  "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
-                  "text-slate-900 font-medium text-sm"
+              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                <Zap className="h-3.5 w-3.5 text-slate-400" />
+                אימון אינטרוולים
+              </Label>
+              <div className="space-y-2">
+                {intervalTrainings.length === 0 ? (
+                  <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
+                    <p className="text-xs text-slate-400 mb-2">אין אימוני אינטרוולים</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={addIntervalTraining}
+                      className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                    >
+                      <Plus className="h-4 w-4 ml-1" />
+                      הוסף אימון אינטרוולים
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {intervalTrainings.map((interval) => (
+                      <IntervalTrainingRow
+                        key={interval.id}
+                        interval={interval}
+                        onUpdate={updateIntervalTraining}
+                        onRemove={removeIntervalTraining}
+                      />
+                    ))}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={addIntervalTraining}
+                      className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                    >
+                      <Plus className="h-4 w-4 ml-1" />
+                      הוסף אימון אינטרוולים נוסף
+                    </Button>
+                  </div>
                 )}
-                dir="rtl"
-              />
+              </div>
             </div>
           </CardContent>
         </Card>

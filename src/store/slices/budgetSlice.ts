@@ -34,6 +34,7 @@ export interface CardioTraining {
   type: string; // e.g., "Walking", "Running", "Cycling", "Elliptical", "Swimming"
   duration_minutes: number;
   workouts_per_week: number; // 1-7
+  period_type?: string; // 'לשבוע' or 'ליום'
   notes: string;
 }
 
@@ -43,6 +44,7 @@ export interface IntervalTraining {
   type: string; // e.g., "HIIT", "Tabata", "Circuit"
   duration_minutes: number;
   workouts_per_week: number; // 1-7
+  period_type?: string; // 'לשבוע' or 'ליום'
   notes: string;
 }
 
