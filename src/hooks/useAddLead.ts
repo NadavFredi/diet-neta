@@ -24,7 +24,6 @@ export interface AddLeadFormData {
   fitness_goal: string;
   activity_level: string;
   preferred_time: string;
-  notes: string;
   subscription_type_id: string;
   budget_id: string;
 }
@@ -45,7 +44,6 @@ const initialFormData: AddLeadFormData = {
   fitness_goal: '',
   activity_level: '',
   preferred_time: '',
-  notes: '',
   subscription_type_id: '',
   budget_id: '',
 };
@@ -251,14 +249,51 @@ export const useAddLead = () => {
           const today = new Date();
           joinDate = today.toISOString().split('T')[0];
           
+          // Helper to calculate expiration date
+          const calculateExpiration = (start: Date, duration: number, unit: string) => {
+            const date = new Date(start);
+            switch (unit) {
+              case 'days': date.setDate(date.getDate() + duration); break;
+              case 'weeks': date.setDate(date.getDate() + (duration * 7)); break;
+              case 'months': default: date.setMonth(date.getMonth() + duration); break;
+            }
+            return date.toISOString().split('T')[0];
+          };
+          
+          const durationUnit = subscriptionType.duration_unit || 'months';
+          const sub1Expiration = calculateExpiration(today, subscriptionType.duration, durationUnit);
+          
           subscriptionData = {
             months: subscriptionType.duration,
+            duration_unit: durationUnit,
             initialPrice: subscriptionType.price,
+            currency: subscriptionType.currency || 'ILS',
             renewalPrice: 0, // Can be set later
             subscription_status: 'active',
             subscription_type_id: subscriptionType.id,
             subscription_type_name: subscriptionType.name,
+            expirationDate: sub1Expiration,
           };
+          
+          // Check for second period subscription
+          if (subscriptionType.second_period) {
+            const secondPeriod = subscriptionType.second_period;
+            const sub2Duration = secondPeriod.duration || 0;
+            const sub2DurationUnit = secondPeriod.duration_unit || 'months';
+            const sub2Start = new Date(sub1Expiration);
+            const sub2StartStr = sub2Start.toISOString().split('T')[0];
+            const sub2Expiration = calculateExpiration(sub2Start, sub2Duration, sub2DurationUnit);
+            
+            subscriptionData.future_subscription = {
+              joinDate: sub2StartStr,
+              months: sub2Duration,
+              duration_unit: sub2DurationUnit,
+              initialPrice: secondPeriod.price || 0,
+              currency: secondPeriod.currency || subscriptionType.currency || 'ILS',
+              expirationDate: sub2Expiration,
+              status: 'ממתין', // Second period starts as pending
+            };
+          }
         }
       }
 
@@ -277,7 +312,6 @@ export const useAddLead = () => {
         fitness_goal: formData.fitness_goal || null,
         activity_level: formData.activity_level || null,
         preferred_time: formData.preferred_time || null,
-        notes: formData.notes.trim() || null,
         join_date: joinDate,
         // Set default JSONB values
         daily_protocol: {},

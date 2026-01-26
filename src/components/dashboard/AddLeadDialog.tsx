@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { useAddLead } from '@/hooks/useAddLead';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 import {
@@ -493,21 +492,6 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                   </p>
                 )}
               </div>
-            </div>
-
-            {/* Notes Section */}
-            <div className="space-y-1 pt-1 pb-0">
-              <Label htmlFor="notes" className="text-right text-sm">
-                הערות
-              </Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                placeholder="הכנס הערות נוספות..."
-                className="text-right min-h-[50px]"
-                rows={2}
-              />
             </div>
           </div>
           </div>
