@@ -15,12 +15,12 @@ import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, type FilterConfig } from '@/hooks/useSavedViews';
 import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 import { useToast } from '@/hooks/use-toast';
-import { 
+import {
   selectActiveFilters,
   selectColumnVisibility,
   selectColumnOrder,
   selectColumnSizing,
-  selectFilterGroup, 
+  selectFilterGroup,
   selectSearchQuery,
   selectCurrentPage,
   selectPageSize,
@@ -41,7 +41,7 @@ export const useCollectionsManagement = () => {
   const viewId = searchParams.get('view_id');
   const { user } = useAppSelector((state) => state.auth);
   const { toast } = useToast();
-  
+
   // Get state from Redux tableStateSlice
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'collections'));
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'collections'));
@@ -71,7 +71,7 @@ export const useCollectionsManagement = () => {
   // Initialize table state for collections with column IDs (excluding ID column)
   useEffect(() => {
     const columnIds = ['created_at', 'due_date', 'status', 'customer', 'lead', 'total_amount', 'paid_amount', 'remaining_amount', 'description'];
-    dispatch(initializeTableState({ 
+    dispatch(initializeTableState({
       resourceKey: 'collections',
       columnIds,
     }));
@@ -130,12 +130,12 @@ export const useCollectionsManagement = () => {
       await bulkDeleteCollections.mutateAsync(payload.ids);
       toast({
         title: 'הצלחה',
-        description: 'הגבייות נמחקו בהצלחה',
+        description: 'הגביות נמחקו בהצלחה',
       });
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל במחיקת הגבייות',
+        description: error?.message || 'נכשל במחיקת הגביות',
         variant: 'destructive',
       });
     }

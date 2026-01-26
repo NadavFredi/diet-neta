@@ -131,12 +131,12 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
 
       toast({
         title: 'הצלחה',
-        description: `נמחקו ${selectedCollections.size} גבייות בהצלחה`,
+        description: `נמחקו ${selectedCollections.size} גביות בהצלחה`,
       });
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל במחיקת הגבייות',
+        description: error?.message || 'נכשל במחיקת הגביות',
         variant: 'destructive',
       });
     }
@@ -177,7 +177,7 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-100">
                 <Receipt className="h-4 w-4 text-purple-600" />
               </div>
-              <h3 className="text-sm font-bold text-gray-900">גבייות</h3>
+              <h3 className="text-sm font-bold text-gray-900">גביות</h3>
             </div>
             <div className="flex items-center gap-2">
               {selectedCollections.size > 0 && (
@@ -206,12 +206,12 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
           {isLoading ? (
             <div className="text-center text-gray-500 py-8">
               <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-sm">טוען גבייות...</p>
+              <p className="mt-2 text-sm">טוען גביות...</p>
             </div>
           ) : sortedCollections.length === 0 ? (
             <div className="text-center text-gray-500 py-8 text-sm">
               <Receipt className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-              <p>אין גבייות</p>
+              <p>אין גביות</p>
             </div>
           ) : (
             <>
@@ -282,9 +282,9 @@ export const CollectionsCard: React.FC<CollectionsCardProps> = ({
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>מחיקת גבייות</AlertDialogTitle>
+            <AlertDialogTitle>מחיקת גביות</AlertDialogTitle>
             <AlertDialogDescription>
-              את/ה עומד/ת למחוק {selectedCollections.size} גבייות. פעולה זו אינה ניתנת לשחזור.
+              את/ה עומד/ת למחוק {selectedCollections.size} גביות. פעולה זו אינה ניתנת לשחזור.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

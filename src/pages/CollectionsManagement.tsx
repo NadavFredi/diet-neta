@@ -70,7 +70,7 @@ const CollectionsManagement = () => {
   // Use the same pageSize as regular pagination for consistency, but allow it to be changed
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
   const [groupPageSize, setGroupPageSize] = useState(pageSize); // Start with regular page size, but allow changes
-  
+
   // Sync groupPageSize with pageSize when pageSize changes
   useEffect(() => {
     setGroupPageSize(pageSize);
@@ -122,10 +122,10 @@ const CollectionsManagement = () => {
         <div className="flex-shrink-0">
           <TableActionHeader
             resourceKey="collections"
-            title={savedView?.view_name || 'כל הגבייות'}
+            title={savedView?.view_name || 'כל הגביות'}
             dataCount={filteredCollections?.length || 0}
             singularLabel="גבייה"
-            pluralLabel="גבייות"
+            pluralLabel="גביות"
             filterFields={useMemo(() => generateFilterFieldsFromColumns(filteredCollections || [], collectionColumns), [filteredCollections])}
             searchPlaceholder="חיפוש לפי תיאור, לקוח או תאריך..."
             enableColumnVisibility={true}
@@ -152,7 +152,7 @@ const CollectionsManagement = () => {
             <div className="text-center py-12 h-full flex items-center justify-center">
               <div>
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                <p className="text-gray-600">טוען גבייות...</p>
+                <p className="text-gray-600">טוען גביות...</p>
               </div>
             </div>
           ) : filteredCollections && Array.isArray(filteredCollections) && filteredCollections.length > 0 ? (
@@ -168,8 +168,8 @@ const CollectionsManagement = () => {
           ) : (
             <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
               <div>
-                <p className="text-lg font-medium mb-2">לא נמצאו גבייות</p>
-                <p className="text-sm">גבייות מתווספות בעת יצירת תשלומים או ידנית</p>
+                <p className="text-lg font-medium mb-2">לא נמצאו גביות</p>
+                <p className="text-sm">גביות מתווספות בעת יצירת תשלומים או ידנית</p>
               </div>
             </div>
           )}
@@ -185,7 +185,7 @@ const CollectionsManagement = () => {
                 showIfSinglePage={isGroupingActive}
                 isLoading={isLoadingCollections}
                 singularLabel="גבייה"
-                pluralLabel="גבייות"
+                pluralLabel="גביות"
               />
             </div>
           )}

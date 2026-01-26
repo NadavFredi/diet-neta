@@ -55,7 +55,7 @@ export const AddPaymentDialog = ({
 
   // Fetch collections for the current lead if leadId prop is provided
   const { data: leadCollections = [], isLoading: isLoadingLeadCollections } = useCollectionsByLead(leadId || null);
-  
+
   // Fetch all collections if no leadId is provided
   const { data: allCollectionsData, isLoading: isLoadingAllCollections } = useAllCollections();
 
@@ -131,47 +131,47 @@ export const AddPaymentDialog = ({
     if (formData.lead_id && !leadId) {
       return dynamicLeadCollections;
     }
-    
+
     // If leadId prop is provided, use collections from that lead
     if (leadId) {
       return leadCollections;
     }
-    
+
     // If no leadId, return all collections
     return allCollectionsData?.data || [];
   }, [leadId, formData.lead_id, leadCollections, dynamicLeadCollections, allCollectionsData]);
 
-  const isLoadingCollections = 
+  const isLoadingCollections =
     (formData.lead_id && !leadId) ? isLoadingDynamicLeadCollections :
-    leadId ? isLoadingLeadCollections : 
-    isLoadingAllCollections;
+      leadId ? isLoadingLeadCollections :
+        isLoadingAllCollections;
 
   // Helper function to format collection display without ID
   const formatCollectionDisplay = (collection: AllCollectionRecord | undefined) => {
     if (!collection) return '';
-    
+
     const parts: string[] = [];
-    
+
     // Add customer name if available
     if (collection.customer_name) {
       parts.push(collection.customer_name);
     }
-    
+
     // Add status in parentheses
     if (collection.status) {
       parts.push(`(${collection.status})`);
     }
-    
+
     // Add amount
     if (collection.total_amount) {
       parts.push(`₪${collection.total_amount.toFixed(2)}`);
     }
-    
+
     // If no customer name, use description as fallback
     if (!collection.customer_name && collection.description) {
       return `${collection.description} - (${collection.status}) ₪${collection.total_amount.toFixed(2)}`;
     }
-    
+
     return parts.join(' - ');
   };
 
@@ -240,7 +240,7 @@ export const AddPaymentDialog = ({
             .select('customer_id')
             .eq('id', formData.lead_id)
             .single();
-          
+
           if (leadData?.customer_id) {
             customerIdFromLead = leadData.customer_id;
           }
@@ -340,8 +340,8 @@ export const AddPaymentDialog = ({
                       {isLoadingLeads
                         ? "טוען לידים..."
                         : formData.lead_id
-                        ? leads.find((lead) => lead.id === formData.lead_id)?.customer?.full_name || `ליד #${formData.lead_id.slice(0, 8)}`
-                        : "בחר ליד *"}
+                          ? leads.find((lead) => lead.id === formData.lead_id)?.customer?.full_name || `ליד #${formData.lead_id.slice(0, 8)}`
+                          : "בחר ליד *"}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -478,10 +478,10 @@ export const AddPaymentDialog = ({
                     disabled={isSubmitting || isLoadingCollections}
                   >
                     {isLoadingCollections
-                      ? "טוען גבייות..."
+                      ? "טוען גביות..."
                       : formData.collection_id && formData.collection_id !== 'none'
-                      ? formatCollectionDisplay(collections.find((c) => c.id === formData.collection_id)) || `גבייה #${formData.collection_id.slice(0, 8)}`
-                      : "בחר גבייה (אופציונלי)"}
+                        ? formatCollectionDisplay(collections.find((c) => c.id === formData.collection_id)) || `גבייה #${formData.collection_id.slice(0, 8)}`
+                        : "בחר גבייה (אופציונלי)"}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -489,7 +489,7 @@ export const AddPaymentDialog = ({
                   <Command>
                     <CommandInput placeholder="חפש גבייה..." dir="rtl" />
                     <CommandList>
-                      <CommandEmpty>לא נמצאו גבייות</CommandEmpty>
+                      <CommandEmpty>לא נמצאו גביות</CommandEmpty>
                       <CommandGroup>
                         <CommandItem
                           value="none"
@@ -538,7 +538,7 @@ export const AddPaymentDialog = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">ללא גבייה</SelectItem>
-                    {collections.map((collection) => (
+                  {collections.map((collection) => (
                     <SelectItem key={collection.id} value={collection.id}>
                       {formatCollectionDisplay(collection) || `גבייה #${collection.id.slice(0, 8)}`}
                     </SelectItem>
@@ -548,7 +548,7 @@ export const AddPaymentDialog = ({
             )}
             {collections.length === 0 && !isLoadingCollections && (
               <p className="text-xs text-muted-foreground">
-                {leadId || formData.lead_id ? 'אין גבייות זמינות לליד זה' : 'אין גבייות זמינות'}
+                {leadId || formData.lead_id ? 'אין גביות זמינות לליד זה' : 'אין גביות זמינות'}
               </p>
             )}
           </div>

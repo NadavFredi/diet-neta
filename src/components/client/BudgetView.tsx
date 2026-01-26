@@ -14,8 +14,8 @@ import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Target, 
+import {
+  Target,
   Flame,
   Footprints,
   Pill,
@@ -27,6 +27,8 @@ import {
   Calendar,
   FileText,
   Dumbbell,
+  ListOrdered,
+  ScrollText,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -41,16 +43,16 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   customerId,
 }) => {
   const navigate = useNavigate();
-  
+
   // Fetch active budget
   const { data: leadBudget } = useActiveBudgetForLead(leadId || null);
   const { data: customerBudget } = useActiveBudgetForCustomer(customerId || null);
   const budgetAssignment = leadBudget || customerBudget;
   const budget = budgetAssignment?.budget;
-  
+
   // Fetch workout plan for customer
   const { workoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customerId || null);
-  
+
   // Fetch nutrition plan for customer
   const { nutritionPlan } = useNutritionPlan(customerId || null);
 
@@ -84,8 +86,8 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
               {budget.name}
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Badge 
-                variant="outline" 
+              <Badge
+                variant="outline"
                 className="bg-slate-50 text-slate-600 border-slate-300 text-xs px-2 py-0.5"
               >
                 <Calendar className="h-3 w-3 mr-1" />
@@ -117,6 +119,118 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
         </CardHeader>
 
         <CardContent className="px-5 pb-5 space-y-4">
+          {/* Action Plan Details - Full Length Display (Read-Only) */}
+          {(budget.description?.trim() || budget.eating_order?.trim() || budget.eating_rules?.trim() || budget.steps_goal || budget.steps_instructions?.trim() || (budget.cardio_training && Array.isArray(budget.cardio_training) && budget.cardio_training.length > 0) || (budget.interval_training && Array.isArray(budget.interval_training) && budget.interval_training.length > 0)) && (
+            <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200/60">
+                <div className="w-8 h-8 rounded-lg bg-[#E8EDF7] flex items-center justify-center">
+                  <FileText className="h-4 w-4 text-[#5B6FB9]" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800">פרטי תכנית פעולה</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {budget.description?.trim() && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      <FileText className="h-3 w-3" />
+                      תיאור
+                    </div>
+                    <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
+                      {budget.description}
+                    </p>
+                  </div>
+                )}
+                {budget.eating_order?.trim() && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      <ListOrdered className="h-3 w-3" />
+                      סדר האכילה
+                    </div>
+                    <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
+                      {budget.eating_order}
+                    </p>
+                  </div>
+                )}
+                {budget.eating_rules?.trim() && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      <ScrollText className="h-3 w-3" />
+                      כללי אכילה
+                    </div>
+                    <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
+                      {budget.eating_rules}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Steps Goal and Instructions */}
+              {(budget.steps_goal || budget.steps_instructions?.trim()) && (
+                <div className="mt-4 pt-4 border-t border-slate-200/60">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Footprints className="h-4 w-4 text-cyan-600" />
+                    <span className="text-sm font-semibold text-slate-800">יעד צעדים</span>
+                  </div>
+                  {budget.steps_goal && (
+                    <div className="mb-3">
+                      <p className="text-2xl font-bold text-cyan-700 leading-none">
+                        {budget.steps_goal.toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-gray-500 mt-1">צעדים ליום</p>
+                    </div>
+                  )}
+                  {budget.steps_instructions?.trim() && (
+                    <div className="mt-2 pt-2 border-t border-cyan-100/60">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">הוראות צעדים</p>
+                      </div>
+                      <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap" dir="rtl">
+                        {budget.steps_instructions}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Cardio and Interval Training Summary */}
+              {((budget.cardio_training && Array.isArray(budget.cardio_training) && budget.cardio_training.length > 0) ||
+                (budget.interval_training && Array.isArray(budget.interval_training) && budget.interval_training.length > 0)) && (
+                <div className="mt-4 pt-4 border-t border-slate-200/60 space-y-1.5">
+                  {budget.cardio_training && Array.isArray(budget.cardio_training) && budget.cardio_training.length > 0 && (
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אירובי:</span>
+                      <div className="mt-1 space-y-1">
+                        {budget.cardio_training.map((cardio: any, idx: number) => (
+                          <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-red-100">
+                            <span className="font-medium">{cardio.name || 'אירובי'}</span>
+                            {cardio.duration_minutes && <span className="mr-1"> • {cardio.duration_minutes} דקות</span>}
+                            {cardio.period_type && <span className="mr-1"> • {cardio.period_type}</span>}
+                            {cardio.notes && <span className="mr-1 text-slate-500"> • ({cardio.notes})</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {budget.interval_training && Array.isArray(budget.interval_training) && budget.interval_training.length > 0 && (
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אינטרוולים:</span>
+                      <div className="mt-1 space-y-1">
+                        {budget.interval_training.map((interval: any, idx: number) => (
+                          <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-yellow-100">
+                            <span className="font-medium">{interval.name || 'אינטרוול'}</span>
+                            {interval.duration_minutes && <span className="mr-1"> • {interval.duration_minutes} דקות</span>}
+                            {interval.period_type && <span className="mr-1"> • {interval.period_type}</span>}
+                            {interval.notes && <span className="mr-1 text-slate-500"> • ({interval.notes})</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Nutrition Targets - Compact Grid */}
           <div>
             <div className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-1.5">

@@ -30,15 +30,19 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'created_at',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
-      return <span className="text-gray-600">{formatDate(value)}</span>;
+      const value = getValue() as string | null | undefined;
+      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
+      try {
+        return <span className="text-gray-600">{formatDate(value)}</span>;
+      } catch {
+        return <span className="text-gray-400">-</span>;
+      }
     },
   },
   {
     id: 'name',
     header: 'שם',
-    accessorKey: 'name',
+    accessorFn: (row) => row.name || null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -48,8 +52,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'customer_name',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
+      const value = getValue() as string | null | undefined;
+      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
           {value}
@@ -60,7 +64,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'status',
     header: 'סטטוס',
-    accessorKey: 'status',
+    accessorFn: (row) => row.status || null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -70,7 +74,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKeys: ['status_sub', 'status_main'],
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
+      const value = getValue() as string | null | undefined;
+      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
       const getStatusColor = (status: string) => {
         switch (status) {
           case 'חדש':
@@ -95,7 +100,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'age',
     header: 'גיל',
-    accessorKey: 'age',
+    accessorFn: (row) => row.age ?? null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -106,15 +111,15 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'age',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as number;
-      if (!value || value === 0) return <span className="text-gray-400">-</span>;
+      const value = getValue() as number | null | undefined;
+      if (value === null || value === undefined || value === 0) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-900">{value} שנים</span>;
     },
   },
   {
     id: 'fitnessGoal',
     header: 'מטרת כושר',
-    accessorKey: 'fitnessGoal',
+    accessorFn: (row) => row.fitnessGoal || row.fitness_goal || null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -124,8 +129,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'fitness_goal',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
+      const value = getValue() as string | null | undefined;
+      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-medium border border-green-100">
           {value}
@@ -136,7 +141,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'activityLevel',
     header: 'רמת פעילות',
-    accessorKey: 'activityLevel',
+    accessorFn: (row) => row.activityLevel || row.activity_level || null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -146,8 +151,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'activity_level',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
+      const value = getValue() as string | null | undefined;
+      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-orange-50 text-orange-700 text-xs font-medium border border-orange-100">
           {value}
@@ -158,7 +163,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'preferredTime',
     header: 'זמן מועדף',
-    accessorKey: 'preferredTime',
+    accessorFn: (row) => row.preferredTime || row.preferred_time || null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -168,8 +173,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'preferred_time',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
+      const value = getValue() as string | null | undefined;
+      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-100">
           {value}
@@ -180,7 +185,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'phone',
     header: 'טלפון',
-    accessorKey: 'phone',
+    accessorFn: (row) => row.phone || null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -190,15 +195,15 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'customer_phone',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
+      const value = getValue() as string | null | undefined;
+      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
       return <span className="text-gray-600 font-mono text-sm">{value}</span>;
     },
   },
   {
     id: 'source',
     header: 'מקור',
-    accessorKey: 'source',
+    accessorFn: (row) => row.source || null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -208,8 +213,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'source',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
+      const value = getValue() as string | null | undefined;
+      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-purple-50 text-purple-700 text-xs font-medium border border-purple-100">
           {value}
@@ -220,7 +225,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'notes',
     header: 'הערות',
-    accessorKey: 'notes',
+    accessorFn: (row) => row.notes || null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -231,7 +236,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
     cell: ({ row }) => {
       const notes = row.original.notes;
-      if (!notes) return <span className="text-gray-400">-</span>;
+      if (!notes || notes.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="text-gray-600 text-xs italic" title={notes}>
           {notes.length > 30 ? `${notes.substring(0, 30)}...` : notes}
@@ -240,9 +245,37 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
   },
   {
+    id: 'steps',
+    header: 'צעדים',
+    accessorFn: (row) => {
+      // Get steps_goal from the first active budget assignment
+      const budgetAssignment = row.budget_assignments?.[0];
+      const budget = budgetAssignment?.budgets;
+      return budget?.steps_goal ?? row.dailyStepsGoal ?? null;
+    },
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
+    size: 120,
+    meta: {
+      align: 'right',
+      isNumeric: true,
+      sortKey: 'budget.steps_goal',
+    },
+    cell: ({ getValue }) => {
+      const value = getValue() as number | null | undefined;
+      if (value === null || value === undefined || value === 0) return <span className="text-gray-400">-</span>;
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-lg bg-cyan-50 text-cyan-700 text-xs font-medium border border-cyan-100">
+          {value.toLocaleString()} צעדים
+        </span>
+      );
+    },
+  },
+  {
     id: 'email',
     header: 'אימייל',
-    accessorKey: 'email',
+    accessorFn: (row) => row.email || null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -251,8 +284,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       align: 'right',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
+      const value = getValue() as string | null | undefined;
+      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="text-gray-900 hover:text-blue-600 transition-colors text-sm">
           {value}
@@ -263,7 +296,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'height',
     header: 'גובה (ס"מ)',
-    accessorKey: 'height',
+    accessorFn: (row) => row.height ?? null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -274,15 +307,15 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'height',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as number;
-      if (!value || value === 0) return <span className="text-gray-400">-</span>;
+      const value = getValue() as number | null | undefined;
+      if (value === null || value === undefined || value === 0) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-900">{value} ס"מ</span>;
     },
   },
   {
     id: 'weight',
     header: 'משקל (ק"ג)',
-    accessorKey: 'weight',
+    accessorFn: (row) => row.weight ?? null,
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -293,8 +326,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'weight',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as number;
-      if (!value || value === 0) return <span className="text-gray-400">-</span>;
+      const value = getValue() as number | null | undefined;
+      if (value === null || value === undefined || value === 0) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-900 font-semibold">{value} ק"ג</span>;
     },
   },
@@ -347,6 +380,7 @@ export const defaultLeadColumnVisibility: Record<string, boolean> = {
   name: true,
   status: true,
   phone: true,
+  createdDate: true, // תאריך יצירה - visible by default
   // All other columns hidden by default
   age: false,
   height: false,
@@ -354,7 +388,6 @@ export const defaultLeadColumnVisibility: Record<string, boolean> = {
   fitnessGoal: false,
   activityLevel: false,
   preferredTime: false,
-  createdDate: false,
   email: false,
   source: false,
   notes: false,

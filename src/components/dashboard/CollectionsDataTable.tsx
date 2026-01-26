@@ -20,8 +20,8 @@ interface CollectionsDataTableProps {
   groupPageSize?: number;
 }
 
-export const CollectionsDataTable = ({ 
-  collections, 
+export const CollectionsDataTable = ({
+  collections,
   onBulkDelete,
   onSortChange,
   sortBy,
@@ -44,7 +44,7 @@ export const CollectionsDataTable = ({
       columns={collectionColumns}
       onRowClick={handleRowClick}
       dir="rtl"
-      emptyMessage="לא נמצאו גבייות"
+      emptyMessage="לא נמצאו גביות"
       enableColumnVisibility={true}
       enableColumnReordering={true}
       resourceKey="collections"
@@ -52,7 +52,7 @@ export const CollectionsDataTable = ({
       enableRowSelection
       totalCount={collections.length}
       onBulkDelete={onBulkDelete}
-      selectionLabel="גבייות"
+      selectionLabel="גביות"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
       onSortChange={onSortChange}

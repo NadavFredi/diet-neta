@@ -115,12 +115,12 @@ const HistoryItem = ({ item, templateNameMap }: { item: BudgetHistoryItem; templ
           ) : (
             <div className="flex items-center gap-4 overflow-x-auto scrollbar-hide no-scrollbar px-2">
               {changes.map((change, idx) => (
-                <div key={idx} className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+                <div key={idx} className="flex items-center gap-1.5 text-xs">
                   <span className="font-medium text-slate-700">{getFieldLabel(change.field)}:</span>
                   <div className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-                    <span className="text-slate-400 line-through opacity-70 max-w-[120px] truncate">{formatValue(change.oldVal, change.field, templateNameMap)}</span>
-                    <ArrowLeft className="h-3 w-3 text-slate-300" />
-                    <span className="text-slate-900 font-medium">{formatValue(change.newVal, change.field, templateNameMap)}</span>
+                    <span className="text-slate-400 line-through opacity-70 whitespace-normal break-words">{formatValue(change.oldVal, change.field, templateNameMap)}</span>
+                    <ArrowLeft className="h-3 w-3 text-slate-300 shrink-0" />
+                    <span className="text-slate-900 font-medium whitespace-normal break-words">{formatValue(change.newVal, change.field, templateNameMap)}</span>
                   </div>
                   {idx < changes.length - 1 && <span className="text-slate-300">|</span>}
                 </div>
