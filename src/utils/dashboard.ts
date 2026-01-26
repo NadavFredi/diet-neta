@@ -18,12 +18,14 @@ export const PREFERRED_TIME_OPTIONS = ["בוקר", "צהריים", "ערב"] as 
 
 export const SOURCE_OPTIONS = ["פייסבוק", "אינסטגרם", "המלצה"] as const
 
-export const formatDate = (dateString: string): string => {
+export const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString || dateString.trim() === '') return '';
   try {
-    const date = new Date(dateString)
-    return format(date, "dd/MM/yyyy", { locale: he })
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return format(date, "dd/MM/yyyy", { locale: he });
   } catch {
-    return dateString
+    return '';
   }
 }
 

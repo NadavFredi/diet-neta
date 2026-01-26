@@ -334,7 +334,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     carbs: 0,
     fat: 0,
     fiber_min: 20,
-    water_min: 2.5,
   });
 
   // Steps
@@ -377,7 +376,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         carbs: 0,
         fat: 0,
         fiber_min: 20,
-        water_min: 2.5,
       });
       setStepsGoal(initialData.steps_goal || 0);
       setStepsInstructions(initialData.steps_instructions || '');
@@ -486,7 +484,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         carbs: 0,
         fat: 0,
         fiber_min: 20,
-        water_min: 2.5,
       });
     } else {
       setNutritionTemplateId(templateId);
@@ -511,7 +508,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           carbs: template.targets.carbs || 0,
           fat: template.targets.fat || 0,
           fiber_min: template.targets.fiber || 20,
-          water_min: nutritionTargets.water_min || 2.5,
         });
       }
     }
@@ -677,7 +673,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           carbs: newTemplate.targets.carbs || 0,
           fat: newTemplate.targets.fat || 0,
           fiber_min: newTemplate.targets.fiber || 20,
-          water_min: nutritionTargets.water_min || 2.5,
         });
       }
 
@@ -773,7 +768,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           carbs: updated.targets.carbs || 0,
           fat: updated.targets.fat || 0,
           fiber_min: updated.targets.fiber || 20,
-          water_min: nutritionTargets.water_min || 2.5,
         });
       }
 
@@ -1132,8 +1126,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         </Card>
       </div>
 
-      {/* Footer Actions - Bottom Left (RTL) */}
-      <div className="flex flex-row-reverse justify-start gap-2 pt-2.5 pb-1 border-t border-slate-100">
+      {/* Footer Actions - Bottom Right (RTL) */}
+      <div className="flex flex-row-reverse justify-end gap-2 pt-2.5 pb-1 border-t border-slate-100">
         <Button
           type="submit"
           disabled={isSubmitting || !name.trim()}

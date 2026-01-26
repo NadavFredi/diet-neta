@@ -508,6 +508,7 @@ export const PlansCard = ({
 
                     await saveActionPlan.mutateAsync({
                       budget_id: budget.id,
+                      lead_id: leadId,
                       name: budget.name,
                       description: budget.description || null,
                       snapshot,
@@ -633,6 +634,7 @@ export const PlansCard = ({
                                   const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
                                   await saveActionPlan.mutateAsync({
                                     budget_id: effectiveBudgetId,
+                                    lead_id: leadId,
                                     name: updatedBudget.name,
                                     description: updatedBudget.description || null,
                                     snapshot,
@@ -740,6 +742,7 @@ export const PlansCard = ({
                                   const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
                                   await saveActionPlan.mutateAsync({
                                     budget_id: effectiveBudgetId,
+                                    lead_id: leadId,
                                     name: updatedBudget.name,
                                     description: updatedBudget.description || null,
                                     snapshot,
@@ -847,6 +850,7 @@ export const PlansCard = ({
                                   const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
                                   await saveActionPlan.mutateAsync({
                                     budget_id: effectiveBudgetId,
+                                    lead_id: leadId,
                                     name: updatedBudget.name,
                                     description: updatedBudget.description || null,
                                     snapshot,
@@ -1119,6 +1123,7 @@ export const PlansCard = ({
                                   const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
                                   await saveActionPlan.mutateAsync({
                                     budget_id: effectiveBudgetId,
+                                    lead_id: leadId,
                                     name: updatedBudget.name,
                                     description: updatedBudget.description || null,
                                     snapshot,
@@ -1493,6 +1498,7 @@ export const PlansCard = ({
         isOpen={!!viewingBudgetId}
         onOpenChange={(open) => { if (!open) setViewingBudgetId(null); }}
         budgetId={viewingBudgetId}
+        leadId={leadId}
         onEdit={() => {
           if (viewingBudgetId) {
             handleEditBudgetById(viewingBudgetId);

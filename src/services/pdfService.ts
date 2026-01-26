@@ -250,21 +250,6 @@ const buildBudgetHTML = (budget: Budget): string => {
               </div>
             </div>
 
-            <!-- Water Card -->
-            <div style="background: linear-gradient(135deg, #f0f7ff 0%, #e8f4ff 100%); padding: 18px 16px; border-radius: 16px; box-shadow: 0 2px 10px rgba(244, 194, 194, 0.12); border: 1px solid rgba(244, 194, 194, 0.2);">
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                <div style="font-size: 18px; line-height: 1;">${dropIcon}</div>
-                <div style="font-size: 10px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">
-                  מים
-                </div>
-              </div>
-              <div style="font-size: 32px; font-weight: 800; color: #333333; line-height: 1; margin-bottom: 2px;">
-                ${nutrition.water_min}
-              </div>
-              <div style="font-size: 11px; font-weight: 300; color: #999;">
-                ליטר (מינ')
-              </div>
-            </div>
           </div>
         </div>
 

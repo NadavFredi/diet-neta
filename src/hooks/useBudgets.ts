@@ -313,6 +313,56 @@ export const useActiveBudgetForCustomer = (customerId: string | null) => {
   });
 };
 
+// Fetch active budget for a customer or any of their leads
+export const useActiveBudgetForCustomerOrLeads = (customerId: string | null, leadIds: string[] = []) => {
+  return useQuery({
+    queryKey: ['budgetAssignment', 'customerOrLeads', customerId, leadIds.sort().join(',')],
+    queryFn: async () => {
+      if (!customerId && leadIds.length === 0) return null;
+
+      // First, try to get budget assigned to customer
+      const { data: customerData, error: customerError } = await supabase
+        .from('budget_assignments')
+        .select(`
+          *,
+          budget:budgets(*)
+        `)
+        .eq('customer_id', customerId!)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (customerError && customerError.code !== 'PGRST116') throw customerError; // PGRST116 is "not found"
+      
+      if (customerData) {
+        return customerData as (BudgetAssignment & { budget: Budget }) | null;
+      }
+
+      // If no customer budget, check all leads
+      if (leadIds.length > 0) {
+        const { data: leadsData, error: leadsError } = await supabase
+          .from('budget_assignments')
+          .select(`
+            *,
+            budget:budgets(*)
+          `)
+          .in('lead_id', leadIds)
+          .eq('is_active', true)
+          .order('assigned_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (leadsError && leadsError.code !== 'PGRST116') throw leadsError;
+        return leadsData as (BudgetAssignment & { budget: Budget }) | null;
+      }
+
+      return null;
+    },
+    enabled: !!customerId || leadIds.length > 0,
+    refetchInterval: 30000, // Refetch every 30 seconds to sync with manager portal
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
+};
+
 // Create a new budget
 export const useCreateBudget = () => {
   const queryClient = useQueryClient();

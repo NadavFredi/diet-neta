@@ -346,9 +346,27 @@ export function DataTable<T extends Record<string, any>>({
   const dispatch = useAppDispatch();
   const { toast } = useToast();
 
+  // Check if state is already initialized (only if resourceKey exists)
+  const isInitialized = resourceKey ? useAppSelector((state) => !!state.tableState.tables[resourceKey]) : false;
+  const hasInitializedRef = React.useRef(false);
+  const isMountedRef = React.useRef(false);
+
+  // Mark component as mounted
   useEffect(() => {
-    if (!resourceKey || columns.length === 0) return;
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      hasInitializedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Only initialize once and only after component has mounted
+    if (!resourceKey || columns.length === 0 || isInitialized || hasInitializedRef.current || !isMountedRef.current) return;
+    
+    hasInitializedRef.current = true;
     const columnIds = columns.map((col) => col.id);
+    
     dispatch(
       initializeTableState({
         resourceKey,
@@ -357,7 +375,7 @@ export function DataTable<T extends Record<string, any>>({
         initialOrder: initialColumnOrder,
       })
     );
-  }, [resourceKey, columns, initialColumnVisibility, initialColumnOrder, dispatch]);
+  }, [resourceKey, columns, initialColumnVisibility, initialColumnOrder, dispatch, isInitialized]);
 
   // 1. Initial Hooks & Base State
   const [isResizing, setIsResizing] = useState<string | null>(null);

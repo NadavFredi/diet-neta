@@ -190,7 +190,7 @@ export const StepsPlanDialog = ({
           </div>
         </div>
 
-        <div className="flex flex-row-reverse justify-start gap-2 pt-4 border-t">
+        <div className="flex flex-row-reverse justify-end gap-2 pt-4 border-t">
           <Button
             onClick={handleSave}
             disabled={isSaving}

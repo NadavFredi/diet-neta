@@ -10,6 +10,7 @@ import type { Budget } from '@/store/slices/budgetSlice';
 export interface SavedActionPlan {
   id: string;
   user_id: string;
+  lead_id: string | null;
   budget_id: string | null;
   name: string;
   description: string | null;
@@ -20,6 +21,7 @@ export interface SavedActionPlan {
 
 export interface SaveActionPlanData {
   budget_id: string | null;
+  lead_id?: string | null;
   name: string;
   description?: string | null;
   snapshot: any;
@@ -27,21 +29,27 @@ export interface SaveActionPlanData {
 }
 
 /**
- * Fetch all saved action plans for the current user
+ * Fetch all saved action plans for the current user, optionally filtered by lead_id
  */
-export const useSavedActionPlans = () => {
+export const useSavedActionPlans = (leadId?: string | null) => {
   const { user } = useAppSelector((state) => state.auth);
 
   return useQuery({
-    queryKey: ['savedActionPlans', user?.id],
+    queryKey: ['savedActionPlans', user?.id, leadId],
     queryFn: async () => {
       if (!user?.id) return { data: [], totalCount: 0 };
 
-      const { data, error, count } = await supabase
+      let query = supabase
         .from('saved_action_plans')
         .select('*', { count: 'exact' })
-        .eq('user_id', user.id)
-        .order('saved_at', { ascending: false });
+        .eq('user_id', user.id);
+
+      // Filter by lead_id if provided
+      if (leadId) {
+        query = query.eq('lead_id', leadId);
+      }
+
+      const { data, error, count } = await query.order('saved_at', { ascending: false });
 
       if (error) throw error;
 
@@ -91,6 +99,7 @@ export const useSaveActionPlan = () => {
         .from('saved_action_plans')
         .insert({
           user_id: user.id,
+          lead_id: data.lead_id || null,
           budget_id: data.budget_id,
           name: data.name,
           description: data.description || null,

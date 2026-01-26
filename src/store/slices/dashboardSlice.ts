@@ -55,28 +55,34 @@ export interface Lead {
   subscription_months?: number | null;
   subscription_initial_price?: number | null;
   subscription_renewal_price?: number | null;
-  budget_assignments?: Array<{
-    id: string;
-    budgets?: {
+    budget_assignments?: Array<{
       id: string;
-      name: string;
-      description?: string;
-      steps_goal?: number;
-      is_public?: boolean;
-      nutrition_template_id?: string;
-      nutrition_templates?: {
+      budgets?: {
         id: string;
         name: string;
         description?: string;
-        targets?: {
-          calories?: number;
-          protein?: number;
-          carbs?: number;
-          fat?: number;
+        steps_goal?: number;
+        steps_instructions?: string;
+        eating_order?: string;
+        eating_rules?: string;
+        supplements?: any[];
+        nutrition_targets?: any;
+        is_public?: boolean;
+        nutrition_template_id?: string;
+        workout_template_id?: string;
+        nutrition_templates?: {
+          id: string;
+          name: string;
+          description?: string;
+          targets?: {
+            calories?: number;
+            protein?: number;
+            carbs?: number;
+            fat?: number;
+          };
         };
       };
-    };
-  }>;
+    }>;
 }
 
 interface DashboardState {

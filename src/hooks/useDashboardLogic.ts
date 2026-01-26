@@ -23,7 +23,7 @@ import {
   setSortBy,
   setSortOrder,
 } from '@/store/slices/dashboardSlice';
-import { mapLeadToUIFormat } from '@/services/leadService';
+import { mapLeadToUIFormat, fetchFilteredLeads, getFilteredLeadsCount, type LeadFilterParams } from '@/services/leadService';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import {
@@ -90,16 +90,24 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
   }, [searchQuery]);
 
   // =====================================================
-  // Schema-Driven Data Fetching
+  // Data Fetching - Use leadService directly to ensure budget data is fetched
   // =====================================================
+  const [queryData, setQueryData] = useState<any[]>([]);
+  const [queryCount, setQueryCount] = useState<number>(0);
+  const [isQueryLoading, setIsQueryLoading] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [entityConfig, setEntityConfig] = useState<any>(null);
+  
+  // Also get config from useEntityQuery for UI purposes
   const {
-    config: entityConfig, // Expose the config
-    data: queryData,
-    count: queryCount,
-    isLoading: isQueryLoading,
-    error: queryError,
-    fetchData,
+    config: entityConfigFromQuery,
   } = useEntityQuery('leads');
+  
+  useEffect(() => {
+    if (entityConfigFromQuery) {
+      setEntityConfig(entityConfigFromQuery);
+    }
+  }, [entityConfigFromQuery]);
 
   // Convert UI state to API filters
   const apiFilters = useMemo(() => {
@@ -142,19 +150,65 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
     return filters;
   }, [debouncedSearchQuery, activeFilters]);
 
-  const refreshLeads = useCallback(() => {
-    let sortField = sortBy;
-    if (sortBy === 'createdDate') sortField = 'created_at';
-    if (sortBy === 'name') sortField = 'customer_name';
-    if (sortBy === 'status') sortField = 'status_main';
+  const refreshLeads = useCallback(async () => {
+    setIsQueryLoading(true);
+    setQueryError(null);
+    
+    try {
+      let sortField = sortBy;
+      if (sortBy === 'createdDate') sortField = 'created_at';
+      if (sortBy === 'name') sortField = 'customer_name';
+      if (sortBy === 'status') sortField = 'status_main';
 
-    fetchData({
-      page: currentPage,
-      pageSize: pageSize,
-      sort: { field: sortField || 'created_at', direction: sortOrder === 'ASC' ? 'asc' : 'desc' },
-      filters: apiFilters,
-    });
-  }, [fetchData, currentPage, pageSize, sortBy, sortOrder, apiFilters]);
+      // Build filter group - use options.filterGroup if provided, otherwise build from activeFilters
+      let filterGroup: FilterGroup | null = options?.filterGroup || null;
+      
+      if (!filterGroup && activeFilters && activeFilters.length > 0) {
+        // Check if activeFilters is already a FilterGroup structure
+        if (activeFilters[0] && 'children' in activeFilters[0]) {
+          filterGroup = activeFilters[0] as FilterGroup;
+        } else {
+          // Build FilterGroup from flat activeFilters array
+          filterGroup = {
+            id: 'root',
+            operator: 'and',
+            children: activeFilters.map((f: any) => ({
+              id: f.id || `${f.fieldId}-${Date.now()}`,
+              fieldId: f.fieldId,
+              operator: f.operator,
+              values: f.values || [],
+            })),
+          };
+        }
+      }
+
+      const filterParams: LeadFilterParams = {
+        searchQuery: debouncedSearchQuery || null,
+        filterGroup: filterGroup,
+        limit: pageSize,
+        offset: (currentPage - 1) * pageSize,
+        sortBy: sortField || 'created_at',
+        sortOrder: sortOrder || 'DESC',
+      };
+
+      // Fetch leads with budget data
+      const [leadsData, leadsCount] = await Promise.all([
+        fetchFilteredLeads(filterParams),
+        getFilteredLeadsCount({
+          searchQuery: debouncedSearchQuery || null,
+          filterGroup: filterGroup,
+        }),
+      ]);
+
+      setQueryData(leadsData);
+      setQueryCount(leadsCount);
+    } catch (error: any) {
+      console.error('Error fetching leads:', error);
+      setQueryError(error.message || 'Failed to fetch leads');
+    } finally {
+      setIsQueryLoading(false);
+    }
+  }, [currentPage, pageSize, sortBy, sortOrder, debouncedSearchQuery, activeFilters]);
 
   // Trigger fetch when params change
   useEffect(() => {
@@ -173,32 +227,11 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
       return;
     }
 
-    if (queryData) {
-      // Adapt Data
+    if (queryData && queryData.length > 0) {
+      // Adapt Data - queryData from fetchFilteredLeads already has budget_assignments nested
       const adaptedLeads: Lead[] = queryData.map((row: any) => {
-        // Reconstruct nested budget/menu if view returns flattened fields
-        const budgetAssignments = row.budget_name ? [{
-          budgets: {
-            name: row.budget_name,
-            steps_goal: row.budget_steps_goal,
-            is_public: row.budget_is_public,
-            nutrition_templates: {
-              name: row.menu_name,
-              targets: {
-                calories: row.menu_calories,
-                protein: row.menu_protein
-              }
-            }
-          }
-        }] : [];
-
-        // Base mapping
-        const base = mapLeadToUIFormat(row);
-        
-        return {
-          ...base,
-          budget_assignments: budgetAssignments,
-        };
+        // mapLeadToUIFormat already handles budget_assignments from the nested query
+        return mapLeadToUIFormat(row);
       });
 
       dispatch(setLeads(adaptedLeads));

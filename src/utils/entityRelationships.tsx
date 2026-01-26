@@ -143,7 +143,7 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
       fieldPrefix: 'budget.',
       getFilterFields: (columns, data) => {
         const fields: FilterField[] = [];
-        
+
         // Add "entity exists" filter first
         fields.push({
           id: 'budget.exists',
@@ -152,7 +152,7 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
           operators: ['is', 'isNot'],
           options: ['כן', 'לא'],
         });
-        
+
         // Budget fields - auto-generated from columns if provided, otherwise fallback to manual
         if (columns && columns.length > 0) {
           const generatedFields = generateFilterFieldsFromColumns(columns, data || []);
@@ -184,53 +184,120 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
             }
           );
         }
-        
+
         return fields;
       },
       getColumns: (columns) => {
         // Budget columns - use provided columns or fallback to key fields
         if (columns && columns.length > 0) {
-          return columns.map(col => ({
-            ...col,
-            id: `budget.${col.id}`,
-            accessorFn: (row: any) => {
-              // Access budget data through budget_assignments -> budgets
-              const budget = row.budget_assignments?.[0]?.budgets;
-              if (!budget) return null;
-              return col.accessorKey ? budget[col.accessorKey] : (col.accessorFn ? col.accessorFn(budget) : null);
-            },
-          }));
+          return columns.map(col => {
+            const originalCell = col.cell;
+            return {
+              ...col,
+              id: `budget.${col.id}`,
+              accessorFn: (row: any) => {
+                // Access budget data through budget_assignments -> budgets
+                const budget = row.budget_assignments?.[0]?.budgets;
+                if (!budget) return null;
+                return col.accessorKey ? budget[col.accessorKey] : (col.accessorFn ? col.accessorFn(budget) : null);
+              },
+              cell: originalCell ? (props: any) => {
+                // Create a modified row object where original points to the budget
+                const budget = props.row.original.budget_assignments?.[0]?.budgets;
+                if (!budget) {
+                  // If no budget, show empty
+                  return <span className="text-gray-400">-</span>;
+                }
+                // Create a modified props object with budget as the original
+                const modifiedProps = {
+                  ...props,
+                  row: {
+                    ...props.row,
+                    original: budget, // Point to budget instead of lead
+                  },
+                  getValue: () => {
+                    // Try to get value from budget using the accessorKey
+                    if (col.accessorKey) {
+                      return budget[col.accessorKey];
+                    }
+                    // If there's an accessorFn, use it
+                    if (col.accessorFn) {
+                      return col.accessorFn(budget);
+                    }
+                    return null;
+                  },
+                };
+                return originalCell(modifiedProps);
+              } : undefined,
+            };
+          });
         }
         // Fallback: key budget columns
         return [
           {
             id: 'budget.name',
             header: 'שם תכנית פעולה',
-            accessorFn: (row: any) => row.budget_assignments?.[0]?.budgets?.name,
+            accessorFn: (row: any) => {
+              // Try multiple ways to access the budget name
+              const budgetAssignments = row.budget_assignments;
+              if (budgetAssignments && Array.isArray(budgetAssignments) && budgetAssignments.length > 0) {
+                const budget = budgetAssignments[0]?.budgets;
+                if (budget && budget.name) {
+                  return budget.name;
+                }
+              }
+              // Fallback: check if it's in a flattened format
+              if (row.budget_name) {
+                return row.budget_name;
+              }
+              return null;
+            },
             enableSorting: true,
             enableResizing: true,
             enableHiding: true,
             size: 180,
             meta: { align: 'right' },
-            cell: ({ getValue }) => {
-              const value = getValue() as string;
-              if (!value) return <span className="text-gray-400">-</span>;
-              return <span className="text-gray-900 font-medium">{value}</span>;
+            cell: ({ getValue, row }) => {
+              const value = getValue() as string | null | undefined;
+              // Also try direct access as fallback
+              const directValue = row.original.budget_assignments?.[0]?.budgets?.name || 
+                                  row.original.budget_name ||
+                                  value;
+              if (!directValue || directValue.trim() === '') return <span className="text-gray-400">-</span>;
+              return <span className="text-gray-900 font-medium">{directValue}</span>;
             },
           },
           {
             id: 'budget.steps_goal',
             header: 'יעד צעדים',
-            accessorFn: (row: any) => row.budget_assignments?.[0]?.budgets?.steps_goal,
+            accessorFn: (row: any) => {
+              // Try multiple ways to access the steps_goal
+              const budgetAssignments = row.budget_assignments;
+              if (budgetAssignments && Array.isArray(budgetAssignments) && budgetAssignments.length > 0) {
+                const budget = budgetAssignments[0]?.budgets;
+                if (budget && budget.steps_goal !== undefined && budget.steps_goal !== null) {
+                  return budget.steps_goal;
+                }
+              }
+              // Fallback: check if it's in a flattened format
+              if (row.budget_steps_goal !== undefined && row.budget_steps_goal !== null) {
+                return row.budget_steps_goal;
+              }
+              return null;
+            },
             enableSorting: true,
             enableResizing: true,
             enableHiding: true,
             size: 120,
             meta: { align: 'right', isNumeric: true },
-            cell: ({ getValue }) => {
-              const value = getValue() as number;
-              if (!value) return <span className="text-gray-400">-</span>;
-              return <span className="text-gray-900">{value.toLocaleString()}</span>;
+            cell: ({ getValue, row }) => {
+              const value = getValue() as number | null | undefined;
+              // Also try direct access as fallback
+              const directValue = row.original.budget_assignments?.[0]?.budgets?.steps_goal || 
+                                  row.original.budget_steps_goal;
+              const finalValue = value !== null && value !== undefined ? value : directValue;
+              if (!finalValue || finalValue === 0) return <span className="text-gray-400">-</span>;
+              return <span className="text-gray-900">{Number(finalValue).toLocaleString()}</span>;
             },
           },
         ];
@@ -247,7 +314,7 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
       fieldPrefix: 'menu.',
       getFilterFields: (columns, data) => {
         const fields: FilterField[] = [];
-        
+
         // Add "entity exists" filter first
         fields.push({
           id: 'menu.exists',
@@ -256,7 +323,7 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
           operators: ['is', 'isNot'],
           options: ['כן', 'לא'],
         });
-        
+
         // Menu fields come from budgets -> nutrition_templates
         // Auto-generated from nutrition template columns if provided
         if (columns && columns.length > 0) {
@@ -289,7 +356,7 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
             }
           );
         }
-        
+
         return fields;
       },
       getColumns: (columns) => {

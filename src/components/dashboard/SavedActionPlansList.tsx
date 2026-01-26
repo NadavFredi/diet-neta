@@ -146,7 +146,7 @@ export interface SavedActionPlansListProps {
 }
 
 export function SavedActionPlansList({ leadId, customerId }: SavedActionPlansListProps = {}) {
-  const { data, isLoading } = useSavedActionPlans();
+  const { data, isLoading } = useSavedActionPlans(leadId);
   const deletePlan = useDeleteSavedActionPlan();
   const { toast } = useToast();
   const [viewingPlanId, setViewingPlanId] = useState<string | null>(null);
@@ -195,8 +195,8 @@ export function SavedActionPlansList({ leadId, customerId }: SavedActionPlansLis
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto">
-        <div className="space-y-3">
+      <div className="flex-1 overflow-y-auto px-6" style={{ paddingTop: 0, marginTop: 0 }}>
+        <div className="space-y-3" style={{ marginTop: 0, paddingTop: 0 }}>
           {savedPlans.map((plan) => {
             const summary = getActionPlanSummaryText(plan);
             const s = plan.snapshot || {};

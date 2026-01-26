@@ -17,7 +17,6 @@ export interface NutritionTargets {
   carbs: number;
   fat: number;
   fiber_min: number;
-  water_min: number; // in liters
 }
 
 export interface Supplement {

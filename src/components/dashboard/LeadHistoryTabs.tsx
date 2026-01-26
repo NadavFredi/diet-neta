@@ -215,7 +215,7 @@ export const LeadHistoryTabs = ({
 
         {/* Budget History Tab */}
         <TabsContent value="budget-history" className="mt-0">
-          <BudgetHistoryList budgetId={budgetIdToDisplay} />
+          <BudgetHistoryList budgetId={budgetIdToDisplay} leadId={leadId} />
         </TabsContent>
 
         {/* Saved Action Plans Tab */}

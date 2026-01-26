@@ -29,20 +29,20 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       align: 'right',
       sortKey: 'created_at',
     },
-    cell: ({ getValue }) => {
-      const value = getValue() as string | null | undefined;
-      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
-      try {
-        return <span className="text-gray-600">{formatDate(value)}</span>;
-      } catch {
-        return <span className="text-gray-400">-</span>;
-      }
+    cell: ({ getValue, row }) => {
+      const value = getValue() as string;
+      // Also try direct access as fallback
+      const directValue = row.original.createdDate || row.original.created_at || value;
+      if (!directValue || directValue.trim() === '') return <span className="text-gray-400">-</span>;
+      const formatted = formatDate(directValue);
+      if (!formatted) return <span className="text-gray-400">-</span>;
+      return <span className="text-gray-600">{formatted}</span>;
     },
   },
   {
     id: 'name',
     header: 'שם',
-    accessorFn: (row) => row.name || null,
+    accessorKey: 'name',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -52,8 +52,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'customer_name',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string | null | undefined;
-      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
+      const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return (
         <span className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">
           {value}
@@ -64,7 +64,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'status',
     header: 'סטטוס',
-    accessorFn: (row) => row.status || null,
+    accessorKey: 'status',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -74,8 +74,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKeys: ['status_sub', 'status_main'],
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string | null | undefined;
-      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
+      const value = getValue() as string;
       const getStatusColor = (status: string) => {
         switch (status) {
           case 'חדש':
@@ -100,7 +99,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'age',
     header: 'גיל',
-    accessorFn: (row) => row.age ?? null,
+    accessorKey: 'age',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -110,16 +109,18 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       isNumeric: true,
       sortKey: 'age',
     },
-    cell: ({ getValue }) => {
-      const value = getValue() as number | null | undefined;
-      if (value === null || value === undefined || value === 0) return <span className="text-gray-400">-</span>;
-      return <span className="text-gray-900">{value} שנים</span>;
+    cell: ({ getValue, row }) => {
+      const value = getValue() as number;
+      // Also try direct access as fallback
+      const directValue = row.original.age || value;
+      if (!directValue || directValue === 0) return <span className="text-gray-400">-</span>;
+      return <span className="text-gray-900">{directValue} שנים</span>;
     },
   },
   {
     id: 'fitnessGoal',
     header: 'מטרת כושר',
-    accessorFn: (row) => row.fitnessGoal || row.fitness_goal || null,
+    accessorKey: 'fitnessGoal',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -128,12 +129,14 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       align: 'right',
       sortKey: 'fitness_goal',
     },
-    cell: ({ getValue }) => {
-      const value = getValue() as string | null | undefined;
-      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
+    cell: ({ getValue, row }) => {
+      const value = getValue() as string;
+      // Also try direct access as fallback
+      const directValue = row.original.fitnessGoal || value;
+      if (!directValue || directValue.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-medium border border-green-100">
-          {value}
+          {directValue}
         </span>
       );
     },
@@ -141,7 +144,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'activityLevel',
     header: 'רמת פעילות',
-    accessorFn: (row) => row.activityLevel || row.activity_level || null,
+    accessorKey: 'activityLevel',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -150,12 +153,14 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       align: 'right',
       sortKey: 'activity_level',
     },
-    cell: ({ getValue }) => {
-      const value = getValue() as string | null | undefined;
-      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
+    cell: ({ getValue, row }) => {
+      const value = getValue() as string;
+      // Also try direct access as fallback
+      const directValue = row.original.activityLevel || value;
+      if (!directValue || directValue.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-orange-50 text-orange-700 text-xs font-medium border border-orange-100">
-          {value}
+          {directValue}
         </span>
       );
     },
@@ -163,7 +168,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'preferredTime',
     header: 'זמן מועדף',
-    accessorFn: (row) => row.preferredTime || row.preferred_time || null,
+    accessorKey: 'preferredTime',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -172,12 +177,14 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       align: 'right',
       sortKey: 'preferred_time',
     },
-    cell: ({ getValue }) => {
-      const value = getValue() as string | null | undefined;
-      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
+    cell: ({ getValue, row }) => {
+      const value = getValue() as string;
+      // Also try direct access as fallback
+      const directValue = row.original.preferredTime || value;
+      if (!directValue || directValue.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-100">
-          {value}
+          {directValue}
         </span>
       );
     },
@@ -185,7 +192,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'phone',
     header: 'טלפון',
-    accessorFn: (row) => row.phone || null,
+    accessorKey: 'phone',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -195,15 +202,15 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'customer_phone',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string | null | undefined;
-      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
+      const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-600 font-mono text-sm">{value}</span>;
     },
   },
   {
     id: 'source',
     header: 'מקור',
-    accessorFn: (row) => row.source || null,
+    accessorKey: 'source',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -213,8 +220,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'source',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string | null | undefined;
-      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
+      const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-purple-50 text-purple-700 text-xs font-medium border border-purple-100">
           {value}
@@ -225,7 +232,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'notes',
     header: 'הערות',
-    accessorFn: (row) => row.notes || null,
+    accessorKey: 'notes',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -234,8 +241,9 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       align: 'right',
       sortKey: 'notes',
     },
-    cell: ({ row }) => {
-      const notes = row.original.notes;
+    cell: ({ row, getValue }) => {
+      // Try both accessor and direct access
+      const notes = getValue() as string | undefined || row.original.notes;
       if (!notes || notes.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="text-gray-600 text-xs italic" title={notes}>
@@ -245,37 +253,9 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     },
   },
   {
-    id: 'steps',
-    header: 'צעדים',
-    accessorFn: (row) => {
-      // Get steps_goal from the first active budget assignment
-      const budgetAssignment = row.budget_assignments?.[0];
-      const budget = budgetAssignment?.budgets;
-      return budget?.steps_goal ?? row.dailyStepsGoal ?? null;
-    },
-    enableSorting: true,
-    enableResizing: true,
-    enableHiding: true,
-    size: 120,
-    meta: {
-      align: 'right',
-      isNumeric: true,
-      sortKey: 'budget.steps_goal',
-    },
-    cell: ({ getValue }) => {
-      const value = getValue() as number | null | undefined;
-      if (value === null || value === undefined || value === 0) return <span className="text-gray-400">-</span>;
-      return (
-        <span className="inline-flex items-center px-2 py-1 rounded-lg bg-cyan-50 text-cyan-700 text-xs font-medium border border-cyan-100">
-          {value.toLocaleString()} צעדים
-        </span>
-      );
-    },
-  },
-  {
     id: 'email',
     header: 'אימייל',
-    accessorFn: (row) => row.email || null,
+    accessorKey: 'email',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -284,8 +264,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       align: 'right',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string | null | undefined;
-      if (!value || value.trim() === '') return <span className="text-gray-400">-</span>;
+      const value = getValue() as string;
+      if (!value) return <span className="text-gray-400">-</span>;
       return (
         <span className="text-gray-900 hover:text-blue-600 transition-colors text-sm">
           {value}
@@ -296,7 +276,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
   {
     id: 'height',
     header: 'גובה (ס"מ)',
-    accessorFn: (row) => row.height ?? null,
+    accessorKey: 'height',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -307,15 +287,15 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'height',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as number | null | undefined;
-      if (value === null || value === undefined || value === 0) return <span className="text-gray-400">-</span>;
+      const value = getValue() as number;
+      if (!value || value === 0) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-900">{value} ס"מ</span>;
     },
   },
   {
     id: 'weight',
     header: 'משקל (ק"ג)',
-    accessorFn: (row) => row.weight ?? null,
+    accessorKey: 'weight',
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
@@ -326,8 +306,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       sortKey: 'weight',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as number | null | undefined;
-      if (value === null || value === undefined || value === 0) return <span className="text-gray-400">-</span>;
+      const value = getValue() as number;
+      if (!value || value === 0) return <span className="text-gray-400">-</span>;
       return <span className="text-gray-900 font-semibold">{value} ק"ג</span>;
     },
   },

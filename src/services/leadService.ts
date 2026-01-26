@@ -58,7 +58,7 @@ export interface LeadFromDB {
   age: number;
   birth_date: string | null;
   birth_date_formatted: string | null;
-  created_date_formatted: string;
+  created_date_formatted: string | null;
   height: number | null;
   weight: number | null;
   daily_steps_goal: number | null;
@@ -75,8 +75,14 @@ export interface LeadFromDB {
       name: string;
       description?: string;
       steps_goal?: number;
+      steps_instructions?: string;
+      eating_order?: string;
+      eating_rules?: string;
+      supplements?: any[];
+      nutrition_targets?: any;
       is_public?: boolean;
       nutrition_template_id?: string;
+      workout_template_id?: string;
       nutrition_templates?: {
         id: string;
         name: string;
@@ -321,14 +327,21 @@ export async function fetchFilteredLeads(
       .from('v_leads_with_customer')
       .select(`
         *,
-        budget_assignments${budgetJoinType}(
+        budget_assignments${budgetJoinType}!lead_id(
+          id,
           budgets${budgetJoinType}(
             id,
             name,
             description,
             steps_goal,
+            steps_instructions,
+            eating_order,
+            eating_rules,
+            supplements,
+            nutrition_targets,
             is_public,
             nutrition_template_id,
+            workout_template_id,
             nutrition_templates:nutrition_template_id${menuJoinType}(
               id,
               name,
@@ -578,18 +591,52 @@ export async function getLeadFilterOptions(): Promise<LeadFilterOptions> {
  * Transform database lead to UI format
  * Minimal transformation - most fields already calculated in PostgreSQL
  * Preserves related entity data for column accessors
+ * Handles both direct database queries and edge function responses
  */
-export function mapLeadToUIFormat(dbLead: LeadFromDB) {
+export function mapLeadToUIFormat(dbLead: LeadFromDB | any) {
+  // Format created_at if created_date_formatted is missing
+  // The view should provide created_date_formatted, but if it's null/undefined,
+  // we format created_at directly as a fallback
+  let createdDate = dbLead.created_date_formatted;
+  if (!createdDate && dbLead.created_at) {
+    try {
+      // Format the date manually if the view didn't provide formatted version
+      const date = new Date(dbLead.created_at);
+      if (!isNaN(date.getTime())) {
+        createdDate = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      }
+    } catch (e) {
+      // If date parsing fails, createdDate will remain null/undefined
+      console.warn('Failed to parse created_at for lead:', dbLead.id, dbLead.created_at);
+    }
+  }
+  
+  // Handle age - could be calculated in DB or need to calculate from birth_date
+  let age = dbLead.age;
+  if (!age && dbLead.birth_date) {
+    try {
+      const birthDate = new Date(dbLead.birth_date);
+      const today = new Date();
+      age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+    } catch (e) {
+      // Age calculation failed
+    }
+  }
+  
   const mapped = {
     id: dbLead.id,
-    name: dbLead.customer_name,
-    createdDate: dbLead.created_date_formatted,
-    status: dbLead.status_sub || dbLead.status_main || '',
-    phone: dbLead.customer_phone,
-    email: dbLead.customer_email || '',
+    name: dbLead.customer_name || dbLead.name || '',
+    createdDate: createdDate || dbLead.created_at || '', // Empty string will be handled by cell renderer to show "-"
+    status: dbLead.status_sub || dbLead.status_main || dbLead.status || '',
+    phone: dbLead.customer_phone || dbLead.phone || '',
+    email: dbLead.customer_email || dbLead.email || '',
     source: dbLead.source || '',
-    age: dbLead.age, // Already calculated in PostgreSQL
-    birthDate: dbLead.birth_date_formatted || '',
+    age: age || 0,
+    birthDate: dbLead.birth_date_formatted || dbLead.birth_date || '',
     height: dbLead.height || 0,
     weight: dbLead.weight || 0,
     fitnessGoal: dbLead.fitness_goal || '',
@@ -614,7 +661,7 @@ export function mapLeadToUIFormat(dbLead: LeadFromDB) {
     subscription_months: dbLead.subscription_months,
     subscription_initial_price: dbLead.subscription_initial_price,
     subscription_renewal_price: dbLead.subscription_renewal_price,
-    budget_assignments: dbLead.budget_assignments,
+    budget_assignments: dbLead.budget_assignments || [],
   };
   
   return mapped;

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 export interface BudgetHistoryItem {
   id: string;
   budget_id: string;
+  lead_id: string | null;
   changed_at: string;
   changed_by: string | null;
   change_type: 'create' | 'update';
@@ -15,13 +16,13 @@ export interface BudgetHistoryItem {
   changer_name?: string; // We might want to join with profiles/users
 }
 
-export const useBudgetHistory = (budgetId: string | undefined | null) => {
+export const useBudgetHistory = (budgetId: string | undefined | null, leadId?: string | null) => {
   return useQuery({
-    queryKey: ['budget-history', budgetId],
+    queryKey: ['budget-history', budgetId, leadId],
     queryFn: async () => {
       if (!budgetId) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('budget_history')
         .select(`
           *,
@@ -30,8 +31,14 @@ export const useBudgetHistory = (budgetId: string | undefined | null) => {
             full_name
           )
         `)
-        .eq('budget_id', budgetId)
-        .order('changed_at', { ascending: false });
+        .eq('budget_id', budgetId);
+
+      // Filter by lead_id if provided
+      if (leadId) {
+        query = query.eq('lead_id', leadId);
+      }
+
+      const { data, error } = await query.order('changed_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching budget history:', error);

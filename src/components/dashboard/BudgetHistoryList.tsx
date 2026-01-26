@@ -11,10 +11,11 @@ import { useSupplementTemplates } from '@/hooks/useSupplementTemplates';
 
 interface BudgetHistoryListProps {
   budgetId?: string | null;
+  leadId?: string | null;
 }
 
-export const BudgetHistoryList: React.FC<BudgetHistoryListProps> = ({ budgetId }) => {
-  const { data: history, isLoading } = useBudgetHistory(budgetId);
+export const BudgetHistoryList: React.FC<BudgetHistoryListProps> = ({ budgetId, leadId }) => {
+  const { data: history, isLoading } = useBudgetHistory(budgetId, leadId);
   
   // Fetch all templates for ID to name resolution
   const { data: nutritionTemplatesData } = useNutritionTemplates();
@@ -210,7 +211,6 @@ const formatValue = (val: any, field?: string, templateNameMap?: Map<string, str
        if (val.carbs) parts.push(`${val.carbs}ג פחמימה`);
        if (val.fat) parts.push(`${val.fat}ג שומן`);
        if (val.fiber_min) parts.push(`${val.fiber_min}ג סיבים`);
-       if (val.water_min) parts.push(`${val.water_min}ל מים`);
        return parts.length > 0 ? parts.join(', ') : JSON.stringify(val);
     }
 

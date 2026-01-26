@@ -101,7 +101,7 @@ export const collectionColumns: DataTableColumn<AllCollectionRecord>[] = [
           displayStatus = 'ממתין';
         }
       }
-      
+
       const statusConfig: Record<string, { label: string; className: string }> = {
         'ממתין': {
           label: 'ממתין',

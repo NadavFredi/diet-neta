@@ -37,6 +37,7 @@ interface BudgetDetailsModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   budgetId: string | null;
+  leadId?: string | null;
   onEdit?: () => void;
 }
 
@@ -44,6 +45,7 @@ export const BudgetDetailsModal = ({
   isOpen,
   onOpenChange,
   budgetId,
+  leadId,
   onEdit,
 }: BudgetDetailsModalProps) => {
   const { budget, nutritionTemplate, workoutTemplate, clientName, assignedDate, isLoading } = useBudgetDetails(budgetId);
@@ -60,6 +62,7 @@ export const BudgetDetailsModal = ({
       
       await saveActionPlan.mutateAsync({
         budget_id: budget.id,
+        lead_id: leadId,
         name: budget.name,
         description: budget.description || null,
         snapshot,
