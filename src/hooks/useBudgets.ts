@@ -377,6 +377,7 @@ export const useCreateBudget = () => {
       steps_goal,
       steps_instructions,
       workout_template_id,
+      supplement_template_id,
       supplements,
       eating_order,
       eating_rules,

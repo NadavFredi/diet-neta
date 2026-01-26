@@ -579,15 +579,20 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     setIsSubmitting(true);
 
     try {
+      // Ensure all template IDs are properly defined
+      const safeSupplementTemplateId = supplementTemplateId !== undefined ? supplementTemplateId : null;
+      const safeNutritionTemplateId = nutritionTemplateId !== undefined ? nutritionTemplateId : null;
+      const safeWorkoutTemplateId = workoutTemplateId !== undefined ? workoutTemplateId : null;
+
       const budgetData = {
         name,
         description: description || null,
-        nutrition_template_id: nutritionTemplateId || null,
+        nutrition_template_id: safeNutritionTemplateId,
         nutrition_targets: nutritionTargets,
         steps_goal: stepsGoal,
         steps_instructions: stepsInstructions || null,
-        workout_template_id: workoutTemplateId || null,
-        supplement_template_id: supplementTemplateId || null,
+        workout_template_id: safeWorkoutTemplateId,
+        supplement_template_id: safeSupplementTemplateId,
         supplements: supplements.filter((s) => s.name.trim() !== ''),
         eating_order: eatingOrder || null,
         eating_rules: eatingRules || null,
@@ -621,8 +626,13 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       const budgetId = (mode === 'edit' && initialData?.id) ? initialData.id : (savedBudget as Budget | undefined)?.id;
 
 
-    } catch (error) {
-      // Silent failure
+    } catch (error: any) {
+      console.error('Error saving budget:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בשמירת תכנית הפעולה',
+        variant: 'destructive',
+      });
     } finally {
       setIsSubmitting(false);
     }

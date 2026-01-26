@@ -395,18 +395,18 @@ export const PlanDetailModal = ({
             {planType === 'nutrition' && 'פרטי תוכנית תזונה'}
             {planType === 'supplements' && 'פרטי תוכנית תוספים'}
           </DialogTitle>
-          <DialogDescription>
+          <div className="text-sm text-muted-foreground space-y-2">
             {planData.budget_id && (
-              <Badge variant="outline" className="mt-2">
+              <Badge variant="outline" className="block w-fit">
                 קשור לתכנית פעולה
               </Badge>
             )}
             {planData.created_at && (
-              <span className="text-xs text-gray-500 block mt-2">
+              <DialogDescription className="text-xs text-gray-500">
                 נוצר ב: {formatDate(planData.created_at)}
-              </span>
+              </DialogDescription>
             )}
-          </DialogDescription>
+          </div>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
@@ -610,7 +610,7 @@ export const PlanDetailModal = ({
                           {isEditing ? (
                             <div className="flex gap-1">
                               <Select
-                                value={supplement.name}
+                                value={supplement.name || undefined}
                                 onValueChange={(value) => handleUpdateSupplement(index, 'name', value)}
                                 disabled={!isEditing}
                               >
@@ -625,9 +625,9 @@ export const PlanDetailModal = ({
                                       </SelectItem>
                                     ))
                                   ) : (
-                                    <SelectItem value="" disabled>
+                                    <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
                                       אין תוספים זמינים
-                                    </SelectItem>
+                                    </div>
                                   )}
                                 </SelectContent>
                               </Select>

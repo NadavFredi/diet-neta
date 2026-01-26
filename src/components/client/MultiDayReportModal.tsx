@@ -121,8 +121,33 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
   }, [days]);
 
   const updateDayData = (date: string, field: keyof DayData, value: number | string | null) => {
+    // Validate numeric values to prevent overflow
+    let validatedValue: number | string | null = value;
+    
+    if (typeof value === 'number') {
+      // Check for invalid numbers (NaN, Infinity)
+      if (!isFinite(value)) {
+        validatedValue = null;
+      } else {
+        // Ensure the value is within safe JavaScript number range
+        // JavaScript safe integer range: -2^53 to 2^53
+        const maxSafeInteger = Number.MAX_SAFE_INTEGER; // 9007199254740991
+        if (Math.abs(value) > maxSafeInteger) {
+          validatedValue = value > 0 ? maxSafeInteger : -maxSafeInteger;
+        }
+      }
+    } else if (typeof value === 'string' && value !== '') {
+      // If it's a string, try to parse it
+      const parsed = parseFloat(value);
+      if (!isNaN(parsed) && isFinite(parsed)) {
+        validatedValue = parsed;
+      } else {
+        validatedValue = null;
+      }
+    }
+    
     setDayData((prev) =>
-      prev.map((day) => (day.date === date ? { ...day, [field]: value } : day))
+      prev.map((day) => (day.date === date ? { ...day, [field]: validatedValue } : day))
     );
   };
 
@@ -380,9 +405,17 @@ export const MultiDayReportModal: React.FC<MultiDayReportModalProps> = ({
                           data-date={day.date}
                           data-field="weight"
                           value={day.weight ?? ''}
-                          onChange={(e) =>
-                            updateDayData(day.date, 'weight', e.target.value === '' ? null : parseFloat(e.target.value))
-                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              updateDayData(day.date, 'weight', null);
+                            } else {
+                              const num = parseFloat(val);
+                              if (!isNaN(num) && isFinite(num)) {
+                                updateDayData(day.date, 'weight', num);
+                              }
+                            }
+                          }}
                           onKeyDown={(e) => handleKeyDown(e, day.date, 'weight', 0)}
                           className="w-full h-10 px-2 text-sm text-black border-0 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] text-center"
                           placeholder="—"
