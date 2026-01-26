@@ -269,7 +269,7 @@ export const useAddLead = () => {
             initialPrice: subscriptionType.price,
             currency: subscriptionType.currency || 'ILS',
             renewalPrice: 0, // Can be set later
-            subscription_status: 'active',
+            status: 'פעיל', // First subscription should be active immediately
             subscription_type_id: subscriptionType.id,
             subscription_type_name: subscriptionType.name,
             expirationDate: sub1Expiration,
