@@ -167,11 +167,13 @@ export const nutritionTemplateColumns: DataTableColumn<NutritionTemplate>[] = [
     meta: {
       align: 'right',
     },
-    cell: ({ getValue }) => {
+    cell: ({ getValue, row }) => {
       const value = getValue() as string | null;
+      const description = row.original?.description;
+      const displayValue = value || description || null;
       return (
-        <span className="text-gray-600 max-w-md truncate block">
-          {value || '-'}
+        <span className="text-sm text-gray-700 max-w-md truncate block" title={displayValue || undefined}>
+          {displayValue || <span className="text-gray-400">—</span>}
         </span>
       );
     },
@@ -194,27 +196,36 @@ export const nutritionTemplateColumns: DataTableColumn<NutritionTemplate>[] = [
     },
     cell: ({ row }) => {
       const targets = row.original?.targets;
-      if (!targets) return <span className="text-gray-400">-</span>;
+      // Handle both direct targets and targets from the view
+      const calories = targets?.calories ?? row.original?.calories_value;
+      const protein = targets?.protein ?? row.original?.protein_value;
+      const carbs = targets?.carbs ?? row.original?.carbs_value;
+      const fat = targets?.fat ?? row.original?.fat_value;
+      
+      if (!calories && !protein && !carbs && !fat) {
+        return <span className="text-sm text-gray-400">—</span>;
+      }
+      
       return (
         <div className="flex gap-2 flex-wrap">
-          {targets.calories != null && (
+          {calories != null && (
             <Badge variant="outline" className="text-xs">
-              {targets.calories} קק״ל
+              {calories} קק״ל
             </Badge>
           )}
-          {targets.protein != null && (
+          {protein != null && (
             <Badge variant="outline" className="text-xs">
-              {targets.protein}ג חלבון
+              {protein}ג חלבון
             </Badge>
           )}
-          {targets.carbs != null && (
+          {carbs != null && (
             <Badge variant="outline" className="text-xs">
-              {targets.carbs}ג פחמימות
+              {carbs}ג פחמימות
             </Badge>
           )}
-          {targets.fat != null && (
+          {fat != null && (
             <Badge variant="outline" className="text-xs">
-              {targets.fat}ג שומן
+              {fat}ג שומן
             </Badge>
           )}
         </div>

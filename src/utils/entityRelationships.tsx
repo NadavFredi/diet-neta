@@ -362,16 +362,84 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
       getColumns: (columns) => {
         // Menu columns come from budgets -> nutrition_templates
         if (columns && columns.length > 0) {
-          return columns.map(col => ({
-            ...col,
-            id: `menu.${col.id}`,
-            accessorFn: (row: any) => {
-              // Access nutrition template through budget_assignments -> budgets -> nutrition_templates
-              const nutritionTemplate = row.budget_assignments?.[0]?.budgets?.nutrition_templates;
-              if (!nutritionTemplate) return null;
-              return col.accessorKey ? nutritionTemplate[col.accessorKey] : (col.accessorFn ? col.accessorFn(nutritionTemplate) : null);
-            },
-          }));
+          return columns.map(col => {
+            const originalCell = col.cell;
+            return {
+              ...col,
+              id: `menu.${col.id}`,
+              accessorFn: (row: any) => {
+                // Access nutrition template through budget_assignments -> budgets -> nutrition_templates
+                const budget = row.budget_assignments?.[0]?.budgets;
+                const nutritionTemplate = budget?.nutrition_templates;
+                
+                // For targets column, also check nutrition_targets directly on budget
+                if (col.accessorKey === 'targets') {
+                  return nutritionTemplate?.targets || budget?.nutrition_targets || null;
+                }
+                
+                if (!nutritionTemplate) return null;
+                return col.accessorKey ? nutritionTemplate[col.accessorKey] : (col.accessorFn ? col.accessorFn(nutritionTemplate) : null);
+              },
+              cell: originalCell ? (props: any) => {
+                // Get budget and nutrition template from the lead's budget_assignments
+                const budget = props.row.original.budget_assignments?.[0]?.budgets;
+                const nutritionTemplate = budget?.nutrition_templates;
+                const nutritionTargets = budget?.nutrition_targets;
+                
+                // For targets column, merge both sources
+                if (col.accessorKey === 'targets') {
+                  const targets = nutritionTemplate?.targets || nutritionTargets;
+                  if (!targets) {
+                    return <span className="text-sm text-gray-400">—</span>;
+                  }
+                  
+                  // Create modified props with targets
+                  const modifiedProps = {
+                    ...props,
+                    row: {
+                      ...props.row,
+                      original: {
+                        targets: targets,
+                        // Also include individual values for backward compatibility
+                        calories_value: targets?.calories,
+                        protein_value: targets?.protein,
+                        carbs_value: targets?.carbs,
+                        fat_value: targets?.fat,
+                      },
+                    },
+                    getValue: () => targets,
+                  };
+                  return originalCell(modifiedProps);
+                }
+                
+                // For other columns, use nutrition template
+                if (!nutritionTemplate) {
+                  return <span className="text-gray-400">-</span>;
+                }
+                
+                // Create a modified props object with nutrition template as the original
+                const modifiedProps = {
+                  ...props,
+                  row: {
+                    ...props.row,
+                    original: nutritionTemplate,
+                  },
+                  getValue: () => {
+                    // Try to get value from nutrition template using the accessorKey
+                    if (col.accessorKey) {
+                      return nutritionTemplate[col.accessorKey] || null;
+                    }
+                    // If there's an accessorFn, use it
+                    if (col.accessorFn) {
+                      return col.accessorFn(nutritionTemplate);
+                    }
+                    return null;
+                  },
+                };
+                return originalCell(modifiedProps);
+              } : undefined,
+            };
+          });
         }
         // Fallback: key menu columns
         return [
@@ -391,16 +459,76 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
             },
           },
           {
+            id: 'menu.targets',
+            header: 'מקרו-נוטריאנטים',
+            accessorFn: (row: any) => {
+              // Try nutrition_templates.targets first, then budget.nutrition_targets
+              const budget = row.budget_assignments?.[0]?.budgets;
+              return budget?.nutrition_templates?.targets || budget?.nutrition_targets || null;
+            },
+            enableSorting: true,
+            enableResizing: true,
+            enableHiding: false,
+            size: 350,
+            meta: { align: 'right' },
+            cell: ({ row }) => {
+              const budget = row.original.budget_assignments?.[0]?.budgets;
+              const targets = budget?.nutrition_templates?.targets || budget?.nutrition_targets;
+              
+              if (!targets) {
+                return <span className="text-sm text-gray-400">—</span>;
+              }
+              
+              const calories = targets?.calories;
+              const protein = targets?.protein;
+              const carbs = targets?.carbs;
+              const fat = targets?.fat;
+              
+              if (!calories && !protein && !carbs && !fat) {
+                return <span className="text-sm text-gray-400">—</span>;
+              }
+              
+              return (
+                <div className="flex gap-2 flex-wrap">
+                  {calories != null && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                      {calories} קק״ל
+                    </span>
+                  )}
+                  {protein != null && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                      {protein}ג חלבון
+                    </span>
+                  )}
+                  {carbs != null && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200">
+                      {carbs}ג פחמימות
+                    </span>
+                  )}
+                  {fat != null && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                      {fat}ג שומן
+                    </span>
+                  )}
+                </div>
+              );
+            },
+          },
+          {
             id: 'menu.calories',
             header: 'קלוריות',
-            accessorFn: (row: any) => row.budget_assignments?.[0]?.budgets?.nutrition_templates?.targets?.calories,
+            accessorFn: (row: any) => {
+              const budget = row.budget_assignments?.[0]?.budgets;
+              return budget?.nutrition_templates?.targets?.calories || budget?.nutrition_targets?.calories;
+            },
             enableSorting: true,
             enableResizing: true,
             enableHiding: true,
             size: 100,
             meta: { align: 'right', isNumeric: true },
-            cell: ({ getValue }) => {
-              const value = getValue() as number;
+            cell: ({ getValue, row }) => {
+              const budget = row.original.budget_assignments?.[0]?.budgets;
+              const value = budget?.nutrition_templates?.targets?.calories || budget?.nutrition_targets?.calories || getValue() as number;
               if (!value) return <span className="text-gray-400">-</span>;
               return <span className="text-gray-900">{value} קק״ל</span>;
             },
@@ -408,14 +536,18 @@ export const ENTITY_RELATIONSHIPS: Record<string, EntityRelationship[]> = {
           {
             id: 'menu.protein',
             header: 'חלבון',
-            accessorFn: (row: any) => row.budget_assignments?.[0]?.budgets?.nutrition_templates?.targets?.protein,
+            accessorFn: (row: any) => {
+              const budget = row.budget_assignments?.[0]?.budgets;
+              return budget?.nutrition_templates?.targets?.protein || budget?.nutrition_targets?.protein;
+            },
             enableSorting: true,
             enableResizing: true,
             enableHiding: true,
             size: 100,
             meta: { align: 'right', isNumeric: true },
-            cell: ({ getValue }) => {
-              const value = getValue() as number;
+            cell: ({ getValue, row }) => {
+              const budget = row.original.budget_assignments?.[0]?.budgets;
+              const value = budget?.nutrition_templates?.targets?.protein || budget?.nutrition_targets?.protein || getValue() as number;
               if (!value) return <span className="text-gray-400">-</span>;
               return <span className="text-gray-900">{value}ג</span>;
             },

@@ -38,6 +38,16 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
+    cell: ({ row }: { row: any }) => {
+      const name = row.original.name;
+      return name ? (
+        <span className="text-sm font-medium text-gray-900 truncate block max-w-[200px]" title={name}>
+          {name}
+        </span>
+      ) : (
+        <span className="text-gray-400 text-sm">—</span>
+      );
+    },
   },
   {
     id: 'description',

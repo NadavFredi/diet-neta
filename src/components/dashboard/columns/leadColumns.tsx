@@ -1,3 +1,4 @@
+import React, { useEffect, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { formatDate } from '@/utils/dashboard';
@@ -5,6 +6,94 @@ import type { DataTableColumn } from '@/components/ui/DataTable';
 import { getEntityRelationships } from '@/utils/entityRelationships.tsx';
 import { budgetColumns } from '@/components/dashboard/BudgetsDataTable';
 import { nutritionTemplateColumns } from '@/components/dashboard/columns/templateColumns';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { 
+  fetchCustomerNotes, 
+  selectCustomerNotes, 
+  selectIsLoadingNotes,
+  type CustomerNote 
+} from '@/store/slices/leadViewSlice';
+
+/**
+ * NotesCell Component - Displays customer notes from customer_notes table
+ * Similar to CustomerNotesSidebar but in a compact table cell format
+ */
+const NotesCell: React.FC<{ lead: Lead }> = ({ lead }) => {
+  const dispatch = useAppDispatch();
+  const customerId = lead.customerId;
+  
+  // Create memoized selectors
+  const customerNotesSelector = useMemo(
+    () => selectCustomerNotes(customerId || ''),
+    [customerId]
+  );
+  const isLoadingNotesSelector = useMemo(
+    () => selectIsLoadingNotes(customerId || ''),
+    [customerId]
+  );
+  
+  const notes = useAppSelector(customerNotesSelector);
+  const isLoading = useAppSelector(isLoadingNotesSelector);
+  
+  // Fetch notes if customerId exists and notes aren't loaded
+  useEffect(() => {
+    if (customerId && notes === undefined && !isLoading) {
+      dispatch(fetchCustomerNotes(customerId));
+    }
+  }, [customerId, notes, isLoading, dispatch]);
+  
+  // If no customerId, show legacy notes field or empty
+  if (!customerId) {
+    const legacyNotes = lead.notes;
+    if (!legacyNotes || legacyNotes.trim() === '') {
+      return <span className="text-gray-400">-</span>;
+    }
+    return (
+      <span className="text-gray-600 text-xs italic" title={legacyNotes}>
+        {legacyNotes.length > 30 ? `${legacyNotes.substring(0, 30)}...` : legacyNotes}
+      </span>
+    );
+  }
+  
+  // If loading, show loading state
+  if (isLoading) {
+    return <span className="text-gray-400 text-xs">טוען...</span>;
+  }
+  
+  // If no notes, show empty state
+  if (!notes || notes.length === 0) {
+    return <span className="text-gray-400">-</span>;
+  }
+  
+  // Get the most recent note (notes are sorted by created_at desc)
+  const mostRecentNote = notes[0];
+  const noteContent = mostRecentNote.content || '';
+  
+  // Show count if there are multiple notes
+  const notesCount = notes.length;
+  const displayText = notesCount > 1 
+    ? `${noteContent.substring(0, 25)}... (${notesCount})`
+    : noteContent;
+  
+  // Truncate if too long
+  const truncatedText = displayText.length > 30 
+    ? `${displayText.substring(0, 30)}...` 
+    : displayText;
+  
+  // Create tooltip with all notes
+  const allNotesText = notes
+    .map((note, idx) => `${idx + 1}. ${note.content}`)
+    .join('\n');
+  
+  return (
+    <span 
+      className="text-gray-600 text-xs italic cursor-help" 
+      title={allNotesText || noteContent}
+    >
+      {truncatedText}
+    </span>
+  );
+};
 
 /**
  * Strict column definitions for Leads table.
@@ -241,15 +330,8 @@ export const leadColumns: DataTableColumn<Lead>[] = [
       align: 'right',
       sortKey: 'notes',
     },
-    cell: ({ row, getValue }) => {
-      // Try both accessor and direct access
-      const notes = getValue() as string | undefined || row.original.notes;
-      if (!notes || notes.trim() === '') return <span className="text-gray-400">-</span>;
-      return (
-        <span className="text-gray-600 text-xs italic" title={notes}>
-          {notes.length > 30 ? `${notes.substring(0, 30)}...` : notes}
-        </span>
-      );
+    cell: ({ row }) => {
+      return <NotesCell lead={row.original} />;
     },
   },
   {
