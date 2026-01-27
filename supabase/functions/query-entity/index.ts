@@ -51,8 +51,8 @@ serve(async (req) => {
           case 'is': query = query.is(filter.field, filter.value); break;
           case 'in': query = query.in(filter.field, filter.value); break;
           // Add more as needed
-          default: 
-            console.warn(`Unsupported operator: ${filter.operator}`)
+          default:
+            break;
         }
       }
     })

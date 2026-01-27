@@ -67,10 +67,8 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           supabase.rpc('check_expiring_subscriptions')
-            .then(({ error }) => {
-              if (error) console.error('Error checking subscriptions:', error);
-            })
-            .catch(err => console.error('Error checking subscriptions:', err));
+            .then(() => {})
+            .catch(() => {});
         }
         
       } catch (error) {

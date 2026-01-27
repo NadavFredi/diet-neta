@@ -96,7 +96,6 @@ export const createProsperoProposal = async (
       .single();
 
     if (leadError) {
-      console.error('Error fetching lead:', leadError);
       // Continue anyway, customer_id is optional
     }
 
@@ -116,7 +115,6 @@ export const createProsperoProposal = async (
       });
 
     if (insertError) {
-      console.error('Error saving proposal to database:', insertError);
       // Don't throw - the proposal was created successfully, just DB save failed
       // In production, you might want to log this to an error tracking service
     }

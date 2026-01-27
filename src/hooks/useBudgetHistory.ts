@@ -41,7 +41,6 @@ export const useBudgetHistory = (budgetId: string | undefined | null, leadId?: s
       const { data, error } = await query.order('changed_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching budget history:', error);
         throw error;
       }
 

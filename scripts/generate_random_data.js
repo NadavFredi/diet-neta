@@ -229,8 +229,6 @@ function generateSubscriptionData() {
 // (check by phone number, create if doesn't exist). For mock data, we create
 // customers first, then leads that link to them.
 async function generateCustomers(count) {
-  console.log(`\n📦 Creating ${count} customers...`);
-  console.log(`   (In real system: customers are created/upserted when leads are created, based on phone number)`);
   const customers = [];
   const usedPhones = new Set(); // Track phone numbers to ensure uniqueness
   

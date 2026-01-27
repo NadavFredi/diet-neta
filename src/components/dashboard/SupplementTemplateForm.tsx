@@ -56,7 +56,6 @@ export const SupplementTemplateForm = ({
       };
       onSave(data);
     } catch (error) {
-      console.error('Error saving template:', error);
     } finally {
       setIsSubmitting(false);
     }

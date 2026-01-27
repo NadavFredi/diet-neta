@@ -88,7 +88,6 @@ export const ExerciseForm = ({
         });
 
       if (uploadError) {
-        console.error('Upload error details:', uploadError);
         throw new Error(uploadError.message || 'שגיאה בהעלאת התמונה');
       }
 

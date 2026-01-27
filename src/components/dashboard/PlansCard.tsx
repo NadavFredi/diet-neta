@@ -1142,7 +1142,6 @@ export const PlansCard = ({
                                 await queryClient.refetchQueries({ queryKey: ['budget', effectiveBudgetId] });
                                 await queryClient.refetchQueries({ queryKey: ['plans-history'] });
                               } catch (error: any) {
-                                console.error('Error updating steps goal:', error);
                                 toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון יעד הצעדים', variant: 'destructive' });
                               }
                             }}

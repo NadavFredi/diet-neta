@@ -64,8 +64,6 @@ export const useBloodTests = (leadId: string | null) => {
               .createSignedUrl(test.file_url, 3600);
 
             if (urlError) {
-              // Log error for debugging but don't throw
-              console.warn(`Failed to create signed URL for ${test.file_url}:`, urlError);
               // File might not exist in storage or RLS policy violation - handle gracefully
               return { ...test, signedUrl: '' };
             }
@@ -76,7 +74,6 @@ export const useBloodTests = (leadId: string | null) => {
             };
           } catch (error: any) {
             // Handle storage errors gracefully (e.g., file not found, RLS violation)
-            console.warn(`Error creating signed URL for ${test.file_url}:`, error);
             return { ...test, signedUrl: '' };
           }
         })
@@ -136,8 +133,6 @@ export const useBloodTestsForCustomer = (customerId: string | null) => {
               .createSignedUrl(test.file_url, 3600);
 
             if (urlError) {
-              // Log error for debugging but don't throw
-              console.warn(`Failed to create signed URL for ${test.file_url}:`, urlError);
               // File might not exist in storage or RLS policy violation - handle gracefully
               return { ...test, signedUrl: '' };
             }
@@ -148,7 +143,6 @@ export const useBloodTestsForCustomer = (customerId: string | null) => {
             };
           } catch (error: any) {
             // Handle storage errors gracefully (e.g., file not found, RLS violation)
-            console.warn(`Error creating signed URL for ${test.file_url}:`, error);
             return { ...test, signedUrl: '' };
           }
         })

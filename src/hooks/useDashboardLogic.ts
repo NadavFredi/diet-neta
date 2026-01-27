@@ -203,7 +203,6 @@ export const useDashboardLogic = (options?: { filterGroup?: FilterGroup | null }
       setQueryData(leadsData);
       setQueryCount(leadsCount);
     } catch (error: any) {
-      console.error('Error fetching leads:', error);
       setQueryError(error.message || 'Failed to fetch leads');
     } finally {
       setIsQueryLoading(false);

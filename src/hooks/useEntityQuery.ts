@@ -36,7 +36,6 @@ export const useEntityQuery = (entityName: string) => {
       if (error) throw error;
       setConfig(data);
     } catch (err: any) {
-      console.error('Error fetching entity config:', err);
       setError(err.message);
     } finally {
       setIsLoadingConfig(false);
@@ -71,7 +70,6 @@ export const useEntityQuery = (entityName: string) => {
       setData(responseData.data);
       setCount(responseData.count || 0);
     } catch (err: any) {
-      console.error('Error fetching entity data:', err);
       setError(err.message);
     } finally {
       setIsLoadingData(false);

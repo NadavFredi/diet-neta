@@ -111,9 +111,7 @@ export const StepsPlanDialog = ({
           })
           .eq('id', budgetId);
           
-        if (budgetError) {
-          console.error('Error syncing budget:', budgetError);
-        } else {
+        if (!budgetError) {
           // Invalidate budget history query
           queryClient.invalidateQueries({ queryKey: ['budget-history', budgetId] });
           queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
@@ -132,7 +130,6 @@ export const StepsPlanDialog = ({
   
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error saving steps plan:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בעדכון יעד הצעדים',

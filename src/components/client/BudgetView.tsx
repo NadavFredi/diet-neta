@@ -29,6 +29,7 @@ import {
   Dumbbell,
   ListOrdered,
   ScrollText,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -314,8 +315,46 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
                           </div>
                         )}
                         {supplement.timing && (
-                          <div className="text-xs text-emerald-600">
+                          <div className="text-xs text-emerald-600 mb-1">
                             מתי לקחת: {supplement.timing}
+                          </div>
+                        )}
+                        {(supplement.link1 || supplement.link2) && (
+                          <div className="mt-2 pt-2 border-t border-emerald-200/60 space-y-1.5">
+                            {supplement.link1 && (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700">
+                                  <LinkIcon className="h-3 w-3" />
+                                  קישור 1
+                                </div>
+                                <a
+                                  href={supplement.link1}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:text-blue-800 underline truncate block"
+                                  dir="ltr"
+                                >
+                                  {supplement.link1}
+                                </a>
+                              </div>
+                            )}
+                            {supplement.link2 && (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700">
+                                  <LinkIcon className="h-3 w-3" />
+                                  קישור 2
+                                </div>
+                                <a
+                                  href={supplement.link2}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:text-blue-800 underline truncate block"
+                                  dir="ltr"
+                                >
+                                  {supplement.link2}
+                                </a>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

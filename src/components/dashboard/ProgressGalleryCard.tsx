@@ -92,7 +92,6 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
               .createSignedUrl(`${customerId}/progress/${file.name}`, 3600);
 
             if (urlError) {
-              console.warn(`Failed to create signed URL for ${file.name}:`, urlError);
               // Return photo with empty URL - it will be skipped in display
               return {
                 url: '',
@@ -107,7 +106,6 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
               uploadedAt: file.created_at || file.updated_at || new Date().toISOString(),
             };
           } catch (err) {
-            console.warn(`Error processing file ${file.name}:`, err);
             // Return photo with empty URL - it will be skipped in display
             return {
               url: '',
@@ -122,16 +120,13 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
       const validPhotos = photosWithUrls.filter(photo => photo.url !== '');
       setPhotos(validPhotos);
     } catch (error: any) {
-      console.error('Error fetching progress photos:', error);
       // Don't show error toast for empty folder (expected case) or storage unavailable
       if (error?.message?.includes('not found') || error?.statusCode === '404' || 
           error?.message?.includes('name resolution failed') || error?.message?.includes('503') ||
           error?.message?.includes('row-level security')) {
         setPhotos([]);
       } else {
-        // For other errors, still set empty array but log the error
         setPhotos([]);
-        console.warn('Progress photos fetch error (non-critical):', error?.message);
       }
     } finally {
       // Always set loading to false, even if there was an error

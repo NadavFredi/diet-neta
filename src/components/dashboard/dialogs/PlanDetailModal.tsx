@@ -201,7 +201,12 @@ export const PlanDetailModal = ({
           supplements: supplements,
         });
       }
-      setIsEditing(false);
+      // Supplements modal is always editable; workout/nutrition use edit toggle
+      if (planType !== 'supplements') {
+        setIsEditing(false);
+      } else {
+        setIsEditing(true);
+      }
     }
   }, [planData, planType]);
 
@@ -325,35 +330,38 @@ export const PlanDetailModal = ({
     }));
   };
 
+  const handleSupplementFieldChange = (index: number, field: 'name' | 'dosage' | 'timing', value: string) => {
+    setSupplementForm((prev) => {
+      const next = [...prev.supplements];
+      if (!next[index]) return prev;
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, supplements: next };
+    });
+  };
+
   const handleEditSupplement = (index: number) => {
     setEditingSupplementIndex(index);
     setIsAddSupplementDialogOpen(true);
   };
 
   const handleSaveSupplement = (supplement: Supplement) => {
-    if (editingSupplementIndex !== null) {
-      // Update existing supplement
-      const updated = [...supplementForm.supplements];
-      updated[editingSupplementIndex] = supplement;
-      setSupplementForm({
-        ...supplementForm,
-        supplements: updated,
-      });
-      setEditingSupplementIndex(null);
-    } else {
-      // Add new supplement
-      setSupplementForm({
-        ...supplementForm,
-        supplements: [...supplementForm.supplements, supplement],
-      });
-    }
+    const idx = editingSupplementIndex;
+    setSupplementForm((prev) => {
+      if (idx !== null) {
+        const updated = [...prev.supplements];
+        if (updated[idx]) updated[idx] = supplement;
+        return { ...prev, supplements: updated };
+      }
+      return { ...prev, supplements: [...prev.supplements, supplement] };
+    });
+    setEditingSupplementIndex(null);
     setIsAddSupplementDialogOpen(false);
   };
 
   if (!planData) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose} dir="rtl">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} dir="rtl">
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
           <DialogTitle>
@@ -548,9 +556,6 @@ export const PlanDetailModal = ({
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        if (!isEditing) {
-                          setIsEditing(true);
-                        }
                         setEditingSupplementIndex(null);
                         setIsAddSupplementDialogOpen(true);
                       }}
@@ -562,41 +567,64 @@ export const PlanDetailModal = ({
                   </div>
                 ) : (
                   <div className="space-y-2">
+                    {supplementForm.supplements.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2 px-3 py-1 text-xs font-medium text-slate-500 border-b border-slate-100 pr-14">
+                        <span>שם</span>
+                        <span>מינון</span>
+                        <span>זמן נטילה</span>
+                      </div>
+                    )}
                     {supplementForm.supplements.map((supplement, index) => (
                       <div key={index} className="flex gap-2 items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
                         <div className="flex-1 grid grid-cols-3 gap-2">
-                          <div className="text-sm font-medium text-slate-900">{supplement.name || 'ללא שם'}</div>
-                          <div className="text-xs text-slate-600">{supplement.dosage || '-'}</div>
-                          <div className="text-xs text-slate-600">{supplement.timing || '-'}</div>
+                          <Input
+                            value={supplement.name || ''}
+                            onChange={(e) => handleSupplementFieldChange(index, 'name', e.target.value)}
+                            placeholder="שם התוסף"
+                            className="bg-white text-sm h-9"
+                            dir="rtl"
+                          />
+                          <Input
+                            value={supplement.dosage || ''}
+                            onChange={(e) => handleSupplementFieldChange(index, 'dosage', e.target.value)}
+                            placeholder="מינון"
+                            className="bg-white text-sm h-9"
+                            dir="rtl"
+                          />
+                          <Input
+                            value={supplement.timing || ''}
+                            onChange={(e) => handleSupplementFieldChange(index, 'timing', e.target.value)}
+                            placeholder="זמן נטילה"
+                            className="bg-white text-sm h-9"
+                            dir="rtl"
+                          />
                         </div>
-                        {isEditing && (
-                          <div className="flex gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditSupplement(index)}
-                              className="h-8 w-8 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                              title="ערוך תוסף"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleRemoveSupplement(index, e);
-                              }}
-                              className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                              title="מחק תוסף"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditSupplement(index)}
+                            className="h-8 w-8 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                            title="ערוך תוסף (קישורים וכו')"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleRemoveSupplement(index, e);
+                            }}
+                            className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                            title="מחק תוסף"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     <Button
@@ -604,9 +632,6 @@ export const PlanDetailModal = ({
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        if (!isEditing) {
-                          setIsEditing(true);
-                        }
                         setEditingSupplementIndex(null);
                         setIsAddSupplementDialogOpen(true);
                       }}
@@ -637,7 +662,35 @@ export const PlanDetailModal = ({
         />
 
         <div className="flex justify-end gap-3 pt-4 border-t">
-          {!isEditing ? (
+          {planType === 'supplements' ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+              >
+                סגור
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                    שומר...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 ml-2" />
+                    שמור
+                  </>
+                )}
+              </Button>
+            </>
+          ) : !isEditing ? (
             <>
               <Button
                 type="button"
@@ -661,7 +714,6 @@ export const PlanDetailModal = ({
                 variant="outline"
                 onClick={() => {
                   setIsEditing(false);
-                  // Reset form to original values
                   if (planData) {
                     if (planType === 'workout') {
                       const data = planData as WorkoutPlanData;
@@ -683,31 +735,6 @@ export const PlanDetailModal = ({
                         carbs: data.targets?.carbs || 0,
                         fat: data.targets?.fat || 0,
                         fiber: data.targets?.fiber || 0,
-                      });
-                    } else if (planType === 'supplements') {
-                      const data = planData as SupplementPlanData;
-                      // Handle backward compatibility: convert string[] to Supplement[]
-                      let supplements: Supplement[] = [];
-                      if (data.supplements) {
-                        if (Array.isArray(data.supplements) && data.supplements.length > 0) {
-                          if (typeof data.supplements[0] === 'string') {
-                            // Old format: string[]
-                            supplements = (data.supplements as string[]).map(name => ({
-                              name: name,
-                              dosage: '',
-                              timing: '',
-                            }));
-                          } else {
-                            // New format: Supplement[]
-                            supplements = data.supplements as Supplement[];
-                          }
-                        }
-                      }
-                      setSupplementForm({
-                        startDate: formatDateForInput(data.startDate),
-                        endDate: formatDateForInput(data.endDate),
-                        description: data.description || '',
-                        supplements: supplements,
                       });
                     }
                   }

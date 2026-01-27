@@ -101,7 +101,6 @@ const fetchSubscriptionAlerts = async (userId: string): Promise<Notification[]> 
       return dateA - dateB;
     });
   } catch (error) {
-    console.error('Error fetching subscription alerts:', error);
     return [];
   }
 };

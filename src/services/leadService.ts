@@ -607,7 +607,6 @@ export function mapLeadToUIFormat(dbLead: LeadFromDB | any) {
       }
     } catch (e) {
       // If date parsing fails, createdDate will remain null/undefined
-      console.warn('Failed to parse created_at for lead:', dbLead.id, dbLead.created_at);
     }
   }
   

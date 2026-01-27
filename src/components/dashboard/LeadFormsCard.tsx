@@ -78,7 +78,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
         const proposals = await getProsperoProposals(leadId);
         setProsperoProposals(proposals);
       } catch (err: any) {
-        console.error('Failed to fetch proposals:', err);
         setProsperoProposals([]);
       } finally {
         setIsLoadingProposals(false);
@@ -110,7 +109,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
             const proposals = await getProsperoProposals(leadId);
             setProsperoProposals(proposals);
           } catch (err: any) {
-            console.error('Failed to refresh proposals after realtime update:', err);
           }
         }
       )
@@ -128,7 +126,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
             const proposals = await getProsperoProposals(leadId);
             setProsperoProposals(proposals);
           } catch (err: any) {
-            console.error('Failed to refresh proposals after realtime insert:', err);
           }
         }
       )
@@ -379,7 +376,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
                 const proposals = await getProsperoProposals(leadId);
                 setProsperoProposals(proposals);
               } catch (err) {
-                console.error('Failed to refresh proposals:', err);
               }
             }
           }}

@@ -77,15 +77,6 @@ serve(async (req) => {
                      body.signed === true ||
                      body.signed === 'true';
 
-    console.log('Webhook received:', {
-      proposalId,
-      proposalLink,
-      normalizedProposalLink,
-      leadId,
-      status: body.status,
-      isSigned,
-    });
-
     if (!isSigned) {
       // If not signed, just acknowledge the webhook
       return successResponse({ 
@@ -141,13 +132,6 @@ serve(async (req) => {
       if (!errorByLink && proposalByLink) {
         proposalFound = true;
         proposalIdToUpdate = proposalByLink.id;
-        console.log('Proposal found by link:', {
-          foundId: proposalByLink.id,
-          storedLink: proposalByLink.proposal_link,
-          receivedLink: normalizedProposalLink,
-        });
-      } else if (errorByLink) {
-        console.error('Error finding proposal by link:', errorByLink);
       }
     }
 
@@ -169,12 +153,6 @@ serve(async (req) => {
     }
 
     if (!proposalFound || !proposalIdToUpdate) {
-      // Log but don't fail - webhook might be for a proposal we don't have
-      console.warn('Proposal not found in database:', {
-        proposalId,
-        proposalLink: normalizedProposalLink,
-        leadId,
-      });
       return successResponse({ 
         message: 'Proposal not found in database',
         received: true,
@@ -211,15 +189,8 @@ serve(async (req) => {
       .single();
 
     if (updateError) {
-      console.error('Failed to update proposal:', updateError);
       return errorResponse(`Failed to update proposal status: ${updateError.message}`, 500);
     }
-
-    console.log('Proposal status updated successfully:', {
-      proposalId: updatedProposal.id,
-      oldStatus: 'Sent',
-      newStatus: updatedProposal.status,
-    });
 
     return successResponse({
       message: 'Proposal status updated to Signed',

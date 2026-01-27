@@ -66,7 +66,6 @@ export const AddCollectionDialog = ({
         .limit(1000)
         .then(({ data, error }) => {
           if (error) {
-            console.error('Error fetching leads:', error);
             toast({
               title: 'שגיאה',
               description: 'לא ניתן לטעון את רשימת הלידים',

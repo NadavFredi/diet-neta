@@ -118,15 +118,10 @@ export const AddSupplementDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation(); // Prevent event from bubbling to parent form
-    console.log('=== FORM SUBMITTED ===');
-    console.log('Form values:', { name, dosage, timing, link1, link2 });
-    console.log('isCreatingNew:', isCreatingNew);
-    console.log('selectedSupplementName:', selectedSupplementName);
-    
+
     // Validate name
     const trimmedName = name.trim();
     if (!trimmedName) {
-      console.log('✗ Validation failed: No name');
       toast({
         title: 'שגיאה',
         description: 'אנא הזן שם תוסף',
@@ -135,9 +130,8 @@ export const AddSupplementDialog = ({
       return;
     }
 
-    console.log('✓ Validation passed, setting isSubmitting to true');
     setIsSubmitting(true);
-    
+
     try {
       // Prepare supplement object
       const supplement: Supplement = {
@@ -149,18 +143,12 @@ export const AddSupplementDialog = ({
       };
 
       // Save to action plan first - this is critical and must succeed
-      console.log('=== ADDING SUPPLEMENT ===');
-      console.log('Supplement data:', supplement);
-      console.log('onSave function:', onSave);
-      
       try {
         onSave(supplement);
-        console.log('✓ onSave called successfully');
       } catch (saveError: any) {
-        console.error('✗ ERROR in onSave:', saveError);
         throw saveError; // Re-throw to be caught by outer catch
       }
-      
+
       // If we get here, save was successful
       // Now optionally create in supplements interface (non-blocking)
       if (isCreatingNew && shouldCreateInInterface) {
@@ -169,11 +157,8 @@ export const AddSupplementDialog = ({
           name: trimmedName,
           supplements: [supplement],
           is_public: false,
-        }).then(() => {
-          console.log('Supplement also created in interface');
-        }).catch((error: any) => {
+        }).catch(() => {
           // Silent fail - supplement is already in action plan
-          console.error('Error creating supplement template (non-critical):', error);
         });
       }
       
@@ -202,7 +187,6 @@ export const AddSupplementDialog = ({
       
     } catch (error: any) {
       // Error handling - onSave threw an error
-      console.error('Error saving supplement:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בשמירת התוסף לתכנית הפעולה',
@@ -406,12 +390,6 @@ export const AddSupplementDialog = ({
               type="submit"
               className="h-10 text-sm bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg font-medium px-8 min-w-[100px]"
               disabled={isSubmitting || !name.trim()}
-              onClick={(e) => {
-                console.log('=== BUTTON CLICKED ===');
-                console.log('Button state:', { isSubmitting, name, selectedSupplementName, isCreatingNew, initialData });
-                console.log('Button disabled?', isSubmitting || !name.trim());
-                // Let the form handle submission
-              }}
             >
               {isSubmitting ? 'שומר...' : initialData ? 'שמור שינויים' : 'הוסף תוסף'}
             </Button>

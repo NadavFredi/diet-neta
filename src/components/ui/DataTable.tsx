@@ -625,6 +625,7 @@ export function DataTable<T extends Record<string, any>>({
       columnSizing: derivedColumnSizing,
     },
     onSortingChange: (updater) => {
+      if (!isMountedRef.current) return;
       const next = typeof updater === 'function' ? updater(sorting) : updater;
       if (serverSideSorting && onSortChange && next.length > 0) {
         onSortChange(next[0].id, next[0].desc ? 'DESC' : 'ASC');
@@ -633,12 +634,14 @@ export function DataTable<T extends Record<string, any>>({
       }
     },
     onColumnVisibilityChange: (updater) => {
+      if (!isMountedRef.current) return;
       const next = typeof updater === 'function' ? updater(effectiveColumnVisibility) : updater;
       const sanitized = Object.fromEntries(Object.entries(next as Record<string, unknown>).filter(([k]) => k !== SELECTION_COLUMN_ID).map(([k, v]) => [k, Number(v)]));
       if (resourceKey) Object.keys(next as Record<string, boolean>).forEach(id => id !== SELECTION_COLUMN_ID && dispatch(setColumnVisibilityAction({ resourceKey, columnId: id, visible: (next as Record<string, boolean>)[id] })));
       else setLocalColumnVisibility(Object.fromEntries(Object.entries(next as Record<string, boolean>).filter(([k]) => k !== SELECTION_COLUMN_ID)));
     },
     onColumnOrderChange: (updater) => {
+      if (!isMountedRef.current) return;
       const next = typeof updater === 'function' ? updater(columnOrder) : updater;
       const sanitized = (next as string[]).filter((id: string) => id !== SELECTION_COLUMN_ID);
       if (resourceKey) dispatch(setColumnOrderAction({ resourceKey, order: sanitized }));

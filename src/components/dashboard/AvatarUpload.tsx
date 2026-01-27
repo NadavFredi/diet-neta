@@ -54,7 +54,6 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
             }
           }
         } catch (error) {
-          console.error('Error signing avatar URL:', error);
         }
       } else {
         // If it's not a storage URL (e.g. external URL), just use it
@@ -164,7 +163,6 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       });
 
     } catch (error: any) {
-      console.error('Error uploading avatar:', error);
       toast({
         title: 'שגיאה',
         description: error.message || 'נכשל בהעלאת התמונה',

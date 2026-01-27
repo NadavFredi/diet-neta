@@ -355,11 +355,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const [supplementTemplateId, setSupplementTemplateId] = useState<string | null>(null);
   const [supplements, setSupplements] = useState<Supplement[]>([]);
 
-  // Debug: Log supplements changes
-  useEffect(() => {
-    console.log('Supplements state updated:', supplements.length, 'supplements:', supplements);
-  }, [supplements]);
-
   // Guidelines
   const [eatingOrder, setEatingOrder] = useState('');
   const [eatingRules, setEatingRules] = useState('');
@@ -391,11 +386,11 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   useEffect(() => {
     if (initialData) {
       const budgetId = initialData.id;
-      
+
       // Only reset supplements if this is a different budget or first initialization
       const isNewBudget = initialBudgetIdRef.current !== budgetId;
       const shouldResetSupplements = !hasInitializedRef.current || isNewBudget;
-      
+
       setName(initialData.name || '');
       setDescription(initialData.description || '');
       setNutritionTemplateId(initialData.nutrition_template_id ?? null);
@@ -410,7 +405,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       setStepsInstructions(initialData.steps_instructions || '');
       setWorkoutTemplateId(initialData.workout_template_id ?? null);
       setSupplementTemplateId(initialData.supplement_template_id ?? null);
-      
+
       // Only reset supplements if this is a new budget or first load
       // This prevents resetting supplements when user adds new ones
       if (shouldResetSupplements) {
@@ -420,7 +415,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         initialBudgetIdRef.current = budgetId;
         hasInitializedRef.current = true;
       }
-      
+
       setEatingOrder(initialData.eating_order || '');
       setEatingRules(initialData.eating_rules || '');
 
@@ -560,16 +555,10 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   };
 
   const handleSaveSupplement = (supplement: Supplement) => {
-    console.log('=== handleSaveSupplement CALLED ===');
-    console.log('Received supplement:', supplement);
-    console.log('Current supplements before update:', supplements);
-    console.log('editingSupplementIndex:', editingSupplementIndex);
-
     try {
       // Validate supplement before saving
       if (!supplement) {
         const error = 'תוסף לא תקין';
-        console.error('✗ Invalid supplement:', supplement);
         toast({
           title: 'שגיאה',
           description: error,
@@ -581,7 +570,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       const trimmedName = supplement.name?.trim();
       if (!trimmedName) {
         const error = 'שם התוסף הוא שדה חובה';
-        console.error('✗ Missing supplement name');
         toast({
           title: 'שגיאה',
           description: error,
@@ -599,14 +587,10 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         link2: supplement.link2?.trim() || undefined,
       };
 
-      console.log('Prepared newSupplement:', newSupplement);
-
       // Update state safely - ensure supplements is always an array
       setSupplements(prev => {
-        console.log('setSupplements callback - prev:', prev);
         // Safety check - ensure prev is always an array
         const currentSupplements = Array.isArray(prev) ? prev : [];
-        console.log('Current supplements array:', currentSupplements);
 
         let updatedSupplements: Supplement[];
         if (editingSupplementIndex !== null &&
@@ -615,16 +599,11 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           // Update existing supplement
           updatedSupplements = [...currentSupplements];
           updatedSupplements[editingSupplementIndex] = newSupplement;
-          console.log('✓ Updated supplement at index', editingSupplementIndex);
-          console.log('Updated supplements array:', updatedSupplements);
         } else {
           // Add new supplement to the action plan
           updatedSupplements = [...currentSupplements, newSupplement];
-          console.log('✓ Adding new supplement');
-          console.log('New supplements array length:', updatedSupplements.length);
-          console.log('New supplements array:', updatedSupplements);
         }
-        
+
         // Update ref immediately so it's available for form submission
         supplementsRef.current = updatedSupplements;
         return updatedSupplements;
@@ -632,10 +611,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
 
       // Reset editing state
       setEditingSupplementIndex(null);
-      console.log('✓ State update initiated');
 
     } catch (error: any) {
-      console.error('✗ ERROR in handleSaveSupplement:', error);
       // Re-throw to let AddSupplementDialog handle the error display
       throw error;
     }
@@ -699,12 +676,9 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       // The ref is updated synchronously in handleSaveSupplement callback and kept in sync via useEffect
       // This ensures we capture supplements even if React hasn't committed the state update yet
       const currentSupplements = supplementsRef.current;
-      
-      // Filter out empty supplements and log for debugging
+
+      // Filter out empty supplements
       const validSupplements = currentSupplements.filter((s) => s && s && s.name && s.name.trim() !== '');
-      console.log('Submitting budget with supplements:', validSupplements.length, 'supplements:', validSupplements);
-      console.log('Current supplements state at submit time:', supplements);
-      console.log('Current supplements ref at submit time:', supplementsRef.current);
 
       const budgetData = {
         name,
@@ -749,7 +723,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
 
 
     } catch (error: any) {
-      console.error('Error saving budget:', error);
       toast({
         title: 'שגיאה',
         description: error?.message || 'נכשל בשמירת תכנית הפעולה',
@@ -1186,7 +1159,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                     {supplements.map((supplement, index) => {
                       // Safety check - ensure supplement has required fields
                       if (!supplement || !supplement.name) {
-                        console.warn('Invalid supplement at index', index, supplement);
                         return null;
                       }
                       return (
@@ -1321,19 +1293,15 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       <AddSupplementDialog
         isOpen={isAddSupplementDialogOpen}
         onOpenChange={(open) => {
-          console.log('AddSupplementDialog onOpenChange:', open);
           setIsAddSupplementDialogOpen(open);
           if (!open) {
             setEditingSupplementIndex(null);
           }
         }}
         onSave={(supplement) => {
-          console.log('AddSupplementDialog onSave callback called with:', supplement);
           try {
             handleSaveSupplement(supplement);
-            console.log('handleSaveSupplement completed without error');
           } catch (error) {
-            console.error('handleSaveSupplement threw error:', error);
             throw error;
           }
         }}

@@ -488,6 +488,11 @@ export const useUpdateBudget = () => {
         updateData.supplement_template_id = updates.supplement_template_id ?? null;
       }
       
+      // Explicitly ensure supplements is included if provided (even if empty array)
+      if ('supplements' in updates) {
+        updateData.supplements = updates.supplements ?? [];
+      }
+      
       // Explicitly ensure cardio_training and interval_training are included if provided (even if null)
       if ('cardio_training' in updates) {
         updateData.cardio_training = updates.cardio_training ?? null;

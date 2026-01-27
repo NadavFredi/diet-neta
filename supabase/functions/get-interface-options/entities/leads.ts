@@ -3,11 +3,7 @@ import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 export const getLeadsConfig = async (supabase: SupabaseClient) => {
   // Fetch dynamic filter options from the existing RPC function
-  const { data: filterOptions, error } = await supabase.rpc('get_lead_filter_options')
-  
-  if (error) {
-    console.error('Error fetching lead filter options:', error)
-  }
+  const { data: filterOptions } = await supabase.rpc('get_lead_filter_options')
 
   // Helper to safely get options or return empty array
   const getOptions = (key: string) => filterOptions?.[key] || []
