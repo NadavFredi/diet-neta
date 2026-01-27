@@ -51,8 +51,8 @@ const PrintBudgetPage = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50" dir="rtl">
         <div className="text-center">
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-lg font-semibold text-gray-700 mb-2">תקציב לא נמצא</p>
-          <p className="text-gray-600">התקציב המבוקש לא קיים או שאין לך הרשאה לצפות בו</p>
+          <p className="text-lg font-semibold text-gray-700 mb-2">תכנית פעולה לא נמצאה</p>
+          <p className="text-gray-600">תכנית הפעולה המבוקשת לא קיימת או שאין לך הרשאה לצפות בה</p>
         </div>
       </div>
     );

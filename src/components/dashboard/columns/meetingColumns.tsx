@@ -4,6 +4,146 @@ import { Badge } from '@/components/ui/badge';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { MeetingDeleteButton } from '@/components/dashboard/MeetingDeleteButton';
 
+const compareStrings = (a: string, b: string) => a.localeCompare(b, 'he');
+const compareNumbers = (a: number, b: number) => a - b;
+
+const getMeetingCustomer = (meeting: Meeting) => meeting.customer || (meeting.lead as any)?.customer;
+
+const getMeetingSchedulingData = (meetingData: Record<string, any>) => {
+  if (meetingData.event_start_time || meetingData.event_end_time || meetingData.eventStartTime || meetingData.eventEndTime) {
+    return {
+      eventStartTime: meetingData.event_start_time || meetingData.eventStartTime,
+      eventEndTime: meetingData.event_end_time || meetingData.eventEndTime,
+    };
+  }
+
+  if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
+    const scheduling = meetingData.scheduling[0];
+    if (scheduling.value) {
+      return {
+        eventStartTime: scheduling.value.eventStartTime,
+        eventEndTime: scheduling.value.eventEndTime,
+      };
+    }
+  }
+
+  const eventStartTimeKey = 'scheduling[0].value.eventStartTime';
+  const eventEndTimeKey = 'scheduling[0].value.eventEndTime';
+
+  if (meetingData[eventStartTimeKey] || meetingData[eventEndTimeKey]) {
+    return {
+      eventStartTime: meetingData[eventStartTimeKey],
+      eventEndTime: meetingData[eventEndTimeKey],
+    };
+  }
+
+  return null;
+};
+
+const getMeetingDateDisplayValue = (meeting: Meeting) => {
+  const meetingData = meeting.meeting_data || {};
+  const schedulingData = getMeetingSchedulingData(meetingData);
+  if (schedulingData?.eventStartTime) {
+    const startDate = new Date(schedulingData.eventStartTime);
+    if (!isNaN(startDate.getTime())) {
+      return formatDate(startDate.toISOString());
+    }
+  }
+
+  return meetingData.date ||
+    meetingData.meeting_date ||
+    meetingData['תאריך'] ||
+    meetingData['תאריך פגישה'] ||
+    meetingData['Date'] ||
+    meetingData['Meeting Date'] ||
+    null;
+};
+
+const getMeetingDateSortValue = (meeting: Meeting) => {
+  const meetingData = meeting.meeting_data || {};
+  const schedulingData = getMeetingSchedulingData(meetingData);
+  if (schedulingData?.eventStartTime) {
+    const startDate = new Date(schedulingData.eventStartTime);
+    if (!isNaN(startDate.getTime())) return startDate.getTime();
+  }
+
+  const fallback = getMeetingDateDisplayValue(meeting);
+  if (!fallback) return 0;
+  const parsed = Date.parse(String(fallback));
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+const getMeetingTimeDisplayValue = (meeting: Meeting) => {
+  const meetingData = meeting.meeting_data || {};
+  const schedulingData = getMeetingSchedulingData(meetingData);
+  if (!schedulingData?.eventStartTime && !schedulingData?.eventEndTime) return null;
+
+  let meetingStartTime: string | null = null;
+  let meetingEndTime: string | null = null;
+
+  if (schedulingData?.eventStartTime) {
+    const startDate = new Date(schedulingData.eventStartTime);
+    if (!isNaN(startDate.getTime())) {
+      const hours = startDate.getHours().toString().padStart(2, '0');
+      const minutes = startDate.getMinutes().toString().padStart(2, '0');
+      meetingStartTime = `${hours}:${minutes}`;
+    }
+  }
+
+  if (schedulingData?.eventEndTime) {
+    const endDate = new Date(schedulingData.eventEndTime);
+    if (!isNaN(endDate.getTime())) {
+      const hours = endDate.getHours().toString().padStart(2, '0');
+      const minutes = endDate.getMinutes().toString().padStart(2, '0');
+      meetingEndTime = `${hours}:${minutes}`;
+    }
+  }
+
+  if (meetingStartTime && meetingEndTime) {
+    return meetingStartTime > meetingEndTime ? `${meetingEndTime} - ${meetingStartTime}` : `${meetingStartTime} - ${meetingEndTime}`;
+  }
+
+  return meetingStartTime || null;
+};
+
+const getMeetingStatusValue = (meeting: Meeting) => {
+  const meetingData = meeting.meeting_data || {};
+  return String(meetingData.status || meetingData['סטטוס'] || 'פעיל');
+};
+
+const getMeetingEmailValue = (meeting: Meeting) => {
+  const customer = getMeetingCustomer(meeting);
+  const meetingData = meeting.meeting_data || {};
+  return String(customer?.email || meetingData.email || meetingData['אימייל'] || '-');
+};
+
+const getMeetingPhoneValue = (meeting: Meeting) => {
+  const customer = getMeetingCustomer(meeting);
+  return String(customer?.phone || '-');
+};
+
+const getMeetingTypeValue = (meeting: Meeting) => {
+  const meetingData = meeting.meeting_data || {};
+  return String(
+    meetingData['סוג פגישה'] ||
+    meetingData.meeting_type ||
+    meetingData['פגישת הכרות'] ||
+    meetingData.type ||
+    'פגישת הכרות'
+  );
+};
+
+const getMeetingNotesValue = (meeting: Meeting) => {
+  const meetingData = meeting.meeting_data || {};
+  return String(
+    meetingData.notes ||
+    meetingData['הערות'] ||
+    meetingData['תיאור'] ||
+    meetingData.description ||
+    '-'
+  );
+};
+
 /**
  * Column definitions for Meetings table.
  */
@@ -12,17 +152,20 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     id: 'customer_name',
     header: 'לקוח',
     accessorKey: 'customer_name',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 200,
     meta: {
       align: 'right',
     },
+    sortingFn: (rowA, rowB) => {
+      const aName = getMeetingCustomer(rowA.original)?.full_name || '';
+      const bName = getMeetingCustomer(rowB.original)?.full_name || '';
+      return compareStrings(aName, bName);
+    },
     cell: ({ row }) => {
-      // Get customer from direct relationship or through lead
-      const customer = row.original.customer || 
-                       (row.original.lead as any)?.customer;
+      const customer = getMeetingCustomer(row.original);
       return (
         <span className="font-medium text-gray-900">
           {customer?.full_name || '-'}
@@ -34,77 +177,17 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     id: 'meeting_date',
     header: 'תאריך פגישה',
     accessorKey: 'meeting_date',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 180,
     meta: {
       align: 'right',
     },
+    sortingFn: (rowA, rowB) => compareNumbers(getMeetingDateSortValue(rowA.original), getMeetingDateSortValue(rowB.original)),
     cell: ({ row }) => {
-      const meetingData = row.original.meeting_data || {};
-      
-      // Extract scheduling data (same logic as MeetingDetailView)
-      const extractSchedulingData = () => {
-        // First, check for direct event_start_time and event_end_time fields (from custom webhook payloads)
-        if (meetingData.event_start_time || meetingData.event_end_time || meetingData.eventStartTime || meetingData.eventEndTime) {
-          return {
-            eventStartTime: meetingData.event_start_time || meetingData.eventStartTime,
-            eventEndTime: meetingData.event_end_time || meetingData.eventEndTime,
-          };
-        }
-
-        if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
-          const scheduling = meetingData.scheduling[0];
-          if (scheduling.value) {
-            return {
-              eventStartTime: scheduling.value.eventStartTime,
-              eventEndTime: scheduling.value.eventEndTime,
-            };
-          }
-        }
-
-        const eventStartTimeKey = 'scheduling[0].value.eventStartTime';
-        const eventEndTimeKey = 'scheduling[0].value.eventEndTime';
-        
-        if (meetingData[eventStartTimeKey] || meetingData[eventEndTimeKey]) {
-          return {
-            eventStartTime: meetingData[eventStartTimeKey],
-            eventEndTime: meetingData[eventEndTimeKey],
-          };
-        }
-
-        return null;
-      };
-
-      const schedulingData = extractSchedulingData();
-      
-      // Extract date from eventStartTime (same logic as MeetingDetailView)
-      let dateValue = null;
-      if (schedulingData?.eventStartTime) {
-        try {
-          const startDate = new Date(schedulingData.eventStartTime);
-          if (!isNaN(startDate.getTime())) {
-            dateValue = formatDate(startDate.toISOString());
-          }
-        } catch (e) {
-          // Silent failure
-        }
-      }
-      
-      // Fallback to other common date fields
-      if (!dateValue) {
-        dateValue = meetingData.date || 
-                   meetingData.meeting_date || 
-                   meetingData['תאריך'] || 
-                   meetingData['תאריך פגישה'] ||
-                   meetingData['Date'] ||
-                   meetingData['Meeting Date'];
-      }
-      
-      if (dateValue) {
-        return <span className="text-gray-700">{String(dateValue)}</span>;
-      }
+      const dateValue = getMeetingDateDisplayValue(row.original);
+      if (dateValue) return <span className="text-gray-700">{String(dateValue)}</span>;
       // Don't use submission date - show placeholder if actual meeting date not found
       return <span className="text-gray-400">-</span>;
     },
@@ -113,107 +196,21 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     id: 'meeting_time',
     header: 'שעה',
     accessorKey: 'meeting_time',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 120,
     meta: {
       align: 'right',
     },
+    sortingFn: (rowA, rowB) => {
+      const aTime = getMeetingTimeDisplayValue(rowA.original) || '';
+      const bTime = getMeetingTimeDisplayValue(rowB.original) || '';
+      return compareStrings(aTime, bTime);
+    },
     cell: ({ row }) => {
-      const meetingData = row.original.meeting_data || {};
-      
-      // Extract scheduling data (same logic as MeetingDetailView)
-      const extractSchedulingData = () => {
-        // First, check for direct event_start_time and event_end_time fields (from form n5VwsjFk5ous)
-        if (meetingData.event_start_time || meetingData.event_end_time) {
-          return {
-            eventStartTime: meetingData.event_start_time,
-            eventEndTime: meetingData.event_end_time,
-          };
-        }
-
-        // Also try camelCase variants
-        if (meetingData.eventStartTime || meetingData.eventEndTime) {
-          return {
-            eventStartTime: meetingData.eventStartTime,
-            eventEndTime: meetingData.eventEndTime,
-          };
-        }
-
-        // Fall back to scheduling array format
-        if (meetingData.scheduling && Array.isArray(meetingData.scheduling) && meetingData.scheduling.length > 0) {
-          const scheduling = meetingData.scheduling[0];
-          if (scheduling.value) {
-            return {
-              eventStartTime: scheduling.value.eventStartTime,
-              eventEndTime: scheduling.value.eventEndTime,
-            };
-          }
-        }
-
-        // Try dot-notation keys
-        const eventStartTimeKey = 'scheduling[0].value.eventStartTime';
-        const eventEndTimeKey = 'scheduling[0].value.eventEndTime';
-        
-        if (meetingData[eventStartTimeKey] || meetingData[eventEndTimeKey]) {
-          return {
-            eventStartTime: meetingData[eventStartTimeKey],
-            eventEndTime: meetingData[eventEndTimeKey],
-          };
-        }
-
-        return null;
-      };
-
-      const schedulingData = extractSchedulingData();
-      
-      // Extract time from eventStartTime and eventEndTime (same logic as MeetingDetailView)
-      let meetingStartTime = null;
-      let meetingEndTime = null;
-
-      if (schedulingData?.eventStartTime) {
-        try {
-          const startDate = new Date(schedulingData.eventStartTime);
-          if (!isNaN(startDate.getTime())) {
-            const hours = startDate.getHours().toString().padStart(2, '0');
-            const minutes = startDate.getMinutes().toString().padStart(2, '0');
-            meetingStartTime = `${hours}:${minutes}`;
-          }
-        } catch (e) {
-          // Silent failure
-        }
-      }
-
-      if (schedulingData?.eventEndTime) {
-        try {
-          const endDate = new Date(schedulingData.eventEndTime);
-          if (!isNaN(endDate.getTime())) {
-            const hours = endDate.getHours().toString().padStart(2, '0');
-            const minutes = endDate.getMinutes().toString().padStart(2, '0');
-            meetingEndTime = `${hours}:${minutes}`;
-          }
-        } catch (e) {
-          // Silent failure
-        }
-      }
-
-      // Format time range (same logic as MeetingDetailView formatTimeRange)
-      const formatTimeRange = () => {
-        if (meetingStartTime && meetingEndTime) {
-          if (meetingStartTime > meetingEndTime) {
-            return `${meetingEndTime} - ${meetingStartTime}`;
-          }
-          return `${meetingStartTime} - ${meetingEndTime}`;
-        }
-        return meetingStartTime || null;
-      };
-
-      const timeValue = formatTimeRange();
-      
-      if (timeValue) {
-        return <span className="text-gray-700">{timeValue}</span>;
-      }
+      const timeValue = getMeetingTimeDisplayValue(row.original);
+      if (timeValue) return <span className="text-gray-700">{timeValue}</span>;
       
       return <span className="text-gray-400">-</span>;
     },
@@ -222,35 +219,32 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     id: 'phone',
     header: 'טלפון',
     accessorKey: 'phone',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 150,
     meta: {
       align: 'right',
     },
+    sortingFn: (rowA, rowB) => compareStrings(getMeetingPhoneValue(rowA.original), getMeetingPhoneValue(rowB.original)),
     cell: ({ row }) => {
-      // Get customer from direct relationship or through lead
-      const customer = row.original.customer || 
-                       (row.original.lead as any)?.customer;
-      return <span className="font-mono text-sm text-gray-700">{customer?.phone || '-'}</span>;
+      return <span className="font-mono text-sm text-gray-700">{getMeetingPhoneValue(row.original)}</span>;
     },
   },
   {
     id: 'status',
     header: 'סטטוס',
     accessorKey: 'status',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 120,
     meta: {
       align: 'right',
     },
+    sortingFn: (rowA, rowB) => compareStrings(getMeetingStatusValue(rowA.original), getMeetingStatusValue(rowB.original)),
     cell: ({ row }) => {
-      const meetingData = row.original.meeting_data || {};
-      const status = meetingData.status || meetingData['סטטוס'] || 'פעיל';
-      const statusValue = String(status);
+      const statusValue = getMeetingStatusValue(row.original);
       
       const getStatusColor = (status: string) => {
         if (status.includes('בוטל') || status.includes('מבוטל')) return 'bg-red-50 text-red-700 border-red-200';
@@ -270,19 +264,16 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     id: 'email',
     header: 'אימייל',
     accessorKey: 'email',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 200,
     meta: {
       align: 'right',
     },
+    sortingFn: (rowA, rowB) => compareStrings(getMeetingEmailValue(rowA.original), getMeetingEmailValue(rowB.original)),
     cell: ({ row }) => {
-      // Get customer from direct relationship or through lead
-      const customer = row.original.customer || 
-                       (row.original.lead as any)?.customer;
-      const meetingData = row.original.meeting_data || {};
-      const email = customer?.email || meetingData.email || meetingData['אימייל'] || '-';
+      const email = getMeetingEmailValue(row.original);
       return (
         <span className="text-sm text-gray-700 truncate block max-w-[200px]" title={email}>
           {email}
@@ -294,21 +285,16 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     id: 'meeting_type',
     header: 'סוג פגישה',
     accessorKey: 'meeting_type',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 150,
     meta: {
       align: 'right',
     },
+    sortingFn: (rowA, rowB) => compareStrings(getMeetingTypeValue(rowA.original), getMeetingTypeValue(rowB.original)),
     cell: ({ row }) => {
-      const meetingData = row.original.meeting_data || {};
-      // Extract meeting type from various possible fields (prioritize סוג פגישה and meeting_type)
-      const meetingType = meetingData['סוג פגישה'] || 
-                        meetingData.meeting_type ||
-                        meetingData['פגישת הכרות'] || 
-                        meetingData.type ||
-                        'פגישת הכרות';
+      const meetingType = getMeetingTypeValue(row.original);
       return (
         <span className="text-sm font-medium text-gray-900">
           {String(meetingType)}
@@ -320,21 +306,16 @@ export const meetingColumns: DataTableColumn<Meeting>[] = [
     id: 'notes',
     header: 'הערות',
     accessorKey: 'notes',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 250,
     meta: {
       align: 'right',
     },
+    sortingFn: (rowA, rowB) => compareStrings(getMeetingNotesValue(rowA.original), getMeetingNotesValue(rowB.original)),
     cell: ({ row }) => {
-      const meetingData = row.original.meeting_data || {};
-      const notes = meetingData.notes || 
-                   meetingData['הערות'] || 
-                   meetingData['תיאור'] ||
-                   meetingData.description ||
-                   '-';
-      const notesStr = String(notes);
+      const notesStr = getMeetingNotesValue(row.original);
       return (
         <span 
           className="text-sm text-gray-700 truncate block max-w-[250px]" 
@@ -392,5 +373,3 @@ export const defaultMeetingColumnVisibility = {
   created_at: true,
   actions: true,
 };
-
-

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataTable } from '@/components/ui/DataTable';
 import type { Lead } from '@/store/slices/dashboardSlice';
-import { leadColumns } from './columns/leadColumns';
+import { allLeadColumns } from './columns/leadColumns';
 import { useAppSelector } from '@/store/hooks';
 
 interface LeadsDataTableProps {
@@ -13,8 +13,11 @@ interface LeadsDataTableProps {
   sortOrder?: 'ASC' | 'DESC';
   totalCount?: number;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onBulkEdit?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number; updates: Record<string, any> }) => Promise<void> | void;
   groupCurrentPage?: number;
   groupPageSize?: number;
+  singularLabel?: string;
+  pluralLabel?: string;
 }
 
 export const LeadsDataTable = ({ 
@@ -25,8 +28,11 @@ export const LeadsDataTable = ({
   sortOrder: externalSortOrder,
   totalCount,
   onBulkDelete,
+  onBulkEdit,
   groupCurrentPage,
   groupPageSize,
+  singularLabel = 'ליד',
+  pluralLabel = 'לידים',
 }: LeadsDataTableProps) => {
   // Get sorting state from Redux if not provided as props
   const reduxSortBy = useAppSelector((state) => state.dashboard.sortBy);
@@ -36,19 +42,23 @@ export const LeadsDataTable = ({
   const sortOrder = externalSortOrder ?? reduxSortOrder;
   const navigate = useNavigate();
 
-  // CRITICAL: Pass ALL columns from schema to DataTable
-  // This ensures the column visibility popover shows ONLY Lead columns (not Customer or Template columns)
+  // CRITICAL: Pass ALL columns from schema to DataTable (including related entity columns)
+  // This ensures the column visibility popover shows ALL available columns
   const columns = useMemo(() => {
-    return leadColumns;
+    return allLeadColumns;
   }, []);
 
   // Default column visibility - DataTable will read from Redux tableStateSlice after initialization
   // This is only used for initial setup if Redux state doesn't exist yet
   const initialVisibility = useMemo(() => {
     const visibility: Record<string, boolean> = {};
-    leadColumns.forEach((col) => {
-      // Default: all columns visible except hidden ones
-      visibility[col.id] = col.enableHiding !== false;
+    allLeadColumns.forEach((col) => {
+      // Default: related entity columns are hidden by default, direct columns follow their enableHiding setting
+      if (col.meta?.relatedEntity) {
+        visibility[col.id] = false; // Hide related entity columns by default
+      } else {
+        visibility[col.id] = col.enableHiding !== false;
+      }
     });
     return visibility;
   }, []);
@@ -99,9 +109,12 @@ export const LeadsDataTable = ({
       enableRowSelection
       totalCount={totalCount}
       onBulkDelete={onBulkDelete}
-      selectionLabel="לידים"
+      onBulkEdit={onBulkEdit}
+      selectionLabel={pluralLabel}
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      singularLabel={singularLabel}
+      pluralLabel={pluralLabel}
     />
   );
 };

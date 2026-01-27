@@ -1,7 +1,99 @@
+import React, { useEffect, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import type { Lead } from '@/store/slices/dashboardSlice';
 import { formatDate } from '@/utils/dashboard';
 import type { DataTableColumn } from '@/components/ui/DataTable';
+import { getEntityRelationships } from '@/utils/entityRelationships.tsx';
+import { budgetColumns } from '@/components/dashboard/BudgetsDataTable';
+import { nutritionTemplateColumns } from '@/components/dashboard/columns/templateColumns';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { 
+  fetchCustomerNotes, 
+  selectCustomerNotes, 
+  selectIsLoadingNotes,
+  type CustomerNote 
+} from '@/store/slices/leadViewSlice';
+
+/**
+ * NotesCell Component - Displays customer notes from customer_notes table
+ * Similar to CustomerNotesSidebar but in a compact table cell format
+ */
+const NotesCell: React.FC<{ lead: Lead }> = ({ lead }) => {
+  const dispatch = useAppDispatch();
+  const customerId = lead.customerId;
+  
+  // Create memoized selectors
+  const customerNotesSelector = useMemo(
+    () => selectCustomerNotes(customerId || ''),
+    [customerId]
+  );
+  const isLoadingNotesSelector = useMemo(
+    () => selectIsLoadingNotes(customerId || ''),
+    [customerId]
+  );
+  
+  const notes = useAppSelector(customerNotesSelector);
+  const isLoading = useAppSelector(isLoadingNotesSelector);
+  
+  // Fetch notes if customerId exists and notes aren't loaded
+  useEffect(() => {
+    if (customerId && notes === undefined && !isLoading) {
+      dispatch(fetchCustomerNotes(customerId));
+    }
+  }, [customerId, notes, isLoading, dispatch]);
+  
+  // If no customerId, show legacy notes field or empty
+  if (!customerId) {
+    const legacyNotes = lead.notes;
+    if (!legacyNotes || legacyNotes.trim() === '') {
+      return <span className="text-gray-400">-</span>;
+    }
+    return (
+      <span className="text-gray-600 text-xs italic" title={legacyNotes}>
+        {legacyNotes.length > 30 ? `${legacyNotes.substring(0, 30)}...` : legacyNotes}
+      </span>
+    );
+  }
+  
+  // If loading, show loading state
+  if (isLoading) {
+    return <span className="text-gray-400 text-xs">טוען...</span>;
+  }
+  
+  // If no notes, show empty state
+  if (!notes || notes.length === 0) {
+    return <span className="text-gray-400">-</span>;
+  }
+  
+  // Get the most recent note (notes are sorted by created_at desc)
+  const mostRecentNote = notes[0];
+  const noteContent = mostRecentNote.content || '';
+  
+  // Show count if there are multiple notes
+  const notesCount = notes.length;
+  const displayText = notesCount > 1 
+    ? `${noteContent.substring(0, 25)}... (${notesCount})`
+    : noteContent;
+  
+  // Truncate if too long
+  const truncatedText = displayText.length > 30 
+    ? `${displayText.substring(0, 30)}...` 
+    : displayText;
+  
+  // Create tooltip with all notes
+  const allNotesText = notes
+    .map((note, idx) => `${idx + 1}. ${note.content}`)
+    .join('\n');
+  
+  return (
+    <span 
+      className="text-gray-600 text-xs italic cursor-help" 
+      title={allNotesText || noteContent}
+    >
+      {truncatedText}
+    </span>
+  );
+};
 
 /**
  * Strict column definitions for Leads table.
@@ -24,11 +116,16 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 150,
     meta: {
       align: 'right',
+      sortKey: 'created_at',
     },
-    cell: ({ getValue }) => {
+    cell: ({ getValue, row }) => {
       const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
-      return <span className="text-gray-600">{formatDate(value)}</span>;
+      // Also try direct access as fallback
+      const directValue = row.original.createdDate || row.original.created_at || value;
+      if (!directValue || directValue.trim() === '') return <span className="text-gray-400">-</span>;
+      const formatted = formatDate(directValue);
+      if (!formatted) return <span className="text-gray-400">-</span>;
+      return <span className="text-gray-600">{formatted}</span>;
     },
   },
   {
@@ -41,6 +138,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 200,
     meta: {
       align: 'right',
+      sortKey: 'customer_name',
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -62,6 +160,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 140,
     meta: {
       align: 'right',
+      sortKeys: ['status_sub', 'status_main'],
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -97,11 +196,14 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     meta: {
       align: 'right',
       isNumeric: true,
+      sortKey: 'age',
     },
-    cell: ({ getValue }) => {
+    cell: ({ getValue, row }) => {
       const value = getValue() as number;
-      if (!value || value === 0) return <span className="text-gray-400">-</span>;
-      return <span className="text-gray-900">{value} שנים</span>;
+      // Also try direct access as fallback
+      const directValue = row.original.age || value;
+      if (!directValue || directValue === 0) return <span className="text-gray-400">-</span>;
+      return <span className="text-gray-900">{directValue} שנים</span>;
     },
   },
   {
@@ -114,13 +216,16 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 150,
     meta: {
       align: 'right',
+      sortKey: 'fitness_goal',
     },
-    cell: ({ getValue }) => {
+    cell: ({ getValue, row }) => {
       const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
+      // Also try direct access as fallback
+      const directValue = row.original.fitnessGoal || value;
+      if (!directValue || directValue.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-medium border border-green-100">
-          {value}
+          {directValue}
         </span>
       );
     },
@@ -135,13 +240,16 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 140,
     meta: {
       align: 'right',
+      sortKey: 'activity_level',
     },
-    cell: ({ getValue }) => {
+    cell: ({ getValue, row }) => {
       const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
+      // Also try direct access as fallback
+      const directValue = row.original.activityLevel || value;
+      if (!directValue || directValue.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-orange-50 text-orange-700 text-xs font-medium border border-orange-100">
-          {value}
+          {directValue}
         </span>
       );
     },
@@ -156,13 +264,16 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 130,
     meta: {
       align: 'right',
+      sortKey: 'preferred_time',
     },
-    cell: ({ getValue }) => {
+    cell: ({ getValue, row }) => {
       const value = getValue() as string;
-      if (!value) return <span className="text-gray-400">-</span>;
+      // Also try direct access as fallback
+      const directValue = row.original.preferredTime || value;
+      if (!directValue || directValue.trim() === '') return <span className="text-gray-400">-</span>;
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-100">
-          {value}
+          {directValue}
         </span>
       );
     },
@@ -177,6 +288,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 150,
     meta: {
       align: 'right',
+      sortKey: 'customer_phone',
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -194,6 +306,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     size: 130,
     meta: {
       align: 'right',
+      sortKey: 'source',
     },
     cell: ({ getValue }) => {
       const value = getValue() as string;
@@ -209,21 +322,16 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     id: 'notes',
     header: 'הערות',
     accessorKey: 'notes',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 250,
     meta: {
       align: 'right',
+      sortKey: 'notes',
     },
     cell: ({ row }) => {
-      const notes = row.original.notes;
-      if (!notes) return <span className="text-gray-400">-</span>;
-      return (
-        <span className="text-gray-600 text-xs italic" title={notes}>
-          {notes.length > 30 ? `${notes.substring(0, 30)}...` : notes}
-        </span>
-      );
+      return <NotesCell lead={row.original} />;
     },
   },
   {
@@ -258,6 +366,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     meta: {
       align: 'right',
       isNumeric: true,
+      sortKey: 'height',
     },
     cell: ({ getValue }) => {
       const value = getValue() as number;
@@ -276,6 +385,7 @@ export const leadColumns: DataTableColumn<Lead>[] = [
     meta: {
       align: 'right',
       isNumeric: true,
+      sortKey: 'weight',
     },
     cell: ({ getValue }) => {
       const value = getValue() as number;
@@ -286,6 +396,45 @@ export const leadColumns: DataTableColumn<Lead>[] = [
 ];
 
 /**
+ * Get related entity columns for leads
+ */
+function getRelatedEntityColumns(): DataTableColumn<Lead>[] {
+  const relationships = getEntityRelationships('leads');
+  const relatedColumns: DataTableColumn<Lead>[] = [];
+  
+  for (const relationship of relationships) {
+    let entityColumns: DataTableColumn<any>[] | undefined;
+    
+    // Map entity names to their column definitions
+    if (relationship.entityName === 'budget') {
+      entityColumns = budgetColumns;
+    } else if (relationship.entityName === 'menu') {
+      entityColumns = nutritionTemplateColumns;
+    }
+    
+    const columns = relationship.getColumns(entityColumns);
+    relatedColumns.push(...columns.map(col => ({
+      ...col,
+      meta: {
+        ...col.meta,
+        relatedEntity: relationship.entityName,
+        relatedEntityLabel: relationship.label,
+      },
+    })));
+  }
+  
+  return relatedColumns;
+}
+
+/**
+ * All lead columns including related entity columns
+ */
+export const allLeadColumns: DataTableColumn<Lead>[] = [
+  ...leadColumns,
+  ...getRelatedEntityColumns(),
+];
+
+/**
  * Default column visibility for Leads table.
  * Only includes columns that exist in leadColumns.
  */
@@ -293,6 +442,7 @@ export const defaultLeadColumnVisibility: Record<string, boolean> = {
   name: true,
   status: true,
   phone: true,
+  createdDate: true, // תאריך יצירה - visible by default
   // All other columns hidden by default
   age: false,
   height: false,
@@ -300,15 +450,10 @@ export const defaultLeadColumnVisibility: Record<string, boolean> = {
   fitnessGoal: false,
   activityLevel: false,
   preferredTime: false,
-  createdDate: false,
   email: false,
   source: false,
   notes: false,
 };
-
-
-
-
 
 
 

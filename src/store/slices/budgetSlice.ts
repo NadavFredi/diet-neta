@@ -17,13 +17,34 @@ export interface NutritionTargets {
   carbs: number;
   fat: number;
   fiber_min: number;
-  water_min: number; // in liters
 }
 
 export interface Supplement {
   name: string;
   dosage: string;
   timing: string; // e.g., "בבוקר", "לערב לפני השינה", "רבע שעה לפני האוכל"
+  link1?: string;
+  link2?: string;
+}
+
+export interface CardioTraining {
+  id?: string; // Unique identifier for list items
+  name: string;
+  type: string; // e.g., "Walking", "Running", "Cycling", "Elliptical", "Swimming"
+  duration_minutes: number;
+  workouts_per_week: number; // 1-7
+  period_type?: string; // 'לשבוע' or 'ליום'
+  notes: string;
+}
+
+export interface IntervalTraining {
+  id?: string; // Unique identifier for list items
+  name: string;
+  type: string; // e.g., "HIIT", "Tabata", "Circuit"
+  duration_minutes: number;
+  workouts_per_week: number; // 1-7
+  period_type?: string; // 'לשבוע' or 'ליום'
+  notes: string;
 }
 
 export interface Budget {
@@ -35,9 +56,12 @@ export interface Budget {
   steps_goal: number;
   steps_instructions: string | null;
   workout_template_id: string | null;
+  supplement_template_id: string | null;
   supplements: Supplement[];
   eating_order: string | null;
   eating_rules: string | null;
+  cardio_training: CardioTraining[] | null;
+  interval_training: IntervalTraining[] | null;
   is_public: boolean;
   created_at: string;
   updated_at: string;

@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabaseClient';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+import { applySort } from '@/utils/supabaseSort';
 
 export interface AllPaymentRecord {
   id: string;
@@ -26,10 +27,19 @@ export interface AllPaymentRecord {
   lead_name?: string | null;
 }
 
-export const useAllPayments = (filters?: { search?: string; filterGroup?: FilterGroup | null }) => {
-  return useQuery({
+export const useAllPayments = (filters?: { 
+  search?: string; 
+  filterGroup?: FilterGroup | null;
+  page?: number;
+  pageSize?: number;
+  groupByLevel1?: string | null;
+  groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
+}) => {
+  return useQuery<{ data: AllPaymentRecord[]; totalCount: number }>({
     queryKey: ['all-payments', filters],
-    queryFn: async (): Promise<AllPaymentRecord[]> => {
+    queryFn: async () => {
       try {
         const fieldConfigs: FilterFieldConfigMap = {
           created_at: { column: 'created_at', type: 'date' },
@@ -52,6 +62,42 @@ export const useAllPayments = (filters?: { search?: string; filterGroup?: Filter
           : null;
         const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
 
+        const groupByMap: Record<string, string> = {
+          date: 'created_at',
+          status: 'status',
+          lead: 'lead_id',
+          customer: 'customer_id',
+          amount: 'amount',
+          product: 'product_name',
+        };
+        const sortMap: Record<string, string> = {
+          date: 'created_at',
+          status: 'status',
+          lead: 'lead_id',
+          customer: 'customer.full_name',
+          amount: 'amount',
+          product: 'product_name',
+        };
+
+        const page = filters?.page ?? 1;
+        const pageSize = filters?.pageSize ?? 50;
+
+        // Build count query first (same filters, no pagination)
+        let countQuery = supabase
+          .from('payments')
+          .select('*', { count: 'exact', head: true });
+
+        if (combinedGroup) {
+          countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
+        }
+
+        const { count, error: countError } = await countQuery;
+        if (countError) {
+          throw countError;
+        }
+        const totalCount = count || 0;
+
+        // Build data query with pagination
         let query = supabase
           .from('payments')
           .select(
@@ -60,19 +106,38 @@ export const useAllPayments = (filters?: { search?: string; filterGroup?: Filter
             customer:customers(full_name),
             lead:leads(id, customer:customers(full_name))
           `
-          )
-          .order('created_at', { ascending: false });
+          );
+
+        // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
+        if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
+          query = query.order(groupByMap[filters.groupByLevel1], { ascending: true });
+        }
+        if (filters?.groupByLevel2 && groupByMap[filters.groupByLevel2]) {
+          query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
+        }
+
+        if (filters?.sortBy && filters?.sortOrder) {
+          query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+        } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+          query = query.order('created_at', { ascending: false });
+        }
 
         if (combinedGroup) {
           query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
         }
 
+        // Always apply pagination limit (max 100 records per request for performance)
+        const maxPageSize = Math.min(pageSize, 100);
+        const from = (page - 1) * maxPageSize;
+        const to = from + maxPageSize - 1;
+        query = query.range(from, to);
+
         const { data, error } = await query;
 
         if (error) {
-          // If table doesn't exist yet, return empty array (graceful degradation)
+          // If table doesn't exist yet, return empty data with 0 count (graceful degradation)
           if (error.code === '42P01' || error.message.includes('does not exist')) {
-            return [];
+            return { data: [], totalCount: 0 };
           }
           throw error;
         }
@@ -85,7 +150,7 @@ export const useAllPayments = (filters?: { search?: string; filterGroup?: Filter
           'נכשל': 'failed',
         };
 
-        return (data || []).map((record: any) => ({
+        const mappedData = (data || []).map((record: any) => ({
           id: record.id,
           date: record.created_at,
           product_name: record.product_name || 'ללא שם מוצר',
@@ -100,10 +165,12 @@ export const useAllPayments = (filters?: { search?: string; filterGroup?: Filter
           // Use the lead's customer name if available, otherwise fall back to ID
           lead_name: record.lead?.customer?.full_name || (record.lead_id ? `ליד ${record.lead_id.slice(0, 8)}` : null),
         })) as AllPaymentRecord[];
+
+        return { data: mappedData, totalCount };
       } catch (error: any) {
         // Graceful degradation if payments table doesn't exist
         if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          return [];
+          return { data: [], totalCount: 0 };
         }
         
         throw error;

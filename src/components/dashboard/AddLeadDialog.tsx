@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { useAddLead } from '@/hooks/useAddLead';
 import { STATUS_CATEGORIES } from '@/hooks/useLeadStatus';
 import {
@@ -71,7 +70,8 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
   } = useAddLead();
 
   // Fetch subscription types and budgets when dialog opens
-  const { data: budgets = [], isLoading: isLoadingBudgets } = useBudgets();
+  const { data: budgetsData, isLoading: isLoadingBudgets } = useBudgets();
+  const budgets = budgetsData?.data || [];
 
   useEffect(() => {
     if (isOpen) {
@@ -419,7 +419,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
 
             {/* Subscription & Budget Section */}
             <div className="space-y-2 pt-1">
-              <h3 className="text-base font-semibold text-gray-900 border-b pb-1">מנוי ותקציב</h3>
+              <h3 className="text-base font-semibold text-gray-900 border-b pb-1">מנוי ותכנית פעולה</h3>
 
               <div className="space-y-1">
                 <Label htmlFor="subscription_type_id" className="text-right text-sm">
@@ -461,7 +461,7 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
 
               <div className="space-y-1">
                 <Label htmlFor="budget_id" className="text-right text-sm">
-                  קישור תקציב (אופציונלי)
+                  קישור תכנית פעולה (אופציונלי)
                 </Label>
                 <Select
                   value={formData.budget_id || undefined}
@@ -469,12 +469,12 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                   disabled={isLoadingBudgets}
                 >
                   <SelectTrigger className="text-right h-9">
-                    <SelectValue placeholder={isLoadingBudgets ? 'טוען...' : 'בחר תקציב (אופציונלי)'} />
+                    <SelectValue placeholder={isLoadingBudgets ? 'טוען...' : 'בחר תכנית פעולה (אופציונלי)'} />
                   </SelectTrigger>
                   <SelectContent>
                     {budgets.length === 0 ? (
                       <div className="px-2 py-1.5 text-sm text-gray-500 text-center">
-                        אין תקציבים זמינים
+                        אין תכניות פעולה זמינות
                       </div>
                     ) : (
                       budgets.map((budget) => (
@@ -488,25 +488,10 @@ export const AddLeadDialog = ({ isOpen, onOpenChange, onLeadCreated }: AddLeadDi
                 </Select>
                 {formData.budget_id && (
                   <p className="text-xs text-gray-600 text-right mt-0.5">
-                    התקציב יוקצה אוטומטית לליד
+                    תכנית הפעולה תוקצה אוטומטית לליד
                   </p>
                 )}
               </div>
-            </div>
-
-            {/* Notes Section */}
-            <div className="space-y-1 pt-1 pb-0">
-              <Label htmlFor="notes" className="text-right text-sm">
-                הערות
-              </Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                placeholder="הכנס הערות נוספות..."
-                className="text-right min-h-[50px]"
-                rows={2}
-              />
             </div>
           </div>
           </div>

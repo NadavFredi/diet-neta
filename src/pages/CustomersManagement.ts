@@ -19,10 +19,17 @@ import {
   selectCurrentPage, 
   selectPageSize, 
   selectTotalCount,
+  selectSortBy,
+  selectSortOrder,
   selectGroupByKeys,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   setCurrentPage,
   setPageSize,
   setTotalCount,
+  setSortBy,
+  setSortOrder,
 } from '@/store/slices/tableStateSlice';
 import { useToast } from '@/hooks/use-toast';
 
@@ -41,7 +48,12 @@ export const useCustomersManagement = () => {
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'customers'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'customers'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'customers'));
+  const sortBy = useAppSelector((state) => selectSortBy(state, 'customers'));
+  const sortOrder = useAppSelector((state) => selectSortOrder(state, 'customers'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'customers'));
+  const columnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'customers'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'customers'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'customers'));
 
   const { data: customersResult, isLoading: isLoadingCustomers } = useCustomers({
     search: searchQuery,
@@ -50,6 +62,8 @@ export const useCustomersManagement = () => {
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
 
   const customers = customersResult?.data ?? [];
@@ -107,12 +121,13 @@ export const useCustomersManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
-  const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
+  const getCurrentFilterConfig = (advancedFilters?: any[]) => {
     return {
       searchQuery,
       filterGroup,
+      columnVisibility,
       columnOrder,
-      columnWidths,
+      columnWidths: columnSizing,
       sortBy,
       sortOrder,
       advancedFilters,
@@ -120,6 +135,11 @@ export const useCustomersManagement = () => {
   };
 
   const filteredCustomers = useMemo(() => customers, [customers]);
+
+  const handleSortChange = useCallback((columnId: string, order: 'ASC' | 'DESC') => {
+    dispatch(setSortBy({ resourceKey: 'customers', sortBy: columnId }));
+    dispatch(setSortOrder({ resourceKey: 'customers', sortOrder: order }));
+  }, [dispatch]);
 
   // Pagination handlers
   const handlePageChange = useCallback((page: number) => {
@@ -152,6 +172,8 @@ export const useCustomersManagement = () => {
     isSaveViewModalOpen,
     currentPage,
     pageSize,
+    sortBy,
+    sortOrder,
     
     // Handlers
     handleSaveViewClick,
@@ -159,6 +181,7 @@ export const useCustomersManagement = () => {
     handleLogout,
     getCurrentFilterConfig,
     handleBulkDelete,
+    handleSortChange,
     handlePageChange,
     handlePageSizeChange,
   };

@@ -220,6 +220,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
               cardio: plan.cardio || 0,
               intervals: plan.intervals || 0
             },
+            weeklyWorkout: plan.custom_attributes?.data?.weeklyWorkout || plan.routine_data?.weeklyWorkout || null,
             budget_id: plan.budget_id,
             created_at: plan.created_at,
             is_active: isActive,
@@ -373,13 +374,11 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
           return dateB.localeCompare(dateA);
         });
 
-        // Handle supplements - can be array of strings or array of objects
+        // Handle supplements - preserve object structure if available
         supplementsHistory.push(...sortedPlans.map((plan: any) => {
-          let supplementsArray: string[] = [];
+          let supplementsArray: any[] = [];
           if (Array.isArray(plan.supplements)) {
-            supplementsArray = plan.supplements.map((sup: any) =>
-              typeof sup === 'string' ? sup : sup.name || JSON.stringify(sup)
-            );
+            supplementsArray = plan.supplements;
           }
 
           // Only mark as active if it's the most recent plan from the active budget
@@ -478,6 +477,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
             id: plan.id,
             weekNumber: weekNumber,
             target: plan.steps_goal || 0,
+            stepsInstructions: plan.steps_instructions || '',
             startDate: plan.start_date,
             endDate: plan.end_date || null,
             dates: plan.start_date ? formatDate(plan.start_date) : '',
@@ -500,7 +500,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
             weekNumber: 'נוכחי',
             target: activeBudget.steps_goal,
             startDate: new Date().toISOString().split('T')[0],
-            description: `תוכנית צעדים מתקציב: ${activeBudget.name || 'תקציב פעיל'}`,
+            description: `תוכנית צעדים מתכנית פעולה: ${activeBudget.name || 'תקציב פעיל'}`,
             budget_id: activeBudgetId,
             is_active: true,
           });

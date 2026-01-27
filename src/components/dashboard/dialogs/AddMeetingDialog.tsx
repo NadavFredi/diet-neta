@@ -421,7 +421,7 @@ export const AddMeetingDialog = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="פגישת התאמה">פגישת התאמה</SelectItem>
-                <SelectItem value="פגישת תקציב">פגישת תקציב</SelectItem>
+                <SelectItem value="פגישת תכנית פעולה">פגישת תכנית פעולה</SelectItem>
               </SelectContent>
             </Select>
           </div>

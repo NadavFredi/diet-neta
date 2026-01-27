@@ -65,6 +65,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { AddLeadDialogWithCustomer } from './AddLeadDialogWithCustomer';
+import { AvatarUpload } from './AvatarUpload';
 
 interface LeadData {
   id: string;
@@ -110,7 +111,8 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { data: allMeetings = [], isLoading: isLoadingMeetings } = useMeetings();
+  const { data: allMeetingsData, isLoading: isLoadingMeetings } = useMeetings();
+  const allMeetings = allMeetingsData?.data || [];
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<'lead' | 'customer' | null>(null);
@@ -317,6 +319,17 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
           <span className="hidden sm:inline">חזור</span>
         </Button>
 
+        {/* Avatar */}
+        {customer && (
+          <AvatarUpload
+            customerId={customer.id}
+            currentAvatarUrl={customer.avatar_url}
+            name={customer.full_name}
+            size="sm"
+            editable={true}
+          />
+        )}
+
         {/* Name - Page Title - Clickable to navigate to customer page */}
         {onViewCustomerProfile ? (
           <button
@@ -370,12 +383,42 @@ export const ClientHeroBar: React.FC<ClientHeroBarProps> = ({
         )}
 
         {/* Email - On same line (optional, can be hidden on smaller screens) */}
-        {onUpdateCustomer && customer && customer.email && (
-          <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
+        {onUpdateCustomer && customer && (
+          <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0 group/email">
             <Mail className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-            <span className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
-              {customer.email}
-            </span>
+            <div className="relative">
+              {customer.email ? (
+                <InlineEditableField
+                  label=""
+                  value={customer.email}
+                  onSave={async (newValue) => {
+                    if (customer.id) {
+                      await onUpdateCustomer({ email: String(newValue) });
+                    }
+                  }}
+                  type="email"
+                  className="border-0 p-0 m-0 [&>span:first-child]:hidden"
+                  valueClassName="text-sm font-semibold text-gray-900 truncate max-w-[200px] cursor-pointer hover:text-blue-600 transition-colors"
+                />
+              ) : (
+                <InlineEditableField
+                  label=""
+                  value=""
+                  onSave={async (newValue) => {
+                    if (customer.id) {
+                      await onUpdateCustomer({ email: String(newValue) });
+                    }
+                  }}
+                  type="email"
+                  className="border-0 p-0 m-0 [&>span:first-child]:hidden"
+                  valueClassName="text-sm font-semibold text-gray-500 truncate max-w-[200px] cursor-pointer hover:text-blue-600 transition-colors italic"
+                  formatValue={(val) => {
+                    const str = String(val);
+                    return str || 'לחץ להוספת אימייל';
+                  }}
+                />
+              )}
+            </div>
           </div>
         )}
 

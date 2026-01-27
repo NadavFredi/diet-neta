@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import type { NutritionTargets } from './useNutritionTemplates';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface NutritionPlan {
   id: string;
@@ -8,6 +9,7 @@ export interface NutritionPlan {
   lead_id?: string;
   template_id?: string;
   budget_id?: string | null;
+  name?: string;
   start_date: string;
   description?: string;
   targets: NutritionTargets;
@@ -19,6 +21,7 @@ export const useNutritionPlan = (customerId?: string) => {
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!customerId) {
@@ -67,6 +70,7 @@ export const useNutritionPlan = (customerId?: string) => {
           lead_id: data.lead_id,
           template_id: data.template_id,
           budget_id: data.budget_id,
+          name: data.name || '',
           start_date: data.start_date,
           description: data.description || '',
           targets: data.targets || {
@@ -106,6 +110,7 @@ export const useNutritionPlan = (customerId?: string) => {
           lead_id: planData.lead_id,
           template_id: planData.template_id,
           budget_id: planData.budget_id,
+          name: planData.name,
           start_date: planData.start_date,
           description: planData.description,
           targets: planData.targets || {
@@ -129,6 +134,7 @@ export const useNutritionPlan = (customerId?: string) => {
           lead_id: data.lead_id,
           template_id: data.template_id,
           budget_id: data.budget_id,
+          name: data.name || '',
           start_date: data.start_date,
           description: data.description || '',
           targets: data.targets || {
@@ -142,6 +148,12 @@ export const useNutritionPlan = (customerId?: string) => {
           updated_at: data.updated_at,
         };
         setNutritionPlan(newPlan);
+        
+        // Invalidate budget history query if the plan is linked to a budget
+        if (newPlan.budget_id) {
+          queryClient.invalidateQueries({ queryKey: ['budget-history'] });
+        }
+        
         return newPlan;
       }
     } catch (err) {
@@ -161,6 +173,7 @@ export const useNutritionPlan = (customerId?: string) => {
       const { data, error: updateError } = await supabase
         .from('nutrition_plans')
         .update({
+          name: planData.name,
           start_date: planData.start_date,
           description: planData.description,
           targets: planData.targets,
@@ -190,6 +203,12 @@ export const useNutritionPlan = (customerId?: string) => {
           updated_at: data.updated_at,
         };
         setNutritionPlan(updatedPlan);
+        
+        // Invalidate budget history query if the plan is linked to a budget
+        if (updatedPlan.budget_id || nutritionPlan.budget_id) {
+          queryClient.invalidateQueries({ queryKey: ['budget-history'] });
+        }
+        
         return updatedPlan;
       }
     } catch (err) {

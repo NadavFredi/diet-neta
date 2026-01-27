@@ -177,26 +177,78 @@ async function handleMediaMessage(
     body: JSON.stringify(requestBody),
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+  const responseText = await response.text();
+  let data: any;
+  
+  try {
+    data = JSON.parse(responseText);
+  } catch (parseError) {
+    // If response is not JSON, it's likely an error
     return errorResponse(
-      errorData.error || errorData.message || `HTTP error! status: ${response.status}`,
+      `Invalid response from Green API: ${responseText.substring(0, 200)}`,
+      response.status || 500
+    );
+  }
+
+  // Check for HTTP errors
+  if (!response.ok) {
+    const errorMsg = data.error || data.message || data.errorText || `HTTP error! status: ${response.status}`;
+    return errorResponse(
+      `Green API error: ${errorMsg}`,
       response.status
     );
   }
 
-  const data = await response.json();
-  
-  // Validate response has idMessage
+  // Validate response has idMessage - this is critical for confirming message was sent
+  // Green API returns idMessage only when message is successfully queued/sent
   if (!data.idMessage) {
-    return errorResponse('Media failed to send: Response missing idMessage', 400);
+    // Check for common error indicators in Green API responses
+    if (data.error || data.errorText || data.message) {
+      const errorMsg = data.error || data.errorText || data.message || 'Unknown error';
+      return errorResponse(
+        `Media failed to send: ${errorMsg}. This usually means the WhatsApp instance is not connected or the phone number is invalid.`,
+        400
+      );
+    }
+    
+    // Check for specific Green API error codes
+    if (data.errorCode) {
+      let errorDescription = '';
+      switch (data.errorCode) {
+        case 400:
+          errorDescription = 'Invalid request parameters';
+          break;
+        case 401:
+          errorDescription = 'Unauthorized - check your API credentials';
+          break;
+        case 404:
+          errorDescription = 'WhatsApp instance not found or not connected';
+          break;
+        case 429:
+          errorDescription = 'Rate limit exceeded';
+          break;
+        default:
+          errorDescription = `Error code: ${data.errorCode}`;
+      }
+      return errorResponse(
+        `Media failed to send: ${errorDescription}`,
+        400
+      );
+    }
+    
+    // If no idMessage and no explicit error, this is suspicious
+    // This usually means the WhatsApp instance is not connected
+    return errorResponse(
+      `Media failed to send: Response missing idMessage. This usually means the WhatsApp instance is not connected. Please check your Green API instance status. Response: ${JSON.stringify(data).substring(0, 200)}`,
+      400
+    );
   }
   
+  // Success - message was sent (idMessage confirms it was queued)
   return successResponse(data);
 }
 
 serve(async (req) => {
-
   // Handle CORS preflight
   const corsResponse = handleCors(req);
   if (corsResponse) {
@@ -211,7 +263,7 @@ serve(async (req) => {
     
     // Priority 2: Try to get from database (for local development)
     // This allows local dev without needing to set Supabase secrets
-    let configFromDb = null;
+    let configFromDb: { idInstance: string; apiTokenInstance: string } | null = null;
     if (!idInstance || !apiTokenInstance) {
       try {
         const supabaseAdmin = createSupabaseAdmin();
@@ -230,19 +282,14 @@ serve(async (req) => {
               idInstance: data.id_instance,
               apiTokenInstance: data.api_token_instance,
             };
-          } else {
           }
-        } else {
         }
       } catch (dbError: any) {
       }
-    } else {
     }
     
     const finalIdInstance = idInstance || configFromDb?.idInstance;
     const finalApiTokenInstance = apiTokenInstance || configFromDb?.apiTokenInstance;
-
-    // Debug: Log available env vars (without sensitive data)
 
     if (!finalIdInstance || !finalApiTokenInstance) {
       const missing = [];
@@ -287,13 +334,73 @@ serve(async (req) => {
       return errorResponse('Unauthorized', 401);
     }
 
+    // Check WhatsApp instance state before sending
+    // This is critical - messages will be queued but not delivered if instance is not authorized
+    // Add timeout to prevent function from hanging
+    try {
+      const stateUrl = `https://api.green-api.com/waInstance${finalIdInstance}/getStateInstance/${finalApiTokenInstance}`;
+      
+      // Create a timeout promise (5 seconds max for state check)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('State check timeout after 5 seconds')), 5000);
+      });
+      
+      const fetchPromise = fetch(stateUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const stateResponse = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+
+      if (stateResponse.ok) {
+        let stateData: any;
+        try {
+          stateData = await stateResponse.json();
+        } catch (jsonError: any) {
+          // If JSON parsing fails, don't block - proceed with sending
+        }
+
+        if (stateData) {
+          // Check if instance is authorized and ready
+          // Possible states: notAuthorized, authorized, sleepMode, starting
+          // Only block for critical states - allow "starting" to proceed (it might work)
+          if (stateData.stateInstance === 'notAuthorized') {
+            return errorResponse(
+              'WhatsApp instance is not authorized. Please scan the QR code in your Green API dashboard to authorize the instance.',
+              400
+            );
+          }
+          
+          // Don't block for "starting" or "sleepMode" - let the message attempt
+        }
+      } else {
+        let stateErrorText = '';
+        try {
+          stateErrorText = await stateResponse.text();
+        } catch (textError) {
+          stateErrorText = `HTTP ${stateResponse.status}`;
+        }
+        // Don't block sending if state check fails - proceed
+      }
+    } catch (stateError: any) {
+      // Don't block sending if state check fails - proceed
+    }
 
     // Parse request body
     let body: SendMessageRequest;
     try {
       body = await parseJsonBody<SendMessageRequest>(req);
     } catch (error: any) {
-      return errorResponse('Invalid JSON in request body', 400);
+      return errorResponse(
+        `Invalid JSON in request body: ${error?.message || 'Unknown error'}`,
+        400
+      );
+    }
+    
+    if (!body) {
+      return errorResponse('Request body is required', 400);
     }
 
     const { phoneNumber, message, buttons, footer, media } = body;
@@ -306,7 +413,17 @@ serve(async (req) => {
       return errorResponse('Either message or media is required', 400);
     }
 
+    // Validate and format phone number
+    if (!phoneNumber || phoneNumber.trim() === '') {
+      return errorResponse('phoneNumber is required and cannot be empty', 400);
+    }
+
     const chatId = getChatId(phoneNumber);
+    
+    // Validate chatId format (should be: numbers@c.us)
+    if (!chatId.match(/^\d+@c\.us$/)) {
+      return errorResponse(`Invalid phone number format. Got chatId: ${chatId}`, 400);
+    }
 
     // Handle media messages
     if (media?.url) {
@@ -349,55 +466,184 @@ serve(async (req) => {
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+      const responseText = await response.text();
+      let data: any;
+      
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        // If response is not JSON, it's likely an error
         return errorResponse(
-          errorData.error || `HTTP error! status: ${response.status}`,
+          `Invalid response from Green API: ${responseText.substring(0, 200)}`,
+          response.status || 500
+        );
+      }
+
+      // Check for HTTP errors
+      if (!response.ok) {
+        const errorMsg = data.error || data.message || data.errorText || data.text || `HTTP error! status: ${response.status}`;
+        return errorResponse(
+          `Green API error: ${errorMsg}. Full response: ${JSON.stringify(data)}`,
           response.status
         );
       }
 
-      const data = await response.json();
-      
-      // Validate response has idMessage
+      // Green API sometimes returns 200 OK but with error in the body
+      if (data.error || data.errorText || (data.text && data.text.toLowerCase().includes('error'))) {
+        const errorMsg = data.error || data.errorText || data.text || 'Unknown error';
+        return errorResponse(
+          `Green API returned error: ${errorMsg}. Full response: ${JSON.stringify(data)}`,
+          400
+        );
+      }
+
+      // Validate response has idMessage - this is critical for confirming message was sent
+      // Green API returns idMessage only when message is successfully queued/sent
       if (!data.idMessage) {
-        return errorResponse('Message failed to send: Response missing idMessage', 400);
+        // Check for common error indicators in Green API responses
+        if (data.error || data.errorText || data.message) {
+          const errorMsg = data.error || data.errorText || data.message || 'Unknown error';
+          return errorResponse(
+            `Message failed to send: ${errorMsg}. This usually means the WhatsApp instance is not connected or the phone number is invalid. Full response: ${JSON.stringify(data)}`,
+            400
+          );
+        }
+        
+        // Check for specific Green API error codes
+        if (data.errorCode) {
+          let errorDescription = '';
+          switch (data.errorCode) {
+            case 400:
+              errorDescription = 'Invalid request parameters';
+              break;
+            case 401:
+              errorDescription = 'Unauthorized - check your API credentials';
+              break;
+            case 404:
+              errorDescription = 'WhatsApp instance not found or not connected';
+              break;
+            case 429:
+              errorDescription = 'Rate limit exceeded';
+              break;
+            default:
+              errorDescription = `Error code: ${data.errorCode}`;
+          }
+          return errorResponse(
+            `Message failed to send: ${errorDescription}. Full response: ${JSON.stringify(data)}`,
+            400
+          );
+        }
+        
+        // If no idMessage and no explicit error, this is suspicious
+        // This usually means the WhatsApp instance is not connected
+        return errorResponse(
+          `Message failed to send: Response missing idMessage. This usually means the WhatsApp instance is not connected. Please check your Green API instance status. Full response: ${JSON.stringify(data)}`,
+          400
+        );
       }
       
+      // Success - message was sent (idMessage confirms it was queued)
       return successResponse(data);
     } else {
       // Use standard sendMessage endpoint
       const url = `https://api.green-api.com/waInstance${finalIdInstance}/sendMessage/${finalApiTokenInstance}`;
+
+      const requestBody = {
+        chatId,
+        message,
+      };
 
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          chatId,
-          message,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+      const responseText = await response.text();
+      let data: any;
+      
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        // If response is not JSON, it's likely an error
         return errorResponse(
-          errorData.error || `HTTP error! status: ${response.status}`,
+          `Invalid response from Green API: ${responseText.substring(0, 200)}`,
+          response.status || 500
+        );
+      }
+
+      // Check for HTTP errors
+      if (!response.ok) {
+        const errorMsg = data.error || data.message || data.errorText || data.text || `HTTP error! status: ${response.status}`;
+        return errorResponse(
+          `Green API error: ${errorMsg}. Full response: ${JSON.stringify(data)}`,
           response.status
         );
       }
 
-      const data = await response.json();
-      
-      // Validate response has idMessage
+      // Green API sometimes returns 200 OK but with error in the body
+      if (data.error || data.errorText || (data.text && data.text.toLowerCase().includes('error'))) {
+        const errorMsg = data.error || data.errorText || data.text || 'Unknown error';
+        return errorResponse(
+          `Green API returned error: ${errorMsg}. Full response: ${JSON.stringify(data)}`,
+          400
+        );
+      }
+
+      // Validate response has idMessage - this is critical for confirming message was sent
+      // Green API returns idMessage only when message is successfully queued/sent
       if (!data.idMessage) {
-        return errorResponse('Message failed to send: Response missing idMessage', 400);
+        // Check for common error indicators in Green API responses
+        if (data.error || data.errorText || data.message) {
+          const errorMsg = data.error || data.errorText || data.message || 'Unknown error';
+          return errorResponse(
+            `Message failed to send: ${errorMsg}. This usually means the WhatsApp instance is not connected or the phone number is invalid. Full response: ${JSON.stringify(data)}`,
+            400
+          );
+        }
+        
+        // Check for specific Green API error codes
+        if (data.errorCode) {
+          let errorDescription = '';
+          switch (data.errorCode) {
+            case 400:
+              errorDescription = 'Invalid request parameters';
+              break;
+            case 401:
+              errorDescription = 'Unauthorized - check your API credentials';
+              break;
+            case 404:
+              errorDescription = 'WhatsApp instance not found or not connected';
+              break;
+            case 429:
+              errorDescription = 'Rate limit exceeded';
+              break;
+            default:
+              errorDescription = `Error code: ${data.errorCode}`;
+          }
+          return errorResponse(
+            `Message failed to send: ${errorDescription}. Full response: ${JSON.stringify(data)}`,
+            400
+          );
+        }
+        
+        // If no idMessage and no explicit error, this is suspicious
+        // This usually means the WhatsApp instance is not connected
+        return errorResponse(
+          `Message failed to send: Response missing idMessage. This usually means the WhatsApp instance is not connected. Please check your Green API instance status. Full response: ${JSON.stringify(data)}`,
+          400
+        );
       }
       
+      // Success - message was sent (idMessage confirms it was queued)
       return successResponse(data);
     }
   } catch (error: any) {
-    return errorResponse(error?.message || 'Failed to send WhatsApp message', 500);
+    return errorResponse(
+      error?.message || error?.toString() || 'Failed to send WhatsApp message. Please check the server logs for details.',
+      500
+    );
   }
 });

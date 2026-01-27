@@ -4,7 +4,8 @@
  * Pure presentation component - all logic is in WhatsAppAutomationsPage.ts
  */
 
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,23 +29,64 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Send, Plus, Loader2 } from 'lucide-react';
 import { TemplateEditorModal } from '@/components/dashboard/TemplateEditorModal';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { WhatsAppAutomationsDataTable } from '@/components/dashboard/WhatsAppAutomationsDataTable';
-import { useSidebarWidth } from '@/hooks/useSidebarWidth';
+import { Pagination } from '@/components/dashboard/Pagination';
+import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
 import { useAppSelector } from '@/store/hooks';
+import { useDefaultView } from '@/hooks/useDefaultView';
+import { useSavedView } from '@/hooks/useSavedViews';
 import { useWhatsAppAutomationsPage } from './WhatsAppAutomationsPage';
 import { createWhatsAppAutomationColumns } from '@/components/dashboard/columns/whatsappAutomationColumns';
+import {
+  selectSearchQuery,
+  selectFilterGroup,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
+} from '@/store/slices/tableStateSlice';
 
 export const WhatsAppAutomationsPage: React.FC = () => {
-  const sidebarWidth = useSidebarWidth();
   const { user } = useAppSelector((state) => state.auth);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const viewId = searchParams.get('view_id');
+  const { defaultView } = useDefaultView('whatsapp_automations');
+  const { data: savedView } = useSavedView(viewId);
+  const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'whatsapp_automations'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'whatsapp_automations'));
+  const columnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'whatsapp_automations'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'whatsapp_automations'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'whatsapp_automations'));
+
+  const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
+
+  // Auto-navigate to default view if no view_id is present
+  useEffect(() => {
+    if (!viewId && defaultView) {
+      navigate(`/dashboard/whatsapp-automations?view_id=${defaultView.id}`, { replace: true });
+    }
+  }, [viewId, defaultView, navigate]);
+
+  const handleSaveViewClick = useCallback((resourceKey: string) => {
+    setIsSaveViewModalOpen(true);
+  }, []);
+
+  const getCurrentFilterConfig = useCallback(() => {
+    return {
+      searchQuery: searchQuery || '',
+      filterGroup,
+      columnVisibility,
+      columnOrder,
+      columnWidths: columnSizing,
+      advancedFilters: [],
+    };
+  }, [searchQuery, filterGroup, columnVisibility, columnOrder, columnSizing]);
 
   const {
     automations,
     isLoading,
-    allFlows,
     editingFlowKey,
     deletingFlowKey,
     isAddDialogOpen,
@@ -66,6 +108,14 @@ export const WhatsAppAutomationsPage: React.FC = () => {
     setIsAddDialogOpen,
     setNewFlowLabel,
     setNewFlowKey,
+    totalTemplates,
+    currentPage,
+    pageSize,
+    sortBy,
+    sortOrder,
+    handleSortChange,
+    handlePageChange,
+    handlePageSizeChange,
   } = useWhatsAppAutomationsPage();
 
   // Create columns for TableActionHeader (needed for column visibility)
@@ -75,83 +125,101 @@ export const WhatsAppAutomationsPage: React.FC = () => {
     [handleEdit, handleDelete]
   );
 
+  // Determine the title to show
+  const pageTitle = viewId && savedView?.view_name
+    ? savedView.view_name
+    : 'כל האוטומציות';
+
   if (isLoading) {
     return (
-      <div className="bg-gray-50 flex flex-col min-h-screen" dir="rtl">
-        <DashboardHeader
-          userEmail={user?.email}
-          onLogout={handleLogout}
-          sidebarContent={<DashboardSidebar />}
-        />
-        <div className="flex-1 flex items-center justify-center" style={{ marginRight: `${sidebarWidth.width}px` }}>
+      <TableManagementLayout
+        userEmail={user?.email}
+        onLogout={handleLogout}
+        onSaveViewClick={handleSaveViewClick}
+      >
+        <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <Loader2 className="inline-block animate-spin h-8 w-8 text-[#5B6FB9] mb-2" />
             <p className="text-sm text-gray-600">טוען אוטומציות...</p>
           </div>
         </div>
-      </div>
+      </TableManagementLayout>
     );
   }
 
   return (
     <>
-      <DashboardHeader
+      <TableManagementLayout
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar />}
-      />
+        onSaveViewClick={handleSaveViewClick}
+      >
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="whatsapp_automations"
+            title={pageTitle}
+            icon={Send}
+            dataCount={totalTemplates || 0}
+            singularLabel="אוטומציה"
+            pluralLabel="אוטומציות"
+            filterFields={[]}
+            searchPlaceholder="חיפוש לפי שם אוטומציה..."
+            addButtonLabel="הוסף אוטומציה"
+            onAddClick={() => setIsAddDialogOpen(true)}
+            enableColumnVisibility={true}
+            enableFilters={false}
+            enableGroupBy={false}
+            enableSearch={true}
+            columns={columns}
+          />
+        </div>
 
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
-        <main
-          className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out"
-          style={{
-            marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 60px)',
-          }}
-        >
-          <div className="p-6">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              <TableActionHeader
-                resourceKey="whatsapp_automations"
-                title="אוטומציית WhatsApp"
-                icon={Send}
-                dataCount={automations?.length || 0}
-                singularLabel="אוטומציה"
-                pluralLabel="אוטומציות"
-                filterFields={[]}
-                searchPlaceholder="חיפוש לפי שם אוטומציה..."
-                addButtonLabel="הוסף אוטומציה"
-                onAddClick={() => setIsAddDialogOpen(true)}
-                enableColumnVisibility={true}
-                enableFilters={false}
-                enableGroupBy={false}
-                enableSearch={true}
-                columns={columns}
-              />
-
-              <div className="bg-white">
-                {isLoading ? (
-                  <div className="text-center py-12">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <p className="text-gray-600">טוען אוטומציות...</p>
-                  </div>
-                ) : automations && Array.isArray(automations) && automations.length > 0 ? (
-                  <WhatsAppAutomationsDataTable
-                    automations={automations}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    <p className="text-lg font-medium mb-2">לא נמצאו אוטומציות</p>
-                    <p className="text-sm">לחץ על "הוסף אוטומציה" כדי להתחיל</p>
-                  </div>
-                )}
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
+          {isLoading ? (
+            <div className="text-center py-12 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p className="text-gray-600">טוען אוטומציות...</p>
               </div>
             </div>
-          </div>
-        </main>
-      </div>
+          ) : automations && Array.isArray(automations) && automations.length > 0 ? (
+            <div className="flex-1 min-h-0">
+              <WhatsAppAutomationsDataTable
+                automations={automations}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
+              />
+            </div>
+          ) : (
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו אוטומציות</p>
+                <p className="text-sm">לחץ על "הוסף אוטומציה" כדי להתחיל</p>
+              </div>
+            </div>
+          )}
+          {!isLoading && totalTemplates > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalTemplates}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                showIfSinglePage={true}
+                isLoading={isLoading}
+                singularLabel="אוטומציה"
+                pluralLabel="אוטומציות"
+              />
+            </div>
+          )}
+        </div>
+      </TableManagementLayout>
 
       {/* Template Editor Modal */}
       {editingFlowKey && flowConfig && (
@@ -174,7 +242,7 @@ export const WhatsAppAutomationsPage: React.FC = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>מחיקת אוטומציה</AlertDialogTitle>
               <AlertDialogDescription>
-                האם אתה בטוח שברצונך למחוק את האוטומציה "{allFlows.find(f => f.key === deletingFlowKey)?.label}"?
+                האם אתה בטוח שברצונך למחוק את האוטומציה "{deletingFlowKey}"?
                 <br />
                 פעולה זו תמחק גם את התבנית הקשורה לאוטומציה זו ולא ניתן לבטל אותה.
               </AlertDialogDescription>
@@ -233,6 +301,15 @@ export const WhatsAppAutomationsPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Save View Modal */}
+      <SaveViewModal
+        isOpen={isSaveViewModalOpen}
+        onOpenChange={setIsSaveViewModalOpen}
+        resourceKey="whatsapp_automations"
+        filterConfig={getCurrentFilterConfig()}
+      />
+
     </>
   );
 };

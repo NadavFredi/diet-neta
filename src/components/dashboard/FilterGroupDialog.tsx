@@ -42,6 +42,12 @@ export const FilterGroupDialog = ({
 }: FilterGroupDialogProps) => {
   const [editingFilter, setEditingFilter] = useState<ActiveFilter | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const formatFilterValue = (filter: ActiveFilter) => {
+    if (filter.operator === 'hasData' || filter.operator === 'noData') {
+      return '—';
+    }
+    return filter.values.length > 0 ? filter.values.join(', ') : '—';
+  };
 
   const handleAddFilter = (filter: ActiveFilter, parentGroupId: string) => {
     onChange(addFilterToGroup(filterGroup, filter, parentGroupId));
@@ -148,7 +154,7 @@ export const FilterGroupDialog = ({
               >
                 <span className="font-medium">{filter.fieldLabel}</span>
                 <span className="mx-1 text-indigo-600">{OPERATOR_LABELS[filter.operator]}</span>
-                <span className="font-semibold">{filter.values.join(', ')}</span>
+                <span className="font-semibold">{formatFilterValue(filter)}</span>
                 <button
                   onClick={(event) => {
                     event.stopPropagation();

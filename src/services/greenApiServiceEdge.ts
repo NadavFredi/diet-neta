@@ -93,7 +93,15 @@ export const replacePlaceholders = (
 ): string => {
   let result = template;
   Object.entries(placeholders).forEach(([key, value]) => {
-    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    // Handle keys with or without braces
+    // If key is '{{week_start}}', extract 'week_start'
+    // If key is 'week_start', use as is
+    const placeholderName = key.startsWith('{{') && key.endsWith('}}') 
+      ? key.slice(2, -2) 
+      : key;
+    
+    // Create regex to match {{placeholderName}}
+    const regex = new RegExp(`\\{\\{${placeholderName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}`, 'g');
     const replacement = value != null ? String(value) : '';
     result = result.replace(regex, replacement);
   });

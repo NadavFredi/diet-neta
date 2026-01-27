@@ -13,7 +13,9 @@ import Login from "./pages/Login.tsx";
 import Register from "./pages/Register.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import TemplatesManagement from "./pages/TemplatesManagement.tsx";
+import ExercisesManagement from "./pages/ExercisesManagement.tsx";
 import NutritionTemplatesManagement from "./pages/NutritionTemplatesManagement.tsx";
+import SupplementTemplatesManagement from "./pages/SupplementTemplatesManagement.tsx";
 import BudgetManagement from "./pages/BudgetManagement.tsx";
 import SubscriptionTypesManagement from "./pages/SubscriptionTypesManagement.tsx";
 import PaymentsManagement from "./pages/PaymentsManagement.tsx";
@@ -25,6 +27,7 @@ import CustomersManagement from "./pages/CustomersManagement.tsx";
 import MeetingsManagement from "./pages/MeetingsManagement.tsx";
 import MeetingDetailView from "./pages/MeetingDetailView.tsx";
 import UnifiedProfileView from "./pages/UnifiedProfileView.tsx";
+import LeadsRefactored from "./pages/LeadsRefactored.tsx";
 import { CheckInSettingsPage } from "./pages/CheckInSettingsPage.tsx";
 import { WhatsAppAutomationsPage } from "./pages/WhatsAppAutomationsPage.tsx";
 import Analytics from "./pages/Analytics.tsx";
@@ -110,10 +113,26 @@ const AppContent = () => {
             }
           />
           <Route
+            path="/dashboard/exercises"
+            element={
+              <ProtectedRoute>
+                <ExercisesManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/dashboard/nutrition-templates"
             element={
               <ProtectedRoute>
                 <NutritionTemplatesManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/supplement-templates"
+            element={
+              <ProtectedRoute>
+                <SupplementTemplatesManagement />
               </ProtectedRoute>
             }
           />
@@ -234,6 +253,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <MeetingDetailView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leads-refactored"
+            element={
+              <ProtectedRoute>
+                <LeadsRefactored />
               </ProtectedRoute>
             }
           />

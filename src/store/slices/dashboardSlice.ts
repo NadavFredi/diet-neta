@@ -1,6 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { supabase } from '@/lib/supabaseClient';
-import type { ColumnVisibility } from '@/utils/dashboard';
 
 export interface WorkoutProgram {
   programName: string;
@@ -52,21 +51,42 @@ export interface Lead {
   workoutProgramsHistory: WorkoutProgram[];
   stepsHistory: StepsHistory[];
   customerId?: string; // Link to customer
+  // Related entity data (for column accessors)
+  subscription_months?: number | null;
+  subscription_initial_price?: number | null;
+  subscription_renewal_price?: number | null;
+    budget_assignments?: Array<{
+      id: string;
+      budgets?: {
+        id: string;
+        name: string;
+        description?: string;
+        steps_goal?: number;
+        steps_instructions?: string;
+        eating_order?: string;
+        eating_rules?: string;
+        supplements?: any[];
+        nutrition_targets?: any;
+        is_public?: boolean;
+        nutrition_template_id?: string;
+        workout_template_id?: string;
+        nutrition_templates?: {
+          id: string;
+          name: string;
+          description?: string;
+          targets?: {
+            calories?: number;
+            protein?: number;
+            carbs?: number;
+            fat?: number;
+          };
+        };
+      };
+    }>;
 }
 
 interface DashboardState {
   leads: Lead[]; // Source of truth - fetched from PostgreSQL (already filtered)
-  searchQuery: string;
-  selectedDate: string | null;
-  selectedStatus: string | null;
-  selectedAge: string | null;
-  selectedHeight: string | null;
-  selectedWeight: string | null;
-  selectedFitnessGoal: string | null;
-  selectedActivityLevel: string | null;
-  selectedPreferredTime: string | null;
-  selectedSource: string | null;
-  columnVisibility: ColumnVisibility;
   isLoading: boolean;
   error: string | null;
   // Pagination state
@@ -277,30 +297,6 @@ export const fetchLeads = createAsyncThunk(
     }
   }
 );
-
-// Default column visibility - only essential columns shown by default
-// Users can add more columns via the column visibility menu
-// Default column visibility matching the user's preferred view from the image
-// Visible columns: Created At, Name, Status, Age, Fitness Goal, Activity Level, Preferred Time, Phone, Source, Notes
-const initialColumnVisibility: ColumnVisibility = {
-  // Visible columns (matching the image)
-  createdDate: true,    // תאריך יצירה
-  name: true,           // שם
-  status: true,         // סטטוס
-  age: true,            // גיל
-  fitnessGoal: true,    // מטרת כושר
-  activityLevel: true,   // רמת פעילות
-  preferredTime: true,   // זמן מועדף
-  phone: true,          // טלפון
-  source: true,         // מקור
-  notes: true,          // הערות
-  
-  // Hidden columns (not shown in the image)
-  id: false,           // מזהה - hidden
-  email: false,        // אימייל - hidden
-  height: false,       // גובה - hidden (only in filters, not in table)
-  weight: false,       // משקל - hidden (only in filters, not in table)
-};
 
 // Mock data removed - now fetching from Supabase
 // Legacy mock data kept for reference (commented out):
@@ -911,17 +907,6 @@ const mockLeads: Lead[] = [
 
 const initialState: DashboardState = {
   leads: [], // Source of truth - already filtered by PostgreSQL
-  searchQuery: '',
-  selectedDate: null,
-  selectedStatus: null,
-  selectedAge: null,
-  selectedHeight: null,
-  selectedWeight: null,
-  selectedFitnessGoal: null,
-  selectedActivityLevel: null,
-  selectedPreferredTime: null,
-  selectedSource: null,
-  columnVisibility: initialColumnVisibility,
   isLoading: false,
   error: null,
   // Pagination state
@@ -933,97 +918,14 @@ const initialState: DashboardState = {
   sortOrder: 'DESC', // Default descending (newest first)
 };
 
-// Clean up columnVisibility to remove birthDate if it exists (migration)
-const cleanColumnVisibility = (visibility: any): ColumnVisibility => {
-  if (!visibility) return initialColumnVisibility;
-  const { birthDate, ...cleaned } = visibility;
-  // Ensure all required fields exist
-  const result: ColumnVisibility = {
-    id: cleaned.id ?? false,
-    name: cleaned.name ?? true,
-    createdDate: cleaned.createdDate ?? true,
-    status: cleaned.status ?? true,
-    phone: cleaned.phone ?? true,
-    email: cleaned.email ?? false,
-    source: cleaned.source ?? true,
-    age: cleaned.age ?? true,
-    height: cleaned.height ?? false,
-    weight: cleaned.weight ?? false,
-    fitnessGoal: cleaned.fitnessGoal ?? true,
-    activityLevel: cleaned.activityLevel ?? true,
-    preferredTime: cleaned.preferredTime ?? true,
-    notes: cleaned.notes ?? false,
-  };
-  return result;
-};
-
-// Ensure initial state has correct columnVisibility
-const safeInitialState = {
-  ...initialState,
-  columnVisibility: cleanColumnVisibility(initialState.columnVisibility),
-};
-
 const dashboardSlice = createSlice({
   name: 'dashboard',
-  initialState: safeInitialState,
+  initialState,
   reducers: {
     // Set leads (already filtered by PostgreSQL)
     setLeads: (state, action: PayloadAction<Lead[]>) => {
       state.leads = action.payload;
       // No need to filter - PostgreSQL already did it
-    },
-    // Filter state setters (no client-side filtering - triggers new fetch)
-    setSearchQuery: (state, action: PayloadAction<string>) => {
-      state.searchQuery = action.payload;
-      // Filtering happens in PostgreSQL via useDashboardLogic hook
-    },
-    setSelectedDate: (state, action: PayloadAction<string | null>) => {
-      state.selectedDate = action.payload;
-    },
-    setSelectedStatus: (state, action: PayloadAction<string | null>) => {
-      state.selectedStatus = action.payload;
-    },
-    setSelectedAge: (state, action: PayloadAction<string | null>) => {
-      state.selectedAge = action.payload;
-    },
-    setSelectedHeight: (state, action: PayloadAction<string | null>) => {
-      state.selectedHeight = action.payload;
-    },
-    setSelectedWeight: (state, action: PayloadAction<string | null>) => {
-      state.selectedWeight = action.payload;
-    },
-    setSelectedFitnessGoal: (state, action: PayloadAction<string | null>) => {
-      state.selectedFitnessGoal = action.payload;
-    },
-    setSelectedActivityLevel: (state, action: PayloadAction<string | null>) => {
-      state.selectedActivityLevel = action.payload;
-    },
-    setSelectedPreferredTime: (state, action: PayloadAction<string | null>) => {
-      state.selectedPreferredTime = action.payload;
-    },
-    setSelectedSource: (state, action: PayloadAction<string | null>) => {
-      state.selectedSource = action.payload;
-    },
-    toggleColumnVisibility: (state, action: PayloadAction<keyof ColumnVisibility>) => {
-      state.columnVisibility[action.payload] = !state.columnVisibility[action.payload];
-    },
-    setColumnVisibility: (state, action: PayloadAction<ColumnVisibility>) => {
-      state.columnVisibility = cleanColumnVisibility(action.payload);
-    },
-    resetFilters: (state) => {
-      state.searchQuery = '';
-      state.selectedDate = null;
-      state.selectedStatus = null;
-      state.selectedAge = null;
-      state.selectedHeight = null;
-      state.selectedWeight = null;
-      state.selectedFitnessGoal = null;
-      state.selectedActivityLevel = null;
-      state.selectedPreferredTime = null;
-      state.selectedSource = null;
-      // Reset pagination to page 1 when filters change
-      state.currentPage = 1;
-      // No filtering needed - will trigger new fetch
     },
     // Pagination actions
     setCurrentPage: (state, action: PayloadAction<number>) => {
@@ -1046,10 +948,6 @@ const dashboardSlice = createSlice({
     setSortOrder: (state, action: PayloadAction<'ASC' | 'DESC'>) => {
       state.sortOrder = action.payload;
       state.currentPage = 1; // Reset to first page when sort order changes
-    },
-    // Clean up columnVisibility on any state update (migration helper)
-    cleanColumnVisibilityState: (state) => {
-      state.columnVisibility = cleanColumnVisibility(state.columnVisibility);
     },
     updateLeadStatus: (state, action: PayloadAction<{ leadId: string; status: string }>) => {
       const { leadId, status } = action.payload;
@@ -1095,20 +993,6 @@ const dashboardSlice = createSlice({
 
 export const {
   setLeads,
-  setSearchQuery,
-  setSelectedDate,
-  setSelectedStatus,
-  setSelectedAge,
-  setSelectedHeight,
-  setSelectedWeight,
-  setSelectedFitnessGoal,
-  setSelectedActivityLevel,
-  setSelectedPreferredTime,
-  setSelectedSource,
-  toggleColumnVisibility,
-  setColumnVisibility,
-  resetFilters,
-  cleanColumnVisibilityState,
   updateLeadStatus,
   setLoading,
   setError,
@@ -1121,5 +1005,3 @@ export const {
   setSortOrder,
 } = dashboardSlice.actions;
 export default dashboardSlice.reducer;
-
-

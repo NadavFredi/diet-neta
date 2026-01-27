@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import type { WorkoutPlan } from '@/components/dashboard/WorkoutPlanCard';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const useWorkoutPlan = (customerId?: string) => {
   const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const fetchWorkoutPlan = useCallback(async () => {
     if (!customerId) {
@@ -47,6 +49,7 @@ export const useWorkoutPlan = (customerId?: string) => {
           lead_id: workoutPlanData.lead_id,
           template_id: workoutPlanData.template_id,
           budget_id: workoutPlanData.budget_id,
+          name: workoutPlanData.name || '',
           start_date: workoutPlanData.start_date,
           description: workoutPlanData.description || '',
           strength: workoutPlanData.strength || 0,
@@ -164,6 +167,7 @@ export const useWorkoutPlan = (customerId?: string) => {
             customer_id: customerId,
             template_id: workoutTemplate.id,
             budget_id: budget.id,
+            name: workoutTemplate.name || '',
             start_date: budgetAssignment.assigned_at || new Date().toISOString(),
             description: workoutTemplate.description || workoutTemplate.name || '',
             strength: 0, // Not available in template
@@ -231,6 +235,7 @@ export const useWorkoutPlan = (customerId?: string) => {
           lead_id: planData.lead_id,
           template_id: planData.template_id,
           budget_id: planData.budget_id,
+          name: planData.name,
           start_date: planData.start_date,
           description: planData.description,
           strength: planData.strength,
@@ -251,6 +256,7 @@ export const useWorkoutPlan = (customerId?: string) => {
           lead_id: data.lead_id,
           template_id: data.template_id,
           budget_id: data.budget_id,
+          name: data.name || '',
           start_date: data.start_date,
           description: data.description || '',
           strength: data.strength || 0,
@@ -263,6 +269,12 @@ export const useWorkoutPlan = (customerId?: string) => {
           updated_at: data.updated_at,
         };
         setWorkoutPlan(newPlan);
+        
+        // Invalidate budget history query if the plan is linked to a budget
+        if (newPlan.budget_id) {
+          queryClient.invalidateQueries({ queryKey: ['budget-history'] });
+        }
+        
         return newPlan;
       }
     } catch (err) {
@@ -282,6 +294,7 @@ export const useWorkoutPlan = (customerId?: string) => {
       const { data, error: updateError } = await supabase
         .from('workout_plans')
         .update({
+          name: planData.name,
           start_date: planData.start_date,
           description: planData.description,
           strength: planData.strength,
@@ -313,6 +326,12 @@ export const useWorkoutPlan = (customerId?: string) => {
           updated_at: data.updated_at,
         };
         setWorkoutPlan(updatedPlan);
+        
+        // Invalidate budget history query if the plan is linked to a budget
+        if (updatedPlan.budget_id || workoutPlan.budget_id) {
+          queryClient.invalidateQueries({ queryKey: ['budget-history'] });
+        }
+        
         return updatedPlan;
       }
     } catch (err) {

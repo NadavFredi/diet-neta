@@ -16,7 +16,6 @@ import { CardHeaderWithActions } from './CardHeaderWithActions';
 import {
   Target,
   Activity,
-  Clock,
   MapPin,
   Wallet,
   Dumbbell,
@@ -134,6 +133,14 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   const expirationDateRef = useRef<InlineEditableFieldRef>(null);
   const subscriptionStatusRef = useRef<InlineEditableSelectRef>(null);
 
+  // Refs for Future Subscription card editable fields
+  const futureJoinDateRef = useRef<InlineEditableFieldRef>(null);
+  const futureCurrentWeekRef = useRef<InlineEditableFieldRef>(null);
+  const futureMonthsRef = useRef<InlineEditableFieldRef>(null);
+  const futureInitialPriceRef = useRef<InlineEditableFieldRef>(null);
+  const futureExpirationDateRef = useRef<InlineEditableFieldRef>(null);
+  const futureSubscriptionStatusRef = useRef<InlineEditableSelectRef>(null);
+
   // Refs for CRM card editable fields
   const statusRef = useRef<InlineEditableSelectRef>(null);
   const sourceRef = useRef<InlineEditableSelectRef>(null);
@@ -158,7 +165,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   const { data: plansHistory } = usePlansHistory(customer?.id, leadId);
 
   // Fetch meetings and payments data
-  const { data: allMeetings = [] } = useMeetings();
+  const { data: allMeetingsData } = useMeetings();
+  const allMeetings = allMeetingsData?.data || [];
   const { data: paymentHistory = [] } = usePaymentHistory(customer?.id || '', leadId || null);
 
   // Filter meetings by lead_id or customer_id
@@ -451,6 +459,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       initialPriceRef,
       expirationDateRef,
       subscriptionStatusRef,
+      futureJoinDateRef,
+      futureMonthsRef,
+      futureInitialPriceRef,
+      futureExpirationDateRef,
+      futureSubscriptionStatusRef,
     ];
 
     const savePromises = refs
@@ -468,6 +481,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       initialPriceRef,
       expirationDateRef,
       subscriptionStatusRef,
+      futureJoinDateRef,
+      futureMonthsRef,
+      futureInitialPriceRef,
+      futureExpirationDateRef,
+      futureSubscriptionStatusRef,
     ];
 
     refs.forEach(ref => {
@@ -596,11 +614,17 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   }
 
   const subscriptionData = activeLead.subscription_data || {};
+  const futureSubscriptionData = subscriptionData.future_subscription || {};
 
   // Use calculated week if available, otherwise fall back to stored value
   const currentWeekValue = calculatedCurrentWeek > 0
     ? calculatedCurrentWeek
     : (subscriptionData.currentWeekInProgram || 0);
+
+  // Calculate current week for future subscription
+  const futureCurrentWeekValue = futureSubscriptionData.joinDate
+    ? calculateCurrentWeekFromJoinDate(futureSubscriptionData.joinDate)
+    : (futureSubscriptionData.currentWeekInProgram || 0);
 
   // Use status_sub first, then status_main, then default
   // This matches the database structure and ensures correct display
@@ -655,9 +679,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden w-full" dir="rtl">
       <div className="p-2 sm:p-4 w-full min-w-0 text-right">
         {/* Row 1: 3-Column Grid - Subscription, CRM Status, Personal Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
-          {/* Card 1: Subscription Details */}
-          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mb-3 sm:mb-4" style={{ gridAutoRows: 'min-content' }}>
+          {/* Card 1: Subscription Details (Combined Current & Future) */}
+          <Card className="col-span-1 md:col-span-2 p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2 mb-4 pb-3 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-100">
@@ -689,7 +713,9 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 )}
                 {!isSubscriptionEditing && (
                   <Button
-                    onClick={() => setIsCreateSubscriptionModalOpen(true)}
+                    onClick={() => {
+                      setIsCreateSubscriptionModalOpen(true);
+                    }}
                     size="sm"
                     variant="default"
                     className="h-9 sm:h-8 px-4 sm:px-3 text-xs sm:text-xs"
@@ -699,117 +725,245 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
-              <InlineEditableField
-                ref={joinDateRef}
-                label="תאריך הצטרפות"
-                value={activeLead.join_date || ''}
-                onSave={async (newValue) => {
-                  const newJoinDate = String(newValue);
-                  // Calculate new current week from the new join date
-                  const newCurrentWeek = calculateCurrentWeekFromJoinDate(newJoinDate);
-                  // Update both join_date and current week in subscription_data
-                  const updatedSubscription = {
-                    ...subscriptionData,
-                    currentWeekInProgram: newCurrentWeek > 0 ? newCurrentWeek : (subscriptionData.currentWeekInProgram || 0),
-                  };
-                  await onUpdateLead({
-                    join_date: newJoinDate,
-                    subscription_data: updatedSubscription
-                  });
-                }}
-                type="date"
-                formatValue={(val) => formatDate(String(val))}
-                className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-slate-900"
-                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('join_date', isEditing)}
-              />
-              <InlineEditableField
-                ref={currentWeekRef}
-                label="שבוע נוכחי"
-                value={currentWeekValue}
-                onSave={async (newValue) => {
-                  const updatedSubscription = {
-                    ...subscriptionData,
-                    currentWeekInProgram: Number(newValue),
-                  };
-                  await onUpdateLead({ subscription_data: updatedSubscription });
-                }}
-                type="number"
-                formatValue={(val) => String(val)}
-                className="border-0 p-0"
-                valueClassName="text-base font-bold text-blue-900"
-                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('current_week', isEditing)}
-              />
-              <InlineEditableField
-                ref={monthsRef}
-                label="חבילה ראשונית"
-                value={subscriptionData.months || 0}
-                onSave={async (newValue) => {
-                  const updatedSubscription = {
-                    ...subscriptionData,
-                    months: Number(newValue),
-                  };
-                  await onUpdateLead({ subscription_data: updatedSubscription });
-                }}
-                type="number"
-                formatValue={(val) => `${val} חודשים`}
-                className="border-0 p-0"
-                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('months', isEditing)}
-              />
-              <InlineEditableField
-                ref={initialPriceRef}
-                label="מחיר ראשוני"
-                value={subscriptionData.initialPrice || 0}
-                onSave={async (newValue) => {
-                  const updatedSubscription = {
-                    ...subscriptionData,
-                    initialPrice: Number(newValue),
-                  };
-                  await onUpdateLead({ subscription_data: updatedSubscription });
-                }}
-                type="number"
-                formatValue={(val) => `₪${val}`}
-                className="border-0 p-0"
-                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('initial_price', isEditing)}
-              />
-              <InlineEditableField
-                ref={expirationDateRef}
-                label="תאריך תפוגה"
-                value={subscriptionData.expirationDate || ''}
-                onSave={async (newValue) => {
-                  const updatedSubscription = {
-                    ...subscriptionData,
-                    expirationDate: String(newValue),
-                  };
-                  await onUpdateLead({ subscription_data: updatedSubscription });
-                }}
-                type="date"
-                formatValue={(val) => formatDate(String(val))}
-                className="border-0 p-0"
-                valueClassName="text-sm font-semibold text-slate-900"
-                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('expiration_date', isEditing)}
-              />
-              <InlineEditableSelect
-                ref={subscriptionStatusRef}
-                label="סטטוס מנוי"
-                value={subscriptionData.status || 'פעיל'}
-                options={['פעיל', 'לא פעיל']}
-                onSave={async (newValue) => {
-                  const updatedSubscription = {
-                    ...subscriptionData,
-                    status: newValue,
-                  };
-                  await onUpdateLead({ subscription_data: updatedSubscription });
-                }}
-                className="border-0 p-0"
-                onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('subscription_status', isEditing)}
-              />
+            
+            <div className="flex-1 flex flex-col gap-5 relative">
+              {/* Current Subscription Column */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3 auto-rows-min">
+                <div className="col-span-2 sm:col-span-4 xl:col-span-6">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">תקופה 1 (נוכחי)</h4>
+                </div>
+                <InlineEditableField
+                  ref={joinDateRef}
+                  label="תאריך הצטרפות"
+                  value={activeLead.join_date || ''}
+                  onSave={async (newValue) => {
+                    const newJoinDate = String(newValue);
+                    const newCurrentWeek = calculateCurrentWeekFromJoinDate(newJoinDate);
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      currentWeekInProgram: newCurrentWeek > 0 ? newCurrentWeek : (subscriptionData.currentWeekInProgram || 0),
+                    };
+                    await onUpdateLead({
+                      join_date: newJoinDate,
+                      subscription_data: updatedSubscription
+                    });
+                  }}
+                  type="date"
+                  formatValue={(val) => formatDate(String(val))}
+                  className="border-0 p-0"
+                  valueClassName="text-sm font-semibold text-slate-900"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('join_date', isEditing)}
+                />
+                <InlineEditableField
+                  ref={currentWeekRef}
+                  label="שבוע נוכחי"
+                  value={currentWeekValue}
+                  onSave={async (newValue) => {
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      currentWeekInProgram: Number(newValue),
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  type="number"
+                  formatValue={(val) => String(val)}
+                  className="border-0 p-0"
+                  valueClassName="text-base font-bold text-blue-900"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('current_week', isEditing)}
+                />
+                <InlineEditableField
+                  ref={monthsRef}
+                  label="חבילה ראשונית"
+                  value={subscriptionData.months || 0}
+                  onSave={async (newValue) => {
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      months: Number(newValue),
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  type="number"
+                  formatValue={(val) => `${val} חודשים`}
+                  className="border-0 p-0"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('months', isEditing)}
+                />
+                <InlineEditableField
+                  ref={initialPriceRef}
+                  label="מחיר ראשוני"
+                  value={subscriptionData.initialPrice || 0}
+                  onSave={async (newValue) => {
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      initialPrice: Number(newValue),
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  type="number"
+                  formatValue={(val) => `₪${val}`}
+                  className="border-0 p-0"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('initial_price', isEditing)}
+                />
+                <InlineEditableField
+                  ref={expirationDateRef}
+                  label="תאריך תפוגה"
+                  value={subscriptionData.expirationDate || ''}
+                  onSave={async (newValue) => {
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      expirationDate: String(newValue),
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  type="date"
+                  formatValue={(val) => formatDate(String(val))}
+                  className="border-0 p-0"
+                  valueClassName="text-sm font-semibold text-slate-900"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('expiration_date', isEditing)}
+                />
+                <InlineEditableSelect
+                  ref={subscriptionStatusRef}
+                  label="סטטוס מנוי"
+                  value={subscriptionData.status || 'לא פעיל'}
+                  options={['פעיל', 'לא פעיל']}
+                  onSave={async (newValue) => {
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      status: newValue,
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  className="border-0 p-0"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('subscription_status', isEditing)}
+                />
+              </div>
+
+              {/* Separator */}
+              <div className="border-t border-slate-100"></div>
+
+              {/* Future Subscription Column */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3 auto-rows-min">
+                <div className="col-span-2 sm:col-span-4 xl:col-span-6">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">תקופה 2 (עתידי)</h4>
+                </div>
+                <InlineEditableField
+                  ref={futureJoinDateRef}
+                  label="תאריך הצטרפות"
+                  value={futureSubscriptionData.joinDate || ''}
+                  onSave={async (newValue) => {
+                    const newJoinDate = String(newValue);
+                    const newCurrentWeek = calculateCurrentWeekFromJoinDate(newJoinDate);
+                    const updatedFuture = {
+                      ...futureSubscriptionData,
+                      joinDate: newJoinDate,
+                      currentWeekInProgram: newCurrentWeek > 0 ? newCurrentWeek : (futureSubscriptionData.currentWeekInProgram || 0),
+                    };
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      future_subscription: updatedFuture
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  type="date"
+                  formatValue={(val) => formatDate(String(val))}
+                  className="border-0 p-0"
+                  valueClassName="text-sm font-semibold text-slate-900"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('future_join_date', isEditing)}
+                />
+                <InlineEditableField
+                  ref={futureCurrentWeekRef}
+                  label="שבוע נוכחי"
+                  value={futureCurrentWeekValue}
+                  onSave={async (newValue) => {
+                    const updatedFuture = {
+                      ...futureSubscriptionData,
+                      currentWeekInProgram: Number(newValue),
+                    };
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      future_subscription: updatedFuture
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  type="number"
+                  formatValue={(val) => String(val)}
+                  className="border-0 p-0"
+                  valueClassName="text-base font-bold text-blue-900"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('future_current_week', isEditing)}
+                />
+                <InlineEditableField
+                  ref={futureMonthsRef}
+                  label="חבילה ראשונית"
+                  value={futureSubscriptionData.months || 0}
+                  onSave={async (newValue) => {
+                    const updatedFuture = { ...futureSubscriptionData, months: Number(newValue) };
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      future_subscription: updatedFuture
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  type="number"
+                  formatValue={(val) => `${val} חודשים`}
+                  className="border-0 p-0"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('future_months', isEditing)}
+                />
+                <InlineEditableField
+                  ref={futureInitialPriceRef}
+                  label="מחיר ראשוני"
+                  value={futureSubscriptionData.initialPrice || 0}
+                  onSave={async (newValue) => {
+                    const updatedFuture = { ...futureSubscriptionData, initialPrice: Number(newValue) };
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      future_subscription: updatedFuture
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  type="number"
+                  formatValue={(val) => `₪${val}`}
+                  className="border-0 p-0"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('future_price', isEditing)}
+                />
+                <InlineEditableField
+                  ref={futureExpirationDateRef}
+                  label="תאריך תפוגה"
+                  value={futureSubscriptionData.expirationDate || ''}
+                  onSave={async (newValue) => {
+                    const updatedFuture = { ...futureSubscriptionData, expirationDate: String(newValue) };
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      future_subscription: updatedFuture
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  type="date"
+                  formatValue={(val) => formatDate(String(val))}
+                  className="border-0 p-0"
+                  valueClassName="text-sm font-semibold text-slate-900"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('future_expiration', isEditing)}
+                />
+                <InlineEditableSelect
+                  ref={futureSubscriptionStatusRef}
+                  label="סטטוס מנוי"
+                  value={futureSubscriptionData.status || 'לא פעיל'}
+                  options={['פעיל', 'לא פעיל']}
+                  onSave={async (newValue) => {
+                    const updatedFuture = { ...futureSubscriptionData, status: newValue };
+                    const updatedSubscription = {
+                      ...subscriptionData,
+                      future_subscription: updatedFuture
+                    };
+                    await onUpdateLead({ subscription_data: updatedSubscription });
+                  }}
+                  className="border-0 p-0"
+                  onEditingChange={(isEditing) => handleSubscriptionFieldEditingChange('future_status', isEditing)}
+                />
+              </div>
             </div>
           </Card>
 
-          {/* Card 2: CRM Status & Info */}
-          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
+          {/* Card 3: CRM Status & Info */}
+          <Card className="p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <CardHeaderWithActions
               icon={Target}
               iconBgColor="bg-indigo-100"
@@ -819,7 +973,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               onSave={handleCrmSave}
               onCancel={handleCrmCancel}
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 flex-1 auto-rows-min">
               <InlineEditableSelect
                 ref={statusRef}
                 label="סטטוס"
@@ -929,8 +1083,8 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             </div>
           </Card>
 
-          {/* Card 3: Personal Details */}
-          <Card className="p-4 sm:p-6 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
+          {/* Card 4: Personal Details */}
+          <Card className="p-4 sm:p-5 border border-slate-100 rounded-lg sm:rounded-xl shadow-md bg-white flex flex-col h-full">
             <CardHeaderWithActions
               icon={Target}
               iconBgColor="bg-cyan-100"
@@ -940,7 +1094,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
               onSave={handlePersonalSave}
               onCancel={handlePersonalCancel}
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-4 flex-1 auto-rows-min">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 flex-1 auto-rows-min">
               <InlineEditableField
                 ref={ageRef}
                 label="גיל"
@@ -1249,40 +1403,60 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
       <CreateSubscriptionModal
         isOpen={isCreateSubscriptionModalOpen}
         onOpenChange={setIsCreateSubscriptionModalOpen}
-        onConfirm={async (subscriptionType) => {
+        initialSubscription1={subscriptionData ? {
+          duration: subscriptionData.months || 0,
+          duration_unit: (subscriptionData.duration_unit as 'days' | 'weeks' | 'months') || 'months',
+          price: subscriptionData.initialPrice || 0,
+          currency: (subscriptionData.currency as 'ILS' | 'USD' | 'EUR') || 'ILS',
+          status: subscriptionData.status || 'לא פעיל',
+        } : undefined}
+        onConfirm={async (sub1, sub2) => {
           try {
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
-
-            // Calculate expiration date based on duration_unit
-            const expirationDate = new Date(today);
-            const durationUnit = subscriptionType.duration_unit || 'months';
-
-            switch (durationUnit) {
-              case 'days':
-                expirationDate.setDate(expirationDate.getDate() + subscriptionType.duration);
-                break;
-              case 'weeks':
-                expirationDate.setDate(expirationDate.getDate() + (subscriptionType.duration * 7));
-                break;
-              case 'months':
-              default:
-                expirationDate.setMonth(expirationDate.getMonth() + subscriptionType.duration);
-                break;
-            }
-            const expirationDateStr = expirationDate.toISOString().split('T')[0];
-
-            // Create a NEW subscription_data object (copy values, not reference)
-            // This ensures one-way relationship - template changes don't affect leads
-            const updatedSubscription = {
-              ...subscriptionData,
-              months: subscriptionType.duration, // Copy duration value
-              duration_unit: durationUnit, // Copy duration unit
-              initialPrice: subscriptionType.price, // Copy price value
-              currency: subscriptionType.currency || 'ILS', // Copy currency value
-              expirationDate: expirationDateStr, // Calculate expiration date
-              status: subscriptionType.status || 'פעיל', // Use status from modal or default to Active
+            
+            // Helper to calculate expiration
+            const calculateExpiration = (start: Date, duration: number, unit: string) => {
+              const date = new Date(start);
+              switch (unit) {
+                case 'days': date.setDate(date.getDate() + duration); break;
+                case 'weeks': date.setDate(date.getDate() + (duration * 7)); break;
+                case 'months': default: date.setMonth(date.getMonth() + duration); break;
+              }
+              return date;
             };
+
+            const sub1Expiration = calculateExpiration(today, sub1.duration, sub1.duration_unit);
+            const sub1ExpirationStr = sub1Expiration.toISOString().split('T')[0];
+
+            let updatedSubscription = {
+              ...subscriptionData,
+              months: sub1.duration,
+              duration_unit: sub1.duration_unit,
+              initialPrice: sub1.price,
+              currency: sub1.currency || 'ILS', 
+              expirationDate: sub1ExpirationStr,
+              status: sub1.status,
+            };
+
+            if (sub2) {
+               const sub2Start = sub1Expiration; // Start immediately after
+               const sub2StartStr = sub2Start.toISOString().split('T')[0];
+               const sub2Expiration = calculateExpiration(sub2Start, sub2.duration, sub2.duration_unit);
+               const sub2ExpirationStr = sub2Expiration.toISOString().split('T')[0];
+               
+               updatedSubscription.future_subscription = {
+                 joinDate: sub2StartStr,
+                 months: sub2.duration,
+                 duration_unit: sub2.duration_unit,
+                 initialPrice: sub2.price,
+                 currency: sub2.currency || 'ILS',
+                 expirationDate: sub2ExpirationStr,
+                 status: sub2.status || 'ממתין'
+               };
+            } else {
+               updatedSubscription.future_subscription = null;
+            }
 
             await onUpdateLead({
               join_date: todayStr,
@@ -1360,7 +1534,3 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     </div>
   );
 };
-
-
-
-

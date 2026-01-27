@@ -62,6 +62,14 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
         clearTimeout(timeoutId);
         setIsInitializing(false);
         setHasInitialized(true);
+
+        // Trigger subscription expiration check (fire and forget)
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          supabase.rpc('check_expiring_subscriptions')
+            .then(() => {})
+            .catch(() => {});
+        }
         
       } catch (error) {
         clearTimeout(timeoutId);

@@ -14,23 +14,22 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, type FilterConfig } from '@/hooks/useSavedViews';
 import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
-import { useTableFilters } from '@/hooks/useTableFilters';
-import type { ActiveFilter } from '@/components/dashboard/TableFilter';
-import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  selectFilterGroup, 
+import {
+  selectActiveFilters,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
+  selectFilterGroup,
   selectSearchQuery,
   selectCurrentPage,
   selectPageSize,
   selectSortBy,
   selectSortOrder,
-  setSearchQuery,
   setCurrentPage,
   setPageSize,
   setSortBy,
   setSortOrder,
-  setActiveFilters,
   initializeTableState,
 } from '@/store/slices/tableStateSlice';
 import { useEffect } from 'react';
@@ -42,7 +41,7 @@ export const useCollectionsManagement = () => {
   const viewId = searchParams.get('view_id');
   const { user } = useAppSelector((state) => state.auth);
   const { toast } = useToast();
-  
+
   // Get state from Redux tableStateSlice
   const searchQuery = useAppSelector((state) => selectSearchQuery(state, 'collections'));
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'collections'));
@@ -51,24 +50,18 @@ export const useCollectionsManagement = () => {
   const sortBy = useAppSelector((state) => selectSortBy(state, 'collections'));
   const sortOrder = useAppSelector((state) => selectSortOrder(state, 'collections'));
 
-  // Filter system (same as Dashboard)
-  const {
-    filterGroup: localFilterGroup,
-    filters: activeFilters,
-    addFilter: addFilterLocal,
-    removeFilter: removeFilterLocal,
-    clearFilters: clearFiltersLocal,
-    updateFilters: updateFiltersLocal,
-    updateFilter: updateFilterLocal,
-    setFilterGroup: setFilterGroupLocal,
-  } = useTableFilters([]);
-
-  // Use local filter group if available, otherwise use Redux
-  const effectiveFilterGroup = localFilterGroup || filterGroup;
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'collections'));
+  const columnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'collections'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'collections'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'collections'));
 
   const { data: collections, isLoading: isLoadingCollections, error } = useAllCollections({
     search: searchQuery,
-    filterGroup: effectiveFilterGroup,
+    filterGroup,
+    page: currentPage,
+    pageSize,
+    sortBy,
+    sortOrder,
   });
   const { defaultView } = useDefaultView('collections');
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
@@ -78,7 +71,7 @@ export const useCollectionsManagement = () => {
   // Initialize table state for collections with column IDs (excluding ID column)
   useEffect(() => {
     const columnIds = ['created_at', 'due_date', 'status', 'customer', 'lead', 'total_amount', 'paid_amount', 'remaining_amount', 'description'];
-    dispatch(initializeTableState({ 
+    dispatch(initializeTableState({
       resourceKey: 'collections',
       columnIds,
     }));
@@ -95,33 +88,6 @@ export const useCollectionsManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
-  const handleSearchChange = useCallback((value: string) => {
-    dispatch(setSearchQuery({ resourceKey: 'collections', query: value }));
-  }, [dispatch]);
-
-  // Sync local filter group changes to Redux
-  useEffect(() => {
-    if (localFilterGroup) {
-      dispatch(setActiveFilters({ resourceKey: 'collections', filters: localFilterGroup }));
-    }
-  }, [localFilterGroup, dispatch]);
-
-  const addFilter = useCallback((filter: ActiveFilter) => {
-    addFilterLocal(filter);
-  }, [addFilterLocal]);
-
-  const removeFilter = useCallback((filterId: string) => {
-    removeFilterLocal(filterId);
-  }, [removeFilterLocal]);
-
-  const clearFilters = useCallback(() => {
-    clearFiltersLocal();
-  }, [clearFiltersLocal]);
-
-  const setFilterGroup = useCallback((group: FilterGroup | null) => {
-    setFilterGroupLocal(group);
-  }, [setFilterGroupLocal]);
-
   const handleSortChange = useCallback((columnId: string, order: 'ASC' | 'DESC') => {
     dispatch(setSortBy({ resourceKey: 'collections', sortBy: columnId }));
     dispatch(setSortOrder({ resourceKey: 'collections', sortOrder: order }));
@@ -135,10 +101,10 @@ export const useCollectionsManagement = () => {
     dispatch(setPageSize({ resourceKey: 'collections', pageSize: newPageSize }));
   }, [dispatch]);
 
-  const getCurrentFilterConfig = (filters: ActiveFilter[]): FilterConfig => {
+  const getCurrentFilterConfig = (filters: typeof activeFilters): FilterConfig => {
     return {
       searchQuery: searchQuery || '',
-      filterGroup: effectiveFilterGroup,
+      filterGroup,
       advancedFilters: filters.map((filter) => ({
         id: filter.id,
         fieldId: filter.fieldId,
@@ -147,6 +113,9 @@ export const useCollectionsManagement = () => {
         values: filter.values,
         type: filter.type,
       })),
+      columnVisibility,
+      columnOrder,
+      columnWidths: columnSizing,
     };
   };
 
@@ -161,19 +130,20 @@ export const useCollectionsManagement = () => {
       await bulkDeleteCollections.mutateAsync(payload.ids);
       toast({
         title: 'הצלחה',
-        description: 'הגבייות נמחקו בהצלחה',
+        description: 'הגביות נמחקו בהצלחה',
       });
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל במחיקת הגבייות',
+        description: error?.message || 'נכשל במחיקת הגביות',
         variant: 'destructive',
       });
     }
   };
 
-  const filteredCollections = useMemo(() => collections || [], [collections]);
-  const totalCollections = collections?.length || 0;
+  const collectionRows = collections?.data || [];
+  const filteredCollections = useMemo(() => collectionRows, [collectionRows]);
+  const totalCollections = collections?.totalCount || 0;
 
   return {
     collections: filteredCollections,
@@ -192,13 +162,8 @@ export const useCollectionsManagement = () => {
     viewId,
     // Search and filters
     searchQuery,
-    handleSearchChange,
     activeFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
-    filterGroup: effectiveFilterGroup,
-    setFilterGroup,
+    filterGroup,
     // Sorting
     sortBy,
     sortOrder,

@@ -960,7 +960,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                                       <SelectItem value="start_customer_journey">תחילת מסע לקוח</SelectItem>
                                       <SelectItem value="send_questionnaire">שליחת שאלון</SelectItem>
                                       <SelectItem value="send_payment">שליחת תשלום</SelectItem>
-                                      <SelectItem value="send_budget">שליחת תקציב</SelectItem>
+                                      <SelectItem value="send_budget">שליחת תכנית פעולה</SelectItem>
                                     </SelectContent>
                                   </Select>
                                 </div>

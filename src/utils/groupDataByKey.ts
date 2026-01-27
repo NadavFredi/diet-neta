@@ -59,6 +59,50 @@ export function groupDataByKey<T extends Record<string, any>>(
 }
 
 /**
+ * Extract all group keys from data based on groupByKeys
+ * Returns an array of group key strings that can be used for collapse/expand all
+ * 
+ * Note: For single-level grouping, keys are just the groupKey (no prefix)
+ * For multi-level grouping, keys are prefixed with "level1:" and "level1:...|level2:..."
+ */
+export function getAllGroupKeys<T extends Record<string, any>>(
+  data: T[],
+  groupByKeys: [string | null, string | null]
+): string[] {
+  if (!data || data.length === 0 || (!groupByKeys[0] && !groupByKeys[1])) {
+    return [];
+  }
+
+  const groupKeys: string[] = [];
+
+  if (groupByKeys[0] && groupByKeys[1]) {
+    // Multi-level grouping (both levels)
+    const groupedData = groupDataByKeys(data, groupByKeys);
+    groupedData.forEach((level1Group) => {
+      const level1Key = `level1:${level1Group.level1Key}`;
+      groupKeys.push(level1Key);
+
+      if (level1Group.level2Groups && level1Group.level2Groups.length > 0) {
+        level1Group.level2Groups.forEach((level2Group) => {
+          const level2Key = `${level1Key}|level2:${level2Group.groupKey}`;
+          groupKeys.push(level2Key);
+        });
+      }
+    });
+  } else if (groupByKeys[0]) {
+    // Single-level grouping (level 1 only)
+    // The DataTable uses "group:" prefix for single-level grouping
+    const groupedData = groupDataByKey(data, groupByKeys[0]);
+    groupedData.forEach((group) => {
+      const groupKey = `group:${group.groupKey}`;
+      groupKeys.push(groupKey);
+    });
+  }
+
+  return groupKeys;
+}
+
+/**
  * Multi-level grouping utility
  * Groups data by up to 2 hierarchical levels with sorting support
  */

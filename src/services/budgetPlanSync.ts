@@ -132,7 +132,7 @@ export async function syncPlansFromBudget({
         template_id: budget.workout_template_id,
         budget_id: budget.id,
         start_date: new Date().toISOString().split('T')[0],
-        description: `תוכנית אימונים מתקציב: ${budget.name}`,
+        description: `תוכנית אימונים מתכנית פעולה: ${budget.name}`,
         strength: workoutTemplate.routine_data?.weeklyWorkout?.strength || 0,
         cardio: workoutTemplate.routine_data?.weeklyWorkout?.cardio || 0,
         intervals: workoutTemplate.routine_data?.weeklyWorkout?.intervals || 0,
@@ -217,7 +217,7 @@ export async function syncPlansFromBudget({
       template_id: budget.nutrition_template_id || null,
       budget_id: budget.id,
       start_date: new Date().toISOString().split('T')[0],
-      description: `תוכנית תזונה מתקציב: ${budget.name}`,
+      description: `תוכנית תזונה מתכנית פעולה: ${budget.name}`,
       targets: nutritionTargets || {
         calories: 2000,
         protein: 150,
@@ -365,7 +365,7 @@ export async function syncPlansFromBudget({
       lead_id: leadId || null,
       budget_id: budget.id,
       start_date: new Date().toISOString().split('T')[0],
-      description: `תוכנית צעדים מתקציב: ${budget.name}`,
+      description: `תוכנית צעדים מתכנית פעולה: ${budget.name}`,
       steps_goal: budget.steps_goal,
       steps_instructions: budget.steps_instructions || null,
       is_active: true,
@@ -476,7 +476,7 @@ export async function syncPlansFromBudget({
       lead_id: leadId || null,
       budget_id: budget.id,
       start_date: new Date().toISOString().split('T')[0],
-      description: `תוכנית תוספים מתקציב: ${budget.name}`,
+      description: `תוכנית תוספים מתכנית פעולה: ${budget.name}`,
       supplements: budget.supplements,
       is_active: true,
       created_by: userId,
@@ -500,6 +500,129 @@ export async function syncPlansFromBudget({
   }
 
   return result;
+}
+
+/**
+ * Syncs supplement_plans when a budget is updated (e.g. user adds/edits supplements via Edit Budget).
+ * Updates existing plans for this budget, or creates new ones for each assignment if none exist.
+ */
+export async function syncSupplementPlansFromBudgetUpdate(
+  budgetId: string,
+  budgetName: string,
+  supplements: { name: string; dosage: string; timing: string }[]
+): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const description = `תוכנית תוספים מתכנית פעולה: ${budgetName}`;
+  const supplementsJson = supplements ?? [];
+
+  const { data: existing } = await supabase
+    .from('supplement_plans')
+    .select('id')
+    .eq('budget_id', budgetId);
+
+  if (existing && existing.length > 0) {
+    await supabase
+      .from('supplement_plans')
+      .update({ supplements: supplementsJson, description })
+      .eq('budget_id', budgetId);
+    return;
+  }
+
+  if (supplementsJson.length === 0) return;
+
+  const { data: assignments } = await supabase
+    .from('budget_assignments')
+    .select('customer_id, lead_id')
+    .eq('budget_id', budgetId);
+
+  const seen = new Set<string>();
+  for (const a of assignments ?? []) {
+    const cid = a.customer_id ?? null;
+    const lid = a.lead_id ?? null;
+    if (!cid && !lid) continue;
+    const key = `${cid ?? ''}|${lid ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    await supabase.from('supplement_plans').insert({
+      user_id: user.id,
+      customer_id: cid,
+      lead_id: lid,
+      budget_id: budgetId,
+      start_date: new Date().toISOString().split('T')[0],
+      description,
+      supplements: supplementsJson,
+      is_active: true,
+      created_by: user.id,
+    });
+  }
+}
+
+/**
+ * Syncs steps_plans when a budget is updated (e.g. user edits steps_goal via inline edit).
+ * Updates existing plans for this budget, or creates new ones for each assignment if none exist.
+ */
+export async function syncStepsPlansFromBudgetUpdate(
+  budgetId: string,
+  budgetName: string,
+  stepsGoal: number,
+  stepsInstructions?: string | null
+): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  if (!stepsGoal || stepsGoal <= 0) return;
+
+  const description = `תוכנית צעדים מתכנית פעולה: ${budgetName}`;
+
+  // Update existing steps plans for this budget
+  const { data: existing } = await supabase
+    .from('steps_plans')
+    .select('id')
+    .eq('budget_id', budgetId);
+
+  if (existing && existing.length > 0) {
+    await supabase
+      .from('steps_plans')
+      .update({ 
+        steps_goal: stepsGoal, 
+        steps_instructions: stepsInstructions || null,
+        description 
+      })
+      .eq('budget_id', budgetId);
+    return;
+  }
+
+  // If no existing plans, create new ones for each assignment
+  const { data: assignments } = await supabase
+    .from('budget_assignments')
+    .select('customer_id, lead_id')
+    .eq('budget_id', budgetId);
+
+  const seen = new Set<string>();
+  for (const a of assignments ?? []) {
+    const cid = a.customer_id ?? null;
+    const lid = a.lead_id ?? null;
+    if (!cid && !lid) continue;
+    const key = `${cid ?? ''}|${lid ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    await supabase.from('steps_plans').insert({
+      user_id: user.id,
+      customer_id: cid,
+      lead_id: lid,
+      budget_id: budgetId,
+      start_date: new Date().toISOString().split('T')[0],
+      description,
+      steps_goal: stepsGoal,
+      steps_instructions: stepsInstructions || null,
+      is_active: true,
+      created_by: user.id,
+    });
+  }
 }
 
 /**

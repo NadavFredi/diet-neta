@@ -1,61 +1,31 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { LeadsDataTable } from '@/components/dashboard/LeadsDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { Pagination } from '@/components/dashboard/Pagination';
-import { leadColumns } from '@/components/dashboard/columns/leadColumns';
+import { allLeadColumns } from '@/components/dashboard/columns/leadColumns';
 import { useDashboardLogic } from '@/hooks/useDashboardLogic';
-import { useDefaultView } from '@/hooks/useDefaultView';
-import { useSavedView } from '@/hooks/useSavedViews';
-import { useTableFilters, getLeadFilterFields, CUSTOMER_FILTER_FIELDS, TEMPLATE_FILTER_FIELDS, NUTRITION_TEMPLATE_FILTER_FIELDS } from '@/hooks/useTableFilters';
 import { fetchLeadIdsByFilter } from '@/services/leadService';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { ActiveFilter } from '@/components/dashboard/TableFilter';
-import { useSidebarWidth } from '@/hooks/useSidebarWidth';
-import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { selectGroupByKeys } from '@/store/slices/tableStateSlice';
-import { groupDataByKeys, getTotalGroupsCount } from '@/utils/groupDataByKey';
+import { useSearchParams } from 'react-router-dom';
+import { useAppSelector } from '@/store/hooks';
+import { selectActiveFilters, selectColumnOrder, selectColumnSizing, selectFilterGroup, selectGroupByKeys } from '@/store/slices/tableStateSlice';
+import { groupDataByKeys, getTotalGroupsCount, getAllGroupKeys } from '@/utils/groupDataByKey';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabaseClient';
-
-// Custom hook to detect if screen is desktop (lg breakpoint = 1024px)
-const useIsDesktop = () => {
-  const [isDesktop, setIsDesktop] = useState(
-    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
-  );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 1024);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return isDesktop;
-};
-import { setSearchQuery } from '@/store/slices/dashboardSlice';
+import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
-  // Removed duplicate useDefaultView and useSavedView - they're already called in useDashboardLogic
-  const sidebarWidth = useSidebarWidth();
-  const isDesktop = useIsDesktop();
   const { user: authUser, isAuthenticated, isLoading: authIsLoading } = useAppSelector((state) => state.auth);
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'leads'));
+  const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'leads'));
+  const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'leads'));
+  const columnOrder = useAppSelector((state) => selectColumnOrder(state, 'leads'));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, 'leads'));
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
-  
-  // Group pagination state (separate from record pagination)
-  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
-  const [groupPageSize] = useState(50);
 
   // Safety check: Redirect trainees immediately
   useEffect(() => {
@@ -65,33 +35,30 @@ const Dashboard = () => {
     }
   }, [authUser, isAuthenticated, authIsLoading]);
 
-  // Auto-navigate to default view is handled in useDashboardLogic
+  const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
+  const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
+  const hasShownSaveSuggestion = useRef(false);
+  const previousFiltersRef = useRef<string>('');
 
-  // Filter system for leads (advanced filter groups)
-  const {
-    filterGroup,
-    filters: activeFilters,
-    addFilter: addFilterLocal,
-    removeFilter: removeFilterLocal,
-    clearFilters: clearFiltersLocal,
-    updateFilters: updateFiltersLocal,
-    updateFilter: updateFilterLocal,
-    setFilterGroup,
-  } = useTableFilters([]);
+  const handleSaveViewClick = useCallback((resourceKey: string) => {
+    setSaveViewResourceKey(resourceKey);
+    setIsSaveViewModalOpen(true);
+    hasShownSaveSuggestion.current = false; // Reset when user opens save modal
+  }, []);
+
 
   const {
     filteredLeads,
     searchQuery,
-    columnVisibility,
     user,
     isAddLeadDialogOpen,
-    handleSearchChange,
     handleLogout,
     handleAddLead,
     setIsAddLeadDialogOpen,
     getCurrentFilterConfig,
     isLoading,
     isLoadingView,
+    error,
     savedView, // Get savedView from useDashboardLogic instead of duplicate call
     refreshLeads,
     // Pagination state and handlers
@@ -104,58 +71,110 @@ const Dashboard = () => {
     sortBy,
     sortOrder,
     handleSortChange,
+    entityConfig, // Config from Backend
   } = useDashboardLogic({ filterGroup });
 
-  // Debug: Log filteredLeads when it changes
-  useEffect(() => {
-  }, [filteredLeads, isLoading]);
+  // Merge local columns with backend config
+  const mergedColumns = useMemo(() => {
+    if (!entityConfig?.columns) return allLeadColumns;
 
-  // Get filter fields with dynamic options from data - now includes all renderable columns
+    const backendColumns = entityConfig.columns;
+    
+    // Create map of local columns for easy access
+    const localColumnsMap = new Map(allLeadColumns.map(col => [col.id, col]));
+
+    // Build columns based on backend order and visibility (can extended to use backend labels)
+    return backendColumns.map((beCol: any) => {
+       const localCol = localColumnsMap.get(beCol.id);
+       
+       const baseCol = localCol || {
+         id: beCol.id,
+         accessorKey: beCol.id,
+         header: beCol.label || beCol.id,
+         // Default generic cell renderer for new columns
+         cell: ({ row }: any) => {
+           const val = row.getValue(beCol.id);
+           if (val === null || val === undefined) return '-';
+           if (typeof val === 'boolean') return val ? 'כן' : 'לא';
+           if (beCol.type === 'date') return new Date(val).toLocaleDateString('he-IL');
+           return String(val);
+         }
+       };
+
+       return {
+         ...baseCol,
+         header: beCol.label || baseCol.header,
+         meta: {
+           ...baseCol.meta,
+           relatedEntity: beCol.category, // Map category to relatedEntity for grouping
+           relatedEntityLabel: beCol.category // Use same label for now
+         }
+       };
+    }).filter(Boolean) as typeof allLeadColumns;
+
+    // Note: We might want to append local columns that aren't in backend config if we want to keep them available but hidden?
+    // For "Schema Driven", strictly following backend config is better.
+  }, [entityConfig]);
+
+  // Map backend filters to UI filter fields
   const leadFilterFields = useMemo(() => {
-    return getLeadFilterFields(filteredLeads || [], leadColumns);
-  }, [filteredLeads]);
-  
+     if (!entityConfig?.filters) return [];
+
+     return entityConfig.filters.map((f: any) => ({
+        id: f.id,
+        label: f.label,
+        type: f.type, // 'select', 'text', 'date', etc.
+        options: f.options, // Options from backend (for selects)
+        operators: f.operators, // Operators from backend
+        // Map to existing UI properties if needed
+        relatedEntity: f.category, // Map category to relatedEntity for grouping
+        relatedEntityLabel: f.category // Use same label
+     }));
+  }, [entityConfig]);
+
+
+  // Group pagination state (separate from record pagination)
+  // Use the same pageSize as regular pagination for consistency, but allow it to be changed
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const [groupPageSize, setGroupPageSize] = useState(pageSize); // Start with regular page size, but allow changes
+
+  // Sync groupPageSize with pageSize when pageSize changes
+  useEffect(() => {
+    setGroupPageSize(pageSize);
+  }, [pageSize]);
+
+
+  // Function to get all group keys for collapse/expand all
+  const getAllGroupKeysFn = useCallback(() => {
+    return getAllGroupKeys(filteredLeads || [], groupByKeys);
+  }, [filteredLeads, groupByKeys]);
+
   // Calculate total groups when grouping is active (after filteredLeads is defined)
   const totalGroups = useMemo(() => {
     if (!isGroupingActive || !filteredLeads || filteredLeads.length === 0) {
       return 0;
     }
-    
+
     // Group the data to count groups
     const groupedData = groupDataByKeys(filteredLeads, groupByKeys, { level1: null, level2: null });
     return getTotalGroupsCount(groupedData);
   }, [isGroupingActive, filteredLeads, groupByKeys]);
-  
+
   // Reset group pagination when grouping changes
   useEffect(() => {
     if (isGroupingActive) {
       setGroupCurrentPage(1);
     }
   }, [isGroupingActive, groupByKeys]);
-  
+
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
   }, []);
 
-  const addFilter = useCallback((filter: ActiveFilter) => {
-    addFilterLocal(filter);
-  }, [addFilterLocal]);
-
-  const removeFilter = useCallback((filterId: string) => {
-    removeFilterLocal(filterId);
-  }, [removeFilterLocal]);
-
-  const updateFilter = useCallback((filter: ActiveFilter) => {
-    updateFilterLocal(filter);
-  }, [updateFilterLocal]);
-
-  const clearFilters = useCallback(() => {
-    clearFiltersLocal();
-  }, [clearFiltersLocal]);
-
-  const handleSearchChangeWithSource = useCallback((value: string) => {
-    handleSearchChange(value);
-  }, [handleSearchChange]);
+  const handleGroupPageSizeChange = useCallback((newPageSize: number) => {
+    setGroupPageSize(newPageSize);
+    setGroupCurrentPage(1); // Reset to first page when page size changes
+  }, []);
 
   const { toast } = useToast();
 
@@ -184,96 +203,32 @@ const Dashboard = () => {
     [searchQuery, filterGroup, toast, refreshLeads]
   );
 
+  const handleBulkEdit = useCallback(
+    async (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number; updates: Record<string, any> }) => {
+      const idsToUpdate = payload.selectAllAcrossPages
+        ? await fetchLeadIdsByFilter({ searchQuery, filterGroup })
+        : payload.ids;
 
-  const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
-  const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('leads');
-  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
-  const [viewToEdit, setViewToEdit] = useState<any>(null);
-  const hasShownSaveSuggestion = useRef(false);
-  const previousFiltersRef = useRef<string>('');
-  const lastAppliedViewIdRef = useRef<string | null>(null);
-  const lastAppliedDefaultIdRef = useRef<string | null>(null);
+      if (!idsToUpdate.length || Object.keys(payload.updates).length === 0) return;
 
-  // Memoized handler to prevent unnecessary re-renders
-  const handleSaveViewClick = useCallback((resourceKey: string) => {
-    setSaveViewResourceKey(resourceKey);
-    setIsSaveViewModalOpen(true);
-    hasShownSaveSuggestion.current = false; // Reset when user opens save modal
-  }, []);
-
-  // Get default view to load filters from it
-  const { defaultView, isLoading: isLoadingDefaultView } = useDefaultView('leads');
-
-  // Load advanced filters from saved view or default view
-  useEffect(() => {
-    const applyFilterConfig = (filterConfig: any) => {
-      if (!filterConfig) return;
-
-      if (filterConfig.filterGroup) {
-        setFilterGroup(filterConfig.filterGroup);
-      } else if (filterConfig.advancedFilters && Array.isArray(filterConfig.advancedFilters)) {
-        const savedFilters: ActiveFilter[] = filterConfig.advancedFilters.map((f: any) => ({
-          id: f.id,
-          fieldId: f.fieldId,
-          fieldLabel: f.fieldLabel,
-          operator: f.operator as any,
-          values: f.values,
-          type: f.type as any,
-        }));
-        updateFiltersLocal(savedFilters);
+      const chunkSize = 100;
+      for (let i = 0; i < idsToUpdate.length; i += chunkSize) {
+        const chunk = idsToUpdate.slice(i, i + chunkSize);
+        const { error } = await supabase.from('leads').update(payload.updates).in('id', chunk);
+        if (error) throw error;
       }
 
-      if (filterConfig.searchQuery !== undefined) {
-        dispatch(setSearchQuery(filterConfig.searchQuery));
-      }
-
-      previousFiltersRef.current = JSON.stringify({
-        filters: filterConfig.filterGroup || filterConfig.advancedFilters || [],
-        searchQuery: filterConfig.searchQuery || '',
+      toast({
+        title: 'הצלחה',
+        description: `עודכנו ${idsToUpdate.length} לידים בהצלחה`,
       });
-      hasShownSaveSuggestion.current = false;
-    };
 
-    if (viewId && savedView && !isLoadingView) {
-      if (lastAppliedViewIdRef.current === savedView.id) {
-        return;
-      }
-      applyFilterConfig(savedView.filter_config);
-      lastAppliedViewIdRef.current = savedView.id;
-      return;
-    }
+      refreshLeads();
+    },
+    [searchQuery, filterGroup, toast, refreshLeads]
+  );
 
-    if (!viewId && defaultView && !isLoadingDefaultView && !isLoadingView) {
-      if (lastAppliedDefaultIdRef.current === defaultView.id) {
-        return;
-      }
-      applyFilterConfig(defaultView.filter_config);
-      lastAppliedDefaultIdRef.current = defaultView.id;
-      return;
-    }
-
-    if (
-      !viewId &&
-      !isLoadingDefaultView &&
-      !isLoadingView &&
-      (!defaultView || !defaultView.filter_config?.advancedFilters || (defaultView.filter_config as any).advancedFilters?.length === 0)
-    ) {
-      if (previousFiltersRef.current === '') {
-        clearFiltersLocal();
-        previousFiltersRef.current = '';
-        hasShownSaveSuggestion.current = false;
-        lastAppliedDefaultIdRef.current = null;
-      }
-    }
-  }, [viewId, savedView, isLoadingView, defaultView, isLoadingDefaultView, updateFiltersLocal, clearFiltersLocal, dispatch, setFilterGroup]);
-
-  useEffect(() => {
-    if (viewId) {
-      lastAppliedDefaultIdRef.current = null;
-    } else {
-      lastAppliedViewIdRef.current = null;
-    }
-  }, [viewId]);
+  useSyncSavedViewFilters('leads', savedView, isLoadingView);
 
   // Show save suggestion when filters change
   useEffect(() => {
@@ -315,106 +270,103 @@ const Dashboard = () => {
     previousFiltersRef.current = currentFiltersStr;
   }, [activeFilters, filterGroup, searchQuery, isLoading, viewId, toast, handleSaveViewClick]);
 
-  const handleEditViewClick = useCallback((view: any) => {
-    setViewToEdit(view);
-    setIsEditViewModalOpen(true);
-  }, []);
-
   return (
     <>
-      <DashboardHeader
+      <TableManagementLayout
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-      />
+        onSaveViewClick={handleSaveViewClick}
+      >
+        {/* Header Section - Control Deck - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="leads"
+            title={savedView?.view_name || 'ניהול לידים'}
+            dataCount={totalLeads || 0}
+            singularLabel="ליד"
+            pluralLabel="לידים"
+            filterFields={leadFilterFields}
+            searchPlaceholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
+            addButtonLabel="הוסף ליד"
+            onAddClick={handleAddLead}
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={mergedColumns}
+            getAllGroupKeys={getAllGroupKeysFn}
+          />
+        </div>
 
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
-        {/* Main content */}
-        <main
-          className="bg-gray-50 overflow-y-auto transition-all duration-300"
-          style={{
-            marginRight: isDesktop ? `${sidebarWidth.width}px` : 0,
-            minHeight: 'calc(100vh - 60px)',
-          }}
-        >
-          <div className="p-3 sm:p-4 md:p-6">
-            {/* Unified Workspace Panel - Master Container */}
-            <div className="bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
-              {/* Header Section - Control Deck */}
-              <TableActionHeader
-                resourceKey="leads"
-                title={savedView?.view_name || 'ניהול לידים'}
-                dataCount={totalLeads || 0}
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
+          {error ? (
+            <div className="p-8 text-center text-red-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">Error loading leads</p>
+                <p className="text-sm">{error}</p>
+                <button 
+                  onClick={() => refreshLeads()}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : isLoading ? (
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p>טוען נתונים...</p>
+              </div>
+            </div>
+          ) : filteredLeads && Array.isArray(filteredLeads) && filteredLeads.length > 0 ? (
+            <div className="flex-1 min-h-0">
+              <LeadsDataTable
+                leads={filteredLeads}
+                enableColumnVisibility={false}
+                onSortChange={handleSortChange}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                totalCount={totalLeads}
+                onBulkDelete={handleBulkDelete}
+                onBulkEdit={handleBulkEdit}
                 singularLabel="ליד"
                 pluralLabel="לידים"
-                filterFields={leadFilterFields}
-                searchPlaceholder="חיפוש לפי שם, טלפון, אימייל, סטטוס, מטרה, תוכנית או כל מידע אחר..."
-                addButtonLabel="הוסף ליד"
-                onAddClick={handleAddLead}
-                enableColumnVisibility={true}
-                enableFilters={true}
-                enableGroupBy={true}
-                enableSearch={true}
-                columns={leadColumns}
-                legacySearchQuery={searchQuery}
-                legacyOnSearchChange={handleSearchChangeWithSource}
-                legacyActiveFilters={activeFilters}
-                legacyFilterGroup={filterGroup}
-                legacyOnFilterAdd={addFilter}
-                legacyOnFilterUpdate={updateFilter}
-                legacyOnFilterRemove={removeFilter}
-                legacyOnFilterClear={clearFilters}
-                legacyOnFilterGroupChange={setFilterGroup}
               />
-
-              {/* Table Section - Data Area */}
-              <div className="bg-white">
-                {isLoading ? (
-                  <div className="p-8 text-center text-gray-500">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <p>טוען נתונים...</p>
-                  </div>
-                ) : filteredLeads && Array.isArray(filteredLeads) && filteredLeads.length > 0 ? (
-                  <>
-                    <LeadsDataTable 
-                      leads={filteredLeads} 
-                      enableColumnVisibility={false}
-                      onSortChange={handleSortChange}
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      totalCount={totalLeads}
-                      onBulkDelete={handleBulkDelete}
-                      groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                      groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                    />
-                    {/* Pagination Footer */}
-                    {totalLeads > 0 && (
-                      <Pagination
-                        currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                        pageSize={isGroupingActive ? groupPageSize : pageSize}
-                        totalItems={isGroupingActive ? totalGroups : totalLeads}
-                        onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                        onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                        isLoading={isLoading}
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
-                    <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-                    {!isLoading && totalLeads === 0 && (
-                      <p className="text-xs text-gray-400 mt-2">
-                        מספר לידים: 0
-                      </p>
-                    )}
-                  </div>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו תוצאות</p>
+                <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+                {!isLoading && totalLeads === 0 && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    מספר לידים: 0
+                  </p>
                 )}
               </div>
             </div>
-          </div>
-        </main>
-      </div>
+          )}
+          {/* Pagination Footer - Always visible when there's data */}
+          {!isLoading && totalLeads > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalLeads}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                showIfSinglePage={isGroupingActive}
+                isLoading={isLoading}
+                singularLabel="ליד"
+                pluralLabel="לידים"
+              />
+            </div>
+          )}
+        </div>
+
+      </TableManagementLayout>
 
       {/* Add Lead Dialog */}
       <AddLeadDialog
@@ -428,25 +380,7 @@ const Dashboard = () => {
         isOpen={isSaveViewModalOpen}
         onOpenChange={setIsSaveViewModalOpen}
         resourceKey={saveViewResourceKey}
-        filterConfig={getCurrentFilterConfig(activeFilters)}
-      />
-
-      {/* Edit View Modal */}
-      <EditViewModal
-        isOpen={isEditViewModalOpen}
-        onOpenChange={setIsEditViewModalOpen}
-        view={viewToEdit}
-        currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={
-          viewToEdit?.resource_key === 'customers' ? CUSTOMER_FILTER_FIELDS :
-            viewToEdit?.resource_key === 'templates' ? TEMPLATE_FILTER_FIELDS :
-              viewToEdit?.resource_key === 'nutrition_templates' ? NUTRITION_TEMPLATE_FILTER_FIELDS :
-                leadFilterFields
-        }
-        onSuccess={() => {
-          setIsEditViewModalOpen(false);
-          setViewToEdit(null);
-        }}
+        filterConfig={getCurrentFilterConfig(activeFilters, columnOrder, columnSizing)}
       />
     </>
   );

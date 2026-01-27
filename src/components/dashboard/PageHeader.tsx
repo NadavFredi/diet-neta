@@ -6,9 +6,9 @@
  * and integrated controls. Acts as the colored architectural crown of the content panel.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { LucideIcon, Save } from 'lucide-react';
+import { LucideIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { selectInterfaceIconPreference } from '@/store/slices/interfaceIconPreferencesSlice';
 import { useInterfaceIconPreferences } from '@/hooks/useInterfaceIconPreferences';
@@ -28,12 +28,18 @@ interface PageHeaderProps {
   onIconEditSuccess?: () => void;
   filtersDirty?: boolean; // Whether filters have been modified
   onSaveFilters?: () => void; // Callback to save filters
+  dataCount?: number; // Total number of results
+  singularLabel?: string; // e.g., "ליד"
+  pluralLabel?: string; // e.g., "לידים"
+  hasActiveFilters?: boolean; // Whether filters are currently applied
+  filtersExpanded?: boolean; // Controlled state for filters expansion
+  onFiltersExpandedChange?: (expanded: boolean) => void; // Callback for filters expansion toggle
 }
 
-export const PageHeader = ({ 
-  title, 
-  subtitle, 
-  breadcrumbs, 
+export const PageHeader = ({
+  title,
+  subtitle,
+  breadcrumbs,
   actions,
   filters,
   icon: LegacyIcon,
@@ -42,24 +48,44 @@ export const PageHeader = ({
   onIconEditSuccess,
   filtersDirty = false,
   onSaveFilters,
+  dataCount,
+  singularLabel,
+  pluralLabel,
+  hasActiveFilters = false,
+  filtersExpanded: controlledFiltersExpanded,
+  onFiltersExpandedChange,
 }: PageHeaderProps) => {
   // Sync preferences on mount
   useInterfaceIconPreferences();
-  
+
   // Get icon preference from Redux (immediate reactivity across all components)
-  const currentIconName = resourceKey 
+  const currentIconName = resourceKey
     ? useAppSelector(selectInterfaceIconPreference(resourceKey))
     : null;
-  
+
   const [editIconDialogOpen, setEditIconDialogOpen] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
+
+  // Use controlled state if provided, otherwise use internal state
+  const [internalFiltersExpanded, setInternalFiltersExpanded] = useState(false);
+  const filtersExpanded = controlledFiltersExpanded !== undefined
+    ? controlledFiltersExpanded
+    : internalFiltersExpanded;
+  const setFiltersExpanded = onFiltersExpandedChange || setInternalFiltersExpanded;
+
+  // Reset filtersExpanded when navigating to a page without active filters
+  useEffect(() => {
+    if (!hasActiveFilters && filtersExpanded) {
+      setFiltersExpanded(false);
+    }
+  }, [hasActiveFilters, filtersExpanded, setFiltersExpanded]);
 
   // Determine which icon to use
   let Icon: LucideIcon;
 
   if (resourceKey) {
     // Use icon from Redux preferences, fallback to default
-    Icon = currentIconName 
+    Icon = currentIconName
       ? getIconByName(currentIconName, resourceKey)
       : getDefaultIconForResourceKey(resourceKey);
   } else {
@@ -69,7 +95,7 @@ export const PageHeader = ({
 
   const handleIconClick = (e: React.MouseEvent) => {
     if (!resourceKey) return; // Only allow editing if resourceKey is provided
-    
+
     e.stopPropagation();
     e.preventDefault();
     const currentTime = Date.now();
@@ -93,126 +119,93 @@ export const PageHeader = ({
 
   return (
     <>
-    <div 
-      className={cn(
-        'relative',
-        'border-b border-gray-200',
-        'px-3 sm:px-4 md:px-6 py-4 sm:py-5',
-        'bg-white',
-        className
-      )}
-      dir="rtl"
-    >
-      {/* Content Container */}
-      <div className="relative">
-        {/* Optional Breadcrumbs */}
-        {breadcrumbs && breadcrumbs.length > 0 && (
-          <nav className="mb-3" aria-label="Breadcrumb">
-            <ol className="flex items-center gap-2 text-sm">
-              {breadcrumbs.map((crumb, index) => (
-                <li key={index} className="flex items-center">
-                  {index > 0 && (
-                    <span className="mx-2 text-slate-300">/</span>
-                  )}
-                  <span className={cn(
-                    'font-medium',
-                    index === breadcrumbs.length - 1 
-                      ? 'text-gray-900' 
-                      : 'text-gray-500 hover:text-gray-700'
-                  )}>
-                    {crumb}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </nav>
+      <div
+        className={cn(
+          'relative',
+          'border-b border-gray-200',
+          'px-3 sm:px-4 md:px-6 pt-3',
+          'bg-white',
+          className
         )}
+        dir="rtl"
+        style={{ marginTop: 0 }}
+      >
+        {/* Content Container */}
+        <div className="relative">
+          {/* Optional Breadcrumbs */}
+          {breadcrumbs && breadcrumbs.length > 0 && (
+            <nav className="mb-3" aria-label="Breadcrumb">
+              <ol className="flex items-center gap-2 text-sm">
+                {breadcrumbs.map((crumb, index) => (
+                  <li key={index} className="flex items-center">
+                    {index > 0 && (
+                      <span className="mx-2 text-slate-300">/</span>
+                    )}
+                    <span className={cn(
+                      'font-medium',
+                      index === breadcrumbs.length - 1
+                        ? 'text-gray-900'
+                        : 'text-gray-500 hover:text-gray-700'
+                    )}>
+                      {crumb}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
 
-        {/* Top Row: Title and Primary Actions */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-6 mb-3 sm:mb-4">
-          {/* Title Section (Right side in RTL) */}
-          <div className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            {Icon && (
-              <button
-                type="button"
-                className={cn(
-                  "flex-shrink-0 flex items-center p-1 rounded-md transition-colors",
-                  resourceKey && "cursor-pointer hover:bg-gray-100 group/icon"
-                )}
-                onClick={handleIconClick}
-                title={resourceKey ? "לחץ פעמיים לערוך אייקון" : undefined}
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  if (resourceKey) {
-                    setEditIconDialogOpen(true);
-                  }
-                }}
-              >
-                <Icon 
-                  className={cn(
-                    "w-5 h-5 text-gray-600 transition-opacity",
-                    resourceKey && "group-hover/icon:opacity-70"
-                  )} 
-                  strokeWidth={1.5}
-                />
-              </button>
-            )}
-            <div className="flex-1 min-w-0 flex items-center">
-              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-tight truncate">
-                {title}
-              </h1>
+          {/* Top Row: Title and Primary Actions */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-6 mb-3 sm:mb-4">
+            {/* Title Section (Right side in RTL) */}
+            <div className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <div className="flex-1 min-w-0 flex items-center">
+                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 leading-tight truncate">
+                  {title}
+                  {dataCount !== undefined && (
+                    <span className="text-gray-500 font-normal mx-2">
+                      ({dataCount})
+                    </span>
+                  )}
+                </h1>
+              </div>
+              {subtitle && (
+                <p className="text-sm text-gray-500 font-normal ml-3">
+                  {subtitle}
+                </p>
+              )}
             </div>
-            {subtitle && (
-              <p className="text-sm text-gray-500 font-normal ml-3">
-                {subtitle}
-              </p>
+
+            {/* Actions Section (Left side in RTL) */}
+            {actions && (
+              <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start">
+                {actions}
+              </div>
             )}
           </div>
-          
-          {/* Actions Section (Left side in RTL) */}
-          {actions && (
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start">
-              {actions}
-            </div>
-          )}
-        </div>
 
-        {/* Bottom Row: Filters / Search (Optional) */}
-        {filters && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="flex items-start justify-between gap-3">
+          {/* Bottom Row: Filters / Search (Optional) */}
+          {filters && hasActiveFilters && filtersExpanded && (
+            <div className="py-4 border-t border-gray-200">
               <div className="flex-1">
                 {filters}
               </div>
-              {filtersDirty && onSaveFilters && (
-                <Button
-                  onClick={onSaveFilters}
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2 flex-shrink-0"
-                >
-                  <Save className="h-4 w-4" />
-                  <span>שמור מסננים</span>
-                </Button>
-              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
 
-    {/* Edit Icon Dialog */}
-    {resourceKey && (
-      <EditInterfaceIconDialog
-        isOpen={editIconDialogOpen}
-        onOpenChange={setEditIconDialogOpen}
-        interfaceKey={resourceKey}
-        interfaceLabel={title}
-        currentIconName={currentIconName}
-        onSuccess={handleIconEditSuccess}
-      />
-    )}
+      {/* Edit Icon Dialog */}
+      {resourceKey && (
+        <EditInterfaceIconDialog
+          isOpen={editIconDialogOpen}
+          onOpenChange={setEditIconDialogOpen}
+          interfaceKey={resourceKey}
+          interfaceLabel={title}
+          currentIconName={currentIconName}
+          onSuccess={handleIconEditSuccess}
+        />
+      )}
     </>
   );
 };

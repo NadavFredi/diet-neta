@@ -19,6 +19,7 @@ import { SendProsperoLinkDialog } from './dialogs/SendProsperoLinkDialog';
 import { formatDate } from '@/utils/dashboard';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 
 interface LeadFormsCardProps {
   leadEmail?: string | null;
@@ -77,7 +78,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
         const proposals = await getProsperoProposals(leadId);
         setProsperoProposals(proposals);
       } catch (err: any) {
-        console.error('Failed to fetch proposals:', err);
         setProsperoProposals([]);
       } finally {
         setIsLoadingProposals(false);
@@ -85,6 +85,55 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
     };
 
     fetchProposals();
+  }, [leadId]);
+
+  // Set up realtime subscription for prospero_proposals updates
+  useEffect(() => {
+    if (!leadId) {
+      return;
+    }
+
+    const channel = supabase
+      .channel(`prospero-proposals-${leadId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'prospero_proposals',
+          filter: `lead_id=eq.${leadId}`,
+        },
+        async (payload) => {
+          // When a proposal is updated, refresh the proposals list
+          try {
+            const proposals = await getProsperoProposals(leadId);
+            setProsperoProposals(proposals);
+          } catch (err: any) {
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'prospero_proposals',
+          filter: `lead_id=eq.${leadId}`,
+        },
+        async (payload) => {
+          // When a new proposal is inserted, refresh the proposals list
+          try {
+            const proposals = await getProsperoProposals(leadId);
+            setProsperoProposals(proposals);
+          } catch (err: any) {
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [leadId]);
 
   const handleFormClick = async (formType: FormType) => {
@@ -327,7 +376,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
                 const proposals = await getProsperoProposals(leadId);
                 setProsperoProposals(proposals);
               } catch (err) {
-                console.error('Failed to refresh proposals:', err);
               }
             }
           }}

@@ -31,6 +31,7 @@ export interface Exercise {
   name: string;
   sets: number;
   reps: number;
+  order?: string;
   notes?: string;
   image_url?: string;
   video_url?: string;

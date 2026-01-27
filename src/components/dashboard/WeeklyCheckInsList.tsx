@@ -359,14 +359,14 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
-                      type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                      onClick={() => {
+                        if (sendingReviewId === review.id) {
+                          return; // Already sending
+                        }
                         if (!customerPhone) {
                           toast({
                             title: 'שגיאה',
@@ -375,14 +375,11 @@ export const WeeklyCheckInsList: React.FC<WeeklyCheckInsListProps> = ({
                           });
                           return;
                         }
-                        if (sendingReviewId === review.id) {
-                          return; // Already sending
-                        }
                         handleSendWhatsApp(review);
                       }}
-                      disabled={sendingReviewId === review.id || !customerPhone}
+                      disabled={sendingReviewId === review.id}
                       className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={!customerPhone ? 'מספר טלפון לא זמין' : sendingReviewId === review.id ? 'שולח...' : 'שלח ב-WhatsApp'}
+                      title={sendingReviewId === review.id ? 'שולח...' : 'שלח ב-WhatsApp'}
                     >
                       {sendingReviewId === review.id ? (
                         <div className="h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />

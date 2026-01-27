@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import type { NutritionTargets, NutritionTemplate } from './useNutritionTemplates';
 
 export type NutritionBuilderMode = 'template' | 'user';
@@ -387,6 +387,39 @@ export const useNutritionBuilder = (
   });
   
   const [calculatorOpen, setCalculatorOpen] = useState(true); // Open by default in diagnostic mode
+
+  // Update state when initialData changes (e.g., when editing a different plan)
+  useEffect(() => {
+    if (initialData) {
+      // Update name and description
+      if ('name' in initialData && initialData.name !== undefined) {
+        setName(initialData.name || '');
+      }
+      if ('description' in initialData && initialData.description !== undefined) {
+        setDescription(initialData.description || '');
+      }
+      // Update targets if they exist
+      if ('targets' in initialData && initialData.targets) {
+        setTargetsState(initialData.targets);
+      }
+      // Update manual override and fields if they exist
+      if ('manual_override' in initialData && initialData.manual_override) {
+        setManualOverrideState(initialData.manual_override);
+      }
+      if ('manual_fields' in initialData && initialData.manual_fields) {
+        setManualFieldsState(initialData.manual_fields);
+      }
+      if ('activity_entries' in initialData && initialData.activity_entries && Array.isArray(initialData.activity_entries)) {
+        const entries = initialData.activity_entries.map((entry, index) => ({
+          id: entry.id || String(Date.now() + index),
+          activityType: entry.activityType || '',
+          mets: typeof entry.mets === 'number' ? entry.mets : parseFloat(String(entry.mets)) || 0,
+          minutesPerWeek: typeof entry.minutesPerWeek === 'number' ? entry.minutesPerWeek : parseInt(String(entry.minutesPerWeek), 10) || 0,
+        }));
+        setActivityEntries(entries);
+      }
+    }
+  }, [initialData]);
 
   const setTarget = useCallback(<K extends keyof NutritionTargets>(key: K, value: number, isManual: boolean = false) => {
     setTargetsState((prev) => ({

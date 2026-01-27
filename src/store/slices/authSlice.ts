@@ -12,6 +12,7 @@ export interface AuthUser {
   full_name?: string | null;
   customer_id?: string | null; // For trainees, link to their customer record
   is_active?: boolean | null;
+  avatar_url?: string | null;
 }
 
 interface AuthState {
@@ -69,16 +70,18 @@ export const initializeAuth = createAsyncThunk(
       
       // For trainees, fetch customer_id (optional - might not exist yet)
       let customer_id: string | null = null;
+      let avatar_url: string | null = null;
       if (profile.role === 'trainee') {
         try {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
-            .select('id')
+            .select('id, avatar_url')
             .eq('user_id', session.user.id)
             .maybeSingle(); // Use maybeSingle() instead of single() to handle no results gracefully
           
           if (!customerError && customer) {
             customer_id = customer.id;
+            avatar_url = customer.avatar_url;
           }
         } catch (error) {
           // Ignore exceptions
@@ -94,6 +97,7 @@ export const initializeAuth = createAsyncThunk(
           full_name: profile.full_name,
           customer_id,
           is_active: profile.is_active ?? true,
+          avatar_url,
         },
       };
       
@@ -170,6 +174,7 @@ export const loginUser = createAsyncThunk(
               full_name: newProfile.full_name,
               customer_id: null,
               is_active: true,
+              avatar_url: null,
             },
           };
         }
@@ -205,16 +210,18 @@ export const loginUser = createAsyncThunk(
       
       // For trainees, fetch customer_id
       let customer_id: string | null = null;
+      let avatar_url: string | null = null;
       if (userRole === 'trainee') {
         try {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
-            .select('id')
+            .select('id, avatar_url')
             .eq('user_id', data.user.id)
             .maybeSingle(); // Use maybeSingle() instead of single() to handle no results gracefully
           
           if (!customerError && customer) {
             customer_id = customer.id;
+            avatar_url = customer.avatar_url;
           }
         } catch (error) {
           // Ignore
@@ -230,6 +237,7 @@ export const loginUser = createAsyncThunk(
           full_name: profile.full_name,
           customer_id,
           is_active: profile.is_active ?? true,
+          avatar_url,
         },
       };
       

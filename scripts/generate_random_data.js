@@ -1,8 +1,18 @@
 /**
  * Script to generate random test data for local database
- * Creates 180 customers, 300 leads, meetings, and payments with random data
+ * Creates data for all tables displayed to users with at least 100 records each:
+ * - 150 customers
+ * - 200 leads
+ * - 150+ meetings
+ * - 150+ payments
+ * - 100+ subscription_types
+ * - 100+ exercises
+ * - 100+ workout_templates
+ * - 100+ nutrition_templates
+ * - 100+ budgets
+ * - 100+ collections
  * 
- * Run with: node scripts/generate_random_data.js
+ * Run with: npm run generate-random-data
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -86,6 +96,50 @@ const paymentProducts = [
 // Meeting types/statuses
 const meetingTypes = ['פגישת ייעוץ', 'פגישת מעקב', 'פגישת התחלה', 'פגישת סיכום'];
 const meetingStatuses = ['מתוכנן', 'הושלם', 'בוטל', 'נדחה'];
+
+// Exercise names (Hebrew)
+const exerciseNames = [
+  'סקוואט', 'לאנץ', 'דדליפט', 'פראס', 'בנץ פרס', 'משיכה', 'לחיצת כתפיים', 'כפיפות בטן',
+  'פלאנק', 'בורפי', 'קפיצות', 'ריצה במקום', 'מתח', 'דיפ', 'לחיצת רגליים', 'כפיפת ברכיים',
+  'הרמת אגן', 'גשר', 'מעברי צד', 'כפיפות בטן צד', 'ריצת מדרגות', 'קפיצות על קופסה',
+  'כפיפות ידיים', 'טרייספס', 'בייספס', 'לחיצת חזה', 'פליי', 'לחיצת רגליים', 'כפיפת רגליים',
+  'הרמת עגל', 'מתח אופקי', 'פלאנק צד', 'כפיפות בטן הפוך', 'ריצת אינטרוולים', 'קפיצות רוחב',
+  'כפיפות בטן עם כדור', 'פלאנק עם הרמת רגל', 'כפיפות בטן עם הרמת רגליים', 'ריצת סיבולת',
+  'כפיפות בטן עם סיבוב', 'פלאנק עם הרמת יד', 'כפיפות בטן עם הרמת ידיים', 'ריצת ספרינט',
+  'כפיפות בטן עם הרמת יד ורגל', 'פלאנק עם הרמת יד ורגל', 'כפיפות בטן עם הרמת ידיים ורגליים',
+  'ריצת אינטרוולים ארוכים', 'כפיפות בטן עם הרמת ידיים ורגליים', 'פלאנק עם הרמת ידיים ורגליים'
+];
+
+// Workout template names
+const workoutTemplateNames = [
+  'תוכנית חיטוב בסיסית', 'תוכנית כוח מתחילה', 'תוכנית אירובי', 'תוכנית פול בודי',
+  'תוכנית רגליים', 'תוכנית עליון', 'תוכנית ליבה', 'תוכנית HIIT',
+  'תוכנית יוגה', 'תוכנית פילאטיס', 'תוכנית פונקציונלית', 'תוכנית קרדיו',
+  'תוכנית כוח מתקדמת', 'תוכנית גמישות', 'תוכנית שיקום', 'תוכנית איזון',
+  'תוכנית קואורדינציה', 'תוכנית סיבולת', 'תוכנית מהירות', 'תוכנית כוח מתפרץ'
+];
+
+// Nutrition template names
+const nutritionTemplateNames = [
+  'תוכנית תזונה דלת קלוריות', 'תוכנית תזונה עשירה בחלבון', 'תוכנית תזונה מאוזנת',
+  'תוכנית תזונה דלת פחמימות', 'תוכנית תזונה דלת שומן', 'תוכנית תזונה קטוגנית',
+  'תוכנית תזונה צמחונית', 'תוכנית תזונה טבעונית', 'תוכנית תזונה ללא גלוטן',
+  'תוכנית תזונה ללא לקטוז', 'תוכנית תזונה ים תיכונית', 'תוכנית תזונה אסייתית',
+  'תוכנית תזונה דלת נתרן', 'תוכנית תזונה עשירה בסיבים', 'תוכנית תזונה דלת סוכר',
+  'תוכנית תזונה עשירה בנוגדי חמצון', 'תוכנית תזונה דלת כולסטרול', 'תוכנית תזונה עשירה בויטמינים',
+  'תוכנית תזונה דלת שומן רווי', 'תוכנית תזונה עשירה באומגה 3'
+];
+
+// Subscription type names
+const subscriptionTypeNames = [
+  'מנוי חודשי', 'מנוי 3 חודשים', 'מנוי 6 חודשים', 'מנוי שנתי',
+  'מנוי VIP', 'מנוי בסיסי', 'מנוי פרימיום', 'מנוי סטודנט',
+  'מנוי משפחתי', 'מנוי זוגי', 'מנוי חד פעמי', 'מנוי ניסיון',
+  'מנוי מתנה', 'מנוי עסקי', 'מנוי ארגוני', 'מנוי מיוחד'
+];
+
+// Collection statuses
+const collectionStatuses = ['ממתין', 'חלקי', 'הושלם', 'בוטל'];
 
 // Generate random phone number
 function generatePhoneNumber() {
@@ -175,8 +229,6 @@ function generateSubscriptionData() {
 // (check by phone number, create if doesn't exist). For mock data, we create
 // customers first, then leads that link to them.
 async function generateCustomers(count) {
-  console.log(`\n📦 Creating ${count} customers...`);
-  console.log(`   (In real system: customers are created/upserted when leads are created, based on phone number)`);
   const customers = [];
   const usedPhones = new Set(); // Track phone numbers to ensure uniqueness
   
@@ -426,16 +478,19 @@ function generateMeetingData(lead, customer) {
 // Generate meetings
 async function generateMeetings(leads, customers) {
   console.log(`📅 Creating meetings...`);
+  console.log(`   (Target: At least 150 meetings to ensure >100 records)`);
   
   // Create meetings for 60% of leads (some leads have multiple meetings)
+  // Ensure we get at least 150 meetings total
   const meetings = [];
   const leadsWithMeetings = new Set();
+  const targetMeetings = Math.max(150, Math.ceil(leads.length * 0.75)); // At least 75% of leads get meetings
   
-  // First pass: 60% of leads get at least one meeting
+  // First pass: 75% of leads get at least one meeting
   for (const lead of leads) {
     if (!lead.id || !lead.customer_id) continue; // Skip leads without IDs
     
-    if (Math.random() < 0.6) {
+    if (meetings.length < targetMeetings || Math.random() < 0.75) {
       leadsWithMeetings.add(lead.id);
       const customer = customers.find(c => c.id === lead.customer_id);
       if (!customer) continue;
@@ -454,29 +509,27 @@ async function generateMeetings(leads, customers) {
     }
   }
   
-  // Second pass: 20% of leads with meetings get a second meeting
+  // Second pass: Add more meetings until we reach target
   const leadsArray = Array.from(leadsWithMeetings);
-  for (let i = 0; i < leadsArray.length; i++) {
-    if (Math.random() < 0.2) {
-      const leadId = leadsArray[i];
-      const lead = leads.find(l => l.id === leadId);
-      if (!lead) continue;
-      
-      const customer = customers.find(c => c.id === lead.customer_id);
-      if (!customer) continue;
-      
-      const meetingData = generateMeetingData(lead, customer);
-      const meetingDate = new Date(meetingData.date);
-      
-      meetings.push({
-        lead_id: lead.id,
-        customer_id: lead.customer_id,
-        fillout_submission_id: `fillout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${meetings.length}`,
-        meeting_data: meetingData,
-        created_at: randomDate(meetingDate, new Date()).toISOString(),
-        updated_at: new Date().toISOString()
-      });
-    }
+  while (meetings.length < targetMeetings && leadsArray.length > 0) {
+    const leadId = leadsArray[Math.floor(Math.random() * leadsArray.length)];
+    const lead = leads.find(l => l.id === leadId);
+    if (!lead) continue;
+    
+    const customer = customers.find(c => c.id === lead.customer_id);
+    if (!customer) continue;
+    
+    const meetingData = generateMeetingData(lead, customer);
+    const meetingDate = new Date(meetingData.date);
+    
+    meetings.push({
+      lead_id: lead.id,
+      customer_id: lead.customer_id,
+      fillout_submission_id: `fillout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${meetings.length}`,
+      meeting_data: meetingData,
+      created_at: randomDate(meetingDate, new Date()).toISOString(),
+      updated_at: new Date().toISOString()
+    });
   }
   
   // Insert in batches of 50
@@ -519,60 +572,90 @@ async function generateMeetings(leads, customers) {
 // Generate payments
 async function generatePayments(customers, leads) {
   console.log(`💳 Creating payments...`);
+  console.log(`   (Target: At least 150 payments to ensure >100 records)`);
   
   const payments = [];
+  const targetPayments = Math.max(150, Math.ceil(customers.length * 1.0)); // At least 1 payment per customer on average
   
-  // Create payments for 70% of customers
+  // Create payments for customers
   // Some customers have multiple payments
   for (const customer of customers) {
-    if (Math.random() < 0.7) {
-      // Find a lead for this customer
-      const customerLeads = leads.filter(l => l.customer_id === customer.id);
-      const lead = customerLeads.length > 0 ? customerLeads[Math.floor(Math.random() * customerLeads.length)] : null;
+    // Find a lead for this customer
+    const customerLeads = leads.filter(l => l.customer_id === customer.id);
+    const lead = customerLeads.length > 0 ? customerLeads[Math.floor(Math.random() * customerLeads.length)] : null;
+    
+    // Generate 1-3 payments per customer, but ensure we reach target
+    const numPayments = payments.length < targetPayments 
+      ? Math.floor(Math.random() * 3) + 1 
+      : (Math.random() < 0.7 ? 1 : 0);
+    
+    for (let i = 0; i < numPayments; i++) {
+      const product = paymentProducts[Math.floor(Math.random() * paymentProducts.length)];
+      const status = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
       
-      // Generate 1-3 payments per customer
-      const numPayments = Math.floor(Math.random() * 3) + 1;
-      
-      for (let i = 0; i < numPayments; i++) {
-        const product = paymentProducts[Math.floor(Math.random() * paymentProducts.length)];
-        const status = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
-        
-        // Generate amount based on product
-        let amount = 0;
-        if (product.includes('חודשית')) {
-          amount = 500 + Math.random() * 500; // 500-1000
-        } else if (product.includes('3 חודשים')) {
-          amount = 1200 + Math.random() * 800; // 1200-2000
-        } else if (product.includes('6 חודשים')) {
-          amount = 2000 + Math.random() * 1000; // 2000-3000
-        } else if (product.includes('שנתית')) {
-          amount = 3500 + Math.random() * 1500; // 3500-5000
-        } else if (product.includes('VIP')) {
-          amount = 5000 + Math.random() * 5000; // 5000-10000
-        } else {
-          amount = 200 + Math.random() * 800; // 200-1000
-        }
-        
-        const paymentDate = randomDate(new Date(2023, 0, 1), new Date());
-        
-        const payment = {
-          customer_id: customer.id,
-          lead_id: lead ? lead.id : null,
-          product_name: product,
-          amount: parseFloat(amount.toFixed(2)),
-          currency: 'ILS',
-          status: status,
-          stripe_payment_id: status === 'שולם' ? `pi_${Math.random().toString(36).substr(2, 24)}` : null,
-          transaction_id: status === 'שולם' || status === 'ממתין' ? `txn_${Math.random().toString(36).substr(2, 16)}` : null,
-          receipt_url: status === 'שולם' ? `https://example.com/receipts/${Math.random().toString(36).substr(2, 16)}.pdf` : null,
-          notes: Math.random() < 0.3 ? ['תשלום ראשון', 'תשלום חודשי', 'תשלום חד פעמי', 'החזר'][Math.floor(Math.random() * 4)] : null,
-          created_at: paymentDate.toISOString(),
-          updated_at: paymentDate.toISOString()
-        };
-        
-        payments.push(payment);
+      // Generate amount based on product
+      let amount = 0;
+      if (product.includes('חודשית')) {
+        amount = 500 + Math.random() * 500; // 500-1000
+      } else if (product.includes('3 חודשים')) {
+        amount = 1200 + Math.random() * 800; // 1200-2000
+      } else if (product.includes('6 חודשים')) {
+        amount = 2000 + Math.random() * 1000; // 2000-3000
+      } else if (product.includes('שנתית')) {
+        amount = 3500 + Math.random() * 1500; // 3500-5000
+      } else if (product.includes('VIP')) {
+        amount = 5000 + Math.random() * 5000; // 5000-10000
+      } else {
+        amount = 200 + Math.random() * 800; // 200-1000
       }
+      
+      const paymentDate = randomDate(new Date(2023, 0, 1), new Date());
+      
+      const payment = {
+        customer_id: customer.id,
+        lead_id: lead ? lead.id : null,
+        product_name: product,
+        amount: parseFloat(amount.toFixed(2)),
+        currency: 'ILS',
+        status: status,
+        stripe_payment_id: status === 'שולם' ? `pi_${Math.random().toString(36).substr(2, 24)}` : null,
+        transaction_id: status === 'שולם' || status === 'ממתין' ? `txn_${Math.random().toString(36).substr(2, 16)}` : null,
+        receipt_url: status === 'שולם' ? `https://example.com/receipts/${Math.random().toString(36).substr(2, 16)}.pdf` : null,
+        notes: Math.random() < 0.3 ? ['תשלום ראשון', 'תשלום חודשי', 'תשלום חד פעמי', 'החזר'][Math.floor(Math.random() * 4)] : null,
+        created_at: paymentDate.toISOString(),
+        updated_at: paymentDate.toISOString()
+      };
+      
+      payments.push(payment);
     }
+  }
+  
+  // If we still don't have enough payments, add more
+  while (payments.length < targetPayments && customers.length > 0) {
+    const customer = customers[Math.floor(Math.random() * customers.length)];
+    const customerLeads = leads.filter(l => l.customer_id === customer.id);
+    const lead = customerLeads.length > 0 ? customerLeads[Math.floor(Math.random() * customerLeads.length)] : null;
+    
+    const product = paymentProducts[Math.floor(Math.random() * paymentProducts.length)];
+    const status = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
+    
+    let amount = 500 + Math.random() * 2000;
+    const paymentDate = randomDate(new Date(2023, 0, 1), new Date());
+    
+    payments.push({
+      customer_id: customer.id,
+      lead_id: lead ? lead.id : null,
+      product_name: product,
+      amount: parseFloat(amount.toFixed(2)),
+      currency: 'ILS',
+      status: status,
+      stripe_payment_id: status === 'שולם' ? `pi_${Math.random().toString(36).substr(2, 24)}` : null,
+      transaction_id: status === 'שולם' || status === 'ממתין' ? `txn_${Math.random().toString(36).substr(2, 16)}` : null,
+      receipt_url: status === 'שולם' ? `https://example.com/receipts/${Math.random().toString(36).substr(2, 16)}.pdf` : null,
+      notes: Math.random() < 0.3 ? ['תשלום ראשון', 'תשלום חודשי', 'תשלום חד פעמי', 'החזר'][Math.floor(Math.random() * 4)] : null,
+      created_at: paymentDate.toISOString(),
+      updated_at: paymentDate.toISOString()
+    });
   }
   
   // Insert in batches of 50
@@ -612,6 +695,445 @@ async function generatePayments(customers, leads) {
   return payments;
 }
 
+// Generate subscription types
+async function generateSubscriptionTypes(count) {
+  console.log(`\n💳 Creating ${count} subscription types...`);
+  const subscriptionTypes = [];
+  
+  for (let i = 0; i < count; i++) {
+    const name = subscriptionTypeNames[i % subscriptionTypeNames.length] + (i >= subscriptionTypeNames.length ? ` ${Math.floor(i / subscriptionTypeNames.length) + 1}` : '');
+    const durations = [1, 2, 3, 4, 5, 6, 12];
+    const duration = durations[Math.floor(Math.random() * durations.length)];
+    const basePrice = [299, 399, 499, 599, 699, 799, 899, 999, 1199, 1499, 1999];
+    const price = basePrice[Math.floor(Math.random() * basePrice.length)] * duration;
+    
+    subscriptionTypes.push({
+      name: name,
+      duration: duration,
+      price: price,
+      created_at: randomDate(new Date(2023, 0, 1), new Date()).toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  }
+  
+  // Insert in batches of 50
+  const batchSize = 50;
+  let inserted = 0;
+  
+  for (let i = 0; i < subscriptionTypes.length; i += batchSize) {
+    const batch = subscriptionTypes.slice(i, i + batchSize);
+    const { data, error } = await supabaseAdmin
+      .from('subscription_types')
+      .insert(batch)
+      .select('id');
+    
+    if (error) {
+      console.error(`❌ Error inserting batch ${Math.floor(i / batchSize) + 1}:`, error.message);
+      for (const subType of batch) {
+        const { error: singleError } = await supabaseAdmin
+          .from('subscription_types')
+          .insert(subType)
+          .select('id')
+          .single();
+        
+        if (singleError) {
+          console.error(`  ⚠️  Failed to insert ${subType.name}:`, singleError.message);
+        } else {
+          inserted++;
+        }
+      }
+    } else {
+      inserted += data.length;
+      console.log(`  ✅ Inserted batch ${Math.floor(i / batchSize) + 1}: ${data.length} subscription types (Total: ${inserted}/${count})`);
+    }
+  }
+  
+  console.log(`✅ Created ${inserted} subscription types\n`);
+  return subscriptionTypes;
+}
+
+// Generate exercises
+async function generateExercises(count) {
+  console.log(`\n🏋️ Creating ${count} exercises...`);
+  const exercises = [];
+  
+  for (let i = 0; i < count; i++) {
+    const name = exerciseNames[i % exerciseNames.length] + (i >= exerciseNames.length ? ` ${Math.floor(i / exerciseNames.length) + 1}` : '');
+    const repetitions = [8, 10, 12, 15, 20, 25, 30][Math.floor(Math.random() * 7)];
+    const weight = Math.random() < 0.5 ? null : parseFloat((5 + Math.random() * 95).toFixed(2)); // 5-100 kg
+    const hasVideo = Math.random() < 0.3; // 30% have videos
+    const videoLink = hasVideo ? `https://www.youtube.com/watch?v=${Math.random().toString(36).substr(2, 11)}` : null;
+    
+    exercises.push({
+      name: name,
+      repetitions: repetitions,
+      weight: weight,
+      video_link: videoLink,
+      created_at: randomDate(new Date(2023, 0, 1), new Date()).toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  }
+  
+  // Insert in batches of 50
+  const batchSize = 50;
+  let inserted = 0;
+  
+  for (let i = 0; i < exercises.length; i += batchSize) {
+    const batch = exercises.slice(i, i + batchSize);
+    const { data, error } = await supabaseAdmin
+      .from('exercises')
+      .insert(batch)
+      .select('id');
+    
+    if (error) {
+      console.error(`❌ Error inserting batch ${Math.floor(i / batchSize) + 1}:`, error.message);
+      for (const exercise of batch) {
+        const { error: singleError } = await supabaseAdmin
+          .from('exercises')
+          .insert(exercise)
+          .select('id')
+          .single();
+        
+        if (singleError) {
+          console.error(`  ⚠️  Failed to insert ${exercise.name}:`, singleError.message);
+        } else {
+          inserted++;
+        }
+      }
+    } else {
+      inserted += data.length;
+      console.log(`  ✅ Inserted batch ${Math.floor(i / batchSize) + 1}: ${data.length} exercises (Total: ${inserted}/${count})`);
+    }
+  }
+  
+  console.log(`✅ Created ${inserted} exercises\n`);
+  return exercises;
+}
+
+// Generate workout templates
+async function generateWorkoutTemplates(count) {
+  console.log(`\n💪 Creating ${count} workout templates...`);
+  const templates = [];
+  const goalTagsOptions = [['חיטוב'], ['כוח'], ['סיבולת'], ['גמישות'], ['חיטוב', 'כוח'], ['סיבולת', 'כוח'], ['חיטוב', 'סיבולת']];
+  
+  for (let i = 0; i < count; i++) {
+    const name = workoutTemplateNames[i % workoutTemplateNames.length] + (i >= workoutTemplateNames.length ? ` ${Math.floor(i / workoutTemplateNames.length) + 1}` : '');
+    const description = `תוכנית אימונים ${name.toLowerCase()} - ${['מתחילה', 'בינונית', 'מתקדמת'][Math.floor(Math.random() * 3)]}`;
+    const goalTags = goalTagsOptions[Math.floor(Math.random() * goalTagsOptions.length)];
+    const isPublic = Math.random() < 0.3; // 30% are public
+    
+    // Generate simple routine_data structure
+    const routineData = {
+      weeklyWorkout: {
+        sunday: { exercises: [], rest: Math.random() < 0.5 },
+        monday: { exercises: [], rest: Math.random() < 0.3 },
+        tuesday: { exercises: [], rest: Math.random() < 0.3 },
+        wednesday: { exercises: [], rest: Math.random() < 0.3 },
+        thursday: { exercises: [], rest: Math.random() < 0.3 },
+        friday: { exercises: [], rest: Math.random() < 0.5 },
+        saturday: { exercises: [], rest: Math.random() < 0.4 }
+      }
+    };
+    
+    templates.push({
+      name: name,
+      description: description,
+      goal_tags: goalTags,
+      routine_data: routineData,
+      is_public: isPublic,
+      created_at: randomDate(new Date(2023, 0, 1), new Date()).toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  }
+  
+  // Insert in batches of 50
+  const batchSize = 50;
+  let inserted = 0;
+  
+  for (let i = 0; i < templates.length; i += batchSize) {
+    const batch = templates.slice(i, i + batchSize);
+    const { data, error } = await supabaseAdmin
+      .from('workout_templates')
+      .insert(batch)
+      .select('id');
+    
+    if (error) {
+      console.error(`❌ Error inserting batch ${Math.floor(i / batchSize) + 1}:`, error.message);
+      for (const template of batch) {
+        const { error: singleError } = await supabaseAdmin
+          .from('workout_templates')
+          .insert(template)
+          .select('id')
+          .single();
+        
+        if (singleError) {
+          console.error(`  ⚠️  Failed to insert ${template.name}:`, singleError.message);
+        } else {
+          inserted++;
+        }
+      }
+    } else {
+      inserted += data.length;
+      console.log(`  ✅ Inserted batch ${Math.floor(i / batchSize) + 1}: ${data.length} workout templates (Total: ${inserted}/${count})`);
+    }
+  }
+  
+  console.log(`✅ Created ${inserted} workout templates\n`);
+  return templates;
+}
+
+// Generate nutrition templates
+async function generateNutritionTemplates(count) {
+  console.log(`\n🥗 Creating ${count} nutrition templates...`);
+  const templates = [];
+  
+  for (let i = 0; i < count; i++) {
+    const name = nutritionTemplateNames[i % nutritionTemplateNames.length] + (i >= nutritionTemplateNames.length ? ` ${Math.floor(i / nutritionTemplateNames.length) + 1}` : '');
+    const description = `תוכנית תזונה ${name.toLowerCase()} - ${['מתחילה', 'בינונית', 'מתקדמת'][Math.floor(Math.random() * 3)]}`;
+    const isPublic = Math.random() < 0.3; // 30% are public
+    
+    // Generate nutrition targets
+    const calories = 1200 + Math.random() * 1000; // 1200-2200 calories
+    const protein = 80 + Math.random() * 100; // 80-180g
+    const carbs = 100 + Math.random() * 200; // 100-300g
+    const fat = 40 + Math.random() * 60; // 40-100g
+    const fiber = 20 + Math.random() * 15; // 20-35g
+    
+    const targets = {
+      calories: Math.round(calories),
+      protein: Math.round(protein),
+      carbs: Math.round(carbs),
+      fat: Math.round(fat),
+      fiber: Math.round(fiber)
+    };
+    
+    templates.push({
+      name: name,
+      description: description,
+      targets: targets,
+      is_public: isPublic,
+      created_at: randomDate(new Date(2023, 0, 1), new Date()).toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  }
+  
+  // Insert in batches of 50
+  const batchSize = 50;
+  let inserted = 0;
+  
+  for (let i = 0; i < templates.length; i += batchSize) {
+    const batch = templates.slice(i, i + batchSize);
+    const { data, error } = await supabaseAdmin
+      .from('nutrition_templates')
+      .insert(batch)
+      .select('id');
+    
+    if (error) {
+      console.error(`❌ Error inserting batch ${Math.floor(i / batchSize) + 1}:`, error.message);
+      for (const template of batch) {
+        const { error: singleError } = await supabaseAdmin
+          .from('nutrition_templates')
+          .insert(template)
+          .select('id')
+          .single();
+        
+        if (singleError) {
+          console.error(`  ⚠️  Failed to insert ${template.name}:`, singleError.message);
+        } else {
+          inserted++;
+        }
+      }
+    } else {
+      inserted += data.length;
+      console.log(`  ✅ Inserted batch ${Math.floor(i / batchSize) + 1}: ${data.length} nutrition templates (Total: ${inserted}/${count})`);
+    }
+  }
+  
+  console.log(`✅ Created ${inserted} nutrition templates\n`);
+  return templates;
+}
+
+// Generate budgets
+async function generateBudgets(count, nutritionTemplates, workoutTemplates) {
+  console.log(`\n📊 Creating ${count} budgets...`);
+  const budgets = [];
+  
+  for (let i = 0; i < count; i++) {
+    const name = `תקציב ${i + 1}`;
+    const description = `תוכנית תקציב ${name.toLowerCase()} - ${['מתחילה', 'בינונית', 'מתקדמת'][Math.floor(Math.random() * 3)]}`;
+    const isPublic = Math.random() < 0.3; // 30% are public
+    
+    // Link to nutrition template (50% chance)
+    const nutritionTemplateId = nutritionTemplates && nutritionTemplates.length > 0 && Math.random() < 0.5
+      ? nutritionTemplates[Math.floor(Math.random() * nutritionTemplates.length)].id
+      : null;
+    
+    // Generate custom nutrition targets if no template
+    const nutritionTargets = nutritionTemplateId ? {} : {
+      calories: Math.round(1200 + Math.random() * 1000),
+      protein: Math.round(80 + Math.random() * 100),
+      carbs: Math.round(100 + Math.random() * 200),
+      fat: Math.round(40 + Math.random() * 60),
+      fiber_min: Math.round(20 + Math.random() * 15),
+      water_min: Math.round(1500 + Math.random() * 1000)
+    };
+    
+    // Steps goal
+    const stepsGoal = [5000, 6000, 7000, 8000, 10000, 12000][Math.floor(Math.random() * 6)];
+    const stepsInstructions = `הליכה של ${stepsGoal} צעדים ביום`;
+    
+    // Link to workout template (50% chance)
+    const workoutTemplateId = workoutTemplates && workoutTemplates.length > 0 && Math.random() < 0.5
+      ? workoutTemplates[Math.floor(Math.random() * workoutTemplates.length)].id
+      : null;
+    
+    // Supplements
+    const supplementNames = ['אומגה 3', 'מגנזיום', 'ויטמין D', 'ברזל', 'ויטמין B12', 'קולגן', 'פרוביוטיקה'];
+    const numSupplements = Math.floor(Math.random() * 4); // 0-3 supplements
+    const supplements = [];
+    for (let j = 0; j < numSupplements; j++) {
+      const supplementName = supplementNames[Math.floor(Math.random() * supplementNames.length)];
+      if (!supplements.find(s => s.name === supplementName)) {
+        supplements.push({
+          name: supplementName,
+          dosage: `${Math.floor(1 + Math.random() * 3)} כמוסות`,
+          timing: ['בוקר', 'צהריים', 'ערב', 'לפני שינה'][Math.floor(Math.random() * 4)]
+        });
+      }
+    }
+    
+    const eatingOrder = ['ירקות -> חלבון -> פחמימות', 'חלבון -> ירקות -> פחמימות', 'ירקות -> פחמימות -> חלבון'][Math.floor(Math.random() * 3)];
+    const eatingRules = ['אל תאכל פחמימות לבד', 'שתה מים לפני הארוחה', 'אכול לאט'][Math.floor(Math.random() * 3)];
+    
+    budgets.push({
+      name: name,
+      description: description,
+      nutrition_template_id: nutritionTemplateId,
+      nutrition_targets: nutritionTargets,
+      steps_goal: stepsGoal,
+      steps_instructions: stepsInstructions,
+      workout_template_id: workoutTemplateId,
+      supplements: supplements,
+      eating_order: eatingOrder,
+      eating_rules: eatingRules,
+      is_public: isPublic,
+      created_at: randomDate(new Date(2023, 0, 1), new Date()).toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  }
+  
+  // Insert in batches of 50
+  const batchSize = 50;
+  let inserted = 0;
+  
+  for (let i = 0; i < budgets.length; i += batchSize) {
+    const batch = budgets.slice(i, i + batchSize);
+    const { data, error } = await supabaseAdmin
+      .from('budgets')
+      .insert(batch)
+      .select('id');
+    
+    if (error) {
+      console.error(`❌ Error inserting batch ${Math.floor(i / batchSize) + 1}:`, error.message);
+      for (const budget of batch) {
+        const { error: singleError } = await supabaseAdmin
+          .from('budgets')
+          .insert(budget)
+          .select('id')
+          .single();
+        
+        if (singleError) {
+          console.error(`  ⚠️  Failed to insert ${budget.name}:`, singleError.message);
+        } else {
+          inserted++;
+        }
+      }
+    } else {
+      inserted += data.length;
+      console.log(`  ✅ Inserted batch ${Math.floor(i / batchSize) + 1}: ${data.length} budgets (Total: ${inserted}/${count})`);
+    }
+  }
+  
+  console.log(`✅ Created ${inserted} budgets\n`);
+  return budgets;
+}
+
+// Generate collections
+async function generateCollections(count, leads, customers) {
+  console.log(`\n💰 Creating ${count} collections...`);
+  const collections = [];
+  
+  // Create collections for leads (some leads have multiple collections)
+  const leadsWithCollections = new Set();
+  
+  for (let i = 0; i < count; i++) {
+    // Find a random lead that hasn't been used too much
+    let lead = leads[Math.floor(Math.random() * leads.length)];
+    let attempts = 0;
+    while (leadsWithCollections.has(lead.id) && attempts < 10) {
+      lead = leads[Math.floor(Math.random() * leads.length)];
+      attempts++;
+    }
+    leadsWithCollections.add(lead.id);
+    
+    const customer = customers.find(c => c.id === lead.customer_id);
+    if (!customer) continue;
+    
+    const totalAmount = 500 + Math.random() * 5000; // 500-5500 NIS
+    const dueDate = randomDate(new Date(2023, 0, 1), new Date(2025, 11, 31));
+    const status = collectionStatuses[Math.floor(Math.random() * collectionStatuses.length)];
+    const description = `גבייה עבור ${lead.fitness_goal || 'שירותים'}`;
+    const notes = Math.random() < 0.3 ? ['תשלום ראשון', 'תשלום חודשי', 'תשלום חד פעמי'][Math.floor(Math.random() * 3)] : null;
+    
+    collections.push({
+      lead_id: lead.id,
+      customer_id: customer.id,
+      total_amount: parseFloat(totalAmount.toFixed(2)),
+      due_date: dueDate.toISOString().split('T')[0],
+      status: status,
+      description: description,
+      notes: notes,
+      created_at: randomDate(new Date(2023, 0, 1), new Date()).toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  }
+  
+  // Insert in batches of 50
+  const batchSize = 50;
+  let inserted = 0;
+  
+  for (let i = 0; i < collections.length; i += batchSize) {
+    const batch = collections.slice(i, i + batchSize);
+    const { data, error } = await supabaseAdmin
+      .from('collections')
+      .insert(batch)
+      .select('id');
+    
+    if (error) {
+      console.error(`❌ Error inserting batch ${Math.floor(i / batchSize) + 1}:`, error.message);
+      for (const collection of batch) {
+        const { error: singleError } = await supabaseAdmin
+          .from('collections')
+          .insert(collection)
+          .select('id')
+          .single();
+        
+        if (singleError) {
+          console.error(`  ⚠️  Failed to insert collection for lead ${collection.lead_id}:`, singleError.message);
+        } else {
+          inserted++;
+        }
+      }
+    } else {
+      inserted += data.length;
+      console.log(`  ✅ Inserted batch ${Math.floor(i / batchSize) + 1}: ${data.length} collections (Total: ${inserted}/${count})`);
+    }
+  }
+  
+  console.log(`✅ Created ${inserted} collections\n`);
+  return collections;
+}
+
 // Main function
 // Note: System logic - When creating a lead:
 //   1. Check if customer exists by phone number
@@ -620,34 +1142,49 @@ async function generatePayments(customers, leads) {
 // For mock data, we create customers first, then leads that link to them.
 async function generateRandomData() {
   console.log('🚀 Starting random data generation...');
-  console.log('📊 Target: 180 customers, 300 leads, meetings, and payments\n');
+  console.log('📊 Target: At least 100 records for all tables displayed to users\n');
   console.log('💡 Note: In production, customers are created/upserted when leads are created (by phone number)\n');
   
   try {
-    // Step 1: Generate customers
-    // Each customer has a unique phone number (used as identifier in real system)
-    const customers = await generateCustomers(180);
+    // Step 1: Generate customers (150 to ensure enough for other tables)
+    const customers = await generateCustomers(150);
     
     if (customers.length === 0) {
       console.error('❌ Failed to create any customers. Aborting.');
       return;
     }
     
-    // Step 2: Generate leads
-    // Leads are linked to customers via customer_id
-    // Multiple leads can belong to the same customer (same phone = same customer)
-    const leads = await generateLeads(300, customers);
+    // Step 2: Generate leads (200 to ensure enough for meetings/collections)
+    const leads = await generateLeads(200, customers);
     
     if (leads.length === 0) {
       console.error('❌ Failed to create any leads. Aborting.');
       return;
     }
     
-    // Step 3: Generate meetings
+    // Step 3: Generate meetings (150+ to ensure >100)
     const meetings = await generateMeetings(leads, customers);
     
-    // Step 4: Generate payments
+    // Step 4: Generate payments (150+ to ensure >100)
     const payments = await generatePayments(customers, leads);
+    
+    // Step 5: Generate subscription types (100+)
+    const subscriptionTypes = await generateSubscriptionTypes(100);
+    
+    // Step 6: Generate exercises (100+)
+    const exercises = await generateExercises(100);
+    
+    // Step 7: Generate workout templates (100+)
+    const workoutTemplates = await generateWorkoutTemplates(100);
+    
+    // Step 8: Generate nutrition templates (100+)
+    const nutritionTemplates = await generateNutritionTemplates(100);
+    
+    // Step 9: Generate budgets (100+)
+    const budgets = await generateBudgets(100, nutritionTemplates, workoutTemplates);
+    
+    // Step 10: Generate collections (100+)
+    const collections = await generateCollections(100, leads, customers);
     
     console.log('========================================');
     console.log('✅ DATA GENERATION COMPLETE');
@@ -655,7 +1192,13 @@ async function generateRandomData() {
     console.log(`📦 Customers created: ${customers.length}`);
     console.log(`📋 Leads created: ${leads.length}`);
     console.log(`📅 Meetings created: ${meetings.length}`);
-    console.log(`💳 Payments created: ${payments.length}\n`);
+    console.log(`💳 Payments created: ${payments.length}`);
+    console.log(`💳 Subscription Types created: ${subscriptionTypes.length}`);
+    console.log(`🏋️ Exercises created: ${exercises.length}`);
+    console.log(`💪 Workout Templates created: ${workoutTemplates.length}`);
+    console.log(`🥗 Nutrition Templates created: ${nutritionTemplates.length}`);
+    console.log(`📊 Budgets created: ${budgets.length}`);
+    console.log(`💰 Collections created: ${collections.length}\n`);
     console.log('You can now check your local database!');
     console.log('========================================\n');
     

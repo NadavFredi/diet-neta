@@ -5,11 +5,9 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { TableActionHeader } from '@/components/dashboard/TableActionHeader';
 import { SaveViewModal } from '@/components/dashboard/SaveViewModal';
-import { EditViewModal } from '@/components/dashboard/EditViewModal';
 import { CustomersDataTable } from '@/components/dashboard/CustomersDataTable';
 import { AddLeadDialog } from '@/components/dashboard/AddLeadDialog';
 import { Pagination } from '@/components/dashboard/Pagination';
@@ -17,7 +15,6 @@ import { useAppSelector } from '@/store/hooks';
 import { getCustomerFilterFields } from '@/hooks/useTableFilters';
 import { customerColumns } from '@/components/dashboard/columns/customerColumns';
 import { useCustomersManagement } from './CustomersManagement';
-import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'react-router-dom';
@@ -26,7 +23,6 @@ import { groupDataByKeys, getTotalGroupsCount, type MultiLevelGroupedData } from
 
 const CustomersManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const sidebarWidth = useSidebarWidth();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const viewId = searchParams.get('view_id');
@@ -52,6 +48,9 @@ const CustomersManagement = () => {
     handlePageChange,
     handlePageSizeChange,
     handleBulkDelete,
+    sortBy,
+    sortOrder,
+    handleSortChange,
   } = useCustomersManagement();
 
   const activeFilters = useAppSelector((state) => selectActiveFilters(state, 'customers'));
@@ -59,8 +58,14 @@ const CustomersManagement = () => {
   const isGroupingActive = !!(groupByKeys[0] || groupByKeys[1]);
   
   // Group pagination state (separate from record pagination)
+  // Use the same pageSize as regular pagination for consistency, but allow it to be changed
   const [groupCurrentPage, setGroupCurrentPage] = useState(1);
-  const [groupPageSize] = useState(50);
+  const [groupPageSize, setGroupPageSize] = useState(pageSize); // Start with regular page size, but allow changes
+  
+  // Sync groupPageSize with pageSize when pageSize changes
+  useEffect(() => {
+    setGroupPageSize(pageSize);
+  }, [pageSize]);
   
   // Calculate total groups when grouping is active
   const totalGroups = useMemo(() => {
@@ -82,6 +87,11 @@ const CustomersManagement = () => {
   
   const handleGroupPageChange = useCallback((page: number) => {
     setGroupCurrentPage(page);
+  }, []);
+
+  const handleGroupPageSizeChange = useCallback((newPageSize: number) => {
+    setGroupPageSize(newPageSize);
+    setGroupCurrentPage(1); // Reset to first page when page size changes
   }, []);
 
   // Generate filter fields with all renderable columns
@@ -148,14 +158,7 @@ const CustomersManagement = () => {
     previousFiltersRef.current = currentFiltersStr;
   }, [activeFilters, searchQuery, isLoadingCustomers, viewId, toast, handleSaveViewClick]);
 
-  const [isEditViewModalOpen, setIsEditViewModalOpen] = useState(false);
-  const [viewToEdit, setViewToEdit] = useState<any>(null);
   const [isAddLeadDialogOpen, setIsAddLeadDialogOpen] = useState(false);
-
-  const handleEditViewClick = useCallback((view: any) => {
-    setViewToEdit(view);
-    setIsEditViewModalOpen(true);
-  }, []);
 
   const handleAddLead = useCallback(() => {
     setIsAddLeadDialogOpen(true);
@@ -169,83 +172,83 @@ const CustomersManagement = () => {
 
   return (
     <>
-      <DashboardHeader
+      <TableManagementLayout
         userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-      />
+        onSaveViewClick={handleSaveViewClick}
+      >
+        {/* Header Section - Always visible */}
+        <div className="flex-shrink-0">
+          <TableActionHeader
+            resourceKey="customers"
+            title={savedView?.view_name || 'ניהול לקוחות'}
+            dataCount={totalCustomers || 0}
+            singularLabel="לקוח"
+            pluralLabel="לקוחות"
+            filterFields={customerFilterFields}
+            searchPlaceholder="חיפוש לפי שם, טלפון או אימייל..."
+            addButtonLabel="הוסף ליד"
+            onAddClick={handleAddLead}
+            enableColumnVisibility={true}
+            enableFilters={true}
+            enableGroupBy={true}
+            enableSearch={true}
+            columns={customerColumns}
+          />
+        </div>
 
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '60px' }}>
-        <main
-          className="bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto transition-all duration-300 ease-in-out"
-          style={{
-            marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 60px)',
-          }}
-        >
-          <div className="p-6">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              <TableActionHeader
-                resourceKey="customers"
-                title={savedView?.view_name || 'ניהול לקוחות'}
-                dataCount={totalCustomers || 0}
-                singularLabel="לקוח"
-                pluralLabel="לקוחות"
-                filterFields={customerFilterFields}
-                searchPlaceholder="חיפוש לפי שם, טלפון או אימייל..."
-                addButtonLabel="הוסף ליד"
-                onAddClick={handleAddLead}
-                enableColumnVisibility={true}
-                enableFilters={true}
-                enableGroupBy={true}
-                enableSearch={true}
-                columns={customerColumns}
+        {/* Table Section - Scrollable area */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white">
+          {isLoadingCustomers ? (
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                <p className="text-gray-600">טוען לקוחות...</p>
+              </div>
+            </div>
+          ) : filteredCustomers && Array.isArray(filteredCustomers) && filteredCustomers.length > 0 ? (
+            <div className="flex-1 min-h-0">
+              <CustomersDataTable 
+                customers={filteredCustomers} 
+                onBulkDelete={handleBulkDelete}
+                onSortChange={handleSortChange}
+                sortBy={sortBy || undefined}
+                sortOrder={sortOrder || undefined}
               />
-
-              <div className="bg-white">
-                {isLoadingCustomers ? (
-                  <div className="text-center py-12">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <p className="text-gray-600">טוען לקוחות...</p>
-                  </div>
-                ) : filteredCustomers && Array.isArray(filteredCustomers) && filteredCustomers.length > 0 ? (
-                  <>
-                    <CustomersDataTable 
-                      customers={filteredCustomers} 
-                      onBulkDelete={handleBulkDelete}
-                      groupCurrentPage={isGroupingActive ? groupCurrentPage : undefined}
-                      groupPageSize={isGroupingActive ? groupPageSize : undefined}
-                    />
-                    {/* Pagination Footer */}
-                    {totalCustomers > 0 && (
-                      <Pagination
-                        currentPage={isGroupingActive ? groupCurrentPage : currentPage}
-                        pageSize={isGroupingActive ? groupPageSize : pageSize}
-                        totalItems={isGroupingActive ? totalGroups : totalCustomers}
-                        onPageChange={isGroupingActive ? handleGroupPageChange : handlePageChange}
-                        onPageSizeChange={isGroupingActive ? undefined : handlePageSizeChange}
-                        isLoading={isLoadingCustomers}
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    <p className="text-lg font-medium mb-2">לא נמצאו לקוחות</p>
-                    <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
-                    {!isLoadingCustomers && (
-                      <p className="text-xs text-gray-400 mt-2">
-                        {filteredCustomers && Array.isArray(filteredCustomers)
-                          ? `מספר לקוחות: ${filteredCustomers.length}`
-                          : 'אין נתונים זמינים'}
-                      </p>
-                    )}
-                  </div>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-gray-500 h-full flex items-center justify-center">
+              <div>
+                <p className="text-lg font-medium mb-2">לא נמצאו לקוחות</p>
+                <p className="text-sm">נסה לשנות את פרמטרי החיפוש</p>
+                {!isLoadingCustomers && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    {filteredCustomers && Array.isArray(filteredCustomers)
+                      ? `מספר לקוחות: ${filteredCustomers.length}`
+                      : 'אין נתונים זמינים'}
+                  </p>
                 )}
               </div>
             </div>
-          </div>
-        </main>
-      </div>
+          )}
+          {/* Pagination Footer - Always visible when there's data */}
+          {!isLoadingCustomers && totalCustomers > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalCustomers}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                showIfSinglePage={isGroupingActive}
+                isLoading={isLoadingCustomers}
+                singularLabel="לקוח"
+                pluralLabel="לקוחות"
+              />
+            </div>
+          )}
+        </div>
+      </TableManagementLayout>
 
       {/* Add Lead Dialog */}
       <AddLeadDialog
@@ -261,18 +264,6 @@ const CustomersManagement = () => {
         filterConfig={getCurrentFilterConfig(activeFilters)}
       />
 
-      {/* Edit View Modal */}
-      <EditViewModal
-        isOpen={isEditViewModalOpen}
-        onOpenChange={setIsEditViewModalOpen}
-        view={viewToEdit}
-        currentFilterConfig={getCurrentFilterConfig(activeFilters)}
-        filterFields={customerFilterFields}
-        onSuccess={() => {
-          setIsEditViewModalOpen(false);
-          setViewToEdit(null);
-        }}
-      />
     </>
   );
 };

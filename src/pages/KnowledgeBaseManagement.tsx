@@ -5,10 +5,8 @@
  */
 
 import { useState } from 'react';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar';
+import { TableManagementLayout } from '@/components/dashboard/TableManagementLayout';
 import { useAppSelector } from '@/store/hooks';
-import { useSidebarWidth } from '@/hooks/useSidebarWidth';
 import { InternalKnowledgeBase } from '@/components/dashboard/InternalKnowledgeBase';
 import { ExternalKnowledgeBase } from '@/components/dashboard/ExternalKnowledgeBase';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -18,7 +16,6 @@ import { logoutUser } from '@/store/slices/authSlice';
 
 const KnowledgeBaseManagement = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const sidebarWidth = useSidebarWidth();
   const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState('internal');
 
@@ -36,23 +33,12 @@ const KnowledgeBaseManagement = () => {
 
   return (
     <>
-      <DashboardHeader 
-        userEmail={user?.email} 
+      <TableManagementLayout
+        userEmail={user?.email}
         onLogout={handleLogout}
-        sidebarContent={<DashboardSidebar onSaveViewClick={handleSaveViewClick} onEditViewClick={handleEditViewClick} />}
-      />
-          
-      <div className="min-h-screen" dir="rtl" style={{ paddingTop: '88px' }}>
-        <main 
-          className="bg-gray-50 overflow-y-auto" 
-          style={{ 
-            marginRight: `${sidebarWidth.width}px`,
-            minHeight: 'calc(100vh - 88px)',
-          }}
-        >
-          <div className="p-6 w-full">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" dir="rtl">
+        onSaveViewClick={handleSaveViewClick}
+      >
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" dir="rtl">
                 <div className="border-b border-gray-200 px-6 pt-4">
                   <TabsList className="grid w-full max-w-md grid-cols-2 h-10 bg-gray-100">
                     <TabsTrigger 
@@ -81,11 +67,8 @@ const KnowledgeBaseManagement = () => {
                     <ExternalKnowledgeBase />
                   </TabsContent>
                 </div>
-              </Tabs>
-            </div>
-          </div>
-        </main>
-      </div>
+        </Tabs>
+      </TableManagementLayout>
     </>
   );
 };

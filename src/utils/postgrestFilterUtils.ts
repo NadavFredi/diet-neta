@@ -6,7 +6,7 @@ type PostgrestOperator = 'eq' | 'gt' | 'lt' | 'gte' | 'lte' | 'ilike' | 'in' | '
 export interface PostgrestCondition {
   column: string;
   operator: PostgrestOperator;
-  value: string | number | boolean | Array<string | number | boolean>;
+  value: string | number | boolean | null | Array<string | number | boolean>;
   negate?: boolean;
 }
 
@@ -19,6 +19,10 @@ export interface FieldFilterConfig {
   isArray?: boolean;
   valueMap?: (value: string) => string | number | boolean;
   custom?: (filter: ActiveFilter, negate: boolean) => FilterDnf;
+  // Related entity filtering
+  relatedEntity?: string; // Entity name (e.g., 'subscription', 'budget')
+  relatedPath?: string; // Path to the related field (e.g., 'budgets.name' or 'subscription_data->>months')
+  joinType?: 'jsonb' | 'through' | 'direct'; // How to access the related entity
 }
 
 export type FilterFieldConfigMap = Record<string, FieldFilterConfig>;
@@ -40,7 +44,27 @@ const resolveFilterDnf = (
     return fieldConfig.custom(filter, negate);
   }
 
-  const column = fieldConfig?.column || filter.fieldId;
+  // Handle related entity filtering
+  let column = fieldConfig?.column || filter.fieldId;
+  
+  // If it's a related entity field, use the related path
+  if (fieldConfig?.relatedPath) {
+    column = fieldConfig.relatedPath;
+  } else if (fieldConfig?.relatedEntity) {
+    // Build the path based on join type
+    const baseFieldId = filter.fieldId.split('.').slice(1).join('.');
+    if (fieldConfig.joinType === 'jsonb') {
+      // JSONB path: subscription_data->>'months'
+      column = `${fieldConfig.relatedPath || `${fieldConfig.relatedEntity}_data`}->>'${baseFieldId}'`;
+    } else if (fieldConfig.joinType === 'through') {
+      // Through relationship: budgets.name (PostgREST nested filtering)
+      column = `${fieldConfig.relatedEntity}.${baseFieldId}`;
+    } else {
+      // Direct relationship
+      column = `${fieldConfig.relatedEntity}.${baseFieldId}`;
+    }
+  }
+
   const type = fieldConfig?.type || filter.type;
   const isArray = fieldConfig?.isArray || false;
   const mapValue = fieldConfig?.valueMap || toBoolean;
@@ -49,6 +73,43 @@ const resolveFilterDnf = (
   const values = filter.values.map(mapValue);
 
   const wrap = (condition: PostgrestCondition): FilterDnf => [[condition]];
+  const isValuePresentType = type === 'text' || type === 'select' || type === 'multiselect';
+
+  if (filter.operator === 'hasData' || filter.operator === 'noData') {
+    const wantsData = filter.operator === 'hasData';
+    const hasData = negate ? !wantsData : wantsData;
+
+    if (isArray) {
+      if (hasData) {
+        return [[
+          { column, operator: 'eq', value: null, negate: true },
+          { column, operator: 'eq', value: '{}', negate: true },
+        ]];
+      }
+      return [
+        [{ column, operator: 'eq', value: null }],
+        [{ column, operator: 'eq', value: '{}' }],
+      ];
+    }
+
+    if (hasData) {
+      if (isValuePresentType) {
+        return [[
+          { column, operator: 'eq', value: null, negate: true },
+          { column, operator: 'eq', value: '', negate: true },
+        ]];
+      }
+      return [[{ column, operator: 'eq', value: null, negate: true }]];
+    }
+
+    if (isValuePresentType) {
+      return [
+        [{ column, operator: 'eq', value: null }],
+        [{ column, operator: 'eq', value: '' }],
+      ];
+    }
+    return [[{ column, operator: 'eq', value: null }]];
+  }
 
   switch (type) {
     case 'text': {
@@ -206,6 +267,15 @@ const formatPostgrestValue = (value: PostgrestCondition['value']): string => {
 
 const toConditionString = (condition: PostgrestCondition): string => {
   const prefix = condition.negate ? 'not.' : '';
+  
+  // Handle null checks specially - PostgREST uses .is.null
+  if (condition.value === null || condition.value === 'null') {
+    if (condition.negate) {
+      return `${condition.column}.not.is.null`;
+    }
+    return `${condition.column}.is.null`;
+  }
+  
   if (condition.operator === 'in') {
     return `${condition.column}.${prefix}in.${formatPostgrestValue(condition.value)}`;
   }
@@ -235,13 +305,42 @@ export const buildPostgrestOr = (
   return clauses.join(',');
 };
 
+/**
+ * Apply filter group to query, handling related entity joins
+ */
 export const applyFilterGroupToQuery = <TQuery>(
   query: TQuery,
   group: FilterGroup | null | undefined,
-  fieldConfigs: FilterFieldConfigMap = {}
+  fieldConfigs: FilterFieldConfigMap = {},
+  baseTable?: string
 ): TQuery => {
+  if (!group || !group.children || group.children.length === 0) return query;
+
+  // Check if we need to join related entities
+  const needsJoin = Object.values(fieldConfigs).some(config => 
+    config.relatedEntity && config.joinType === 'through'
+  );
+
+  // For related entity filtering through joins, we need to use PostgREST's nested filtering
+  // This requires selecting related data and filtering on it
+  if (needsJoin && baseTable) {
+    // Collect all related entities that need to be joined
+    const relatedEntities = new Set<string>();
+    Object.values(fieldConfigs).forEach(config => {
+      if (config.relatedEntity && config.joinType === 'through') {
+        relatedEntities.add(config.relatedEntity);
+      }
+    });
+
+    // For each related entity, we need to select it and filter on it
+    // PostgREST handles this with nested select syntax
+    relatedEntities.forEach(entity => {
+      // This will be handled by the query builder when we use nested select
+      // For now, we'll build the filter expression and let PostgREST handle it
+    });
+  }
+
   const expression = buildPostgrestOr(group, fieldConfigs);
   if (!expression) return query;
   return (query as any).or(expression);
 };
-

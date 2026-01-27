@@ -73,7 +73,7 @@ const MEETING_TYPES = {
     icon: '🥗',
   },
   'תיאום תקציב': {
-    label: 'תיאום תקציב',
+    label: 'תיאום תכנית פעולה',
     color: 'bg-orange-100 text-orange-800 border-orange-300',
     icon: '💰',
   },

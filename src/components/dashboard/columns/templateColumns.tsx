@@ -1,12 +1,138 @@
 import type { NutritionTemplate } from '@/hooks/useNutritionTemplates';
 import type { WorkoutTemplate } from '@/hooks/useWorkoutTemplates';
+import type { SupplementTemplate } from '@/hooks/useSupplementTemplates';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Link as LinkIcon } from 'lucide-react';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { TemplateLeadsCell } from '../TemplateLeadsCell';
+
+/**
+ * Strict column definitions for Supplement Templates table.
+ */
+export const supplementTemplateColumns: DataTableColumn<SupplementTemplate>[] = [
+  {
+    id: 'name',
+    header: 'שם התוסף',
+    accessorKey: 'name',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
+    size: 200,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ getValue }) => {
+      const value = getValue() as string;
+      return <span className="font-medium text-gray-900">{value}</span>;
+    },
+  },
+  {
+    id: 'link1',
+    header: 'קישור 1',
+    accessorKey: 'supplements',
+    enableSorting: false,
+    enableResizing: true,
+    enableHiding: true,
+    size: 200,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ row }) => {
+      const supplements = row.original.supplements;
+      const link = supplements && supplements.length > 0 ? supplements[0].link1 : null;
+      
+      if (!link) return <span className="text-gray-400">-</span>;
+      
+      return (
+        <a 
+          href={link} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center gap-1 text-[#5B6FB9] hover:underline"
+          title={link}
+        >
+          <LinkIcon className="h-3 w-3" />
+          <span className="truncate max-w-[180px] block" dir="ltr">{link}</span>
+        </a>
+      );
+    },
+  },
+  {
+    id: 'link2',
+    header: 'קישור 2',
+    accessorKey: 'supplements',
+    enableSorting: false,
+    enableResizing: true,
+    enableHiding: true,
+    size: 200,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ row }) => {
+      const supplements = row.original.supplements;
+      const link = supplements && supplements.length > 0 ? supplements[0].link2 : null;
+      
+      if (!link) return <span className="text-gray-400">-</span>;
+      
+      return (
+        <a 
+          href={link} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center gap-1 text-[#5B6FB9] hover:underline"
+          title={link}
+        >
+          <LinkIcon className="h-3 w-3" />
+          <span className="truncate max-w-[180px] block" dir="ltr">{link}</span>
+        </a>
+      );
+    },
+  },
+  {
+    id: 'created_at',
+    header: 'תאריך יצירה',
+    accessorKey: 'created_at',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
+    size: 150,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ getValue }) => {
+      const value = getValue() as string | null | undefined;
+      if (!value) return <span className="text-gray-400">-</span>;
+      try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return <span className="text-gray-400">-</span>;
+        return (
+          <span className="text-gray-600">
+            {format(date, 'dd/MM/yyyy', { locale: he })}
+          </span>
+        );
+      } catch {
+        return <span className="text-gray-400">-</span>;
+      }
+    },
+  },
+  {
+    id: 'actions',
+    header: 'פעולות',
+    accessorKey: 'id', // Use id as accessor for actions column
+    enableSorting: false,
+    enableResizing: true,
+    enableHiding: true,
+    size: 120,
+    meta: {
+      align: 'right',
+    },
+    // Note: cell renderer will be provided by the component using this column
+    // to allow passing onEdit and onDelete handlers
+  },
+];
 
 /**
  * Strict column definitions for Nutrition Templates table.
@@ -41,11 +167,13 @@ export const nutritionTemplateColumns: DataTableColumn<NutritionTemplate>[] = [
     meta: {
       align: 'right',
     },
-    cell: ({ getValue }) => {
+    cell: ({ getValue, row }) => {
       const value = getValue() as string | null;
+      const description = row.original?.description;
+      const displayValue = value || description || null;
       return (
-        <span className="text-gray-600 max-w-md truncate block">
-          {value || '-'}
+        <span className="text-sm text-gray-700 max-w-md truncate block" title={displayValue || undefined}>
+          {displayValue || <span className="text-gray-400">—</span>}
         </span>
       );
     },
@@ -54,29 +182,52 @@ export const nutritionTemplateColumns: DataTableColumn<NutritionTemplate>[] = [
     id: 'targets',
     header: 'מקרו-נוטריאנטים',
     accessorKey: 'targets',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: false, // Always visible - core data
     size: 350,
     meta: {
       align: 'right',
     },
+    sortingFn: (rowA, rowB) => {
+      const aCalories = rowA.original?.targets?.calories ?? 0;
+      const bCalories = rowB.original?.targets?.calories ?? 0;
+      return aCalories - bCalories;
+    },
     cell: ({ row }) => {
-      const targets = row.original.targets;
+      const targets = row.original?.targets;
+      // Handle both direct targets and targets from the view
+      const calories = targets?.calories ?? row.original?.calories_value;
+      const protein = targets?.protein ?? row.original?.protein_value;
+      const carbs = targets?.carbs ?? row.original?.carbs_value;
+      const fat = targets?.fat ?? row.original?.fat_value;
+      
+      if (!calories && !protein && !carbs && !fat) {
+        return <span className="text-sm text-gray-400">—</span>;
+      }
+      
       return (
         <div className="flex gap-2 flex-wrap">
-          <Badge variant="outline" className="text-xs">
-            {targets.calories} קק״ל
-          </Badge>
-          <Badge variant="outline" className="text-xs">
-            {targets.protein}ג חלבון
-          </Badge>
-          <Badge variant="outline" className="text-xs">
-            {targets.carbs}ג פחמימות
-          </Badge>
-          <Badge variant="outline" className="text-xs">
-            {targets.fat}ג שומן
-          </Badge>
+          {calories != null && (
+            <Badge variant="outline" className="text-xs">
+              {calories} קק״ל
+            </Badge>
+          )}
+          {protein != null && (
+            <Badge variant="outline" className="text-xs">
+              {protein}ג חלבון
+            </Badge>
+          )}
+          {carbs != null && (
+            <Badge variant="outline" className="text-xs">
+              {carbs}ג פחמימות
+            </Badge>
+          )}
+          {fat != null && (
+            <Badge variant="outline" className="text-xs">
+              {fat}ג שומן
+            </Badge>
+          )}
         </div>
       );
     },
@@ -93,12 +244,19 @@ export const nutritionTemplateColumns: DataTableColumn<NutritionTemplate>[] = [
       align: 'right',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      return (
-        <span className="text-gray-600">
-          {format(new Date(value), 'dd/MM/yyyy', { locale: he })}
-        </span>
-      );
+      const value = getValue() as string | null | undefined;
+      if (!value) return <span className="text-gray-400">-</span>;
+      try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return <span className="text-gray-400">-</span>;
+        return (
+          <span className="text-gray-600">
+            {format(date, 'dd/MM/yyyy', { locale: he })}
+          </span>
+        );
+      } catch {
+        return <span className="text-gray-400">-</span>;
+      }
     },
   },
   {
@@ -163,12 +321,17 @@ export const workoutTemplateColumns: DataTableColumn<WorkoutTemplate>[] = [
     id: 'goal_tags',
     header: 'תגיות',
     accessorKey: 'goal_tags',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 200,
     meta: {
       align: 'right',
+    },
+    sortingFn: (rowA, rowB) => {
+      const aTags = (rowA.original.goal_tags || []).join(', ');
+      const bTags = (rowB.original.goal_tags || []).join(', ');
+      return aTags.localeCompare(bTags, 'he');
     },
     cell: ({ row }) => {
       const tags = row.original.goal_tags || [];
@@ -191,12 +354,17 @@ export const workoutTemplateColumns: DataTableColumn<WorkoutTemplate>[] = [
     id: 'connected_leads',
     header: 'לידים מחוברים',
     accessorKey: 'id', // Use id to access the template for connected leads lookup
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     size: 180,
     meta: {
       align: 'right',
+    },
+    sortingFn: (rowA, rowB) => {
+      const aCount = rowA.original.leads_count ?? (rowA.original.has_leads ? 1 : 0);
+      const bCount = rowB.original.leads_count ?? (rowB.original.has_leads ? 1 : 0);
+      return aCount - bCount;
     },
     cell: ({ row }) => {
       return <TemplateLeadsCell templateId={row.original.id} />;
@@ -214,12 +382,19 @@ export const workoutTemplateColumns: DataTableColumn<WorkoutTemplate>[] = [
       align: 'right',
     },
     cell: ({ getValue }) => {
-      const value = getValue() as string;
-      return (
-        <span className="text-gray-600">
-          {format(new Date(value), 'dd/MM/yyyy', { locale: he })}
-        </span>
-      );
+      const value = getValue() as string | null | undefined;
+      if (!value) return <span className="text-gray-400">-</span>;
+      try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return <span className="text-gray-400">-</span>;
+        return (
+          <span className="text-gray-600">
+            {format(date, 'dd/MM/yyyy', { locale: he })}
+          </span>
+        );
+      } catch {
+        return <span className="text-gray-400">-</span>;
+      }
     },
   },
   {
@@ -261,21 +436,12 @@ export const defaultWorkoutTemplateColumnVisibility: Record<string, boolean> = {
   created_at: true,
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * Default column visibility for Supplement Templates table.
+ */
+export const defaultSupplementTemplateColumnVisibility: Record<string, boolean> = {
+  name: true,
+  link1: true,
+  link2: true,
+  created_at: true,
+};

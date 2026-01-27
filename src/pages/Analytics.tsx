@@ -103,7 +103,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} לידים עם סטטוס זה`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching leads by status:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {
@@ -143,7 +142,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} לידים בתאריך זה`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching leads by date:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {
@@ -190,7 +188,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} לידים ממקור זה`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching leads by source:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {
@@ -230,7 +227,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} תשלומים בתאריך זה`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching payments by date:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {
@@ -276,7 +272,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} תשלומים עם סטטוס זה`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching payments by status:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {
@@ -316,7 +311,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} לקוחות בתאריך זה`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching customers by date:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {
@@ -367,7 +361,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} פגישות בתאריך זה`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching meetings by date:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {
@@ -415,7 +408,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} לידים${dateFilter ? ' בתקופה הנבחרת' : ''}`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching all leads:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {
@@ -461,7 +453,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} לקוחות${dateFilter ? ' בתקופה הנבחרת' : ''}`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching all customers:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {
@@ -508,7 +499,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} תשלומים מאושרים${dateFilter ? ' בתקופה הנבחרת' : ''}`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching all approved payments:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {
@@ -565,7 +555,6 @@ const Analytics = () => {
       setPopupDescription(`נמצאו ${items.length} פגישות${dateFilter ? ' בתקופה הנבחרת' : ''}`);
       setPopupOpen(true);
     } catch (err: any) {
-      console.error('Error fetching all meetings:', err);
       setPopupItems([]);
       setPopupTitle('שגיאה בטעינת הנתונים');
     } finally {

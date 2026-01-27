@@ -20,15 +20,21 @@ import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutUser } from '@/store/slices/authSlice';
 import { useToast } from '@/hooks/use-toast';
-import { TemplateColumnVisibility } from '@/components/dashboard/TemplateColumnSettings';
 import { 
   selectFilterGroup, 
   selectSearchQuery, 
   selectCurrentPage,
   selectPageSize,
+  selectSortBy,
+  selectSortOrder,
   selectGroupByKeys,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   setCurrentPage,
   setPageSize,
+  setSortBy,
+  setSortOrder,
 } from '@/store/slices/tableStateSlice';
 
 export const useTemplatesManagement = () => {
@@ -45,14 +51,6 @@ export const useTemplatesManagement = () => {
   const [templateToDelete, setTemplateToDelete] = useState<WorkoutTemplate | null>(null);
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [columnVisibility, setColumnVisibility] = useState<TemplateColumnVisibility>({
-    name: true,
-    description: true,
-    tags: true,
-    connectedLeads: true,
-    createdDate: true,
-    actions: true,
-  });
 
   const { defaultView, isLoading: isLoadingDefaultView } = useDefaultView('templates');
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
@@ -60,16 +58,26 @@ export const useTemplatesManagement = () => {
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'templates'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'templates'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'templates'));
+  const sortBy = useAppSelector((state) => selectSortBy(state, 'templates'));
+  const sortOrder = useAppSelector((state) => selectSortOrder(state, 'templates'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'templates'));
+  const tableColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'templates'));
+  const tableColumnOrder = useAppSelector((state) => selectColumnOrder(state, 'templates'));
+  const tableColumnSizing = useAppSelector((state) => selectColumnSizing(state, 'templates'));
   
-  const { data: templates = [], isLoading } = useWorkoutTemplates({
+  const { data: templatesData, isLoading } = useWorkoutTemplates({
     search: searchQuery,
     filterGroup,
     page: currentPage,
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
+  
+  const templates = templatesData?.data || [];
+  const totalTemplates = templatesData?.totalCount || 0;
   
   // Reset to page 1 when filters, search, or grouping change
   const prevFiltersRef = useRef<string>('');
@@ -125,13 +133,6 @@ export const useTemplatesManagement = () => {
       // Navigate to login even if logout fails
       navigate('/login');
     }
-  };
-
-  const handleToggleColumn = (key: keyof TemplateColumnVisibility) => {
-    setColumnVisibility((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
   };
 
   const handleAddTemplate = () => {
@@ -207,6 +208,11 @@ export const useTemplatesManagement = () => {
     }
   };
 
+  const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
+    dispatch(setSortBy({ resourceKey: 'templates', sortBy: columnId }));
+    dispatch(setSortOrder({ resourceKey: 'templates', sortOrder: order }));
+  };
+
   const handleBulkDelete = async (payload: { ids: string[] }) => {
     await bulkDeleteTemplates.mutateAsync(payload.ids);
     toast({
@@ -219,13 +225,13 @@ export const useTemplatesManagement = () => {
     setIsSaveViewModalOpen(true);
   };
 
-  const getCurrentFilterConfig = (advancedFilters?: any[], columnOrder?: string[], columnWidths?: Record<string, number>, sortBy?: string, sortOrder?: 'asc' | 'desc') => {
+  const getCurrentFilterConfig = (advancedFilters?: any[]) => {
     return {
       searchQuery,
       filterGroup,
-      columnVisibility: columnVisibility as unknown as Record<string, boolean>,
-      columnOrder,
-      columnWidths,
+      columnVisibility: tableColumnVisibility as unknown as Record<string, boolean>,
+      columnOrder: tableColumnOrder,
+      columnWidths: tableColumnSizing,
       sortBy,
       sortOrder,
       advancedFilters,
@@ -235,6 +241,7 @@ export const useTemplatesManagement = () => {
   return {
     // Data
     templates: filteredTemplates,
+    totalTemplates,
     allTags,
     savedView,
     editingTemplate,
@@ -248,7 +255,8 @@ export const useTemplatesManagement = () => {
     deleteDialogOpen,
     isSaveViewModalOpen,
     isSettingsOpen,
-    columnVisibility,
+    sortBy,
+    sortOrder,
     
     // Setters
     setIsAddDialogOpen,
@@ -259,12 +267,12 @@ export const useTemplatesManagement = () => {
     
     // Handlers
     handleLogout,
-    handleToggleColumn,
     handleAddTemplate,
     handleEditTemplate,
     handleSaveTemplate,
     handleDeleteClick,
     handleConfirmDelete,
+    handleSortChange,
     handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,

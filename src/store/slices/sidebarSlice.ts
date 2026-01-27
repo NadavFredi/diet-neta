@@ -3,6 +3,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 interface SidebarState {
   isCollapsed: boolean;
   expandedSections: Record<string, boolean>;
+  customWidth: number | null; // Custom width in pixels, null means use default
 }
 
 // Normalize expanded sections to ensure only one is expanded at a time
@@ -78,6 +79,7 @@ const mergedExpandedSections = {
 const initialState: SidebarState = {
   isCollapsed: loadedState.isCollapsed ?? false,
   expandedSections: normalizeExpandedSections(mergedExpandedSections),
+  customWidth: null, // Will be loaded from DB via hook
 };
 
 // Save to localStorage helper
@@ -158,6 +160,10 @@ const sidebarSlice = createSlice({
       });
       saveSidebarState(state);
     },
+    setSidebarWidth: (state, action: PayloadAction<number>) => {
+      state.customWidth = action.payload;
+      // Don't save to localStorage - this is persisted in DB
+    },
   },
 });
 
@@ -168,7 +174,13 @@ export const {
   setSectionExpanded,
   expandAllSections,
   collapseAllSections,
+  setSidebarWidth,
 } = sidebarSlice.actions;
+
+// Selector for sidebar width
+export const selectSidebarWidth = (state: { sidebar: SidebarState }): number | null => {
+  return state.sidebar.customWidth;
+};
 
 export default sidebarSlice.reducer;
 

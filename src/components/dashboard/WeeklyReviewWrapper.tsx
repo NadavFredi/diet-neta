@@ -1,11 +1,13 @@
+
 /**
  * WeeklyReviewWrapper Component
  * 
- * Wraps LeadHistoryTabs and WeeklyCheckInsList to coordinate the add button
+ * Wraps PlansCard, LeadHistoryTabs and WeeklyCheckInsList to coordinate the add button
  */
 
 import { useState } from 'react';
 import { LeadHistoryTabs } from './LeadHistoryTabs';
+import { PlansCard } from './PlansCard';
 import { WeeklyCheckInsList } from './WeeklyCheckInsList';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { WeeklyReviewModule } from './WeeklyReviewModule';
@@ -56,6 +58,20 @@ export const WeeklyReviewWrapper: React.FC<WeeklyReviewWrapperProps> = ({
 
   return (
     <>
+      <PlansCard
+        workoutHistory={workoutHistory}
+        stepsHistory={stepsHistory}
+        nutritionHistory={nutritionHistory}
+        supplementsHistory={supplementsHistory}
+        budgetAssignments={budgetAssignments}
+        leadId={leadId}
+        customerId={customerId}
+        onAddWorkoutPlan={onAddWorkoutPlan}
+        onAddDietPlan={onAddDietPlan}
+        onAddSupplementsPlan={onAddSupplementsPlan}
+        onAssignBudget={onAssignBudget}
+      />
+
       <LeadHistoryTabs
         workoutHistory={workoutHistory}
         stepsHistory={stepsHistory}
@@ -64,6 +80,8 @@ export const WeeklyReviewWrapper: React.FC<WeeklyReviewWrapperProps> = ({
         budgetAssignments={budgetAssignments}
         leadId={leadId}
         customerId={customerId}
+        customerPhone={customerPhone}
+        customerName={customerName}
         onAddWorkoutPlan={onAddWorkoutPlan}
         onAddDietPlan={onAddDietPlan}
         onAddSupplementsPlan={onAddSupplementsPlan}
@@ -107,4 +125,3 @@ export const WeeklyReviewWrapper: React.FC<WeeklyReviewWrapperProps> = ({
     </>
   );
 };
-

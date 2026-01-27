@@ -13,13 +13,19 @@ import { collectionColumns, defaultCollectionColumnVisibility } from './columns/
 interface CollectionsDataTableProps {
   collections: AllCollectionRecord[];
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
   groupCurrentPage?: number;
   groupPageSize?: number;
 }
 
-export const CollectionsDataTable = ({ 
-  collections, 
+export const CollectionsDataTable = ({
+  collections,
   onBulkDelete,
+  onSortChange,
+  sortBy,
+  sortOrder,
   groupCurrentPage,
   groupPageSize,
 }: CollectionsDataTableProps) => {
@@ -38,7 +44,7 @@ export const CollectionsDataTable = ({
       columns={collectionColumns}
       onRowClick={handleRowClick}
       dir="rtl"
-      emptyMessage="לא נמצאו גבייות"
+      emptyMessage="לא נמצאו גביות"
       enableColumnVisibility={true}
       enableColumnReordering={true}
       resourceKey="collections"
@@ -46,9 +52,13 @@ export const CollectionsDataTable = ({
       enableRowSelection
       totalCount={collections.length}
       onBulkDelete={onBulkDelete}
-      selectionLabel="גבייות"
+      selectionLabel="גביות"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      onSortChange={onSortChange}
+      serverSideSorting={!!onSortChange}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
     />
   );
 };

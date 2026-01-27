@@ -6,6 +6,9 @@ import { meetingColumns, defaultMeetingColumnVisibility } from './columns/meetin
 interface MeetingsDataTableProps {
   meetings: Meeting[];
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
   groupCurrentPage?: number;
   groupPageSize?: number;
 }
@@ -13,6 +16,9 @@ interface MeetingsDataTableProps {
 export const MeetingsDataTable = ({ 
   meetings, 
   onBulkDelete,
+  onSortChange,
+  sortBy,
+  sortOrder,
   groupCurrentPage,
   groupPageSize,
 }: MeetingsDataTableProps) => {
@@ -39,10 +45,13 @@ export const MeetingsDataTable = ({
       selectionLabel="פגישות"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      onSortChange={onSortChange}
+      serverSideSorting={!!onSortChange}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
     />
   );
 };
-
 
 
 

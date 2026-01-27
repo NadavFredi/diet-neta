@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TableFilter } from '@/components/dashboard/TableFilter';
 import { FilterChips } from '@/components/dashboard/FilterChips';
-import { ColumnSettings } from '@/components/dashboard/ColumnSettings';
 import { TemplateColumnSettings } from '@/components/dashboard/TemplateColumnSettings';
 import { GenericColumnSettings } from '@/components/dashboard/GenericColumnSettings';
 import { PageHeader } from '@/components/dashboard/PageHeader';
@@ -12,8 +11,7 @@ import { Columns, Plus, LucideIcon } from 'lucide-react';
 import { useTableFilters, type FilterField } from '@/hooks/useTableFilters';
 import type { ActiveFilter, FilterGroup } from '@/components/dashboard/TableFilter';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { toggleColumnVisibility } from '@/store/slices/dashboardSlice';
-import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, type ResourceKey } from '@/store/slices/tableStateSlice';
+import { toggleColumnVisibility as toggleTableColumnVisibility, selectColumnOrder, selectColumnSizing, selectColumnVisibility, type ResourceKey } from '@/store/slices/tableStateSlice';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +95,7 @@ export const TablePageHeader = ({
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editingFilter, setEditingFilter] = useState<ActiveFilter | null>(null);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAppSelector((state) => state.auth);
@@ -147,26 +146,37 @@ export const TablePageHeader = ({
     setEditingFilter(null);
   };
 
-  // Get column visibility from Redux for leads (legacy dashboardSlice)
-  const leadsColumnVisibility = resourceKey === 'leads' 
-    ? useAppSelector((state) => state.dashboard.columnVisibility)
-    : undefined;
-
   const handleToggleColumn = (columnId: string) => {
-    if (resourceKey === 'leads') {
-      // Legacy leads column visibility in dashboardSlice
-      dispatch(toggleColumnVisibility(columnId as any));
-    } else if (useTemplateColumnSettings && onToggleTemplateColumn) {
-      // Template column settings - use provided handler
+    if (useTemplateColumnSettings && onToggleTemplateColumn) {
       onToggleTemplateColumn(columnId);
-    } else {
-      // Use new tableStateSlice for other resources
-      dispatch(toggleTableColumnVisibility({ resourceKey, columnId }));
+      return;
     }
+    dispatch(toggleTableColumnVisibility({ resourceKey, columnId }));
   };
 
   // Get column order from Redux
   const columnOrder = useAppSelector((state) => selectColumnOrder(state, resourceKey));
+  const columnSizing = useAppSelector((state) => selectColumnSizing(state, resourceKey));
+  
+  // Get column visibility from Redux
+  const reduxColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, resourceKey));
+
+  // Check if filters are currently active (applied to the page)
+  const hasActiveFilters = useMemo(() => {
+    // Check if there are active filters
+    const hasFilters = activeFilters && activeFilters.length > 0;
+    // Check if there's an advanced filter group
+    const hasAdvancedFilterGroup = filterGroup && isAdvancedFilterGroup(filterGroup);
+    
+    return hasFilters || hasAdvancedFilterGroup;
+  }, [activeFilters, filterGroup]);
+
+  // Reset filtersExpanded when navigating to a page without active filters
+  useEffect(() => {
+    if (!hasActiveFilters && filtersExpanded) {
+      setFiltersExpanded(false);
+    }
+  }, [hasActiveFilters, filtersExpanded]);
 
   // Check if filters are dirty (different from saved/default state)
   const filtersDirty = useMemo(() => {
@@ -179,6 +189,20 @@ export const TablePageHeader = ({
     const savedFilters = savedConfig.advancedFilters || [];
     const savedFilterGroup = savedConfig.filterGroup || null;
     const savedSearchQuery = savedConfig.searchQuery || '';
+    const savedColumnVisibility = savedConfig.columnVisibility || {};
+    const savedColumnOrder = savedConfig.columnOrder || [];
+
+    const normalizeColumnOrder = (order: string[]) => {
+      if (!columns || columns.length === 0) return order || [];
+      const availableIds = columns.map((col) => col.id);
+      const base = order && order.length > 0 ? order : availableIds;
+      const set = new Set(availableIds);
+      const normalized = base.filter((id) => set.has(id));
+      availableIds.forEach((id) => {
+        if (!normalized.includes(id)) normalized.push(id);
+      });
+      return normalized;
+    };
     
     // Normalize current filters for comparison
     const currentFilters = (activeFilters || []).map(f => ({
@@ -209,9 +233,35 @@ export const TablePageHeader = ({
     const normalizedSavedSearchQuery = savedSearchQuery.trim();
     const searchQueryChanged = currentSearchQuery !== normalizedSavedSearchQuery;
     
-    // Filters are dirty if filters changed or search query changed
-    return filtersChanged || searchQueryChanged;
-  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup]);
+    // Compare column visibility
+    const currentColumnVisibility = reduxColumnVisibility || {};
+    
+    // Normalize column visibility for comparison (sort keys for consistent comparison)
+    const currentColumnVisibilityStr = JSON.stringify(
+      Object.keys(currentColumnVisibility)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = currentColumnVisibility[key];
+          return acc;
+        }, {} as Record<string, boolean>)
+    );
+    const savedColumnVisibilityStr = JSON.stringify(
+      Object.keys(savedColumnVisibility)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = savedColumnVisibility[key];
+          return acc;
+        }, {} as Record<string, boolean>)
+    );
+    const columnVisibilityChanged = currentColumnVisibilityStr !== savedColumnVisibilityStr;
+
+    const currentColumnOrder = normalizeColumnOrder(columnOrder);
+    const savedColumnOrderNormalized = normalizeColumnOrder(savedColumnOrder);
+    const columnOrderChanged = JSON.stringify(currentColumnOrder) !== JSON.stringify(savedColumnOrderNormalized);
+    
+    // Filters are dirty if filters changed, search query changed, or column visibility changed
+    return filtersChanged || searchQueryChanged || columnVisibilityChanged || columnOrderChanged;
+  }, [activeFilters, searchQuery, defaultView, activeView, viewId, filterGroup, resourceKey, reduxColumnVisibility, columnOrder, columns]);
 
   // Handle saving filters to default view
   const handleSaveFilters = async () => {
@@ -226,6 +276,17 @@ export const TablePageHeader = ({
     }
 
     try {
+      const currentColumnVisibility = reduxColumnVisibility || {};
+
+      const currentColumnOrder = columns && columns.length > 0
+        ? columns
+            .map((col) => col.id)
+            .reduce<string[]>((acc, id) => {
+              if (columnOrder.includes(id)) return acc;
+              return [...acc, id];
+            }, [...columnOrder])
+        : columnOrder;
+      
       // Build current filter config
       const currentFilterConfig: FilterConfig = {
         ...(targetView.filter_config as FilterConfig),
@@ -239,6 +300,9 @@ export const TablePageHeader = ({
           values: f.values,
           type: f.type,
         })),
+        columnVisibility: currentColumnVisibility,
+        columnOrder: currentColumnOrder,
+        columnWidths: columnSizing,
       };
 
       await updateSavedView.mutateAsync({
@@ -277,17 +341,7 @@ export const TablePageHeader = ({
       );
     }
     
-    // Leads: use legacy ColumnSettings component
-    if (resourceKey === 'leads' && leadsColumnVisibility) {
-      return (
-        <ColumnSettings
-          columnVisibility={leadsColumnVisibility}
-          onToggleColumn={handleToggleColumn as any}
-        />
-      );
-    }
-    
-    // Generic column settings for customers and other resources (using Redux)
+    // Generic column settings (preferred when columns are provided - supports related entity columns)
     if (columns && columns.length > 0) {
       return (
         <GenericColumnSettings
@@ -309,6 +363,9 @@ export const TablePageHeader = ({
       className={className}
       filtersDirty={filtersDirty}
       onSaveFilters={handleSaveFilters}
+      hasActiveFilters={hasActiveFilters}
+      filtersExpanded={filtersExpanded}
+      onFiltersExpandedChange={setFiltersExpanded}
       actions={
         <div className="flex items-center gap-3">
           {/* Search Input */}
@@ -335,6 +392,9 @@ export const TablePageHeader = ({
               onFilterGroupChange={handleFilterGroupChange}
               editFilter={canEditFilters ? editingFilter : null}
               onEditApplied={() => setEditingFilter(null)}
+              hasActiveFilters={hasActiveFilters}
+              filtersExpanded={filtersExpanded}
+              onToggleFiltersExpanded={() => setFiltersExpanded(!filtersExpanded)}
             />
           )}
 

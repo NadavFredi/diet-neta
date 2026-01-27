@@ -30,25 +30,17 @@ import {
   selectSearchQuery, 
   selectCurrentPage,
   selectPageSize,
+  selectSortBy,
+  selectSortOrder,
   selectGroupByKeys,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   setCurrentPage,
   setPageSize,
+  setSortBy,
+  setSortOrder,
 } from '@/store/slices/tableStateSlice';
-
-export interface BudgetColumnVisibility {
-  name: boolean;
-  description: boolean;
-  workout_template: boolean;
-  nutrition_template: boolean;
-  nutrition_targets: boolean;
-  supplements: boolean;
-  eating_order: boolean;
-  eating_rules: boolean;
-  steps_goal: boolean;
-  steps_instructions: boolean;
-  createdDate: boolean;
-  actions: boolean;
-}
 
 export const useBudgetManagement = () => {
   const navigate = useNavigate();
@@ -75,20 +67,6 @@ export const useBudgetManagement = () => {
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [sendingBudget, setSendingBudget] = useState<Budget | null>(null);
-  const [columnVisibility, setColumnVisibility] = useState<BudgetColumnVisibility>({
-    name: true,
-    description: true,
-    workout_template: true,
-    nutrition_template: true,
-    nutrition_targets: false,
-    supplements: false,
-    eating_order: false,
-    eating_rules: false,
-    steps_goal: true,
-    steps_instructions: false,
-    createdDate: true,
-    actions: true,
-  });
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('budgets');
@@ -96,16 +74,26 @@ export const useBudgetManagement = () => {
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'budgets'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'budgets'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'budgets'));
+  const sortBy = useAppSelector((state) => selectSortBy(state, 'budgets'));
+  const sortOrder = useAppSelector((state) => selectSortOrder(state, 'budgets'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'budgets'));
+  const tableColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'budgets'));
+  const tableColumnOrder = useAppSelector((state) => selectColumnOrder(state, 'budgets'));
+  const tableColumnSizing = useAppSelector((state) => selectColumnSizing(state, 'budgets'));
   
-  const { data: budgets = [], isLoading } = useBudgets({
+  const { data: budgetsData, isLoading } = useBudgets({
     search: searchQuery,
     filterGroup,
     page: currentPage,
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
+  
+  const budgets = budgetsData?.data || [];
+  const totalBudgets = budgetsData?.totalCount || 0;
   
   // Reset to page 1 when filters, search, or grouping change
   const prevFiltersRef = useRef<string>('');
@@ -157,13 +145,6 @@ export const useBudgetManagement = () => {
     }
   };
 
-  const handleToggleColumn = (key: keyof BudgetColumnVisibility) => {
-    setColumnVisibility((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
   const handleAddBudget = () => {
     setEditingBudgetId(null);
     setIsAddDialogOpen(true);
@@ -183,6 +164,7 @@ export const useBudgetManagement = () => {
       steps_goal: number;
       steps_instructions?: string | null;
       workout_template_id?: string | null;
+      supplement_template_id?: string | null;
       supplements: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
@@ -199,6 +181,7 @@ export const useBudgetManagement = () => {
           steps_goal: (data as any).steps_goal,
           steps_instructions: (data as any).steps_instructions ?? null,
           workout_template_id: (data as any).workout_template_id ?? null,
+          supplement_template_id: (data as any).supplement_template_id ?? null,
           supplements: (data as any).supplements,
           eating_order: (data as any).eating_order ?? null,
           eating_rules: (data as any).eating_rules ?? null,
@@ -247,7 +230,7 @@ export const useBudgetManagement = () => {
         
         toast({
           title: 'הצלחה',
-          description: 'התקציב עודכן בהצלחה',
+          description: 'תכנית הפעולה עודכנה בהצלחה',
         });
         setIsEditDialogOpen(false);
         setEditingBudgetId(null);
@@ -260,6 +243,7 @@ export const useBudgetManagement = () => {
           steps_goal: (data as any).steps_goal,
           steps_instructions: (data as any).steps_instructions,
           workout_template_id: (data as any).workout_template_id,
+          supplement_template_id: (data as any).supplement_template_id,
           supplements: (data as any).supplements,
           eating_order: (data as any).eating_order,
           eating_rules: (data as any).eating_rules,
@@ -268,7 +252,7 @@ export const useBudgetManagement = () => {
         
         toast({
           title: 'הצלחה',
-          description: 'תבנית התקציב נוצרה בהצלחה. ניתן להקצות אותה ללקוחות מהדף שלהם.',
+          description: 'תכנית הפעולה נוצרה בהצלחה. ניתן להקצות אותה ללקוחות מהדף שלהם.',
         });
         setIsAddDialogOpen(false);
         
@@ -278,7 +262,7 @@ export const useBudgetManagement = () => {
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל בשמירת התקציב',
+        description: error?.message || 'נכשל בשמירת תכנית הפעולה',
         variant: 'destructive',
       });
     }
@@ -306,14 +290,14 @@ export const useBudgetManagement = () => {
       
       toast({
         title: 'הצלחה',
-        description: 'התקציב נמחק בהצלחה',
+        description: 'תכנית הפעולה נמחקה בהצלחה',
       });
       setDeleteDialogOpen(false);
       setBudgetToDelete(null);
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'נכשל במחיקת התקציב',
+        description: error?.message || 'נכשל במחיקת תכנית הפעולה',
         variant: 'destructive',
       });
     }
@@ -323,7 +307,7 @@ export const useBudgetManagement = () => {
     await bulkDeleteBudgets.mutateAsync(payload.ids);
     toast({
       title: 'הצלחה',
-      description: 'התקציבים נמחקו בהצלחה',
+      description: 'תכניות הפעולה נמחקו בהצלחה',
     });
   };
 
@@ -354,19 +338,20 @@ export const useBudgetManagement = () => {
     setSendingBudget(budget);
   };
 
+  const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
+    dispatch(setSortBy({ resourceKey: 'budgets', sortBy: columnId }));
+    dispatch(setSortOrder({ resourceKey: 'budgets', sortOrder: order }));
+  };
+
   const getCurrentFilterConfig = (
-    advancedFilters?: any[],
-    columnOrder?: string[],
-    columnWidths?: Record<string, number>,
-    sortBy?: string,
-    sortOrder?: 'asc' | 'desc'
+    advancedFilters?: any[]
   ) => {
     return {
       searchQuery: searchQuery || '',
       filterGroup,
-      columnVisibility: columnVisibility || {},
-      columnOrder: columnOrder || [],
-      columnWidths: columnWidths || {},
+      columnVisibility: tableColumnVisibility || {},
+      columnOrder: tableColumnOrder || [],
+      columnWidths: tableColumnSizing || {},
       sortBy: sortBy || null,
       sortOrder: sortOrder || 'asc',
       advancedFilters: advancedFilters || [],
@@ -376,6 +361,7 @@ export const useBudgetManagement = () => {
   return {
     // Data
     budgets: filteredBudgets,
+    totalBudgets,
     editingBudget,
     budgetToDelete,
     isLoading,
@@ -389,7 +375,8 @@ export const useBudgetManagement = () => {
     deleteDialogOpen,
     isSaveViewModalOpen,
     isSettingsOpen,
-    columnVisibility,
+    sortBy,
+    sortOrder,
     
     // Setters
     setIsAddDialogOpen,
@@ -400,7 +387,6 @@ export const useBudgetManagement = () => {
     
     // Handlers
     handleLogout,
-    handleToggleColumn,
     handleAddBudget,
     handleEditBudget,
     handleSaveBudget,
@@ -411,6 +397,7 @@ export const useBudgetManagement = () => {
     handleExportPDF,
     handleSendWhatsApp,
     getCurrentFilterConfig,
+    handleSortChange,
     
     // Mutations
     deleteBudget,

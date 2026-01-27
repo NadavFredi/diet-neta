@@ -74,6 +74,19 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
           actions: true,
         },
       };
+    case 'supplement_templates':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+        columnVisibility: {
+          name: true,
+          description: true,
+          tags: false, // Not applicable
+          connectedLeads: false, // Not applicable
+          createdDate: true,
+          actions: true,
+        },
+      };
     case 'budgets':
       return {
         searchQuery: '',
@@ -111,6 +124,21 @@ const getDefaultFilterConfig = (resourceKey: string): FilterConfig => {
         searchQuery: '',
         selectedDate: null,
       };
+    case 'subscription_types':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+      };
+    case 'whatsapp_automations':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+      };
+    case 'exercises':
+      return {
+        searchQuery: '',
+        selectedDate: null,
+      };
     default:
       return {
         searchQuery: '',
@@ -138,34 +166,40 @@ export const useDefaultView = (resourceKey: string | null) => {
           .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
           .eq('resource_key', resourceKey)
           .eq('created_by', userId)
-        .eq('is_default', true)
-        .maybeSingle();
+          .eq('is_default', true)
+          .maybeSingle();
 
-      if (fetchError) {
-        return null;
-      }
+        if (fetchError) {
+          return null;
+        }
 
-      if (existingDefault) {
+        if (existingDefault) {
           return existingDefault;
         }
 
         // Create default view if it doesn't exist
         const defaultFilterConfig = getDefaultFilterConfig(resourceKey);
-        const viewName = resourceKey === 'leads' 
-          ? 'כל הלידים' 
+        const viewName = resourceKey === 'leads'
+          ? 'כל הלידים'
           : resourceKey === 'customers'
-          ? 'כל הלקוחות'
-          : resourceKey === 'templates'
-          ? 'כל התכניות'
-          : resourceKey === 'nutrition_templates'
-          ? 'כל תבניות התזונה'
-          : resourceKey === 'budgets'
-          ? 'כל התקציבים'
-          : resourceKey === 'payments'
-          ? 'כל התשלומים'
-          : resourceKey === 'meetings'
-          ? 'כל הפגישות'
-          : 'כל התכניות';
+            ? 'כל הלקוחות'
+            : resourceKey === 'templates'
+              ? 'כל התכניות'
+              : resourceKey === 'nutrition_templates'
+                ? 'כל תבניות התזונה'
+                : resourceKey === 'supplement_templates'
+                  ? 'כל תבניות התוספים'
+                  : resourceKey === 'budgets'
+                    ? 'כל תכניות הפעולה'
+                    : resourceKey === 'payments'
+                      ? 'כל התשלומים'
+                      : resourceKey === 'meetings'
+                        ? 'כל הפגישות'
+                        : resourceKey === 'subscription_types'
+                          ? 'כל סוגי המנויים'
+                          : resourceKey === 'whatsapp_automations'
+                            ? 'כל האוטומציות'
+                            : 'כל התכניות';
 
         const { data: newView, error } = await supabase
           .from('saved_views')
@@ -177,22 +211,22 @@ export const useDefaultView = (resourceKey: string | null) => {
             created_by: userId,
           })
           .select('id, resource_key, view_name, filter_config, icon_name, is_default, created_by, created_at, updated_at')
-        .single();
+          .single();
 
-      if (error) {
+        if (error) {
+          return null;
+        }
+
+        // Invalidate savedViews query so sidebar updates immediately
+        await queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey] });
+        // Also refetch to ensure the sidebar gets the new view
+        await queryClient.refetchQueries({ queryKey: ['savedViews', resourceKey] });
+
+        return newView;
+      } catch (error) {
         return null;
       }
-
-      // Invalidate savedViews query so sidebar updates immediately
-      await queryClient.invalidateQueries({ queryKey: ['savedViews', resourceKey] });
-      // Also refetch to ensure the sidebar gets the new view
-      await queryClient.refetchQueries({ queryKey: ['savedViews', resourceKey] });
-
-      return newView;
-    } catch (error) {
-      return null;
-    }
-  },
+    },
     enabled: !!user?.id && !!resourceKey,
     staleTime: Infinity, // Default views don't change
     gcTime: Infinity, // Keep in cache forever (renamed from cacheTime in v5)

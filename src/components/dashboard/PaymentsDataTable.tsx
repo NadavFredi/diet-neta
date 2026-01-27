@@ -94,6 +94,8 @@ export const PaymentsDataTable = ({
       totalCount={totalCount}
       onBulkDelete={onBulkDelete}
       selectionLabel="תשלומים"
+      singularLabel="תשלום"
+      pluralLabel="תשלומים"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
     />

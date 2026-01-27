@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import type { FilterGroup, ActiveFilter } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap, type FilterDnf } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+import { applySort } from '@/utils/supabaseSort';
 
 export interface Meeting {
   id: string;
@@ -71,10 +72,12 @@ export const useMeetings = (filters?: {
   pageSize?: number;
   groupByLevel1?: string | null;
   groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
 }) => {
   const queryClient = useQueryClient();
 
-  const query = useQuery({
+  const query = useQuery<{ data: Meeting[]; totalCount: number }>({
     queryKey: ['meetings', filters],
     queryFn: async () => {
       const meetingDateKeys = [
@@ -136,15 +139,23 @@ export const useMeetings = (filters?: {
         : null;
       const combinedGroup = mergeFilterGroups(filters?.filterGroup || null, searchGroup);
 
-      // When grouping is active, fetch ALL matching records (no pagination)
-      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
-      
       // Map groupBy columns to database columns
       const groupByMap: Record<string, string> = {
         created_at: 'created_at',
         status: 'meeting_data->>status',
         meeting_date: 'meeting_data->>date',
         customer_name: 'customer.full_name',
+      };
+      const sortMap: Record<string, string> = {
+        customer_name: 'customer.full_name',
+        meeting_date: 'meeting_data->>date',
+        meeting_time: 'meeting_data->>event_start_time',
+        phone: 'customer.phone',
+        status: 'meeting_data->>status',
+        email: 'customer.email',
+        meeting_type: 'meeting_data->>meeting_type',
+        notes: 'meeting_data->>notes',
+        created_at: 'created_at',
       };
 
       let query = supabase
@@ -157,12 +168,11 @@ export const useMeetings = (filters?: {
         `
         );
 
-      // Only apply pagination if grouping is NOT active
-      if (!isGroupingActive) {
-        const from = (page - 1) * pageSize;
-        const to = from + pageSize - 1;
-        query = query.range(from, to);
-      }
+      // Always apply pagination limit (max 100 records per request for performance)
+      const maxPageSize = Math.min(pageSize, 100);
+      const from = (page - 1) * maxPageSize;
+      const to = from + maxPageSize - 1;
+      query = query.range(from, to);
 
       // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
       if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
@@ -172,14 +182,36 @@ export const useMeetings = (filters?: {
         query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
       }
       
-      // Apply default sorting if no grouping
-      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+      if (filters?.sortBy && filters?.sortOrder) {
+        query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+      } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
         query = query.order('created_at', { ascending: false });
       }
 
       if (combinedGroup) {
         query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
+
+      // Get total count for pagination
+      let totalCount = 0;
+      // Build count query with same JOINs and filters (needed for filters on joined tables)
+      let countQuery = supabase
+        .from('meetings')
+        .select(
+          `
+          id,
+          customer:customers(id)
+          `,
+          { count: 'exact', head: true }
+        );
+
+      if (combinedGroup) {
+        countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
+      }
+
+      const { count, error: countError } = await countQuery;
+      if (countError) throw countError;
+      totalCount = count || 0;
 
       const { data, error } = await query;
 
@@ -197,7 +229,7 @@ export const useMeetings = (filters?: {
         return meeting;
       });
       
-      return mappedData as Meeting[];
+      return { data: mappedData as Meeting[], totalCount };
     },
     // Refetch every 10 seconds to catch new meetings
     refetchInterval: 10000,
@@ -280,8 +312,6 @@ export const useDeleteMeeting = () => {
     },
   });
 };
-
-
 
 
 

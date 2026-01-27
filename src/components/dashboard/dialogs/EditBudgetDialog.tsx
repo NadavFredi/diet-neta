@@ -30,7 +30,7 @@ export const EditBudgetDialog = ({
         dir="rtl"
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-          <DialogTitle className="text-base font-bold">עריכת תקציב: {editingBudget.name}</DialogTitle>
+          <DialogTitle className="text-base font-bold">עריכת תכנית פעולה: {editingBudget.name}</DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
           <BudgetForm

@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt, BarChart3 } from 'lucide-react';
+import { UserPlus, Users, Dumbbell, Apple, Calculator, Settings, Calendar, CreditCard, Book, Send, Receipt, BarChart3, Target, Search, X, Pill } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSection, setSectionExpanded } from '@/store/slices/sidebarSlice';
 import { SidebarItem } from './SidebarItem';
@@ -29,6 +30,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useInterfaceOrder, useUpdateInterfaceOrders } from '@/hooks/useInterfaceOrder';
 import { useToast } from '@/hooks/use-toast';
+import { useDefaultView } from '@/hooks/useDefaultView';
 
 interface NavItem {
   id: string;
@@ -68,6 +70,13 @@ const navigationItems: NavItem[] = [
     path: '/dashboard/templates',
   },
   {
+    id: 'exercises',
+    resourceKey: 'exercises',
+    label: 'תרגילים',
+    icon: Target,
+    path: '/dashboard/exercises',
+  },
+  {
     id: 'nutrition-templates',
     resourceKey: 'nutrition_templates',
     label: 'תבניות תזונה',
@@ -75,9 +84,16 @@ const navigationItems: NavItem[] = [
     path: '/dashboard/nutrition-templates',
   },
   {
+    id: 'supplement-templates',
+    resourceKey: 'supplement_templates',
+    label: 'תוספים',
+    icon: Pill,
+    path: '/dashboard/supplement-templates',
+  },
+  {
     id: 'budgets',
     resourceKey: 'budgets',
-    label: 'תקציבים',
+    label: 'תכניות פעולה',
     icon: Calculator,
     path: '/dashboard/budgets',
   },
@@ -148,6 +164,11 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   // Get sidebar state from Redux
   const { isCollapsed, expandedSections } = useAppSelector((state) => state.sidebar);
 
+  // Fetch default views for resources that support views
+  // We fetch them all so we can navigate directly to default view on click
+  const subscriptionTypesDefaultView = useDefaultView('subscription_types');
+  const whatsappAutomationsDefaultView = useDefaultView('whatsapp_automations');
+
   // Fetch preferences on mount to sync with database (populates Redux)
   useInterfaceIconPreferences();
 
@@ -164,6 +185,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     label: string;
     currentIconName?: string | null;
   } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -211,6 +233,26 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
       return rest as NavItem;
     });
   }, [interfaceOrder]);
+
+  // Filter navigation items based on search query
+  // Show items that match the label OR show all items (views will be filtered within each item)
+  // This allows users to find views even if they don't remember the item name
+  const filteredNavigationItems = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return sortedNavigationItems;
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    // Filter items by label - views will be filtered within each item
+    // This way users can find items by name, and views will be filtered too
+    const matchingItems = sortedNavigationItems.filter((item) => {
+      return item.label.toLowerCase().includes(query);
+    });
+
+    // If we have matching items, show only those. Otherwise show all (for view searching)
+    // This balances between focused results and discoverability
+    return matchingItems.length > 0 ? matchingItems : sortedNavigationItems;
+  }, [sortedNavigationItems, searchQuery]);
 
   // Handle drag end for interfaces
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -288,7 +330,7 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
 
     const activeItem = navigationItems.find(item => isActive(item.path));
     if (activeItem) {
-      const supportsViews = ['leads', 'customers', 'templates', 'nutrition_templates', 'budgets', 'payments', 'collections', 'meetings'].includes(activeItem.resourceKey);
+      const supportsViews = ['leads', 'customers', 'templates', 'exercises', 'nutrition_templates', 'supplement_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(activeItem.resourceKey);
       // Only auto-expand if it supports views and isn't already expanded
       if (supportsViews && !expandedSections[activeItem.resourceKey]) {
         // Collapse all sections first
@@ -325,6 +367,10 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
       return location.pathname === '/dashboard/meetings' ||
         location.pathname.startsWith('/dashboard/meetings/');
     }
+    if (path === '/dashboard/exercises') {
+      // Active for exercises page
+      return location.pathname === '/dashboard/exercises';
+    }
     if (path === '/dashboard/subscription-types') {
       // Active for subscription types list
       return location.pathname === '/dashboard/subscription-types';
@@ -358,9 +404,33 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
   };
 
   const handleResourceClick = (item: NavItem) => {
-    // For resources that support views, navigate to base path
-    // The page component will automatically redirect to default view if needed
-    navigate(item.path);
+    const supportsViews = ['leads', 'customers', 'templates', 'exercises', 'nutrition_templates', 'supplement_templates', 'budgets', 'payments', 'collections', 'meetings', 'subscription_types', 'whatsapp_automations'].includes(item.resourceKey);
+
+    if (supportsViews) {
+      // Expand the section to show views
+      if (!expandedSections[item.resourceKey]) {
+        dispatch(setSectionExpanded({ resourceKey: item.resourceKey, expanded: true }));
+      }
+
+      // For resources that support views, navigate directly to default view if available
+      let defaultView = null;
+
+      if (item.resourceKey === 'subscription_types') {
+        defaultView = subscriptionTypesDefaultView.defaultView;
+      } else if (item.resourceKey === 'whatsapp_automations') {
+        defaultView = whatsappAutomationsDefaultView.defaultView;
+      }
+
+      // If we have a default view, navigate directly to it
+      // Otherwise, navigate to base path and let page component handle redirect
+      if (defaultView) {
+        navigate(`${item.path}?view_id=${defaultView.id}`);
+      } else {
+        navigate(item.path);
+      }
+    } else {
+      navigate(item.path);
+    }
   };
 
   const handleToggleSection = (resourceKey: string) => {
@@ -371,6 +441,35 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
     <>
       {/* Navigation Content - This will be rendered inside the header */}
       <div className="flex-1 flex flex-col min-h-0">
+        {/* Search Filter */}
+        {!isCollapsed && (
+          <div className="px-2 pb-3 pt-4">
+            <div className="relative ml-3">
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/60" />
+              <Input
+                type="text"
+                placeholder="חפש אובייקטים ותצוגות..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={cn(
+                  "w-full pr-9 pl-9 h-9 text-sm",
+                  "bg-white/10 border-white/20 text-white placeholder:text-white/60",
+                  "focus-visible:ring-0 focus-visible:border-white/30 focus-visible:bg-white/15"
+                )}
+                dir="rtl"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 p-1 rounded hover:bg-white/10 transition-colors"
+                  aria-label="נקה חיפוש"
+                >
+                  <X className="h-4 w-4 text-white/60 hover:text-white" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <nav
           className="flex-1 py-4 overflow-y-auto text-base transition-all duration-300"
           dir="rtl"
@@ -404,31 +503,38 @@ export const DashboardSidebar = ({ onSaveViewClick, onEditViewClick }: Dashboard
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={sortedNavigationItems.map((item) => item.id)}
+              items={filteredNavigationItems.map((item) => item.id)}
               strategy={verticalListSortingStrategy}
             >
               <ul className={cn(
                 'space-y-1 w-full px-2',
                 isCollapsed && 'px-1'
               )} dir="rtl">
-                {sortedNavigationItems.map((item) => (
-                  <SortableSidebarItem
-                    key={item.id}
-                    item={item}
-                    active={isActive(item.path)}
-                    activeViewId={activeViewId}
-                    isExpanded={effectiveExpandedSections[item.resourceKey] ?? false}
-                    onToggle={() => handleToggleSection(item.resourceKey)}
-                    onResourceClick={() => handleResourceClick(item)}
-                    onViewClick={handleViewClick}
-                    onSaveViewClick={onSaveViewClick}
-                    onEditViewClick={onEditViewClick}
-                    onEditIconClick={handleEditIconClick}
-                    customIcon={getIconForItem(item)}
-                    isCollapsed={isCollapsed}
-                    isSortable={true}
-                  />
-                ))}
+                {filteredNavigationItems.length > 0 ? (
+                  filteredNavigationItems.map((item) => (
+                    <SortableSidebarItem
+                      key={item.id}
+                      item={item}
+                      active={isActive(item.path)}
+                      activeViewId={activeViewId}
+                      isExpanded={effectiveExpandedSections[item.resourceKey] ?? false}
+                      onToggle={() => handleToggleSection(item.resourceKey)}
+                      onResourceClick={() => handleResourceClick(item)}
+                      onViewClick={handleViewClick}
+                      onSaveViewClick={onSaveViewClick}
+                      onEditViewClick={onEditViewClick}
+                      onEditIconClick={handleEditIconClick}
+                      customIcon={getIconForItem(item)}
+                      isCollapsed={isCollapsed}
+                      isSortable={true}
+                      searchQuery={searchQuery}
+                    />
+                  ))
+                ) : (
+                  <li className="px-3 py-4 text-center text-white/60 text-sm">
+                    לא נמצאו תוצאות
+                  </li>
+                )}
               </ul>
             </SortableContext>
           </DndContext>

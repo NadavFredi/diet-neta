@@ -49,6 +49,7 @@ import { useClientRealtime } from '@/hooks/useClientRealtime';
 import { useToast } from '@/hooks/use-toast';
 import { updateClientLead } from '@/store/slices/clientSlice';
 import { InlineEditableField } from '@/components/dashboard/InlineEditableField';
+import { AvatarUpload } from '@/components/dashboard/AvatarUpload';
 import { NetaLogo } from '@/components/ui/NetaLogo';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -66,7 +67,7 @@ export const ClientDashboardView: React.FC = () => {
   const { handleLogout } = useAuth();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState(tabParam || 'workout');
+  const [activeTab, setActiveTab] = useState(tabParam || 'budget');
   const [isMultiDayModalOpen, setIsMultiDayModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -241,33 +242,18 @@ export const ClientDashboardView: React.FC = () => {
           <nav className="flex-1 p-3 pt-4 overflow-y-auto">
             <button
               onClick={() => {
-                setActiveTab('workout');
+                setActiveTab('budget');
                 setIsMobileMenuOpen(false);
               }}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
-                activeTab === 'workout'
+                activeTab === 'budget'
                   ? "bg-white text-gray-800 shadow-md font-semibold"
                   : "text-white hover:bg-white/15 active:bg-white/20"
               )}
             >
-              <Dumbbell className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm font-medium">אימונים</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('nutrition');
-                setIsMobileMenuOpen(false);
-              }}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
-                activeTab === 'nutrition'
-                  ? "bg-white text-gray-800 shadow-md font-semibold"
-                  : "text-white hover:bg-white/15 active:bg-white/20"
-              )}
-            >
-              <Flame className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm font-medium">תזונה</span>
+              <Wallet className="h-5 w-5 flex-shrink-0" />
+              <span className="text-sm font-medium">תכנית פעולה</span>
             </button>
             <button
               onClick={() => {
@@ -298,21 +284,6 @@ export const ClientDashboardView: React.FC = () => {
             >
               <Target className="h-5 w-5 flex-shrink-0" />
               <span className="text-sm font-medium">סיכומים שבועיים</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('budget');
-                setIsMobileMenuOpen(false);
-              }}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-right transition-all duration-200 mb-1.5 active:scale-[0.98]",
-                activeTab === 'budget'
-                  ? "bg-white text-gray-800 shadow-md font-semibold"
-                  : "text-white hover:bg-white/15 active:bg-white/20"
-              )}
-            >
-              <Wallet className="h-5 w-5 flex-shrink-0" />
-              <span className="text-sm font-medium">תקציב</span>
             </button>
             <button
               onClick={() => {
@@ -383,6 +354,22 @@ export const ClientDashboardView: React.FC = () => {
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-[#334155] flex-1 text-right" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
                 {greeting}
               </h1>
+              
+              {customer && (
+                <AvatarUpload
+                  customerId={customer.id}
+                  currentAvatarUrl={customer.avatar_url}
+                  name={customer.full_name}
+                  size="sm"
+                  editable={true}
+                  onUploadComplete={(url) => {
+                    // Dispatch update to client slice to update UI immediately
+                    // The useUpdateCustomer hook already invalidates queries, but we might want to update local state too if needed
+                    // For now, the query invalidation should trigger a re-fetch
+                  }}
+                />
+              )}
+
               {isImpersonating ? (
                 <Button
                   variant="outline"
@@ -492,59 +479,6 @@ export const ClientDashboardView: React.FC = () => {
             </div>
 
             {/* Content based on active tab */}
-            {activeTab === 'workout' && (
-              <div className="space-y-4 sm:space-y-6 pb-4">
-                {workoutPlan ? (
-                  <WorkoutPlanCard
-                    workoutPlan={workoutPlan}
-                    isEditable={false}
-                  />
-                ) : (
-                  <Card className="border border-slate-200 shadow-sm rounded-3xl">
-                    <CardContent className="p-12 text-center">
-                      <Dumbbell className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <p className="text-base font-medium text-gray-500 mb-2">
-                        אין תוכנית אימונים פעילה
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        המאמן שלך יוסיף תוכנית אימונים כאן
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'nutrition' && (
-              <div className="space-y-4 sm:space-y-6 pb-4">
-                {isLoadingNutritionPlan ? (
-                  <Card className="border border-slate-200 shadow-sm">
-                    <CardContent className="p-12 text-center">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#5B6FB9] mb-4"></div>
-                      <p className="text-base font-medium text-gray-500">טוען תוכנית תזונה...</p>
-                    </CardContent>
-                  </Card>
-                ) : nutritionPlan ? (
-                  <NutritionPlanCard
-                    nutritionPlan={nutritionPlan}
-                    isEditable={false}
-                  />
-                ) : (
-                  <Card className="border border-slate-200 shadow-sm rounded-3xl">
-                    <CardContent className="p-12 text-center">
-                      <Flame className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                      <p className="text-base font-medium text-gray-500 mb-2">
-                        אין תוכנית תזונה פעילה
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        המאמן שלך יוסיף תוכנית תזונה כאן
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-
             {activeTab === 'checkin' && (
               <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0" style={{ maxHeight: '100%' }} dir="rtl">
                 {/* Calendar Sidebar - Right Side (20% width on desktop) - First in RTL = Right side */}
@@ -580,6 +514,7 @@ export const ClientDashboardView: React.FC = () => {
                 <BudgetView
                   leadId={null}
                   customerId={customer?.id}
+                  leadIds={leads?.map(lead => lead.id) || []}
                 />
               </div>
             )}

@@ -11,8 +11,9 @@ import { useAppSelector } from '@/store/hooks';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
-import type { Budget, BudgetAssignment, NutritionTargets, Supplement } from '@/store/slices/budgetSlice';
+import type { Budget, BudgetAssignment, NutritionTargets, Supplement, CardioTraining, IntervalTraining } from '@/store/slices/budgetSlice';
 import { syncPlansFromBudget } from '@/services/budgetPlanSync';
+import { applySort } from '@/utils/supabaseSort';
 
 // Note: We now use user.id from Redux auth state instead of getUserIdFromEmail
 // This eliminates redundant API calls to getUser() and profiles table
@@ -25,10 +26,12 @@ export const useBudgets = (filters?: {
   pageSize?: number;
   groupByLevel1?: string | null;
   groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
 }) => {
   const { user } = useAppSelector((state) => state.auth);
 
-  return useQuery({
+  return useQuery<{ data: Budget[]; totalCount: number }>({
     queryKey: ['budgets', filters, user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -70,15 +73,25 @@ export const useBudgets = (filters?: {
       const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name']) : null;
       const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
 
-      // When grouping is active, fetch ALL matching records (no pagination)
-      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
-      
       // Map groupBy columns to database columns
       const groupByMap: Record<string, string> = {
         name: 'name',
         is_public: 'is_public',
         created_at: 'created_at',
         steps_goal: 'steps_goal',
+      };
+      const sortMap: Record<string, string> = {
+        name: 'name',
+        description: 'description',
+        workout_template: 'workout_template.name',
+        nutrition_template: 'nutrition_template.name',
+        nutrition_targets: 'nutrition_targets->>calories',
+        supplements: 'supplements',
+        eating_order: 'eating_order',
+        eating_rules: 'eating_rules',
+        steps_goal: 'steps_goal',
+        steps_instructions: 'steps_instructions',
+        created_at: 'created_at',
       };
 
       let query = supabase
@@ -89,12 +102,11 @@ export const useBudgets = (filters?: {
           nutrition_template:nutrition_templates(id, name)
         `);
 
-      // Only apply pagination if grouping is NOT active
-      if (!isGroupingActive) {
-        const from = (page - 1) * pageSize;
-        const to = from + pageSize - 1;
-        query = query.range(from, to);
-      }
+      // Always apply pagination limit (max 100 records per request for performance)
+      const maxPageSize = Math.min(pageSize, 100);
+      const from = (page - 1) * maxPageSize;
+      const to = from + maxPageSize - 1;
+      query = query.range(from, to);
 
       // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
       if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
@@ -104,8 +116,9 @@ export const useBudgets = (filters?: {
         query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
       }
       
-      // Apply default sorting if no grouping
-      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+      if (filters?.sortBy && filters?.sortOrder) {
+        query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+      } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
         query = query.order('created_at', { ascending: false });
       }
 
@@ -113,11 +126,25 @@ export const useBudgets = (filters?: {
         query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
 
+      // Get total count for pagination
+      let totalCount = 0;
+      let countQuery = supabase
+        .from('budgets')
+        .select('id', { count: 'exact', head: true });
+
+      if (combinedGroup) {
+        countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
+      }
+
+      const { count, error: countError } = await countQuery;
+      if (countError) throw countError;
+      totalCount = count || 0;
+
       const { data, error } = await query;
   
         if (error) {
           if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
-          throw new Error('טבלת התקציבים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
+          throw new Error('טבלת תכניות הפעולה לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
         throw error;
       }
@@ -132,7 +159,7 @@ export const useBudgets = (filters?: {
           (budget.is_public === true || budget.created_by === userId);
       });
 
-      return validBudgets as Budget[];
+      return { data: validBudgets as Budget[], totalCount };
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -140,7 +167,13 @@ export const useBudgets = (filters?: {
   });
 };
 
-// Fetch a single budget by ID
+// Extended Budget type when fetched with joined templates (for edit form display)
+export interface BudgetWithTemplates extends Budget {
+  workout_template?: { id: string; name: string } | null;
+  nutrition_template?: { id: string; name: string } | null;
+}
+
+// Fetch a single budget by ID (with joined workout + nutrition templates for edit form)
 export const useBudget = (budgetId: string | null) => {
   const { user } = useAppSelector((state) => state.auth);
 
@@ -154,13 +187,73 @@ export const useBudget = (budgetId: string | null) => {
 
       const { data, error } = await supabase
         .from('budgets')
-        .select('*')
+        .select(`
+          *,
+          workout_template:workout_templates(id, name),
+          nutrition_template:nutrition_templates(id, name)
+        `)
         .eq('id', budgetId)
         .or(`is_public.eq.true,created_by.eq.${userId}`)
         .single();
 
       if (error) throw error;
-      return data as Budget | null;
+      
+      // If budget doesn't have template_id set, try to infer from connected plans
+      if (data) {
+        // Check for connected workout plan
+        if (!data.workout_template_id) {
+          const { data: workoutPlan } = await supabase
+            .from('workout_plans')
+            .select('template_id')
+            .eq('budget_id', budgetId)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (workoutPlan?.template_id) {
+            // Fetch the template to include in the response
+            const { data: template } = await supabase
+              .from('workout_templates')
+              .select('id, name')
+              .eq('id', workoutPlan.template_id)
+              .single();
+            
+            if (template) {
+              (data as any).workout_template_id = template.id;
+              (data as any).workout_template = template;
+            }
+          }
+        }
+        
+        // Check for connected nutrition plan
+        if (!data.nutrition_template_id) {
+          const { data: nutritionPlan } = await supabase
+            .from('nutrition_plans')
+            .select('template_id')
+            .eq('budget_id', budgetId)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (nutritionPlan?.template_id) {
+            // Fetch the template to include in the response
+            const { data: template } = await supabase
+              .from('nutrition_templates')
+              .select('id, name')
+              .eq('id', nutritionPlan.template_id)
+              .single();
+            
+            if (template) {
+              (data as any).nutrition_template_id = template.id;
+              (data as any).nutrition_template = template;
+            }
+          }
+        }
+      }
+      
+      return data as BudgetWithTemplates | null;
     },
     enabled: !!budgetId && !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -220,6 +313,56 @@ export const useActiveBudgetForCustomer = (customerId: string | null) => {
   });
 };
 
+// Fetch active budget for a customer or any of their leads
+export const useActiveBudgetForCustomerOrLeads = (customerId: string | null, leadIds: string[] = []) => {
+  return useQuery({
+    queryKey: ['budgetAssignment', 'customerOrLeads', customerId, leadIds.sort().join(',')],
+    queryFn: async () => {
+      if (!customerId && leadIds.length === 0) return null;
+
+      // First, try to get budget assigned to customer
+      const { data: customerData, error: customerError } = await supabase
+        .from('budget_assignments')
+        .select(`
+          *,
+          budget:budgets(*)
+        `)
+        .eq('customer_id', customerId!)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (customerError && customerError.code !== 'PGRST116') throw customerError; // PGRST116 is "not found"
+      
+      if (customerData) {
+        return customerData as (BudgetAssignment & { budget: Budget }) | null;
+      }
+
+      // If no customer budget, check all leads
+      if (leadIds.length > 0) {
+        const { data: leadsData, error: leadsError } = await supabase
+          .from('budget_assignments')
+          .select(`
+            *,
+            budget:budgets(*)
+          `)
+          .in('lead_id', leadIds)
+          .eq('is_active', true)
+          .order('assigned_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (leadsError && leadsError.code !== 'PGRST116') throw leadsError;
+        return leadsData as (BudgetAssignment & { budget: Budget }) | null;
+      }
+
+      return null;
+    },
+    enabled: !!customerId || leadIds.length > 0,
+    refetchInterval: 30000, // Refetch every 30 seconds to sync with manager portal
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
+};
+
 // Create a new budget
 export const useCreateBudget = () => {
   const queryClient = useQueryClient();
@@ -234,9 +377,12 @@ export const useCreateBudget = () => {
       steps_goal,
       steps_instructions,
       workout_template_id,
+      supplement_template_id,
       supplements,
       eating_order,
       eating_rules,
+      cardio_training,
+      interval_training,
       is_public = false,
     }: {
       name: string;
@@ -246,9 +392,12 @@ export const useCreateBudget = () => {
       steps_goal: number;
       steps_instructions?: string | null;
       workout_template_id?: string | null;
+      supplement_template_id?: string | null;
       supplements: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
+      cardio_training?: CardioTraining[] | null;
+      interval_training?: IntervalTraining[] | null;
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -265,6 +414,7 @@ export const useCreateBudget = () => {
           steps_goal,
           steps_instructions: steps_instructions || null,
           workout_template_id: workout_template_id || null,
+          supplement_template_id: supplement_template_id || null,
           supplements,
           eating_order: eating_order || null,
           eating_rules: eating_rules || null,
@@ -276,7 +426,7 @@ export const useCreateBudget = () => {
   
         if (error) {
           if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
-          throw new Error('טבלת התקציבים לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
+          throw new Error('טבלת תכניות הפעולה לא נמצאה. אנא ודא שהמיגרציה הופעלה בהצלחה.');
         }
         throw error;
       }
@@ -309,9 +459,12 @@ export const useUpdateBudget = () => {
       steps_goal?: number;
       steps_instructions?: string | null;
       workout_template_id?: string | null;
+      supplement_template_id?: string | null;
       supplements?: Supplement[];
       eating_order?: string | null;
       eating_rules?: string | null;
+      cardio_training?: CardioTraining[] | null;
+      interval_training?: IntervalTraining[] | null;
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -329,17 +482,56 @@ export const useUpdateBudget = () => {
       if ('workout_template_id' in updates) {
         updateData.workout_template_id = updates.workout_template_id ?? null;
       }
+      
+      // Explicitly ensure supplement_template_id is included if provided (even if null)
+      if ('supplement_template_id' in updates) {
+        updateData.supplement_template_id = updates.supplement_template_id ?? null;
+      }
+      
+      // Explicitly ensure supplements is included if provided (even if empty array)
+      if ('supplements' in updates) {
+        updateData.supplements = updates.supplements ?? [];
+      }
+      
+      // Explicitly ensure cardio_training and interval_training are included if provided (even if null)
+      if ('cardio_training' in updates) {
+        updateData.cardio_training = updates.cardio_training ?? null;
+      }
+      
+      if ('interval_training' in updates) {
+        updateData.interval_training = updates.interval_training ?? null;
+      }
+
+      // Check if user is the creator
+      const { data: budget } = await supabase
+        .from('budgets')
+        .select('created_by')
+        .eq('id', budgetId)
+        .single();
+
+      if (!budget) {
+        throw new Error('תכנית הפעולה לא נמצאה');
+      }
+
+      // Only allow update if user is the creator
+      // For shared budgets, user should create a copy first (handled in PlansCard.handleEditBudgetFromLead)
+      if (budget.created_by !== userId) {
+        throw new Error('אין לך הרשאה לערוך תכנית פעולה זו. אנא לחץ על "ערוך תכנית פעולה" כדי ליצור עותק פרטי לעריכה.');
+      }
 
       const { data, error } = await supabase
         .from('budgets')
         .update(updateData)
         .eq('id', budgetId)
-        .eq('created_by', userId)
         .select()
         .single();
 
       if (error) {
         throw error;
+      }
+
+      if (!data) {
+        throw new Error('העדכון נכשל - לא נמצאו שורות לעדכון');
       }
 
       return data as Budget;
@@ -348,8 +540,12 @@ export const useUpdateBudget = () => {
       // Invalidate all budget queries to ensure updated budget appears everywhere
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget', data.id] });
+      // Invalidate history so the new log entry appears
+      queryClient.invalidateQueries({ queryKey: ['budget-history', data.id] });
+      
       // Also refetch immediately to update UI
       queryClient.refetchQueries({ queryKey: ['budgets'] });
+      queryClient.refetchQueries({ queryKey: ['budget-history', data.id] });
     },
   });
 };

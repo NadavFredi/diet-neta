@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { updateUser, deleteUser } from '@/services/adminUserService';
 import { useToast } from '@/hooks/use-toast';
 import { sendWhatsAppMessage, replacePlaceholders } from '@/services/greenApiService';
+import { AvatarUpload } from '@/components/dashboard/AvatarUpload';
 
 interface TraineeSettingsModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ interface TraineeSettingsModalProps {
   traineeName: string | null;
   customerPhone?: string | null;
   customerId?: string | null;
+  avatarUrl?: string | null;
 }
 
 // Default template for trainee password reset (same as creation)
@@ -51,6 +53,7 @@ export const TraineeSettingsModal = ({
   traineeName,
   customerPhone,
   customerId,
+  avatarUrl,
 }: TraineeSettingsModalProps) => {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -219,9 +222,20 @@ export const TraineeSettingsModal = ({
             {/* User Info */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-gray-700">מתאמן</Label>
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-sm font-semibold text-gray-900">{traineeName || '—'}</p>
-                <p className="text-xs text-gray-600 mt-1">{traineeEmail || '—'}</p>
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center gap-4">
+                {customerId && (
+                  <AvatarUpload
+                    customerId={customerId}
+                    currentAvatarUrl={avatarUrl}
+                    name={traineeName || ''}
+                    size="md"
+                    editable={true}
+                  />
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{traineeName || '—'}</p>
+                  <p className="text-xs text-gray-600 mt-1">{traineeEmail || '—'}</p>
+                </div>
               </div>
             </div>
 

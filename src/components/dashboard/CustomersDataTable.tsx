@@ -6,6 +6,9 @@ import { customerColumns } from './columns/customerColumns';
 interface CustomersDataTableProps {
   customers: Customer[];
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
   groupCurrentPage?: number;
   groupPageSize?: number;
 }
@@ -13,6 +16,9 @@ interface CustomersDataTableProps {
 export const CustomersDataTable = ({ 
   customers, 
   onBulkDelete,
+  onSortChange,
+  sortBy,
+  sortOrder,
   groupCurrentPage,
   groupPageSize,
 }: CustomersDataTableProps) => {
@@ -38,10 +44,13 @@ export const CustomersDataTable = ({
       selectionLabel="לקוחות"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      onSortChange={onSortChange}
+      serverSideSorting={!!onSortChange}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
     />
   );
 };
-
 
 
 

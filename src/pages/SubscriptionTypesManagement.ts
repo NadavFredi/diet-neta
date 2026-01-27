@@ -25,18 +25,17 @@ import {
   selectSearchQuery, 
   selectCurrentPage,
   selectPageSize,
+  selectSortBy,
+  selectSortOrder,
   selectGroupByKeys,
+  selectColumnVisibility,
+  selectColumnOrder,
+  selectColumnSizing,
   setCurrentPage,
   setPageSize,
+  setSortBy,
+  setSortOrder,
 } from '@/store/slices/tableStateSlice';
-
-export interface SubscriptionTypeColumnVisibility {
-  name: boolean;
-  duration: boolean;
-  price: boolean;
-  createdDate: boolean;
-  actions: boolean;
-}
 
 export const useSubscriptionTypesManagement = () => {
   const navigate = useNavigate();
@@ -51,13 +50,6 @@ export const useSubscriptionTypesManagement = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [subscriptionTypeToDelete, setSubscriptionTypeToDelete] = useState<SubscriptionType | null>(null);
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
-  const [columnVisibility, setColumnVisibility] = useState<SubscriptionTypeColumnVisibility>({
-    name: true,
-    duration: true,
-    price: true,
-    createdDate: true,
-    actions: true,
-  });
 
   const { data: savedView, isLoading: isLoadingView } = useSavedView(viewId);
   const { defaultView } = useDefaultView('subscription_types');
@@ -65,16 +57,26 @@ export const useSubscriptionTypesManagement = () => {
   const filterGroup = useAppSelector((state) => selectFilterGroup(state, 'subscription_types'));
   const currentPage = useAppSelector((state) => selectCurrentPage(state, 'subscription_types'));
   const pageSize = useAppSelector((state) => selectPageSize(state, 'subscription_types'));
+  const sortBy = useAppSelector((state) => selectSortBy(state, 'subscription_types'));
+  const sortOrder = useAppSelector((state) => selectSortOrder(state, 'subscription_types'));
   const groupByKeys = useAppSelector((state) => selectGroupByKeys(state, 'subscription_types'));
+  const tableColumnVisibility = useAppSelector((state) => selectColumnVisibility(state, 'subscription_types'));
+  const tableColumnOrder = useAppSelector((state) => selectColumnOrder(state, 'subscription_types'));
+  const tableColumnSizing = useAppSelector((state) => selectColumnSizing(state, 'subscription_types'));
   
-  const { data: subscriptionTypes = [], isLoading } = useSubscriptionTypes({
+  const { data: subscriptionTypesData, isLoading } = useSubscriptionTypes({
     search: searchQuery,
     filterGroup,
     page: currentPage,
     pageSize,
     groupByLevel1: groupByKeys[0] || null,
     groupByLevel2: groupByKeys[1] || null,
+    sortBy,
+    sortOrder,
   });
+  
+  const subscriptionTypes = subscriptionTypesData?.data || [];
+  const totalSubscriptionTypes = subscriptionTypesData?.totalCount || 0;
   
   // Reset to page 1 when filters, search, or grouping change
   const prevFiltersRef = useRef<string>('');
@@ -122,13 +124,6 @@ export const useSubscriptionTypesManagement = () => {
     }
   };
 
-  const handleToggleColumn = (key: keyof SubscriptionTypeColumnVisibility) => {
-    setColumnVisibility((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
   const handleAddSubscriptionType = () => {
     setEditingSubscriptionType(null);
     setIsAddDialogOpen(true);
@@ -140,7 +135,20 @@ export const useSubscriptionTypesManagement = () => {
   };
 
   const handleSaveSubscriptionType = async (
-    data: { subscriptionTypeId?: string; name: string; duration: number; duration_unit?: string; price: number; currency?: string }
+    data: { 
+      subscriptionTypeId?: string; 
+      name: string; 
+      duration: number; 
+      duration_unit?: string; 
+      price: number; 
+      currency?: string;
+      second_period?: {
+        duration: number;
+        duration_unit: string;
+        price: number;
+        currency: string;
+      } | null;
+    }
   ) => {
     try {
       if (editingSubscriptionType) {
@@ -151,6 +159,12 @@ export const useSubscriptionTypesManagement = () => {
           duration_unit: (data.duration_unit || 'months') as any,
           price: data.price,
           currency: data.currency as any,
+          second_period: data.second_period ? {
+            duration: data.second_period.duration,
+            duration_unit: data.second_period.duration_unit as any,
+            price: data.second_period.price,
+            currency: data.second_period.currency as any,
+          } : null,
         });
         
         toast({
@@ -166,6 +180,12 @@ export const useSubscriptionTypesManagement = () => {
           duration_unit: (data.duration_unit || 'months') as any,
           price: data.price,
           currency: (data.currency || 'ILS') as any,
+          second_period: data.second_period ? {
+            duration: data.second_period.duration,
+            duration_unit: data.second_period.duration_unit as any,
+            price: data.second_period.price,
+            currency: data.second_period.currency as any,
+          } : null,
         });
         
         toast({
@@ -210,6 +230,11 @@ export const useSubscriptionTypesManagement = () => {
     }
   };
 
+  const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
+    dispatch(setSortBy({ resourceKey: 'subscription_types', sortBy: columnId }));
+    dispatch(setSortOrder({ resourceKey: 'subscription_types', sortOrder: order }));
+  };
+
   const handleBulkDelete = async (payload: { ids: string[] }) => {
     await bulkDeleteSubscriptionTypes.mutateAsync(payload.ids);
     toast({
@@ -223,18 +248,14 @@ export const useSubscriptionTypesManagement = () => {
   };
 
   const getCurrentFilterConfig = (
-    advancedFilters?: any[],
-    columnOrder?: string[],
-    columnWidths?: Record<string, number>,
-    sortBy?: string,
-    sortOrder?: 'asc' | 'desc'
+    advancedFilters?: any[]
   ) => {
     return {
       searchQuery: searchQuery || '',
       filterGroup,
-      columnVisibility: columnVisibility || {},
-      columnOrder: columnOrder || [],
-      columnWidths: columnWidths || {},
+      columnVisibility: tableColumnVisibility || {},
+      columnOrder: tableColumnOrder || [],
+      columnWidths: tableColumnSizing || {},
       sortBy: sortBy || null,
       sortOrder: sortOrder || 'asc',
       advancedFilters: advancedFilters || [],
@@ -244,6 +265,7 @@ export const useSubscriptionTypesManagement = () => {
   return {
     // Data
     subscriptionTypes: filteredSubscriptionTypes,
+    totalSubscriptionTypes,
     editingSubscriptionType,
     subscriptionTypeToDelete,
     isLoading,
@@ -255,7 +277,8 @@ export const useSubscriptionTypesManagement = () => {
     isEditDialogOpen,
     deleteDialogOpen,
     isSaveViewModalOpen,
-    columnVisibility,
+    sortBy,
+    sortOrder,
     
     // Setters
     setIsAddDialogOpen,
@@ -265,12 +288,12 @@ export const useSubscriptionTypesManagement = () => {
     
     // Handlers
     handleLogout,
-    handleToggleColumn,
     handleAddSubscriptionType,
     handleEditSubscriptionType,
     handleSaveSubscriptionType,
     handleDeleteClick,
     handleConfirmDelete,
+    handleSortChange,
     handleBulkDelete,
     handleSaveViewClick,
     getCurrentFilterConfig,

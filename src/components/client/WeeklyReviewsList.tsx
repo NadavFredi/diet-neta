@@ -168,7 +168,7 @@ export const WeeklyReviewsList: React.FC<WeeklyReviewsListProps> = ({
               </div>
             )}
 
-            {/* Action Plan */}
+            {/* תכנית פעולה */}
             {review.action_plan && (
               <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
                 <div className="flex items-center gap-2 mb-2">

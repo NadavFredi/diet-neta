@@ -4,6 +4,7 @@ import { useAppSelector } from '@/store/hooks';
 import type { FilterGroup } from '@/components/dashboard/TableFilter';
 import { applyFilterGroupToQuery, type FilterFieldConfigMap } from '@/utils/postgrestFilterUtils';
 import { createSearchGroup, mergeFilterGroups } from '@/utils/filterGroupUtils';
+import { applySort } from '@/utils/supabaseSort';
 
 export interface WorkoutTemplate {
   id: string;
@@ -12,6 +13,8 @@ export interface WorkoutTemplate {
   goal_tags: string[];
   routine_data: any; // JSONB matching workout_plans.custom_attributes.data.weeklyWorkout schema
   is_public: boolean;
+  has_leads?: boolean;
+  leads_count?: number | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -28,10 +31,12 @@ export const useWorkoutTemplates = (filters?: {
   pageSize?: number;
   groupByLevel1?: string | null;
   groupByLevel2?: string | null;
+  sortBy?: string | null;
+  sortOrder?: 'ASC' | 'DESC' | null;
 }) => {
   const { user } = useAppSelector((state) => state.auth);
 
-  return useQuery({
+  return useQuery<{ data: WorkoutTemplate[]; totalCount: number }>({
     queryKey: ['workoutTemplates', filters, user?.id], // filters includes groupByLevel1 and groupByLevel2
     queryFn: async () => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -75,9 +80,6 @@ export const useWorkoutTemplates = (filters?: {
       const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name', 'description']) : null;
       const combinedGroup = mergeFilterGroups(accessGroup, mergeFilterGroups(filters?.filterGroup || null, searchGroup));
 
-      // When grouping is active, fetch ALL matching records (no pagination)
-      const isGroupingActive = !!(filters?.groupByLevel1 || filters?.groupByLevel2);
-      
       // Map groupBy columns to database columns
       const groupByMap: Record<string, string> = {
         name: 'name',
@@ -86,17 +88,23 @@ export const useWorkoutTemplates = (filters?: {
         has_leads: 'has_leads',
         created_at: 'created_at',
       };
+      const sortMap: Record<string, string> = {
+        name: 'name',
+        description: 'description',
+        goal_tags: 'goal_tags',
+        connected_leads: 'has_leads',
+        created_at: 'created_at',
+      };
 
       let query = supabase
         .from('workout_templates_with_leads')
         .select('*');
 
-      // Only apply pagination if grouping is NOT active
-      if (!isGroupingActive) {
-        const from = (page - 1) * pageSize;
-        const to = from + pageSize - 1;
-        query = query.range(from, to);
-      }
+      // Always apply pagination limit (max 100 records per request for performance)
+      const maxPageSize = Math.min(pageSize, 100);
+      const from = (page - 1) * maxPageSize;
+      const to = from + maxPageSize - 1;
+      query = query.range(from, to);
 
       // Apply grouping as ORDER BY (for proper sorting before client-side grouping)
       if (filters?.groupByLevel1 && groupByMap[filters.groupByLevel1]) {
@@ -106,14 +114,29 @@ export const useWorkoutTemplates = (filters?: {
         query = query.order(groupByMap[filters.groupByLevel2], { ascending: true });
       }
       
-      // Apply default sorting if no grouping
-      if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
+      if (filters?.sortBy && filters?.sortOrder) {
+        query = applySort(query, filters.sortBy, filters.sortOrder, sortMap);
+      } else if (!filters?.groupByLevel1 && !filters?.groupByLevel2) {
         query = query.order('created_at', { ascending: false });
       }
 
       if (combinedGroup) {
         query = applyFilterGroupToQuery(query, combinedGroup, fieldConfigs);
       }
+
+      // Get total count for pagination
+      let totalCount = 0;
+      let countQuery = supabase
+        .from('workout_templates_with_leads')
+        .select('id', { count: 'exact', head: true });
+
+      if (combinedGroup) {
+        countQuery = applyFilterGroupToQuery(countQuery, combinedGroup, fieldConfigs);
+      }
+
+      const { count, error: countError } = await countQuery;
+      if (countError) throw countError;
+      totalCount = count || 0;
 
       const { data, error } = await query;
 
@@ -124,7 +147,8 @@ export const useWorkoutTemplates = (filters?: {
         }
         throw error;
       }
-      return data as WorkoutTemplate[];
+
+      return { data: (data || []) as WorkoutTemplate[], totalCount };
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - templates don't change often
@@ -242,15 +266,57 @@ export const useUpdateWorkoutTemplate = () => {
       if (routine_data !== undefined) updateData.routine_data = routine_data;
       if (is_public !== undefined) updateData.is_public = is_public;
 
-      const { data, error } = await supabase
+      // First check if the template exists and belongs to the user
+      const { data: existingTemplate, error: checkError } = await supabase
         .from('workout_templates')
-        .update(updateData)
+        .select('id, created_by')
         .eq('id', templateId)
-        .eq('created_by', userId)
-        .select()
         .single();
 
-      if (error) throw error;
+      if (checkError) {
+        if (checkError.code === 'PGRST116') {
+          throw new Error('תבנית האימונים לא נמצאה');
+        }
+        throw checkError;
+      }
+
+      // Allow editing if:
+      // 1. Template has no creator (created_by is null) - treat as editable
+      // 2. User is the creator
+      // 3. User is an admin
+      const isOwner = existingTemplate?.created_by === userId;
+      const isPublicTemplate = existingTemplate?.created_by === null;
+      const isAdmin = user?.role === 'admin';
+
+      if (!isOwner && !isPublicTemplate && !isAdmin) {
+        throw new Error('אין לך הרשאה לערוך תבנית זו');
+      }
+
+      // Now perform the update
+      // Build the query - only filter by created_by if it's not null and user is not admin
+      let updateQuery = supabase
+        .from('workout_templates')
+        .update(updateData)
+        .eq('id', templateId);
+
+      // Only filter by created_by if template has a creator and user is not admin
+      if (!isPublicTemplate && !isAdmin) {
+        updateQuery = updateQuery.eq('created_by', userId);
+      }
+
+      const { data, error } = await updateQuery.select().single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error('תבנית האימונים לא נמצאה או אין לך הרשאה לערוך אותה');
+        }
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error('תבנית האימונים לא נמצאה');
+      }
+      
       return data as WorkoutTemplate;
     },
     onSuccess: (data) => {

@@ -5,7 +5,7 @@
  * Changes only affect the user/lead plan, not the budget template
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,12 +18,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, X, Trash2, Plus } from 'lucide-react';
+import { Loader2, Save, X, Trash2, Plus, Edit2 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { supabase } from '@/lib/supabaseClient';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Supplement } from '@/store/slices/budgetSlice';
+import { useSupplementTemplates, useCreateSupplementTemplate } from '@/hooks/useSupplementTemplates';
+import { AddSupplementDialog } from './AddSupplementDialog';
 
 interface WorkoutPlanData {
   id?: string;
@@ -85,6 +94,13 @@ export const PlanDetailModal = ({
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isAddSupplementDialogOpen, setIsAddSupplementDialogOpen] = useState(false);
+  const [editingSupplementIndex, setEditingSupplementIndex] = useState<number | null>(null);
+
+  // Fetch supplement templates to get the list of available supplements
+  const { data: supplementTemplatesData, refetch: refetchSupplementTemplates } = useSupplementTemplates();
+  const supplementTemplates = supplementTemplatesData?.data || [];
+  const createSupplementTemplate = useCreateSupplementTemplate();
 
   // Form state based on plan type
   const [workoutForm, setWorkoutForm] = useState({
@@ -185,11 +201,16 @@ export const PlanDetailModal = ({
           supplements: supplements,
         });
       }
-      setIsEditing(false);
+      // Supplements modal is always editable; workout/nutrition use edit toggle
+      if (planType !== 'supplements') {
+        setIsEditing(false);
+      } else {
+        setIsEditing(true);
+      }
     }
   }, [planData, planType]);
 
-  const handleSave = async () => {
+  const handleSave = async (overrideSupplements?: Supplement[], closeOnSuccess = true) => {
     if (!planData?.id) {
       toast({
         title: 'שגיאה',
@@ -210,15 +231,6 @@ export const PlanDetailModal = ({
     }
 
     if (planType === 'nutrition' && !nutritionForm.startDate) {
-      toast({
-        title: 'שגיאה',
-        description: 'נא להזין תאריך התחלה',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (planType === 'supplements' && !supplementForm.startDate) {
       toast({
         title: 'שגיאה',
         description: 'נא להזין תאריך התחלה',
@@ -262,71 +274,105 @@ export const PlanDetailModal = ({
           .eq('id', planData.id);
         if (error) throw error;
       } else if (planType === 'supplements') {
-        // Filter out supplements with empty names before saving
-        const validSupplements = supplementForm.supplements.filter((s) => s.name.trim() !== '');
+        const list = overrideSupplements ?? supplementForm.supplements;
+        const validSupplements = list.filter((s) => s?.name?.trim() !== '');
+        const supplementData = planData as SupplementPlanData;
         const { error } = await supabase
           .from('supplement_plans')
           .update({
-            start_date: supplementForm.startDate,
-            end_date: supplementForm.endDate || null,
-            description: supplementForm.description,
+            start_date: supplementData.startDate || null,
+            end_date: supplementData.endDate || null,
+            description: supplementData.description || null,
             supplements: validSupplements,
           })
           .eq('id', planData.id);
         if (error) throw error;
       }
 
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['plans-history'] });
       queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
       queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
       queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+      if (planData.budget_id) {
+        queryClient.invalidateQueries({ queryKey: ['budget-history', planData.budget_id] });
+        queryClient.refetchQueries({ queryKey: ['budget-history', planData.budget_id] });
+      }
 
-      toast({
-        title: 'הצלחה',
-        description: 'התוכנית עודכנה בהצלחה',
-      });
-
-      setIsEditing(false);
-      onClose();
+      if (closeOnSuccess) {
+        toast({
+          title: 'הצלחה',
+          description: 'התוכנית עודכנה בהצלחה',
+        });
+        setIsEditing(false);
+        onClose();
+      }
     } catch (error: any) {
       toast({
         title: 'שגיאה',
         description: error?.message || error?.error?.message || 'נכשל בעדכון התוכנית',
         variant: 'destructive',
       });
+      throw error;
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleAddSupplement = () => {
-    setSupplementForm({
-      ...supplementForm,
-      supplements: [...supplementForm.supplements, { name: '', dosage: '', timing: '' }],
+
+  const handleRemoveSupplement = (index: number, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setSupplementForm((prev) => ({
+      ...prev,
+      supplements: prev.supplements.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleSupplementFieldChange = (index: number, field: 'name' | 'dosage' | 'timing', value: string) => {
+    setSupplementForm((prev) => {
+      const next = [...prev.supplements];
+      if (!next[index]) return prev;
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, supplements: next };
     });
   };
 
-  const handleRemoveSupplement = (index: number) => {
-    setSupplementForm({
-      ...supplementForm,
-      supplements: supplementForm.supplements.filter((_, i) => i !== index),
-    });
+  const handleEditSupplement = (index: number) => {
+    setEditingSupplementIndex(index);
+    setIsAddSupplementDialogOpen(true);
   };
 
-  const handleUpdateSupplement = (index: number, field: keyof Supplement, value: string) => {
-    const updated = [...supplementForm.supplements];
-    updated[index] = { ...updated[index], [field]: value };
-    setSupplementForm({
-      ...supplementForm,
-      supplements: updated,
+  const handleSaveSupplement = async (supplement: Supplement) => {
+    const idx = editingSupplementIndex;
+    const nextSupplements: Supplement[] =
+      idx !== null
+        ? (() => {
+            const updated = [...supplementForm.supplements];
+            if (updated[idx]) updated[idx] = supplement;
+            return updated;
+          })()
+        : [...supplementForm.supplements, supplement];
+
+    setSupplementForm((prev) => {
+      if (idx !== null) {
+        const updated = [...prev.supplements];
+        if (updated[idx]) updated[idx] = supplement;
+        return { ...prev, supplements: updated };
+      }
+      return { ...prev, supplements: [...prev.supplements, supplement] };
     });
+    setEditingSupplementIndex(null);
+
+    if (planType === 'supplements' && planData?.id) {
+      await handleSave(nextSupplements, false);
+    }
+    setIsAddSupplementDialogOpen(false);
   };
 
   if (!planData) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose} dir="rtl">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} dir="rtl">
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
           <DialogTitle>
@@ -334,18 +380,18 @@ export const PlanDetailModal = ({
             {planType === 'nutrition' && 'פרטי תוכנית תזונה'}
             {planType === 'supplements' && 'פרטי תוכנית תוספים'}
           </DialogTitle>
-          <DialogDescription>
+          <div className="text-sm text-muted-foreground space-y-2">
             {planData.budget_id && (
-              <Badge variant="outline" className="mt-2">
-                קשור לתקציב
+              <Badge variant="outline" className="block w-fit">
+                קשור לתכנית פעולה
               </Badge>
             )}
             {planData.created_at && (
-              <span className="text-xs text-gray-500 block mt-2">
+              <DialogDescription className="text-xs text-gray-500">
                 נוצר ב: {formatDate(planData.created_at)}
-              </span>
+              </DialogDescription>
             )}
-          </DialogDescription>
+          </div>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
@@ -511,41 +557,6 @@ export const PlanDetailModal = ({
 
           {planType === 'supplements' && (
             <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">תאריך התחלה</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={supplementForm.startDate}
-                    onChange={(e) => setSupplementForm({ ...supplementForm, startDate: e.target.value })}
-                    disabled={!isEditing}
-                    className="bg-slate-50"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">תאריך סיום</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={supplementForm.endDate}
-                    onChange={(e) => setSupplementForm({ ...supplementForm, endDate: e.target.value })}
-                    disabled={!isEditing}
-                    className="bg-slate-50"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">תיאור</Label>
-                <Textarea
-                  id="description"
-                  value={supplementForm.description}
-                  onChange={(e) => setSupplementForm({ ...supplementForm, description: e.target.value })}
-                  disabled={!isEditing}
-                  className="bg-slate-50"
-                  rows={2}
-                />
-              </div>
               <div className="space-y-2">
                 <Label>תוספים</Label>
                 {supplementForm.supplements.length === 0 ? (
@@ -555,7 +566,10 @@ export const PlanDetailModal = ({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={handleAddSupplement}
+                      onClick={() => {
+                        setEditingSupplementIndex(null);
+                        setIsAddSupplementDialogOpen(true);
+                      }}
                       className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
                     >
                       <Plus className="h-4 w-4 ml-1" />
@@ -564,59 +578,79 @@ export const PlanDetailModal = ({
                   </div>
                 ) : (
                   <div className="space-y-2">
+                    {supplementForm.supplements.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2 px-3 py-1 text-xs font-medium text-slate-500 border-b border-slate-100 pr-14">
+                        <span>שם</span>
+                        <span>מינון</span>
+                        <span>זמן נטילה</span>
+                      </div>
+                    )}
                     {supplementForm.supplements.map((supplement, index) => (
-                      <div key={index} className="flex gap-2 items-start p-2 bg-slate-50 rounded-lg">
-                        <div className="flex-1 grid grid-cols-3 gap-1.5">
+                      <div key={index} className="flex gap-2 items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="flex-1 grid grid-cols-3 gap-2">
                           <Input
-                            value={supplement.name}
-                            onChange={(e) => handleUpdateSupplement(index, 'name', e.target.value)}
+                            value={supplement.name || ''}
+                            onChange={(e) => handleSupplementFieldChange(index, 'name', e.target.value)}
                             placeholder="שם התוסף"
-                            className="h-8 bg-white border-0 text-xs"
+                            className="bg-white text-sm h-9"
                             dir="rtl"
-                            disabled={!isEditing}
                           />
                           <Input
-                            value={supplement.dosage}
-                            onChange={(e) => handleUpdateSupplement(index, 'dosage', e.target.value)}
+                            value={supplement.dosage || ''}
+                            onChange={(e) => handleSupplementFieldChange(index, 'dosage', e.target.value)}
                             placeholder="מינון"
-                            className="h-8 bg-white border-0 text-xs"
+                            className="bg-white text-sm h-9"
                             dir="rtl"
-                            disabled={!isEditing}
                           />
                           <Input
-                            value={supplement.timing}
-                            onChange={(e) => handleUpdateSupplement(index, 'timing', e.target.value)}
+                            value={supplement.timing || ''}
+                            onChange={(e) => handleSupplementFieldChange(index, 'timing', e.target.value)}
                             placeholder="זמן נטילה"
-                            className="h-8 bg-white border-0 text-xs"
+                            className="bg-white text-sm h-9"
                             dir="rtl"
-                            disabled={!isEditing}
                           />
                         </div>
-                        {isEditing && (
+                        <div className="flex gap-1 flex-shrink-0">
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleRemoveSupplement(index)}
+                            onClick={() => handleEditSupplement(index)}
+                            className="h-8 w-8 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                            title="ערוך תוסף (קישורים וכו')"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleRemoveSupplement(index, e);
+                            }}
                             className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                            title="מחק תוסף"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        )}
+                        </div>
                       </div>
                     ))}
-                    {isEditing && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleAddSupplement}
-                        className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                      >
-                        <Plus className="h-4 w-4 ml-1" />
-                        הוסף תוסף נוסף
-                      </Button>
-                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingSupplementIndex(null);
+                        setIsAddSupplementDialogOpen(true);
+                      }}
+                      className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                    >
+                      <Plus className="h-4 w-4 ml-1" />
+                      הוסף תוסף נוסף
+                    </Button>
                   </div>
                 )}
               </div>
@@ -624,8 +658,51 @@ export const PlanDetailModal = ({
           )}
         </div>
 
+        {/* Add/Edit Supplement Dialog */}
+        <AddSupplementDialog
+          isOpen={isAddSupplementDialogOpen}
+          onOpenChange={(open) => {
+            setIsAddSupplementDialogOpen(open);
+            if (!open) {
+              setEditingSupplementIndex(null);
+            }
+          }}
+          onSave={handleSaveSupplement}
+          initialData={editingSupplementIndex !== null ? supplementForm.supplements[editingSupplementIndex] : null}
+          supplementTemplates={supplementTemplates}
+          successToastDescription={planType === 'supplements' ? 'התוסף נוסף ונשמר' : undefined}
+        />
+
         <div className="flex justify-end gap-3 pt-4 border-t">
-          {!isEditing ? (
+          {planType === 'supplements' ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+              >
+                סגור
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleSave()}
+                disabled={isSaving}
+                className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                    שומר...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 ml-2" />
+                    שמור
+                  </>
+                )}
+              </Button>
+            </>
+          ) : !isEditing ? (
             <>
               <Button
                 type="button"
@@ -649,7 +726,6 @@ export const PlanDetailModal = ({
                 variant="outline"
                 onClick={() => {
                   setIsEditing(false);
-                  // Reset form to original values
                   if (planData) {
                     if (planType === 'workout') {
                       const data = planData as WorkoutPlanData;
@@ -672,31 +748,6 @@ export const PlanDetailModal = ({
                         fat: data.targets?.fat || 0,
                         fiber: data.targets?.fiber || 0,
                       });
-                    } else if (planType === 'supplements') {
-                      const data = planData as SupplementPlanData;
-                      // Handle backward compatibility: convert string[] to Supplement[]
-                      let supplements: Supplement[] = [];
-                      if (data.supplements) {
-                        if (Array.isArray(data.supplements) && data.supplements.length > 0) {
-                          if (typeof data.supplements[0] === 'string') {
-                            // Old format: string[]
-                            supplements = (data.supplements as string[]).map(name => ({
-                              name: name,
-                              dosage: '',
-                              timing: '',
-                            }));
-                          } else {
-                            // New format: Supplement[]
-                            supplements = data.supplements as Supplement[];
-                          }
-                        }
-                      }
-                      setSupplementForm({
-                        startDate: formatDateForInput(data.startDate),
-                        endDate: formatDateForInput(data.endDate),
-                        description: data.description || '',
-                        supplements: supplements,
-                      });
                     }
                   }
                 }}
@@ -706,7 +757,7 @@ export const PlanDetailModal = ({
               </Button>
               <Button
                 type="button"
-                onClick={handleSave}
+                onClick={() => handleSave()}
                 disabled={isSaving}
                 className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
               >

@@ -20,6 +20,7 @@ export const SortableSidebarItem: React.FC<SortableSidebarItemProps> = ({
   isSortable = false,
   ...props
 }) => {
+  // Pass through all props including searchQuery
   const {
     attributes,
     listeners,

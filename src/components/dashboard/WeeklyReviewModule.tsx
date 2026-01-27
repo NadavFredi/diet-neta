@@ -720,11 +720,6 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       return;
     }
 
-    // Save review first if not saved
-    if (!existingReview) {
-      await handleSave();
-    }
-
     setIsSendingWhatsApp(true);
     try {
       const weekLabel = `שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}`;

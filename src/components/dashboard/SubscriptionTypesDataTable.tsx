@@ -33,6 +33,9 @@ interface SubscriptionTypesDataTableProps {
   onEdit: (subscriptionType: SubscriptionType) => void;
   onDelete: (subscriptionType: SubscriptionType) => void;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
   groupCurrentPage?: number;
   groupPageSize?: number;
 }
@@ -45,6 +48,10 @@ export const subscriptionTypeColumns: DataTableColumn<SubscriptionType>[] = [
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
+    cell: ({ row }: { row: any }) => {
+      const name = row.original.name;
+      return <span className="text-sm font-medium">{name || '—'}</span>;
+    },
   },
   {
     id: 'duration',
@@ -107,6 +114,9 @@ export const SubscriptionTypesDataTable = ({
   onEdit,
   onDelete,
   onBulkDelete,
+  onSortChange,
+  sortBy,
+  sortOrder,
   groupCurrentPage,
   groupPageSize,
 }: SubscriptionTypesDataTableProps) => {
@@ -183,6 +193,10 @@ export const SubscriptionTypesDataTable = ({
       selectionLabel="סוגי מנוי"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      onSortChange={onSortChange}
+      serverSideSorting={!!onSortChange}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
     />
   );
 };

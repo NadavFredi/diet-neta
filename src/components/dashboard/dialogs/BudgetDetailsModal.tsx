@@ -25,24 +25,61 @@ import {
   Image as ImageIcon,
   Video,
   PlayCircle,
-  X
+  X,
+  Save,
+  Edit2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSaveActionPlan, createBudgetSnapshot } from '@/hooks/useSavedActionPlans';
+import { useToast } from '@/hooks/use-toast';
 
 interface BudgetDetailsModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   budgetId: string | null;
+  leadId?: string | null;
+  onEdit?: () => void;
 }
 
 export const BudgetDetailsModal = ({
   isOpen,
   onOpenChange,
   budgetId,
+  leadId,
+  onEdit,
 }: BudgetDetailsModalProps) => {
   const { budget, nutritionTemplate, workoutTemplate, clientName, assignedDate, isLoading } = useBudgetDetails(budgetId);
   const [selectedDayData, setSelectedDayData] = useState<{ dayKey: string; dayLabel: string; exercises: any[] } | null>(null);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
+  const saveActionPlan = useSaveActionPlan();
+  const { toast } = useToast();
+
+  const handleSaveActionPlan = async () => {
+    if (!budget) return;
+
+    try {
+      const snapshot = createBudgetSnapshot(budget, nutritionTemplate, workoutTemplate);
+      
+      await saveActionPlan.mutateAsync({
+        budget_id: budget.id,
+        lead_id: leadId,
+        name: budget.name,
+        description: budget.description || null,
+        snapshot,
+      });
+
+      toast({
+        title: 'הצלחה',
+        description: 'תכנית הפעולה נשמרה בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בשמירת תכנית הפעולה',
+        variant: 'destructive',
+      });
+    }
+  };
 
   if (!isOpen || !budgetId) return null;
 
@@ -77,7 +114,41 @@ export const BudgetDetailsModal = ({
         dir="rtl"
       >
         <DialogHeader className="px-4 py-3 border-b border-slate-200 flex-shrink-0 bg-slate-50">
-          <DialogTitle className="text-sm font-bold text-slate-900 uppercase tracking-wide">תצוגה מהירה - פרטי תקציב</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-sm font-bold text-slate-900 uppercase tracking-wide">תצוגה מהירה - פרטי תכנית פעולה</DialogTitle>
+            <div className="flex items-center gap-2">
+              {onEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onEdit}
+                  className="h-8 px-3 text-xs"
+                >
+                  <Edit2 className="h-3.5 w-3.5 ml-1.5" />
+                  ערוך תכנית פעולה
+                </Button>
+              )}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleSaveActionPlan}
+                disabled={saveActionPlan.isPending || !budget}
+                className="h-8 px-3 text-xs bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
+              >
+                {saveActionPlan.isPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 ml-1.5 animate-spin" />
+                    שומר...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-3.5 w-3.5 ml-1.5" />
+                    שמור תכנית פעולה
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogHeader>
 
         {/* Main Content - Fixed height with custom scrollbar */}
@@ -108,8 +179,8 @@ export const BudgetDetailsModal = ({
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <FileText className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-slate-700 mb-1">תקציב לא נמצא</p>
-                <p className="text-xs text-slate-600">התקציב המבוקש לא קיים או שאין לך הרשאה לצפות בו</p>
+                <p className="text-sm font-semibold text-slate-700 mb-1">תכנית פעולה לא נמצאה</p>
+                <p className="text-xs text-slate-600">תכנית הפעולה המבוקשת לא קיימת או שאין לך הרשאה לצפות בה</p>
               </div>
             </div>
           ) : (

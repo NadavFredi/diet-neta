@@ -36,6 +36,7 @@ const NOTIFICATION_TYPES: Record<string, { label: string; color: string; bgColor
   weight_updated: { label: 'עדכון משקל', color: 'text-orange-700', bgColor: 'bg-orange-100 border-orange-200' },
   meal_logged: { label: 'ארוחה נרשמה', color: 'text-cyan-700', bgColor: 'bg-cyan-100 border-cyan-200' },
   appointment_created: { label: 'תור נוצר', color: 'text-indigo-700', bgColor: 'bg-indigo-100 border-indigo-200' },
+  subscription_ending: { label: 'סיום מנוי', color: 'text-red-700', bgColor: 'bg-red-100 border-red-200' },
   default: { label: 'התראה', color: 'text-gray-700', bgColor: 'bg-gray-100 border-gray-200' },
 };
 
@@ -85,8 +86,8 @@ export const NotificationBell = () => {
       navigate(`/customers/${notification.customer_id}`);
     } else if (notification.action_url) {
       // Handle both relative and absolute URLs
-      const url = notification.action_url.startsWith('/') 
-        ? notification.action_url 
+      const url = notification.action_url.startsWith('/')
+        ? notification.action_url
         : `/${notification.action_url}`;
       navigate(url);
     }
@@ -236,85 +237,85 @@ export const NotificationBell = () => {
                   </div>
                 ) : (
                   filteredNotifications.map((notification) => {
-                  const typeConfig = getNotificationType(notification.type);
-                  const createdDate = new Date(notification.created_at);
-                  const formattedDate = format(createdDate, 'dd/MM/yyyy', { locale: he });
-                  
-                  return (
-                    <div
-                      key={notification.id}
-                      onClick={() => handleNotificationClick(notification)}
-                      className={cn(
-                        'w-full text-right p-4 cursor-pointer transition-all duration-200 border-r-4',
-                        !notification.is_read 
-                          ? 'bg-blue-50/50 border-blue-400 hover:bg-blue-50' 
-                          : 'bg-white border-transparent hover:bg-gray-50'
-                      )}
-                      dir="rtl"
-                    >
-                      {/* Header Row with Type Badge and Dismiss */}
-                      <div className="flex items-start justify-between mb-2" dir="rtl">
-                        <div className="flex items-center gap-2 flex-row-reverse" dir="rtl">
-                          <Badge 
-                            variant="outline" 
-                            className={cn(
-                              'text-xs font-medium px-2 py-0.5',
-                              typeConfig.color,
-                              typeConfig.bgColor,
-                              'border'
+                    const typeConfig = getNotificationType(notification.type);
+                    const createdDate = new Date(notification.created_at);
+                    const formattedDate = format(createdDate, 'dd/MM/yyyy', { locale: he });
+
+                    return (
+                      <div
+                        key={notification.id}
+                        onClick={() => handleNotificationClick(notification)}
+                        className={cn(
+                          'w-full text-right p-4 cursor-pointer transition-all duration-200 border-r-4',
+                          !notification.is_read
+                            ? 'bg-blue-50/50 border-blue-400 hover:bg-blue-50'
+                            : 'bg-white border-transparent hover:bg-gray-50'
+                        )}
+                        dir="rtl"
+                      >
+                        {/* Header Row with Type Badge and Dismiss */}
+                        <div className="flex items-start justify-between mb-2" dir="rtl">
+                          <div className="flex items-center gap-2 flex-row-reverse" dir="rtl">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-xs font-medium px-2 py-0.5',
+                                typeConfig.color,
+                                typeConfig.bgColor,
+                                'border'
+                              )}
+                            >
+                              {typeConfig.label}
+                            </Badge>
+                            {notification.is_read && (
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <CheckCircle2 className="h-3 w-3" />
+                                <span>נקרא</span>
+                              </div>
                             )}
-                          >
-                            {typeConfig.label}
-                          </Badge>
-                          {notification.is_read && (
-                            <div className="flex items-center gap-1 text-xs text-gray-500">
-                              <CheckCircle2 className="h-3 w-3" />
-                              <span>נקרא</span>
-                            </div>
-                          )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!notification.is_read && (
+                              <div className="h-2 w-2 rounded-full bg-[#5B6FB9] flex-shrink-0 mt-1" />
+                            )}
+                            <button
+                              onClick={(e) => handleDeleteNotification(notification.id, e)}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                              title="מחק התראה"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {!notification.is_read && (
-                            <div className="h-2 w-2 rounded-full bg-[#5B6FB9] flex-shrink-0 mt-1" />
-                          )}
-                          <button
-                            onClick={(e) => handleDeleteNotification(notification.id, e)}
-                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                            title="מחק התראה"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
 
-                      {/* Title */}
-                      <p className="text-sm font-semibold text-gray-900 text-right mb-1.5">
-                        {notification.title}
-                      </p>
+                        {/* Title */}
+                        <p className="text-sm font-semibold text-gray-900 text-right mb-1.5">
+                          {notification.title}
+                        </p>
 
-                      {/* Message */}
-                      <p className="text-sm text-gray-700 text-right mb-3 line-clamp-2">
-                        {notification.message}
-                      </p>
+                        {/* Message */}
+                        <p className="text-sm text-gray-700 text-right mb-3 line-clamp-2">
+                          {notification.message}
+                        </p>
 
-                      {/* Metadata and Actions */}
-                      <div className="flex items-center justify-between text-xs text-gray-500" dir="rtl">
-                        <div className="flex items-center gap-3" dir="rtl">
-                          {notification.metadata?.appointment_date && (
+                        {/* Metadata and Actions */}
+                        <div className="flex items-center justify-between text-xs text-gray-500" dir="rtl">
+                          <div className="flex items-center gap-3" dir="rtl">
+                            {notification.metadata?.appointment_date && (
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                <span>תאריך התור: {format(new Date(notification.metadata.appointment_date), 'dd/MM/yyyy', { locale: he })}</span>
+                              </div>
+                            )}
                             <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>תאריך התור: {format(new Date(notification.metadata.appointment_date), 'dd/MM/yyyy', { locale: he })}</span>
+                              <span>נוצר ב: {formattedDate}</span>
+                              <span className="text-gray-400">•</span>
+                              <span>{formatRelativeTime(notification.created_at)}</span>
                             </div>
-                          )}
-                          <div className="flex items-center gap-1">
-                            <span>נוצר ב: {formattedDate}</span>
-                            <span className="text-gray-400">•</span>
-                            <span>{formatRelativeTime(notification.created_at)}</span>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
+                    );
                   })
                 )}
               </div>

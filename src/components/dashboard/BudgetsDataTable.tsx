@@ -23,6 +23,9 @@ interface BudgetsDataTableProps {
   onSendWhatsApp?: (budget: Budget) => void;
   onViewDetails?: (budget: Budget) => void;
   onBulkDelete?: (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => Promise<void> | void;
+  onSortChange?: (columnId: string, sortOrder: 'ASC' | 'DESC') => void;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
   groupCurrentPage?: number;
   groupPageSize?: number;
 }
@@ -35,6 +38,16 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     enableSorting: true,
     enableResizing: true,
     enableHiding: true,
+    cell: ({ row }: { row: any }) => {
+      const name = row.original.name;
+      return name ? (
+        <span className="text-sm font-medium text-gray-900 truncate block max-w-[200px]" title={name}>
+          {name}
+        </span>
+      ) : (
+        <span className="text-gray-400 text-sm">—</span>
+      );
+    },
   },
   {
     id: 'description',
@@ -52,7 +65,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'workout_template',
     header: 'תכנית אימונים',
     accessorKey: 'workout_template_id',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -69,7 +82,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'nutrition_template',
     header: 'תבנית תזונה',
     accessorKey: 'nutrition_template_id',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -86,7 +99,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'nutrition_targets',
     header: 'יעדי תזונה',
     accessorKey: 'nutrition_targets',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -104,7 +117,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'supplements',
     header: 'תוספים',
     accessorKey: 'supplements',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -128,7 +141,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'eating_order',
     header: 'סדר אכילה',
     accessorKey: 'eating_order',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -144,7 +157,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'eating_rules',
     header: 'כללי אכילה',
     accessorKey: 'eating_rules',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -172,7 +185,7 @@ export const budgetColumns: DataTableColumn<Budget>[] = [
     id: 'steps_instructions',
     header: 'הוראות צעדים',
     accessorKey: 'steps_instructions',
-    enableSorting: false,
+    enableSorting: true,
     enableResizing: true,
     enableHiding: true,
     cell: ({ row }: { row: any }) => {
@@ -221,6 +234,9 @@ export const BudgetsDataTable = ({
   onSendWhatsApp,
   onViewDetails,
   onBulkDelete,
+  onSortChange,
+  sortBy,
+  sortOrder,
   groupCurrentPage,
   groupPageSize,
 }: BudgetsDataTableProps) => {
@@ -279,7 +295,7 @@ export const BudgetsDataTable = ({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>הדפס תקציב</p>
+                          <p>הדפס תכנית פעולה</p>
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -304,7 +320,7 @@ export const BudgetsDataTable = ({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>שלח תקציב</p>
+                          <p>שלח תכנית פעולה</p>
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -368,8 +384,8 @@ export const BudgetsDataTable = ({
       dir="rtl"
       emptyMessage={
         budgets.length === 0
-          ? 'אין תקציבים. צור תקציב חדש כדי להתחיל'
-          : 'לא נמצאו תקציבים התואמים לחיפוש'
+          ? 'אין תכניות פעולה. צור תכנית פעולה חדשה כדי להתחיל'
+          : 'לא נמצאו תכניות פעולה התואמות לחיפוש'
       }
       enableColumnVisibility={false}
       enableColumnReordering={true}
@@ -377,9 +393,13 @@ export const BudgetsDataTable = ({
       enableRowSelection
       totalCount={budgets.length}
       onBulkDelete={onBulkDelete}
-      selectionLabel="תקציבים"
+      selectionLabel="תכניות פעולה"
       groupCurrentPage={groupCurrentPage}
       groupPageSize={groupPageSize}
+      onSortChange={onSortChange}
+      serverSideSorting={!!onSortChange}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
     />
   );
 };
