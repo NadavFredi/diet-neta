@@ -89,6 +89,8 @@ interface LeadHistoryTabsProps {
   budgetAssignments?: BudgetAssignmentItem[] | null;
   leadId?: string | null;
   customerId?: string | null;
+  customerPhone?: string | null;
+  customerName?: string | null;
   onAddWorkoutPlan: () => void;
   onAddDietPlan: () => void;
   onAddSupplementsPlan: () => void;
@@ -100,6 +102,8 @@ interface LeadHistoryTabsProps {
 export const LeadHistoryTabs = ({ 
   leadId,
   customerId,
+  customerPhone,
+  customerName,
   onAddWeeklyCheckIn,
   budgetAssignments,
   workoutHistory,
@@ -208,8 +212,8 @@ export const LeadHistoryTabs = ({
           <WeeklyCheckInsList
             leadId={leadId || undefined}
             customerId={customerId || undefined}
-            customerPhone={null}
-            customerName={null}
+            customerPhone={customerPhone || undefined}
+            customerName={customerName || undefined}
           />
         </TabsContent>
 

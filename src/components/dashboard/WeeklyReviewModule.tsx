@@ -720,14 +720,6 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       return;
     }
 
-    // Save review first to ensure latest changes are included (works for both new and edit)
-    try {
-      await handleSave();
-    } catch (error) {
-      // If save fails, still allow sending with current form values
-      console.error('Failed to save before sending WhatsApp:', error);
-    }
-
     setIsSendingWhatsApp(true);
     try {
       const weekLabel = `שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}`;

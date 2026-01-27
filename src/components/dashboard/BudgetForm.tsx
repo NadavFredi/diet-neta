@@ -185,7 +185,11 @@ const SupplementRow = ({ index, supplement, templates, onUpdate, onRemove, onEdi
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() => onRemove(index)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRemove(index);
+          }}
           className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
           title="מחק תוסף"
         >
@@ -266,7 +270,11 @@ const WorkoutRow = ({ workout, onUpdate, onRemove }: WorkoutRowProps) => {
         type="button"
         variant="ghost"
         size="icon"
-        onClick={() => onRemove(workout.id)}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onRemove(workout.id);
+        }}
         className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
       >
         <Trash2 className="h-3.5 w-3.5" />
@@ -347,6 +355,11 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   const [supplementTemplateId, setSupplementTemplateId] = useState<string | null>(null);
   const [supplements, setSupplements] = useState<Supplement[]>([]);
 
+  // Debug: Log supplements changes
+  useEffect(() => {
+    console.log('Supplements state updated:', supplements.length, 'supplements:', supplements);
+  }, [supplements]);
+
   // Guidelines
   const [eatingOrder, setEatingOrder] = useState('');
   const [eatingRules, setEatingRules] = useState('');
@@ -364,9 +377,25 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Track if we've initialized to prevent resetting supplements when user adds new ones
+  const hasInitializedRef = React.useRef(false);
+  const initialBudgetIdRef = React.useRef<string | null>(null);
+  const supplementsRef = React.useRef<Supplement[]>([]);
+
+  // Sync ref with state
+  useEffect(() => {
+    supplementsRef.current = supplements;
+  }, [supplements]);
+
   // Initialize form with initial data
   useEffect(() => {
     if (initialData) {
+      const budgetId = initialData.id;
+      
+      // Only reset supplements if this is a different budget or first initialization
+      const isNewBudget = initialBudgetIdRef.current !== budgetId;
+      const shouldResetSupplements = !hasInitializedRef.current || isNewBudget;
+      
       setName(initialData.name || '');
       setDescription(initialData.description || '');
       setNutritionTemplateId(initialData.nutrition_template_id ?? null);
@@ -381,7 +410,17 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       setStepsInstructions(initialData.steps_instructions || '');
       setWorkoutTemplateId(initialData.workout_template_id ?? null);
       setSupplementTemplateId(initialData.supplement_template_id ?? null);
-      setSupplements(initialData.supplements || []);
+      
+      // Only reset supplements if this is a new budget or first load
+      // This prevents resetting supplements when user adds new ones
+      if (shouldResetSupplements) {
+        const initialSupplements = Array.isArray(initialData.supplements) ? initialData.supplements : [];
+        setSupplements(initialSupplements);
+        supplementsRef.current = initialSupplements;
+        initialBudgetIdRef.current = budgetId;
+        hasInitializedRef.current = true;
+      }
+      
       setEatingOrder(initialData.eating_order || '');
       setEatingRules(initialData.eating_rules || '');
 
@@ -521,17 +560,85 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   };
 
   const handleSaveSupplement = (supplement: Supplement) => {
-    if (editingSupplementIndex !== null) {
-      // Update existing supplement
-      const updated = [...supplements];
-      updated[editingSupplementIndex] = supplement;
-      setSupplements(updated);
-    } else {
-      // Add new supplement
-      setSupplements([...supplements, supplement]);
+    console.log('=== handleSaveSupplement CALLED ===');
+    console.log('Received supplement:', supplement);
+    console.log('Current supplements before update:', supplements);
+    console.log('editingSupplementIndex:', editingSupplementIndex);
+
+    try {
+      // Validate supplement before saving
+      if (!supplement) {
+        const error = 'תוסף לא תקין';
+        console.error('✗ Invalid supplement:', supplement);
+        toast({
+          title: 'שגיאה',
+          description: error,
+          variant: 'destructive',
+        });
+        throw new Error(error);
+      }
+
+      const trimmedName = supplement.name?.trim();
+      if (!trimmedName) {
+        const error = 'שם התוסף הוא שדה חובה';
+        console.error('✗ Missing supplement name');
+        toast({
+          title: 'שגיאה',
+          description: error,
+          variant: 'destructive',
+        });
+        throw new Error(error);
+      }
+
+      // Prepare the supplement data with all fields properly handled
+      const newSupplement: Supplement = {
+        name: trimmedName,
+        dosage: supplement.dosage?.trim() || '',
+        timing: supplement.timing?.trim() || '',
+        link1: supplement.link1?.trim() || undefined,
+        link2: supplement.link2?.trim() || undefined,
+      };
+
+      console.log('Prepared newSupplement:', newSupplement);
+
+      // Update state safely - ensure supplements is always an array
+      setSupplements(prev => {
+        console.log('setSupplements callback - prev:', prev);
+        // Safety check - ensure prev is always an array
+        const currentSupplements = Array.isArray(prev) ? prev : [];
+        console.log('Current supplements array:', currentSupplements);
+
+        let updatedSupplements: Supplement[];
+        if (editingSupplementIndex !== null &&
+          editingSupplementIndex >= 0 &&
+          editingSupplementIndex < currentSupplements.length) {
+          // Update existing supplement
+          updatedSupplements = [...currentSupplements];
+          updatedSupplements[editingSupplementIndex] = newSupplement;
+          console.log('✓ Updated supplement at index', editingSupplementIndex);
+          console.log('Updated supplements array:', updatedSupplements);
+        } else {
+          // Add new supplement to the action plan
+          updatedSupplements = [...currentSupplements, newSupplement];
+          console.log('✓ Adding new supplement');
+          console.log('New supplements array length:', updatedSupplements.length);
+          console.log('New supplements array:', updatedSupplements);
+        }
+        
+        // Update ref immediately so it's available for form submission
+        supplementsRef.current = updatedSupplements;
+        return updatedSupplements;
+      });
+
+      // Reset editing state
+      setEditingSupplementIndex(null);
+      console.log('✓ State update initiated');
+
+    } catch (error: any) {
+      console.error('✗ ERROR in handleSaveSupplement:', error);
+      // Re-throw to let AddSupplementDialog handle the error display
+      throw error;
     }
-    setIsAddSupplementDialogOpen(false);
-    setEditingSupplementIndex(null);
   };
 
   const handleEditSupplement = (index: number) => {
@@ -539,8 +646,10 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     setIsAddSupplementDialogOpen(true);
   };
 
-  const removeSupplement = (index: number) => {
-    setSupplements(supplements.filter((_, i) => i !== index));
+  const removeSupplement = (index: number, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setSupplements((prev) => prev.filter((_, i) => i !== index));
   };
 
   const updateSupplement = (index: number, field: keyof Supplement, value: string) => {
@@ -563,8 +672,10 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
     setWorkoutTrainings([...workoutTrainings, newWorkout]);
   };
 
-  const removeWorkoutTraining = (id: string) => {
-    setWorkoutTrainings(workoutTrainings.filter((item) => item.id !== id));
+  const removeWorkoutTraining = (id: string, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setWorkoutTrainings((prev) => prev.filter((item) => item.id !== id));
   };
 
   const updateWorkoutTraining = (id: string, field: string, value: string | number) => {
@@ -584,6 +695,17 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       const safeNutritionTemplateId = nutritionTemplateId !== undefined ? nutritionTemplateId : null;
       const safeWorkoutTemplateId = workoutTemplateId !== undefined ? workoutTemplateId : null;
 
+      // Use ref to get the latest supplements (always up-to-date, even if state update is pending)
+      // The ref is updated synchronously in handleSaveSupplement callback and kept in sync via useEffect
+      // This ensures we capture supplements even if React hasn't committed the state update yet
+      const currentSupplements = supplementsRef.current;
+      
+      // Filter out empty supplements and log for debugging
+      const validSupplements = currentSupplements.filter((s) => s && s && s.name && s.name.trim() !== '');
+      console.log('Submitting budget with supplements:', validSupplements.length, 'supplements:', validSupplements);
+      console.log('Current supplements state at submit time:', supplements);
+      console.log('Current supplements ref at submit time:', supplementsRef.current);
+
       const budgetData = {
         name,
         description: description || null,
@@ -593,7 +715,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         steps_instructions: stepsInstructions || null,
         workout_template_id: safeWorkoutTemplateId,
         supplement_template_id: safeSupplementTemplateId,
-        supplements: supplements.filter((s) => s.name.trim() !== ''),
+        supplements: validSupplements,
         eating_order: eatingOrder || null,
         eating_rules: eatingRules || null,
         cardio_training: workoutTrainings.filter((w) => w.type === 'erobi' && (w.name.trim() || w.duration_minutes > 0)).length > 0
@@ -1042,7 +1164,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
                 <Pill className="h-3.5 w-3.5 text-slate-400" />
-                תוספים (עריכה ידנית)
+                תוספים
               </Label>
               <div className="space-y-2">
                 {supplements.length === 0 ? (
@@ -1061,17 +1183,24 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {supplements.map((supplement, index) => (
-                      <SupplementRow
-                        key={index}
-                        index={index}
-                        supplement={supplement}
-                        templates={supplementTemplates}
-                        onUpdate={updateSupplement}
-                        onRemove={removeSupplement}
-                        onEdit={handleEditSupplement}
-                      />
-                    ))}
+                    {supplements.map((supplement, index) => {
+                      // Safety check - ensure supplement has required fields
+                      if (!supplement || !supplement.name) {
+                        console.warn('Invalid supplement at index', index, supplement);
+                        return null;
+                      }
+                      return (
+                        <SupplementRow
+                          key={`supplement-${index}-${supplement.name}-${Date.now()}`}
+                          index={index}
+                          supplement={supplement}
+                          templates={supplementTemplates}
+                          onUpdate={updateSupplement}
+                          onRemove={removeSupplement}
+                          onEdit={handleEditSupplement}
+                        />
+                      );
+                    })}
                     <Button
                       type="button"
                       variant="ghost"
@@ -1191,8 +1320,23 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       {/* Add/Edit Supplement Dialog */}
       <AddSupplementDialog
         isOpen={isAddSupplementDialogOpen}
-        onOpenChange={setIsAddSupplementDialogOpen}
-        onSave={handleSaveSupplement}
+        onOpenChange={(open) => {
+          console.log('AddSupplementDialog onOpenChange:', open);
+          setIsAddSupplementDialogOpen(open);
+          if (!open) {
+            setEditingSupplementIndex(null);
+          }
+        }}
+        onSave={(supplement) => {
+          console.log('AddSupplementDialog onSave callback called with:', supplement);
+          try {
+            handleSaveSupplement(supplement);
+            console.log('handleSaveSupplement completed without error');
+          } catch (error) {
+            console.error('handleSaveSupplement threw error:', error);
+            throw error;
+          }
+        }}
         initialData={editingSupplementIndex !== null ? supplements[editingSupplementIndex] : null}
         supplementTemplates={supplementTemplates}
       />

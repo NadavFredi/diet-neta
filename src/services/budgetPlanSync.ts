@@ -132,7 +132,7 @@ export async function syncPlansFromBudget({
         template_id: budget.workout_template_id,
         budget_id: budget.id,
         start_date: new Date().toISOString().split('T')[0],
-        description: `תוכנית אימונים מתקציב: ${budget.name}`,
+        description: `תוכנית אימונים מתכנית פעולה: ${budget.name}`,
         strength: workoutTemplate.routine_data?.weeklyWorkout?.strength || 0,
         cardio: workoutTemplate.routine_data?.weeklyWorkout?.cardio || 0,
         intervals: workoutTemplate.routine_data?.weeklyWorkout?.intervals || 0,
@@ -217,7 +217,7 @@ export async function syncPlansFromBudget({
       template_id: budget.nutrition_template_id || null,
       budget_id: budget.id,
       start_date: new Date().toISOString().split('T')[0],
-      description: `תוכנית תזונה מתקציב: ${budget.name}`,
+      description: `תוכנית תזונה מתכנית פעולה: ${budget.name}`,
       targets: nutritionTargets || {
         calories: 2000,
         protein: 150,
@@ -365,7 +365,7 @@ export async function syncPlansFromBudget({
       lead_id: leadId || null,
       budget_id: budget.id,
       start_date: new Date().toISOString().split('T')[0],
-      description: `תוכנית צעדים מתקציב: ${budget.name}`,
+      description: `תוכנית צעדים מתכנית פעולה: ${budget.name}`,
       steps_goal: budget.steps_goal,
       steps_instructions: budget.steps_instructions || null,
       is_active: true,
@@ -476,7 +476,7 @@ export async function syncPlansFromBudget({
       lead_id: leadId || null,
       budget_id: budget.id,
       start_date: new Date().toISOString().split('T')[0],
-      description: `תוכנית תוספים מתקציב: ${budget.name}`,
+      description: `תוכנית תוספים מתכנית פעולה: ${budget.name}`,
       supplements: budget.supplements,
       is_active: true,
       created_by: userId,
@@ -514,7 +514,7 @@ export async function syncSupplementPlansFromBudgetUpdate(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  const description = `תוכנית תוספים מתקציב: ${budgetName}`;
+  const description = `תוכנית תוספים מתכנית פעולה: ${budgetName}`;
   const supplementsJson = supplements ?? [];
 
   const { data: existing } = await supabase
@@ -575,7 +575,7 @@ export async function syncStepsPlansFromBudgetUpdate(
 
   if (!stepsGoal || stepsGoal <= 0) return;
 
-  const description = `תוכנית צעדים מתקציב: ${budgetName}`;
+  const description = `תוכנית צעדים מתכנית פעולה: ${budgetName}`;
 
   // Update existing steps plans for this budget
   const { data: existing } = await supabase

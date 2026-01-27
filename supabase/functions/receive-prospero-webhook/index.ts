@@ -63,12 +63,28 @@ serve(async (req) => {
     const proposalLink = body.proposalLink || body.proposal_link || body.link || null;
     const leadId = body.leadId || body.lead_id || null;
 
+    // Normalize proposal link (remove trailing slashes, normalize URL)
+    const normalizeUrl = (url: string | null): string | null => {
+      if (!url) return null;
+      return url.trim().replace(/\/+$/, ''); // Remove trailing slashes
+    };
+    const normalizedProposalLink = normalizeUrl(proposalLink);
+
     // Determine if proposal is signed
     // Check status field or signed boolean
     const isSigned = body.status === 'Signed' || 
                      body.status === 'signed' || 
                      body.signed === true ||
                      body.signed === 'true';
+
+    console.log('Webhook received:', {
+      proposalId,
+      proposalLink,
+      normalizedProposalLink,
+      leadId,
+      status: body.status,
+      isSigned,
+    });
 
     if (!isSigned) {
       // If not signed, just acknowledge the webhook
@@ -99,16 +115,39 @@ serve(async (req) => {
     }
 
     // Try to find by proposal link if not found by ID
-    if (!proposalFound && proposalLink) {
-      const { data: proposalByLink, error: errorByLink } = await supabase
+    // Try both normalized and original link
+    if (!proposalFound && normalizedProposalLink) {
+      // First try exact match with normalized link
+      let { data: proposalByLink, error: errorByLink } = await supabase
         .from('prospero_proposals')
-        .select('id, lead_id, status')
-        .eq('proposal_link', proposalLink)
+        .select('id, lead_id, status, proposal_link')
+        .eq('proposal_link', normalizedProposalLink)
         .maybeSingle();
+
+      // If not found with normalized link, try original link (if different)
+      if (!proposalByLink && proposalLink && proposalLink !== normalizedProposalLink) {
+        const { data: proposalByOriginalLink, error: errorByOriginalLink } = await supabase
+          .from('prospero_proposals')
+          .select('id, lead_id, status, proposal_link')
+          .eq('proposal_link', proposalLink)
+          .maybeSingle();
+        
+        if (proposalByOriginalLink) {
+          proposalByLink = proposalByOriginalLink;
+          errorByLink = errorByOriginalLink;
+        }
+      }
 
       if (!errorByLink && proposalByLink) {
         proposalFound = true;
         proposalIdToUpdate = proposalByLink.id;
+        console.log('Proposal found by link:', {
+          foundId: proposalByLink.id,
+          storedLink: proposalByLink.proposal_link,
+          receivedLink: normalizedProposalLink,
+        });
+      } else if (errorByLink) {
+        console.error('Error finding proposal by link:', errorByLink);
       }
     }
 
@@ -131,15 +170,30 @@ serve(async (req) => {
 
     if (!proposalFound || !proposalIdToUpdate) {
       // Log but don't fail - webhook might be for a proposal we don't have
+      console.warn('Proposal not found in database:', {
+        proposalId,
+        proposalLink: normalizedProposalLink,
+        leadId,
+      });
       return successResponse({ 
         message: 'Proposal not found in database',
         received: true,
-        warning: 'Proposal may have been created outside this system'
+        warning: 'Proposal may have been created outside this system',
+        searchParams: {
+          proposalId,
+          proposalLink: normalizedProposalLink,
+          leadId,
+        },
       });
     }
 
     // Update proposal status to "Signed"
     const signedAt = body.signedAt || body.signed_at || new Date().toISOString();
+    
+    // Safely merge metadata (ensure it's an object)
+    const existingMetadata = typeof body.metadata === 'object' && body.metadata !== null && !Array.isArray(body.metadata)
+      ? body.metadata
+      : {};
     
     const { data: updatedProposal, error: updateError } = await supabase
       .from('prospero_proposals')
@@ -147,7 +201,7 @@ serve(async (req) => {
         status: 'Signed',
         updated_at: new Date().toISOString(),
         metadata: {
-          ...(body.metadata || {}),
+          ...existingMetadata,
           signed_at: signedAt,
           webhook_received_at: new Date().toISOString(),
         },
@@ -157,8 +211,15 @@ serve(async (req) => {
       .single();
 
     if (updateError) {
+      console.error('Failed to update proposal:', updateError);
       return errorResponse(`Failed to update proposal status: ${updateError.message}`, 500);
     }
+
+    console.log('Proposal status updated successfully:', {
+      proposalId: updatedProposal.id,
+      oldStatus: 'Sent',
+      newStatus: updatedProposal.status,
+    });
 
     return successResponse({
       message: 'Proposal status updated to Signed',

@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link as LinkIcon, Plus } from 'lucide-react';
 import type { Supplement } from '@/store/slices/budgetSlice';
-import { useCreateSupplementTemplate } from '@/hooks/useSupplementTemplates';
+import { useSupplementTemplates, useCreateSupplementTemplate } from '@/hooks/useSupplementTemplates';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddSupplementDialogProps {
@@ -21,7 +22,7 @@ export const AddSupplementDialog = ({
   onOpenChange,
   onSave,
   initialData,
-  supplementTemplates = [],
+  supplementTemplates: propSupplementTemplates = [],
 }: AddSupplementDialogProps) => {
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
@@ -29,12 +30,19 @@ export const AddSupplementDialog = ({
   const [link1, setLink1] = useState('');
   const [link2, setLink2] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [selectedSupplementName, setSelectedSupplementName] = useState<string>('');
-  const [showCreateNew, setShowCreateNew] = useState(false);
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [shouldCreateInInterface, setShouldCreateInInterface] = useState(true);
   
   const { toast } = useToast();
   const createSupplementTemplate = useCreateSupplementTemplate();
+
+  // Fetch supplement templates from the supplements interface
+  const { data: fetchedTemplatesData } = useSupplementTemplates();
+  const fetchedTemplates = fetchedTemplatesData?.data || [];
+  
+  // Use fetched templates if available, otherwise fall back to prop templates
+  const supplementTemplates = fetchedTemplates.length > 0 ? fetchedTemplates : propSupplementTemplates;
 
   // Extract all individual supplements from templates and get unique supplements by name
   const allSupplements = useMemo(() => {
@@ -57,6 +65,8 @@ export const AddSupplementDialog = ({
         setTiming(initialData.timing || '');
         setLink1(initialData.link1 || '');
         setLink2(initialData.link2 || '');
+        setSelectedSupplementName('');
+        setIsCreatingNew(false);
       } else {
         // Reset form when opening for new supplement
         setName('');
@@ -64,34 +74,27 @@ export const AddSupplementDialog = ({
         setTiming('');
         setLink1('');
         setLink2('');
-        setSelectedTemplateId('');
         setSelectedSupplementName('');
-        setShowCreateNew(false);
+        setIsCreatingNew(false);
+        setShouldCreateInInterface(true);
       }
     }
   }, [initialData, isOpen]);
 
-  const handleTemplateSelect = (templateId: string) => {
-    setSelectedTemplateId(templateId);
-    const template = supplementTemplates.find(t => t.id === templateId);
-    if (template && template.supplements && template.supplements.length > 0) {
-      const sup = template.supplements[0];
-      setName(sup.name || '');
-      setDosage(sup.dosage || '');
-      setTiming(sup.timing || '');
-      setLink1(sup.link1 || '');
-      setLink2(sup.link2 || '');
-    }
-  };
-
   const handleSupplementSelect = (supplementName: string) => {
     if (!supplementName) {
       setSelectedSupplementName('');
-      setShowCreateNew(false);
+      setIsCreatingNew(false);
+      setName('');
+      setDosage('');
+      setTiming('');
+      setLink1('');
+      setLink2('');
       return;
     }
     
     setSelectedSupplementName(supplementName);
+    setIsCreatingNew(false);
     const supplement = allSupplements.find(s => s.name === supplementName);
     if (supplement) {
       setName(supplement.name || '');
@@ -99,15 +102,31 @@ export const AddSupplementDialog = ({
       setTiming(supplement.timing || '');
       setLink1(supplement.link1 || '');
       setLink2(supplement.link2 || '');
-      setShowCreateNew(false);
-    } else {
-      // Supplement not found - show option to create new
-      setShowCreateNew(true);
     }
   };
 
-  const handleCreateNewSupplementTemplate = async () => {
-    if (!name.trim()) {
+  const handleCreateNew = () => {
+    setIsCreatingNew(true);
+    setSelectedSupplementName('');
+    setName('');
+    setDosage('');
+    setTiming('');
+    setLink1('');
+    setLink2('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent event from bubbling to parent form
+    console.log('=== FORM SUBMITTED ===');
+    console.log('Form values:', { name, dosage, timing, link1, link2 });
+    console.log('isCreatingNew:', isCreatingNew);
+    console.log('selectedSupplementName:', selectedSupplementName);
+    
+    // Validate name
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      console.log('✗ Validation failed: No name');
       toast({
         title: 'שגיאה',
         description: 'אנא הזן שם תוסף',
@@ -116,60 +135,80 @@ export const AddSupplementDialog = ({
       return;
     }
 
-    try {
-      await createSupplementTemplate.mutateAsync({
-        name: `תבנית: ${name.trim()}`,
-        supplements: [{
-          name: name.trim(),
-          dosage: dosage.trim(),
-          timing: timing.trim(),
-          link1: link1.trim() || undefined,
-          link2: link2.trim() || undefined,
-        }],
-        is_public: false,
-      });
-      
-      toast({
-        title: 'הצלחה',
-        description: 'תבנית תוסף חדשה נוצרה',
-      });
-      
-      setShowCreateNew(false);
-    } catch (error: any) {
-      toast({
-        title: 'שגיאה',
-        description: error?.message || 'נכשל ביצירת תבנית תוסף',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-
+    console.log('✓ Validation passed, setting isSubmitting to true');
     setIsSubmitting(true);
+    
     try {
+      // Prepare supplement object
       const supplement: Supplement = {
-        name: name.trim(),
-        dosage: dosage.trim(),
-        timing: timing.trim(),
+        name: trimmedName,
+        dosage: dosage.trim() || '',
+        timing: timing.trim() || '',
         link1: link1.trim() || undefined,
         link2: link2.trim() || undefined,
       };
-      onSave(supplement);
-      // Reset form after saving
+
+      // Save to action plan first - this is critical and must succeed
+      console.log('=== ADDING SUPPLEMENT ===');
+      console.log('Supplement data:', supplement);
+      console.log('onSave function:', onSave);
+      
+      try {
+        onSave(supplement);
+        console.log('✓ onSave called successfully');
+      } catch (saveError: any) {
+        console.error('✗ ERROR in onSave:', saveError);
+        throw saveError; // Re-throw to be caught by outer catch
+      }
+      
+      // If we get here, save was successful
+      // Now optionally create in supplements interface (non-blocking)
+      if (isCreatingNew && shouldCreateInInterface) {
+        // Fire and forget - don't block on this
+        createSupplementTemplate.mutateAsync({
+          name: trimmedName,
+          supplements: [supplement],
+          is_public: false,
+        }).then(() => {
+          console.log('Supplement also created in interface');
+        }).catch((error: any) => {
+          // Silent fail - supplement is already in action plan
+          console.error('Error creating supplement template (non-critical):', error);
+        });
+      }
+      
+      // Show success message
+      toast({
+        title: 'הצלחה',
+        description: isCreatingNew && shouldCreateInInterface 
+          ? 'התוסף נוסף לתכנית הפעולה ולממשק התוספים'
+          : 'התוסף נוסף לתכנית הפעולה',
+      });
+      
+      // Reset form
       setName('');
       setDosage('');
       setTiming('');
       setLink1('');
       setLink2('');
-      setSelectedTemplateId('');
       setSelectedSupplementName('');
-      setShowCreateNew(false);
-      onOpenChange(false);
-    } catch (error) {
+      setIsCreatingNew(false);
+      
+      // Close dialog after a short delay to ensure state is updated
+      // Use setTimeout to allow React to process the state update first
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 200);
+      
+    } catch (error: any) {
+      // Error handling - onSave threw an error
       console.error('Error saving supplement:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בשמירת התוסף לתכנית הפעולה',
+        variant: 'destructive',
+      });
+      // Keep dialog open so user can fix and retry
     } finally {
       setIsSubmitting(false);
     }
@@ -182,136 +221,183 @@ export const AddSupplementDialog = ({
     setTiming('');
     setLink1('');
     setLink2('');
-    setSelectedTemplateId('');
     setSelectedSupplementName('');
-    setShowCreateNew(false);
+    setIsCreatingNew(false);
+    setShouldCreateInInterface(true);
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-full max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl" dir="rtl">
+    <Dialog 
+      open={isOpen} 
+      onOpenChange={onOpenChange}
+      modal={true}
+    >
+      <DialogContent 
+        className="max-w-2xl w-full max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl z-[60]" 
+        dir="rtl"
+      >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle>{initialData ? 'ערוך תוסף' : 'הוסף תוסף'}</DialogTitle>
           <DialogDescription className="sr-only">
             {initialData ? 'עריכת תוסף קיים' : 'טופס להוספת תוסף חדש'}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
+        <form 
+          onSubmit={handleSubmit} 
+          className="flex flex-col h-full min-h-0"
+          onClick={(e) => e.stopPropagation()} // Prevent clicks from bubbling to parent
+        >
           <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
             <div className="px-6 py-6 space-y-4">
-              {/* Supplement Selection - PRIMARY METHOD */}
-              {!initialData && allSupplements.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">בחר תוסף מהרשימה *</Label>
-                  <select
-                    value={selectedSupplementName}
-                    onChange={(e) => handleSupplementSelect(e.target.value)}
-                    className="w-full h-10 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#5B6FB9] focus:border-[#5B6FB9]"
-                    dir="rtl"
-                    required={!initialData}
-                  >
-                    <option value="">-- בחר תוסף --</option>
-                    {allSupplements.map((sup, idx) => (
-                      <option key={`${sup.name}-${idx}`} value={sup.name}>
-                        {sup.name}
-                      </option>
-                    ))}
-                  </select>
-                  {showCreateNew && (
-                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                      <p className="text-xs text-blue-800 mb-2">התוסף לא נמצא ברשימה</p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={handleCreateNewSupplementTemplate}
-                        disabled={createSupplementTemplate.isPending || !name.trim()}
-                        className="w-full text-blue-700 border-blue-300 hover:bg-blue-100"
+              {/* Dropdown to select from list - Only show if not editing and there are supplements available */}
+              {!initialData && allSupplements.length > 0 && !isCreatingNew && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 space-y-1.5">
+                      <Label className="text-sm font-medium text-slate-700">בחר תוסף מהרשימה</Label>
+                      <Select
+                        value={selectedSupplementName}
+                        onValueChange={handleSupplementSelect}
+                        dir="rtl"
                       >
-                        <Plus className="h-3 w-3 ml-1" />
-                        {createSupplementTemplate.isPending ? 'יוצר...' : 'צור תוסף חדש ברשימה'}
-                      </Button>
+                        <SelectTrigger className="w-full bg-white border-slate-200 text-slate-900 hover:border-[#5B6FB9] focus:ring-[#5B6FB9]">
+                          <SelectValue placeholder="-- בחר תוסף --" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px] z-[70]" dir="rtl">
+                          {allSupplements.map((sup, idx) => (
+                            <SelectItem 
+                              key={`${sup.name}-${idx}`} 
+                              value={sup.name}
+                              className="cursor-pointer"
+                            >
+                              {sup.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
+                  </div>
+                  <div className="text-center py-2">
+                    <span className="text-sm text-slate-500">או</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCreateNew}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 ml-2" />
+                    צור תוסף חדש
+                  </Button>
                 </div>
               )}
 
-              {/* Supplement Name */}
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">שם התוסף *</Label>
-                <Input
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (selectedSupplementName && e.target.value !== selectedSupplementName) {
-                      setSelectedSupplementName('');
-                      setShowCreateNew(false);
-                    }
-                  }}
-                  placeholder="שם התוסף"
-                  className="bg-white"
-                  dir="rtl"
-                  required
-                  disabled={!!selectedSupplementName && !showCreateNew}
-                />
-              </div>
+              {/* Show create new button if no supplements available */}
+              {!initialData && allSupplements.length === 0 && !isCreatingNew && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCreateNew}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 ml-2" />
+                  צור תוסף חדש
+                </Button>
+              )}
 
-              {/* Dosage and Timing */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">מינון</Label>
-                  <Input
-                    value={dosage}
-                    onChange={(e) => setDosage(e.target.value)}
-                    placeholder="לדוגמה: 1 כמוסה"
-                    className="bg-white"
-                    dir="rtl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">זמן נטילה</Label>
-                  <Input
-                    value={timing}
-                    onChange={(e) => setTiming(e.target.value)}
-                    placeholder="לדוגמה: בבוקר, בערב"
-                    className="bg-white"
-                    dir="rtl"
-                  />
-                </div>
-              </div>
+              {/* Form fields - Show when supplement is selected or creating new */}
+              {(selectedSupplementName || isCreatingNew || initialData) && (
+                <>
+                <>
+                  {/* Supplement Name */}
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-slate-700">שם התוסף *</Label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="שם התוסף"
+                      className="bg-white"
+                      dir="rtl"
+                      required
+                      disabled={!!selectedSupplementName && !isCreatingNew}
+                    />
+                  </div>
 
-              {/* Links */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                    <LinkIcon className="h-3.5 w-3.5 text-slate-400" />
-                    קישור 1
-                  </Label>
-                  <Input
-                    value={link1}
-                    onChange={(e) => setLink1(e.target.value)}
-                    placeholder="https://..."
-                    className="bg-white text-left"
-                    dir="ltr"
-                    type="url"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                    <LinkIcon className="h-3.5 w-3.5 text-slate-400" />
-                    קישור 2
-                  </Label>
-                  <Input
-                    value={link2}
-                    onChange={(e) => setLink2(e.target.value)}
-                    placeholder="https://..."
-                    className="bg-white text-left"
-                    dir="ltr"
-                    type="url"
-                  />
-                </div>
-              </div>
+                  {/* Dosage and Timing */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-slate-700">מינון</Label>
+                      <Input
+                        value={dosage}
+                        onChange={(e) => setDosage(e.target.value)}
+                        placeholder="לדוגמה: 1 כמוסה"
+                        className="bg-white"
+                        dir="rtl"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-slate-700">זמן נטילה</Label>
+                      <Input
+                        value={timing}
+                        onChange={(e) => setTiming(e.target.value)}
+                        placeholder="לדוגמה: בבוקר, בערב"
+                        className="bg-white"
+                        dir="rtl"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Links */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                        <LinkIcon className="h-3.5 w-3.5 text-slate-400" />
+                        קישור 1
+                      </Label>
+                      <Input
+                        value={link1}
+                        onChange={(e) => setLink1(e.target.value)}
+                        placeholder="https://..."
+                        className="bg-white text-left"
+                        dir="ltr"
+                        type="url"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                        <LinkIcon className="h-3.5 w-3.5 text-slate-400" />
+                        קישור 2
+                      </Label>
+                      <Input
+                        value={link2}
+                        onChange={(e) => setLink2(e.target.value)}
+                        placeholder="https://..."
+                        className="bg-white text-left"
+                        dir="ltr"
+                        type="url"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Option to create in supplements interface - Only show when creating new (not selected) */}
+                  {!initialData && isCreatingNew && (
+                    <div className="flex items-center space-x-2 space-x-reverse pt-2">
+                      <input
+                        type="checkbox"
+                        id="createInInterface"
+                        checked={shouldCreateInInterface}
+                        onChange={(e) => setShouldCreateInInterface(e.target.checked)}
+                        className="h-4 w-4 text-[#5B6FB9] border-slate-300 rounded focus:ring-[#5B6FB9]"
+                      />
+                      <Label htmlFor="createInInterface" className="text-sm text-slate-700 cursor-pointer">
+                        הוסף גם לממשק התוספים (כדי שיהיה זמין בעתיד)
+                      </Label>
+                    </div>
+                  )}
+                </>
+                </>
+              )}
             </div>
           </div>
 
@@ -320,6 +406,12 @@ export const AddSupplementDialog = ({
               type="submit"
               className="h-10 text-sm bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg font-medium px-8 min-w-[100px]"
               disabled={isSubmitting || !name.trim()}
+              onClick={(e) => {
+                console.log('=== BUTTON CLICKED ===');
+                console.log('Button state:', { isSubmitting, name, selectedSupplementName, isCreatingNew, initialData });
+                console.log('Button disabled?', isSubmitting || !name.trim());
+                // Let the form handle submission
+              }}
             >
               {isSubmitting ? 'שומר...' : initialData ? 'שמור שינויים' : 'הוסף תוסף'}
             </Button>

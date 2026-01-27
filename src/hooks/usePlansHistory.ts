@@ -500,7 +500,7 @@ export const usePlansHistory = (customerId?: string, leadId?: string) => {
             weekNumber: 'נוכחי',
             target: activeBudget.steps_goal,
             startDate: new Date().toISOString().split('T')[0],
-            description: `תוכנית צעדים מתקציב: ${activeBudget.name || 'תקציב פעיל'}`,
+            description: `תוכנית צעדים מתכנית פעולה: ${activeBudget.name || 'תקציב פעיל'}`,
             budget_id: activeBudgetId,
             is_active: true,
           });

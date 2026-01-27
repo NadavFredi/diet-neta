@@ -249,6 +249,11 @@ async function handleMediaMessage(
 }
 
 serve(async (req) => {
+  console.log('send-whatsapp-message function called', {
+    method: req.method,
+    url: req.url,
+    hasBody: !!req.body,
+  });
 
   // Handle CORS preflight
   const corsResponse = handleCors(req);
@@ -264,7 +269,7 @@ serve(async (req) => {
     
     // Priority 2: Try to get from database (for local development)
     // This allows local dev without needing to set Supabase secrets
-    let configFromDb = null;
+    let configFromDb: { idInstance: string; apiTokenInstance: string } | null = null;
     if (!idInstance || !apiTokenInstance) {
       try {
         const supabaseAdmin = createSupabaseAdmin();
@@ -276,6 +281,7 @@ serve(async (req) => {
           .maybeSingle();
         
         if (dbError) {
+          console.warn('Failed to fetch Green API config from database:', dbError.message);
         } else if (data && data.id_instance && data.api_token_instance) {
           // Validate the credentials aren't placeholders
           if (data.id_instance !== 'your_instance_id' && data.api_token_instance !== 'your_token') {
@@ -283,13 +289,11 @@ serve(async (req) => {
               idInstance: data.id_instance,
               apiTokenInstance: data.api_token_instance,
             };
-          } else {
           }
-        } else {
         }
       } catch (dbError: any) {
+        console.warn('Error fetching Green API config from database:', dbError?.message);
       }
-    } else {
     }
     
     const finalIdInstance = idInstance || configFromDb?.idInstance;
@@ -340,49 +344,74 @@ serve(async (req) => {
 
     // Check WhatsApp instance state before sending
     // This is critical - messages will be queued but not delivered if instance is not authorized
+    // Add timeout to prevent function from hanging
     try {
       const stateUrl = `https://api.green-api.com/waInstance${finalIdInstance}/getStateInstance/${finalApiTokenInstance}`;
-      const stateResponse = await fetch(stateUrl, {
+      
+      // Create a timeout promise (5 seconds max for state check)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('State check timeout after 5 seconds')), 5000);
+      });
+      
+      const fetchPromise = fetch(stateUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
+      const stateResponse = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+
       if (stateResponse.ok) {
-        const stateData = await stateResponse.json();
-        console.log('WhatsApp Instance State:', JSON.stringify(stateData));
+        let stateData: any;
+        try {
+          stateData = await stateResponse.json();
+        } catch (jsonError: any) {
+          console.error('Failed to parse state response as JSON:', jsonError);
+          // If JSON parsing fails, log but don't block - proceed with sending
+          // The message might still work even if we can't verify state
+          console.warn('Proceeding without state verification due to JSON parse error');
+        }
         
-        // Check if instance is authorized and ready
-        // Possible states: notAuthorized, authorized, sleepMode, starting
-        if (stateData.stateInstance !== 'authorized') {
-          const stateMessages: Record<string, string> = {
-            'notAuthorized': 'WhatsApp instance is not authorized. Please scan the QR code in your Green API dashboard to authorize the instance.',
-            'sleepMode': 'WhatsApp instance is in sleep mode. Please wake it up in your Green API dashboard.',
-            'starting': 'WhatsApp instance is starting. Please wait a moment and try again.',
-          };
+        if (stateData) {
+          console.log('WhatsApp Instance State:', JSON.stringify(stateData));
           
-          const errorMsg = stateMessages[stateData.stateInstance] || 
-            `WhatsApp instance is not ready. Current state: ${stateData.stateInstance}. Please check your Green API dashboard.`;
+          // Check if instance is authorized and ready
+          // Possible states: notAuthorized, authorized, sleepMode, starting
+          // Only block for critical states - allow "starting" to proceed (it might work)
+          if (stateData.stateInstance === 'notAuthorized') {
+            return errorResponse(
+              'WhatsApp instance is not authorized. Please scan the QR code in your Green API dashboard to authorize the instance.',
+              400
+            );
+          }
           
-          return errorResponse(errorMsg, 400);
+          // Warn but don't block for "starting" or "sleepMode" - let the message attempt
+          if (stateData.stateInstance === 'starting') {
+            console.warn('WhatsApp instance is starting - proceeding with message send attempt');
+          } else if (stateData.stateInstance === 'sleepMode') {
+            console.warn('WhatsApp instance is in sleep mode - proceeding with message send attempt');
+          } else if (stateData.stateInstance !== 'authorized') {
+            console.warn(`WhatsApp instance state: ${stateData.stateInstance} - proceeding with message send attempt`);
+          }
         }
       } else {
-        const stateErrorText = await stateResponse.text();
+        let stateErrorText = '';
+        try {
+          stateErrorText = await stateResponse.text();
+        } catch (textError) {
+          stateErrorText = `HTTP ${stateResponse.status}`;
+        }
         console.error('Failed to check instance state:', stateErrorText);
-        // Don't proceed if we can't verify the state - it's too risky
-        return errorResponse(
-          `Could not verify WhatsApp instance state. This is required to ensure messages are delivered. Error: ${stateErrorText.substring(0, 200)}`,
-          500
-        );
+        // Don't block sending if state check fails - log warning and proceed
+        // The message might still work even if state check fails
+        console.warn('Proceeding without state verification due to HTTP error');
       }
     } catch (stateError: any) {
-      console.error('Error checking instance state:', stateError.message);
-      // Don't proceed if we can't check the state
-      return errorResponse(
-        `Failed to check WhatsApp instance state: ${stateError.message}. Please ensure your Green API instance is properly configured.`,
-        500
-      );
+      console.error('Error checking instance state:', stateError?.message || stateError);
+      // Don't block sending if state check fails - log warning and proceed
+      // The message might still work even if state check fails
+      console.warn('Proceeding without state verification due to error:', stateError?.message || 'Unknown error');
     }
 
     // Parse request body
@@ -390,7 +419,15 @@ serve(async (req) => {
     try {
       body = await parseJsonBody<SendMessageRequest>(req);
     } catch (error: any) {
-      return errorResponse('Invalid JSON in request body', 400);
+      console.error('Error parsing request body:', error?.message || error);
+      return errorResponse(
+        `Invalid JSON in request body: ${error?.message || 'Unknown error'}`,
+        400
+      );
+    }
+    
+    if (!body) {
+      return errorResponse('Request body is required', 400);
     }
 
     const { phoneNumber, message, buttons, footer, media } = body;
@@ -639,6 +676,14 @@ serve(async (req) => {
       return successResponse(data);
     }
   } catch (error: any) {
-    return errorResponse(error?.message || 'Failed to send WhatsApp message', 500);
+    console.error('Unhandled error in send-whatsapp-message:', error);
+    console.error('Error stack:', error?.stack);
+    console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    
+    // Return a proper error response instead of crashing
+    return errorResponse(
+      error?.message || error?.toString() || 'Failed to send WhatsApp message. Please check the server logs for details.',
+      500
+    );
   }
 });
