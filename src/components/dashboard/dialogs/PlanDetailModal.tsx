@@ -210,7 +210,7 @@ export const PlanDetailModal = ({
     }
   }, [planData, planType]);
 
-  const handleSave = async () => {
+  const handleSave = async (overrideSupplements?: Supplement[], closeOnSuccess = true) => {
     if (!planData?.id) {
       toast({
         title: 'שגיאה',
@@ -238,7 +238,6 @@ export const PlanDetailModal = ({
       });
       return;
     }
-
 
     setIsSaving(true);
     try {
@@ -275,8 +274,8 @@ export const PlanDetailModal = ({
           .eq('id', planData.id);
         if (error) throw error;
       } else if (planType === 'supplements') {
-        // Filter out supplements with empty names before saving
-        const validSupplements = supplementForm.supplements.filter((s) => s.name.trim() !== '');
+        const list = overrideSupplements ?? supplementForm.supplements;
+        const validSupplements = list.filter((s) => s?.name?.trim() !== '');
         const supplementData = planData as SupplementPlanData;
         const { error } = await supabase
           .from('supplement_plans')
@@ -290,31 +289,30 @@ export const PlanDetailModal = ({
         if (error) throw error;
       }
 
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['plans-history'] });
       queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
       queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
       queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-      
-      // Invalidate budget history if the plan is linked to a budget
       if (planData.budget_id) {
         queryClient.invalidateQueries({ queryKey: ['budget-history', planData.budget_id] });
         queryClient.refetchQueries({ queryKey: ['budget-history', planData.budget_id] });
       }
 
-      toast({
-        title: 'הצלחה',
-        description: 'התוכנית עודכנה בהצלחה',
-      });
-
-      setIsEditing(false);
-      onClose();
+      if (closeOnSuccess) {
+        toast({
+          title: 'הצלחה',
+          description: 'התוכנית עודכנה בהצלחה',
+        });
+        setIsEditing(false);
+        onClose();
+      }
     } catch (error: any) {
       toast({
         title: 'שגיאה',
         description: error?.message || error?.error?.message || 'נכשל בעדכון התוכנית',
         variant: 'destructive',
       });
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -344,8 +342,17 @@ export const PlanDetailModal = ({
     setIsAddSupplementDialogOpen(true);
   };
 
-  const handleSaveSupplement = (supplement: Supplement) => {
+  const handleSaveSupplement = async (supplement: Supplement) => {
     const idx = editingSupplementIndex;
+    const nextSupplements: Supplement[] =
+      idx !== null
+        ? (() => {
+            const updated = [...supplementForm.supplements];
+            if (updated[idx]) updated[idx] = supplement;
+            return updated;
+          })()
+        : [...supplementForm.supplements, supplement];
+
     setSupplementForm((prev) => {
       if (idx !== null) {
         const updated = [...prev.supplements];
@@ -355,6 +362,10 @@ export const PlanDetailModal = ({
       return { ...prev, supplements: [...prev.supplements, supplement] };
     });
     setEditingSupplementIndex(null);
+
+    if (planType === 'supplements' && planData?.id) {
+      await handleSave(nextSupplements, false);
+    }
     setIsAddSupplementDialogOpen(false);
   };
 
@@ -659,6 +670,7 @@ export const PlanDetailModal = ({
           onSave={handleSaveSupplement}
           initialData={editingSupplementIndex !== null ? supplementForm.supplements[editingSupplementIndex] : null}
           supplementTemplates={supplementTemplates}
+          successToastDescription={planType === 'supplements' ? 'התוסף נוסף ונשמר' : undefined}
         />
 
         <div className="flex justify-end gap-3 pt-4 border-t">
@@ -673,7 +685,7 @@ export const PlanDetailModal = ({
               </Button>
               <Button
                 type="button"
-                onClick={handleSave}
+                onClick={() => handleSave()}
                 disabled={isSaving}
                 className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
               >
@@ -745,7 +757,7 @@ export const PlanDetailModal = ({
               </Button>
               <Button
                 type="button"
-                onClick={handleSave}
+                onClick={() => handleSave()}
                 disabled={isSaving}
                 className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
               >

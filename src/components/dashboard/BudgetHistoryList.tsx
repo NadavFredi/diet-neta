@@ -151,10 +151,18 @@ const getFieldLabel = (field: string) => {
     steps_goal: 'יעד צעדים',
     steps_instructions: 'הנחיות צעדים',
     nutrition_targets: 'ערכים תזונתיים',
+    nutrition_calories: 'קלוריות',
+    nutrition_protein: 'חלבון',
+    nutrition_carbs: 'פחמימות',
+    nutrition_fat: 'שומן',
+    nutrition_fiber_min: 'סיבים',
+    nutrition_water_min: 'מים',
     targets: 'יעדים',
     eating_order: 'סדר ארוחות',
     eating_rules: 'כללי אכילה',
     supplements: 'תוספים',
+    cardio_training: 'אימון אירובי',
+    interval_training: 'אימון אינטרוולים',
     is_public: 'ציבורי',
     workout_template_id: 'תבנית אימון',
     nutrition_template_id: 'תבנית תזונה',
@@ -193,6 +201,22 @@ const formatValue = (val: any, field?: string, templateNameMap?: Map<string, str
     }
   }
 
+  // Handle nutrition field values (already formatted in getReadableChanges)
+  if (field && field.startsWith('nutrition_')) {
+    if (typeof val === 'number') {
+      const unitMap: Record<string, string> = {
+        'nutrition_calories': ' קק"ל',
+        'nutrition_protein': ' גרם',
+        'nutrition_carbs': ' גרם',
+        'nutrition_fat': ' גרם',
+        'nutrition_fiber_min': ' גרם',
+        'nutrition_water_min': ' ליטר',
+      };
+      return `${val}${unitMap[field] || ''}`;
+    }
+    return String(val);
+  }
+
   if (typeof val === 'object') {
     if (Array.isArray(val)) {
       if (val.length === 0) return 'אין';
@@ -200,17 +224,28 @@ const formatValue = (val: any, field?: string, templateNameMap?: Map<string, str
       if (val[0] && typeof val[0] === 'object' && 'name' in val[0]) {
         return val.map((s: any) => `${s.name} (${s.dosage || '-'}, ${s.timing || '-'})`).join(', ');
       }
+      // Cardio/Interval training arrays
+      if (val[0] && typeof val[0] === 'object' && ('duration_minutes' in val[0] || 'period_type' in val[0])) {
+        return val.map((t: any) => {
+          const parts = [];
+          if (t.name) parts.push(t.name);
+          if (t.duration_minutes) parts.push(`${t.duration_minutes} דקות`);
+          if (t.period_type) parts.push(t.period_type);
+          return parts.length > 0 ? parts.join(' • ') : 'אימון';
+        }).join(', ');
+      }
       return JSON.stringify(val);
     }
 
     // Nutrition targets
     if ('calories' in val || 'protein' in val) {
       const parts = [];
-      if (val.calories) parts.push(`${val.calories} קלוריות`);
+      if (val.calories) parts.push(`${val.calories} קק"ל`);
       if (val.protein) parts.push(`${val.protein}ג חלבון`);
       if (val.carbs) parts.push(`${val.carbs}ג פחמימה`);
       if (val.fat) parts.push(`${val.fat}ג שומן`);
       if (val.fiber_min) parts.push(`${val.fiber_min}ג סיבים`);
+      if (val.water_min) parts.push(`${val.water_min} ליטר מים`);
       return parts.length > 0 ? parts.join(', ') : JSON.stringify(val);
     }
 
@@ -223,6 +258,14 @@ const formatValue = (val: any, field?: string, templateNameMap?: Map<string, str
     }
 
     return JSON.stringify(val);
+  }
+
+  // For numbers, add appropriate formatting
+  if (typeof val === 'number') {
+    if (field === 'steps_goal') {
+      return val.toLocaleString('he-IL');
+    }
+    return val.toString();
   }
 
   return String(val);
@@ -315,7 +358,119 @@ const getReadableChanges = (item: BudgetHistoryItem, templateNameMap: Map<string
       }
     }
 
-    // Simple comparison
+    // Special handling for nutrition_targets - break down into individual fields
+    if (key === 'nutrition_targets') {
+      const oldTargets = oldData[key] || {};
+      const newTargets = newData[key] || {};
+      
+      // Check each nutrition target field individually
+      const nutritionFields = ['calories', 'protein', 'carbs', 'fat', 'fiber_min', 'water_min'];
+      nutritionFields.forEach(field => {
+        const oldVal = oldTargets[field];
+        const newVal = newTargets[field];
+        if (oldVal !== newVal) {
+          changes.push({
+            field: `nutrition_${field}`,
+            oldVal: oldVal ?? '-',
+            newVal: newVal ?? '-'
+          });
+        }
+      });
+      return; // Don't add the whole object, we've broken it down
+    }
+
+    // Special handling for supplements - show detailed changes
+    if (key === 'supplements') {
+      const oldSupplements = Array.isArray(oldData[key]) ? oldData[key] : [];
+      const newSupplements = Array.isArray(newData[key]) ? newData[key] : [];
+      
+      // If arrays are different, show the change
+      if (JSON.stringify(oldSupplements) !== JSON.stringify(newSupplements)) {
+        const oldSummary = oldSupplements.length > 0 
+          ? oldSupplements.map((s: any) => `${s.name || '-'} (${s.dosage || '-'}, ${s.timing || '-'})`).join(', ')
+          : 'אין תוספים';
+        const newSummary = newSupplements.length > 0
+          ? newSupplements.map((s: any) => `${s.name || '-'} (${s.dosage || '-'}, ${s.timing || '-'})`).join(', ')
+          : 'אין תוספים';
+        
+        changes.push({
+          field: 'supplements',
+          oldVal: oldSummary,
+          newVal: newSummary
+        });
+      }
+      return;
+    }
+
+    // Special handling for cardio_training
+    if (key === 'cardio_training') {
+      const oldCardio = Array.isArray(oldData[key]) ? oldData[key] : (oldData[key] ? [oldData[key]] : []);
+      const newCardio = Array.isArray(newData[key]) ? newData[key] : (newData[key] ? [newData[key]] : []);
+      
+      if (JSON.stringify(oldCardio) !== JSON.stringify(newCardio)) {
+        const oldSummary = oldCardio.length > 0
+          ? oldCardio.map((c: any) => {
+              const parts = [];
+              if (c.name) parts.push(c.name);
+              if (c.duration_minutes) parts.push(`${c.duration_minutes} דקות`);
+              if (c.period_type) parts.push(c.period_type);
+              return parts.length > 0 ? parts.join(' • ') : 'אירובי';
+            }).join(', ')
+          : 'אין אימון אירובי';
+        const newSummary = newCardio.length > 0
+          ? newCardio.map((c: any) => {
+              const parts = [];
+              if (c.name) parts.push(c.name);
+              if (c.duration_minutes) parts.push(`${c.duration_minutes} דקות`);
+              if (c.period_type) parts.push(c.period_type);
+              return parts.length > 0 ? parts.join(' • ') : 'אירובי';
+            }).join(', ')
+          : 'אין אימון אירובי';
+        
+        changes.push({
+          field: 'cardio_training',
+          oldVal: oldSummary,
+          newVal: newSummary
+        });
+      }
+      return;
+    }
+
+    // Special handling for interval_training
+    if (key === 'interval_training') {
+      const oldInterval = Array.isArray(oldData[key]) ? oldData[key] : (oldData[key] ? [oldData[key]] : []);
+      const newInterval = Array.isArray(newData[key]) ? newData[key] : (newData[key] ? [newData[key]] : []);
+      
+      if (JSON.stringify(oldInterval) !== JSON.stringify(newInterval)) {
+        const oldSummary = oldInterval.length > 0
+          ? oldInterval.map((i: any) => {
+              const parts = [];
+              if (i.name) parts.push(i.name);
+              if (i.duration_minutes) parts.push(`${i.duration_minutes} דקות`);
+              if (i.period_type) parts.push(i.period_type);
+              return parts.length > 0 ? parts.join(' • ') : 'אינטרוול';
+            }).join(', ')
+          : 'אין אימון אינטרוולים';
+        const newSummary = newInterval.length > 0
+          ? newInterval.map((i: any) => {
+              const parts = [];
+              if (i.name) parts.push(i.name);
+              if (i.duration_minutes) parts.push(`${i.duration_minutes} דקות`);
+              if (i.period_type) parts.push(i.period_type);
+              return parts.length > 0 ? parts.join(' • ') : 'אינטרוול';
+            }).join(', ')
+          : 'אין אימון אינטרוולים';
+        
+        changes.push({
+          field: 'interval_training',
+          oldVal: oldSummary,
+          newVal: newSummary
+        });
+      }
+      return;
+    }
+
+    // Simple comparison for all other fields
     if (JSON.stringify(oldData[key]) !== JSON.stringify(newData[key])) {
       // If we already handled custom_attributes above, we don't want to add it again
       // But if getWeeklyWorkoutChanges returned empty (no visible changes in weekly workout), 

@@ -12,9 +12,11 @@ import { useToast } from '@/hooks/use-toast';
 interface AddSupplementDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (supplement: Supplement) => void;
+  onSave: (supplement: Supplement) => void | Promise<void>;
   initialData?: Supplement | null;
   supplementTemplates?: Array<{ id: string; name: string; supplements: Supplement[] }>;
+  /** When provided (e.g. from plan-detail modal), used as success toast description after add. */
+  successToastDescription?: string;
 }
 
 export const AddSupplementDialog = ({
@@ -23,6 +25,7 @@ export const AddSupplementDialog = ({
   onSave,
   initialData,
   supplementTemplates: propSupplementTemplates = [],
+  successToastDescription,
 }: AddSupplementDialogProps) => {
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
@@ -143,11 +146,7 @@ export const AddSupplementDialog = ({
       };
 
       // Save to action plan first - this is critical and must succeed
-      try {
-        onSave(supplement);
-      } catch (saveError: any) {
-        throw saveError; // Re-throw to be caught by outer catch
-      }
+      await Promise.resolve(onSave(supplement));
 
       // If we get here, save was successful
       // Now optionally create in supplements interface (non-blocking)
@@ -162,12 +161,11 @@ export const AddSupplementDialog = ({
         });
       }
       
-      // Show success message
       toast({
         title: 'הצלחה',
-        description: isCreatingNew && shouldCreateInInterface 
+        description: successToastDescription ?? (isCreatingNew && shouldCreateInInterface
           ? 'התוסף נוסף לתכנית הפעולה ולממשק התוספים'
-          : 'התוסף נוסף לתכנית הפעולה',
+          : 'התוסף נוסף לתכנית הפעולה'),
       });
       
       // Reset form
