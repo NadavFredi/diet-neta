@@ -7,7 +7,7 @@ export interface BudgetHistoryItem {
   lead_id: string | null;
   changed_at: string;
   changed_by: string | null;
-  change_type: 'create' | 'update';
+  change_type: 'create' | 'update' | 'nutrition_create' | 'nutrition_update' | 'workout_create' | 'workout_update' | 'supplement_create' | 'supplement_update' | 'steps_create' | 'steps_update';
   changes: {
     old?: any;
     new?: any;

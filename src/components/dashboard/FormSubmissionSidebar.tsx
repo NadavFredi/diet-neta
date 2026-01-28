@@ -195,14 +195,17 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
       })
       .then(({ data, error }) => {
         if (error) throw error;
-        const raw = data?.data ?? data;
-        if (raw?.questions && Array.isArray(raw.questions)) {
+        // API returns { success, data: { submission: { submissionId, questions, ... } } }
+        const payload = data?.data ?? data;
+        const sub = payload?.submission ?? payload;
+        const questions = sub?.questions;
+        if (questions && Array.isArray(questions)) {
           setFullSubmission({
-            submissionId: raw.submissionId ?? submission.submissionId,
-            submissionTime: raw.submissionTime ?? submission.submissionTime,
-            lastUpdatedAt: raw.lastUpdatedAt ?? submission.lastUpdatedAt ?? '',
-            questions: raw.questions,
-            urlParameters: raw.urlParameters,
+            submissionId: sub.submissionId ?? submission.submissionId,
+            submissionTime: sub.submissionTime ?? submission.submissionTime,
+            lastUpdatedAt: sub.lastUpdatedAt ?? submission.lastUpdatedAt ?? '',
+            questions,
+            urlParameters: sub.urlParameters,
           });
         } else {
           setFullSubmission(null);
@@ -244,7 +247,7 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
     }
 
     return categories;
-  }, [submission]);
+  }, [displaySubmission]);
 
   // Toggle category expansion
   const toggleCategory = (category: string) => {
@@ -287,11 +290,11 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
 
   // Expand all categories by default (only on initial load)
   useEffect(() => {
-    if (submission?.questions && !categoriesInitialized && Object.keys(categorizedQuestions).length > 0) {
+    if (displaySubmission?.questions && !categoriesInitialized && Object.keys(categorizedQuestions).length > 0) {
       setExpandedCategories(new Set(Object.keys(categorizedQuestions)));
       setCategoriesInitialized(true);
     }
-  }, [submission, categorizedQuestions, categoriesInitialized]);
+  }, [displaySubmission, categorizedQuestions, categoriesInitialized]);
 
   // Reset initialization when submission changes
   useEffect(() => {
@@ -303,17 +306,17 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
   // Check if this is the questionnaire form that supports field updates
   const questionnaireFormId = '23ggw4DEs7us';
   const isQuestionnaireForm = formType.formId?.trim().toLowerCase() === questionnaireFormId.trim().toLowerCase();
-  const canUpdateLead = isQuestionnaireForm && leadId && onUpdateLead && submission;
+  const canUpdateLead = isQuestionnaireForm && leadId && onUpdateLead && displaySubmission;
 
   // Handle manual update from form submission
   const handleUpdateLead = async () => {
-    if (!submission || !leadId || !onUpdateLead) {
+    if (!displaySubmission || !leadId || !onUpdateLead) {
       return;
     }
 
     setIsUpdating(true);
     try {
-      const extractedFields = extractLeadFieldsFromSubmission(submission, formType.formId);
+      const extractedFields = extractLeadFieldsFromSubmission(displaySubmission, formType.formId);
       
       // Remove undefined values
       const updates: any = {};
@@ -402,31 +405,8 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
                   )}
                 </Button>
               )}
-              {/* Refresh answers from Fillout API - when submission exists but may lack full answers */}
-              {submission && formType.formId?.trim() && submission.submissionId && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleBackfillFromFillout}
-                  disabled={isBackfilling}
-                  className="h-6 px-2 text-xs text-amber-600 hover:text-amber-900 hover:bg-amber-50"
-                  title="רענן תשובות מפילאאוט"
-                >
-                  {isBackfilling ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 ml-1 animate-spin" />
-                      מרענן...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-3.5 w-3.5 ml-1" />
-                      רענן תשובות
-                    </>
-                  )}
-                </Button>
-              )}
               {/* Collapse/Expand All Button - Only show when submission exists and has categories */}
-              {submission && Object.keys(categorizedQuestions).length > 0 && (
+              {displaySubmission && Object.keys(categorizedQuestions).length > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -472,16 +452,16 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
             </div>
           </div>
           {/* Submission Date - Compact */}
-          {submission && (
+          {displaySubmission && (
             <div className="mt-1 text-[10px] text-gray-400">
-              הגשה: {formatDate(submission.submissionTime)}
+              הגשה: {formatDate(displaySubmission.submissionTime)}
             </div>
           )}
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
+          {isLoading || (submission && isLoadingFillout && !fullSubmission) ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-purple-600 mb-4" />
               <p className="text-xs text-slate-600">טוען תשובות...</p>

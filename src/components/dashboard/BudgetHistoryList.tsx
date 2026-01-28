@@ -89,7 +89,11 @@ const HistoryItem = ({ item, templateNameMap }: { item: BudgetHistoryItem; templ
     'nutrition_create': 'יצירת תוכנית תזונה',
     'nutrition_update': 'עדכון תוכנית תזונה',
     'workout_create': 'יצירת תוכנית אימונים',
-    'workout_update': 'עדכון תוכנית אימונים'
+    'workout_update': 'עדכון תוכנית אימונים',
+    'supplement_create': 'יצירת תוכנית תוספים',
+    'supplement_update': 'עדכון תוכנית תוספים',
+    'steps_create': 'יצירת תוכנית צעדים',
+    'steps_update': 'עדכון תוכנית צעדים'
   };
 
   return (
@@ -180,6 +184,8 @@ const getFieldLabel = (field: string) => {
     workout_day_thursday: 'אימון חמישי',
     workout_day_friday: 'אימון שישי',
     workout_day_saturday: 'אימון שבת',
+    end_date: 'תאריך סיום',
+    is_active: 'פעיל',
   };
   return labels[field] || field;
 };
