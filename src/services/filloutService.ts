@@ -49,37 +49,74 @@ function convertDbSubmissionToFilloutSubmission(dbSubmission: any): FilloutSubmi
   // Extract questions from submission_data
   // The webhook stores form fields in various formats, we need to reconstruct questions array
   const questions: FilloutQuestion[] = [];
+  const questionKeys = new Set<string>(); // Track which keys we've already added
 
-  // Try to extract from submission_data.questions if it exists
+  // First, try to extract from submission_data.questions if it exists
   if (submissionData.questions && Array.isArray(submissionData.questions)) {
     submissionData.questions.forEach((q: any) => {
-      questions.push({
-        id: q.id || q.name || '',
-        name: q.name || q.id || '',
-        type: q.type || 'text',
-        value: q.value !== undefined ? q.value : null,
-      });
-    });
-  } else {
-    // Reconstruct questions from flat submission_data fields
-    // Skip metadata fields
-    Object.keys(submissionData).forEach((key) => {
-      if (!key.startsWith('_') &&
-        key !== 'formId' &&
-        key !== 'submissionId' &&
-        key !== 'submissionTime' &&
-        key !== 'lastUpdatedAt' &&
-        key !== 'urlParameters' &&
-        key !== 'questions') {
+      const questionId = q.id || q.name || '';
+      const questionName = q.name || q.id || '';
+      if (questionId || questionName) {
         questions.push({
-          id: key,
-          name: key,
-          type: 'text',
-          value: submissionData[key],
+          id: questionId,
+          name: questionName,
+          type: q.type || 'text',
+          value: q.value !== undefined ? q.value : null,
         });
+        // Track that we've added this question
+        questionKeys.add(questionId.toLowerCase());
+        questionKeys.add(questionName.toLowerCase());
       }
     });
   }
+
+  // Then, reconstruct questions from flat submission_data fields
+  // This ensures we capture ALL fields, even if they weren't in the questions array
+  // Skip metadata fields and fields we've already added
+  Object.keys(submissionData).forEach((key) => {
+    // Skip metadata fields
+    if (key.startsWith('_') ||
+      key === 'formId' ||
+      key === 'submissionId' ||
+      key === 'submissionTime' ||
+      key === 'lastUpdatedAt' ||
+      key === 'urlParameters' ||
+      key === 'questions' ||
+      key === '_rawWebhookPayload') {
+      return;
+    }
+
+    // Skip if we've already added this field as a question
+    if (questionKeys.has(key.toLowerCase())) {
+      return;
+    }
+
+    // Skip if value is null, undefined, or empty object
+    const value = submissionData[key];
+    if (value === null || value === undefined) {
+      return;
+    }
+
+    // Skip complex nested objects (but include arrays and primitives)
+    if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0) {
+      // For nested objects, we might want to stringify them or skip them
+      // For now, let's include them as stringified JSON
+      questions.push({
+        id: key,
+        name: key,
+        type: 'text',
+        value: JSON.stringify(value, null, 2),
+      });
+    } else {
+      // Add the field as a question
+      questions.push({
+        id: key,
+        name: key,
+        type: 'text',
+        value: value,
+      });
+    }
+  });
 
   // Extract URL parameters
   const urlParameters: FilloutUrlParameter[] = [];

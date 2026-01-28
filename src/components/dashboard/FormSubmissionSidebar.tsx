@@ -20,6 +20,7 @@ import type { FilloutSubmission } from '@/services/filloutService';
 import { ReadOnlyField } from './ReadOnlyField';
 import { extractLeadFieldsFromSubmission } from '@/utils/filloutFieldExtractor';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabaseClient';
 
 interface FormSubmissionSidebarProps {
   formType: FormType;
@@ -61,6 +62,8 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
   const { closeHistory } = useLeadSidebar();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [fullSubmission, setFullSubmission] = useState<FilloutSubmission | null>(null);
+  const [isLoadingFillout, setIsLoadingFillout] = useState(false);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -176,14 +179,47 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
     }
   }, [leadId, leadEmail, leadPhone, formType.key, dispatch]);
 
-  // Categorize questions
+  // When sidebar opens with a submission, fetch full answers from Fillout API
+  const displaySubmission = fullSubmission ?? submission;
+
+  useEffect(() => {
+    if (!submission?.submissionId || !formType.formId?.trim()) {
+      setFullSubmission(null);
+      return;
+    }
+    setIsLoadingFillout(true);
+    setFullSubmission(null);
+    supabase.functions
+      .invoke('get-fillout-submission', {
+        body: { formId: formType.formId, submissionId: submission.submissionId },
+      })
+      .then(({ data, error }) => {
+        if (error) throw error;
+        const raw = data?.data ?? data;
+        if (raw?.questions && Array.isArray(raw.questions)) {
+          setFullSubmission({
+            submissionId: raw.submissionId ?? submission.submissionId,
+            submissionTime: raw.submissionTime ?? submission.submissionTime,
+            lastUpdatedAt: raw.lastUpdatedAt ?? submission.lastUpdatedAt ?? '',
+            questions: raw.questions,
+            urlParameters: raw.urlParameters,
+          });
+        } else {
+          setFullSubmission(null);
+        }
+      })
+      .catch(() => setFullSubmission(null))
+      .finally(() => setIsLoadingFillout(false));
+  }, [submission?.submissionId, submission?.submissionTime, submission?.lastUpdatedAt, formType.formId]);
+
+  // Categorize questions from the submission we display (Fillout API or DB)
   const categorizedQuestions = useMemo(() => {
-    if (!submission?.questions) return {};
+    if (!displaySubmission?.questions) return {};
 
-    const categories: Record<string, typeof submission.questions> = {};
-    const uncategorized: typeof submission.questions = [];
+    const categories: Record<string, typeof displaySubmission.questions> = {};
+    const uncategorized: typeof displaySubmission.questions = [];
 
-    submission.questions.forEach((question) => {
+    displaySubmission.questions.forEach((question) => {
       const questionName = question.name?.toLowerCase() || '';
       let categorized = false;
 
@@ -362,6 +398,29 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
                     <>
                       <Download className="h-3.5 w-3.5 ml-1" />
                       עדכן שדות
+                    </>
+                  )}
+                </Button>
+              )}
+              {/* Refresh answers from Fillout API - when submission exists but may lack full answers */}
+              {submission && formType.formId?.trim() && submission.submissionId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBackfillFromFillout}
+                  disabled={isBackfilling}
+                  className="h-6 px-2 text-xs text-amber-600 hover:text-amber-900 hover:bg-amber-50"
+                  title="רענן תשובות מפילאאוט"
+                >
+                  {isBackfilling ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 ml-1 animate-spin" />
+                      מרענן...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 ml-1" />
+                      רענן תשובות
                     </>
                   )}
                 </Button>

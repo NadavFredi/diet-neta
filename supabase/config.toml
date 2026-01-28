@@ -127,6 +127,16 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/receive-fillout-webhook/index.ts"
 
+[functions.get-fillout-submission]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/get-fillout-submission/index.ts"
+
+[functions.backfill-fillout-submission]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/backfill-fillout-submission/index.ts"
+
 # [functions.sync-fillout-meetings]
 # DISABLED: Uses Fillout API which has been removed. Only webhook-based integration is used now.
 # enabled = false

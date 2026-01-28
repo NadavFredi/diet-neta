@@ -5,7 +5,7 @@
  * Changes only affect the user/lead plan, not the budget template
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -97,6 +97,10 @@ export const PlanDetailModal = ({
   const [isAddSupplementDialogOpen, setIsAddSupplementDialogOpen] = useState(false);
   const [editingSupplementIndex, setEditingSupplementIndex] = useState<number | null>(null);
 
+  // Track which plan we last initialized form from, so we don't overwrite in-modal edits
+  // when parent re-renders and passes a new planData object reference.
+  const lastInitializedPlanIdRef = useRef<string | null>(null);
+
   // Fetch supplement templates to get the list of available supplements
   const { data: supplementTemplatesData, refetch: refetchSupplementTemplates } = useSupplementTemplates();
   const supplementTemplates = supplementTemplatesData?.data || [];
@@ -151,64 +155,77 @@ export const PlanDetailModal = ({
     }
   };
 
-  // Initialize form when planData changes
+  // Reset "last initialized" when modal closes so next open re-initializes
   useEffect(() => {
-    if (planData) {
-      if (planType === 'workout') {
-        const data = planData as WorkoutPlanData;
-        setWorkoutForm({
-          startDate: formatDateForInput(data.startDate),
-          description: data.description || '',
-          strength: data.strength || 0,
-          cardio: data.cardio || 0,
-          intervals: data.intervals || 0,
-        });
-      } else if (planType === 'nutrition') {
-        const data = planData as NutritionPlanData;
-        setNutritionForm({
-          startDate: formatDateForInput(data.startDate),
-          endDate: formatDateForInput(data.endDate),
-          description: data.description || '',
-          calories: data.targets?.calories || 0,
-          protein: data.targets?.protein || 0,
-          carbs: data.targets?.carbs || 0,
-          fat: data.targets?.fat || 0,
-          fiber: data.targets?.fiber || 0,
-        });
-      } else if (planType === 'supplements') {
-        const data = planData as SupplementPlanData;
-        // Handle backward compatibility: convert string[] to Supplement[]
-        let supplements: Supplement[] = [];
-        if (data.supplements) {
-          if (Array.isArray(data.supplements) && data.supplements.length > 0) {
-            if (typeof data.supplements[0] === 'string') {
-              // Old format: string[]
-              supplements = (data.supplements as string[]).map(name => ({
-                name: name,
-                dosage: '',
-                timing: '',
-              }));
-            } else {
-              // New format: Supplement[]
-              supplements = data.supplements as Supplement[];
-            }
+    if (!isOpen) {
+      lastInitializedPlanIdRef.current = null;
+    }
+  }, [isOpen]);
+
+  // Initialize form only when modal opens or when a different plan is selected.
+  // Do not re-initialize on every planData reference change (e.g. parent re-render),
+  // so in-modal edits are not overwritten.
+  useEffect(() => {
+    if (!isOpen || !planData) return;
+
+    const planId = planData.id ?? null;
+    if (planId != null && lastInitializedPlanIdRef.current === planId) return;
+    lastInitializedPlanIdRef.current = planId;
+
+    if (planType === 'workout') {
+      const data = planData as WorkoutPlanData;
+      setWorkoutForm({
+        startDate: formatDateForInput(data.startDate),
+        description: data.description || '',
+        strength: data.strength || 0,
+        cardio: data.cardio || 0,
+        intervals: data.intervals || 0,
+      });
+    } else if (planType === 'nutrition') {
+      const data = planData as NutritionPlanData;
+      setNutritionForm({
+        startDate: formatDateForInput(data.startDate),
+        endDate: formatDateForInput(data.endDate),
+        description: data.description || '',
+        calories: data.targets?.calories || 0,
+        protein: data.targets?.protein || 0,
+        carbs: data.targets?.carbs || 0,
+        fat: data.targets?.fat || 0,
+        fiber: data.targets?.fiber || 0,
+      });
+    } else if (planType === 'supplements') {
+      const data = planData as SupplementPlanData;
+      // Handle backward compatibility: convert string[] to Supplement[]
+      let supplements: Supplement[] = [];
+      if (data.supplements) {
+        if (Array.isArray(data.supplements) && data.supplements.length > 0) {
+          if (typeof data.supplements[0] === 'string') {
+            // Old format: string[]
+            supplements = (data.supplements as string[]).map(name => ({
+              name: name,
+              dosage: '',
+              timing: '',
+            }));
+          } else {
+            // New format: Supplement[]
+            supplements = data.supplements as Supplement[];
           }
         }
-        setSupplementForm({
-          startDate: formatDateForInput(data.startDate),
-          endDate: formatDateForInput(data.endDate),
-          description: data.description || '',
-          supplements: supplements,
-        });
       }
-      // Supplements modal is always editable; workout/nutrition use edit toggle
-      if (planType !== 'supplements') {
-        setIsEditing(false);
-      } else {
-        setIsEditing(true);
-      }
+      setSupplementForm({
+        startDate: formatDateForInput(data.startDate),
+        endDate: formatDateForInput(data.endDate),
+        description: data.description || '',
+        supplements: supplements,
+      });
     }
-  }, [planData, planType]);
+    // Supplements modal is always editable; workout/nutrition use edit toggle
+    if (planType !== 'supplements') {
+      setIsEditing(false);
+    } else {
+      setIsEditing(true);
+    }
+  }, [isOpen, planData, planType]);
 
   const handleSave = async (overrideSupplements?: Supplement[], closeOnSuccess = true) => {
     if (!planData?.id) {
@@ -276,14 +293,29 @@ export const PlanDetailModal = ({
       } else if (planType === 'supplements') {
         const list = overrideSupplements ?? supplementForm.supplements;
         const validSupplements = list.filter((s) => s?.name?.trim() !== '');
+        // Use form state values, fallback to original planData if form values are empty
+        // start_date is required, so preserve original if form value is empty
         const supplementData = planData as SupplementPlanData;
+        const startDate = supplementForm.startDate || supplementData.startDate;
+        const endDate = supplementForm.endDate || supplementData.endDate || null;
+        const description = supplementForm.description || supplementData.description || null;
+        
+        // Ensure supplements array is properly formatted
+        const formattedSupplements = validSupplements.map(s => ({
+          name: s.name || '',
+          dosage: s.dosage || '',
+          timing: s.timing || '',
+          ...(s.link1 && { link1: s.link1 }),
+          ...(s.link2 && { link2: s.link2 }),
+        }));
+        
         const { error } = await supabase
           .from('supplement_plans')
           .update({
-            start_date: supplementData.startDate || null,
-            end_date: supplementData.endDate || null,
-            description: supplementData.description || null,
-            supplements: validSupplements,
+            start_date: startDate,
+            end_date: endDate,
+            description: description,
+            supplements: formattedSupplements,
           })
           .eq('id', planData.id);
         if (error) throw error;
@@ -293,9 +325,11 @@ export const PlanDetailModal = ({
       queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
       queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
       queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
+      // Refetch plans-history so the list (supplement plans) updates with new/edited items
+      await queryClient.refetchQueries({ queryKey: ['plans-history', customerId ?? undefined, leadId ?? undefined] });
       if (planData.budget_id) {
         queryClient.invalidateQueries({ queryKey: ['budget-history', planData.budget_id] });
-        queryClient.refetchQueries({ queryKey: ['budget-history', planData.budget_id] });
+        await queryClient.refetchQueries({ queryKey: ['budget-history', planData.budget_id] });
       }
 
       if (closeOnSuccess) {
@@ -332,7 +366,11 @@ export const PlanDetailModal = ({
     setSupplementForm((prev) => {
       const next = [...prev.supplements];
       if (!next[index]) return prev;
-      next[index] = { ...next[index], [field]: value };
+      // Preserve existing supplement data including optional fields (link1, link2)
+      next[index] = { 
+        ...next[index], 
+        [field]: value 
+      };
       return { ...prev, supplements: next };
     });
   };
