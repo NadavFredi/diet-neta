@@ -6,6 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
+import { toSignedUrl } from '@/utils/storageUtils';
 import { useAppSelector } from '@/store/hooks';
 
 // =====================================================
@@ -49,10 +50,9 @@ export const useBloodTests = (leadId: string | null) => {
 
       if (error) throw error;
 
-      // Get signed URLs for each file
+      // Get signed URLs for each file. Use toSignedUrl so we always get a proper signed URL.
       const testsWithUrls: BloodTestWithUrl[] = await Promise.all(
         (data || []).map(async (test) => {
-          // Extract customer_id from file_url (format: customer_id/blood-tests/filename.pdf)
           const pathParts = test.file_url.split('/');
           if (pathParts.length < 3) {
             return { ...test, signedUrl: '' };
@@ -64,22 +64,22 @@ export const useBloodTests = (leadId: string | null) => {
               .createSignedUrl(test.file_url, 3600);
 
             if (urlError) {
-              // File might not exist in storage or RLS policy violation - handle gracefully
               return { ...test, signedUrl: '' };
             }
 
+            const rawUrl = urlData?.signedUrl || '';
+            const signedUrl = await toSignedUrl(rawUrl || test.file_url, 3600);
+
             return {
               ...test,
-              signedUrl: urlData?.signedUrl || '',
+              signedUrl: signedUrl || '',
             };
           } catch (error: any) {
-            // Handle storage errors gracefully (e.g., file not found, RLS violation)
             return { ...test, signedUrl: '' };
           }
         })
       );
 
-      // Filter out tests with empty signed URLs (files that couldn't be accessed)
       return testsWithUrls.filter(test => test.signedUrl !== '');
     },
     enabled: !!leadId && !!user?.id,
@@ -118,10 +118,9 @@ export const useBloodTestsForCustomer = (customerId: string | null) => {
 
       if (error) throw error;
 
-      // Get signed URLs for each file
+      // Get signed URLs for each file. Use toSignedUrl so we always get a proper signed URL.
       const testsWithUrls: BloodTestWithUrl[] = await Promise.all(
         (data || []).map(async (test) => {
-          // Extract customer_id from file_url (format: customer_id/blood-tests/filename.pdf)
           const pathParts = test.file_url.split('/');
           if (pathParts.length < 3) {
             return { ...test, signedUrl: '' };
@@ -133,16 +132,17 @@ export const useBloodTestsForCustomer = (customerId: string | null) => {
               .createSignedUrl(test.file_url, 3600);
 
             if (urlError) {
-              // File might not exist in storage or RLS policy violation - handle gracefully
               return { ...test, signedUrl: '' };
             }
 
+            const rawUrl = urlData?.signedUrl || '';
+            const signedUrl = await toSignedUrl(rawUrl || test.file_url, 3600);
+
             return {
               ...test,
-              signedUrl: urlData?.signedUrl || '',
+              signedUrl: signedUrl || '',
             };
           } catch (error: any) {
-            // Handle storage errors gracefully (e.g., file not found, RLS violation)
             return { ...test, signedUrl: '' };
           }
         })

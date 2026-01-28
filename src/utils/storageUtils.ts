@@ -108,3 +108,27 @@ export async function ensureSignedUrl(
 
   return getSignedUrl(filePath, expiresIn);
 }
+
+/**
+ * Returns true if the URL is a valid signed URL (private bucket access).
+ * Direct object URLs like /storage/v1/object/client-assets/... return 400 for private buckets.
+ */
+export function isSignedStorageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return url.includes('/sign/') && url.includes('token=');
+}
+
+/**
+ * Given a path or URL, returns a signed URL. Use this after createSignedUrl when the API
+ * may return a direct object URL (e.g. local Supabase) which causes 400 for private buckets.
+ */
+export async function toSignedUrl(
+  urlOrPath: string,
+  expiresIn: number = 3600
+): Promise<string | null> {
+  if (!urlOrPath) return null;
+  if (isSignedStorageUrl(urlOrPath)) return urlOrPath;
+  const path = urlOrPath.includes('/storage/') ? extractStoragePath(urlOrPath) : urlOrPath;
+  if (!path) return null;
+  return getSignedUrl(path, expiresIn);
+}
