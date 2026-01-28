@@ -55,7 +55,8 @@ export const useNutritionPlan = (customerId?: string) => {
         .from('nutrition_plans')
         .select('*, budget_id')
         .eq('customer_id', customerId)
-        .order('created_at', { ascending: false })
+        .eq('is_active', true) // Only fetch active plans
+        .order('updated_at', { ascending: false }) // Use updated_at to get latest changes
         .limit(1)
         .maybeSingle();
 

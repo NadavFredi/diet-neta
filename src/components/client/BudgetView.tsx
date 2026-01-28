@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
+import { useSupplementPlan } from '@/hooks/useSupplementPlan';
 import { useNavigate } from 'react-router-dom';
 import {
   Target,
@@ -59,7 +60,10 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   const { workoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customerId || null);
 
   // Fetch nutrition plan for customer
-  const { nutritionPlan } = useNutritionPlan(customerId || null);
+  const { nutritionPlan, isLoading: isLoadingNutritionPlan } = useNutritionPlan(customerId || null);
+
+  // Fetch supplement plan for customer
+  const { supplementPlan } = useSupplementPlan(customerId || null);
 
   if (!budgetAssignment || !budget) {
     return (
@@ -77,8 +81,9 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
     );
   }
 
-  const nutritionTargets = budget.nutrition_targets as any || {};
-  const supplements = (budget.supplements || []) as any[];
+  const nutritionTargets = nutritionPlan?.targets || budget.nutrition_targets as any || {};
+  const fiberValue = nutritionTargets.fiber_min || nutritionTargets.fiber;
+  const supplements = (supplementPlan?.supplements || budget.supplements || []) as any[];
 
   return (
     <div className="space-y-4">
@@ -281,10 +286,10 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
                     <div className="text-[9px] text-amber-600">גרם</div>
                   </div>
                 )}
-                {nutritionTargets.fiber_min && (
+                {fiberValue && (
                   <div className="p-2.5 bg-green-50 rounded-lg border border-green-200">
                     <div className="text-[10px] font-medium text-green-700 mb-0.5">סיבים</div>
-                    <div className="text-base font-bold text-green-900">{nutritionTargets.fiber_min}</div>
+                    <div className="text-base font-bold text-green-900">{fiberValue}</div>
                     <div className="text-[9px] text-green-600">גרם</div>
                   </div>
                 )}
