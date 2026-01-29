@@ -22,6 +22,7 @@ export interface FilloutUrlParameter {
 
 export interface FilloutSubmission {
   submissionId: string;
+  formId: string;
   submissionTime: string;
   lastUpdatedAt: string;
   questions: FilloutQuestion[];
@@ -131,9 +132,10 @@ function convertDbSubmissionToFilloutSubmission(dbSubmission: any): FilloutSubmi
     });
   }
 
-  console.log('[Fillout] convertDbSubmissionToFilloutSubmission result', { submissionId: dbSubmission.fillout_submission_id, questionsCount: questions.length });
+  console.log('[Fillout] convertDbSubmissionToFilloutSubmission result', { submissionId: dbSubmission.fillout_submission_id, formId: dbSubmission.fillout_form_id, questionsCount: questions.length });
   return {
     submissionId: dbSubmission.fillout_submission_id,
+    formId: dbSubmission.fillout_form_id || '',
     submissionTime: dbSubmission.created_at || submissionData._submissionTime || submissionData.submissionTime || '',
     lastUpdatedAt: dbSubmission.updated_at || submissionData.lastUpdatedAt || '',
     questions,
