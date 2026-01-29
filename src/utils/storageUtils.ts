@@ -41,8 +41,7 @@ export function extractStoragePath(url: string): string | null {
     }
 
     return null;
-  } catch (error) {
-    console.error('Error extracting storage path:', error);
+  } catch {
     return null;
   }
 }
@@ -64,14 +63,10 @@ export async function getSignedUrl(
       .from('client-assets')
       .createSignedUrl(filePath, expiresIn);
 
-    if (error) {
-      console.error('Error creating signed URL:', error);
-      return null;
-    }
+    if (error) return null;
 
     return data?.signedUrl || null;
-  } catch (error) {
-    console.error('Error generating signed URL:', error);
+  } catch {
     return null;
   }
 }
@@ -101,10 +96,7 @@ export async function ensureSignedUrl(
 
   // Extract file path and generate new signed URL
   const filePath = extractStoragePath(url);
-  if (!filePath) {
-    console.warn('Could not extract storage path from URL:', url);
-    return null;
-  }
+  if (!filePath) return null;
 
   return getSignedUrl(filePath, expiresIn);
 }

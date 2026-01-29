@@ -38,8 +38,7 @@ export function useStorageImage(imageUrl: string | null | undefined): string | n
           setSignedUrl(url);
           setIsLoading(false);
         })
-        .catch((error) => {
-          console.error('Error ensuring signed URL:', error);
+        .catch(() => {
           setSignedUrl(null);
           setIsLoading(false);
         });

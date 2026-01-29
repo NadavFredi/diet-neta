@@ -191,38 +191,30 @@ export const useBudgetManagement = () => {
         // The useBudget hook will automatically refetch when the ID changes
         setEditingBudgetId(updateResult.id);
         
-        // If budget templates changed, sync plans for existing assignments
-        // (Budget is a template - changes should propagate to all assigned customers)
-        const budgetChanged = 
-          (data as any).workout_template_id !== undefined ||
-          (data as any).nutrition_template_id !== undefined ||
-          (data as any).supplements !== undefined;
-        
-        if (budgetChanged) {
-          // Get active assignments for this budget
-          const { data: assignments } = await supabase
-            .from('budget_assignments')
-            .select('customer_id, lead_id')
-            .eq('budget_id', editingBudget.id)
-            .eq('is_active', true);
+        // Sync plans for all active assignments of this budget
+        // This ensures changes propagate to all assigned customers immediately
+        const { data: assignments } = await supabase
+          .from('budget_assignments')
+          .select('customer_id, lead_id')
+          .eq('budget_id', editingBudget.id)
+          .eq('is_active', true);
 
-          if (assignments && assignments.length > 0) {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-              const updatedBudget = { ...editingBudget, ...data } as Budget;
-              
-              // Sync plans for each assignment
-              for (const assignment of assignments) {
-                try {
-                  await syncPlansFromBudget({
-                    budget: updatedBudget,
-                    customerId: assignment.customer_id,
-                    leadId: assignment.lead_id,
-                    userId: user.id,
-                  });
-                } catch (syncError) {
-                  // Silent failure
-                }
+        if (assignments && assignments.length > 0) {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            const updatedBudget = { ...editingBudget, ...data } as Budget;
+            
+            // Sync plans for each assignment
+            for (const assignment of assignments) {
+              try {
+                await syncPlansFromBudget({
+                  budget: updatedBudget,
+                  customerId: assignment.customer_id,
+                  leadId: assignment.lead_id,
+                  userId: authUser.id,
+                });
+              } catch {
+                // Sync failed; plans may still be updated elsewhere
               }
             }
           }

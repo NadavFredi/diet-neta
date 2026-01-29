@@ -11,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Calendar as CalendarIcon,
   Copy,
-  FileCopy,
   GripVertical,
   Plus,
   Trash2,
@@ -47,7 +46,6 @@ export interface WeeklyWorkout {
   startDate: string;
   description: string;
   generalGoals: string;
-  stepsGoal?: number;
   days: {
     sunday: DayWorkout;
     monday: DayWorkout;
@@ -240,7 +238,7 @@ export const WeeklyWorkoutBuilder = ({
           },
         },
       },
-      ...(customerId && { customer_id: customerId }),
+      ...(initialData?.customer_id && { customer_id: initialData.customer_id }),
     };
 
     onSave(planData);

@@ -717,45 +717,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       };
 
       const savedBudget = await onSave(budgetData);
-
-      // Get the budget ID - use initialData.id for edit mode, or savedBudget.id if returned
-      const budgetId = (mode === 'edit' && initialData?.id) ? initialData.id : (savedBudget as Budget | undefined)?.id;
-
-      // Auto-sync plans if we have a budget ID and it's being assigned to a customer/lead
-      // This ensures that when a manager edits a budget, the associated plans (workout, nutrition, etc.)
-      // are updated immediately for the client.
-      if (budgetId && user?.id) {
-        try {
-          // If we're in edit mode, we should sync for all assignments of this budget
-          const { data: assignments } = await supabase
-            .from('budget_assignments')
-            .select('customer_id, lead_id')
-            .eq('budget_id', budgetId)
-            .eq('is_active', true);
-
-          if (assignments && assignments.length > 0) {
-            const { syncPlansFromBudget } = await import('@/services/budgetPlanSync');
-            
-            // Sync for each assignment
-            for (const assignment of assignments) {
-              await syncPlansFromBudget({
-                budget: { ...budgetData, id: budgetId } as Budget,
-                customerId: assignment.customer_id,
-                leadId: assignment.lead_id,
-                userId: user.id,
-              });
-            }
-            
-            // Invalidate queries to show updates
-            queryClient.invalidateQueries({ queryKey: ['workoutPlan'] });
-            queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
-            queryClient.invalidateQueries({ queryKey: ['supplementPlan'] });
-            queryClient.invalidateQueries({ queryKey: ['steps-plans'] });
-          }
-        } catch (syncError) {
-          console.error('Failed to auto-sync plans after budget update:', syncError);
-        }
-      }
     } catch (error: any) {
       toast({
         title: 'שגיאה',

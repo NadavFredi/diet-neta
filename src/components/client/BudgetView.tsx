@@ -5,8 +5,9 @@
  * Optimized for minimal scrolling with high-density layout.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useActiveBudgetForLead, useActiveBudgetForCustomer, useActiveBudgetForCustomerOrLeads } from '@/hooks/useBudgets';
+import { useSupplementTemplates } from '@/hooks/useSupplementTemplates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ import { WorkoutPlanCard } from '@/components/dashboard/WorkoutPlanCard';
 import { useWorkoutPlan } from '@/hooks/useWorkoutPlan';
 import { useNutritionPlan } from '@/hooks/useNutritionPlan';
 import { useSupplementPlan } from '@/hooks/useSupplementPlan';
+import { usePlansHistory } from '@/hooks/usePlansHistory';
+import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
 import { useNavigate } from 'react-router-dom';
 import {
   Target,
@@ -64,6 +67,41 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
 
   // Fetch supplement plan for customer
   const { supplementPlan } = useSupplementPlan(customerId || null);
+  
+  // Fetch supplement templates to use as fallback for links
+  const { data: supplementTemplatesData } = useSupplementTemplates();
+  const supplementTemplates = supplementTemplatesData?.data || [];
+
+  // Fetch plans history to get the latest steps goal and other live data
+  const { data: plansHistory } = usePlansHistory(customerId || undefined, leadId || undefined);
+  const activeSteps = plansHistory?.stepsHistory?.find(s => s.is_active) || plansHistory?.stepsHistory?.[0];
+
+  // Create a map of supplement names to links from templates for fallback
+  const supplementLinksMap = useMemo(() => {
+    const map = new Map<string, { link1?: string; link2?: string }>();
+    if (!supplementTemplates || supplementTemplates.length === 0) return map;
+    
+    supplementTemplates.forEach(template => {
+      (template.supplements || []).forEach(sup => {
+        if (sup.name && (sup.link1 || sup.link2)) {
+          // Only add if not already in map or if current entry has more links
+          const existing = map.get(sup.name);
+          if (!existing || (!existing.link1 && sup.link1) || (!existing.link2 && sup.link2)) {
+            map.set(sup.name, { 
+              link1: sup.link1 || existing?.link1, 
+              link2: sup.link2 || existing?.link2 
+            });
+          }
+        }
+      });
+    });
+    return map;
+  }, [supplementTemplates]);
+
+  // Priority for steps: use values from steps_plans table (active live data)
+  // Fall back to budget object if plan table is missing
+  const stepsGoal = activeSteps?.target || budget?.steps_goal;
+  const stepsInstructions = activeSteps?.stepsInstructions || budget?.steps_instructions;
 
   if (!budgetAssignment || !budget) {
     return (
@@ -81,9 +119,17 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
     );
   }
 
-  const nutritionTargets = nutritionPlan?.targets || budget.nutrition_targets as any || {};
+  // Priority: use values from specific plan tables (active live data)
+  // Fall back to budget object if plan tables are missing
+  const nutritionTargets = (nutritionPlan?.targets && Object.keys(nutritionPlan.targets).length > 0 && nutritionPlan.targets.calories > 0)
+    ? nutritionPlan.targets
+    : (budget.nutrition_targets as any || {});
+    
   const fiberValue = nutritionTargets.fiber_min || nutritionTargets.fiber;
-  const supplements = (supplementPlan?.supplements || budget.supplements || []) as any[];
+  
+  const supplements = (supplementPlan?.supplements && supplementPlan.supplements.length > 0)
+    ? supplementPlan.supplements
+    : ((budget.supplements || []) as any[]);
 
   return (
     <div className="space-y-4">
@@ -175,33 +221,33 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
             </div>
 
             {/* Steps Goal, Instructions, Cardio and Intervals - In Same Row */}
-            {((budget.steps_goal || budget.steps_instructions?.trim()) ||
+            {((stepsGoal || stepsInstructions?.trim()) ||
               (budget.cardio_training && Array.isArray(budget.cardio_training) && budget.cardio_training.length > 0) ||
               (budget.interval_training && Array.isArray(budget.interval_training) && budget.interval_training.length > 0)) && (
               <div className="mt-4 pt-4 border-t border-slate-200/60">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Steps Goal and Instructions - Left Side */}
-                  {(budget.steps_goal || budget.steps_instructions?.trim()) && (
+                  {(stepsGoal || stepsInstructions?.trim()) && (
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <Footprints className="h-4 w-4 text-cyan-600" />
                         <span className="text-sm font-semibold text-slate-800">יעד צעדים</span>
                       </div>
-                      {budget.steps_goal && (
+                      {stepsGoal && (
                         <div className="mb-3">
                           <p className="text-2xl font-bold text-cyan-700 leading-none">
-                            {budget.steps_goal.toLocaleString()}
+                            {stepsGoal.toLocaleString()}
                           </p>
                           <p className="text-[10px] text-gray-500 mt-1">צעדים ליום</p>
                         </div>
                       )}
-                      {budget.steps_instructions?.trim() && (
+                      {stepsInstructions?.trim() && (
                         <div className="mt-2 pt-2 border-t border-cyan-100/60">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">הוראות צעדים</p>
                           </div>
                           <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                            {budget.steps_instructions}
+                            {stepsInstructions}
                           </p>
                         </div>
                       )}
@@ -253,47 +299,56 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Nutrition Targets - Left Side */}
             <div>
-              <div className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-1.5">
-                <Flame className="h-4 w-4 text-[#5B6FB9]" />
-                יעדי תזונה
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {nutritionTargets.calories && (
-                  <div className="p-2.5 bg-orange-50 rounded-lg border border-orange-200">
-                    <div className="text-[10px] font-medium text-orange-700 mb-0.5">קלוריות</div>
-                    <div className="text-base font-bold text-orange-900">{nutritionTargets.calories}</div>
-                    <div className="text-[9px] text-orange-600">קק"ל</div>
+              {nutritionPlan ? (
+                <NutritionPlanCard
+                  nutritionPlan={nutritionPlan}
+                  isEditable={false}
+                />
+              ) : (
+                <>
+                  <div className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-1.5">
+                    <Flame className="h-4 w-4 text-[#5B6FB9]" />
+                    יעדי תזונה
                   </div>
-                )}
-                {nutritionTargets.protein && (
-                  <div className="p-2.5 bg-red-50 rounded-lg border border-red-200">
-                    <div className="text-[10px] font-medium text-red-700 mb-0.5">חלבון</div>
-                    <div className="text-base font-bold text-red-900">{nutritionTargets.protein}</div>
-                    <div className="text-[9px] text-red-600">גרם</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {nutritionTargets.calories && (
+                      <div className="p-2.5 bg-orange-50 rounded-lg border border-orange-200">
+                        <div className="text-[10px] font-medium text-orange-700 mb-0.5">קלוריות</div>
+                        <div className="text-base font-bold text-orange-900">{nutritionTargets.calories}</div>
+                        <div className="text-[9px] text-orange-600">קק"ל</div>
+                      </div>
+                    )}
+                    {nutritionTargets.protein && (
+                      <div className="p-2.5 bg-red-50 rounded-lg border border-red-200">
+                        <div className="text-[10px] font-medium text-red-700 mb-0.5">חלבון</div>
+                        <div className="text-base font-bold text-red-900">{nutritionTargets.protein}</div>
+                        <div className="text-[9px] text-red-600">גרם</div>
+                      </div>
+                    )}
+                    {nutritionTargets.carbs && (
+                      <div className="p-2.5 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="text-[10px] font-medium text-blue-700 mb-0.5">פחמימות</div>
+                        <div className="text-base font-bold text-blue-900">{nutritionTargets.carbs}</div>
+                        <div className="text-[9px] text-blue-600">גרם</div>
+                      </div>
+                    )}
+                    {nutritionTargets.fat && (
+                      <div className="p-2.5 bg-amber-50 rounded-lg border border-amber-200">
+                        <div className="text-[10px] font-medium text-amber-700 mb-0.5">שומן</div>
+                        <div className="text-base font-bold text-amber-900">{nutritionTargets.fat}</div>
+                        <div className="text-[9px] text-amber-600">גרם</div>
+                      </div>
+                    )}
+                    {fiberValue && (
+                      <div className="p-2.5 bg-green-50 rounded-lg border border-green-200">
+                        <div className="text-[10px] font-medium text-green-700 mb-0.5">סיבים</div>
+                        <div className="text-base font-bold text-green-900">{fiberValue}</div>
+                        <div className="text-[9px] text-green-600">גרם</div>
+                      </div>
+                    )}
                   </div>
-                )}
-                {nutritionTargets.carbs && (
-                  <div className="p-2.5 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="text-[10px] font-medium text-blue-700 mb-0.5">פחמימות</div>
-                    <div className="text-base font-bold text-blue-900">{nutritionTargets.carbs}</div>
-                    <div className="text-[9px] text-blue-600">גרם</div>
-                  </div>
-                )}
-                {nutritionTargets.fat && (
-                  <div className="p-2.5 bg-amber-50 rounded-lg border border-amber-200">
-                    <div className="text-[10px] font-medium text-amber-700 mb-0.5">שומן</div>
-                    <div className="text-base font-bold text-amber-900">{nutritionTargets.fat}</div>
-                    <div className="text-[9px] text-amber-600">גרם</div>
-                  </div>
-                )}
-                {fiberValue && (
-                  <div className="p-2.5 bg-green-50 rounded-lg border border-green-200">
-                    <div className="text-[10px] font-medium text-green-700 mb-0.5">סיבים</div>
-                    <div className="text-base font-bold text-green-900">{fiberValue}</div>
-                    <div className="text-[9px] text-green-600">גרם</div>
-                  </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
 
             {/* Supplements - Right Side */}
@@ -304,68 +359,75 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
                   תוספי תזונה
                 </div>
                 <div className="grid grid-cols-1 gap-2">
-                  {supplements.map((supplement, index) => (
-                    <div
-                      key={index}
-                      className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200"
-                    >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-emerald-900 mb-1">
-                          {supplement.name}
+                  {supplements.map((supplement, index) => {
+                    // Fallback links from templates if missing in plan
+                    const fallbackLinks = supplementLinksMap.get(supplement.name) || {};
+                    const sLink1 = supplement.link1 || fallbackLinks.link1;
+                    const sLink2 = supplement.link2 || fallbackLinks.link2;
+                    
+                    return (
+                      <div
+                        key={index}
+                        className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200"
+                      >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-emerald-900 mb-1">
+                            {supplement.name}
+                          </div>
+                          {supplement.dosage && (
+                            <div className="text-xs text-emerald-700 mb-1">
+                              מינון: {supplement.dosage}
+                            </div>
+                          )}
+                          {supplement.timing && (
+                            <div className="text-xs text-emerald-600 mb-1">
+                              מתי לקחת: {supplement.timing}
+                            </div>
+                          )}
+                          {(sLink1 || sLink2) && (
+                            <div className="mt-2 pt-2 border-t border-emerald-200/60 space-y-1.5">
+                              {sLink1 && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700">
+                                    <LinkIcon className="h-3 w-3" />
+                                    קישור 1
+                                  </div>
+                                  <a
+                                    href={sLink1}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:text-blue-800 underline truncate block"
+                                    dir="ltr"
+                                  >
+                                    {sLink1}
+                                  </a>
+                                </div>
+                              )}
+                              {sLink2 && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700">
+                                    <LinkIcon className="h-3 w-3" />
+                                    קישור 2
+                                  </div>
+                                  <a
+                                    href={sLink2}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:text-blue-800 underline truncate block"
+                                    dir="ltr"
+                                  >
+                                    {sLink2}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        {supplement.dosage && (
-                          <div className="text-xs text-emerald-700 mb-1">
-                            מינון: {supplement.dosage}
-                          </div>
-                        )}
-                        {supplement.timing && (
-                          <div className="text-xs text-emerald-600 mb-1">
-                            מתי לקחת: {supplement.timing}
-                          </div>
-                        )}
-                        {(supplement.link1 || supplement.link2) && (
-                          <div className="mt-2 pt-2 border-t border-emerald-200/60 space-y-1.5">
-                            {supplement.link1 && (
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700">
-                                  <LinkIcon className="h-3 w-3" />
-                                  קישור 1
-                                </div>
-                                <a
-                                  href={supplement.link1}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-600 hover:text-blue-800 underline truncate block"
-                                  dir="ltr"
-                                >
-                                  {supplement.link1}
-                                </a>
-                              </div>
-                            )}
-                            {supplement.link2 && (
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700">
-                                  <LinkIcon className="h-3 w-3" />
-                                  קישור 2
-                                </div>
-                                <a
-                                  href={supplement.link2}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-600 hover:text-blue-800 underline truncate block"
-                                  dir="ltr"
-                                >
-                                  {supplement.link2}
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
-                    </div>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
