@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Image as ImageIcon, Loader2, Upload, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { toSignedUrl } from '@/utils/storageUtils';
 import { useToast } from '@/hooks/use-toast';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import {
@@ -83,33 +84,36 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
         throw error;
       }
 
-      // Get signed URLs for each photo with individual error handling
+      // Get signed URLs for each photo with individual error handling.
+      // Use toSignedUrl so we always get a proper signed URL (avoids 400 when API returns direct object URL).
+      const filePath = (name: string) => `${customerId}/progress/${name}`;
       const photosWithUrls: ProgressPhoto[] = await Promise.all(
         (data || []).map(async (file) => {
           try {
             const { data: urlData, error: urlError } = await supabase.storage
               .from('client-assets')
-              .createSignedUrl(`${customerId}/progress/${file.name}`, 3600);
+              .createSignedUrl(filePath(file.name), 3600);
 
             if (urlError) {
-              // Return photo with empty URL - it will be skipped in display
               return {
                 url: '',
-                path: `${customerId}/progress/${file.name}`,
+                path: filePath(file.name),
                 uploadedAt: file.created_at || file.updated_at || new Date().toISOString(),
               };
             }
 
+            const rawUrl = urlData?.signedUrl || '';
+            const url = await toSignedUrl(rawUrl || filePath(file.name), 3600);
+
             return {
-              url: urlData?.signedUrl || '',
-              path: `${customerId}/progress/${file.name}`,
+              url: url || '',
+              path: filePath(file.name),
               uploadedAt: file.created_at || file.updated_at || new Date().toISOString(),
             };
           } catch (err) {
-            // Return photo with empty URL - it will be skipped in display
             return {
               url: '',
-              path: `${customerId}/progress/${file.name}`,
+              path: filePath(file.name),
               uploadedAt: file.created_at || file.updated_at || new Date().toISOString(),
             };
           }

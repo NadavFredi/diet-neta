@@ -8,6 +8,7 @@ export interface NutritionPlan {
   user_id: string;
   lead_id?: string;
   template_id?: string;
+  template_name?: string;
   budget_id?: string | null;
   name?: string;
   start_date: string;
@@ -53,9 +54,10 @@ export const useNutritionPlan = (customerId?: string) => {
 
       const { data, error: fetchError } = await supabase
         .from('nutrition_plans')
-        .select('*, budget_id')
+        .select('*, budget_id, nutrition_templates(name)')
         .eq('customer_id', customerId)
-        .order('created_at', { ascending: false })
+        .eq('is_active', true) // Only fetch active plans
+        .order('updated_at', { ascending: false }) // Use updated_at to get latest changes
         .limit(1)
         .maybeSingle();
 
@@ -69,6 +71,7 @@ export const useNutritionPlan = (customerId?: string) => {
           user_id: data.user_id,
           lead_id: data.lead_id,
           template_id: data.template_id,
+          template_name: data.nutrition_templates?.name,
           budget_id: data.budget_id,
           name: data.name || '',
           start_date: data.start_date,

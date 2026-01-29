@@ -20,6 +20,12 @@ BEGIN
     DROP POLICY IF EXISTS "Managers can view exercise media" ON storage.objects;
     DROP POLICY IF EXISTS "Managers can delete exercise media" ON storage.objects;
 
+    -- Drop the new policies if they exist (in case migration is re-run)
+    DROP POLICY IF EXISTS "Managers can upload exercise assets" ON storage.objects;
+    DROP POLICY IF EXISTS "Authenticated users can view exercise assets" ON storage.objects;
+    DROP POLICY IF EXISTS "Managers can delete exercise assets" ON storage.objects;
+    DROP POLICY IF EXISTS "Managers can update exercise assets" ON storage.objects;
+
     -- 1. INSERT: Allow managers/admins to upload
     CREATE POLICY "Managers can upload exercise assets"
     ON storage.objects

@@ -191,6 +191,29 @@ COMMENT ON FUNCTION "auth"."uid"() IS 'Deprecated. Use auth.jwt() -> ''sub'' ins
 
 
 
+CREATE OR REPLACE FUNCTION "public"."auto_fill_payment_customer_id"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    -- If customer_id is not provided but lead_id is, get customer_id from lead
+    IF NEW.customer_id IS NULL AND NEW.lead_id IS NOT NULL THEN
+        SELECT customer_id INTO NEW.customer_id
+        FROM public.leads
+        WHERE id = NEW.lead_id;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."auto_fill_payment_customer_id"() OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."auto_fill_payment_customer_id"() IS 'Automatically populates customer_id from lead_id when inserting or updating payments';
+
+
+
 CREATE OR REPLACE FUNCTION "public"."calculate_age_from_birth_date"("birth_date" "date") RETURNS integer
     LANGUAGE "plpgsql" IMMUTABLE
     AS $$
@@ -225,6 +248,113 @@ $$;
 ALTER FUNCTION "public"."calculate_bmi"("height_cm" numeric, "weight_kg" numeric) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."check_expiring_subscriptions"() RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  lead_record RECORD;
+  admin_user RECORD;
+  days_until_expiration INT;
+  notification_type TEXT := 'subscription_ending';
+  existing_count INT;
+  message_text TEXT;
+  
+  -- Variables for future subscription
+  future_expiration_date DATE;
+  future_days_until_expiration INT;
+BEGIN
+  -- Loop through active leads with expiration date (current OR future)
+  FOR lead_record IN
+    SELECT 
+      l.id, 
+      l.customer_id,
+      c.full_name as customer_name,
+      (l.subscription_data->>'expirationDate')::DATE as current_expiration_date,
+      (l.subscription_data->'future_subscription'->>'expirationDate')::DATE as future_expiration_date,
+      (l.subscription_data->>'status')::TEXT as current_status,
+      (l.subscription_data->'future_subscription'->>'status')::TEXT as future_status
+    FROM leads l
+    LEFT JOIN customers c ON l.customer_id = c.id
+    WHERE 
+      (l.subscription_data->>'expirationDate' IS NOT NULL AND (l.subscription_data->>'status')::TEXT = 'פעיל')
+      OR 
+      (l.subscription_data->'future_subscription'->>'expirationDate' IS NOT NULL AND (l.subscription_data->'future_subscription'->>'status')::TEXT IN ('פעיל', 'ממתין'))
+  LOOP
+    
+    -- 1. Check Current Subscription
+    IF lead_record.current_expiration_date IS NOT NULL AND lead_record.current_status = 'פעיל' THEN
+        days_until_expiration := lead_record.current_expiration_date - CURRENT_DATE;
+        
+        IF days_until_expiration IN (7, 3, 0) THEN
+          IF days_until_expiration = 0 THEN
+            message_text := 'המנוי של ' || COALESCE(lead_record.customer_name, 'לקוח') || ' מסתיים היום (' || TO_CHAR(lead_record.current_expiration_date, 'DD/MM/YYYY') || ')';
+          ELSE
+            message_text := 'המנוי של ' || COALESCE(lead_record.customer_name, 'לקוח') || ' יסתיים בעוד ' || days_until_expiration || ' ימים (' || TO_CHAR(lead_record.current_expiration_date, 'DD/MM/YYYY') || ')';
+          END IF;
+
+          -- Send notification
+          FOR admin_user IN SELECT id FROM profiles WHERE role = 'admin' LOOP
+            SELECT COUNT(*) INTO existing_count
+            FROM notifications
+            WHERE 
+              user_id = admin_user.id
+              AND lead_id = lead_record.id 
+              AND type = notification_type 
+              AND created_at > NOW() - INTERVAL '20 hours'
+              AND message = message_text;
+              
+            IF existing_count = 0 THEN
+              INSERT INTO notifications (
+                user_id, customer_id, lead_id, type, title, message, action_url
+              ) VALUES (
+                admin_user.id, lead_record.customer_id, lead_record.id, notification_type, 'תזכורת סיום מנוי', message_text, '/dashboard/leads/' || lead_record.id
+              );
+            END IF;
+          END LOOP;
+        END IF;
+    END IF;
+
+    -- 2. Check Future Subscription
+    IF lead_record.future_expiration_date IS NOT NULL AND lead_record.future_status IN ('פעיל', 'ממתין') THEN
+        future_days_until_expiration := lead_record.future_expiration_date - CURRENT_DATE;
+        
+        IF future_days_until_expiration IN (7, 3, 0) THEN
+          IF future_days_until_expiration = 0 THEN
+            message_text := 'המנוי העתידי של ' || COALESCE(lead_record.customer_name, 'לקוח') || ' מסתיים היום (' || TO_CHAR(lead_record.future_expiration_date, 'DD/MM/YYYY') || ')';
+          ELSE
+            message_text := 'המנוי העתידי של ' || COALESCE(lead_record.customer_name, 'לקוח') || ' יסתיים בעוד ' || future_days_until_expiration || ' ימים (' || TO_CHAR(lead_record.future_expiration_date, 'DD/MM/YYYY') || ')';
+          END IF;
+
+          -- Send notification
+          FOR admin_user IN SELECT id FROM profiles WHERE role = 'admin' LOOP
+            SELECT COUNT(*) INTO existing_count
+            FROM notifications
+            WHERE 
+              user_id = admin_user.id
+              AND lead_id = lead_record.id 
+              AND type = notification_type 
+              AND created_at > NOW() - INTERVAL '20 hours'
+              AND message = message_text;
+              
+            IF existing_count = 0 THEN
+              INSERT INTO notifications (
+                user_id, customer_id, lead_id, type, title, message, action_url
+              ) VALUES (
+                admin_user.id, lead_record.customer_id, lead_record.id, notification_type, 'תזכורת סיום מנוי עתידי', message_text, '/dashboard/leads/' || lead_record.id
+              );
+            END IF;
+          END LOOP;
+        END IF;
+    END IF;
+
+  END LOOP;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."check_expiring_subscriptions"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."generate_invitation_token"() RETURNS "text"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -243,201 +373,77 @@ $$;
 ALTER FUNCTION "public"."generate_invitation_token"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_filtered_leads"("p_limit_count" integer DEFAULT 100, "p_offset_count" integer DEFAULT 0, "p_search_query" "text" DEFAULT NULL::"text", "p_status_main" "text" DEFAULT NULL::"text", "p_status_sub" "text" DEFAULT NULL::"text", "p_source" "text" DEFAULT NULL::"text", "p_fitness_goal" "text" DEFAULT NULL::"text", "p_activity_level" "text" DEFAULT NULL::"text", "p_preferred_time" "text" DEFAULT NULL::"text", "p_age" "text" DEFAULT NULL::"text", "p_height" "text" DEFAULT NULL::"text", "p_weight" "text" DEFAULT NULL::"text", "p_date" "text" DEFAULT NULL::"text") RETURNS TABLE("id" "uuid", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "assigned_to" "uuid", "customer_id" "uuid", "city" "text", "birth_date" "date", "age" integer, "gender" "text", "status_main" "text", "status_sub" "text", "height" numeric, "weight" numeric, "bmi" numeric, "join_date" timestamp with time zone, "subscription_data" "jsonb", "daily_protocol" "jsonb", "workout_history" "jsonb", "steps_history" "jsonb", "source" "text", "fitness_goal" "text", "activity_level" "text", "preferred_time" "text", "notes" "text", "customer_name" "text", "customer_phone" "text", "customer_email" "text", "created_date_formatted" "text", "birth_date_formatted" "text", "daily_steps_goal" integer, "weekly_workouts" integer, "daily_supplements" "text"[], "subscription_months" integer, "subscription_initial_price" numeric, "subscription_renewal_price" numeric)
-    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
-    AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        v.id, v.created_at, v.updated_at, v.assigned_to, v.customer_id, v.city,
-        v.birth_date, v.age, v.gender, v.status_main, v.status_sub,
-        v.height, v.weight, v.bmi, v.join_date, v.subscription_data,
-        v.daily_protocol, v.workout_history, v.steps_history, v.source,
-        v.fitness_goal, v.activity_level, v.preferred_time, v.notes,
-        v.customer_name, v.customer_phone, v.customer_email,
-        v.created_date_formatted, v.birth_date_formatted,
-        v.daily_steps_goal, v.weekly_workouts, v.daily_supplements,
-        v.subscription_months, v.subscription_initial_price, v.subscription_renewal_price
-    FROM public.v_leads_with_customer v
-    WHERE 
-        (p_search_query IS NULL OR v.customer_name ILIKE '%' || p_search_query || '%' OR v.customer_phone ILIKE '%' || p_search_query || '%' OR v.customer_email ILIKE '%' || p_search_query || '%')
-        AND (p_status_main IS NULL OR v.status_main = p_status_main)
-        AND (p_status_sub IS NULL OR v.status_sub = p_status_sub)
-        AND (p_source IS NULL OR v.source = p_source)
-        AND (p_fitness_goal IS NULL OR v.fitness_goal = p_fitness_goal)
-        AND (p_activity_level IS NULL OR v.activity_level = p_activity_level)
-        AND (p_preferred_time IS NULL OR v.preferred_time = p_preferred_time)
-        AND (p_age IS NULL OR v.age::TEXT = p_age)
-        AND (p_height IS NULL OR v.height::TEXT = p_height)
-        AND (p_weight IS NULL OR v.weight::TEXT = p_weight)
-        AND (p_date IS NULL OR v.created_date_formatted = p_date)
-    ORDER BY v.created_at DESC
-    LIMIT p_limit_count
-    OFFSET p_offset_count;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_filtered_leads"("p_limit_count" integer, "p_offset_count" integer, "p_search_query" "text", "p_status_main" "text", "p_status_sub" "text", "p_source" "text", "p_fitness_goal" "text", "p_activity_level" "text", "p_preferred_time" "text", "p_age" "text", "p_height" "text", "p_weight" "text", "p_date" "text") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_filtered_leads"("p_limit_count" integer DEFAULT 100, "p_offset_count" integer DEFAULT 0, "p_search_query" "text" DEFAULT NULL::"text", "p_status_main" "text" DEFAULT NULL::"text", "p_status_sub" "text" DEFAULT NULL::"text", "p_source" "text" DEFAULT NULL::"text", "p_fitness_goal" "text" DEFAULT NULL::"text", "p_activity_level" "text" DEFAULT NULL::"text", "p_preferred_time" "text" DEFAULT NULL::"text", "p_age" "text" DEFAULT NULL::"text", "p_height" "text" DEFAULT NULL::"text", "p_weight" "text" DEFAULT NULL::"text", "p_date" "text" DEFAULT NULL::"text", "p_sort_by" "text" DEFAULT 'created_at'::"text", "p_sort_order" "text" DEFAULT 'DESC'::"text", "p_group_by_level1" "text" DEFAULT NULL::"text", "p_group_by_level2" "text" DEFAULT NULL::"text") RETURNS TABLE("id" "uuid", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "assigned_to" "uuid", "customer_id" "uuid", "city" "text", "birth_date" "date", "age" integer, "gender" "text", "status_main" "text", "status_sub" "text", "height" numeric, "weight" numeric, "bmi" numeric, "join_date" timestamp with time zone, "subscription_data" "jsonb", "daily_protocol" "jsonb", "workout_history" "jsonb", "steps_history" "jsonb", "source" "text", "fitness_goal" "text", "activity_level" "text", "preferred_time" "text", "notes" "text", "customer_name" "text", "customer_phone" "text", "customer_email" "text", "created_date_formatted" "text", "birth_date_formatted" "text", "daily_steps_goal" integer, "weekly_workouts" integer, "daily_supplements" "text"[], "subscription_months" integer, "subscription_initial_price" numeric, "subscription_renewal_price" numeric)
+CREATE OR REPLACE FUNCTION "public"."get_filtered_leads"("p_limit_count" integer DEFAULT 100, "p_offset_count" integer DEFAULT 0, "p_search_query" "text" DEFAULT NULL::"text", "p_status_main" "text" DEFAULT NULL::"text", "p_status_sub" "text" DEFAULT NULL::"text", "p_source" "text" DEFAULT NULL::"text", "p_fitness_goal" "text" DEFAULT NULL::"text", "p_activity_level" "text" DEFAULT NULL::"text", "p_preferred_time" "text" DEFAULT NULL::"text", "p_age" "text" DEFAULT NULL::"text", "p_height" "text" DEFAULT NULL::"text", "p_weight" "text" DEFAULT NULL::"text", "p_date" "text" DEFAULT NULL::"text", "p_sort_by" "text" DEFAULT 'created_at'::"text", "p_sort_order" "text" DEFAULT 'DESC'::"text", "p_group_by_level1" "text" DEFAULT NULL::"text", "p_group_by_level2" "text" DEFAULT NULL::"text") RETURNS TABLE("id" "uuid", "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "assigned_to" "uuid", "customer_id" "uuid", "city" "text", "birth_date" "date", "age" integer, "gender" "text", "status_main" "text", "status_sub" "text", "height" numeric, "weight" numeric, "bmi" numeric, "join_date" timestamp with time zone, "subscription_data" "jsonb", "daily_protocol" "jsonb", "workout_history" "jsonb", "steps_history" "jsonb", "source" "text", "fitness_goal" "text", "activity_level" "text", "preferred_time" "text", "notes" "text", "customer_name" "text", "customer_phone" "text", "customer_email" "text", "created_date_formatted" "text", "birth_date_formatted" "text", "daily_steps_goal" integer, "weekly_workouts_goal" integer, "daily_supplements" "jsonb", "subscription_months" integer, "subscription_initial_price" numeric, "subscription_renewal_price" numeric, "subscription_name" "text", "active_budget_name" "text", "active_budget_id" "uuid", "active_budget_json" "jsonb", "total_paid" numeric, "last_payment_date" timestamp with time zone, "payments_json" "jsonb", "total_expected" numeric, "debt_amount" numeric, "collections_json" "jsonb", "workout_plans_count" bigint, "latest_workout_plan_date" "date", "workout_plans_json" "jsonb", "nutrition_plans_count" bigint, "latest_nutrition_plan_date" "date", "nutrition_plans_json" "jsonb", "supplement_plans_count" bigint, "latest_supplement_plan_date" "date", "supplement_plans_json" "jsonb", "steps_plans_count" bigint, "latest_steps_plan_date" "date", "steps_plans_json" "jsonb", "meetings_count" bigint, "latest_meeting_date" timestamp with time zone, "next_meeting_date" timestamp with time zone, "meetings_json" "jsonb", "blood_tests_count" bigint, "latest_test_date" timestamp with time zone, "blood_tests_json" "jsonb")
     LANGUAGE "plpgsql" STABLE SECURITY DEFINER
     AS $_$
 DECLARE
     v_sort_direction TEXT;
     v_order_by_clause TEXT;
 BEGIN
-    -- Validate sort_order (must be ASC or DESC)
     v_sort_direction := UPPER(COALESCE(NULLIF(p_sort_order, ''), 'DESC'));
-    IF v_sort_direction NOT IN ('ASC', 'DESC') THEN
-        v_sort_direction := 'DESC';
-    END IF;
+    IF v_sort_direction NOT IN ('ASC', 'DESC') THEN v_sort_direction := 'DESC'; END IF;
 
-    -- Build ORDER BY clause - start with grouping columns, then sorting column
     v_order_by_clause := '';
     
-    -- Add grouping columns to ORDER BY (for grouping in frontend, ensures groups are sorted together)
     IF p_group_by_level1 IS NOT NULL THEN
         v_order_by_clause := v_order_by_clause || CASE 
-            WHEN p_group_by_level1 = 'status' OR p_group_by_level1 = 'status_main' THEN 'v.status_main ASC, '
+            WHEN p_group_by_level1 IN ('status', 'status_main') THEN 'v.status_main ASC, '
             WHEN p_group_by_level1 = 'source' THEN 'v.source ASC, '
-            WHEN p_group_by_level1 = 'fitnessGoal' OR p_group_by_level1 = 'fitness_goal' THEN 'v.fitness_goal ASC, '
-            WHEN p_group_by_level1 = 'activityLevel' OR p_group_by_level1 = 'activity_level' THEN 'v.activity_level ASC, '
-            WHEN p_group_by_level1 = 'preferredTime' OR p_group_by_level1 = 'preferred_time' THEN 'v.preferred_time ASC, '
-            WHEN p_group_by_level1 = 'name' OR p_group_by_level1 = 'customer_name' THEN 'v.customer_name ASC, '
-            WHEN p_group_by_level1 = 'age' THEN 'v.age ASC, '
-            WHEN p_group_by_level1 = 'height' THEN 'v.height ASC, '
-            WHEN p_group_by_level1 = 'weight' THEN 'v.weight ASC, '
+            WHEN p_group_by_level1 IN ('name', 'customer_name') THEN 'v.customer_name ASC, '
+            WHEN p_group_by_level1 = 'active_budget_name' THEN 'v.active_budget_name ASC, '
             ELSE ''
         END;
     END IF;
     
     IF p_group_by_level2 IS NOT NULL THEN
         v_order_by_clause := v_order_by_clause || CASE 
-            WHEN p_group_by_level2 = 'status' OR p_group_by_level2 = 'status_main' THEN 'v.status_main ASC, '
+            WHEN p_group_by_level2 IN ('status', 'status_main') THEN 'v.status_main ASC, '
             WHEN p_group_by_level2 = 'source' THEN 'v.source ASC, '
-            WHEN p_group_by_level2 = 'fitnessGoal' OR p_group_by_level2 = 'fitness_goal' THEN 'v.fitness_goal ASC, '
-            WHEN p_group_by_level2 = 'activityLevel' OR p_group_by_level2 = 'activity_level' THEN 'v.activity_level ASC, '
-            WHEN p_group_by_level2 = 'preferredTime' OR p_group_by_level2 = 'preferred_time' THEN 'v.preferred_time ASC, '
-            WHEN p_group_by_level2 = 'name' OR p_group_by_level2 = 'customer_name' THEN 'v.customer_name ASC, '
-            WHEN p_group_by_level2 = 'age' THEN 'v.age ASC, '
-            WHEN p_group_by_level2 = 'height' THEN 'v.height ASC, '
-            WHEN p_group_by_level2 = 'weight' THEN 'v.weight ASC, '
+            WHEN p_group_by_level2 IN ('name', 'customer_name') THEN 'v.customer_name ASC, '
             ELSE ''
         END;
     END IF;
     
-    -- Add main sorting column
     v_order_by_clause := v_order_by_clause || CASE 
-        WHEN p_sort_by = 'createdDate' OR p_sort_by = 'created_date' OR p_sort_by = 'created_at' THEN 'v.created_at ' || v_sort_direction
-        WHEN p_sort_by = 'name' OR p_sort_by = 'customer_name' THEN 'v.customer_name ' || v_sort_direction
-        WHEN p_sort_by = 'status' OR p_sort_by = 'status_main' THEN 'v.status_main ' || v_sort_direction
-        WHEN p_sort_by = 'phone' OR p_sort_by = 'customer_phone' THEN 'v.customer_phone ' || v_sort_direction
-        WHEN p_sort_by = 'email' OR p_sort_by = 'customer_email' THEN 'v.customer_email ' || v_sort_direction
-        WHEN p_sort_by = 'source' THEN 'v.source ' || v_sort_direction
-        WHEN p_sort_by = 'age' THEN 'v.age ' || v_sort_direction
-        WHEN p_sort_by = 'height' THEN 'v.height ' || v_sort_direction
-        WHEN p_sort_by = 'weight' THEN 'v.weight ' || v_sort_direction
-        WHEN p_sort_by = 'fitnessGoal' OR p_sort_by = 'fitness_goal' THEN 'v.fitness_goal ' || v_sort_direction
-        WHEN p_sort_by = 'activityLevel' OR p_sort_by = 'activity_level' THEN 'v.activity_level ' || v_sort_direction
-        WHEN p_sort_by = 'preferredTime' OR p_sort_by = 'preferred_time' THEN 'v.preferred_time ' || v_sort_direction
-        WHEN p_sort_by = 'notes' THEN 'v.notes ' || v_sort_direction
-        ELSE 'v.created_at ' || v_sort_direction -- Default fallback
+        WHEN p_sort_by IN ('createdDate', 'created_date', 'created_at') THEN 'v.created_at ' || v_sort_direction
+        WHEN p_sort_by IN ('name', 'customer_name') THEN 'v.customer_name ' || v_sort_direction
+        WHEN p_sort_by IN ('status', 'status_main') THEN 'v.status_main ' || v_sort_direction
+        WHEN p_sort_by = 'debt_amount' THEN 'v.debt_amount ' || v_sort_direction
+        ELSE 'v.created_at ' || v_sort_direction
     END;
 
-    -- Execute query with dynamic ORDER BY using EXECUTE (safe with validated inputs)
     RETURN QUERY
     EXECUTE format('
         SELECT 
-            v.id,
-            v.created_at,
-            v.updated_at,
-            v.assigned_to,
-            v.customer_id,
-            v.city,
-            v.birth_date,
-            v.age,
-            v.gender,
-            v.status_main,
-            v.status_sub,
-            v.height,
-            v.weight,
-            v.bmi,
-            v.join_date,
-            v.subscription_data,
-            v.daily_protocol,
-            v.workout_history,
-            v.steps_history,
-            v.source,
-            v.fitness_goal,
-            v.activity_level,
-            v.preferred_time,
-            v.notes,
-            v.customer_name,
-            v.customer_phone,
-            v.customer_email,
-            v.created_date_formatted,
-            v.birth_date_formatted,
-            v.daily_steps_goal,
-            v.weekly_workouts,
-            v.daily_supplements,
-            v.subscription_months,
-            v.subscription_initial_price,
-            v.subscription_renewal_price
+            v.*
         FROM public.v_leads_with_customer v
         WHERE 
-            -- Search query (name, phone, email)
             ($1 IS NULL OR 
              v.customer_name ILIKE ''%%'' || $1 || ''%%'' OR
              v.customer_phone ILIKE ''%%'' || $1 || ''%%'' OR
              v.customer_email ILIKE ''%%'' || $1 || ''%%'')
-            -- Status filter
             AND ($2 IS NULL OR v.status_main = $2)
             AND ($3 IS NULL OR v.status_sub = $3)
-            -- Source filter
             AND ($4 IS NULL OR v.source = $4)
-            -- Fitness goal filter
             AND ($5 IS NULL OR v.fitness_goal = $5)
-            -- Activity level filter
             AND ($6 IS NULL OR v.activity_level = $6)
-            -- Preferred time filter
             AND ($7 IS NULL OR v.preferred_time = $7)
-            -- Age filter
             AND ($8 IS NULL OR v.age::TEXT = $8)
-            -- Height filter
             AND ($9 IS NULL OR v.height::TEXT = $9)
-            -- Weight filter
             AND ($10 IS NULL OR v.weight::TEXT = $10)
-            -- Date filter (created_at date)
             AND ($11 IS NULL OR v.created_date_formatted = $11)
         ORDER BY %s
         LIMIT $12
         OFFSET $13
     ', v_order_by_clause)
     USING 
-        p_search_query,
-        p_status_main,
-        p_status_sub,
-        p_source,
-        p_fitness_goal,
-        p_activity_level,
-        p_preferred_time,
-        p_age,
-        p_height,
-        p_weight,
-        p_date,
-        p_limit_count,
-        p_offset_count;
+        p_search_query, p_status_main, p_status_sub, p_source, p_fitness_goal, p_activity_level, 
+        p_preferred_time, p_age, p_height, p_weight, p_date, p_limit_count, p_offset_count;
 END;
 $_$;
 
 
 ALTER FUNCTION "public"."get_filtered_leads"("p_limit_count" integer, "p_offset_count" integer, "p_search_query" "text", "p_status_main" "text", "p_status_sub" "text", "p_source" "text", "p_fitness_goal" "text", "p_activity_level" "text", "p_preferred_time" "text", "p_age" "text", "p_height" "text", "p_weight" "text", "p_date" "text", "p_sort_by" "text", "p_sort_order" "text", "p_group_by_level1" "text", "p_group_by_level2" "text") OWNER TO "postgres";
-
-
-COMMENT ON FUNCTION "public"."get_filtered_leads"("p_limit_count" integer, "p_offset_count" integer, "p_search_query" "text", "p_status_main" "text", "p_status_sub" "text", "p_source" "text", "p_fitness_goal" "text", "p_activity_level" "text", "p_preferred_time" "text", "p_age" "text", "p_height" "text", "p_weight" "text", "p_date" "text", "p_sort_by" "text", "p_sort_order" "text", "p_group_by_level1" "text", "p_group_by_level2" "text") IS 'RPC function for complex lead filtering with server-side pagination, sorting, and grouping support. All filtering happens in PostgreSQL.';
-
 
 
 CREATE OR REPLACE FUNCTION "public"."get_filtered_leads_count"("p_search_query" "text" DEFAULT NULL::"text", "p_status_main" "text" DEFAULT NULL::"text", "p_status_sub" "text" DEFAULT NULL::"text", "p_source" "text" DEFAULT NULL::"text", "p_fitness_goal" "text" DEFAULT NULL::"text", "p_activity_level" "text" DEFAULT NULL::"text", "p_preferred_time" "text" DEFAULT NULL::"text", "p_age" "text" DEFAULT NULL::"text", "p_height" "text" DEFAULT NULL::"text", "p_weight" "text" DEFAULT NULL::"text", "p_date" "text" DEFAULT NULL::"text") RETURNS integer
@@ -449,29 +455,19 @@ BEGIN
     SELECT COUNT(*)::INTEGER INTO v_count
     FROM public.v_leads_with_customer v
     WHERE 
-        -- Search query (name, phone, email)
         (p_search_query IS NULL OR 
          v.customer_name ILIKE '%' || p_search_query || '%' OR
          v.customer_phone ILIKE '%' || p_search_query || '%' OR
          v.customer_email ILIKE '%' || p_search_query || '%')
-        -- Status filter
         AND (p_status_main IS NULL OR v.status_main = p_status_main)
         AND (p_status_sub IS NULL OR v.status_sub = p_status_sub)
-        -- Source filter
         AND (p_source IS NULL OR v.source = p_source)
-        -- Fitness goal filter
         AND (p_fitness_goal IS NULL OR v.fitness_goal = p_fitness_goal)
-        -- Activity level filter
         AND (p_activity_level IS NULL OR v.activity_level = p_activity_level)
-        -- Preferred time filter
         AND (p_preferred_time IS NULL OR v.preferred_time = p_preferred_time)
-        -- Age filter
         AND (p_age IS NULL OR v.age::TEXT = p_age)
-        -- Height filter
         AND (p_height IS NULL OR v.height::TEXT = p_height)
-        -- Weight filter
         AND (p_weight IS NULL OR v.weight::TEXT = p_weight)
-        -- Date filter (created_at date)
         AND (p_date IS NULL OR v.created_date_formatted = p_date);
 
     RETURN COALESCE(v_count, 0);
@@ -480,10 +476,6 @@ $$;
 
 
 ALTER FUNCTION "public"."get_filtered_leads_count"("p_search_query" "text", "p_status_main" "text", "p_status_sub" "text", "p_source" "text", "p_fitness_goal" "text", "p_activity_level" "text", "p_preferred_time" "text", "p_age" "text", "p_height" "text", "p_weight" "text", "p_date" "text") OWNER TO "postgres";
-
-
-COMMENT ON FUNCTION "public"."get_filtered_leads_count"("p_search_query" "text", "p_status_main" "text", "p_status_sub" "text", "p_source" "text", "p_fitness_goal" "text", "p_activity_level" "text", "p_preferred_time" "text", "p_age" "text", "p_height" "text", "p_weight" "text", "p_date" "text") IS 'Returns total count of leads matching the filter criteria. Used for pagination to calculate total pages.';
-
 
 
 CREATE OR REPLACE FUNCTION "public"."get_lead_filter_options"() RETURNS "jsonb"
@@ -649,6 +641,182 @@ $$;
 ALTER FUNCTION "public"."is_invitation_valid"("p_invitation_id" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."log_budget_changes"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    changes_json JSONB;
+    user_id UUID;
+    lead_id_val UUID;
+BEGIN
+    -- Get current user ID
+    user_id := auth.uid();
+    
+    -- Get lead_id from the most recent active budget assignment
+    -- This ensures we track which lead's action plan was changed
+    SELECT lead_id INTO lead_id_val
+    FROM budget_assignments
+    WHERE budget_id = NEW.id
+      AND is_active = TRUE
+    ORDER BY assigned_at DESC
+    LIMIT 1;
+    
+    IF (TG_OP = 'UPDATE') THEN
+        -- Check ALL fields that can be changed in an action plan
+        -- We ignore: updated_at, created_at, created_by, id
+        -- We check EVERY field that can be modified in the action plan
+        IF (OLD.name IS DISTINCT FROM NEW.name OR
+            OLD.description IS DISTINCT FROM NEW.description OR
+            OLD.nutrition_template_id IS DISTINCT FROM NEW.nutrition_template_id OR
+            OLD.nutrition_targets IS DISTINCT FROM NEW.nutrition_targets OR
+            OLD.steps_goal IS DISTINCT FROM NEW.steps_goal OR
+            OLD.steps_instructions IS DISTINCT FROM NEW.steps_instructions OR
+            OLD.workout_template_id IS DISTINCT FROM NEW.workout_template_id OR
+            OLD.supplement_template_id IS DISTINCT FROM NEW.supplement_template_id OR
+            OLD.supplements IS DISTINCT FROM NEW.supplements OR
+            OLD.eating_order IS DISTINCT FROM NEW.eating_order OR
+            OLD.eating_rules IS DISTINCT FROM NEW.eating_rules OR
+            OLD.cardio_training IS DISTINCT FROM NEW.cardio_training OR
+            OLD.interval_training IS DISTINCT FROM NEW.interval_training OR
+            OLD.is_public IS DISTINCT FROM NEW.is_public) THEN
+            
+            -- Build changes object with old and new values
+            changes_json := jsonb_build_object(
+                'old', to_jsonb(OLD),
+                'new', to_jsonb(NEW)
+            );
+            
+            -- Insert into budget_history
+            INSERT INTO budget_history (budget_id, lead_id, changed_at, changed_by, change_type, changes, snapshot)
+            VALUES (NEW.id, lead_id_val, NOW(), user_id, 'update', changes_json, to_jsonb(NEW));
+        END IF;
+        
+        RETURN NEW;
+    ELSIF (TG_OP = 'INSERT') THEN
+        -- For new budgets, try to get lead_id if it exists
+        -- (though typically new budgets won't have assignments yet)
+        INSERT INTO budget_history (budget_id, lead_id, changed_at, changed_by, change_type, changes, snapshot)
+        VALUES (NEW.id, lead_id_val, NOW(), user_id, 'create', '{}'::jsonb, to_jsonb(NEW));
+        RETURN NEW;
+    END IF;
+    
+    RETURN NULL;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."log_budget_changes"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."log_nutrition_plan_changes"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    changes_json JSONB;
+    user_id UUID;
+    lead_id_val UUID;
+    budget_id_val UUID;
+BEGIN
+    user_id := auth.uid();
+    lead_id_val := COALESCE(NEW.lead_id, OLD.lead_id);
+    budget_id_val := COALESCE(NEW.budget_id, OLD.budget_id);
+    
+    -- Only log if linked to a budget
+    IF budget_id_val IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    IF (TG_OP = 'UPDATE') THEN
+        -- Check if relevant fields changed
+        IF (OLD.targets IS DISTINCT FROM NEW.targets OR
+            OLD.start_date IS DISTINCT FROM NEW.start_date OR
+            OLD.description IS DISTINCT FROM NEW.description OR
+            OLD.name IS DISTINCT FROM NEW.name OR
+            OLD.is_active IS DISTINCT FROM NEW.is_active) THEN
+            
+            changes_json := jsonb_build_object(
+                'old', to_jsonb(OLD),
+                'new', to_jsonb(NEW),
+                'entity', 'nutrition_plan'
+            );
+            
+            INSERT INTO budget_history (budget_id, lead_id, changed_at, changed_by, change_type, changes, snapshot)
+            VALUES (budget_id_val, lead_id_val, NOW(), user_id, 'nutrition_update', changes_json, to_jsonb(NEW));
+        END IF;
+        
+        RETURN NEW;
+    ELSIF (TG_OP = 'INSERT') THEN
+        changes_json := jsonb_build_object(
+            'entity', 'nutrition_plan'
+        );
+        INSERT INTO budget_history (budget_id, lead_id, changed_at, changed_by, change_type, changes, snapshot)
+        VALUES (budget_id_val, lead_id_val, NOW(), user_id, 'nutrition_create', changes_json, to_jsonb(NEW));
+        RETURN NEW;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."log_nutrition_plan_changes"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."log_workout_plan_changes"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    changes_json JSONB;
+    user_id UUID;
+    lead_id_val UUID;
+    budget_id_val UUID;
+BEGIN
+    user_id := auth.uid();
+    lead_id_val := COALESCE(NEW.lead_id, OLD.lead_id);
+    budget_id_val := COALESCE(NEW.budget_id, OLD.budget_id);
+    
+    -- Only log if linked to a budget
+    IF budget_id_val IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    IF (TG_OP = 'UPDATE') THEN
+        -- Check if relevant fields changed
+        IF (OLD.start_date IS DISTINCT FROM NEW.start_date OR
+            OLD.description IS DISTINCT FROM NEW.description OR
+            OLD.name IS DISTINCT FROM NEW.name OR
+            OLD.strength IS DISTINCT FROM NEW.strength OR
+            OLD.cardio IS DISTINCT FROM NEW.cardio OR
+            OLD.intervals IS DISTINCT FROM NEW.intervals OR
+            OLD.custom_attributes IS DISTINCT FROM NEW.custom_attributes OR
+            OLD.is_active IS DISTINCT FROM NEW.is_active) THEN
+            
+            changes_json := jsonb_build_object(
+                'old', to_jsonb(OLD),
+                'new', to_jsonb(NEW),
+                'entity', 'workout_plan'
+            );
+            
+            INSERT INTO budget_history (budget_id, lead_id, changed_at, changed_by, change_type, changes, snapshot)
+            VALUES (budget_id_val, lead_id_val, NOW(), user_id, 'workout_update', changes_json, to_jsonb(NEW));
+        END IF;
+        
+        RETURN NEW;
+    ELSIF (TG_OP = 'INSERT') THEN
+        changes_json := jsonb_build_object(
+            'entity', 'workout_plan'
+        );
+        INSERT INTO budget_history (budget_id, lead_id, changed_at, changed_by, change_type, changes, snapshot)
+        VALUES (budget_id_val, lead_id_val, NOW(), user_id, 'workout_create', changes_json, to_jsonb(NEW));
+        RETURN NEW;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."log_workout_plan_changes"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."mark_all_notifications_read"() RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -679,6 +847,74 @@ $$;
 
 
 ALTER FUNCTION "public"."mark_notification_read"("notification_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."prevent_duplicate_nutrition_plans"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  -- Delete ALL existing plans with the same budget_id
+  DELETE FROM nutrition_plans 
+  WHERE budget_id = NEW.budget_id 
+    AND budget_id IS NOT NULL;
+  
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."prevent_duplicate_nutrition_plans"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."prevent_duplicate_steps_plans"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  -- Delete ALL existing plans with the same budget_id
+  DELETE FROM steps_plans 
+  WHERE budget_id = NEW.budget_id 
+    AND budget_id IS NOT NULL;
+  
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."prevent_duplicate_steps_plans"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."prevent_duplicate_supplement_plans"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  -- Delete ALL existing plans with the same budget_id
+  DELETE FROM supplement_plans 
+  WHERE budget_id = NEW.budget_id 
+    AND budget_id IS NOT NULL;
+  
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."prevent_duplicate_supplement_plans"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."prevent_duplicate_workout_plans"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  -- Delete ALL existing plans with the same budget_id (NEW.id doesn't exist yet on INSERT)
+  DELETE FROM workout_plans 
+  WHERE budget_id = NEW.budget_id 
+    AND budget_id IS NOT NULL;
+  
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."prevent_duplicate_workout_plans"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."set_default_weekly_review_template"("p_user_id" "uuid") RETURNS "void"
@@ -825,6 +1061,24 @@ $$;
 
 
 ALTER FUNCTION "public"."update_whatsapp_flow_templates_updated_at"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_whatsapp_template_status"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  -- Update status based on template_content
+  IF NEW.template_content IS NOT NULL AND TRIM(NEW.template_content) != '' THEN
+    NEW.status = 'מוגדר';
+  ELSE
+    NEW.status = 'לא מוגדר';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_whatsapp_template_status"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."verify_invitation_token"("p_token_hash" "text", "p_token" "text", "p_salt" "text") RETURNS boolean
@@ -1359,6 +1613,21 @@ COMMENT ON COLUMN "public"."budget_assignments"."is_active" IS 'Only one active 
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."budget_history" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "budget_id" "uuid" NOT NULL,
+    "changed_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "changed_by" "uuid",
+    "change_type" "text" NOT NULL,
+    "changes" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
+    "snapshot" "jsonb",
+    "lead_id" "uuid"
+);
+
+
+ALTER TABLE "public"."budget_history" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."budgets" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
@@ -1374,7 +1643,10 @@ CREATE TABLE IF NOT EXISTS "public"."budgets" (
     "is_public" boolean DEFAULT false NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "created_by" "uuid"
+    "created_by" "uuid",
+    "supplement_template_id" "uuid",
+    "cardio_training" "jsonb",
+    "interval_training" "jsonb"
 );
 
 
@@ -1390,6 +1662,18 @@ COMMENT ON COLUMN "public"."budgets"."nutrition_targets" IS 'JSONB containing ma
 
 
 COMMENT ON COLUMN "public"."budgets"."supplements" IS 'JSONB array of supplements: [{ name: string, dosage: string, timing: string }]';
+
+
+
+COMMENT ON COLUMN "public"."budgets"."supplement_template_id" IS 'Reference to the supplement template used in this budget';
+
+
+
+COMMENT ON COLUMN "public"."budgets"."cardio_training" IS 'JSONB array of cardio training workouts: [{ id?: string, name: string, type: string, duration_minutes: number, workouts_per_week: number, notes: string }]';
+
+
+
+COMMENT ON COLUMN "public"."budgets"."interval_training" IS 'JSONB array of interval training workouts: [{ id?: string, name: string, type: string, duration_minutes: number, workouts_per_week: number, notes: string }]';
 
 
 
@@ -1418,6 +1702,80 @@ COMMENT ON COLUMN "public"."check_in_field_configurations"."configuration" IS 'J
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."collections" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "lead_id" "uuid" NOT NULL,
+    "customer_id" "uuid",
+    "total_amount" numeric(10,2) NOT NULL,
+    "due_date" "date",
+    "status" "text" DEFAULT 'ממתין'::"text" NOT NULL,
+    "description" "text",
+    "notes" "text",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid",
+    CONSTRAINT "collections_status_check" CHECK (("status" = ANY (ARRAY['ממתין'::"text", 'חלקי'::"text", 'הושלם'::"text", 'בוטל'::"text"]))),
+    CONSTRAINT "collections_total_amount_check" CHECK (("total_amount" >= (0)::numeric))
+);
+
+
+ALTER TABLE "public"."collections" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."collections" IS 'Payment collections (גבייה) - groups of payments for a lead';
+
+
+
+COMMENT ON COLUMN "public"."collections"."lead_id" IS 'Lead this collection belongs to (required)';
+
+
+
+COMMENT ON COLUMN "public"."collections"."customer_id" IS 'Customer this collection belongs to (derived from lead, optional for direct reference)';
+
+
+
+COMMENT ON COLUMN "public"."collections"."total_amount" IS 'Total amount expected for this collection';
+
+
+
+COMMENT ON COLUMN "public"."collections"."due_date" IS 'Due date for the collection';
+
+
+
+COMMENT ON COLUMN "public"."collections"."status" IS 'Collection status: ממתין (pending), חלקי (partial), הושלם (completed), בוטל (cancelled)';
+
+
+
+COMMENT ON COLUMN "public"."collections"."description" IS 'Description of the collection';
+
+
+
+COMMENT ON COLUMN "public"."collections"."notes" IS 'Additional notes about the collection';
+
+
+
+CREATE OR REPLACE VIEW "public"."collections_with_payments" AS
+SELECT
+    NULL::"uuid" AS "id",
+    NULL::"uuid" AS "lead_id",
+    NULL::"uuid" AS "customer_id",
+    NULL::numeric(10,2) AS "total_amount",
+    NULL::"date" AS "due_date",
+    NULL::"text" AS "status",
+    NULL::"text" AS "description",
+    NULL::"text" AS "notes",
+    NULL::timestamp with time zone AS "created_at",
+    NULL::timestamp with time zone AS "updated_at",
+    NULL::"uuid" AS "created_by",
+    NULL::"text" AS "lead_name",
+    NULL::"text" AS "customer_name",
+    NULL::numeric AS "paid_amount",
+    NULL::numeric AS "remaining_amount";
+
+
+ALTER VIEW "public"."collections_with_payments" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."customer_notes" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "customer_id" "uuid" NOT NULL,
@@ -1442,7 +1800,7 @@ COMMENT ON COLUMN "public"."customer_notes"."attachment_url" IS 'URL/path to fil
 
 
 CREATE TABLE IF NOT EXISTS "public"."customers" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "full_name" "text" NOT NULL,
     "phone" "text" NOT NULL,
     "email" "text",
@@ -1499,7 +1857,7 @@ COMMENT ON COLUMN "public"."customers"."user_id" IS 'Link to auth.users - allows
 
 
 CREATE TABLE IF NOT EXISTS "public"."leads" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "assigned_to" "uuid",
@@ -1604,36 +1962,36 @@ COMMENT ON VIEW "public"."customers_with_lead_counts" IS 'Customers with total l
 
 
 CREATE TABLE IF NOT EXISTS "public"."daily_check_ins" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "customer_id" "uuid" NOT NULL,
     "lead_id" "uuid",
     "check_in_date" "date" DEFAULT CURRENT_DATE NOT NULL,
     "workout_completed" boolean DEFAULT false,
     "steps_goal_met" boolean DEFAULT false,
-    "steps_actual" integer,
+    "steps_actual" bigint,
     "nutrition_goal_met" boolean DEFAULT false,
     "supplements_taken" "jsonb" DEFAULT '[]'::"jsonb",
     "notes" "text",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "created_by" "uuid",
-    "weight" numeric(5,2),
-    "belly_circumference" integer,
-    "waist_circumference" integer,
-    "thigh_circumference" integer,
-    "arm_circumference" integer,
-    "neck_circumference" integer,
-    "exercises_count" integer,
-    "cardio_amount" integer,
-    "intervals_count" integer,
-    "calories_daily" integer,
-    "protein_daily" integer,
-    "fiber_daily" integer,
-    "water_amount" numeric(5,2),
-    "stress_level" integer,
-    "hunger_level" integer,
-    "energy_level" integer,
-    "sleep_hours" numeric(4,2),
+    "weight" numeric(10,2),
+    "belly_circumference" bigint,
+    "waist_circumference" bigint,
+    "thigh_circumference" bigint,
+    "arm_circumference" bigint,
+    "neck_circumference" bigint,
+    "exercises_count" bigint,
+    "cardio_amount" bigint,
+    "intervals_count" bigint,
+    "calories_daily" bigint,
+    "protein_daily" bigint,
+    "fiber_daily" bigint,
+    "water_amount" numeric(10,2),
+    "stress_level" smallint,
+    "hunger_level" smallint,
+    "energy_level" smallint,
+    "sleep_hours" numeric(6,2),
     CONSTRAINT "daily_check_ins_energy_level_check" CHECK ((("energy_level" IS NULL) OR (("energy_level" >= 1) AND ("energy_level" <= 10)))),
     CONSTRAINT "daily_check_ins_hunger_level_check" CHECK ((("hunger_level" IS NULL) OR (("hunger_level" >= 1) AND ("hunger_level" <= 10)))),
     CONSTRAINT "daily_check_ins_stress_level_check" CHECK ((("stress_level" IS NULL) OR (("stress_level" >= 1) AND ("stress_level" <= 10))))
@@ -1667,55 +2025,55 @@ COMMENT ON COLUMN "public"."daily_check_ins"."supplements_taken" IS 'JSONB array
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."weight" IS 'Weight measurement in kg (משקל)';
+COMMENT ON COLUMN "public"."daily_check_ins"."weight" IS 'Weight measurement in kg (משקל). Supports up to 9999.99 kg';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."belly_circumference" IS 'Belly circumference in cm (היקף בטן)';
+COMMENT ON COLUMN "public"."daily_check_ins"."belly_circumference" IS 'Belly circumference in cm (היקף בטן). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."waist_circumference" IS 'Waist circumference in cm (היקף מותן)';
+COMMENT ON COLUMN "public"."daily_check_ins"."waist_circumference" IS 'Waist circumference in cm (היקף מותן). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."thigh_circumference" IS 'Thigh circumference in cm (היקף ירכיים)';
+COMMENT ON COLUMN "public"."daily_check_ins"."thigh_circumference" IS 'Thigh circumference in cm (היקף ירכיים). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."arm_circumference" IS 'Arm circumference in cm (היקף יד)';
+COMMENT ON COLUMN "public"."daily_check_ins"."arm_circumference" IS 'Arm circumference in cm (היקף יד). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."neck_circumference" IS 'Neck circumference in cm (היקף צוואר)';
+COMMENT ON COLUMN "public"."daily_check_ins"."neck_circumference" IS 'Neck circumference in cm (היקף צוואר). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."exercises_count" IS 'Number of exercises completed (כמה תרגילים עשית)';
+COMMENT ON COLUMN "public"."daily_check_ins"."exercises_count" IS 'Number of exercises completed (כמה תרגילים עשית). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."cardio_amount" IS 'Cardio duration in minutes (כמה אירובי עשית)';
+COMMENT ON COLUMN "public"."daily_check_ins"."cardio_amount" IS 'Cardio duration in minutes (כמה אירובי עשית). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."intervals_count" IS 'Number of interval training sessions (כמה אינטרוולים)';
+COMMENT ON COLUMN "public"."daily_check_ins"."intervals_count" IS 'Number of interval training sessions (כמה אינטרוולים). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."calories_daily" IS 'Daily calorie intake (קלוריות יומי)';
+COMMENT ON COLUMN "public"."daily_check_ins"."calories_daily" IS 'Daily calorie intake (קלוריות יומי). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."protein_daily" IS 'Daily protein intake in grams (חלבון יומי)';
+COMMENT ON COLUMN "public"."daily_check_ins"."protein_daily" IS 'Daily protein intake in grams (חלבון יומי). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."fiber_daily" IS 'Daily fiber intake in grams (סיבים יומי)';
+COMMENT ON COLUMN "public"."daily_check_ins"."fiber_daily" IS 'Daily fiber intake in grams (סיבים יומי). Supports large values';
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."water_amount" IS 'Water consumed in liters (כמה מים שתית)';
+COMMENT ON COLUMN "public"."daily_check_ins"."water_amount" IS 'Water consumed in liters (כמה מים שתית). Supports up to 9999.99 liters';
 
 
 
@@ -1731,7 +2089,47 @@ COMMENT ON COLUMN "public"."daily_check_ins"."energy_level" IS 'Energy level 1-1
 
 
 
-COMMENT ON COLUMN "public"."daily_check_ins"."sleep_hours" IS 'Hours of sleep (כמה שעות ישנת)';
+COMMENT ON COLUMN "public"."daily_check_ins"."sleep_hours" IS 'Hours of sleep (כמה שעות ישנת). Supports up to 999.99 hours';
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."exercises" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "name" "text" NOT NULL,
+    "repetitions" integer,
+    "weight" numeric(5,2),
+    "image" "text",
+    "video_link" "text",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid"
+);
+
+
+ALTER TABLE "public"."exercises" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."exercises" IS 'Exercise library that can be selected and used in workout templates';
+
+
+
+COMMENT ON COLUMN "public"."exercises"."name" IS 'Exercise name';
+
+
+
+COMMENT ON COLUMN "public"."exercises"."repetitions" IS 'Default number of repetitions/reps';
+
+
+
+COMMENT ON COLUMN "public"."exercises"."weight" IS 'Default weight in kg';
+
+
+
+COMMENT ON COLUMN "public"."exercises"."image" IS 'URL or path to exercise image';
+
+
+
+COMMENT ON COLUMN "public"."exercises"."video_link" IS 'URL to exercise video (YouTube, Vimeo, etc.)';
 
 
 
@@ -1823,7 +2221,7 @@ COMMENT ON COLUMN "public"."fillout_submissions"."customer_id" IS 'Link to the c
 
 
 CREATE TABLE IF NOT EXISTS "public"."green_api_settings" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "id_instance" "text" NOT NULL,
     "api_token_instance" "text" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
@@ -1849,7 +2247,7 @@ COMMENT ON COLUMN "public"."green_api_settings"."api_token_instance" IS 'Green A
 
 
 CREATE TABLE IF NOT EXISTS "public"."interface_folders" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
     "interface_key" "text" NOT NULL,
     "user_id" "uuid" NOT NULL,
@@ -1916,7 +2314,7 @@ COMMENT ON COLUMN "public"."internal_knowledge_base"."additional_info" IS 'Flexi
 
 
 CREATE TABLE IF NOT EXISTS "public"."invitation_audit_log" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "invitation_id" "uuid",
     "action" "text" NOT NULL,
     "performed_by" "uuid",
@@ -2006,7 +2404,7 @@ COMMENT ON COLUMN "public"."notifications"."metadata" IS 'Additional context dat
 
 
 CREATE TABLE IF NOT EXISTS "public"."nutrition_plans" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid" NOT NULL,
     "lead_id" "uuid",
     "template_id" "uuid",
@@ -2019,7 +2417,8 @@ CREATE TABLE IF NOT EXISTS "public"."nutrition_plans" (
     "customer_id" "uuid" NOT NULL,
     "budget_id" "uuid",
     "is_active" boolean DEFAULT true NOT NULL,
-    "deleted_at" timestamp with time zone
+    "deleted_at" timestamp with time zone,
+    "name" "text"
 );
 
 
@@ -2063,7 +2462,7 @@ COMMENT ON COLUMN "public"."nutrition_plans"."deleted_at" IS 'Timestamp when thi
 
 
 CREATE TABLE IF NOT EXISTS "public"."nutrition_templates" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
     "description" "text",
     "targets" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
@@ -2071,9 +2470,9 @@ CREATE TABLE IF NOT EXISTS "public"."nutrition_templates" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "created_by" "uuid",
+    "manual_override" "jsonb" DEFAULT '{}'::"jsonb",
     "manual_fields" "jsonb" DEFAULT '{}'::"jsonb",
-    "activity_entries" "jsonb" DEFAULT '[]'::"jsonb",
-    "manual_override" "jsonb" DEFAULT '{}'::"jsonb"
+    "activity_entries" "jsonb" DEFAULT '[]'::"jsonb"
 );
 
 
@@ -2100,15 +2499,15 @@ COMMENT ON COLUMN "public"."nutrition_templates"."is_public" IS 'Whether the tem
 
 
 
+COMMENT ON COLUMN "public"."nutrition_templates"."manual_override" IS 'JSONB tracking which macro/calorie fields have been manually overridden: { calories: boolean, protein: boolean, carbs: boolean, fat: boolean, fiber: boolean }';
+
+
+
 COMMENT ON COLUMN "public"."nutrition_templates"."manual_fields" IS 'JSONB storing manual fields: { steps: number | null, workouts: text | null, supplements: text | null }';
 
 
 
 COMMENT ON COLUMN "public"."nutrition_templates"."activity_entries" IS 'JSONB array storing activity entries for METs calculation: [{ id: string, activityType: string, mets: number, minutesPerWeek: number }]';
-
-
-
-COMMENT ON COLUMN "public"."nutrition_templates"."manual_override" IS 'JSONB tracking which macro/calorie fields have been manually overridden: { calories: boolean, protein: boolean, carbs: boolean, fat: boolean, fiber: boolean }';
 
 
 
@@ -2121,9 +2520,9 @@ CREATE OR REPLACE VIEW "public"."nutrition_templates_with_ranges" AS
     "created_at",
     "updated_at",
     "created_by",
+    "manual_override",
     "manual_fields",
     "activity_entries",
-    "manual_override",
     (("targets" ->> 'calories'::"text"))::numeric AS "calories_value",
     (("targets" ->> 'protein'::"text"))::numeric AS "protein_value"
    FROM "public"."nutrition_templates" "t";
@@ -2151,6 +2550,7 @@ CREATE TABLE IF NOT EXISTS "public"."payments" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "created_by" "uuid",
+    "collection_id" "uuid",
     CONSTRAINT "payments_amount_check" CHECK (("amount" >= (0)::numeric)),
     CONSTRAINT "payments_status_check" CHECK (("status" = ANY (ARRAY['שולם'::"text", 'ממתין'::"text", 'הוחזר'::"text", 'נכשל'::"text"])))
 );
@@ -2179,6 +2579,10 @@ COMMENT ON COLUMN "public"."payments"."receipt_url" IS 'URL to receipt document 
 
 
 
+COMMENT ON COLUMN "public"."payments"."collection_id" IS 'Optional link to a collection (גבייה). Payments can exist without a collection.';
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "id" "uuid" NOT NULL,
     "email" "text" NOT NULL,
@@ -2187,6 +2591,8 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "is_active" boolean DEFAULT true NOT NULL,
+    "customer_id" "uuid",
+    "avatar_url" "text",
     CONSTRAINT "profiles_role_check" CHECK (("role" = ANY (ARRAY['admin'::"text", 'user'::"text", 'trainee'::"text"])))
 );
 
@@ -2206,8 +2612,98 @@ COMMENT ON COLUMN "public"."profiles"."is_active" IS 'Whether the user account i
 
 
 
+COMMENT ON COLUMN "public"."profiles"."customer_id" IS 'Linked customer for trainee users';
+
+
+
+COMMENT ON COLUMN "public"."profiles"."avatar_url" IS 'URL of the user''s profile picture';
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."proposals" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "lead_id" "uuid",
+    "customer_id" "uuid",
+    "title" "text" NOT NULL,
+    "description" "text",
+    "proposal_link" "text",
+    "external_proposal_id" "text",
+    "status" "text" DEFAULT 'Draft'::"text" NOT NULL,
+    "amount" numeric(12,2),
+    "currency" "text" DEFAULT 'ILS'::"text",
+    "sent_at" timestamp with time zone,
+    "viewed_at" timestamp with time zone,
+    "signed_at" timestamp with time zone,
+    "expires_at" timestamp with time zone,
+    "metadata" "jsonb" DEFAULT '{}'::"jsonb",
+    "created_by" "uuid",
+    CONSTRAINT "proposals_status_check" CHECK (("status" = ANY (ARRAY['Draft'::"text", 'Sent'::"text", 'Viewed'::"text", 'Signed'::"text", 'Rejected'::"text", 'Expired'::"text"])))
+);
+
+
+ALTER TABLE "public"."proposals" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."proposals" IS 'Stores proposals for leads and customers';
+
+
+
+COMMENT ON COLUMN "public"."proposals"."external_proposal_id" IS 'External proposal ID from third-party systems';
+
+
+
+COMMENT ON COLUMN "public"."proposals"."status" IS 'Proposal status: Draft, Sent, Viewed, Signed, Rejected, or Expired';
+
+
+
+COMMENT ON COLUMN "public"."proposals"."amount" IS 'Proposal amount in the specified currency';
+
+
+
+COMMENT ON COLUMN "public"."proposals"."currency" IS 'Currency code (default: ILS)';
+
+
+
+COMMENT ON COLUMN "public"."proposals"."metadata" IS 'Additional metadata stored as JSON';
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."saved_action_plans" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "budget_id" "uuid",
+    "name" "text" NOT NULL,
+    "description" "text",
+    "saved_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "snapshot" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
+    "notes" "text",
+    "lead_id" "uuid"
+);
+
+
+ALTER TABLE "public"."saved_action_plans" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."saved_action_plans" IS 'Saved snapshots of action plans (budgets) for historical viewing';
+
+
+
+COMMENT ON COLUMN "public"."saved_action_plans"."budget_id" IS 'Reference to the original budget (may be null if budget was deleted)';
+
+
+
+COMMENT ON COLUMN "public"."saved_action_plans"."snapshot" IS 'Complete snapshot of budget data including all templates and related data';
+
+
+
+COMMENT ON COLUMN "public"."saved_action_plans"."lead_id" IS 'Reference to the lead this action plan belongs to. Each lead has its own saved action plans.';
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."saved_views" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "resource_key" "text" NOT NULL,
     "view_name" "text" NOT NULL,
     "filter_config" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
@@ -2218,14 +2714,14 @@ CREATE TABLE IF NOT EXISTS "public"."saved_views" (
     "icon_name" "text",
     "display_order" integer,
     "folder_id" "uuid",
-    CONSTRAINT "saved_views_resource_key_check" CHECK (("resource_key" = ANY (ARRAY['leads'::"text", 'workouts'::"text", 'customers'::"text", 'templates'::"text", 'nutrition_templates'::"text", 'budgets'::"text", 'meetings'::"text", 'check_in_settings'::"text", 'payments'::"text"])))
+    CONSTRAINT "saved_views_resource_key_check" CHECK (("resource_key" = ANY (ARRAY['leads'::"text", 'workouts'::"text", 'customers'::"text", 'templates'::"text", 'exercises'::"text", 'nutrition_templates'::"text", 'budgets'::"text", 'meetings'::"text", 'check_in_settings'::"text", 'payments'::"text", 'collections'::"text", 'subscription_types'::"text", 'whatsapp_automations'::"text", 'supplement_templates'::"text"])))
 );
 
 
 ALTER TABLE "public"."saved_views" OWNER TO "postgres";
 
 
-COMMENT ON TABLE "public"."saved_views" IS 'User-defined saved views/filters for different resources (leads, workouts, etc.)';
+COMMENT ON TABLE "public"."saved_views" IS 'User-defined saved views/filters for different resources. Updated budget view names from "כל התקציבים" to "כל תכניות הפעולה".';
 
 
 
@@ -2305,6 +2801,7 @@ CREATE TABLE IF NOT EXISTS "public"."subscription_types" (
     "created_by" "uuid",
     "currency" "text" DEFAULT 'ILS'::"text" NOT NULL,
     "duration_unit" "text" DEFAULT 'months'::"text" NOT NULL,
+    "second_period" "jsonb",
     CONSTRAINT "subscription_types_currency_check" CHECK (("currency" = ANY (ARRAY['ILS'::"text", 'USD'::"text", 'EUR'::"text"]))),
     CONSTRAINT "subscription_types_duration_unit_check" CHECK (("duration_unit" = ANY (ARRAY['days'::"text", 'weeks'::"text", 'months'::"text"])))
 );
@@ -2330,6 +2827,10 @@ COMMENT ON COLUMN "public"."subscription_types"."currency" IS 'Currency code: IL
 
 
 COMMENT ON COLUMN "public"."subscription_types"."duration_unit" IS 'Unit for duration: days, weeks, or months';
+
+
+
+COMMENT ON COLUMN "public"."subscription_types"."second_period" IS 'Second period data for bundle subscriptions. Contains: duration, duration_unit, price, currency';
 
 
 
@@ -2366,14 +2867,50 @@ COMMENT ON COLUMN "public"."supplement_plans"."supplements" IS 'JSONB array of s
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."user_interface_preferences" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "user_id" "uuid" NOT NULL,
-    "interface_key" "text" NOT NULL,
-    "icon_name" "text" NOT NULL,
+CREATE TABLE IF NOT EXISTS "public"."supplement_templates" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "name" "text" NOT NULL,
+    "description" "text",
+    "supplements" "jsonb" DEFAULT '[]'::"jsonb",
+    "is_public" boolean DEFAULT false NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "display_order" integer
+    "created_by" "uuid"
+);
+
+
+ALTER TABLE "public"."supplement_templates" OWNER TO "postgres";
+
+
+COMMENT ON TABLE "public"."supplement_templates" IS 'Reusable supplement templates that can be imported by users to create supplement plans';
+
+
+
+COMMENT ON COLUMN "public"."supplement_templates"."name" IS 'Template name';
+
+
+
+COMMENT ON COLUMN "public"."supplement_templates"."description" IS 'Template description';
+
+
+
+COMMENT ON COLUMN "public"."supplement_templates"."supplements" IS 'JSONB array of supplements: [{ name: string, dosage: string, timing: string, link1: string, link2: string }]';
+
+
+
+COMMENT ON COLUMN "public"."supplement_templates"."is_public" IS 'Whether the template is publicly visible to all users';
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_interface_preferences" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "interface_key" "text" NOT NULL,
+    "icon_name" "text",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "display_order" integer,
+    "numeric_value" integer
 );
 
 
@@ -2396,8 +2933,12 @@ COMMENT ON COLUMN "public"."user_interface_preferences"."display_order" IS 'Disp
 
 
 
+COMMENT ON COLUMN "public"."user_interface_preferences"."numeric_value" IS 'Numeric preference value (e.g., sidebar width in pixels)';
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."user_invitations" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "email" "text" NOT NULL,
     "user_id" "uuid",
     "customer_id" "uuid",
@@ -2439,6 +2980,43 @@ COMMENT ON COLUMN "public"."user_invitations"."expires_at" IS 'Token expiration 
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."workout_plans" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "lead_id" "uuid",
+    "start_date" "date" NOT NULL,
+    "description" "text",
+    "strength" integer DEFAULT 0,
+    "cardio" integer DEFAULT 0,
+    "intervals" integer DEFAULT 0,
+    "custom_attributes" "jsonb" DEFAULT '{"data": {}, "schema": []}'::"jsonb",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid",
+    "template_id" "uuid",
+    "is_active" boolean DEFAULT true NOT NULL,
+    "deleted_at" timestamp with time zone,
+    "customer_id" "uuid" NOT NULL,
+    "budget_id" "uuid",
+    "name" "text"
+);
+
+
+ALTER TABLE "public"."workout_plans" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."workout_plans"."lead_id" IS 'DEPRECATED: Use customer_id instead. This column is kept for historical data only.';
+
+
+
+COMMENT ON COLUMN "public"."workout_plans"."customer_id" IS 'Reference to the customer this workout plan belongs to (coaching data)';
+
+
+
+COMMENT ON COLUMN "public"."workout_plans"."budget_id" IS 'Reference to the budget this workout plan was created from';
+
+
+
 CREATE OR REPLACE VIEW "public"."v_leads_with_customer" AS
  SELECT "l"."id",
     "l"."created_at",
@@ -2471,17 +3049,92 @@ CREATE OR REPLACE VIEW "public"."v_leads_with_customer" AS
     "to_char"("l"."created_at", 'YYYY-MM-DD'::"text") AS "created_date_formatted",
     "to_char"(("l"."birth_date")::timestamp with time zone, 'YYYY-MM-DD'::"text") AS "birth_date_formatted",
     (("l"."daily_protocol" ->> 'stepsGoal'::"text"))::integer AS "daily_steps_goal",
-    (("l"."daily_protocol" ->> 'workoutGoal'::"text"))::integer AS "weekly_workouts",
-        CASE
-            WHEN (("l"."daily_protocol" -> 'supplements'::"text") IS NULL) THEN ARRAY[]::"text"[]
-            WHEN ("jsonb_typeof"(("l"."daily_protocol" -> 'supplements'::"text")) = 'array'::"text") THEN ARRAY( SELECT "jsonb_array_elements_text"(("l"."daily_protocol" -> 'supplements'::"text")) AS "jsonb_array_elements_text")
-            ELSE ARRAY[]::"text"[]
-        END AS "daily_supplements",
+    (("l"."daily_protocol" ->> 'workoutGoal'::"text"))::integer AS "weekly_workouts_goal",
+    (("l"."daily_protocol" ->> 'supplements'::"text"))::"jsonb" AS "daily_supplements",
     (("l"."subscription_data" ->> 'months'::"text"))::integer AS "subscription_months",
     (("l"."subscription_data" ->> 'initialPrice'::"text"))::numeric AS "subscription_initial_price",
-    (("l"."subscription_data" ->> 'renewalPrice'::"text"))::numeric AS "subscription_renewal_price"
-   FROM ("public"."leads" "l"
-     LEFT JOIN "public"."customers" "c" ON (("l"."customer_id" = "c"."id")));
+    (("l"."subscription_data" ->> 'renewalPrice'::"text"))::numeric AS "subscription_renewal_price",
+    ("l"."subscription_data" ->> 'name'::"text") AS "subscription_name",
+    "b"."name" AS "active_budget_name",
+    "b"."id" AS "active_budget_id",
+    "to_jsonb"("b".*) AS "active_budget_json",
+    COALESCE("p_agg"."total_paid", (0)::numeric) AS "total_paid",
+    "p_agg"."last_payment_date",
+    COALESCE("p_agg"."payments_json", '[]'::"jsonb") AS "payments_json",
+    COALESCE("col_agg"."total_expected", (0)::numeric) AS "total_expected",
+    (COALESCE("col_agg"."total_expected", (0)::numeric) - COALESCE("p_agg"."total_paid", (0)::numeric)) AS "debt_amount",
+    COALESCE("col_agg"."collections_json", '[]'::"jsonb") AS "collections_json",
+    COALESCE("wp_agg"."plan_count", (0)::bigint) AS "workout_plans_count",
+    "wp_agg"."latest_plan_date" AS "latest_workout_plan_date",
+    COALESCE("wp_agg"."plans_json", '[]'::"jsonb") AS "workout_plans_json",
+    COALESCE("np_agg"."plan_count", (0)::bigint) AS "nutrition_plans_count",
+    "np_agg"."latest_plan_date" AS "latest_nutrition_plan_date",
+    COALESCE("np_agg"."plans_json", '[]'::"jsonb") AS "nutrition_plans_json",
+    COALESCE("sup_agg"."plan_count", (0)::bigint) AS "supplement_plans_count",
+    "sup_agg"."latest_plan_date" AS "latest_supplement_plan_date",
+    COALESCE("sup_agg"."plans_json", '[]'::"jsonb") AS "supplement_plans_json",
+    COALESCE("step_agg"."plan_count", (0)::bigint) AS "steps_plans_count",
+    "step_agg"."latest_plan_date" AS "latest_steps_plan_date",
+    COALESCE("step_agg"."plans_json", '[]'::"jsonb") AS "steps_plans_json",
+    COALESCE("meet_agg"."meeting_count", (0)::bigint) AS "meetings_count",
+    "meet_agg"."latest_meeting_date",
+    "meet_agg"."next_meeting_date",
+    COALESCE("meet_agg"."meetings_json", '[]'::"jsonb") AS "meetings_json",
+    COALESCE("blood_agg"."test_count", (0)::bigint) AS "blood_tests_count",
+    "blood_agg"."latest_test_date",
+    COALESCE("blood_agg"."tests_json", '[]'::"jsonb") AS "blood_tests_json"
+   FROM ((((((((((("public"."leads" "l"
+     LEFT JOIN "public"."customers" "c" ON (("l"."customer_id" = "c"."id")))
+     LEFT JOIN "public"."budget_assignments" "ba" ON ((("l"."id" = "ba"."lead_id") AND ("ba"."is_active" = true))))
+     LEFT JOIN "public"."budgets" "b" ON (("ba"."budget_id" = "b"."id")))
+     LEFT JOIN ( SELECT "p"."lead_id",
+            "sum"("p"."amount") AS "total_paid",
+            "max"("p"."created_at") AS "last_payment_date",
+            "jsonb_agg"("to_jsonb"("p".*) ORDER BY "p"."created_at" DESC) AS "payments_json"
+           FROM "public"."payments" "p"
+          GROUP BY "p"."lead_id") "p_agg" ON (("l"."id" = "p_agg"."lead_id")))
+     LEFT JOIN ( SELECT "cl"."lead_id",
+            "sum"("cl"."total_amount") AS "total_expected",
+            "jsonb_agg"("to_jsonb"("cl".*) ORDER BY "cl"."due_date") AS "collections_json"
+           FROM "public"."collections" "cl"
+          GROUP BY "cl"."lead_id") "col_agg" ON (("l"."id" = "col_agg"."lead_id")))
+     LEFT JOIN ( SELECT "wp"."lead_id",
+            "count"(*) AS "plan_count",
+            "max"("wp"."start_date") AS "latest_plan_date",
+            "jsonb_agg"("to_jsonb"("wp".*) ORDER BY "wp"."start_date" DESC) AS "plans_json"
+           FROM "public"."workout_plans" "wp"
+          GROUP BY "wp"."lead_id") "wp_agg" ON (("l"."id" = "wp_agg"."lead_id")))
+     LEFT JOIN ( SELECT "np"."lead_id",
+            "count"(*) AS "plan_count",
+            "max"("np"."start_date") AS "latest_plan_date",
+            "jsonb_agg"("to_jsonb"("np".*) ORDER BY "np"."start_date" DESC) AS "plans_json"
+           FROM "public"."nutrition_plans" "np"
+          GROUP BY "np"."lead_id") "np_agg" ON (("l"."id" = "np_agg"."lead_id")))
+     LEFT JOIN ( SELECT "sp"."lead_id",
+            "count"(*) AS "plan_count",
+            "max"("sp"."start_date") AS "latest_plan_date",
+            "jsonb_agg"("to_jsonb"("sp".*) ORDER BY "sp"."start_date" DESC) AS "plans_json"
+           FROM "public"."supplement_plans" "sp"
+          GROUP BY "sp"."lead_id") "sup_agg" ON (("l"."id" = "sup_agg"."lead_id")))
+     LEFT JOIN ( SELECT "stp"."lead_id",
+            "count"(*) AS "plan_count",
+            "max"("stp"."start_date") AS "latest_plan_date",
+            "jsonb_agg"("to_jsonb"("stp".*) ORDER BY "stp"."start_date" DESC) AS "plans_json"
+           FROM "public"."steps_plans" "stp"
+          GROUP BY "stp"."lead_id") "step_agg" ON (("l"."id" = "step_agg"."lead_id")))
+     LEFT JOIN ( SELECT "m"."lead_id",
+            "count"(*) AS "meeting_count",
+            "max"("m"."created_at") FILTER (WHERE ("m"."created_at" < "now"())) AS "latest_meeting_date",
+            "min"("m"."created_at") FILTER (WHERE ("m"."created_at" >= "now"())) AS "next_meeting_date",
+            "jsonb_agg"("to_jsonb"("m".*) ORDER BY "m"."created_at" DESC) AS "meetings_json"
+           FROM "public"."meetings" "m"
+          GROUP BY "m"."lead_id") "meet_agg" ON (("l"."id" = "meet_agg"."lead_id")))
+     LEFT JOIN ( SELECT "bt"."lead_id",
+            "count"(*) AS "test_count",
+            "max"("bt"."created_at") AS "latest_test_date",
+            "jsonb_agg"("to_jsonb"("bt".*) ORDER BY "bt"."created_at" DESC) AS "tests_json"
+           FROM "public"."blood_tests" "bt"
+          GROUP BY "bt"."lead_id") "blood_agg" ON (("l"."id" = "blood_agg"."lead_id")));
 
 
 ALTER VIEW "public"."v_leads_with_customer" OWNER TO "postgres";
@@ -2575,71 +3228,51 @@ CREATE TABLE IF NOT EXISTS "public"."whatsapp_flow_templates" (
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "buttons" "jsonb" DEFAULT '[]'::"jsonb",
     "media" "jsonb",
-    CONSTRAINT "check_buttons_max_count" CHECK (("jsonb_array_length"(COALESCE("buttons", '[]'::"jsonb")) <= 3))
+    "name" "text",
+    "status" "text" DEFAULT 'לא מוגדר'::"text",
+    "description" "text",
+    CONSTRAINT "check_buttons_max_count" CHECK (("jsonb_array_length"(COALESCE("buttons", '[]'::"jsonb")) <= 3)),
+    CONSTRAINT "check_whatsapp_template_status" CHECK (("status" = ANY (ARRAY['מוגדר'::"text", 'לא מוגדר'::"text", 'מושעה'::"text"])))
 );
 
 
 ALTER TABLE "public"."whatsapp_flow_templates" OWNER TO "postgres";
 
 
-COMMENT ON TABLE "public"."whatsapp_flow_templates" IS 'Stores WhatsApp message templates for automation flows';
+COMMENT ON TABLE "public"."whatsapp_flow_templates" IS 'Stores ALL automation information and ALL text content: flow_key (identifier), name (display name), description (optional description), status (configuration status), template_content (full message text with HTML), buttons (all button text and configs), media (media URLs). Every piece of text in the automation is persisted in this table.';
 
 
 
-COMMENT ON COLUMN "public"."whatsapp_flow_templates"."flow_key" IS 'Unique identifier for the flow (e.g., customer_journey_start, intro_questionnaire)';
+COMMENT ON COLUMN "public"."whatsapp_flow_templates"."flow_key" IS 'Unique identifier for the automation flow (e.g., customer_journey_start, intro_questionnaire, budget, payment_request, trainee_user_credentials, weekly_review).';
 
 
 
-COMMENT ON COLUMN "public"."whatsapp_flow_templates"."template_content" IS 'Message template with placeholders like {{name}}, {{phone}}, etc.';
+COMMENT ON COLUMN "public"."whatsapp_flow_templates"."template_content" IS 'Full message template text with HTML formatting from rich text editor. Contains ALL text content including placeholders like {{name}}, {{phone}}, {{email}}, {{password}}, {{login_url}}, {{city}}, {{gender}}, {{payment_link}}, {{status}}, {{lead_id}}, etc. This is the complete message that will be sent.';
 
 
 
-COMMENT ON COLUMN "public"."whatsapp_flow_templates"."buttons" IS 'Array of interactive buttons: [{"id": "1", "text": "Button Text"}]';
+COMMENT ON COLUMN "public"."whatsapp_flow_templates"."buttons" IS 'Array of interactive buttons storing ALL button text: [{"id": "string", "text": "button label text (up to 25 chars)", "action": "reply|flow|url|none", "actionConfig": {"replyMessage": "auto reply message text", "url": "https://...", "flowKey": "..."}}]. Stores ALL button-related text including button labels, reply messages, URLs, flow keys, and any other button configuration text.';
 
 
 
-COMMENT ON COLUMN "public"."whatsapp_flow_templates"."media" IS 'Media attachment for template (image, video, or GIF) stored as JSONB: { type: "image"|"video"|"gif", url: string }';
+COMMENT ON COLUMN "public"."whatsapp_flow_templates"."media" IS 'Media attachment information stored as JSONB: {"type": "image|video|gif", "url": "..."}. Stores media-related text/URLs if applicable.';
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."workout_plans" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "user_id" "uuid" NOT NULL,
-    "lead_id" "uuid",
-    "start_date" "date" NOT NULL,
-    "description" "text",
-    "strength" integer DEFAULT 0,
-    "cardio" integer DEFAULT 0,
-    "intervals" integer DEFAULT 0,
-    "custom_attributes" "jsonb" DEFAULT '{"data": {}, "schema": []}'::"jsonb",
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "created_by" "uuid",
-    "template_id" "uuid",
-    "is_active" boolean DEFAULT true NOT NULL,
-    "deleted_at" timestamp with time zone,
-    "customer_id" "uuid" NOT NULL,
-    "budget_id" "uuid"
-);
-
-
-ALTER TABLE "public"."workout_plans" OWNER TO "postgres";
-
-
-COMMENT ON COLUMN "public"."workout_plans"."lead_id" IS 'DEPRECATED: Use customer_id instead. This column is kept for historical data only.';
+COMMENT ON COLUMN "public"."whatsapp_flow_templates"."name" IS 'Hebrew name/description of the automation (e.g., "תחילת מסע לקוח ותיאום פגישה"). This is the editable label shown in the automation list. Stores the display name of the automation.';
 
 
 
-COMMENT ON COLUMN "public"."workout_plans"."customer_id" IS 'Reference to the customer this workout plan belongs to (coaching data)';
+COMMENT ON COLUMN "public"."whatsapp_flow_templates"."status" IS 'Status of automation configuration (e.g., "מוגדר" for configured, "לא מוגדר" for not configured, "מושעה" for suspended).';
 
 
 
-COMMENT ON COLUMN "public"."workout_plans"."budget_id" IS 'Reference to the budget this workout plan was created from';
+COMMENT ON COLUMN "public"."whatsapp_flow_templates"."description" IS 'Optional additional descriptive text about the automation. Can contain any explanatory text about what the automation does.';
 
 
 
 CREATE TABLE IF NOT EXISTS "public"."workout_templates" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "name" "text" NOT NULL,
     "description" "text",
     "goal_tags" "text"[] DEFAULT '{}'::"text"[],
@@ -2870,6 +3503,11 @@ ALTER TABLE ONLY "public"."budget_assignments"
 
 
 
+ALTER TABLE ONLY "public"."budget_history"
+    ADD CONSTRAINT "budget_history_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."budgets"
     ADD CONSTRAINT "budgets_pkey" PRIMARY KEY ("id");
 
@@ -2882,6 +3520,11 @@ ALTER TABLE ONLY "public"."check_in_field_configurations"
 
 ALTER TABLE ONLY "public"."check_in_field_configurations"
     ADD CONSTRAINT "check_in_field_configurations_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."collections"
+    ADD CONSTRAINT "collections_pkey" PRIMARY KEY ("id");
 
 
 
@@ -2907,6 +3550,11 @@ ALTER TABLE ONLY "public"."daily_check_ins"
 
 ALTER TABLE ONLY "public"."daily_check_ins"
     ADD CONSTRAINT "daily_check_ins_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."exercises"
+    ADD CONSTRAINT "exercises_pkey" PRIMARY KEY ("id");
 
 
 
@@ -2980,6 +3628,16 @@ ALTER TABLE ONLY "public"."profiles"
 
 
 
+ALTER TABLE ONLY "public"."proposals"
+    ADD CONSTRAINT "proposals_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."saved_action_plans"
+    ADD CONSTRAINT "saved_action_plans_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."saved_views"
     ADD CONSTRAINT "saved_views_pkey" PRIMARY KEY ("id");
 
@@ -2997,6 +3655,11 @@ ALTER TABLE ONLY "public"."subscription_types"
 
 ALTER TABLE ONLY "public"."supplement_plans"
     ADD CONSTRAINT "supplement_plans_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."supplement_templates"
+    ADD CONSTRAINT "supplement_templates_pkey" PRIMARY KEY ("id");
 
 
 
@@ -3302,11 +3965,31 @@ CREATE UNIQUE INDEX "idx_budget_assignments_unique_active_lead" ON "public"."bud
 
 
 
+CREATE INDEX "idx_budget_history_budget_id" ON "public"."budget_history" USING "btree" ("budget_id");
+
+
+
+CREATE INDEX "idx_budget_history_changed_at" ON "public"."budget_history" USING "btree" ("changed_at" DESC);
+
+
+
+CREATE INDEX "idx_budget_history_lead_id" ON "public"."budget_history" USING "btree" ("lead_id");
+
+
+
+CREATE INDEX "idx_budgets_cardio_training" ON "public"."budgets" USING "gin" ("cardio_training");
+
+
+
 CREATE INDEX "idx_budgets_created_at" ON "public"."budgets" USING "btree" ("created_at" DESC);
 
 
 
 CREATE INDEX "idx_budgets_created_by" ON "public"."budgets" USING "btree" ("created_by");
+
+
+
+CREATE INDEX "idx_budgets_interval_training" ON "public"."budgets" USING "gin" ("interval_training");
 
 
 
@@ -3319,6 +4002,10 @@ CREATE INDEX "idx_budgets_nutrition_targets" ON "public"."budgets" USING "gin" (
 
 
 CREATE INDEX "idx_budgets_nutrition_template_id" ON "public"."budgets" USING "btree" ("nutrition_template_id");
+
+
+
+CREATE INDEX "idx_budgets_supplement_template_id" ON "public"."budgets" USING "btree" ("supplement_template_id");
 
 
 
@@ -3335,6 +4022,26 @@ CREATE INDEX "idx_check_in_field_configurations_customer_id" ON "public"."check_
 
 
 CREATE INDEX "idx_check_in_field_configurations_global" ON "public"."check_in_field_configurations" USING "btree" ((("customer_id" IS NULL)));
+
+
+
+CREATE INDEX "idx_collections_created_at" ON "public"."collections" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_collections_customer_id" ON "public"."collections" USING "btree" ("customer_id");
+
+
+
+CREATE INDEX "idx_collections_due_date" ON "public"."collections" USING "btree" ("due_date");
+
+
+
+CREATE INDEX "idx_collections_lead_id" ON "public"."collections" USING "btree" ("lead_id");
+
+
+
+CREATE INDEX "idx_collections_status" ON "public"."collections" USING "btree" ("status");
 
 
 
@@ -3403,6 +4110,18 @@ CREATE INDEX "idx_daily_check_ins_date" ON "public"."daily_check_ins" USING "btr
 
 
 CREATE INDEX "idx_daily_check_ins_lead_id" ON "public"."daily_check_ins" USING "btree" ("lead_id");
+
+
+
+CREATE INDEX "idx_exercises_created_at" ON "public"."exercises" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_exercises_created_by" ON "public"."exercises" USING "btree" ("created_by");
+
+
+
+CREATE INDEX "idx_exercises_name" ON "public"."exercises" USING "btree" ("name");
 
 
 
@@ -3630,6 +4349,14 @@ COMMENT ON INDEX "public"."idx_nutrition_plans_budget_id_perf" IS 'Performance i
 
 
 
+CREATE UNIQUE INDEX "idx_nutrition_plans_budget_id_unique" ON "public"."nutrition_plans" USING "btree" ("budget_id") WHERE ("budget_id" IS NOT NULL);
+
+
+
+COMMENT ON INDEX "public"."idx_nutrition_plans_budget_id_unique" IS 'Ensures absolute uniqueness of nutrition plans per budget_id';
+
+
+
 CREATE INDEX "idx_nutrition_plans_budget_lead_perf" ON "public"."nutrition_plans" USING "btree" ("budget_id", "lead_id") WHERE (("budget_id" IS NOT NULL) AND ("lead_id" IS NOT NULL));
 
 
@@ -3698,6 +4425,10 @@ CREATE INDEX "idx_nutrition_templates_targets" ON "public"."nutrition_templates"
 
 
 
+CREATE INDEX "idx_payments_collection_id" ON "public"."payments" USING "btree" ("collection_id");
+
+
+
 CREATE INDEX "idx_payments_created_at" ON "public"."payments" USING "btree" ("created_at" DESC);
 
 
@@ -3718,11 +4449,59 @@ CREATE INDEX "idx_payments_stripe_payment_id" ON "public"."payments" USING "btre
 
 
 
+CREATE INDEX "idx_profiles_customer_id" ON "public"."profiles" USING "btree" ("customer_id");
+
+
+
 CREATE INDEX "idx_profiles_email" ON "public"."profiles" USING "btree" ("email");
 
 
 
 CREATE INDEX "idx_profiles_role" ON "public"."profiles" USING "btree" ("role");
+
+
+
+CREATE INDEX "idx_proposals_created_at" ON "public"."proposals" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_proposals_created_by" ON "public"."proposals" USING "btree" ("created_by");
+
+
+
+CREATE INDEX "idx_proposals_customer_id" ON "public"."proposals" USING "btree" ("customer_id");
+
+
+
+CREATE INDEX "idx_proposals_expires_at" ON "public"."proposals" USING "btree" ("expires_at") WHERE ("expires_at" IS NOT NULL);
+
+
+
+CREATE INDEX "idx_proposals_external_id" ON "public"."proposals" USING "btree" ("external_proposal_id");
+
+
+
+CREATE INDEX "idx_proposals_lead_id" ON "public"."proposals" USING "btree" ("lead_id");
+
+
+
+CREATE INDEX "idx_proposals_status" ON "public"."proposals" USING "btree" ("status");
+
+
+
+CREATE INDEX "idx_saved_action_plans_budget_id" ON "public"."saved_action_plans" USING "btree" ("budget_id");
+
+
+
+CREATE INDEX "idx_saved_action_plans_lead_id" ON "public"."saved_action_plans" USING "btree" ("lead_id");
+
+
+
+CREATE INDEX "idx_saved_action_plans_saved_at" ON "public"."saved_action_plans" USING "btree" ("saved_at" DESC);
+
+
+
+CREATE INDEX "idx_saved_action_plans_user_id" ON "public"."saved_action_plans" USING "btree" ("user_id");
 
 
 
@@ -3770,6 +4549,14 @@ COMMENT ON INDEX "public"."idx_steps_plans_budget_id_perf" IS 'Performance index
 
 
 
+CREATE UNIQUE INDEX "idx_steps_plans_budget_id_unique" ON "public"."steps_plans" USING "btree" ("budget_id") WHERE ("budget_id" IS NOT NULL);
+
+
+
+COMMENT ON INDEX "public"."idx_steps_plans_budget_id_unique" IS 'Ensures absolute uniqueness of steps plans per budget_id';
+
+
+
 CREATE INDEX "idx_steps_plans_budget_lead_perf" ON "public"."steps_plans" USING "btree" ("budget_id", "lead_id") WHERE (("budget_id" IS NOT NULL) AND ("lead_id" IS NOT NULL));
 
 
@@ -3806,6 +4593,10 @@ CREATE INDEX "idx_subscription_types_currency" ON "public"."subscription_types" 
 
 
 
+CREATE INDEX "idx_subscription_types_has_second_period" ON "public"."subscription_types" USING "btree" ((("second_period" IS NOT NULL))) WHERE ("second_period" IS NOT NULL);
+
+
+
 CREATE INDEX "idx_supplement_plans_budget_customer_perf" ON "public"."supplement_plans" USING "btree" ("budget_id", "customer_id") WHERE (("budget_id" IS NOT NULL) AND ("customer_id" IS NOT NULL));
 
 
@@ -3819,6 +4610,14 @@ CREATE INDEX "idx_supplement_plans_budget_id_perf" ON "public"."supplement_plans
 
 
 COMMENT ON INDEX "public"."idx_supplement_plans_budget_id_perf" IS 'Performance index for querying supplement plans by budget_id';
+
+
+
+CREATE UNIQUE INDEX "idx_supplement_plans_budget_id_unique" ON "public"."supplement_plans" USING "btree" ("budget_id") WHERE ("budget_id" IS NOT NULL);
+
+
+
+COMMENT ON INDEX "public"."idx_supplement_plans_budget_id_unique" IS 'Ensures absolute uniqueness of supplement plans per budget_id';
 
 
 
@@ -3847,6 +4646,22 @@ CREATE INDEX "idx_supplement_plans_supplements" ON "public"."supplement_plans" U
 
 
 CREATE INDEX "idx_supplement_plans_user_id" ON "public"."supplement_plans" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "idx_supplement_templates_created_at" ON "public"."supplement_templates" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_supplement_templates_created_by" ON "public"."supplement_templates" USING "btree" ("created_by");
+
+
+
+CREATE INDEX "idx_supplement_templates_is_public" ON "public"."supplement_templates" USING "btree" ("is_public");
+
+
+
+CREATE INDEX "idx_supplement_templates_supplements" ON "public"."supplement_templates" USING "gin" ("supplements");
 
 
 
@@ -3902,6 +4717,14 @@ CREATE INDEX "idx_whatsapp_flow_templates_media" ON "public"."whatsapp_flow_temp
 
 
 
+CREATE INDEX "idx_whatsapp_flow_templates_name" ON "public"."whatsapp_flow_templates" USING "btree" ("user_id", "name");
+
+
+
+CREATE INDEX "idx_whatsapp_flow_templates_status" ON "public"."whatsapp_flow_templates" USING "btree" ("user_id", "status");
+
+
+
 CREATE INDEX "idx_whatsapp_flow_templates_user_flow" ON "public"."whatsapp_flow_templates" USING "btree" ("user_id", "flow_key");
 
 
@@ -3919,6 +4742,14 @@ CREATE INDEX "idx_workout_plans_budget_id_perf" ON "public"."workout_plans" USIN
 
 
 COMMENT ON INDEX "public"."idx_workout_plans_budget_id_perf" IS 'Performance index for querying workout plans by budget_id';
+
+
+
+CREATE UNIQUE INDEX "idx_workout_plans_budget_id_unique" ON "public"."workout_plans" USING "btree" ("budget_id") WHERE ("budget_id" IS NOT NULL);
+
+
+
+COMMENT ON INDEX "public"."idx_workout_plans_budget_id_unique" IS 'Ensures absolute uniqueness of workout plans per budget_id';
 
 
 
@@ -3982,6 +4813,39 @@ CREATE INDEX "idx_workout_templates_routine_data" ON "public"."workout_templates
 
 
 
+CREATE OR REPLACE VIEW "public"."collections_with_payments" WITH ("security_invoker"='true') AS
+ SELECT "c"."id",
+    "c"."lead_id",
+    "c"."customer_id",
+    "c"."total_amount",
+    "c"."due_date",
+    "c"."status",
+    "c"."description",
+    "c"."notes",
+    "c"."created_at",
+    "c"."updated_at",
+    "c"."created_by",
+    "lead_customer"."full_name" AS "lead_name",
+    "customer"."full_name" AS "customer_name",
+    COALESCE("sum"(
+        CASE
+            WHEN ("p"."status" = 'שולם'::"text") THEN "p"."amount"
+            ELSE (0)::numeric
+        END), (0)::numeric) AS "paid_amount",
+    GREATEST((COALESCE("c"."total_amount", (0)::numeric) - COALESCE("sum"(
+        CASE
+            WHEN ("p"."status" = 'שולם'::"text") THEN "p"."amount"
+            ELSE (0)::numeric
+        END), (0)::numeric)), (0)::numeric) AS "remaining_amount"
+   FROM (((("public"."collections" "c"
+     LEFT JOIN "public"."leads" "l" ON (("l"."id" = "c"."lead_id")))
+     LEFT JOIN "public"."customers" "lead_customer" ON (("lead_customer"."id" = "l"."customer_id")))
+     LEFT JOIN "public"."customers" "customer" ON (("customer"."id" = "c"."customer_id")))
+     LEFT JOIN "public"."payments" "p" ON (("p"."collection_id" = "c"."id")))
+  GROUP BY "c"."id", "lead_customer"."full_name", "customer"."full_name";
+
+
+
 CREATE OR REPLACE TRIGGER "on_auth_user_created" AFTER INSERT ON "auth"."users" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_user"();
 
 
@@ -3994,7 +4858,31 @@ CREATE OR REPLACE TRIGGER "customer_notes_updated_at" BEFORE UPDATE ON "public".
 
 
 
+CREATE OR REPLACE TRIGGER "log_budget_changes_trigger" AFTER INSERT OR UPDATE ON "public"."budgets" FOR EACH ROW EXECUTE FUNCTION "public"."log_budget_changes"();
+
+
+
+CREATE OR REPLACE TRIGGER "log_nutrition_plan_changes_trigger" AFTER INSERT OR UPDATE ON "public"."nutrition_plans" FOR EACH ROW EXECUTE FUNCTION "public"."log_nutrition_plan_changes"();
+
+
+
+CREATE OR REPLACE TRIGGER "log_workout_plan_changes_trigger" AFTER INSERT OR UPDATE ON "public"."workout_plans" FOR EACH ROW EXECUTE FUNCTION "public"."log_workout_plan_changes"();
+
+
+
 CREATE OR REPLACE TRIGGER "set_green_api_settings_user_trigger" BEFORE INSERT OR UPDATE ON "public"."green_api_settings" FOR EACH ROW EXECUTE FUNCTION "public"."set_green_api_settings_user"();
+
+
+
+CREATE OR REPLACE TRIGGER "trigger_auto_fill_payment_customer_id" BEFORE INSERT ON "public"."payments" FOR EACH ROW EXECUTE FUNCTION "public"."auto_fill_payment_customer_id"();
+
+
+
+CREATE OR REPLACE TRIGGER "trigger_auto_fill_payment_customer_id_update" BEFORE UPDATE ON "public"."payments" FOR EACH ROW WHEN ((("old"."lead_id" IS DISTINCT FROM "new"."lead_id") OR ("new"."customer_id" IS NULL))) EXECUTE FUNCTION "public"."auto_fill_payment_customer_id"();
+
+
+
+CREATE OR REPLACE TRIGGER "trigger_update_whatsapp_template_status" BEFORE INSERT OR UPDATE OF "template_content" ON "public"."whatsapp_flow_templates" FOR EACH ROW EXECUTE FUNCTION "public"."update_whatsapp_template_status"();
 
 
 
@@ -4014,11 +4902,19 @@ CREATE OR REPLACE TRIGGER "update_check_in_field_configurations_updated_at" BEFO
 
 
 
+CREATE OR REPLACE TRIGGER "update_collections_updated_at" BEFORE UPDATE ON "public"."collections" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
 CREATE OR REPLACE TRIGGER "update_customers_updated_at" BEFORE UPDATE ON "public"."customers" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
 
 CREATE OR REPLACE TRIGGER "update_daily_check_ins_updated_at" BEFORE UPDATE ON "public"."daily_check_ins" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_exercises_updated_at" BEFORE UPDATE ON "public"."exercises" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
 
@@ -4066,6 +4962,10 @@ CREATE OR REPLACE TRIGGER "update_profiles_updated_at" BEFORE UPDATE ON "public"
 
 
 
+CREATE OR REPLACE TRIGGER "update_proposals_updated_at" BEFORE UPDATE ON "public"."proposals" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
 CREATE OR REPLACE TRIGGER "update_saved_views_updated_at" BEFORE UPDATE ON "public"."saved_views" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
@@ -4079,6 +4979,10 @@ CREATE OR REPLACE TRIGGER "update_subscription_types_updated_at" BEFORE UPDATE O
 
 
 CREATE OR REPLACE TRIGGER "update_supplement_plans_updated_at" BEFORE UPDATE ON "public"."supplement_plans" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_supplement_templates_updated_at" BEFORE UPDATE ON "public"."supplement_templates" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
 
@@ -4216,6 +5120,21 @@ ALTER TABLE ONLY "public"."budget_assignments"
 
 
 
+ALTER TABLE ONLY "public"."budget_history"
+    ADD CONSTRAINT "budget_history_budget_id_fkey" FOREIGN KEY ("budget_id") REFERENCES "public"."budgets"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."budget_history"
+    ADD CONSTRAINT "budget_history_changed_by_fkey" FOREIGN KEY ("changed_by") REFERENCES "public"."profiles"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."budget_history"
+    ADD CONSTRAINT "budget_history_lead_id_fkey" FOREIGN KEY ("lead_id") REFERENCES "public"."leads"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."budgets"
     ADD CONSTRAINT "budgets_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
@@ -4223,6 +5142,11 @@ ALTER TABLE ONLY "public"."budgets"
 
 ALTER TABLE ONLY "public"."budgets"
     ADD CONSTRAINT "budgets_nutrition_template_id_fkey" FOREIGN KEY ("nutrition_template_id") REFERENCES "public"."nutrition_templates"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."budgets"
+    ADD CONSTRAINT "budgets_supplement_template_id_fkey" FOREIGN KEY ("supplement_template_id") REFERENCES "public"."supplement_templates"("id") ON DELETE SET NULL;
 
 
 
@@ -4238,6 +5162,21 @@ ALTER TABLE ONLY "public"."check_in_field_configurations"
 
 ALTER TABLE ONLY "public"."check_in_field_configurations"
     ADD CONSTRAINT "check_in_field_configurations_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."collections"
+    ADD CONSTRAINT "collections_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."collections"
+    ADD CONSTRAINT "collections_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."collections"
+    ADD CONSTRAINT "collections_lead_id_fkey" FOREIGN KEY ("lead_id") REFERENCES "public"."leads"("id") ON DELETE CASCADE;
 
 
 
@@ -4273,6 +5212,11 @@ ALTER TABLE ONLY "public"."daily_check_ins"
 
 ALTER TABLE ONLY "public"."daily_check_ins"
     ADD CONSTRAINT "daily_check_ins_lead_id_fkey" FOREIGN KEY ("lead_id") REFERENCES "public"."leads"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."exercises"
+    ADD CONSTRAINT "exercises_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
 
 
@@ -4397,6 +5341,11 @@ ALTER TABLE ONLY "public"."nutrition_templates"
 
 
 ALTER TABLE ONLY "public"."payments"
+    ADD CONSTRAINT "payments_collection_id_fkey" FOREIGN KEY ("collection_id") REFERENCES "public"."collections"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."payments"
     ADD CONSTRAINT "payments_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
 
@@ -4412,7 +5361,42 @@ ALTER TABLE ONLY "public"."payments"
 
 
 ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."profiles"
     ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."proposals"
+    ADD CONSTRAINT "proposals_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."proposals"
+    ADD CONSTRAINT "proposals_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."proposals"
+    ADD CONSTRAINT "proposals_lead_id_fkey" FOREIGN KEY ("lead_id") REFERENCES "public"."leads"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."saved_action_plans"
+    ADD CONSTRAINT "saved_action_plans_budget_id_fkey" FOREIGN KEY ("budget_id") REFERENCES "public"."budgets"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."saved_action_plans"
+    ADD CONSTRAINT "saved_action_plans_lead_id_fkey" FOREIGN KEY ("lead_id") REFERENCES "public"."leads"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."saved_action_plans"
+    ADD CONSTRAINT "saved_action_plans_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -4478,6 +5462,11 @@ ALTER TABLE ONLY "public"."supplement_plans"
 
 ALTER TABLE ONLY "public"."supplement_plans"
     ADD CONSTRAINT "supplement_plans_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplement_templates"
+    ADD CONSTRAINT "supplement_templates_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
 
 
@@ -4694,6 +5683,14 @@ CREATE POLICY "Admins have full access to budgets" ON "public"."budgets" USING (
 
 
 
+CREATE POLICY "Admins have full access to collections" ON "public"."collections" USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text"))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+
+
+
 CREATE POLICY "Admins have full access to customers" ON "public"."customers" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text"))))) WITH CHECK ((EXISTS ( SELECT 1
@@ -4734,6 +5731,12 @@ CREATE POLICY "Admins have full access to profiles" ON "public"."profiles" USING
 
 
 
+CREATE POLICY "Admins have full access to saved action plans" ON "public"."saved_action_plans" USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = ANY (ARRAY['admin'::"text", 'user'::"text"]))))));
+
+
+
 CREATE POLICY "Admins have full access to steps plans" ON "public"."steps_plans" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text"))))) WITH CHECK ((EXISTS ( SELECT 1
@@ -4751,6 +5754,14 @@ CREATE POLICY "Admins have full access to subscription types" ON "public"."subsc
 
 
 CREATE POLICY "Admins have full access to supplement plans" ON "public"."supplement_plans" USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text"))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))));
+
+
+
+CREATE POLICY "Admins have full access to supplement templates" ON "public"."supplement_templates" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles"
   WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text"))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."profiles"
@@ -4782,11 +5793,35 @@ CREATE POLICY "Allow anonymous read leads" ON "public"."leads" FOR SELECT TO "an
 
 
 
+CREATE POLICY "Allow trigger to insert budget history" ON "public"."budget_history" FOR INSERT WITH CHECK (true);
+
+
+
+CREATE POLICY "Authenticated users can delete collections" ON "public"."collections" FOR DELETE USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Authenticated users can delete exercises" ON "public"."exercises" FOR DELETE USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
 CREATE POLICY "Authenticated users can delete knowledge base" ON "public"."internal_knowledge_base" FOR DELETE USING (("auth"."role"() = 'authenticated'::"text"));
 
 
 
+CREATE POLICY "Authenticated users can delete proposals" ON "public"."proposals" FOR DELETE TO "authenticated" USING (true);
+
+
+
+CREATE POLICY "Authenticated users can insert collections" ON "public"."collections" FOR INSERT WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
+
+
+
 CREATE POLICY "Authenticated users can insert customers" ON "public"."customers" FOR INSERT WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Authenticated users can insert exercises" ON "public"."exercises" FOR INSERT WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
 
 
 
@@ -4802,7 +5837,19 @@ CREATE POLICY "Authenticated users can insert payments" ON "public"."payments" F
 
 
 
+CREATE POLICY "Authenticated users can insert proposals" ON "public"."proposals" FOR INSERT TO "authenticated" WITH CHECK (true);
+
+
+
 CREATE POLICY "Authenticated users can read Green API settings" ON "public"."green_api_settings" FOR SELECT USING (("auth"."uid"() IS NOT NULL));
+
+
+
+CREATE POLICY "Authenticated users can read collections" ON "public"."collections" FOR SELECT USING ((("auth"."role"() = 'authenticated'::"text") AND ((EXISTS ( SELECT 1
+   FROM "public"."leads"
+  WHERE ("leads"."id" = "collections"."lead_id"))) OR (EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text")))))));
 
 
 
@@ -4826,7 +5873,15 @@ CREATE POLICY "Authenticated users can read payments" ON "public"."payments" FOR
 
 
 
+CREATE POLICY "Authenticated users can update collections" ON "public"."collections" FOR UPDATE USING (("auth"."role"() = 'authenticated'::"text")) WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
+
+
+
 CREATE POLICY "Authenticated users can update customers" ON "public"."customers" FOR UPDATE USING (("auth"."role"() = 'authenticated'::"text")) WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Authenticated users can update exercises" ON "public"."exercises" FOR UPDATE USING (("auth"."role"() = 'authenticated'::"text")) WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
 
 
 
@@ -4843,6 +5898,18 @@ COMMENT ON POLICY "Authenticated users can update leads" ON "public"."leads" IS 
 
 
 CREATE POLICY "Authenticated users can update payments" ON "public"."payments" FOR UPDATE USING (("auth"."role"() = 'authenticated'::"text")) WITH CHECK (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Authenticated users can update proposals" ON "public"."proposals" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "Authenticated users can view exercises" ON "public"."exercises" FOR SELECT USING (("auth"."role"() = 'authenticated'::"text"));
+
+
+
+CREATE POLICY "Authenticated users can view proposals" ON "public"."proposals" FOR SELECT TO "authenticated" USING (true);
 
 
 
@@ -4976,6 +6043,20 @@ CREATE POLICY "Service role can manage fillout submissions" ON "public"."fillout
 
 
 
+CREATE POLICY "Staff can update budgets" ON "public"."budgets" FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = ANY (ARRAY['admin'::"text", 'manager'::"text", 'coach'::"text"])))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = ANY (ARRAY['admin'::"text", 'manager'::"text", 'coach'::"text"]))))));
+
+
+
+CREATE POLICY "Staff can view all budget history" ON "public"."budget_history" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = ANY (ARRAY['admin'::"text", 'manager'::"text", 'coach'::"text"]))))));
+
+
+
 CREATE POLICY "System can insert audit logs" ON "public"."invitation_audit_log" FOR INSERT WITH CHECK (true);
 
 
@@ -5086,6 +6167,10 @@ CREATE POLICY "Users can delete own nutrition templates" ON "public"."nutrition_
 
 
 
+CREATE POLICY "Users can delete own saved action plans" ON "public"."saved_action_plans" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Users can delete own steps plans" ON "public"."steps_plans" FOR DELETE USING (("auth"."uid"() = "user_id"));
 
 
@@ -5095,6 +6180,10 @@ CREATE POLICY "Users can delete own subscription types" ON "public"."subscriptio
 
 
 CREATE POLICY "Users can delete own supplement plans" ON "public"."supplement_plans" FOR DELETE USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can delete own supplement templates" ON "public"."supplement_templates" FOR DELETE USING (("auth"."uid"() = "created_by"));
 
 
 
@@ -5146,6 +6235,10 @@ CREATE POLICY "Users can insert own nutrition templates" ON "public"."nutrition_
 
 
 
+CREATE POLICY "Users can insert own saved action plans" ON "public"."saved_action_plans" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Users can insert own steps plans" ON "public"."steps_plans" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
 
 
@@ -5155,6 +6248,10 @@ CREATE POLICY "Users can insert own subscription types" ON "public"."subscriptio
 
 
 CREATE POLICY "Users can insert own supplement plans" ON "public"."supplement_plans" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can insert own supplement templates" ON "public"."supplement_templates" FOR INSERT WITH CHECK (("auth"."uid"() = "created_by"));
 
 
 
@@ -5238,6 +6335,10 @@ CREATE POLICY "Users can update own profile" ON "public"."profiles" FOR UPDATE U
 
 
 
+CREATE POLICY "Users can update own saved action plans" ON "public"."saved_action_plans" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Users can update own steps plans" ON "public"."steps_plans" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
 
 
@@ -5247,6 +6348,10 @@ CREATE POLICY "Users can update own subscription types" ON "public"."subscriptio
 
 
 CREATE POLICY "Users can update own supplement plans" ON "public"."supplement_plans" FOR UPDATE USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can update own supplement templates" ON "public"."supplement_templates" FOR UPDATE USING (("auth"."uid"() = "created_by")) WITH CHECK (("auth"."uid"() = "created_by"));
 
 
 
@@ -5295,9 +6400,19 @@ CREATE POLICY "Users can view customer notes" ON "public"."customer_notes" FOR S
 
 
 
+CREATE POLICY "Users can view history of own budgets" ON "public"."budget_history" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."budgets"
+  WHERE (("budgets"."id" = "budget_history"."budget_id") AND ("budgets"."created_by" = "auth"."uid"())))));
+
+
+
 CREATE POLICY "Users can view own invitation" ON "public"."user_invitations" FOR SELECT USING ((("user_id" = "auth"."uid"()) OR ("email" = ( SELECT "profiles"."email"
    FROM "public"."profiles"
   WHERE ("profiles"."id" = "auth"."uid"())))));
+
+
+
+CREATE POLICY "Users can view own saved action plans" ON "public"."saved_action_plans" FOR SELECT USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -5310,6 +6425,10 @@ CREATE POLICY "Users can view public or own budgets" ON "public"."budgets" FOR S
 
 
 CREATE POLICY "Users can view public or own nutrition templates" ON "public"."nutrition_templates" FOR SELECT USING ((("is_public" = true) OR ("created_by" = "auth"."uid"())));
+
+
+
+CREATE POLICY "Users can view public or own supplement templates" ON "public"."supplement_templates" FOR SELECT USING ((("is_public" = true) OR ("created_by" = "auth"."uid"())));
 
 
 
@@ -5351,10 +6470,16 @@ ALTER TABLE "public"."blood_tests" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."budget_assignments" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."budget_history" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."budgets" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."check_in_field_configurations" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."collections" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."customer_notes" ENABLE ROW LEVEL SECURITY;
@@ -5364,6 +6489,9 @@ ALTER TABLE "public"."customers" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."daily_check_ins" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."exercises" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."external_knowledge_base" ENABLE ROW LEVEL SECURITY;
@@ -5405,6 +6533,12 @@ ALTER TABLE "public"."payments" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."proposals" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."saved_action_plans" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."saved_views" ENABLE ROW LEVEL SECURITY;
 
 
@@ -5415,6 +6549,9 @@ ALTER TABLE "public"."subscription_types" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."supplement_plans" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."supplement_templates" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."user_interface_preferences" ENABLE ROW LEVEL SECURITY;
@@ -5444,8 +6581,6 @@ GRANT USAGE ON SCHEMA "auth" TO "postgres";
 
 
 
-REVOKE USAGE ON SCHEMA "public" FROM PUBLIC;
-GRANT ALL ON SCHEMA "public" TO PUBLIC;
 GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
@@ -5470,6 +6605,12 @@ GRANT ALL ON FUNCTION "auth"."uid"() TO "dashboard_user";
 
 
 
+GRANT ALL ON FUNCTION "public"."auto_fill_payment_customer_id"() TO "anon";
+GRANT ALL ON FUNCTION "public"."auto_fill_payment_customer_id"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."auto_fill_payment_customer_id"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."calculate_age_from_birth_date"("birth_date" "date") TO "anon";
 GRANT ALL ON FUNCTION "public"."calculate_age_from_birth_date"("birth_date" "date") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."calculate_age_from_birth_date"("birth_date" "date") TO "service_role";
@@ -5482,15 +6623,15 @@ GRANT ALL ON FUNCTION "public"."calculate_bmi"("height_cm" numeric, "weight_kg" 
 
 
 
+GRANT ALL ON FUNCTION "public"."check_expiring_subscriptions"() TO "anon";
+GRANT ALL ON FUNCTION "public"."check_expiring_subscriptions"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."check_expiring_subscriptions"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."generate_invitation_token"() TO "anon";
 GRANT ALL ON FUNCTION "public"."generate_invitation_token"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."generate_invitation_token"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_filtered_leads"("p_limit_count" integer, "p_offset_count" integer, "p_search_query" "text", "p_status_main" "text", "p_status_sub" "text", "p_source" "text", "p_fitness_goal" "text", "p_activity_level" "text", "p_preferred_time" "text", "p_age" "text", "p_height" "text", "p_weight" "text", "p_date" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_filtered_leads"("p_limit_count" integer, "p_offset_count" integer, "p_search_query" "text", "p_status_main" "text", "p_status_sub" "text", "p_source" "text", "p_fitness_goal" "text", "p_activity_level" "text", "p_preferred_time" "text", "p_age" "text", "p_height" "text", "p_weight" "text", "p_date" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_filtered_leads"("p_limit_count" integer, "p_offset_count" integer, "p_search_query" "text", "p_status_main" "text", "p_status_sub" "text", "p_source" "text", "p_fitness_goal" "text", "p_activity_level" "text", "p_preferred_time" "text", "p_age" "text", "p_height" "text", "p_weight" "text", "p_date" "text") TO "service_role";
 
 
 
@@ -5548,6 +6689,24 @@ GRANT ALL ON FUNCTION "public"."is_invitation_valid"("p_invitation_id" "uuid") T
 
 
 
+GRANT ALL ON FUNCTION "public"."log_budget_changes"() TO "anon";
+GRANT ALL ON FUNCTION "public"."log_budget_changes"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."log_budget_changes"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."log_nutrition_plan_changes"() TO "anon";
+GRANT ALL ON FUNCTION "public"."log_nutrition_plan_changes"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."log_nutrition_plan_changes"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."log_workout_plan_changes"() TO "anon";
+GRANT ALL ON FUNCTION "public"."log_workout_plan_changes"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."log_workout_plan_changes"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."mark_all_notifications_read"() TO "anon";
 GRANT ALL ON FUNCTION "public"."mark_all_notifications_read"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."mark_all_notifications_read"() TO "service_role";
@@ -5557,6 +6716,30 @@ GRANT ALL ON FUNCTION "public"."mark_all_notifications_read"() TO "service_role"
 GRANT ALL ON FUNCTION "public"."mark_notification_read"("notification_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."mark_notification_read"("notification_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."mark_notification_read"("notification_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_nutrition_plans"() TO "anon";
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_nutrition_plans"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_nutrition_plans"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_steps_plans"() TO "anon";
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_steps_plans"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_steps_plans"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_supplement_plans"() TO "anon";
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_supplement_plans"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_supplement_plans"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_workout_plans"() TO "anon";
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_workout_plans"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."prevent_duplicate_workout_plans"() TO "service_role";
 
 
 
@@ -5614,6 +6797,12 @@ GRANT ALL ON FUNCTION "public"."update_whatsapp_flow_templates_updated_at"() TO 
 
 
 
+GRANT ALL ON FUNCTION "public"."update_whatsapp_template_status"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_whatsapp_template_status"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_whatsapp_template_status"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."verify_invitation_token"("p_token_hash" "text", "p_token" "text", "p_salt" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."verify_invitation_token"("p_token_hash" "text", "p_token" "text", "p_salt" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."verify_invitation_token"("p_token_hash" "text", "p_token" "text", "p_salt" "text") TO "service_role";
@@ -5623,63 +6812,42 @@ GRANT ALL ON FUNCTION "public"."verify_invitation_token"("p_token_hash" "text", 
 GRANT ALL ON TABLE "auth"."audit_log_entries" TO "dashboard_user";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."audit_log_entries" TO "postgres";
 GRANT SELECT ON TABLE "auth"."audit_log_entries" TO "postgres" WITH GRANT OPTION;
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."audit_log_entries" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."flow_state" TO "postgres";
 GRANT SELECT ON TABLE "auth"."flow_state" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."flow_state" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."flow_state" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."identities" TO "postgres";
 GRANT SELECT ON TABLE "auth"."identities" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."identities" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."identities" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT ALL ON TABLE "auth"."instances" TO "dashboard_user";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."instances" TO "postgres";
 GRANT SELECT ON TABLE "auth"."instances" TO "postgres" WITH GRANT OPTION;
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."instances" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."mfa_amr_claims" TO "postgres";
 GRANT SELECT ON TABLE "auth"."mfa_amr_claims" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."mfa_amr_claims" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."mfa_amr_claims" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."mfa_challenges" TO "postgres";
 GRANT SELECT ON TABLE "auth"."mfa_challenges" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."mfa_challenges" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."mfa_challenges" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."mfa_factors" TO "postgres";
 GRANT SELECT ON TABLE "auth"."mfa_factors" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."mfa_factors" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."mfa_factors" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
@@ -5706,18 +6874,12 @@ GRANT ALL ON TABLE "auth"."oauth_consents" TO "dashboard_user";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."one_time_tokens" TO "postgres";
 GRANT SELECT ON TABLE "auth"."one_time_tokens" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."one_time_tokens" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."one_time_tokens" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT ALL ON TABLE "auth"."refresh_tokens" TO "dashboard_user";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."refresh_tokens" TO "postgres";
 GRANT SELECT ON TABLE "auth"."refresh_tokens" TO "postgres" WITH GRANT OPTION;
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."refresh_tokens" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
@@ -5729,18 +6891,12 @@ GRANT ALL ON SEQUENCE "auth"."refresh_tokens_id_seq" TO "postgres";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."saml_providers" TO "postgres";
 GRANT SELECT ON TABLE "auth"."saml_providers" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."saml_providers" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."saml_providers" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."saml_relay_states" TO "postgres";
 GRANT SELECT ON TABLE "auth"."saml_relay_states" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."saml_relay_states" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."saml_relay_states" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
@@ -5751,36 +6907,24 @@ GRANT SELECT ON TABLE "auth"."schema_migrations" TO "postgres" WITH GRANT OPTION
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."sessions" TO "postgres";
 GRANT SELECT ON TABLE "auth"."sessions" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."sessions" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."sessions" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."sso_domains" TO "postgres";
 GRANT SELECT ON TABLE "auth"."sso_domains" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."sso_domains" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."sso_domains" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."sso_providers" TO "postgres";
 GRANT SELECT ON TABLE "auth"."sso_providers" TO "postgres" WITH GRANT OPTION;
 GRANT ALL ON TABLE "auth"."sso_providers" TO "dashboard_user";
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."sso_providers" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
 GRANT ALL ON TABLE "auth"."users" TO "dashboard_user";
 GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "auth"."users" TO "postgres";
 GRANT SELECT ON TABLE "auth"."users" TO "postgres" WITH GRANT OPTION;
-SET SESSION AUTHORIZATION "postgres";
-GRANT SELECT ON TABLE "auth"."users" TO "dashboard_user";
-RESET SESSION AUTHORIZATION;
 
 
 
@@ -5796,6 +6940,12 @@ GRANT ALL ON TABLE "public"."budget_assignments" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."budget_history" TO "anon";
+GRANT ALL ON TABLE "public"."budget_history" TO "authenticated";
+GRANT ALL ON TABLE "public"."budget_history" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."budgets" TO "anon";
 GRANT ALL ON TABLE "public"."budgets" TO "authenticated";
 GRANT ALL ON TABLE "public"."budgets" TO "service_role";
@@ -5805,6 +6955,18 @@ GRANT ALL ON TABLE "public"."budgets" TO "service_role";
 GRANT ALL ON TABLE "public"."check_in_field_configurations" TO "anon";
 GRANT ALL ON TABLE "public"."check_in_field_configurations" TO "authenticated";
 GRANT ALL ON TABLE "public"."check_in_field_configurations" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."collections" TO "anon";
+GRANT ALL ON TABLE "public"."collections" TO "authenticated";
+GRANT ALL ON TABLE "public"."collections" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."collections_with_payments" TO "anon";
+GRANT ALL ON TABLE "public"."collections_with_payments" TO "authenticated";
+GRANT ALL ON TABLE "public"."collections_with_payments" TO "service_role";
 
 
 
@@ -5835,6 +6997,12 @@ GRANT ALL ON TABLE "public"."customers_with_lead_counts" TO "service_role";
 GRANT ALL ON TABLE "public"."daily_check_ins" TO "anon";
 GRANT ALL ON TABLE "public"."daily_check_ins" TO "authenticated";
 GRANT ALL ON TABLE "public"."daily_check_ins" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."exercises" TO "anon";
+GRANT ALL ON TABLE "public"."exercises" TO "authenticated";
+GRANT ALL ON TABLE "public"."exercises" TO "service_role";
 
 
 
@@ -5916,6 +7084,18 @@ GRANT ALL ON TABLE "public"."profiles" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."proposals" TO "anon";
+GRANT ALL ON TABLE "public"."proposals" TO "authenticated";
+GRANT ALL ON TABLE "public"."proposals" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."saved_action_plans" TO "anon";
+GRANT ALL ON TABLE "public"."saved_action_plans" TO "authenticated";
+GRANT ALL ON TABLE "public"."saved_action_plans" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."saved_views" TO "anon";
 GRANT ALL ON TABLE "public"."saved_views" TO "authenticated";
 GRANT ALL ON TABLE "public"."saved_views" TO "service_role";
@@ -5940,6 +7120,12 @@ GRANT ALL ON TABLE "public"."supplement_plans" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."supplement_templates" TO "anon";
+GRANT ALL ON TABLE "public"."supplement_templates" TO "authenticated";
+GRANT ALL ON TABLE "public"."supplement_templates" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."user_interface_preferences" TO "anon";
 GRANT ALL ON TABLE "public"."user_interface_preferences" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_interface_preferences" TO "service_role";
@@ -5949,6 +7135,12 @@ GRANT ALL ON TABLE "public"."user_interface_preferences" TO "service_role";
 GRANT ALL ON TABLE "public"."user_invitations" TO "anon";
 GRANT ALL ON TABLE "public"."user_invitations" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_invitations" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."workout_plans" TO "anon";
+GRANT ALL ON TABLE "public"."workout_plans" TO "authenticated";
+GRANT ALL ON TABLE "public"."workout_plans" TO "service_role";
 
 
 
@@ -5967,12 +7159,6 @@ GRANT ALL ON TABLE "public"."weekly_reviews" TO "service_role";
 GRANT ALL ON TABLE "public"."whatsapp_flow_templates" TO "anon";
 GRANT ALL ON TABLE "public"."whatsapp_flow_templates" TO "authenticated";
 GRANT ALL ON TABLE "public"."whatsapp_flow_templates" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."workout_plans" TO "anon";
-GRANT ALL ON TABLE "public"."workout_plans" TO "authenticated";
-GRANT ALL ON TABLE "public"."workout_plans" TO "service_role";
 
 
 
@@ -6010,6 +7196,9 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQ
 
 
 
+
+
+
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "authenticated";
@@ -6017,10 +7206,16 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUN
 
 
 
+
+
+
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
+
+
+
 
 
 

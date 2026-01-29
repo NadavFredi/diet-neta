@@ -41,6 +41,7 @@ import { useWorkoutBoard, DAYS } from '@/hooks/useWorkoutBoard';
 import type { Exercise, WeeklyWorkout } from '@/components/dashboard/WeeklyWorkoutBuilder';
 import { SelectExerciseFromDatabase } from './SelectExerciseFromDatabase';
 import { cn } from '@/lib/utils';
+import { StorageImage } from '@/components/ui/StorageImage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Accordion,
@@ -408,7 +409,7 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 {exercise.image_url && (
                   <div className="relative group">
-                    <img
+                    <StorageImage
                       src={exercise.image_url}
                       alt={exercise.name}
                       className="h-14 w-14 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-400 hover:opacity-90 transition-all shadow-sm"
@@ -558,7 +559,7 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-0" dir="rtl">
           <div className="relative w-full h-full flex items-center justify-center bg-black/90">
-            <img
+            <StorageImage
               src={exercise.image_url}
               alt={exercise.name}
               className="max-w-full max-h-[95vh] object-contain"
@@ -837,7 +838,7 @@ const ExerciseRow = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exerc
         <DialogContent className="max-w-4xl" dir="rtl">
           <div className="relative w-full h-[80vh] flex items-center justify-center bg-black rounded-lg overflow-hidden">
             {exercise.image_url && (
-              <img
+              <StorageImage
                 src={exercise.image_url}
                 alt={exercise.name}
                 className="max-w-full max-h-full object-contain"
@@ -1042,7 +1043,7 @@ const ExerciseRow = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exerc
             {(exercise.image_url || exercise.video_url) && (
               <div className="flex items-center gap-1">
                 {exercise.image_url && (
-                  <img
+                  <StorageImage
                     src={exercise.image_url}
                     alt={exercise.name}
                     className="h-6 w-6 object-cover rounded border border-gray-200 cursor-pointer hover:border-blue-400"
@@ -1395,14 +1396,12 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
     startDate,
     description,
     generalGoals,
-    stepsGoal,
     goalTags,
     weeklyWorkout,
     activeId,
     setStartDate,
     setDescription,
     setGeneralGoals,
-    setStepsGoal,
     setGoalTags,
     addExercise,
     updateExercise,
@@ -1513,23 +1512,6 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
               />
             </div>
           </div>
-          {mode === 'user' && (
-            <div>
-              <Label htmlFor="stepsGoal" className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2">
-                <Footprints className="h-4 w-4" />
-                יעד צעדים יומי
-              </Label>
-              <Input
-                id="stepsGoal"
-                type="number"
-                value={stepsGoal || ''}
-                onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
-                placeholder="לדוגמה: 7000"
-                className="max-w-xs"
-                dir="ltr"
-              />
-            </div>
-          )}
           {mode === 'template' && (
             <div>
               <Label htmlFor="goalTags" className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-2">

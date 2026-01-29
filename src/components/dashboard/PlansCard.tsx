@@ -21,7 +21,7 @@ import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget,
 import { useSaveActionPlan, createBudgetSnapshot } from '@/hooks/useSavedActionPlans';
 import { useBudgetDetails } from '@/hooks/useBudgetDetails';
 import { useNavigate } from 'react-router-dom';
-import { syncSupplementPlansFromBudgetUpdate, syncStepsPlansFromBudgetUpdate } from '@/services/budgetPlanSync';
+import { syncPlansFromBudget, syncSupplementPlansFromBudgetUpdate, syncStepsPlansFromBudgetUpdate } from '@/services/budgetPlanSync';
 import {
   Tooltip,
   TooltipContent,
@@ -327,8 +327,31 @@ export const PlansCard = ({
         interval_training: data.interval_training ?? null,
       });
 
-      const supplements = (data.supplements || []).filter((s: any) => s?.name?.trim?.());
-      await syncSupplementPlansFromBudgetUpdate(editingBudget.id, data.name ?? editingBudget.name, supplements);
+      // Get active assignments for this budget to sync plans for all assigned customers
+      const { data: assignments } = await supabase
+        .from('budget_assignments')
+        .select('customer_id, lead_id')
+        .eq('budget_id', editingBudget.id)
+        .eq('is_active', true);
+
+      if (assignments && assignments.length > 0) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          // Sync all plans (workout, nutrition, steps, supplements) for each assignment
+          for (const assignment of assignments) {
+            try {
+              await syncPlansFromBudget({
+                budget: { ...data, id: editingBudget.id },
+                customerId: assignment.customer_id,
+                leadId: assignment.lead_id,
+                userId: authUser.id,
+              });
+            } catch {
+              // Sync failed; plans may still be updated elsewhere
+            }
+          }
+        }
+      }
 
       toast({ title: 'הצלחה', description: 'תכנית הפעולה עודכנה בהצלחה' });
       await Promise.all([

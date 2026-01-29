@@ -104,13 +104,15 @@ export const NutritionPlanCard = ({
               תוכנית תזונה
             </CardTitle>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <Badge 
-                variant="outline" 
-                className="bg-orange-50 text-orange-700 border-orange-200 font-semibold px-3 py-1"
-              >
-                <Clock className="h-4 w-4 mr-1" />
-                {getTimeInPlan()} בתוכנית
-              </Badge>
+              {nutritionPlan.template_name && (
+                <Badge 
+                  variant="outline" 
+                  className="bg-blue-50 text-blue-700 border-blue-200 font-semibold px-3 py-1"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  תבנית: {nutritionPlan.template_name}
+                </Badge>
+              )}
               <Badge 
                 variant="outline" 
                 className="bg-slate-100 text-slate-700 border-slate-300"

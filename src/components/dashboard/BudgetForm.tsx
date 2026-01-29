@@ -717,11 +717,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
       };
 
       const savedBudget = await onSave(budgetData);
-
-      // Get the budget ID - use initialData.id for edit mode, or savedBudget.id if returned
-      const budgetId = (mode === 'edit' && initialData?.id) ? initialData.id : (savedBudget as Budget | undefined)?.id;
-
-
     } catch (error: any) {
       toast({
         title: 'שגיאה',

@@ -45,6 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_proposals_external_id ON public.proposals(externa
 CREATE INDEX IF NOT EXISTS idx_proposals_expires_at ON public.proposals(expires_at) WHERE expires_at IS NOT NULL;
 
 -- Create trigger for auto-updating updated_at
+DROP TRIGGER IF EXISTS update_proposals_updated_at ON public.proposals;
 CREATE TRIGGER update_proposals_updated_at
     BEFORE UPDATE ON public.proposals
     FOR EACH ROW
@@ -54,6 +55,12 @@ CREATE TRIGGER update_proposals_updated_at
 ALTER TABLE public.proposals ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Authenticated users can view proposals" ON public.proposals;
+DROP POLICY IF EXISTS "Authenticated users can insert proposals" ON public.proposals;
+DROP POLICY IF EXISTS "Authenticated users can update proposals" ON public.proposals;
+DROP POLICY IF EXISTS "Authenticated users can delete proposals" ON public.proposals;
+
 -- Allow authenticated users to view proposals
 CREATE POLICY "Authenticated users can view proposals"
     ON public.proposals

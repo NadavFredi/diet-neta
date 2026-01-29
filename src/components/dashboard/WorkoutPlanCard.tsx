@@ -284,15 +284,19 @@ export const WorkoutPlanCard = ({
                               </thead>
                               <tbody>
                                 {dayData.exercises.map((exercise: any, idx: number) => {
-                                  // Generate exercise identifier (A, B, C1, C2, etc.)
-                                  const getExerciseId = (index: number): string => {
+                                  // Use the order field from the exercise if it exists and is not empty, 
+                                  // otherwise generate exercise identifier (A, B, C1, C2, etc.)
+                                  const getExerciseId = (index: number, order?: string): string => {
+                                    if (order && order.trim()) {
+                                      return order.trim();
+                                    }
                                     const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
                                     const letter = letters[Math.floor(index / 2)] || String.fromCharCode(65 + index);
                                     const subIndex = index % 2;
                                     return subIndex === 0 ? letter : `${letter}${subIndex + 1}`;
                                   };
 
-                                  const exerciseId = getExerciseId(idx);
+                                  const exerciseId = getExerciseId(idx, exercise.order);
 
                                   // Normalize image_url and video_url - handle both empty strings and null/undefined
                                   const imageUrl = exercise.image_url && exercise.image_url.trim() ? exercise.image_url.trim() : null;

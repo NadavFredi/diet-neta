@@ -34,7 +34,7 @@ export const useWorkoutPlan = (customerId?: string) => {
         .select('*, budget_id')
         .eq('customer_id', customerId)
         .eq('is_active', true)
-        .order('created_at', { ascending: false })
+        .order('updated_at', { ascending: false }) // Use updated_at to get latest changes
         .limit(1)
         .maybeSingle();
 

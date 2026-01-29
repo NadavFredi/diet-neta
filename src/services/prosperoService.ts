@@ -99,14 +99,15 @@ export const createProsperoProposal = async (
       // Continue anyway, customer_id is optional
     }
 
-    // Save proposal to database with status "Sent"
+    // Save proposal to database with status "Sent" (table: proposals)
     const { error: insertError } = await supabase
-      .from('prospero_proposals')
+      .from('proposals')
       .insert({
         lead_id: params.leadId,
         customer_id: leadData?.customer_id || null,
+        title: 'Prospero Proposal',
         proposal_link: data.link,
-        prospero_proposal_id: data.proposalId || null,
+        external_proposal_id: data.proposalId || null,
         status: 'Sent',
         metadata: {
           phone: params.leadPhone,
@@ -134,16 +135,16 @@ export interface ProsperoProposal {
   updated_at: string;
   lead_id: string;
   customer_id: string | null;
-  proposal_link: string;
-  prospero_proposal_id: string | null;
-  status: 'Sent' | 'Signed';
+  proposal_link: string | null;
+  external_proposal_id: string | null;
+  status: 'Draft' | 'Sent' | 'Viewed' | 'Signed' | 'Rejected' | 'Expired';
   metadata: any;
 }
 
 export const getProsperoProposals = async (leadId: string): Promise<ProsperoProposal[]> => {
   try {
     const { data, error } = await supabase
-      .from('prospero_proposals')
+      .from('proposals')
       .select('*')
       .eq('lead_id', leadId)
       .order('created_at', { ascending: false });

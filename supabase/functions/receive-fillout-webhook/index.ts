@@ -56,23 +56,10 @@ serve(async (req) => {
     }
 
 
-    // Log nested structures
-    if (body.data) {
-
-
-    }
-    if (body.response) {
-
-    }
-    if (body.submission) {
-
-    }
-    if (body.event) {
-
-    }
-
-    // Extract form ID - try multiple possible field names and locations
-    const formId = body.formId ||
+    // Extract form ID - try multiple possible field names and locations (including bracket notation)
+    const formIdBracket = (body as any)['formId'] ?? (body as any)['form_id'];
+    const formId = formIdBracket ||
+      body.formId ||
       body.form_id ||
       body.form?.id ||
       body.data?.formId ||
@@ -84,7 +71,16 @@ serve(async (req) => {
       body.form_name;
 
     // Extract submission ID - try MANY possible field names and locations
-    let submissionId = body.submissionId ||
+    // Use bracket notation as fallback in case property access doesn't work
+    const submissionIdBracket = (body as any)['submission_id'];
+    const submissionIdCamel = (body as any)['submissionId'];
+    const bodyId = (body as any)['id'];
+    // Try bracket notation first since that's what's actually in the JSON
+    // The JSON has "submission_id" with underscore, so bracket notation should work
+    let submissionId = submissionIdBracket ||
+      submissionIdCamel ||
+      bodyId ||
+      body.submissionId ||
       body.submission_id ||
       body.id ||
       body.data?.submissionId ||
@@ -146,9 +142,6 @@ serve(async (req) => {
       normalizedFormId &&
       normalizedFormId === normalizedBudgetMeetingFormId;
 
-    if (!openMeetingFormId && !isOpenMeetingForm) {
-    }
-
     // Accept any event type for now (Fillout might send different event types)
     // We'll process it if we have a submissionId
     if (!submissionId) {
@@ -183,9 +176,7 @@ serve(async (req) => {
 
       submissionId = deepSearch(body);
 
-      if (submissionId) {
-      } else {
-
+      if (!submissionId) {
         // For webhook verification, return success instead of error
         // Some webhook providers send verification requests without submission data
         if (body.type === 'webhook_verification' || body.eventType === 'webhook.verify' || req.method === 'GET') {
@@ -272,7 +263,6 @@ serve(async (req) => {
 
       if (!leadError && leadData) {
         customerId = leadData.customer_id;
-      } else {
       }
     }
 
@@ -328,13 +318,9 @@ serve(async (req) => {
       }
     }
 
-    // Log final IDs for debugging
 
     // Build meeting_data from questions - try multiple formats
     const meetingData: Record<string, any> = {};
-
-    // Log the full body structure for debugging
-
 
     // Store the complete raw body for debugging (will be stored in meeting_data)
     const rawWebhookPayload = body;
@@ -386,7 +372,6 @@ serve(async (req) => {
           // Only store if we don't already have this key, or if it's a top-level value (prefer top-level)
           if (!meetingData[storageKey] || depth === 0) {
             meetingData[storageKey] = value;
-
           }
         } else if (typeof value === 'object' && value !== null) {
           // For objects, check if it's a simple key-value structure we should flatten
@@ -429,7 +414,6 @@ serve(async (req) => {
 
         if (key && value !== null && value !== undefined) {
           meetingData[key] = value;
-
         } else {
           // If question object has nested structure, extract it recursively
           if (typeof question === 'object' && question !== null) {
@@ -476,7 +460,6 @@ serve(async (req) => {
           const value = body.submission.data[key];
           // Store the value regardless of type (could be string, number, object, etc.)
           meetingData[key] = value;
-
         }
       });
     }
@@ -488,7 +471,6 @@ serve(async (req) => {
           key !== 'formId' &&
           key !== 'submissionId') {
           meetingData[key] = body.event.data[key];
-
         }
       });
     }
@@ -506,7 +488,6 @@ serve(async (req) => {
           !Array.isArray(body.data[key]) &&
           typeof body.data[key] !== 'object') {
           meetingData[key] = body.data[key];
-
         }
       });
     }
@@ -524,7 +505,6 @@ serve(async (req) => {
           !Array.isArray(body.response[key]) &&
           typeof body.response[key] !== 'object') {
           meetingData[key] = body.response[key];
-
         }
       });
     }
@@ -542,7 +522,6 @@ serve(async (req) => {
           !Array.isArray(body.submission[key]) &&
           typeof body.submission[key] !== 'object') {
           meetingData[key] = body.submission[key];
-
         }
       });
     }
@@ -578,7 +557,6 @@ serve(async (req) => {
         // Don't overwrite if already exists (prefer more specific extraction)
         if (!meetingData[key] || (key === 'lead_id' || key === 'leadId')) {
           meetingData[key] = body[key];
-
         }
       }
     });
@@ -629,8 +607,36 @@ serve(async (req) => {
       }
     }
 
-    // Log what we extracted
-
+    // Fetch full submission (actual answers) from Fillout API when we have formId and submissionId
+    const filloutApiKey = Deno.env.get('FILLOUT_API_KEY') || Deno.env.get('VITE_FILLOUT_API_KEY');
+    if (formId && finalSubmissionId && filloutApiKey) {
+      try {
+        const filloutUrl = `https://api.fillout.com/v1/api/forms/${encodeURIComponent(formId)}/submissions/${encodeURIComponent(finalSubmissionId)}`;
+        const filloutResponse = await fetch(filloutUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${filloutApiKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (filloutResponse.ok) {
+          const apiSubmission: { questions?: Array<{ id?: string; name?: string; type?: string; value?: string | number | boolean | null }>; [key: string]: any } = await filloutResponse.json();
+          if (apiSubmission.questions && Array.isArray(apiSubmission.questions)) {
+            meetingData.questions = apiSubmission.questions;
+            // Also flatten question name/value into meetingData so sidebar shows each answer
+            apiSubmission.questions.forEach((q: any) => {
+              const key = q.name || q.id || q.key || '';
+              if (key && (q.value !== undefined && q.value !== null)) {
+                meetingData[key] = q.value;
+              }
+            });
+          }
+        } else {
+          const errText = await filloutResponse.text();
+        }
+      } catch (fetchErr: any) {
+      }
+    }
 
 
     // Check if submission exists in database
@@ -649,10 +655,6 @@ serve(async (req) => {
         }
 
         submissionExists = !!existingSubmission;
-        if (submissionExists) {
-        } else {
-
-        }
       } catch (dbError: any) {
         // Continue as if it's a new submission if check fails
         submissionExists = false;
@@ -665,10 +667,20 @@ serve(async (req) => {
     // IMPORTANT: Check for meeting forms FIRST to ensure they always get submissionType = 'meeting'
     let submissionType: string | null = null;
     
+    // Get Form_name from body (check both capital and lowercase versions)
+    const formNameValue = body.Form_name || body.form_name || body.formName || meetingData.Form_name || meetingData.form_name || meetingData.formName;
+    const formNameLower = formNameValue ? String(formNameValue).toLowerCase() : '';
+    
+    // Check if Form_name indicates it's a meeting (check for meeting-related keywords)
+    const isMeetingByName = formNameLower.includes('פגישה') || 
+                            formNameLower.includes('meeting') ||
+                            formNameLower.includes('פגישת') ||
+                            formNameLower.includes('תיאום');
+    
     // First, check if this is a meeting form (by form ID or form name) - this must override form_name
     // Use normalizedFormId that was already declared above (reuse existing variable)
-    if (normalizedFormId === normalizedOpenMeetingFormId || isOpenMeetingForm) {
-      // This is definitely an open-meeting form, so set submissionType to 'meeting' to ensure meetings table gets updated
+    if (normalizedFormId === normalizedOpenMeetingFormId || isOpenMeetingForm || isMeetingByName) {
+      // This is definitely a meeting form, so set submissionType to 'meeting' to ensure meetings table gets updated
       submissionType = 'meeting';
     } else if (normalizedFormId === normalizedBudgetMeetingFormId) {
       // This is a budget meeting form
@@ -676,7 +688,6 @@ serve(async (req) => {
     } else {
       // Not a meeting form, try to extract from form_name or other sources
       // Try from form_name in body (from Fillout webhook configuration)
-      const formNameValue = body.form_name || body.formName || meetingData.form_name || meetingData.formName;
       if (formNameValue && typeof formNameValue === 'string') {
         // Use form_name as submission_type (e.g., "שאלון התאמה" -> "שאלון התאמה")
         submissionType = formNameValue.trim();
@@ -761,7 +772,6 @@ serve(async (req) => {
 
           if (meetingUpdateError) {
 
-          } else {
           }
         } else {
           // Create new meeting if it doesn't exist
@@ -778,7 +788,6 @@ serve(async (req) => {
 
           if (meetingInsertError) {
 
-          } else {
           }
         }
       }
@@ -793,11 +802,9 @@ serve(async (req) => {
 
       if (isQuestionnaireForm && leadId) {
 
-
         updateLeadFromQuestionnaireForm(leadId, customerId, meetingData, supabase).catch((err) => {
 
         });
-      } else if (isQuestionnaireForm && !leadId) {
       }
 
       // Note: Don't trigger automation on updates, only on new submissions
@@ -844,7 +851,6 @@ serve(async (req) => {
 
         if (meetingInsertError) {
 
-        } else {
         }
       }
 
@@ -858,11 +864,9 @@ serve(async (req) => {
 
       if (isQuestionnaireForm && leadId) {
 
-
         updateLeadFromQuestionnaireForm(leadId, customerId, meetingData, supabase).catch((err) => {
 
         });
-      } else if (isQuestionnaireForm && !leadId) {
       }
 
 
@@ -870,10 +874,7 @@ serve(async (req) => {
       // Run this asynchronously so it doesn't block the webhook response
       if (shouldTriggerAutomation) {
         triggerIntroQuestionnaireAutomation(customerId, leadId, supabase).catch((err) => {
-
         });
-      } else {
-
       }
 
       return successResponse({
@@ -975,8 +976,6 @@ async function updateLeadFromQuestionnaireForm(
       // Validate it's a valid positive integer within reasonable range
       if (!isNaN(ageNum) && ageNum > 0 && ageNum < 150 && Number.isInteger(ageNum)) {
         updates.age = ageNum;
-
-      } else {
       }
     }
 
@@ -1033,17 +1032,12 @@ async function updateLeadFromQuestionnaireForm(
             .from('customers')
             .update({ email: emailStr })
             .eq('id', customerId);
-
-          if (customerUpdateError) {
-          } else {
-          }
         }
       }
     }
 
     // Update lead if we have any updates
     if (Object.keys(updates).length > 0) {
-
       const { data: updatedLead, error: updateError } = await supabase
         .from('leads')
         .update(updates)
@@ -1054,8 +1048,6 @@ async function updateLeadFromQuestionnaireForm(
       if (updateError) {
         throw updateError;
       }
-
-    } else {
     }
 
   } catch (error: any) {
@@ -1191,11 +1183,8 @@ async function triggerIntroQuestionnaireAutomation(
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         return;
       }
-
-      const responseData = await response.json();
     } else {
       // Send regular message
       const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiTokenInstance}`;
@@ -1212,12 +1201,8 @@ async function triggerIntroQuestionnaireAutomation(
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-
         return;
       }
-
-      const responseData = await response.json();
     }
 
   } catch (error: any) {
@@ -1327,4 +1312,3 @@ function getChatId(phoneNumber: string): string {
 
   return `${formatted}@c.us`;
 }
-

@@ -1,5 +1,26 @@
 # Testing Prospero Integration with Postman
 
+## Important: Receive webhook URL (when proposal is signed)
+
+When Prospero/Make sends a webhook **to your app** (e.g. when a proposal is signed), the URL must be the **Edge Function** URL, **not** the REST API URL.
+
+- **Wrong** (PostgREST looks for a table): `http://127.0.0.1:54321/rest/v1/receive-prospero-webhook`
+- **Correct** (Edge Function): `http://127.0.0.1:54321/functions/v1/receive-prospero-webhook`
+
+**Local test (signed webhook):**
+```bash
+curl --location 'http://127.0.0.1:54321/functions/v1/receive-prospero-webhook' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "proposal_link": "https://diet-neta-llc.goprospero.com/P9b67-197",
+    "status": "Signed"
+  }'
+```
+
+**Production:** Use your project URL, e.g. `https://<project-ref>.supabase.co/functions/v1/receive-prospero-webhook`
+
+---
+
 ## Step-by-Step Guide
 
 ### Step 1: Get Webhook URL from Make

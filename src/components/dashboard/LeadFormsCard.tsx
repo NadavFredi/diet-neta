@@ -87,7 +87,7 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
     fetchProposals();
   }, [leadId]);
 
-  // Set up realtime subscription for prospero_proposals updates
+  // Set up realtime subscription for proposals updates
   useEffect(() => {
     if (!leadId) {
       return;
@@ -100,7 +100,7 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'prospero_proposals',
+          table: 'proposals',
           filter: `lead_id=eq.${leadId}`,
         },
         async (payload) => {
@@ -117,7 +117,7 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'prospero_proposals',
+          table: 'proposals',
           filter: `lead_id=eq.${leadId}`,
         },
         async (payload) => {
@@ -331,7 +331,7 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
                 return (
                   <a
                     key={proposal.id}
-                    href={proposal.proposal_link}
+                    href={proposal.proposal_link ?? '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-md transition-all duration-200 border border-slate-100 hover:border-slate-200 group flex-shrink-0"

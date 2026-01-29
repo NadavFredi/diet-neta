@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Image as ImageIcon, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { toSignedUrl } from '@/utils/storageUtils';
 import { useToast } from '@/hooks/use-toast';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import {
@@ -73,16 +74,20 @@ export const VisualProgressCard: React.FC<VisualProgressCardProps> = ({
         throw error;
       }
 
-      // Get signed URLs for each photo
+      // Get signed URLs for each photo. Use toSignedUrl so we always get a proper signed URL.
+      const filePath = (name: string) => `${customerId}/progress/${name}`;
       const photosWithUrls: ProgressPhoto[] = await Promise.all(
         (data || []).map(async (file) => {
           const { data: urlData } = await supabase.storage
             .from('client-assets')
-            .createSignedUrl(`${customerId}/progress/${file.name}`, 3600);
+            .createSignedUrl(filePath(file.name), 3600);
+
+          const rawUrl = urlData?.signedUrl || '';
+          const url = await toSignedUrl(rawUrl || filePath(file.name), 3600);
 
           return {
-            url: urlData?.signedUrl || '',
-            path: `${customerId}/progress/${file.name}`,
+            url: url || '',
+            path: filePath(file.name),
             uploadedAt: file.created_at || file.updated_at || new Date().toISOString(),
           };
         })

@@ -20,6 +20,7 @@ import type { FilloutSubmission } from '@/services/filloutService';
 import { ReadOnlyField } from './ReadOnlyField';
 import { extractLeadFieldsFromSubmission } from '@/utils/filloutFieldExtractor';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabaseClient';
 
 interface FormSubmissionSidebarProps {
   formType: FormType;
@@ -61,6 +62,8 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
   const { closeHistory } = useLeadSidebar();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [fullSubmission, setFullSubmission] = useState<FilloutSubmission | null>(null);
+  const [isLoadingFillout, setIsLoadingFillout] = useState(false);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -176,14 +179,50 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
     }
   }, [leadId, leadEmail, leadPhone, formType.key, dispatch]);
 
-  // Categorize questions
+  // When sidebar opens with a submission, fetch full answers from Fillout API
+  const displaySubmission = fullSubmission ?? submission;
+
+  useEffect(() => {
+    if (!submission?.submissionId || !formType.formId?.trim()) {
+      setFullSubmission(null);
+      return;
+    }
+    setIsLoadingFillout(true);
+    setFullSubmission(null);
+    supabase.functions
+      .invoke('get-fillout-submission', {
+        body: { formId: formType.formId, submissionId: submission.submissionId },
+      })
+      .then(({ data, error }) => {
+        if (error) throw error;
+        // API returns { success, data: { submission: { submissionId, questions, ... } } }
+        const payload = data?.data ?? data;
+        const sub = payload?.submission ?? payload;
+        const questions = sub?.questions;
+        if (questions && Array.isArray(questions)) {
+          setFullSubmission({
+            submissionId: sub.submissionId ?? submission.submissionId,
+            submissionTime: sub.submissionTime ?? submission.submissionTime,
+            lastUpdatedAt: sub.lastUpdatedAt ?? submission.lastUpdatedAt ?? '',
+            questions,
+            urlParameters: sub.urlParameters,
+          });
+        } else {
+          setFullSubmission(null);
+        }
+      })
+      .catch(() => setFullSubmission(null))
+      .finally(() => setIsLoadingFillout(false));
+  }, [submission?.submissionId, submission?.submissionTime, submission?.lastUpdatedAt, formType.formId]);
+
+  // Categorize questions from the submission we display (Fillout API or DB)
   const categorizedQuestions = useMemo(() => {
-    if (!submission?.questions) return {};
+    if (!displaySubmission?.questions) return {};
 
-    const categories: Record<string, typeof submission.questions> = {};
-    const uncategorized: typeof submission.questions = [];
+    const categories: Record<string, typeof displaySubmission.questions> = {};
+    const uncategorized: typeof displaySubmission.questions = [];
 
-    submission.questions.forEach((question) => {
+    displaySubmission.questions.forEach((question) => {
       const questionName = question.name?.toLowerCase() || '';
       let categorized = false;
 
@@ -208,7 +247,7 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
     }
 
     return categories;
-  }, [submission]);
+  }, [displaySubmission]);
 
   // Toggle category expansion
   const toggleCategory = (category: string) => {
@@ -251,11 +290,11 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
 
   // Expand all categories by default (only on initial load)
   useEffect(() => {
-    if (submission?.questions && !categoriesInitialized && Object.keys(categorizedQuestions).length > 0) {
+    if (displaySubmission?.questions && !categoriesInitialized && Object.keys(categorizedQuestions).length > 0) {
       setExpandedCategories(new Set(Object.keys(categorizedQuestions)));
       setCategoriesInitialized(true);
     }
-  }, [submission, categorizedQuestions, categoriesInitialized]);
+  }, [displaySubmission, categorizedQuestions, categoriesInitialized]);
 
   // Reset initialization when submission changes
   useEffect(() => {
@@ -267,17 +306,17 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
   // Check if this is the questionnaire form that supports field updates
   const questionnaireFormId = '23ggw4DEs7us';
   const isQuestionnaireForm = formType.formId?.trim().toLowerCase() === questionnaireFormId.trim().toLowerCase();
-  const canUpdateLead = isQuestionnaireForm && leadId && onUpdateLead && submission;
+  const canUpdateLead = isQuestionnaireForm && leadId && onUpdateLead && displaySubmission;
 
   // Handle manual update from form submission
   const handleUpdateLead = async () => {
-    if (!submission || !leadId || !onUpdateLead) {
+    if (!displaySubmission || !leadId || !onUpdateLead) {
       return;
     }
 
     setIsUpdating(true);
     try {
-      const extractedFields = extractLeadFieldsFromSubmission(submission, formType.formId);
+      const extractedFields = extractLeadFieldsFromSubmission(displaySubmission, formType.formId);
       
       // Remove undefined values
       const updates: any = {};
@@ -367,7 +406,7 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
                 </Button>
               )}
               {/* Collapse/Expand All Button - Only show when submission exists and has categories */}
-              {submission && Object.keys(categorizedQuestions).length > 0 && (
+              {displaySubmission && Object.keys(categorizedQuestions).length > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -413,16 +452,16 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
             </div>
           </div>
           {/* Submission Date - Compact */}
-          {submission && (
+          {displaySubmission && (
             <div className="mt-1 text-[10px] text-gray-400">
-              הגשה: {formatDate(submission.submissionTime)}
+              הגשה: {formatDate(displaySubmission.submissionTime)}
             </div>
           )}
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
+          {isLoading || (submission && isLoadingFillout && !fullSubmission) ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-purple-600 mb-4" />
               <p className="text-xs text-slate-600">טוען תשובות...</p>
