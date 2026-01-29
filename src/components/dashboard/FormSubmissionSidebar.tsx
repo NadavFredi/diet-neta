@@ -191,6 +191,8 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
     console.log('[Fillout] FormSubmissionSidebar fetch get-fillout-submission', { formType: formType.key, formId: formType.formId, submissionId: submission.submissionId });
     setIsLoadingFillout(true);
     setFullSubmission(null);
+    
+    // Use the supabase client's functions.invoke which handles the base URL automatically
     supabase.functions
       .invoke('get-fillout-submission', {
         body: { formId: formType.formId, submissionId: submission.submissionId },
