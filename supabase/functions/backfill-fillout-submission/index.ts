@@ -30,6 +30,8 @@ serve(async (req) => {
     }
 
     // If only filloutSubmissionId (DB row id or fillout_submission_id) provided, look up the row
+    console.log('[Fillout] backfill-fillout-submission request', { formId, submissionId });
+
     if (!formId && submissionId) {
       const supabase = createSupabaseAdmin();
       const { data: row, error: lookupError } = await supabase
@@ -40,10 +42,12 @@ serve(async (req) => {
         .maybeSingle();
 
       if (lookupError || !row) {
+        console.log('[Fillout] backfill-fillout-submission lookup failed', { submissionId, error: lookupError?.message });
         return errorResponse('Submission not found or invalid filloutSubmissionId', 404);
       }
       formId = row.fillout_form_id;
       submissionId = row.fillout_submission_id;
+      console.log('[Fillout] backfill-fillout-submission resolved from DB', { formId, submissionId });
     }
 
     if (!formId || !submissionId) {
@@ -103,9 +107,11 @@ serve(async (req) => {
       .eq('id', existing.id);
 
     if (updateError) {
+      console.error('[Fillout] backfill-fillout-submission update failed', updateError.message);
       return errorResponse(`Failed to update submission: ${updateError.message}`, 500);
     }
 
+    console.log('[Fillout] backfill-fillout-submission success', { formId, submissionId, questionsCount: apiSubmission.questions?.length ?? 0 });
     return successResponse({
       message: 'Submission backfilled with answers from Fillout API',
       submissionId,
@@ -113,6 +119,7 @@ serve(async (req) => {
       questionsCount: apiSubmission.questions?.length ?? 0,
     });
   } catch (e: any) {
+    console.error('[Fillout] backfill-fillout-submission error', e?.message);
     return errorResponse(e?.message || 'Internal error', 500);
   }
 });

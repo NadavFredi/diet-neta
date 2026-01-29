@@ -31,7 +31,7 @@ interface LeadViewState {
   // Sidebar state - split into left sidebar and notes (independent)
   leftSidebar: LeftSidebarType; // Left sidebar: history or submission
   notesOpen: boolean; // Right sidebar: notes (independent from left sidebar)
-  selectedFormType: 'details' | 'intro' | 'characterization' | null; // Track which form is open in submission sidebar
+  selectedFormType: string | null; // Track which form is open in submission sidebar (e.g. details, intro, characterization, meeting, other_*)
   // Legacy: keep activeSidebar for backward compatibility, computed from leftSidebar and notesOpen
   
   // Notes state (customer-centric)
@@ -258,7 +258,7 @@ const leadViewSlice = createSlice({
         }
       }
     },
-    setSelectedFormType: (state, action: PayloadAction<'details' | 'intro' | 'characterization'>) => {
+    setSelectedFormType: (state, action: PayloadAction<string>) => {
       state.selectedFormType = action.payload;
       state.leftSidebar = 'submission'; // Automatically open submission sidebar (replaces history)
     },

@@ -38,6 +38,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log('[Fillout] sync-fillout-meetings invoked', { method: req.method });
+
     // Get form ID from request body, query parameter, or environment variable
     let formId = '';
     
@@ -103,7 +105,8 @@ serve(async (req) => {
     if (formIdsToSync.length === 0) {
       return errorResponse('Missing form_id parameter. Please provide the Fillout form ID. You can find it in your Fillout form editor URL (the part after /editor/).', 400);
     }
-    
+
+    console.log('[Fillout] sync-fillout-meetings formIdsToSync', formIdsToSync);
 
     // Try multiple possible environment variable names
     // Note: VITE_ prefix is typically stripped in edge functions, but we check both
@@ -447,6 +450,7 @@ serve(async (req) => {
     } // End of submissions loop
     } // End of forms loop
 
+    console.log('[Fillout] sync-fillout-meetings completed', { totalSynced, totalSkipped, formsSynced: formIdsToSync.length, errorCount: allErrors.length });
     return successResponse({
       message: 'Sync completed',
       synced: totalSynced,
@@ -455,6 +459,7 @@ serve(async (req) => {
       errors: allErrors.length > 0 ? allErrors : undefined,
     });
   } catch (error: any) {
+    console.error('[Fillout] sync-fillout-meetings error', error?.message);
     return errorResponse(`Internal server error: ${error.message}`, 500);
   }
 });
