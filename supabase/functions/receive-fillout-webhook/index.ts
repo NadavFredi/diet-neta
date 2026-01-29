@@ -47,14 +47,17 @@ serve(async (req) => {
   try {
     // Parse request body
     const rawBody = await req.text();
+    console.log('[receive-fillout-webhook] WEBHOOK RECEIVED', { method: req.method, bodyLength: rawBody?.length });
 
     let body: FilloutWebhookBody;
     try {
       body = JSON.parse(rawBody);
     } catch (parseError) {
+      console.error('[receive-fillout-webhook] JSON parse error:', parseError);
       return errorResponse('Invalid JSON in request body', 400);
     }
 
+    console.log('[receive-fillout-webhook] Body keys:', Object.keys(body));
 
     // Extract form ID - try multiple possible field names and locations (including bracket notation)
     const formIdBracket = (body as any)['formId'] ?? (body as any)['form_id'];
@@ -200,31 +203,34 @@ serve(async (req) => {
         if (leadIdFromUrl) {
           submissionId = `temp_${Date.now()}_${leadIdFromUrl.substring(0, 8)}`;
         } else {
+          console.error('[receive-fillout-webhook] Missing submissionId and no lead_id in urlParameters, returning 400');
           return errorResponse('Missing submissionId in webhook body. Please check Fillout webhook configuration. Full payload logged for debugging.', 400);
         }
       }
     }
 
     const finalSubmissionId = submissionId;
+    console.log('[receive-fillout-webhook] Extracted ids:', { formId, finalSubmissionId });
 
     // Extract lead_id from URL parameters - try multiple locations
     let leadId: string | null = null;
     let customerId: string | null = null;
 
-    // Try urlParameters array
+    // Try urlParameters array (Fillout may send URL query params here; structure can vary)
     if (body.urlParameters && Array.isArray(body.urlParameters)) {
+      console.log('[receive-fillout-webhook] urlParameters received:', JSON.stringify(body.urlParameters));
       const leadIdParam = body.urlParameters.find((param: any) =>
         param.name === 'lead_id' || param.id === 'lead_id' || param.key === 'lead_id'
       );
       if (leadIdParam) {
-        leadId = leadIdParam.value || leadIdParam.val || null;
+        leadId = leadIdParam.value || leadIdParam.val || leadIdParam.values?.[0] || null;
       }
 
       const customerIdParam = body.urlParameters.find((param: any) =>
         param.name === 'customer_id' || param.id === 'customer_id' || param.key === 'customer_id'
       );
       if (customerIdParam) {
-        customerId = customerIdParam.value || customerIdParam.val || null;
+        customerId = customerIdParam.value || customerIdParam.val || customerIdParam.values?.[0] || null;
       }
     }
 
@@ -318,6 +324,7 @@ serve(async (req) => {
       }
     }
 
+    console.log('[receive-fillout-webhook] Extracted lead/customer (before meetingData):', { leadId, customerId });
 
     // Build meeting_data from questions - try multiple formats
     const meetingData: Record<string, any> = {};
@@ -638,10 +645,22 @@ serve(async (req) => {
       }
     }
 
+    // Fallback: extract lead_id/customer_id from meetingData (e.g. hidden field or Fillout API response)
+    if (!leadId && meetingData.lead_id) leadId = meetingData.lead_id;
+    if (!leadId && meetingData.leadId) leadId = meetingData.leadId;
+    if (!customerId && meetingData.customer_id) customerId = meetingData.customer_id;
+    if (!customerId && meetingData.customerId) customerId = meetingData.customerId;
+    if (leadId && !customerId) {
+      const supabaseForLead = createSupabaseAdmin();
+      const { data: leadRow } = await supabaseForLead.from('leads').select('customer_id').eq('id', leadId).single();
+      if (leadRow?.customer_id) customerId = leadRow.customer_id;
+    }
+    console.log('[receive-fillout-webhook] Extracted lead/customer (after meetingData):', { leadId, customerId });
 
     // Check if submission exists in database
     const supabase = createSupabaseAdmin();
     let submissionExists = false;
+    console.log('[receive-fillout-webhook] Checking DB for existing submission:', { formId, finalSubmissionId });
     if (formId && finalSubmissionId) {
       try {
         const { data: existingSubmission, error: checkError } = await supabase
@@ -651,12 +670,13 @@ serve(async (req) => {
           .maybeSingle();
 
         if (checkError && checkError.code !== 'PGRST116') {
-          // PGRST116 is "not found" which is expected for new submissions
+          console.warn('[receive-fillout-webhook] DB check error (non-PGRST116):', checkError.code, checkError.message);
         }
 
         submissionExists = !!existingSubmission;
+        console.log('[receive-fillout-webhook] Submission exists?', submissionExists, existingSubmission ? { id: existingSubmission.id } : null);
       } catch (dbError: any) {
-        // Continue as if it's a new submission if check fails
+        console.error('[receive-fillout-webhook] DB check exception:', dbError?.message);
         submissionExists = false;
       }
     } else {
@@ -669,13 +689,13 @@ serve(async (req) => {
     
     // Get Form_name from body (check both capital and lowercase versions)
     const formNameValue = body.Form_name || body.form_name || body.formName || meetingData.Form_name || meetingData.form_name || meetingData.formName;
-    const formNameLower = formNameValue ? String(formNameValue).toLowerCase() : '';
+    const formNameValueLower = formNameValue ? String(formNameValue).toLowerCase() : '';
     
     // Check if Form_name indicates it's a meeting (check for meeting-related keywords)
-    const isMeetingByName = formNameLower.includes('פגישה') || 
-                            formNameLower.includes('meeting') ||
-                            formNameLower.includes('פגישת') ||
-                            formNameLower.includes('תיאום');
+    const isMeetingByName = formNameValueLower.includes('פגישה') ||
+                            formNameValueLower.includes('meeting') ||
+                            formNameValueLower.includes('פגישת') ||
+                            formNameValueLower.includes('תיאום');
     
     // First, check if this is a meeting form (by form ID or form name) - this must override form_name
     // Use normalizedFormId that was already declared above (reuse existing variable)
@@ -720,6 +740,7 @@ serve(async (req) => {
       }
     }
 
+    console.log('[receive-fillout-webhook] submissionType:', submissionType);
 
     // Check if submission already exists in fillout_submissions table
     const { data: existingSubmission } = await supabase
@@ -729,6 +750,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingSubmission) {
+      console.log('[receive-fillout-webhook] UPDATING existing submission:', existingSubmission.id);
 
       // Update existing submission in fillout_submissions table
       const { data: updatedSubmission, error: updateError } = await supabase
@@ -746,9 +768,11 @@ serve(async (req) => {
         .single();
 
       if (updateError) {
+        console.error('[receive-fillout-webhook] Update submission failed:', updateError);
         return errorResponse(`Failed to update submission: ${updateError.message}`, 500);
       }
 
+      console.log('[receive-fillout-webhook] Update success, returning');
 
       // Also update/create meetings table for backward compatibility (if it's a meeting type)
       if (submissionType === 'meeting' || submissionType === 'budget_meeting') {
@@ -818,6 +842,7 @@ serve(async (req) => {
       });
     } else {
       // Create new submission in fillout_submissions table
+      console.log('[receive-fillout-webhook] CREATING new submission:', { finalSubmissionId, formId, submissionType, leadId, customerId });
       const { data: newSubmission, error: insertError } = await supabase
         .from('fillout_submissions')
         .insert({
@@ -832,8 +857,10 @@ serve(async (req) => {
         .single();
 
       if (insertError) {
+        console.error('[receive-fillout-webhook] Insert submission failed:', insertError.code, insertError.message, insertError.details);
         return errorResponse(`Failed to create submission: ${insertError.message}`, 500);
       }
+      console.log('[receive-fillout-webhook] Insert success, new id:', newSubmission?.id);
 
 
       // Also create in meetings table for backward compatibility (if it's a meeting type)
@@ -877,6 +904,7 @@ serve(async (req) => {
         });
       }
 
+      console.log('[receive-fillout-webhook] Returning success (created)');
       return successResponse({
         message: 'Submission created',
         submissionId: finalSubmissionId,
@@ -887,6 +915,7 @@ serve(async (req) => {
       });
     }
   } catch (error: any) {
+    console.error('[receive-fillout-webhook] UNHANDLED ERROR:', error?.message, error?.stack);
     return errorResponse(`Internal server error: ${error.message}`, 500);
   }
 });

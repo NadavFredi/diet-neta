@@ -17,11 +17,12 @@ const getFormIds = () => {
     DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || '',
     INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || '',
     CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '',
+    MEETING: import.meta.env.VITE_FILLOUT_FORM_ID_MEETING || '',
   };
 };
 
 export interface FormType {
-  key: 'details' | 'intro' | 'characterization' | 'prospero';
+  key: 'details' | 'intro' | 'characterization' | 'meeting' | 'prospero' | string;
   label: string;
   formId: string;
 }
@@ -33,6 +34,7 @@ export const getFormTypes = (): FormType[] => {
     { key: 'details', label: 'טופס פרטים', formId: formIds.DETAILS },
     { key: 'intro', label: 'שאלון היכרות', formId: formIds.INTRO },
     { key: 'characterization', label: 'שאלון איפיון', formId: formIds.CHARACTERIZATION },
+    { key: 'meeting', label: 'פגישת התאמה', formId: formIds.MEETING || 'n5VwsjFk5ous' }, // priorcall / open meeting
   ];
 };
 
@@ -52,7 +54,7 @@ const initialState: FormsState = {
 };
 
 interface FetchFormSubmissionParams {
-  formType: 'details' | 'intro' | 'characterization';
+  formType: 'details' | 'intro' | 'characterization' | 'meeting' | string;
   phoneNumber?: string; // Lead phone number to match submissions (priority 2)
   leadId?: string; // Supabase lead row ID (priority 1 - most reliable)
   email?: string; // Lead email (kept for backward compatibility but not used for matching)
@@ -68,26 +70,29 @@ export const fetchFormSubmission = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
+      console.log('[Fillout] fetchFormSubmission start', { formType, leadId, hasPhone: !!phoneNumber });
       if (!leadId && !phoneNumber) {
         throw new Error('Lead ID or phone number is required to fetch form submissions (email matching is disabled)');
       }
 
       const formTypes = getFormTypes();
-      const formTypeConfig = formTypes.find((f) => f.key === formType);
+      const formTypeConfig = formTypes.find((f) => f.key === formType) || (formType.startsWith('other_') ? { key: formType, formId: formType.replace('other_', ''), label: 'טופס שהוגש' } : null);
       
       const envValues = {
         // Form IDs are not sensitive - these are public form identifiers
         VITE_FILLOUT_FORM_ID_DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS,
         VITE_FILLOUT_FORM_ID_INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO,
         VITE_FILLOUT_FORM_ID_CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION,
+        VITE_FILLOUT_FORM_ID_MEETING: import.meta.env.VITE_FILLOUT_FORM_ID_MEETING,
       };
       
-      // Skip if form ID is not configured or is still a placeholder
+      // Skip if form ID is not configured or is still a placeholder (allow 'other_*' and known keys with fallback formIds)
       if (!formTypeConfig || !formTypeConfig.formId || 
           formTypeConfig.formId === 'your_characterization_form_id' ||
-          formTypeConfig.formId.trim() === '') {
+          String(formTypeConfig.formId).trim() === '') {
         const envVarName = formType === 'details' ? 'VITE_FILLOUT_FORM_ID_DETAILS' :
                           formType === 'intro' ? 'VITE_FILLOUT_FORM_ID_INTRO' :
+                          formType === 'meeting' ? 'VITE_FILLOUT_FORM_ID_MEETING' :
                           'VITE_FILLOUT_FORM_ID_CHARACTERIZATION';
         throw new Error(
           `Form ID not configured for ${formType}. ` +
@@ -106,11 +111,13 @@ export const fetchFormSubmission = createAsyncThunk(
         }
       );
 
+      console.log('[Fillout] fetchFormSubmission fulfilled', { formType, hasSubmission: !!submission, submissionId: submission?.submissionId });
       return {
         formType,
         submission,
       };
     } catch (error: any) {
+      console.error('[Fillout] fetchFormSubmission rejected', { formType, message: error?.message });
       return rejectWithValue(error?.message || 'Failed to fetch form submission');
     }
   }
@@ -164,6 +171,20 @@ const formsSlice = createSlice({
       delete state.submissions[key];
       delete state.isLoading[key];
     },
+    /** Set one submission by key (e.g. when opening sidebar from card so sidebar has data immediately) */
+    setSubmission: (state, action: PayloadAction<{ key: string; submission: FilloutSubmission | null }>) => {
+      const { key, submission } = action.payload;
+      state.submissions[key] = submission;
+      console.log('[Fillout] setSubmission', { key, hasSubmission: !!submission });
+    },
+    /** Merge submissions from getFormSubmissionsByTypeForLead into Redux so sidebar can show them */
+    setSubmissionsForLead: (state, action: PayloadAction<Record<string, FilloutSubmission>>) => {
+      const keys = Object.keys(action.payload);
+      Object.entries(action.payload).forEach(([key, submission]) => {
+        state.submissions[key] = submission;
+      });
+      console.log('[Fillout] setSubmissionsForLead', { keys });
+    },
     clearAllSubmissions: (state) => {
       state.submissions = {};
       state.isLoading = {};
@@ -216,7 +237,7 @@ const formsSlice = createSlice({
   },
 });
 
-export const { clearSubmission, clearAllSubmissions, clearError } = formsSlice.actions;
+export const { clearSubmission, setSubmission, setSubmissionsForLead, clearAllSubmissions, clearError } = formsSlice.actions;
 export default formsSlice.reducer;
 
 

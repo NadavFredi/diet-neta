@@ -44,6 +44,7 @@ export interface FormSubmissionFilters {
  * Convert database submission to FilloutSubmission format
  */
 function convertDbSubmissionToFilloutSubmission(dbSubmission: any): FilloutSubmission {
+  console.log('[Fillout] convertDbSubmissionToFilloutSubmission', { fillout_form_id: dbSubmission?.fillout_form_id, fillout_submission_id: dbSubmission?.fillout_submission_id });
   const submissionData = dbSubmission.submission_data || {};
 
   // Extract questions from submission_data
@@ -130,6 +131,7 @@ function convertDbSubmissionToFilloutSubmission(dbSubmission: any): FilloutSubmi
     });
   }
 
+  console.log('[Fillout] convertDbSubmissionToFilloutSubmission result', { submissionId: dbSubmission.fillout_submission_id, questionsCount: questions.length });
   return {
     submissionId: dbSubmission.fillout_submission_id,
     submissionTime: dbSubmission.created_at || submissionData._submissionTime || submissionData.submissionTime || '',
@@ -338,20 +340,30 @@ export const getAllSubmissionsForLead = async (
   }
 };
 
+// Fallback form IDs when env vars are not set (e.g. production build without env)
+// These match the forms used in the app so submissions still show
+const FALLBACK_FORM_IDS = {
+  INTRO: 'jHNYYKDSGpus',       // שאלון התאמה (priorcall)
+  MEETING: 'n5VwsjFk5ous',      // פגישת התאמה
+  CHARACTERIZATION: '23ggw4DEs7us',
+};
+
 /**
  * Get form submissions for a lead grouped by form type
- * Returns a map of form type keys ('details' | 'intro' | 'characterization') to submissions
- * Only returns form types that have submissions
+ * Returns a map of form type keys ('details' | 'intro' | 'characterization' | 'meeting' | 'other_*') to submissions
  */
 export const getFormSubmissionsByTypeForLead = async (
   leadId: string
 ): Promise<Record<string, FilloutSubmission>> => {
   try {
-    // Get form IDs from environment variables
+    console.log('[Fillout] getFormSubmissionsByTypeForLead called', { leadId });
+
+    // Get form IDs from environment variables, with fallbacks so production still shows submissions
     const formIds = {
       DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || '',
-      INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || '',
-      CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '',
+      INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || FALLBACK_FORM_IDS.INTRO,
+      CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || FALLBACK_FORM_IDS.CHARACTERIZATION,
+      MEETING: import.meta.env.VITE_FILLOUT_FORM_ID_MEETING || FALLBACK_FORM_IDS.MEETING,
     };
 
     // Create a reverse map: formId -> formType key
@@ -359,6 +371,8 @@ export const getFormSubmissionsByTypeForLead = async (
     if (formIds.DETAILS) formIdToTypeMap[formIds.DETAILS] = 'details';
     if (formIds.INTRO) formIdToTypeMap[formIds.INTRO] = 'intro';
     if (formIds.CHARACTERIZATION) formIdToTypeMap[formIds.CHARACTERIZATION] = 'characterization';
+    if (formIds.MEETING) formIdToTypeMap[formIds.MEETING] = 'meeting';
+    console.log('[Fillout] formIdToTypeMap', formIdToTypeMap);
 
     // Query database for all submissions for this lead
     const { data, error } = await supabase
@@ -368,29 +382,33 @@ export const getFormSubmissionsByTypeForLead = async (
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error('[Fillout] getFormSubmissionsByTypeForLead error', { leadId, error: error.message });
       throw new Error(`Failed to fetch submissions: ${error.message}`);
     }
+
+    console.log('[Fillout] fillout_submissions query result', { leadId, rowCount: data?.length ?? 0, rawIds: data?.map((r: any) => r.id) });
 
     if (!data || data.length === 0) {
       return {};
     }
 
-    // Group submissions by form type and get the most recent one for each type
+    // Group submissions by form type; get the most recent one per type
     const submissionsByType: Record<string, FilloutSubmission> = {};
-    
+
     for (const dbSubmission of data) {
       const formId = dbSubmission.fillout_form_id;
-      const formType = formIdToTypeMap[formId];
-      
-      // Only process if this form ID maps to a known form type
-      if (formType && !submissionsByType[formType]) {
-        // Get the most recent submission for this form type
+      const formType = formIdToTypeMap[formId] || `other_${formId}`;
+
+      if (!submissionsByType[formType]) {
         submissionsByType[formType] = convertDbSubmissionToFilloutSubmission(dbSubmission);
+        console.log('[Fillout] mapped submission to type', { formId, formType, submissionId: dbSubmission.fillout_submission_id });
       }
     }
 
+    console.log('[Fillout] getFormSubmissionsByTypeForLead result keys', { leadId, keys: Object.keys(submissionsByType) });
     return submissionsByType;
   } catch (error: any) {
+    console.error('[Fillout] getFormSubmissionsByTypeForLead throw', { leadId, message: error?.message });
     throw error;
   }
 };

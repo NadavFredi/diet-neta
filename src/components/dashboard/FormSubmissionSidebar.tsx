@@ -184,9 +184,11 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
 
   useEffect(() => {
     if (!submission?.submissionId || !formType.formId?.trim()) {
+      console.log('[Fillout] FormSubmissionSidebar skip fetch (no submissionId or formId)', { formType: formType.key, hasSubmission: !!submission });
       setFullSubmission(null);
       return;
     }
+    console.log('[Fillout] FormSubmissionSidebar fetch get-fillout-submission', { formType: formType.key, formId: formType.formId, submissionId: submission.submissionId });
     setIsLoadingFillout(true);
     setFullSubmission(null);
     supabase.functions
@@ -194,12 +196,16 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
         body: { formId: formType.formId, submissionId: submission.submissionId },
       })
       .then(({ data, error }) => {
-        if (error) throw error;
+        if (error) {
+          console.error('[Fillout] FormSubmissionSidebar get-fillout-submission error', { formType: formType.key, error });
+          throw error;
+        }
         // API returns { success, data: { submission: { submissionId, questions, ... } } }
         const payload = data?.data ?? data;
         const sub = payload?.submission ?? payload;
         const questions = sub?.questions;
         if (questions && Array.isArray(questions)) {
+          console.log('[Fillout] FormSubmissionSidebar got full submission', { formType: formType.key, questionsCount: questions.length });
           setFullSubmission({
             submissionId: sub.submissionId ?? submission.submissionId,
             submissionTime: sub.submissionTime ?? submission.submissionTime,
@@ -208,10 +214,14 @@ export const FormSubmissionSidebar: React.FC<FormSubmissionSidebarProps> = ({
             urlParameters: sub.urlParameters,
           });
         } else {
+          console.log('[Fillout] FormSubmissionSidebar no questions in response, using DB submission', { formType: formType.key });
           setFullSubmission(null);
         }
       })
-      .catch(() => setFullSubmission(null))
+      .catch((err) => {
+        console.error('[Fillout] FormSubmissionSidebar get-fillout-submission catch', { formType: formType.key, err });
+        setFullSubmission(null);
+      })
       .finally(() => setIsLoadingFillout(false));
   }, [submission?.submissionId, submission?.submissionTime, submission?.lastUpdatedAt, formType.formId]);
 

@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileText, Loader2, FileCheck, Sparkles } from 'lucide-react';
 import { useAppDispatch } from '@/store/hooks';
-import { fetchFormSubmission, getFormTypes, type FormType } from '@/store/slices/formsSlice';
+import { fetchFormSubmission, getFormTypes, setSubmission, setSubmissionsForLead, type FormType } from '@/store/slices/formsSlice';
 import { setSelectedFormType } from '@/store/slices/leadViewSlice';
 import { getFormSubmissionsByTypeForLead, type FilloutSubmission } from '@/services/filloutService';
 import { createProsperoProposal, getProsperoProposals, type ProsperoProposal } from '@/services/prosperoService';
@@ -42,28 +42,64 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
   const [isLoadingProposals, setIsLoadingProposals] = useState(false);
 
   // Fetch form submissions from database when leadId changes
+  const fetchSubmissions = React.useCallback(async () => {
+    if (!leadId) {
+      console.log('[Fillout] LeadFormsCard fetchSubmissions skipped (no leadId)');
+      return;
+    }
+    console.log('[Fillout] LeadFormsCard fetchSubmissions start', { leadId });
+    setIsLoading(true);
+    setError(null);
+    try {
+      const submissions = await getFormSubmissionsByTypeForLead(leadId);
+      console.log('[Fillout] LeadFormsCard fetchSubmissions result', { leadId, keys: Object.keys(submissions) });
+      setSubmissionsByType(submissions);
+      dispatch(setSubmissionsForLead(submissions));
+    } catch (err: any) {
+      console.error('[Fillout] LeadFormsCard fetchSubmissions error', { leadId, message: err?.message });
+      setError(err?.message || 'Failed to fetch form submissions');
+      setSubmissionsByType({});
+    } finally {
+      setIsLoading(false);
+    }
+  }, [leadId, dispatch]);
+
   useEffect(() => {
     if (!leadId) {
       setSubmissionsByType({});
       return;
     }
-
-    const fetchSubmissions = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const submissions = await getFormSubmissionsByTypeForLead(leadId);
-        setSubmissionsByType(submissions);
-      } catch (err: any) {
-        setError(err?.message || 'Failed to fetch form submissions');
-        setSubmissionsByType({});
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchSubmissions();
-  }, [leadId]);
+  }, [leadId, fetchSubmissions]);
+
+  // Realtime: refetch when fillout_submissions change for this lead so new submissions appear
+  useEffect(() => {
+    if (!leadId) return;
+    const channel = supabase
+      .channel(`fillout-submissions-${leadId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'fillout_submissions',
+          filter: `lead_id=eq.${leadId}`,
+        },
+        () => { fetchSubmissions(); }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'fillout_submissions',
+          filter: `lead_id=eq.${leadId}`,
+        },
+        () => { fetchSubmissions(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [leadId, fetchSubmissions]);
 
   // Fetch Prospero proposals when leadId changes
   useEffect(() => {
@@ -137,17 +173,22 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
   }, [leadId]);
 
   const handleFormClick = async (formType: FormType) => {
+    console.log('[Fillout] LeadFormsCard handleFormClick', { formType: formType.key, hasSubmissionInCard: !!submissionsByType[formType.key] });
     // Handle Prospero form separately
     if (formType.key === 'prospero') {
       await handleProsperoClick();
       return;
     }
 
-    // Ensure the submission is loaded into Redux for the sidebar to access
-    if (leadId) {
+    // Put the submission we already have into Redux so sidebar shows it immediately
+    const submission = submissionsByType[formType.key];
+    if (submission) {
+      dispatch(setSubmission({ key: formType.key, submission }));
+    } else if (leadId) {
+      // Fallback: fetch from API if we don't have it in card state
       dispatch(
         fetchFormSubmission({
-          formType: formType.key as 'details' | 'intro' | 'characterization',
+          formType: formType.key,
           leadId: leadId,
           email: leadEmail || undefined,
           phoneNumber: leadPhone || undefined,
@@ -155,7 +196,7 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
       );
     }
     // Open submission sidebar with this form type (this will close history sidebar automatically)
-    dispatch(setSelectedFormType(formType.key as 'details' | 'intro' | 'characterization'));
+    dispatch(setSelectedFormType(formType.key));
   };
 
   const handleProsperoClick = async () => {
@@ -221,16 +262,19 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
     return null;
   }
 
-  // Get all form types and filter to only show those with submissions
-  const allFormTypes = getFormTypes();
-  const formTypesWithSubmissions = allFormTypes.filter((formType) => {
-    // Skip details form (first row)
-    if (formType.key === 'details') {
-      return false;
-    }
-    // Only show forms that have submissions
-    return !!submissionsByType[formType.key];
-  });
+  // Build list from submissionsByType so every submission from the API is shown (no key mismatch)
+  const knownFormTypes = getFormTypes();
+  const formEntriesToShow = Object.keys(submissionsByType)
+    .filter((key) => key !== 'details')
+    .map((key) => {
+      const known = knownFormTypes.find((f) => f.key === key);
+      return {
+        key,
+        label: known?.label ?? 'טופס שהוגש',
+        formId: known?.formId ?? (key.startsWith('other_') ? key.replace('other_', '') : ''),
+      };
+    });
+  console.log('[Fillout] LeadFormsCard formEntriesToShow', { count: formEntriesToShow.length, keys: formEntriesToShow.map((e) => e.key), leadId });
 
   return (
     <div className="flex flex-col gap-2 h-full min-h-0">
@@ -249,33 +293,54 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
             </div>
           ) : error ? (
             <div className="text-xs text-red-600 py-2">{error}</div>
-          ) : formTypesWithSubmissions.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2">
-              {formTypesWithSubmissions.map((formType) => {
+          ) : formEntriesToShow.length > 0 ? (
+            <div className="space-y-3">
+              {formEntriesToShow.map((formType) => {
                 const submission = submissionsByType[formType.key];
-                const hasSubmission = !!submission;
+                const questions = submission?.questions ?? [];
 
                 return (
-                  <Button
+                  <div
                     key={formType.key}
-                    variant="ghost"
-                    className="w-full justify-start h-auto py-2 px-3 hover:bg-purple-50/50 border border-slate-200 rounded-md transition-all duration-200 hover:border-purple-200"
-                    onClick={() => handleFormClick(formType)}
+                    className="border border-slate-200 rounded-md overflow-hidden"
                   >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-3.5 w-3.5 text-slate-600 flex-shrink-0" />
-                        <span className="text-xs font-medium text-slate-900">
-                          {formType.label}
-                        </span>
-                      </div>
-                      {hasSubmission && (
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start h-auto py-2 px-3 hover:bg-purple-50/50 border-0 rounded-none transition-all duration-200"
+                      onClick={() => handleFormClick(formType)}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-3.5 w-3.5 text-slate-600 flex-shrink-0" />
+                          <span className="text-xs font-medium text-slate-900">
+                            {formType.label}
+                          </span>
+                        </div>
                         <span className="text-[10px] text-green-600 font-semibold bg-green-50 px-1.5 py-0.5 rounded">
                           נמצא
                         </span>
-                      )}
-                    </div>
-                  </Button>
+                      </div>
+                    </Button>
+                    {/* Submission answers */}
+                    {questions.length > 0 && (
+                      <div className="px-3 pb-3 pt-0 border-t border-slate-100 bg-slate-50/50">
+                        <div className="space-y-1.5 mt-2">
+                          {questions.map((q) => (
+                            <div key={q.id || q.name} className="text-xs">
+                              <span className="font-medium text-slate-600">{q.name}:</span>{' '}
+                              <span className="text-slate-900">
+                                {q.value === null || q.value === undefined
+                                  ? '—'
+                                  : typeof q.value === 'object'
+                                    ? JSON.stringify(q.value)
+                                    : String(q.value)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

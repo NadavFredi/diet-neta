@@ -27,12 +27,16 @@ serve(async (req) => {
       submissionId = body.submissionId || body.submission_id || null;
     }
 
+    console.log('[Fillout] get-fillout-submission request', { formId, submissionId });
+
     if (!formId || !submissionId) {
+      console.log('[Fillout] get-fillout-submission missing params');
       return errorResponse('Missing formId and submissionId', 400);
     }
 
     const filloutApiKey = Deno.env.get('FILLOUT_API_KEY') || Deno.env.get('VITE_FILLOUT_API_KEY');
     if (!filloutApiKey) {
+      console.log('[Fillout] get-fillout-submission FILLOUT_API_KEY not set');
       return errorResponse('FILLOUT_API_KEY not configured', 500);
     }
 
@@ -47,12 +51,15 @@ serve(async (req) => {
 
     if (!res.ok) {
       const errText = await res.text();
+      console.error('[Fillout] get-fillout-submission Fillout API error', { status: res.status, errText: errText?.slice(0, 200) });
       return errorResponse(`Fillout API error (${res.status}): ${errText}`, res.status === 404 ? 404 : 502);
     }
 
     const submission = await res.json();
+    console.log('[Fillout] get-fillout-submission success', { formId, submissionId, questionsCount: submission?.questions?.length ?? 0 });
     return successResponse(submission);
   } catch (e: any) {
+    console.error('[Fillout] get-fillout-submission error', e?.message);
     return errorResponse(e?.message || 'Internal error', 500);
   }
 });
