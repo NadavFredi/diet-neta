@@ -15,9 +15,9 @@ import {
 const getFormIds = () => {
   return {
     DETAILS: import.meta.env.VITE_FILLOUT_FORM_ID_DETAILS || '',
-    INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || '',
-    CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '',
-    MEETING: import.meta.env.VITE_FILLOUT_FORM_ID_MEETING || '',
+    INTRO: import.meta.env.VITE_FILLOUT_FORM_ID_INTRO || 'jHNYYKDSGpus',
+    CHARACTERIZATION: import.meta.env.VITE_FILLOUT_FORM_ID_CHARACTERIZATION || '23ggw4DEs7us',
+    MEETING: import.meta.env.VITE_FILLOUT_FORM_ID_MEETING || 'n5VwsjFk5ous',
   };
 };
 

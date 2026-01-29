@@ -262,18 +262,23 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
     return null;
   }
 
-  // Build list from submissionsByType so every submission from the API is shown (no key mismatch)
+  // Only show these two forms (no meeting or other form types)
+  const ALLOWED_FORM_IDS = ['23ggw4DEs7us', 'jHNYYKDSGpus'];
+
+  // Build list from submissionsByType, filtered to allowed form IDs only
   const knownFormTypes = getFormTypes();
   const formEntriesToShow = Object.keys(submissionsByType)
     .filter((key) => key !== 'details')
     .map((key) => {
+      const submission = submissionsByType[key];
       const known = knownFormTypes.find((f) => f.key === key);
       return {
         key,
         label: known?.label ?? 'טופס שהוגש',
-        formId: known?.formId ?? (key.startsWith('other_') ? key.replace('other_', '') : ''),
+        formId: submission.formId || known?.formId || (key.startsWith('other_') ? key.replace('other_', '') : ''),
       };
-    });
+    })
+    .filter((entry) => ALLOWED_FORM_IDS.includes(entry.formId));
   console.log('[Fillout] LeadFormsCard formEntriesToShow', { count: formEntriesToShow.length, keys: formEntriesToShow.map((e) => e.key), leadId });
 
   return (
@@ -296,9 +301,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
           ) : formEntriesToShow.length > 0 ? (
             <div className="space-y-3">
               {formEntriesToShow.map((formType) => {
-                const submission = submissionsByType[formType.key];
-                const questions = submission?.questions ?? [];
-
                 return (
                   <div
                     key={formType.key}
@@ -321,25 +323,6 @@ export const LeadFormsCard: React.FC<LeadFormsCardProps> = ({ leadEmail, leadPho
                         </span>
                       </div>
                     </Button>
-                    {/* Submission answers */}
-                    {questions.length > 0 && (
-                      <div className="px-3 pb-3 pt-0 border-t border-slate-100 bg-slate-50/50">
-                        <div className="space-y-1.5 mt-2">
-                          {questions.map((q) => (
-                            <div key={q.id || q.name} className="text-xs">
-                              <span className="font-medium text-slate-600">{q.name}:</span>{' '}
-                              <span className="text-slate-900">
-                                {q.value === null || q.value === undefined
-                                  ? '—'
-                                  : typeof q.value === 'object'
-                                    ? JSON.stringify(q.value)
-                                    : String(q.value)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
