@@ -230,7 +230,7 @@ const formatValue = (val: any, field?: string, templateNameMap?: Map<string, str
       if (val[0] && typeof val[0] === 'object' && 'name' in val[0]) {
         return val.map((s: any) => `${s.name} (${s.dosage || '-'}, ${s.timing || '-'})`).join(', ');
       }
-      // Cardio/Interval training arrays
+      // Cardio training arrays
       if (val[0] && typeof val[0] === 'object' && ('duration_minutes' in val[0] || 'period_type' in val[0])) {
         return val.map((t: any) => {
           const parts = [];
@@ -238,6 +238,18 @@ const formatValue = (val: any, field?: string, templateNameMap?: Map<string, str
           if (t.duration_minutes) parts.push(`${t.duration_minutes} דקות`);
           if (t.period_type) parts.push(t.period_type);
           return parts.length > 0 ? parts.join(' • ') : 'אימון';
+        }).join(', ');
+      }
+      // Interval training arrays
+      if (val[0] && typeof val[0] === 'object' && ('activity_duration_seconds' in val[0] || 'rest_duration_seconds' in val[0] || 'sets' in val[0])) {
+        return val.map((i: any) => {
+          const parts = [];
+          if (i.activity_type) parts.push(i.activity_type);
+          if (i.activity_duration_seconds) parts.push(`${i.activity_duration_seconds} שניות פעילות`);
+          if (i.rest_duration_seconds) parts.push(`${i.rest_duration_seconds} שניות מנוחה`);
+          if (i.sets) parts.push(`${i.sets} סטים`);
+          if (i.workouts_per_week) parts.push(`${i.workouts_per_week} פעמים בשבוע`);
+          return parts.length > 0 ? parts.join(' • ') : 'אינטרוול';
         }).join(', ');
       }
       return JSON.stringify(val);
@@ -451,18 +463,22 @@ const getReadableChanges = (item: BudgetHistoryItem, templateNameMap: Map<string
         const oldSummary = oldInterval.length > 0
           ? oldInterval.map((i: any) => {
               const parts = [];
-              if (i.name) parts.push(i.name);
-              if (i.duration_minutes) parts.push(`${i.duration_minutes} דקות`);
-              if (i.period_type) parts.push(i.period_type);
+              if (i.activity_type) parts.push(i.activity_type);
+              if (i.activity_duration_seconds) parts.push(`${i.activity_duration_seconds} שניות פעילות`);
+              if (i.rest_duration_seconds) parts.push(`${i.rest_duration_seconds} שניות מנוחה`);
+              if (i.sets) parts.push(`${i.sets} סטים`);
+              if (i.workouts_per_week) parts.push(`${i.workouts_per_week} פעמים בשבוע`);
               return parts.length > 0 ? parts.join(' • ') : 'אינטרוול';
             }).join(', ')
           : 'אין אימון אינטרוולים';
         const newSummary = newInterval.length > 0
           ? newInterval.map((i: any) => {
               const parts = [];
-              if (i.name) parts.push(i.name);
-              if (i.duration_minutes) parts.push(`${i.duration_minutes} דקות`);
-              if (i.period_type) parts.push(i.period_type);
+              if (i.activity_type) parts.push(i.activity_type);
+              if (i.activity_duration_seconds) parts.push(`${i.activity_duration_seconds} שניות פעילות`);
+              if (i.rest_duration_seconds) parts.push(`${i.rest_duration_seconds} שניות מנוחה`);
+              if (i.sets) parts.push(`${i.sets} סטים`);
+              if (i.workouts_per_week) parts.push(`${i.workouts_per_week} פעמים בשבוע`);
               return parts.length > 0 ? parts.join(' • ') : 'אינטרוול';
             }).join(', ')
           : 'אין אימון אינטרוולים';

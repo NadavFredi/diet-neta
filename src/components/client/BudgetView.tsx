@@ -5,8 +5,8 @@
  * Optimized for minimal scrolling with high-density layout.
  */
 
-import React, { useEffect, useMemo } from 'react';
-import { useActiveBudgetForLead, useActiveBudgetForCustomer, useActiveBudgetForCustomerOrLeads } from '@/hooks/useBudgets';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useActiveBudgetForLead, useActiveBudgetForCustomer, useActiveBudgetForCustomerOrLeads, useBudget } from '@/hooks/useBudgets';
 import { useSupplementTemplates } from '@/hooks/useSupplementTemplates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,10 @@ import { useSupplementPlan } from '@/hooks/useSupplementPlan';
 import { usePlansHistory } from '@/hooks/usePlansHistory';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
 import { useNavigate } from 'react-router-dom';
+import { useNutritionTemplate } from '@/hooks/useNutritionTemplates';
+import { useWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
+import { supabase } from '@/lib/supabaseClient';
+import { BudgetPrintContent } from '@/components/dashboard/BudgetPrintContent';
 import {
   Target,
   Flame,
@@ -59,11 +63,94 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   const budgetAssignment = leadBudget || customerOrLeadsBudget;
   const budget = budgetAssignment?.budget;
 
+  // Fetch full budget data for print content
+  const { data: fullBudget } = useBudget(budget?.id || null);
+  
+  // Fetch templates
+  const { data: nutritionTemplate } = useNutritionTemplate(
+    fullBudget?.nutrition_template_id || null
+  );
+  const { data: workoutTemplate } = useWorkoutTemplate(
+    fullBudget?.workout_template_id || null
+  );
+
   // Fetch workout plan for customer
   const { workoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customerId || null);
 
   // Fetch nutrition plan for customer
   const { nutritionPlan, isLoading: isLoadingNutritionPlan } = useNutritionPlan(customerId || null);
+  
+  // State for workout plan and client info for print content
+  const [workoutPlanForPrint, setWorkoutPlanForPrint] = useState<any>(null);
+  const [clientName, setClientName] = useState<string | null>(null);
+  
+  // Fetch workout plan associated with budget if no template exists
+  useEffect(() => {
+    const fetchWorkoutPlanForPrint = async () => {
+      if (!fullBudget?.id || workoutTemplate) {
+        setWorkoutPlanForPrint(null);
+        return;
+      }
+
+      try {
+        let query = supabase
+          .from('workout_plans')
+          .select('*')
+          .eq('budget_id', fullBudget.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (customerId) {
+          query = query.eq('customer_id', customerId);
+        } else if (leadId) {
+          query = query.eq('lead_id', leadId);
+        }
+
+        const { data: plans } = await query.maybeSingle();
+        if (plans) {
+          setWorkoutPlanForPrint(plans);
+        }
+      } catch (error) {
+        console.error('Error fetching workout plan for print:', error);
+      }
+    };
+
+    fetchWorkoutPlanForPrint();
+  }, [fullBudget?.id, workoutTemplate, customerId, leadId]);
+  
+  // Set client name
+  useEffect(() => {
+    if (customerId) {
+      supabase
+        .from('customers')
+        .select('full_name')
+        .eq('id', customerId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setClientName(data.full_name);
+          }
+        });
+    }
+  }, [customerId]);
+  
+  // Determine which workout data to use: template or plan
+  const workoutData = workoutTemplate 
+    ? {
+        name: workoutTemplate.name,
+        description: workoutTemplate.description,
+        goal_tags: workoutTemplate.goal_tags,
+        weeklyWorkout: workoutTemplate.routine_data?.weeklyWorkout,
+      }
+    : workoutPlanForPrint
+    ? {
+        name: workoutPlanForPrint.name || 'תוכנית אימונים',
+        description: workoutPlanForPrint.description,
+        goal_tags: [],
+        weeklyWorkout: workoutPlanForPrint.custom_attributes?.data?.weeklyWorkout,
+      }
+    : null;
 
   // Fetch supplement plan for customer
   const { supplementPlan } = useSupplementPlan(customerId || null);
@@ -133,193 +220,21 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Single Compact Card with All Information */}
-      <Card className="rounded-3xl border border-slate-200 shadow-sm">
-        <CardHeader className="pb-3 pt-4 px-5">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Target className="h-5 w-5 text-[#5B6FB9]" />
-              {budget.name}
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className="bg-slate-50 text-slate-600 border-slate-300 text-xs px-2 py-0.5"
-              >
-                <Calendar className="h-3 w-3 mr-1" />
-                {format(new Date(budgetAssignment.assigned_at), 'dd/MM/yyyy', { locale: he })}
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  navigate(`/dashboard/print/budget/${budget.id}`);
-                }}
-                className="h-8 px-3 text-xs border-[#5B6FB9] text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white"
-              >
-                <FileText className="h-3.5 w-3.5 ml-1.5" />
-                הדפס תכנית פעולה
-              </Button>
-            </div>
-          </div>
-          {budget.description && (
-            <p className="text-sm text-slate-600 mt-2 leading-relaxed" dir="rtl">
-              {budget.description}
-            </p>
-          )}
-          {budgetAssignment.notes && (
-            <p className="text-xs text-blue-600 mt-2" dir="rtl">
-              {budgetAssignment.notes}
-            </p>
-          )}
-        </CardHeader>
-
-        <CardContent className="px-5 pb-5 space-y-4">
-          {/* Action Plan Details - Full Length Display (Read-Only) */}
-          {/* Always show the section when budget exists, show fields conditionally */}
-          <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200/60">
-              <div className="w-8 h-8 rounded-lg bg-[#E8EDF7] flex items-center justify-center">
-                <FileText className="h-4 w-4 text-[#5B6FB9]" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-800">פרטי תכנית פעולה</h4>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {budget.description?.trim() && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    <FileText className="h-3 w-3" />
-                    תיאור
-                  </div>
-                  <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                    {budget.description}
-                  </p>
-                </div>
-              )}
-              {budget.eating_order?.trim() && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    <ListOrdered className="h-3 w-3" />
-                    סדר האכילה
-                  </div>
-                  <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                    {budget.eating_order}
-                  </p>
-                </div>
-              )}
-              {budget.eating_rules?.trim() && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    <ScrollText className="h-3 w-3" />
-                    כללי אכילה
-                  </div>
-                  <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                    {budget.eating_rules}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Steps Goal, Instructions, Cardio and Intervals - In Same Row */}
-            {((stepsGoal || stepsInstructions?.trim()) ||
-              (budget.cardio_training && Array.isArray(budget.cardio_training) && budget.cardio_training.length > 0) ||
-              (budget.interval_training && Array.isArray(budget.interval_training) && budget.interval_training.length > 0)) && (
-              <div className="mt-4 pt-4 border-t border-slate-200/60">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Steps Goal and Instructions - Left Side */}
-                  {(stepsGoal || stepsInstructions?.trim()) && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Footprints className="h-4 w-4 text-cyan-600" />
-                        <span className="text-sm font-semibold text-slate-800">יעד צעדים</span>
-                      </div>
-                      {stepsGoal && (
-                        <div className="mb-3">
-                          <p className="text-2xl font-bold text-cyan-700 leading-none">
-                            {stepsGoal.toLocaleString()}
-                          </p>
-                          <p className="text-[10px] text-gray-500 mt-1">צעדים ליום</p>
-                        </div>
-                      )}
-                      {stepsInstructions?.trim() && (
-                        <div className="mt-2 pt-2 border-t border-cyan-100/60">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">הוראות צעדים</p>
-                          </div>
-                          <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                            {stepsInstructions}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Cardio and Interval Training Summary - Right Side */}
-                  {((budget.cardio_training && Array.isArray(budget.cardio_training) && budget.cardio_training.length > 0) ||
-                    (budget.interval_training && Array.isArray(budget.interval_training) && budget.interval_training.length > 0)) && (
-                    <div className="space-y-1.5">
-                      {budget.cardio_training && Array.isArray(budget.cardio_training) && budget.cardio_training.length > 0 && (
-                        <div>
-                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אירובי:</span>
-                          <div className="mt-1 space-y-1">
-                            {budget.cardio_training.map((cardio: any, idx: number) => (
-                              <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-red-100">
-                                <span className="font-medium">{cardio.name || 'אירובי'}</span>
-                                {cardio.duration_minutes && <span className="mr-1"> • {cardio.duration_minutes} דקות</span>}
-                                {cardio.period_type && <span className="mr-1"> • {cardio.period_type}</span>}
-                                {cardio.notes && <span className="mr-1 text-slate-500"> • ({cardio.notes})</span>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {budget.interval_training && Array.isArray(budget.interval_training) && budget.interval_training.length > 0 && (
-                        <div>
-                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אינטרוולים:</span>
-                          <div className="mt-1 space-y-1">
-                            {budget.interval_training.map((interval: any, idx: number) => (
-                              <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-yellow-100">
-                                <span className="font-medium">{interval.name || 'אינטרוול'}</span>
-                                {interval.duration_minutes && <span className="mr-1"> • {interval.duration_minutes} דקות</span>}
-                                {interval.period_type && <span className="mr-1"> • {interval.period_type}</span>}
-                                {interval.notes && <span className="mr-1 text-slate-500"> • ({interval.notes})</span>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {/* Nutrition Notes */}
-            {nutritionPlan?.nutrition_notes && (
-              <div className="mt-4 pt-4 border-t border-slate-200/60">
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">
-                  <FileText className="h-3 w-3" />
-                  הערות והנחיות תזונה
-                </div>
-                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                  {nutritionPlan.nutrition_notes}
-                </p>
-              </div>
-            )}
-            {/* Other Notes */}
-            {budget.other_notes && (
-              <div className="mt-4 pt-4 border-t border-slate-200/60">
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">
-                  <FileText className="h-3 w-3" />
-                  הערות נוספות לתכנית
-                </div>
-                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                  {budget.other_notes}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Nutrition Targets and Supplements - Side by Side */}
+      {/* Use BudgetPrintContent component directly */}
+      {fullBudget && (
+        <BudgetPrintContent
+          budget={fullBudget}
+          nutritionTemplate={nutritionTemplate}
+          workoutTemplate={workoutTemplate}
+          workoutPlan={workoutPlanForPrint}
+          workoutData={workoutData}
+          clientName={clientName}
+          assignedDate={budgetAssignment?.assigned_at || null}
+        />
+      )}
+      
+      {/* Legacy content - Hidden for now */}
+      <div className="hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Nutrition Targets - Left Side */}
             <div>
@@ -456,8 +371,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Workout Plan Section */}
       {budget.workout_template_id && (

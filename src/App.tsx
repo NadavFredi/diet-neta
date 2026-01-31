@@ -311,6 +311,10 @@ const AppContent = () => {
             element={<ClientDashboard />}
           />
           <Route
+            path="/client/dashboard/:customerId?"
+            element={<ClientDashboard />}
+          />
+          <Route
             path="/client/knowledge-base/article/:id"
             element={<ArticlePage />}
           />

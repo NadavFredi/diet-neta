@@ -1,9 +1,13 @@
 import { useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchClientData, setActiveLead, fetchClientDataByUserId } from '@/store/slices/clientSlice';
+import { startImpersonation } from '@/store/slices/impersonationSlice';
+import { supabase } from '@/lib/supabaseClient';
 
 export const useClientDashboard = () => {
   const dispatch = useAppDispatch();
+  const params = useParams<{ customerId?: string }>();
   const { user } = useAppSelector((state) => state.auth);
   const { isImpersonating, impersonatedUserId, impersonatedCustomerId } = useAppSelector(
     (state) => state.impersonation
@@ -12,11 +16,47 @@ export const useClientDashboard = () => {
     (state) => state.client
   );
 
+  // Restore impersonation state from URL on page load/refresh
+  useEffect(() => {
+    const urlCustomerId = params.customerId;
+    
+    // If URL has customerId, user is admin/manager, and not already impersonating
+    if (urlCustomerId && user && (user.role === 'admin' || user.role === 'user') && !isImpersonating) {
+      // Fetch customer to get user_id
+      supabase
+        .from('customers')
+        .select('user_id')
+        .eq('id', urlCustomerId)
+        .maybeSingle()
+        .then(({ data: customerData, error: customerError }) => {
+          if (!customerError && customerData?.user_id && user) {
+            // Restore impersonation state
+            dispatch(
+              startImpersonation({
+                userId: customerData.user_id,
+                customerId: urlCustomerId,
+                originalUser: {
+                  id: user.id,
+                  email: user.email || '',
+                  role: user.role || 'user',
+                },
+                previousLocation: null, // Can't restore previous location on refresh
+              })
+            );
+          }
+        });
+    }
+  }, [params.customerId, user, isImpersonating, dispatch]);
+
   // Fetch client data when user is available
   useEffect(() => {
+    // Prefer customerId from URL if available (for refresh support)
+    const urlCustomerId = params.customerId;
+    
     // Determine which user/customer to fetch data for
     const targetUserId = isImpersonating ? impersonatedUserId : user?.id;
-    const targetCustomerId = isImpersonating ? impersonatedCustomerId : user?.customer_id;
+    // Use URL customerId if available, otherwise use impersonation or user's customer_id
+    const targetCustomerId = urlCustomerId || (isImpersonating ? impersonatedCustomerId : user?.customer_id);
     const isTrainee = user?.role === 'trainee' || isImpersonating;
 
     // When impersonating, we need both customer_id and user_id to be available
@@ -39,6 +79,7 @@ export const useClientDashboard = () => {
       }
     }
   }, [
+    params.customerId,
     user?.id,
     user?.customer_id,
     user?.role,
