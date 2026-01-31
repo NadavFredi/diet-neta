@@ -266,8 +266,7 @@ export const AerobicActivityModal = ({
                                     <TableRow className="[&>th]:py-2">
                                         <TableHead className="text-right w-[120px] px-2">סוג</TableHead>
                                         <TableHead className="text-right px-2">שם האימון</TableHead>
-                                        <TableHead className="text-center w-[120px] px-2">דקות</TableHead>
-                                        <TableHead className="text-right w-[120px] px-2">תדירות</TableHead>
+                                        <TableHead className="text-center w-[120px] px-2">דקות/אימון</TableHead>
                                         <TableHead className="text-center w-[80px] px-2">פעמים בשבוע</TableHead>
                                         <TableHead className="text-right px-4">הנחיות</TableHead>
                                         <TableHead className="text-center w-[50px] px-2"></TableHead>
@@ -311,20 +310,6 @@ export const AerobicActivityModal = ({
                                                         className="h-9 text-sm text-center w-full"
                                                         dir="ltr"
                                                     />
-                                                </TableCell>
-                                                <TableCell className="px-2">
-                                                    <Select
-                                                        value={workout.period_type || 'לשבוע'}
-                                                        onValueChange={(value) => updateWorkoutTraining(workout.id, 'period_type', value)}
-                                                    >
-                                                        <SelectTrigger className="h-9 text-sm" dir="rtl">
-                                                            <SelectValue>{workout.period_type || 'לשבוע'}</SelectValue>
-                                                        </SelectTrigger>
-                                                        <SelectContent dir="rtl">
-                                                            <SelectItem value="לשבוע">לשבוע</SelectItem>
-                                                            <SelectItem value="ליום">ליום</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
                                                 </TableCell>
                                                 <TableCell className="px-2">
                                                     <Input

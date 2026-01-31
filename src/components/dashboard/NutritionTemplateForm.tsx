@@ -49,6 +49,7 @@ import {
   Footprints,
   Dumbbell,
   Pill,
+  Save,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { NutritionTemplate } from '@/hooks/useNutritionTemplates';
@@ -96,6 +97,36 @@ export const NutritionTemplateForm = ({
   console.log('[NutritionTemplateForm] initialData keys:', initialData ? Object.keys(initialData) : 'N/A');
   console.log('[NutritionTemplateForm] has calculator_inputs?', initialData && 'calculator_inputs' in initialData);
   console.log('[NutritionTemplateForm] calculator_inputs value:', initialData && 'calculator_inputs' in initialData ? (initialData as any).calculator_inputs : 'N/A');
+  
+  // Track dirty state for macro inputs
+  const [dirtyInputs, setDirtyInputs] = useState<Set<string>>(new Set());
+  
+  // Save callbacks for each input
+  const caloriesSaveRef = useRef<(() => void) | null>(null);
+  const proteinSaveRef = useRef<(() => void) | null>(null);
+  const carbsSaveRef = useRef<(() => void) | null>(null);
+  const fatSaveRef = useRef<(() => void) | null>(null);
+  const fiberSaveRef = useRef<(() => void) | null>(null);
+  
+  const handleDirtyChange = (field: string, isDirty: boolean) => {
+    setDirtyInputs(prev => {
+      const next = new Set(prev);
+      if (isDirty) {
+        next.add(field);
+      } else {
+        next.delete(field);
+      }
+      return next;
+    });
+  };
+  
+  const handleSaveAll = () => {
+    caloriesSaveRef.current?.();
+    proteinSaveRef.current?.();
+    carbsSaveRef.current?.();
+    fatSaveRef.current?.();
+    fiberSaveRef.current?.();
+  };
   
   const {
     name,
@@ -370,6 +401,8 @@ export const NutritionTemplateForm = ({
     color,
     isManual,
     onLockToggle,
+    onDirtyChange,
+    onSave,
   }: {
     label: string;
     icon: React.ComponentType<{ className?: string }>;
@@ -379,29 +412,53 @@ export const NutritionTemplateForm = ({
     color: string;
     isManual?: boolean;
     onLockToggle?: () => void;
+    onDirtyChange?: (isDirty: boolean) => void;
+    onSave?: () => void;
   }) => {
-    const inputRef = useRef<HTMLInputElement>(null);
     const [localValue, setLocalValue] = useState<string>(value != null ? String(value) : '');
+    const [isFocused, setIsFocused] = useState(false);
 
     // Sync local value when prop value changes (but not while user is typing)
     useEffect(() => {
-      if (document.activeElement !== inputRef.current) {
+      if (!isFocused) {
         setLocalValue(value != null ? String(value) : '');
       }
-    }, [value]);
+    }, [value, isFocused]);
+
+    // Expose save via ref callback
+    useEffect(() => {
+      if (onSave) {
+        const saveFn = () => {
+          const val = localValue.trim();
+          const numVal = val === '' ? 0 : parseFloat(val);
+          const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+          onChange(finalVal);
+          setLocalValue(finalVal === 0 ? '' : String(finalVal));
+          if (onDirtyChange) onDirtyChange(false);
+        };
+        (onSave as React.MutableRefObject<(() => void) | null>).current = saveFn;
+      }
+    }, [localValue, onChange, onDirtyChange, onSave]);
 
     const handleLockToggle = () => {
       // Save current input value when lock is clicked
-      if (inputRef.current) {
-        const val = inputRef.current.value.trim();
-        const numVal = val === '' ? 0 : parseFloat(val);
-        const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
-        onChange(finalVal);
-        setLocalValue(finalVal === 0 ? '' : String(finalVal));
-      }
+      const val = localValue.trim();
+      const numVal = val === '' ? 0 : parseFloat(val);
+      const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+      onChange(finalVal);
+      setLocalValue(finalVal === 0 ? '' : String(finalVal));
       if (onLockToggle) {
         onLockToggle();
       }
+    };
+
+    const handleSave = () => {
+      const val = localValue.trim();
+      const numVal = val === '' ? 0 : parseFloat(val);
+      const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+      onChange(finalVal);
+      setLocalValue(finalVal === 0 ? '' : String(finalVal));
+      if (onDirtyChange) onDirtyChange(false);
     };
 
     return (
@@ -444,34 +501,32 @@ export const NutritionTemplateForm = ({
         <CardContent className="px-2.5 pb-2.5 pt-0 flex-1 flex items-center">
           <div className="flex items-center gap-1.5 w-full">
             <Input
-              ref={inputRef}
               type="text"
               inputMode="decimal"
               value={localValue}
+              onFocus={() => setIsFocused(true)}
               onChange={(e) => {
-                const val = (e.target as HTMLInputElement).value;
+                const val = e.target.value;
                 // Allow empty string, numbers, and decimal point while typing
                 if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                  // Update local state only (no parent re-render)
                   setLocalValue(val);
+                  // Check if dirty
+                  const numVal = val === '' ? 0 : parseFloat(val);
+                  const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+                  const isDirty = finalVal !== value;
+                  if (onDirtyChange) onDirtyChange(isDirty);
                 }
               }}
               onKeyDown={(e) => {
-                // Save on Enter key
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  const target = e.target as HTMLInputElement;
-                  const val = target.value.trim();
-                  const numVal = val === '' ? 0 : parseFloat(val);
-                  const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
-                  onChange(finalVal);
-                  setLocalValue(finalVal === 0 ? '' : String(finalVal));
-                  target.blur();
+                  handleSave();
+                  e.currentTarget.blur();
                 }
               }}
-              onBlur={(e) => {
-                // Don't save on blur - restore original value
-                setLocalValue(value != null ? String(value) : '');
+              onBlur={() => {
+                setIsFocused(false);
+                handleSave();
               }}
               className="text-xl font-bold text-center h-12 rounded-lg flex-1"
               dir="ltr"
@@ -1024,9 +1079,29 @@ export const NutritionTemplateForm = ({
               {/* Macro Targets Card */}
               <Card className="rounded-3xl border border-slate-200 shadow-sm flex-shrink-0">
                 <CardHeader className="pb-2 pt-3 px-4 flex-shrink-0">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-right">
-                    <Target className="h-4 w-4 text-[#5B6FB9]" />
-                    יעדי מקרו-נוטריאנטים
+                  <CardTitle className="text-sm font-semibold flex items-center justify-between text-right">
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-[#5B6FB9]" />
+                      יעדי מקרו-נוטריאנטים
+                    </div>
+                    {dirtyInputs.size > 0 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleSaveAll}
+                            className="h-6 w-6 p-0 hover:bg-blue-100"
+                          >
+                            <Save className="h-3.5 w-3.5 text-blue-600" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                          שמור את כל השינויים
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-3 flex flex-col space-y-2.5">
@@ -1087,6 +1162,8 @@ export const NutritionTemplateForm = ({
                       color={MACRO_COLORS.calories}
                       isManual={manualOverride.calories}
                       onLockToggle={() => setManualOverride('calories', !manualOverride.calories)}
+                      onDirtyChange={(isDirty) => handleDirtyChange('calories', isDirty)}
+                      onSave={caloriesSaveRef}
                     />
                     <MacroInputCard
                       label="חלבון"
@@ -1097,6 +1174,8 @@ export const NutritionTemplateForm = ({
                       color={MACRO_COLORS.protein}
                       isManual={manualOverride.protein}
                       onLockToggle={() => setManualOverride('protein', !manualOverride.protein)}
+                      onDirtyChange={(isDirty) => handleDirtyChange('protein', isDirty)}
+                      onSave={proteinSaveRef}
                     />
                     <MacroInputCard
                       label="פחמימות"
@@ -1107,6 +1186,8 @@ export const NutritionTemplateForm = ({
                       color={MACRO_COLORS.carbs}
                       isManual={manualOverride.carbs}
                       onLockToggle={() => setManualOverride('carbs', !manualOverride.carbs)}
+                      onDirtyChange={(isDirty) => handleDirtyChange('carbs', isDirty)}
+                      onSave={carbsSaveRef}
                     />
                     <MacroInputCard
                       label="שומן"
@@ -1117,6 +1198,8 @@ export const NutritionTemplateForm = ({
                       color={MACRO_COLORS.fat}
                       isManual={manualOverride.fat}
                       onLockToggle={() => setManualOverride('fat', !manualOverride.fat)}
+                      onDirtyChange={(isDirty) => handleDirtyChange('fat', isDirty)}
+                      onSave={fatSaveRef}
                     />
                     <MacroInputCard
                       label="סיבים"
@@ -1127,6 +1210,8 @@ export const NutritionTemplateForm = ({
                       color={MACRO_COLORS.fiber}
                       isManual={manualOverride.fiber}
                       onLockToggle={() => setManualOverride('fiber', !manualOverride.fiber)}
+                      onDirtyChange={(isDirty) => handleDirtyChange('fiber', isDirty)}
+                      onSave={fiberSaveRef}
                     />
                   </div>
                 </CardContent>
