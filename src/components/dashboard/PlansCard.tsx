@@ -353,16 +353,20 @@ export const PlansCard = ({
   const saveActionPlan = useSaveActionPlan();
 
   // Inline editing states
-  const [editingField, setEditingField] = useState<'description' | 'eating_order' | 'eating_rules' | 'steps_goal' | 'steps_instructions' | null>(null);
+  const [editingField, setEditingField] = useState<'description' | 'eating_order' | 'eating_rules' | 'steps_goal' | 'steps_min' | 'steps_max' | 'steps_instructions' | null>(null);
   const [editValues, setEditValues] = useState<{
     description?: string;
     eating_order?: string;
     eating_rules?: string;
     steps_goal?: number;
+    steps_min?: number | null;
+    steps_max?: number | null;
     steps_instructions?: string;
   }>({});
   const [previousValues, setPreviousValues] = useState<{
     steps_goal?: number;
+    steps_min?: number | null;
+    steps_max?: number | null;
     steps_instructions?: string;
   }>({});
 
@@ -1481,29 +1485,69 @@ export const PlansCard = ({
                   {activeSteps || overviewBudget?.steps_goal ? (
                     <div className="space-y-2 py-2">
                       <div className="text-center">
-                        {editingField === 'steps_goal' ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-center gap-2">
-                              {previousValues.steps_goal !== undefined && previousValues.steps_goal !== editValues.steps_goal && (
-                                <>
-                                  <span className="text-xl text-slate-400 line-through opacity-70">
-                                    {previousValues.steps_goal.toLocaleString()}
-                                  </span>
-                                  <ArrowLeft className="h-4 w-4 text-slate-300" />
-                                </>
-                              )}
-                              <Input
-                                type="number"
-                                value={editValues.steps_goal !== undefined ? editValues.steps_goal : (activeSteps?.target ?? overviewBudget?.steps_goal ?? 0)}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  const numValue = value === '' ? undefined : parseInt(value, 10);
-                                  setEditValues({ ...editValues, steps_goal: numValue !== undefined && !isNaN(numValue) ? numValue : undefined });
-                                }}
-                                className="text-2xl font-bold text-center border-2 border-cyan-500 focus:border-cyan-600"
-                                dir="ltr"
-                                autoFocus
-                              />
+                        {(editingField === 'steps_goal' || editingField === 'steps_min' || editingField === 'steps_max') ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-xs text-slate-500">מינימום</label>
+                                <div className="flex items-center justify-center gap-2">
+                                  {previousValues.steps_min !== undefined && previousValues.steps_min !== editValues.steps_min && (
+                                    <>
+                                      <span className="text-lg text-slate-400 line-through opacity-70">
+                                        {previousValues.steps_min?.toLocaleString() ?? '-'}
+                                      </span>
+                                      <ArrowLeft className="h-3 w-3 text-slate-300" />
+                                    </>
+                                  )}
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={editValues.steps_min !== null && editValues.steps_min !== undefined ? editValues.steps_min : ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      const numValue = value === '' ? null : parseInt(value, 10);
+                                      setEditValues({
+                                        ...editValues,
+                                        steps_min: numValue !== null && !isNaN(numValue) ? numValue : null
+                                      });
+                                    }}
+                                    className="text-xl font-bold text-center border-2 border-cyan-500 focus:border-cyan-600"
+                                    dir="ltr"
+                                    autoFocus={editingField === 'steps_min'}
+                                    placeholder="מינימום"
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs text-slate-500">מקסימום</label>
+                                <div className="flex items-center justify-center gap-2">
+                                  {previousValues.steps_max !== undefined && previousValues.steps_max !== editValues.steps_max && (
+                                    <>
+                                      <span className="text-lg text-slate-400 line-through opacity-70">
+                                        {previousValues.steps_max?.toLocaleString() ?? '-'}
+                                      </span>
+                                      <ArrowLeft className="h-3 w-3 text-slate-300" />
+                                    </>
+                                  )}
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={editValues.steps_max !== null && editValues.steps_max !== undefined ? editValues.steps_max : ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      const numValue = value === '' ? null : parseInt(value, 10);
+                                      setEditValues({
+                                        ...editValues,
+                                        steps_max: numValue !== null && !isNaN(numValue) ? numValue : null
+                                      });
+                                    }}
+                                    className="text-xl font-bold text-center border-2 border-cyan-500 focus:border-cyan-600"
+                                    dir="ltr"
+                                    autoFocus={editingField === 'steps_max'}
+                                    placeholder="מקסימום"
+                                  />
+                                </div>
+                              </div>
                             </div>
                             <div className="flex gap-2 justify-center">
                               <Button
@@ -1514,14 +1558,18 @@ export const PlansCard = ({
                                     return;
                                   }
                                   try {
-                                    const newStepsGoal = editValues.steps_goal !== undefined
-                                      ? editValues.steps_goal
-                                      : (activeSteps?.target ?? overviewBudget?.steps_goal ?? 0);
+                                    const newStepsMin = editValues.steps_min !== undefined ? editValues.steps_min : (overviewBudget?.steps_min ?? null);
+                                    const newStepsMax = editValues.steps_max !== undefined ? editValues.steps_max : (overviewBudget?.steps_max ?? overviewBudget?.steps_goal ?? null);
 
-                                    if (newStepsGoal === undefined || isNaN(newStepsGoal) || newStepsGoal < 0) {
-                                      toast({ title: 'שגיאה', description: 'אנא הזן ערך תקין ליעד הצעדים', variant: 'destructive' });
+                                    // Validate: if both are set, max should be >= min
+                                    if (newStepsMin !== null && newStepsMax !== null && newStepsMax < newStepsMin) {
+                                      toast({ title: 'שגיאה', description: 'המקסימום חייב להיות גדול או שווה למינימום', variant: 'destructive' });
                                       return;
                                     }
+
+                                    // Use max as steps_goal for backward compatibility
+                                    const newStepsGoal = newStepsMax ?? 0;
+
                                     await updateBudget.mutateAsync({
                                       budgetId: effectiveBudgetId,
                                       name: overviewBudget.name,
@@ -1529,6 +1577,8 @@ export const PlansCard = ({
                                       nutrition_template_id: overviewBudget.nutrition_template_id,
                                       nutrition_targets: overviewBudget.nutrition_targets,
                                       steps_goal: newStepsGoal,
+                                      steps_min: newStepsMin,
+                                      steps_max: newStepsMax,
                                       steps_instructions: overviewBudget.steps_instructions || null,
                                       workout_template_id: overviewBudget.workout_template_id,
                                       supplement_template_id: overviewBudget.supplement_template_id,
@@ -1579,8 +1629,8 @@ export const PlansCard = ({
 
                                     toast({ title: 'הצלחה', description: 'יעד הצעדים עודכן ונשמר ביומן' });
                                     setEditingField(null);
-                                    setEditValues({ ...editValues, steps_goal: undefined });
-                                    setPreviousValues({ ...previousValues, steps_goal: undefined });
+                                    setEditValues({ ...editValues, steps_min: undefined, steps_max: undefined });
+                                    setPreviousValues({ ...previousValues, steps_min: undefined, steps_max: undefined });
                                     await queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] });
                                     await queryClient.invalidateQueries({ queryKey: ['budgets'] });
                                     await queryClient.invalidateQueries({ queryKey: ['plans-history'] });
@@ -1602,8 +1652,8 @@ export const PlansCard = ({
                                 variant="outline"
                                 onClick={() => {
                                   setEditingField(null);
-                                  setEditValues({ ...editValues, steps_goal: undefined });
-                                  setPreviousValues({ ...previousValues, steps_goal: undefined });
+                                  setEditValues({ ...editValues, steps_min: undefined, steps_max: undefined });
+                                  setPreviousValues({ ...previousValues, steps_min: undefined, steps_max: undefined });
                                 }}
                                 className="h-7 px-2"
                               >
@@ -1616,14 +1666,46 @@ export const PlansCard = ({
                           <p
                             className="text-2xl font-bold text-cyan-700 leading-none cursor-pointer hover:text-cyan-800 hover:bg-cyan-50/50 rounded p-2 transition-colors"
                             onClick={() => {
-                              const currentValue = activeSteps?.target ?? overviewBudget?.steps_goal ?? 0;
-                              setEditingField('steps_goal');
-                              setEditValues({ ...editValues, steps_goal: currentValue });
-                              setPreviousValues({ ...previousValues, steps_goal: currentValue });
+                              // Get current values - support both new format (min/max) and old format (steps_goal)
+                              const currentMin = overviewBudget?.steps_min ?? null;
+                              const currentMax = overviewBudget?.steps_max ?? (overviewBudget?.steps_goal ?? null);
+
+                              setEditingField('steps_min');
+                              setEditValues({
+                                ...editValues,
+                                steps_min: currentMin,
+                                steps_max: currentMax
+                              });
+                              setPreviousValues({
+                                ...previousValues,
+                                steps_min: currentMin,
+                                steps_max: currentMax
+                              });
                             }}
                             title="לחץ לעריכה"
                           >
-                            {(activeSteps?.target ?? overviewBudget?.steps_goal ?? 0).toLocaleString()}
+                            {(() => {
+                              const min = overviewBudget?.steps_min ?? null;
+                              const max = overviewBudget?.steps_max ?? (overviewBudget?.steps_goal ?? null);
+                              const activeTarget = activeSteps?.target ?? null;
+
+                              // If there's an active steps plan, use its target, otherwise use budget values
+                              const displayMin = min;
+                              const displayMax = activeTarget ?? max;
+
+                              if (displayMin !== null && displayMax !== null) {
+                                // If min and max are the same, just show the single number
+                                if (displayMin === displayMax) {
+                                  return displayMax.toLocaleString();
+                                }
+                                return `${displayMin.toLocaleString()} - ${displayMax.toLocaleString()}`;
+                              } else if (displayMax !== null) {
+                                return displayMax.toLocaleString();
+                              } else if (displayMin !== null) {
+                                return `מינימום: ${displayMin.toLocaleString()}`;
+                              }
+                              return '0';
+                            })()}
                           </p>
                         )}
                         <p className="text-[10px] text-gray-500 mt-1">צעדים ליום</p>

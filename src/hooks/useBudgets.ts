@@ -457,6 +457,8 @@ export const useUpdateBudget = () => {
       nutrition_template_id?: string | null;
       nutrition_targets?: NutritionTargets;
       steps_goal?: number;
+      steps_min?: number | null;
+      steps_max?: number | null;
       steps_instructions?: string | null;
       workout_template_id?: string | null;
       supplement_template_id?: string | null;

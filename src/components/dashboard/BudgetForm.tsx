@@ -349,7 +349,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   });
 
   // Steps
-  const [stepsGoal, setStepsGoal] = useState(0);
+  const [stepsMin, setStepsMin] = useState<number | null>(null);
+  const [stepsMax, setStepsMax] = useState<number | null>(null);
   const [stepsInstructions, setStepsInstructions] = useState('');
 
   // Workout
@@ -405,7 +406,19 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         fat: 0,
         fiber_min: 20,
       });
-      setStepsGoal(initialData.steps_goal || 0);
+      // Handle steps - support both old format (steps_goal) and new format (steps_min/steps_max)
+      // For backward compatibility, if steps_goal exists, use it as stepsMax
+      if ((initialData as any).steps_min !== undefined || (initialData as any).steps_max !== undefined) {
+        setStepsMin((initialData as any).steps_min || null);
+        setStepsMax((initialData as any).steps_max || null);
+      } else if (initialData.steps_goal) {
+        // Backward compatibility: use steps_goal as max
+        setStepsMin(null);
+        setStepsMax(initialData.steps_goal);
+      } else {
+        setStepsMin(null);
+        setStepsMax(null);
+      }
       setStepsInstructions(initialData.steps_instructions || '');
       setWorkoutTemplateId(initialData.workout_template_id ?? null);
       setSupplementTemplateId(initialData.supplement_template_id ?? null);
@@ -689,7 +702,9 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         description: description || null,
         nutrition_template_id: safeNutritionTemplateId,
         nutrition_targets: nutritionTargets,
-        steps_goal: stepsGoal,
+        steps_goal: stepsMax || 0, // Keep for backward compatibility
+        steps_min: stepsMin,
+        steps_max: stepsMax,
         steps_instructions: stepsInstructions || null,
         workout_template_id: safeWorkoutTemplateId,
         supplement_template_id: safeSupplementTemplateId,
@@ -1002,26 +1017,57 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           {/* Steps Section */}
           <AccordionItem value="steps" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
             <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
-              <div className="flex items-center gap-2">
-                <Footprints className="h-4 w-4 text-slate-400" />
-                יעד צעדים יומי
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Footprints className="h-4 w-4 text-slate-400" />
+                  יעד צעדים יומי
+                </div>
+                <span className="text-sm font-normal text-slate-500">
+                  {stepsMin !== null && stepsMax !== null
+                    ? stepsMin === stepsMax
+                      ? stepsMax.toLocaleString()
+                      : `${stepsMin.toLocaleString()} - ${stepsMax.toLocaleString()}`
+                    : stepsMax !== null
+                      ? `${stepsMax.toLocaleString()}`
+                      : stepsMin !== null
+                        ? `מינימום: ${stepsMin.toLocaleString()}`
+                        : 'לא הוגדר'}
+                </span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="space-y-3 pb-4 px-4">
               <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-500">יעד צעדים</Label>
-                  <Input
-                    type="number"
-                    value={stepsGoal || ''}
-                    onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
-                    placeholder="לדוגמה: 7000"
-                    className={cn(
-                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-medium text-sm"
-                    )}
-                    dir="ltr"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-slate-500">מינימום צעדים</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={stepsMin !== null ? stepsMin : ''}
+                      onChange={(e) => setStepsMin(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="לדוגמה: 5000"
+                      className={cn(
+                        "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                        "text-slate-900 font-medium text-sm"
+                      )}
+                      dir="ltr"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-slate-500">מקסימום צעדים</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={stepsMax !== null ? stepsMax : ''}
+                      onChange={(e) => setStepsMax(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="לדוגמה: 10000"
+                      className={cn(
+                        "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                        "text-slate-900 font-medium text-sm"
+                      )}
+                      dir="ltr"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="steps_instructions" className="text-sm font-medium text-slate-500">הוראות צעדים</Label>
@@ -1390,12 +1436,13 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
               <CardContent className="space-y-3 px-4 pb-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-sm font-medium text-slate-500">יעד צעדים</Label>
+                    <Label className="text-sm font-medium text-slate-500">מינימום צעדים</Label>
                     <Input
                       type="number"
-                      value={stepsGoal || ''}
-                      onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
-                      placeholder="לדוגמה: 7000"
+                      min="0"
+                      value={stepsMin !== null ? stepsMin : ''}
+                      onChange={(e) => setStepsMin(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="לדוגמה: 5000"
                       className={cn(
                         "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
                         "text-slate-900 font-medium text-sm"
@@ -1403,21 +1450,35 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                       dir="ltr"
                     />
                   </div>
-
                   <div className="space-y-1.5">
-                    <Label htmlFor="steps_instructions" className="text-sm font-medium text-slate-500">הוראות צעדים</Label>
-                    <Textarea
-                      id="steps_instructions"
-                      value={stepsInstructions}
-                      onChange={(e) => setStepsInstructions(e.target.value)}
-                      placeholder="הוראות והנחיות נוספות לגבי הצעדים היומיים"
+                    <Label className="text-sm font-medium text-slate-500">מקסימום צעדים</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={stepsMax !== null ? stepsMax : ''}
+                      onChange={(e) => setStepsMax(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="לדוגמה: 10000"
                       className={cn(
-                        "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
+                        "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
                         "text-slate-900 font-medium text-sm"
                       )}
-                      dir="rtl"
+                      dir="ltr"
                     />
                   </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="steps_instructions" className="text-sm font-medium text-slate-500">הוראות צעדים</Label>
+                  <Textarea
+                    id="steps_instructions"
+                    value={stepsInstructions}
+                    onChange={(e) => setStepsInstructions(e.target.value)}
+                    placeholder="הוראות והנחיות נוספות לגבי הצעדים היומיים"
+                    className={cn(
+                      "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
+                      "text-slate-900 font-medium text-sm"
+                    )}
+                    dir="rtl"
+                  />
                 </div>
               </CardContent>
             </Card>
