@@ -772,40 +772,37 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
         };
       }
     } else {
-      // Use default message format (matches the format from WhatsApp automation)
-      message = `📊 סיכום שבועי - שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}\n\n`;
+      // Use default message format with proper line breaks
+      const targetCal = targetCalories ? Math.round(parseFloat(targetCalories)).toString() : '-';
+      const targetProt = targetProtein ? Math.round(parseFloat(targetProtein)).toString() : '-';
+      const targetFib = targetFiber ? Math.round(parseFloat(targetFiber)).toString() : '-';
+      const targetStep = targetSteps ? Math.round(parseFloat(targetSteps)).toString() : '-';
       
-      message += `🎯 יעדים:\n`;
-      message += `קלוריות: ${targetCalories ? Math.round(parseFloat(targetCalories)).toString() : '-'} קק"ל\n`;
-      message += `חלבון: ${targetProtein ? Math.round(parseFloat(targetProtein)).toString() : '-'} גרם\n`;
-      message += `סיבים: ${targetFiber ? Math.round(parseFloat(targetFiber)).toString() : '-'} גרם\n`;
-      message += `צעדים: ${targetSteps ? Math.round(parseFloat(targetSteps)).toString() : '-'}\n`;
+      const actualCal = actualCalories ? Math.round(parseFloat(actualCalories)).toString() : '-';
+      const actualProt = actualProtein ? Math.round(parseFloat(actualProtein)).toString() : '-';
+      const actualFib = actualFiber ? Math.round(parseFloat(actualFiber)).toString() : '-';
+      const actualWgt = actualWeight ? parseFloat(actualWeight).toFixed(1) : '-';
       
-      message += `\n`;
-      
-      message += `📈 בפועל (ממוצע):\n`;
-      message += `קלוריות: ${actualCalories ? Math.round(parseFloat(actualCalories)).toString() : '-'} קק"ל\n`;
-      message += `חלבון: ${actualProtein ? Math.round(parseFloat(actualProtein)).toString() : '-'} גרם\n`;
-      message += `סיבים: ${actualFiber ? Math.round(parseFloat(actualFiber)).toString() : '-'} גרם\n`;
-      message += `משקל ממוצע: ${actualWeight ? parseFloat(actualWeight).toFixed(1) : '-'} ק"ג\n`;
-      
-      message += `\n`;
-      
-      message += `💬 סיכום ומסקנות:\n`;
-      if (trainerSummary) {
-        message += `${trainerSummary}\n`;
-      } else {
-        message += `(ניתן להוסיף הערות כאן)\n`;
-      }
-      
-      message += `\n`;
-      
-      message += `🎯 דגשים לשבוע הקרוב:\n`;
-      if (actionPlan) {
-        message += `${actionPlan}\n`;
-      } else {
-        message += `(ניתן להוסיף דגשים כאן)\n`;
-      }
+      message = `📊 סיכום שבועי - שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}
+
+🎯 יעדים:
+קלוריות: ${targetCal} קק"ל
+חלבון: ${targetProt} גרם
+סיבים: ${targetFib} גרם
+צעדים: ${targetStep}
+
+📈 בפועל (ממוצע):
+קלוריות: ${actualCal} קק"ל
+חלבון: ${actualProt} גרם
+סיבים: ${actualFib} גרם
+משקל ממוצע: ${actualWgt} ק"ג
+
+💬 סיכום ומסקנות:
+${trainerSummary || '(ניתן להוסיף הערות כאן)'}
+
+🎯 דגשים לשבוע הקרוב:
+${actionPlan || '(ניתן להוסיף דגשים כאן)'}
+`;
     }
     
     return { message, processedButtons, media };
@@ -826,9 +823,10 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     actionPlan,
   ]);
 
-  // Helper function to strip HTML tags and clean message
+  // Helper function to strip HTML tags and clean message (preserves line breaks)
   const cleanMessage = useCallback((msg: string): string => {
-    // Remove HTML tags
+    if (!msg) return '';
+    // Remove HTML tags but preserve line breaks
     let cleaned = msg.replace(/<[^>]*>/g, '');
     // Decode HTML entities
     cleaned = cleaned
@@ -838,21 +836,26 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
-    // Ensure proper line breaks
+    // Normalize line breaks to \n
     cleaned = cleaned.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    return cleaned.trim();
+    // Don't trim - preserve leading/trailing whitespace and line breaks
+    return cleaned;
   }, []);
 
-  // Initialize message on mount or when customerPhone becomes available
+  // Initialize message when customerPhone and data are available
   useEffect(() => {
-    if (customerPhone && !whatsappMessage) {
+    if (customerPhone) {
       const { message, processedButtons, media } = generateMessageFromData();
-      setWhatsappMessage(cleanMessage(message));
-      setWhatsappButtons(processedButtons);
-      setWhatsappMedia(media);
+      const cleaned = cleanMessage(message);
+      // Only set if different to avoid unnecessary re-renders
+      if (cleaned !== whatsappMessage) {
+        setWhatsappMessage(cleaned);
+        setWhatsappButtons(processedButtons);
+        setWhatsappMedia(media);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerPhone]); // Only initialize once when customerPhone is available
+  }, [customerPhone, generateMessageFromData, cleanMessage]); // Regenerate when data changes
 
   const handleUpdateMessageFromData = () => {
     const { message, processedButtons, media } = generateMessageFromData();

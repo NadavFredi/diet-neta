@@ -141,8 +141,38 @@ export const SavedActionPlanView = ({ planId, isOpen, onClose }: SavedActionPlan
                                       const dayData = days[day];
                                       const dayName = dayLabels[day] || day;
                                       const exercises = dayData.exercises || [];
-                                      const exerciseNames = exercises.map((ex: any) => ex.name || ex.exercise_name || 'תרגיל').filter(Boolean);
-                                      return { dayName, exerciseNames };
+                                      const exerciseDetails = exercises.map((ex: any) => {
+                                        const name = ex.name || ex.exercise_name || 'תרגיל';
+                                        const sets = ex.sets || null;
+                                        const reps = ex.reps || null;
+                                        const repsMin = ex.reps_min || null;
+                                        const repsMax = ex.reps_max || null;
+                                        
+                                        // Format repetitions: show range if available, otherwise single value
+                                        let repsText = '';
+                                        if (repsMin && repsMax) {
+                                          repsText = `${repsMin}-${repsMax}`;
+                                        } else if (repsMin) {
+                                          repsText = `${repsMin}+`;
+                                        } else if (repsMax) {
+                                          repsText = `עד ${repsMax}`;
+                                        } else if (reps) {
+                                          repsText = `${reps}`;
+                                        }
+                                        
+                                        // Build exercise string with sets and reps
+                                        let exerciseStr = name;
+                                        const parts: string[] = [];
+                                        if (sets) parts.push(`${sets} סטים`);
+                                        if (repsText) parts.push(`${repsText} חזרות`);
+                                        
+                                        if (parts.length > 0) {
+                                          exerciseStr += ` (${parts.join(', ')})`;
+                                        }
+                                        
+                                        return exerciseStr;
+                                      }).filter(Boolean);
+                                      return { dayName, exerciseDetails };
                                     });
 
                                     console.log('[SavedActionPlanView] Active days:', activeDays.length, activeDays);
@@ -151,10 +181,16 @@ export const SavedActionPlanView = ({ planId, isOpen, onClose }: SavedActionPlan
                                       return <p className="text-base text-slate-500">אין ימים פעילים</p>;
                                     }
 
-                                    return activeDays.map(({ dayName, exerciseNames }, idx) => (
+                                    return activeDays.map(({ dayName, exerciseDetails }, idx) => (
                                       <div key={idx} className="text-base text-slate-700">
                                         <span className="font-semibold">{dayName}:</span>
-                                        <span className="mr-1"> {exerciseNames.join(', ')}</span>
+                                        <div className="mr-2 mt-1 space-y-0.5">
+                                          {exerciseDetails.map((exercise: string, exIdx: number) => (
+                                            <div key={exIdx} className="text-sm text-slate-600">
+                                              • {exercise}
+                                            </div>
+                                          ))}
+                                        </div>
                                       </div>
                                     ));
                                   })()}
