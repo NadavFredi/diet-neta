@@ -46,7 +46,7 @@ import { BloodTestsGalleryCard } from './BloodTestsGalleryCard.tsx';
 import { CreateSubscriptionModal } from './dialogs/CreateSubscriptionModal';
 import { useMeetings, useDeleteMeeting } from '@/hooks/useMeetings';
 import { usePaymentHistory, useDeletePayment } from '@/hooks/usePaymentHistory';
-import { CreditCard, Plus, Trash2 } from 'lucide-react';
+import { CreditCard, Plus, Trash2, RotateCcw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -519,6 +519,59 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
     }
   }, [onUpdateLead, toast]);
 
+  const handleResetPeriod1 = useCallback(async () => {
+    try {
+      const currentSubscriptionData = activeLead?.subscription_data || {};
+      const updatedSubscription = {
+        ...currentSubscriptionData,
+        months: 0,
+        duration_unit: 'months',
+        initialPrice: 0,
+        currency: 'ILS',
+        expirationDate: '',
+        status: 'לא פעיל',
+        currentWeekInProgram: 0,
+      };
+      await onUpdateLead({
+        join_date: null,
+        subscription_data: updatedSubscription,
+      });
+      toast({
+        title: 'תקופה 1 אופסה',
+        description: 'ערכי תקופה 1 אופסו בהצלחה.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל באיפוס תקופה 1',
+        variant: 'destructive',
+      });
+    }
+  }, [activeLead, onUpdateLead, toast]);
+
+  const handleResetPeriod2 = useCallback(async () => {
+    try {
+      const currentSubscriptionData = activeLead?.subscription_data || {};
+      const updatedSubscription = {
+        ...currentSubscriptionData,
+        future_subscription: null,
+      };
+      await onUpdateLead({
+        subscription_data: updatedSubscription,
+      });
+      toast({
+        title: 'תקופה 2 אופסה',
+        description: 'ערכי תקופה 2 אופסו בהצלחה.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל באיפוס תקופה 2',
+        variant: 'destructive',
+      });
+    }
+  }, [activeLead, onUpdateLead, toast]);
+
   const handleCrmSave = useCallback(async () => {
     const refs = [
       statusRef,
@@ -771,7 +824,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                       variant="default"
                       className="h-9 sm:h-8 px-4 sm:px-3 text-xs sm:text-xs"
                     >
-                      צור מנוי
+                      הקצה מנוי
                     </Button>
                     {subscriptionData && Object.keys(subscriptionData).length > 0 && (
                       <Button
@@ -792,7 +845,19 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
             <div className="flex-1 flex flex-col gap-5 relative">
               {/* Current Subscription Column */}
               <div className="space-y-3">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">תקופה 1 (נוכחי)</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">תקופה 1 (נוכחי)</h4>
+                  <Button
+                    onClick={handleResetPeriod1}
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50"
+                    title="איפוס תקופה 1"
+                  >
+                    <RotateCcw className="h-3 w-3 ml-1" />
+                    איפוס
+                  </Button>
+                </div>
                 {/* Row 1: 4 fields */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <InlineEditableField
@@ -925,7 +990,19 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
               {/* Future Subscription Column */}
               <div className="space-y-3">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">תקופה 2 (עתידי)</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">תקופה 2 (עתידי)</h4>
+                  <Button
+                    onClick={handleResetPeriod2}
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50"
+                    title="איפוס תקופה 2"
+                  >
+                    <RotateCcw className="h-3 w-3 ml-1" />
+                    איפוס
+                  </Button>
+                </div>
                 {/* Row 1: 4 fields */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <InlineEditableField

@@ -41,6 +41,7 @@ interface AddMeetingDialogProps {
   onOpenChange: (open: boolean) => void;
   leadId?: string | null;
   onMeetingCreated?: () => void | Promise<void>;
+  initialDate?: Date | null;
 }
 
 export const AddMeetingDialog = ({
@@ -48,6 +49,7 @@ export const AddMeetingDialog = ({
   onOpenChange,
   leadId,
   onMeetingCreated,
+  initialDate,
 }: AddMeetingDialogProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -96,22 +98,22 @@ export const AddMeetingDialog = ({
   // Reset form when dialog opens/closes or IDs change
   useEffect(() => {
     if (isOpen) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = format(today, 'yyyy-MM-dd');
-      const defaultTime = format(today, 'HH:mm');
+      const dateToUse = initialDate || new Date();
+      dateToUse.setHours(0, 0, 0, 0);
+      const dateStr = format(dateToUse, 'yyyy-MM-dd');
+      const defaultTime = format(dateToUse, 'HH:mm');
       
       setFormData({
         lead_id: leadId || '',
-        meeting_date: todayStr,
+        meeting_date: dateStr,
         meeting_time_start: defaultTime,
         meeting_time_end: '',
         status: 'פעיל',
         meeting_type: '',
       });
-      setSelectedDate(today);
+      setSelectedDate(dateToUse);
     }
-  }, [isOpen, leadId]);
+  }, [isOpen, leadId, initialDate]);
 
   // Update formData when selectedDate changes
   useEffect(() => {
