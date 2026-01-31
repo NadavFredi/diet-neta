@@ -246,18 +246,15 @@ const WorkoutRow = ({ workout, onUpdate, onRemove }: WorkoutRowProps) => {
           className="h-8 bg-white border-0 text-xs"
           dir="ltr"
         />
-        <Select
-          value={workout.period_type || 'לשבוע'}
-          onValueChange={(value) => onUpdate(workout.id, 'period_type', value)}
-        >
-          <SelectTrigger className="h-8 bg-white border-0 text-xs justify-between" dir="rtl">
-            <SelectValue>{workout.period_type || 'לשבוע'}</SelectValue>
-          </SelectTrigger>
-          <SelectContent dir="rtl">
-            <SelectItem value="לשבוע">לשבוע</SelectItem>
-            <SelectItem value="ליום">ליום</SelectItem>
-          </SelectContent>
-        </Select>
+        <Input
+          type="number"
+          min="0"
+          value={workout.workouts_per_week || ''}
+          onChange={(e) => onUpdate(workout.id, 'workouts_per_week', parseInt(e.target.value) || 0)}
+          placeholder="פעמים בשבוע"
+          className="h-8 bg-white border-0 text-xs"
+          dir="ltr"
+        />
         <Input
           value={workout.notes}
           onChange={(e) => onUpdate(workout.id, 'notes', e.target.value)}
@@ -1205,7 +1202,18 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2 mt-4">
+                    {/* Header Row */}
+                    <div className="flex gap-2 items-center px-2 pb-1">
+                      <div className="flex-1 grid grid-cols-5 gap-1.5">
+                        <div className="text-xs font-medium text-slate-600 text-right">סוג</div>
+                        <div className="text-xs font-medium text-slate-600 text-right">שם האימון</div>
+                        <div className="text-xs font-medium text-slate-600 text-center">דקות/אימון</div>
+                        <div className="text-xs font-medium text-slate-600 text-center">פעמים בשבוע</div>
+                        <div className="text-xs font-medium text-slate-600 text-right">הנחיות</div>
+                      </div>
+                      <div className="w-8"></div>
+                    </div>
                     {workoutTrainings.map((workout) => (
                       <WorkoutRow
                         key={workout.id}
