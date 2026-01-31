@@ -898,6 +898,25 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
 
 
 
+  // Helper functions for accordion previews
+  const getWorkoutTemplateName = () => {
+    if (!workoutTemplateId) return null;
+    const template = workoutTemplates.find(t => t.id === workoutTemplateId) ||
+      (linkedWorkoutTemplate ? linkedWorkoutTemplate : null);
+    return template?.name || null;
+  };
+
+  const getNutritionTemplateName = () => {
+    if (!nutritionTemplateId) return null;
+    const template = nutritionTemplates.find(t => t.id === nutritionTemplateId) ||
+      (linkedNutritionTemplate ? linkedNutritionTemplate : null);
+    return template?.name || null;
+  };
+
+  const getAerobicActivitiesCount = () => {
+    return workoutTrainings.filter(w => w.type === 'erobi' && (w.name.trim() || w.duration_minutes > 0)).length;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-2.5" dir="rtl" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
       {useAccordion ? (
@@ -1025,9 +1044,14 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           {/* Training Plan Section */}
           <AccordionItem value="workout-plan" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
             <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
-              <div className="flex items-center gap-2">
-                <Dumbbell className="h-4 w-4 text-slate-400" />
-                תכנית אימונים
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Dumbbell className="h-4 w-4 text-slate-400" />
+                  תכנית אימונים
+                </div>
+                <span className="text-sm font-normal text-slate-500">
+                  {getWorkoutTemplateName() || 'ללא תבנית'}
+                </span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="space-y-3 pb-4 px-4">
@@ -1083,9 +1107,14 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           {/* Nutrition Plan Section */}
           <AccordionItem value="nutrition-plan" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
             <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
-              <div className="flex items-center gap-2">
-                <Apple className="h-4 w-4 text-slate-400" />
-                תבנית תזונה
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Apple className="h-4 w-4 text-slate-400" />
+                  תבנית תזונה
+                </div>
+                <span className="text-sm font-normal text-slate-500">
+                  {getNutritionTemplateName() || 'ללא תבנית'}
+                </span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="space-y-3 pb-4 px-4">
@@ -1141,9 +1170,16 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           {/* Supplements Section */}
           <AccordionItem value="supplements" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
             <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
-              <div className="flex items-center gap-2">
-                <Pill className="h-4 w-4 text-slate-400" />
-                תוספים
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Pill className="h-4 w-4 text-slate-400" />
+                  תוספים
+                </div>
+                <span className="text-sm font-normal text-slate-500">
+                  {supplements.filter(s => s && s.name && s.name.trim()).length > 0
+                    ? `${supplements.filter(s => s && s.name && s.name.trim()).length} תוספים`
+                    : 'ללא תוספים'}
+                </span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="space-y-2 pb-4 px-4">
@@ -1197,9 +1233,16 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
           {/* Aerobic Activity Section */}
           <AccordionItem value="aerobic-activity" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
             <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
-              <div className="flex items-center gap-2">
-                <Heart className="h-4 w-4 text-slate-400" />
-                פעילות גופנית
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-slate-400" />
+                  פעילות גופנית
+                </div>
+                <span className="text-sm font-normal text-slate-500">
+                  {getAerobicActivitiesCount() > 0
+                    ? `${getAerobicActivitiesCount()} פעילויות`
+                    : 'ללא פעילויות'}
+                </span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="space-y-2 pb-4 px-4">
