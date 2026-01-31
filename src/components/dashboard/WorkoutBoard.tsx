@@ -1448,7 +1448,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
   }, [activeId, weeklyWorkout]);
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0" dir="rtl">
+    <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0" dir="rtl" style={{ height: '100%' }}>
       {/* Header */}
       <div className="flex-shrink-0 bg-white border-b-2 border-slate-200 shadow-sm">
         <div className="p-3 space-y-3">
@@ -1568,7 +1568,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
 
 
       {/* Days Accordion List */}
-      <div className="flex-1 min-h-0 overflow-auto" style={{ flexGrow: 1, minHeight: 0 }}>
+      <div className="flex-1 min-h-0" style={{ flexGrow: 1, minHeight: 0 }}>
         <DndContext
           sensors={dndContext.sensors}
           collisionDetection={dndContext.collisionDetection}

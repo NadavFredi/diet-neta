@@ -19,7 +19,7 @@ export const WorkoutBuilderForm = ({
   customerId,
 }: WorkoutBuilderFormProps) => {
   return (
-    <div className="h-full flex flex-col min-h-0" style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    <div className="flex flex-col min-h-0 h-full" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <WorkoutBoard
         mode={mode}
         initialData={initialData}

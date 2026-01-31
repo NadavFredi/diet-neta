@@ -731,12 +731,96 @@ export const PlansCard = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {effectiveBudgetId && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={async () => {
+                if (!effectiveBudgetId) return;
+                try {
+                  const { data: budget } = await supabase
+                    .from('budgets')
+                    .select('*')
+                    .eq('id', effectiveBudgetId)
+                    .single();
+
+                  if (!budget) return;
+
+                  // Get nutrition and workout templates if they exist
+                  let nutritionTemplate = null;
+                  if (budget.nutrition_template_id) {
+                    const { data } = await supabase.from('nutrition_templates').select('*').eq('id', budget.nutrition_template_id).single();
+                    nutritionTemplate = data;
+                  }
+
+                  let workoutTemplate = null;
+                  let workoutTemplateId = budget.workout_template_id;
+
+                  // If budget doesn't have workout_template_id, try to get it from connected workout plan
+                  if (!workoutTemplateId) {
+                    const { data: workoutPlan } = await supabase
+                      .from('workout_plans')
+                      .select('template_id')
+                      .eq('budget_id', budget.id)
+                      .eq('is_active', true)
+                      .order('created_at', { ascending: false })
+                      .limit(1)
+                      .maybeSingle();
+
+                    if (workoutPlan?.template_id) {
+                      workoutTemplateId = workoutPlan.template_id;
+                    }
+                  }
+
+                  if (workoutTemplateId) {
+                    const { data } = await supabase.from('workout_templates').select('*').eq('id', workoutTemplateId).single();
+                    workoutTemplate = data;
+                  }
+
+                  const snapshot = createBudgetSnapshot(budget, nutritionTemplate, workoutTemplate);
+
+                  await saveActionPlan.mutateAsync({
+                    budget_id: budget.id,
+                    lead_id: leadId,
+                    name: budget.name,
+                    description: budget.description || null,
+                    snapshot,
+                  });
+
+                  toast({
+                    title: 'הצלחה',
+                    description: 'תכנית הפעולה נשמרה בהצלחה',
+                  });
+                } catch (error: any) {
+                  toast({
+                    title: 'שגיאה',
+                    description: error?.message || 'נכשל בשמירת תכנית הפעולה',
+                    variant: 'destructive',
+                  });
+                }
+              }}
+              disabled={saveActionPlan.isPending}
+              className="gap-2 h-8 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+            >
+              {saveActionPlan.isPending ? (
+                <>
+                  <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>שומר...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="h-3.5 w-3.5" />
+                  <span>שמור תכנית פעולה</span>
+                </>
+              )}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
-                className="h-8 w-8 p-0 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+                className="h-8 w-8 p-0 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
@@ -870,93 +954,6 @@ export const PlansCard = ({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-          {effectiveBudgetId && (
-            <div className="flex items-center gap-1">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={async () => {
-                  if (!effectiveBudgetId) return;
-                  try {
-                    const { data: budget } = await supabase
-                      .from('budgets')
-                      .select('*')
-                      .eq('id', effectiveBudgetId)
-                      .single();
-
-                    if (!budget) return;
-
-                    // Get nutrition and workout templates if they exist
-                    let nutritionTemplate = null;
-                    if (budget.nutrition_template_id) {
-                      const { data } = await supabase.from('nutrition_templates').select('*').eq('id', budget.nutrition_template_id).single();
-                      nutritionTemplate = data;
-                    }
-
-                    let workoutTemplate = null;
-                    let workoutTemplateId = budget.workout_template_id;
-
-                    // If budget doesn't have workout_template_id, try to get it from connected workout plan
-                    if (!workoutTemplateId) {
-                      const { data: workoutPlan } = await supabase
-                        .from('workout_plans')
-                        .select('template_id')
-                        .eq('budget_id', budget.id)
-                        .eq('is_active', true)
-                        .order('created_at', { ascending: false })
-                        .limit(1)
-                        .maybeSingle();
-
-                      if (workoutPlan?.template_id) {
-                        workoutTemplateId = workoutPlan.template_id;
-                      }
-                    }
-
-                    if (workoutTemplateId) {
-                      const { data } = await supabase.from('workout_templates').select('*').eq('id', workoutTemplateId).single();
-                      workoutTemplate = data;
-                    }
-
-                    const snapshot = createBudgetSnapshot(budget, nutritionTemplate, workoutTemplate);
-
-                    await saveActionPlan.mutateAsync({
-                      budget_id: budget.id,
-                      lead_id: leadId,
-                      name: budget.name,
-                      description: budget.description || null,
-                      snapshot,
-                    });
-
-                    toast({
-                      title: 'הצלחה',
-                      description: 'תכנית הפעולה נשמרה בהצלחה',
-                    });
-                  } catch (error: any) {
-                    toast({
-                      title: 'שגיאה',
-                      description: error?.message || 'נכשל בשמירת תכנית הפעולה',
-                      variant: 'destructive',
-                    });
-                  }
-                }}
-                disabled={saveActionPlan.isPending}
-                className="gap-2 h-8 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
-              >
-                {saveActionPlan.isPending ? (
-                  <>
-                    <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>שומר...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-3.5 w-3.5" />
-                    <span>שמור תכנית פעולה</span>
-                  </>
-                )}
-              </Button>
-
-            </div>
-          )}
         </div>
       </div>
 
