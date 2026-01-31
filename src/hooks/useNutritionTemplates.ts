@@ -37,6 +37,7 @@ export interface NutritionTemplate {
   manual_fields?: ManualFields;
   activity_entries?: any[]; // Activity entries for METs calculation
   calculator_inputs?: any; // Calculator inputs (weight, height, age, etc.)
+  nutrition_notes?: string | null; // Additional notes and instructions for nutrition
   is_public: boolean;
   created_at: string;
   updated_at: string;

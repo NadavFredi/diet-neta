@@ -8,6 +8,7 @@ import { usePrintBudgetPage } from './PrintBudgetPage';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { 
   Target, 
   Pill, 
@@ -18,14 +19,37 @@ import {
   ArrowRight,
   Calendar,
   User,
-  ArrowLeft
+  ArrowLeft,
+  Zap,
+  Heart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
 const PrintBudgetPage = () => {
   const navigate = useNavigate();
-  const { budget, nutritionTemplate, workoutTemplate, clientName, assignedDate, isLoading } = usePrintBudgetPage();
+  const { budget, nutritionTemplate, workoutTemplate, workoutPlan, workoutData, clientName, assignedDate, isLoading } = usePrintBudgetPage();
+
+  // Debug logs for workout template
+  useEffect(() => {
+    console.log('=== PrintBudgetPage Debug ===');
+    console.log('Budget:', budget);
+    console.log('Budget workout_template_id:', budget?.workout_template_id);
+    console.log('WorkoutTemplate:', workoutTemplate);
+    console.log('WorkoutPlan:', workoutPlan);
+    console.log('WorkoutData:', workoutData);
+    console.log('WorkoutData weeklyWorkout:', workoutData?.weeklyWorkout);
+    if (workoutData?.weeklyWorkout) {
+      console.log('WeeklyWorkout days:', workoutData.weeklyWorkout.days);
+      console.log('Days entries:', Object.entries(workoutData.weeklyWorkout.days || {}));
+      Object.entries(workoutData.weeklyWorkout.days || {}).forEach(([dayKey, dayData]: [string, any]) => {
+        console.log(`Day ${dayKey}:`, dayData);
+        console.log(`Day ${dayKey} exercises:`, dayData?.exercises);
+        console.log(`Day ${dayKey} exercises length:`, dayData?.exercises?.length);
+      });
+    }
+    console.log('===========================');
+  }, [budget, workoutTemplate, workoutPlan, workoutData]);
 
   const handlePrint = () => {
     window.print();
@@ -147,7 +171,13 @@ const PrintBudgetPage = () => {
                     <ArrowRight className="h-4 w-4 text-purple-600" />
                     <span className="font-semibold text-purple-800">יעד צעדים יומי</span>
                   </div>
-                  <p className="text-2xl font-bold text-purple-900">{budget.steps_goal.toLocaleString()}</p>
+                  {budget.steps_min && budget.steps_max ? (
+                    <p className="text-2xl font-bold text-purple-900">
+                      {budget.steps_min.toLocaleString()} - {budget.steps_max.toLocaleString()}
+                    </p>
+                  ) : (
+                    <p className="text-2xl font-bold text-purple-900">{budget.steps_goal.toLocaleString()}</p>
+                  )}
                   {budget.steps_instructions && (
                     <p className="text-sm text-purple-700 mt-2">{budget.steps_instructions}</p>
                   )}
@@ -199,7 +229,7 @@ const PrintBudgetPage = () => {
               {/* Nutrition Targets */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-semibold text-blue-800 mb-3">יעדי מקרו-נוטריאנטים</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-5 gap-4">
                   <div>
                     <p className="text-xs text-blue-600 mb-1">קלוריות</p>
                     <p className="text-lg font-bold text-blue-900">
@@ -224,60 +254,76 @@ const PrintBudgetPage = () => {
                       {budget.nutrition_targets?.fat || nutritionTemplate?.targets?.fat || '—'}
                     </p>
                   </div>
-                </div>
-                {(budget.nutrition_targets?.fiber_min || nutritionTemplate?.targets?.fiber) && (
-                  <div className="mt-3 pt-3 border-t border-blue-200">
+                  <div>
                     <p className="text-xs text-blue-600 mb-1">סיבים (גרם)</p>
                     <p className="text-lg font-bold text-blue-900">
                       {budget.nutrition_targets?.fiber_min || nutritionTemplate?.targets?.fiber || '—'}
                     </p>
                   </div>
-                )}
+                </div>
               </div>
+              {/* Nutrition Notes */}
+              {nutritionTemplate?.nutrition_notes && (
+                <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-800 mb-2">הערות והנחיות תזונה</h4>
+                  <p className="text-sm text-blue-900 whitespace-pre-line">{nutritionTemplate.nutrition_notes}</p>
+                </div>
+              )}
             </div>
           )}
 
           {/* Training Plan Section */}
-          {workoutTemplate && (
-            <div className="p-6 border-b border-gray-200 print:break-inside-avoid">
-              <div className="flex items-center gap-2 mb-4">
+          {(workoutData || budget.workout_template_id || workoutPlan) && (
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-2 mb-4 print:break-after-avoid">
                 <Dumbbell className="h-5 w-5 text-green-600" />
                 <h3 className="text-xl font-bold text-gray-800">תוכנית אימונים</h3>
               </div>
               
-              <div className="mb-4">
-                <p className="font-semibold text-gray-700 mb-2">{workoutTemplate.name}</p>
-                {workoutTemplate.description && (
-                  <p className="text-sm text-gray-600 mb-4">{workoutTemplate.description}</p>
-                )}
-                {workoutTemplate.goal_tags && workoutTemplate.goal_tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {workoutTemplate.goal_tags.map((tag: string, idx: number) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+              {workoutData ? (
+                <>
+                  <div className="mb-4 print:break-after-avoid">
+                    <p className="font-semibold text-gray-700 mb-2">{workoutData.name}</p>
+                    {workoutData.description && (
+                      <p className="text-sm text-gray-600 mb-4">{workoutData.description}</p>
+                    )}
+                    {workoutData.goal_tags && workoutData.goal_tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {workoutData.goal_tags.map((tag: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Weekly Schedule */}
-              {workoutTemplate.routine_data?.weeklyWorkout && (
+                  {/* Weekly Schedule */}
+                  {workoutData.weeklyWorkout ? (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <h4 className="font-semibold text-green-800 mb-3">לוח זמנים שבועי</h4>
-                  {workoutTemplate.routine_data.weeklyWorkout.generalGoals && (
+                  {workoutData.weeklyWorkout.generalGoals && (
                     <p className="text-sm text-green-700 mb-3 bg-green-100 p-2 rounded">
-                      <strong>מטרות כלליות:</strong> {workoutTemplate.routine_data.weeklyWorkout.generalGoals}
+                      <strong>מטרות כלליות:</strong> {workoutData.weeklyWorkout.generalGoals}
                     </p>
                   )}
                   <div className="space-y-4 text-sm">
-                    {Object.entries(workoutTemplate.routine_data.weeklyWorkout.days || {}).map(([dayKey, dayData]: [string, any]) => {
-                      if (!dayData || !dayData.isActive || !dayData.exercises || dayData.exercises.length === 0) {
-                        return null;
-                      }
+                    {(() => {
+                      const daysEntries = Object.entries(workoutData.weeklyWorkout.days || {});
+                      console.log('Rendering days entries:', daysEntries);
+                      return daysEntries.map(([dayKey, dayData]: [string, any]) => {
+                        // Show exercises if they exist, even if isActive is not explicitly true
+                        console.log(`Checking day ${dayKey}:`, dayData);
+                        console.log(`Day ${dayKey} has exercises:`, dayData?.exercises);
+                        console.log(`Day ${dayKey} exercises length:`, dayData?.exercises?.length);
+                        if (!dayData || !dayData.exercises || dayData.exercises.length === 0) {
+                          console.log(`Skipping day ${dayKey} - no exercises`);
+                          return null;
+                        }
+                        console.log(`Rendering day ${dayKey} with ${dayData.exercises.length} exercises`);
                       
                       const dayLabels: Record<string, string> = {
                         sunday: 'ראשון',
@@ -290,12 +336,12 @@ const PrintBudgetPage = () => {
                       };
                       
                       return (
-                        <div key={dayKey} className="bg-white rounded p-3 border border-green-200 print:break-inside-avoid">
+                        <div key={dayKey} className="bg-white rounded p-3 border border-green-200 print:break-inside-avoid print:break-after-auto">
                           <p className="font-semibold text-green-900 mb-3">{dayLabels[dayKey] || dayKey}</p>
                           <div className="overflow-x-auto">
-                            <table className="w-full border-collapse" dir="rtl">
+                            <table className="w-full border-collapse print:break-inside-auto" dir="rtl">
                               <thead>
-                                <tr className="border-b border-gray-300 bg-gray-50">
+                                <tr className="border-b border-gray-300 bg-gray-50 print:break-inside-avoid">
                                   <th className="p-4 text-right text-sm font-semibold text-gray-700 w-40">תמונה</th>
                                   <th className="p-4 text-right text-sm font-semibold text-gray-700 w-20">סטים</th>
                                   <th className="p-4 text-right text-sm font-semibold text-gray-700 w-24">חזרות</th>
@@ -320,13 +366,13 @@ const PrintBudgetPage = () => {
                                   const videoUrl = exercise.video_url && exercise.video_url.trim() ? exercise.video_url.trim() : null;
                                   
                                   return (
-                                    <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50 print:hover:bg-transparent">
+                                    <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50 print:hover:bg-transparent print:break-inside-avoid">
                                       <td className="p-4 text-center">
                                         {imageUrl ? (
                                           <img
                                             src={imageUrl}
                                             alt={exercise.name || 'תרגיל'}
-                                            className="w-32 h-32 object-cover mx-auto border border-gray-300 rounded"
+                                            className="w-32 h-32 object-cover mx-auto border border-gray-300 rounded print:w-24 print:h-24"
                                             onError={(e) => {
                                               // Fallback if image fails to load - hide the broken image
                                               const target = e.target as HTMLImageElement;
@@ -334,7 +380,7 @@ const PrintBudgetPage = () => {
                                             }}
                                           />
                                         ) : (
-                                          <div className="w-32 h-32 bg-gray-100 border border-gray-300 rounded mx-auto flex items-center justify-center">
+                                          <div className="w-32 h-32 bg-gray-100 border border-gray-300 rounded mx-auto flex items-center justify-center print:w-24 print:h-24">
                                             <span className="text-sm text-gray-400">אין תמונה</span>
                                           </div>
                                         )}
@@ -376,10 +422,128 @@ const PrintBudgetPage = () => {
                           </div>
                         </div>
                       );
-                    })}
+                      });
+                    })()}
                   </div>
                 </div>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="text-sm text-yellow-700">
+                        אין נתוני אימונים זמינים. workoutData: {JSON.stringify(workoutData)}, weeklyWorkout: {JSON.stringify(workoutData?.weeklyWorkout)}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : budget.workout_template_id ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-sm text-green-700">טוען תוכנית אימונים...</p>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <p className="text-sm text-gray-700">לא הוגדרה תוכנית אימונים</p>
+                </div>
               )}
+            </div>
+          )}
+
+          {/* Interval Training Section */}
+          {budget.interval_training && budget.interval_training.length > 0 && (
+            <div className="p-6 border-b border-gray-200 print:break-inside-avoid">
+              <div className="flex items-center gap-2 mb-4">
+                <Zap className="h-5 w-5 text-yellow-600" />
+                <h3 className="text-xl font-bold text-gray-800">אימוני אינטרוולים</h3>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-4">
+                {budget.interval_training.map((interval: any, idx: number) => (
+                  <div key={idx} className="bg-white rounded p-4 border border-yellow-200">
+                    {interval.activity_type && (
+                      <p className="font-semibold text-yellow-900 mb-3">{interval.activity_type}</p>
+                    )}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-xs text-yellow-600 mb-1">זמן פעילות</p>
+                        <p className="text-base font-bold text-yellow-900">
+                          {interval.activity_duration_seconds ? `${interval.activity_duration_seconds} שניות` : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-yellow-600 mb-1">זמן מנוחה</p>
+                        <p className="text-base font-bold text-yellow-900">
+                          {interval.rest_duration_seconds ? `${interval.rest_duration_seconds} שניות` : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-yellow-600 mb-1">סטים</p>
+                        <p className="text-base font-bold text-yellow-900">
+                          {interval.sets || '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-yellow-600 mb-1">פעמים בשבוע</p>
+                        <p className="text-base font-bold text-yellow-900">
+                          {interval.workouts_per_week || '—'}
+                        </p>
+                      </div>
+                    </div>
+                    {interval.notes && (
+                      <div className="mt-3 pt-3 border-t border-yellow-200">
+                        <p className="text-xs text-yellow-600 mb-1">הערות</p>
+                        <p className="text-sm text-yellow-900">{interval.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Aerobic Activity Section */}
+          {budget.cardio_training && budget.cardio_training.length > 0 && (
+            <div className="p-6 border-b border-gray-200 print:break-inside-avoid">
+              <div className="flex items-center gap-2 mb-4">
+                <Heart className="h-5 w-5 text-red-600" />
+                <h3 className="text-xl font-bold text-gray-800">פעילות אירובית</h3>
+              </div>
+              
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-4">
+                {budget.cardio_training.map((cardio: any, idx: number) => (
+                  <div key={idx} className="bg-white rounded p-4 border border-red-200">
+                    {cardio.name && (
+                      <p className="font-semibold text-red-900 mb-3">{cardio.name}</p>
+                    )}
+                    {cardio.type && (
+                      <p className="text-sm text-red-700 mb-3">סוג: {cardio.type}</p>
+                    )}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-xs text-red-600 mb-1">דקות</p>
+                        <p className="text-base font-bold text-red-900">
+                          {cardio.duration_minutes || '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-red-600 mb-1">תדירות</p>
+                        <p className="text-base font-bold text-red-900">
+                          {cardio.period_type || 'לשבוע'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-red-600 mb-1">פעמים בשבוע</p>
+                        <p className="text-base font-bold text-red-900">
+                          {cardio.workouts_per_week || '—'}
+                        </p>
+                      </div>
+                    </div>
+                    {cardio.notes && (
+                      <div className="mt-3 pt-3 border-t border-red-200">
+                        <p className="text-xs text-red-600 mb-1">הערות</p>
+                        <p className="text-sm text-red-900">{cardio.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -404,6 +568,19 @@ const PrintBudgetPage = () => {
                     <p className="text-sm text-orange-900 whitespace-pre-line">{budget.eating_rules}</p>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Other Notes */}
+          {budget.other_notes && (
+            <div className="p-6 border-b border-gray-200 print:break-inside-avoid">
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="h-5 w-5 text-purple-600" />
+                <h3 className="text-xl font-bold text-gray-800">הערות נוספות לתכנית</h3>
+              </div>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <p className="text-sm text-purple-900 whitespace-pre-line">{budget.other_notes}</p>
               </div>
             </div>
           )}
@@ -464,6 +641,47 @@ const PrintBudgetPage = () => {
           .print\\:break-inside-avoid {
             break-inside: avoid;
             page-break-inside: avoid;
+          }
+          
+          .print\\:break-inside-auto {
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+          
+          .print\\:break-after-avoid {
+            break-after: avoid;
+            page-break-after: avoid;
+          }
+          
+          .print\\:break-after-auto {
+            break-after: auto;
+            page-break-after: auto;
+          }
+          
+          .print\\:w-24 {
+            width: 6rem !important;
+          }
+          
+          .print\\:h-24 {
+            height: 6rem !important;
+          }
+          
+          /* Allow tables to break across pages but keep rows together */
+          table {
+            page-break-inside: auto;
+          }
+          
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          
+          thead {
+            display: table-header-group;
+          }
+          
+          tfoot {
+            display: table-footer-group;
           }
           
           .page-number::after {

@@ -467,6 +467,7 @@ export const useUpdateBudget = () => {
       eating_rules?: string | null;
       cardio_training?: CardioTraining[] | null;
       interval_training?: IntervalTraining[] | null;
+      other_notes?: string | null;
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');

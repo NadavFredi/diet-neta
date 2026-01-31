@@ -131,6 +131,7 @@ export const NutritionTemplateForm = ({
   const {
     name,
     description,
+    nutrition_notes,
     targets,
     manualOverride,
     manualFields,
@@ -139,6 +140,7 @@ export const NutritionTemplateForm = ({
     calculatorOpen,
     setName,
     setDescription,
+    setNutritionNotes,
     setTarget,
     setManualOverride,
     setManualField,
@@ -572,6 +574,21 @@ export const NutritionTemplateForm = ({
                 dir="rtl"
               />
             </div>
+          </div>
+
+          {/* Nutrition Notes and Instructions */}
+          <div className="mb-3 flex-shrink-0">
+            <Label htmlFor="nutrition_notes" className="text-base font-semibold mb-2 block text-right">
+              הערות והנחיות תזונה
+            </Label>
+            <Textarea
+              id="nutrition_notes"
+              value={nutrition_notes || ''}
+              onChange={(e) => setNutritionNotes(e.target.value)}
+              placeholder="הוסף הערות והנחיות נוספות על התזונה..."
+              className="text-base min-h-[100px] rounded-3xl"
+              dir="rtl"
+            />
           </div>
 
           {/* Main 3-Column Bento Grid - Fine Grid Layout */}

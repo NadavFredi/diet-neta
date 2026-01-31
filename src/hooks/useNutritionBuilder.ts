@@ -27,6 +27,7 @@ export interface ManualFields {
 export interface NutritionBuilderState {
   name: string;
   description: string;
+  nutrition_notes: string; // Additional notes and instructions for nutrition
   targets: NutritionTargets;
   // Manual override tracking - which fields have been manually edited
   manualOverride: ManualOverride;
@@ -68,6 +69,7 @@ export interface BMRResults {
 export interface NutritionBuilderActions {
   setName: (name: string) => void;
   setDescription: (description: string) => void;
+  setNutritionNotes: (notes: string) => void;
   setTarget: <K extends keyof NutritionTargets>(key: K, value: number, isManual?: boolean) => void;
   setTargets: (targets: Partial<NutritionTargets>) => void;
   setManualOverride: <K extends keyof ManualOverride>(key: K, value: boolean) => void;
@@ -93,6 +95,7 @@ export interface NutritionBuilderActions {
     templateData?: {
       name: string;
       description: string;
+      nutrition_notes?: string;
       targets: NutritionTargets;
       manual_override?: ManualOverride;
       manual_fields?: ManualFields;
@@ -436,6 +439,9 @@ export const useNutritionBuilder = (
   const [description, setDescription] = useState(
     initialData && 'description' in initialData ? initialData.description || '' : ''
   );
+  const [nutrition_notes, setNutritionNotes] = useState(
+    initialData && 'nutrition_notes' in initialData ? (initialData as any).nutrition_notes || '' : ''
+  );
   const [targets, setTargetsState] = useState<NutritionTargets>(() => initializeTargets(initialData));
   const [manualOverride, setManualOverrideState] = useState<ManualOverride>(() => initializeManualOverride(initialData as any));
   const [manualFields, setManualFieldsState] = useState<ManualFields>(() => initializeManualFields(initialData as any));
@@ -460,6 +466,9 @@ export const useNutritionBuilder = (
       }
       if ('description' in initialData && initialData.description !== undefined) {
         setDescription(initialData.description || '');
+      }
+      if ('nutrition_notes' in initialData && (initialData as any).nutrition_notes !== undefined) {
+        setNutritionNotes((initialData as any).nutrition_notes || '');
       }
       // Track if we found calculator_inputs in targets (for nutrition plans)
       let foundCalculatorInputsInTargets = false;
@@ -738,6 +747,7 @@ export const useNutritionBuilder = (
       const templateData = {
         name,
         description,
+        nutrition_notes: nutrition_notes || null,
         targets,
         manual_override: manualOverride || {
           calories: false,
@@ -784,11 +794,12 @@ export const useNutritionBuilder = (
         userData,
       };
     }
-  }, [name, description, targets, manualOverride, manualFields, activityEntries, calculatorInputs]);
+  }, [name, description, nutrition_notes, targets, manualOverride, manualFields, activityEntries, calculatorInputs]);
 
   const reset = useCallback(() => {
     setName('');
     setDescription('');
+    setNutritionNotes('');
     setTargetsState(initializeTargets());
     setManualOverrideState({
       calories: false,
@@ -849,6 +860,7 @@ export const useNutritionBuilder = (
   return {
     name,
     description,
+    nutrition_notes,
     targets,
     manualOverride,
     manualFields,
@@ -857,6 +869,7 @@ export const useNutritionBuilder = (
     calculatorOpen,
     setName,
     setDescription,
+    setNutritionNotes,
     setTarget,
     setTargets,
     setManualOverride,

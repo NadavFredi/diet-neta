@@ -15,6 +15,7 @@ export interface NutritionPlan {
   description?: string;
   targets: NutritionTargets;
   calculator_inputs?: any; // Calculator inputs (weight, height, age, etc.)
+  nutrition_notes?: string | null; // Additional notes and instructions for nutrition
   created_at: string;
   updated_at: string;
 }
@@ -94,6 +95,7 @@ export const useNutritionPlan = (customerId?: string) => {
           description: data.description || '',
           targets: cleanTargets as NutritionTargets,
           calculator_inputs: _calculator_inputs || data.calculator_inputs || undefined,
+          nutrition_notes: data.nutrition_notes || null,
           created_at: data.created_at,
           updated_at: data.updated_at,
         });
@@ -170,6 +172,7 @@ export const useNutritionPlan = (customerId?: string) => {
           description: data.description || '',
           targets: savedCleanTargets as NutritionTargets,
           calculator_inputs: savedCalcInputs || undefined,
+          nutrition_notes: data.nutrition_notes || null,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -240,6 +243,7 @@ export const useNutritionPlan = (customerId?: string) => {
           start_date: planData.start_date,
           description: planData.description,
           targets: targetsToSave,
+          nutrition_notes: planData.nutrition_notes !== undefined ? planData.nutrition_notes : nutritionPlan.nutrition_notes,
         })
         .eq('id', nutritionPlan.id)
         .select()
@@ -264,6 +268,7 @@ export const useNutritionPlan = (customerId?: string) => {
           description: data.description || '',
           targets: savedCleanTargets as NutritionTargets,
           calculator_inputs: savedCalcInputs || undefined,
+          nutrition_notes: data.nutrition_notes || null,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };

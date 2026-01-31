@@ -101,6 +101,7 @@ interface NutritionHistoryItem {
     fat?: number;
     fiber?: number;
   };
+  nutrition_notes?: string | null;
   budget_id?: string;
   created_at?: string;
   is_active?: boolean;
@@ -360,7 +361,7 @@ export const PlansCard = ({
   const saveActionPlan = useSaveActionPlan();
 
   // Inline editing states
-  const [editingField, setEditingField] = useState<'description' | 'eating_order' | 'eating_rules' | 'steps_goal' | 'steps_min' | 'steps_max' | 'steps_instructions' | null>(null);
+  const [editingField, setEditingField] = useState<'description' | 'eating_order' | 'eating_rules' | 'steps_goal' | 'steps_min' | 'steps_max' | 'steps_instructions' | 'other_notes' | null>(null);
   const [editValues, setEditValues] = useState<{
     description?: string;
     eating_order?: string;
@@ -369,6 +370,7 @@ export const PlansCard = ({
     steps_min?: number | null;
     steps_max?: number | null;
     steps_instructions?: string;
+    other_notes?: string;
   }>({});
   const [previousValues, setPreviousValues] = useState<{
     steps_goal?: number;
@@ -975,7 +977,7 @@ export const PlansCard = ({
           </AccordionTrigger>
           <AccordionContent>
             <div className="p-4 space-y-4">
-              {/* Budget overview: all form fields (description, eating order/rules) */}
+              {/* Budget overview: all form fields (description, eating order/rules, other notes) */}
               {overviewBudget && (overviewBudget.description?.trim() || overviewBudget.eating_order?.trim() || overviewBudget.eating_rules?.trim() || editingField) && (
                 <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
 
@@ -1304,6 +1306,78 @@ export const PlansCard = ({
                         )}
                       </div>
                     )}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        <FileText className="h-3 w-3" />
+                        הערות נוספות לתכנית
+                      </div>
+                      {editingField === 'other_notes' ? (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={editValues.other_notes || ''}
+                            onChange={(e) => setEditValues({ ...editValues, other_notes: e.target.value })}
+                            className="text-sm min-h-[80px] w-full"
+                            dir="rtl"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={async () => {
+                                if (!effectiveBudgetId || !overviewBudget) return;
+                                try {
+                                  await updateBudget.mutateAsync({
+                                    budgetId: effectiveBudgetId,
+                                    name: overviewBudget.name,
+                                    description: overviewBudget.description || null,
+                                    nutrition_template_id: overviewBudget.nutrition_template_id,
+                                    nutrition_targets: overviewBudget.nutrition_targets,
+                                    steps_goal: overviewBudget.steps_goal,
+                                    steps_instructions: overviewBudget.steps_instructions || null,
+                                    workout_template_id: overviewBudget.workout_template_id,
+                                    supplement_template_id: overviewBudget.supplement_template_id,
+                                    supplements: overviewBudget.supplements || [],
+                                    eating_order: overviewBudget.eating_order || null,
+                                    eating_rules: overviewBudget.eating_rules || null,
+                                    cardio_training: overviewBudget.cardio_training || null,
+                                    interval_training: overviewBudget.interval_training || null,
+                                    other_notes: editValues.other_notes || null,
+                                  });
+                                  setEditingField(null);
+                                  toast({ title: 'הצלחה', description: 'הערות נוספות עודכנו בהצלחה' });
+                                } catch (error: any) {
+                                  toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון ההערות', variant: 'destructive' });
+                                }
+                              }}
+                              className="h-7 text-xs"
+                            >
+                              שמור
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditValues({ ...editValues, other_notes: overviewBudget.other_notes || '' });
+                                setEditingField(null);
+                              }}
+                              className="h-7 text-xs"
+                            >
+                              ביטול
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p
+                          className={`text-sm text-slate-700 whitespace-pre-line bg-slate-50 rounded-md px-2 py-1.5 border border-slate-200 ${overviewBudget.other_notes?.trim() ? 'cursor-pointer hover:bg-slate-100 transition-colors' : 'text-slate-400 italic cursor-pointer hover:bg-slate-100 transition-colors'}`}
+                          onClick={() => {
+                            setEditValues({ ...editValues, other_notes: overviewBudget.other_notes || '' });
+                            setEditingField('other_notes');
+                          }}
+                          title="לחץ לעריכה"
+                        >
+                          {overviewBudget.other_notes?.trim() || 'לחץ להוספת הערות נוספות לתכנית...'}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1325,6 +1399,39 @@ export const PlansCard = ({
                   {activeNutrition ? (
                     <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
                       <p className="text-sm text-gray-600 font-medium truncate">{activeNutrition.description || 'ללא תיאור'}</p>
+                      {activeNutrition.nutrition_notes && (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            <FileText className="h-3 w-3" />
+                            הערות והנחיות תזונה
+                          </div>
+                          <div className="relative group">
+                            <p
+                              className="text-sm text-slate-700 whitespace-pre-line bg-slate-50 rounded-md px-2 py-1.5 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
+                              onClick={async () => {
+                                const newValue = prompt('ערוך הערות והנחיות תזונה:', activeNutrition.nutrition_notes || '');
+                                if (newValue !== null) {
+                                  try {
+                                    if (!activeNutrition?.id) return;
+                                    const { error: updateError } = await supabase
+                                      .from('nutrition_plans')
+                                      .update({ nutrition_notes: newValue || null })
+                                      .eq('id', activeNutrition.id);
+                                    if (updateError) throw updateError;
+                                    await queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+                                    toast({ title: 'הצלחה', description: 'הערות התזונה עודכנו בהצלחה' });
+                                  } catch (error: any) {
+                                    toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון הערות התזונה', variant: 'destructive' });
+                                  }
+                                }
+                              }}
+                              title="לחץ לעריכה"
+                            >
+                              {activeNutrition.nutrition_notes}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-3 gap-2">
                         <div className="flex flex-col bg-white rounded-lg p-2.5 border border-orange-100 items-center" onClick={(e) => e.stopPropagation()}>
                           <InlineEditableField

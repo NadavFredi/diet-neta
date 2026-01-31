@@ -293,6 +293,30 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
                 </div>
               </div>
             )}
+            {/* Nutrition Notes */}
+            {nutritionPlan?.nutrition_notes && (
+              <div className="mt-4 pt-4 border-t border-slate-200/60">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                  <FileText className="h-3 w-3" />
+                  הערות והנחיות תזונה
+                </div>
+                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
+                  {nutritionPlan.nutrition_notes}
+                </p>
+              </div>
+            )}
+            {/* Other Notes */}
+            {budget.other_notes && (
+              <div className="mt-4 pt-4 border-t border-slate-200/60">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                  <FileText className="h-3 w-3" />
+                  הערות נוספות לתכנית
+                </div>
+                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
+                  {budget.other_notes}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Nutrition Targets and Supplements - Side by Side */}

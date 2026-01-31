@@ -64,6 +64,7 @@ export interface Budget {
   eating_rules: string | null;
   cardio_training: CardioTraining[] | null;
   interval_training: IntervalTraining[] | null;
+  other_notes?: string | null; // Other notes for the plan
   is_public: boolean;
   created_at: string;
   updated_at: string;
