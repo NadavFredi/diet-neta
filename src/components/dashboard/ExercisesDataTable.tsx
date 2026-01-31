@@ -15,7 +15,6 @@ interface ExercisesDataTableProps {
   sortOrder?: 'ASC' | 'DESC';
   groupCurrentPage?: number;
   groupPageSize?: number;
-  onCategoryUpdate?: (exerciseId: string, category: string) => Promise<void>;
 }
 
 export const ExercisesDataTable = ({
@@ -28,7 +27,6 @@ export const ExercisesDataTable = ({
   sortOrder,
   groupCurrentPage,
   groupPageSize,
-  onCategoryUpdate,
 }: ExercisesDataTableProps) => {
   // CRITICAL: Pass ALL columns from schema to DataTable
   // This ensures the column visibility popover shows ALL available Exercise columns
@@ -102,9 +100,6 @@ export const ExercisesDataTable = ({
       serverSideSorting={!!onSortChange}
       sortBy={sortBy}
       sortOrder={sortOrder}
-      meta={{
-        onCategoryUpdate,
-      }}
     />
   );
 };

@@ -183,21 +183,6 @@ export const useExercisesManagement = () => {
     }
   };
 
-  const handleCategoryUpdate = async (exerciseId: string, category: string | null) => {
-    try {
-      await updateExercise.mutateAsync({
-        exerciseId,
-        category: category || null,
-      });
-    } catch (error: any) {
-      toast({
-        title: 'שגיאה',
-        description: error?.message || 'נכשל בעדכון הקטגוריה',
-        variant: 'destructive',
-      });
-      throw error;
-    }
-  };
 
   const handleDeleteClick = (exercise: Exercise) => {
     setExerciseToDelete(exercise);
@@ -288,7 +273,6 @@ export const useExercisesManagement = () => {
     handleBulkDelete,
     handleSortChange,
     handleSaveViewClick,
-    handleCategoryUpdate,
     getCurrentFilterConfig,
     
     // Mutations

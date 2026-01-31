@@ -52,7 +52,6 @@ const ExercisesManagement = () => {
     handleConfirmDelete,
     handleBulkDelete,
     handleSaveViewClick,
-    handleCategoryUpdate,
     getCurrentFilterConfig,
     deleteExercise,
     sortBy,
@@ -153,7 +152,6 @@ const ExercisesManagement = () => {
                 onSortChange={handleSortChange}
                 sortBy={sortBy || undefined}
                 sortOrder={sortOrder || undefined}
-                onCategoryUpdate={handleCategoryUpdate}
               />
             </div>
           )}

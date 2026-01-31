@@ -13,6 +13,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView, type FilterConfig } from '@/hooks/useSavedViews';
 import { useSyncSavedViewFilters } from '@/hooks/useSyncSavedViewFilters';
+import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
+import { useToast } from '@/hooks/use-toast';
 import { 
   selectActiveFilters,
   selectFilterGroup, 
@@ -82,6 +84,12 @@ export const usePaymentsManagement = () => {
   }, [dispatch]);
 
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
+  const { toast } = useToast();
+
+  const bulkDeletePayments = useBulkDeleteRecords({
+    table: 'payments',
+    invalidateKeys: [['all-payments'], ['payment-history']],
+  });
 
   const handleLogout = () => {
     dispatch(logoutUser());
@@ -91,6 +99,23 @@ export const usePaymentsManagement = () => {
   const handleSaveViewClick = () => {
     setIsSaveViewModalOpen(true);
   };
+
+  const handleBulkDelete = useCallback(async (payload: { ids: string[]; selectAllAcrossPages: boolean; totalCount: number }) => {
+    try {
+      await bulkDeletePayments.mutateAsync(payload.ids);
+      toast({
+        title: 'הצלחה',
+        description: 'התשלומים נמחקו בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל במחיקת התשלומים',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  }, [bulkDeletePayments, toast]);
 
   const handleSortChange = useCallback((columnId: string, order: 'ASC' | 'DESC') => {
     dispatch(setSortBy({ resourceKey: 'payments', sortBy: columnId }));
@@ -153,5 +178,7 @@ export const usePaymentsManagement = () => {
     totalPayments,
     handlePageChange,
     handlePageSizeChange,
+    // Bulk delete
+    handleBulkDelete,
   };
 };
