@@ -118,8 +118,8 @@ const PrintBudgetPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="min-h-screen bg-gray-50 p-8 print:p-0 print:bg-white" dir="rtl">
-        <div className="max-w-4xl mx-auto bg-white print:shadow-none shadow-xl rounded-xl print:rounded-none overflow-hidden">
+      <div className="min-h-screen bg-gray-50 p-8 print:p-4 print:bg-gray-50" dir="rtl">
+        <div className="max-w-4xl mx-auto bg-white print:shadow-xl print:rounded-xl shadow-xl rounded-xl overflow-hidden">
           
           {/* Header */}
           <div className="text-white p-8 print:p-6 print-header-bg" style={{ backgroundColor: '#E96A8F' }}>
@@ -612,13 +612,21 @@ const PrintBudgetPage = () => {
         @media print {
           @page {
             size: A4;
-            margin: 1.5cm;
+            margin: 0.5cm;
           }
           
-          body {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-            background: white;
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #f3f4f6 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           
           .print\\:hidden {
@@ -629,16 +637,20 @@ const PrintBudgetPage = () => {
             background: white !important;
           }
           
-          .print\\:shadow-none {
-            box-shadow: none !important;
+          .print\\:bg-gray-50 {
+            background: #f9fafb !important;
           }
           
-          .print\\:rounded-none {
-            border-radius: 0 !important;
+          .print\\:shadow-xl {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
           }
           
-          .print\\:p-0 {
-            padding: 0 !important;
+          .print\\:rounded-xl {
+            border-radius: 0.75rem !important;
+          }
+          
+          .print\\:p-4 {
+            padding: 1rem !important;
           }
           
           .print\\:p-6 {
@@ -647,6 +659,26 @@ const PrintBudgetPage = () => {
           
           .print-header-bg {
             background: #E96A8F !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Preserve all colors and backgrounds */
+          [class*="bg-"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Preserve borders */
+          [class*="border"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Preserve text colors */
+          [class*="text-"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           
           .print\\:break-inside-avoid {
