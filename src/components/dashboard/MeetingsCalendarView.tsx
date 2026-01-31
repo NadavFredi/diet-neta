@@ -5,7 +5,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format, isSameDay, parseISO, isValid, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addDays, setMonth, setYear } from 'date-fns';
+import { format, isSameDay, parseISO, isValid, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addDays, setMonth, setYear, startOfDay, endOfDay, eachHourOfInterval, addWeeks, subWeeks } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import type { Meeting } from '@/hooks/useMeetings';
@@ -15,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Settings, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover as SettingsPopover,
@@ -24,6 +24,35 @@ import {
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import {
+  DndContext,
+  DragOverlay,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  DragEndEvent,
+  DragStartEvent,
+  useDroppable,
+  useDraggable,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { supabase } from '@/lib/supabaseClient';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface MeetingsCalendarViewProps {
   meetings: Meeting[];
@@ -39,6 +68,70 @@ const availableFields = [
   { id: 'phone', label: 'טלפון', default: false },
   { id: 'email', label: 'אימייל', default: false },
 ];
+
+// Draggable Meeting Component
+const DraggableMeetingCard = ({ meeting, date }: { meeting: Meeting; date: Date }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: meeting.id,
+  });
+
+  const style = transform ? {
+    transform: CSS.Translate.toString(transform),
+  } : undefined;
+
+  const customer = getMeetingCustomer(meeting);
+  const time = getMeetingTimeDisplayValue(meeting);
+  const customerName = customer?.full_name;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={cn(
+        "text-xs text-gray-600 bg-gray-100 rounded px-1 py-0.5 cursor-grab active:cursor-grabbing flex items-center gap-1",
+        isDragging && "opacity-50"
+      )}
+    >
+      <GripVertical className="h-3 w-3 text-gray-400" />
+      {time && <span>{time}</span>}
+      {customerName && <span className="font-medium">{customerName}</span>}
+    </div>
+  );
+};
+
+// Droppable Date Cell Component
+const DroppableDateCell = ({ 
+  date, 
+  children, 
+  isCurrentMonth, 
+  isToday 
+}: { 
+  date: Date; 
+  children: React.ReactNode;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+}) => {
+  const dateKey = format(date, 'yyyy-MM-dd');
+  const { setNodeRef, isOver } = useDroppable({
+    id: `date-${dateKey}`,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "min-h-[100px] bg-white p-2 flex flex-col transition-colors",
+        !isCurrentMonth && "bg-gray-50",
+        isToday && "bg-blue-50 border-2 border-blue-500",
+        isOver && "bg-blue-100 border-2 border-blue-400"
+      )}
+    >
+      {children}
+    </div>
+  );
+};
 
 // Helper functions from meetingColumns.tsx
 const getMeetingCustomer = (meeting: Meeting) => meeting.customer || (meeting.lead as any)?.customer;
@@ -160,12 +253,19 @@ const getMeetingTypeValue = (meeting: Meeting) => {
 };
 
 type ViewMode = 'calendar' | 'month' | 'year';
+type CalendarViewType = 'month' | 'week' | 'day';
 
 export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meetings, onAddMeeting }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
+  const [currentDay, setCurrentDay] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [calendarViewType, setCalendarViewType] = useState<CalendarViewType>('month');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [draggedMeeting, setDraggedMeeting] = useState<Meeting | null>(null);
   
   // Field visibility state - initialize with defaults
   const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>(() => {
@@ -175,6 +275,16 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
     });
     return defaults;
   });
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
 
   // Group meetings by date
   const meetingsByDate = useMemo(() => {
@@ -200,28 +310,156 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
     return meetingsByDate[dateKey] || [];
   };
 
-  // Get calendar days for the month
+  // Get calendar days based on view type
   const calendarDays = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday = 0
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
-    
-    return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-  }, [currentMonth]);
+    if (calendarViewType === 'month') {
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday = 0
+      const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+      return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    } else if (calendarViewType === 'week') {
+      const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 0 });
+      return eachDayOfInterval({ start: weekStart, end: weekEnd });
+    } else {
+      // Day view
+      return [currentDay];
+    }
+  }, [currentMonth, currentWeek, currentDay, calendarViewType]);
 
-  // Navigation handlers
-  const goToPreviousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  // Get week range for display
+  const weekRange = useMemo(() => {
+    if (calendarViewType === 'week') {
+      const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 0 });
+      return { start: weekStart, end: weekEnd };
+    }
+    return null;
+  }, [currentWeek, calendarViewType]);
+
+  // Update meeting date when dragged
+  const updateMeetingDate = async (meetingId: string, newDate: Date) => {
+    try {
+      // Get the meeting to preserve existing data
+      const { data: meeting, error: fetchError } = await supabase
+        .from('meetings')
+        .select('*')
+        .eq('id', meetingId)
+        .single();
+
+      if (fetchError || !meeting) throw fetchError;
+
+      const meetingData = meeting.meeting_data || {};
+      const schedulingData = getMeetingSchedulingData(meetingData);
+      
+      // Preserve the time from existing meeting
+      let newStartTime = newDate;
+      let newEndTime = newDate;
+      
+      if (schedulingData?.eventStartTime) {
+        const oldStart = new Date(schedulingData.eventStartTime);
+        newStartTime = new Date(newDate);
+        newStartTime.setHours(oldStart.getHours(), oldStart.getMinutes(), oldStart.getSeconds());
+        
+        if (schedulingData?.eventEndTime) {
+          const oldEnd = new Date(schedulingData.eventEndTime);
+          newEndTime = new Date(newDate);
+          newEndTime.setHours(oldEnd.getHours(), oldEnd.getMinutes(), oldEnd.getSeconds());
+        }
+      }
+
+      // Update meeting_data with new dates
+      const updatedMeetingData = {
+        ...meetingData,
+        'תאריך': format(newDate, 'yyyy-MM-dd'),
+        'תאריך פגישה': format(newDate, 'yyyy-MM-dd'),
+        date: format(newDate, 'yyyy-MM-dd'),
+        meeting_date: format(newDate, 'yyyy-MM-dd'),
+        event_start_time: newStartTime.toISOString(),
+        eventStartTime: newStartTime.toISOString(),
+        event_end_time: newEndTime.toISOString(),
+        eventEndTime: newEndTime.toISOString(),
+      };
+
+      const { error: updateError } = await supabase
+        .from('meetings')
+        .update({ meeting_data: updatedMeetingData })
+        .eq('id', meetingId);
+
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ['meetings'] });
+      
+      toast({
+        title: 'הצלחה',
+        description: 'תאריך הפגישה עודכן בהצלחה',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'לא ניתן לעדכן את תאריך הפגישה',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const goToNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  // Drag handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const meetingId = active.id as string;
+    const meeting = meetings.find(m => m.id === meetingId);
+    if (meeting) {
+      setDraggedMeeting(meeting);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setDraggedMeeting(null);
+
+    if (!over) return;
+
+    const meetingId = active.id as string;
+    const targetDateStr = over.id as string;
+
+    // Parse target date (format: "date-YYYY-MM-DD")
+    if (targetDateStr.startsWith('date-')) {
+      const dateStr = targetDateStr.replace('date-', '');
+      const targetDate = parseISO(dateStr);
+      
+      if (isValid(targetDate)) {
+        updateMeetingDate(meetingId, targetDate);
+      }
+    }
+  };
+
+  // Navigation handlers
+  const goToPrevious = () => {
+    if (calendarViewType === 'month') {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    } else if (calendarViewType === 'week') {
+      setCurrentWeek(subWeeks(currentWeek, 1));
+    } else if (calendarViewType === 'day') {
+      setCurrentDay(addDays(currentDay, -1));
+    }
+  };
+
+  const goToNext = () => {
+    if (calendarViewType === 'month') {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    } else if (calendarViewType === 'week') {
+      setCurrentWeek(addWeeks(currentWeek, 1));
+    } else if (calendarViewType === 'day') {
+      setCurrentDay(addDays(currentDay, 1));
+    }
   };
 
   const goToToday = () => {
     const today = new Date();
     setCurrentMonth(today);
+    setCurrentWeek(today);
+    setCurrentDay(today);
     setSelectedYear(today.getFullYear());
     setViewMode('calendar');
   };
@@ -247,10 +485,13 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
   };
 
   const toggleFieldVisibility = (fieldId: string) => {
-    setVisibleFields(prev => ({
-      ...prev,
-      [fieldId]: !prev[fieldId]
-    }));
+    setVisibleFields(prev => {
+      const newFields = {
+        ...prev,
+        [fieldId]: !prev[fieldId]
+      };
+      return newFields;
+    });
   };
 
   const today = new Date();
@@ -280,7 +521,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={goToPreviousMonth}
+                onClick={goToPrevious}
                 className="h-8 w-8 p-0 hover:bg-gray-100"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -288,7 +529,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={goToNextMonth}
+                onClick={goToNext}
                 className="h-8 w-8 p-0 hover:bg-gray-100"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -324,7 +565,17 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
             )}
             onClick={viewMode === 'calendar' ? handleMonthClick : undefined}
           >
-            {viewMode === 'calendar' && format(currentMonth, 'MMMM yyyy', { locale: he })}
+            {viewMode === 'calendar' && (
+              <>
+                {calendarViewType === 'month' && format(currentMonth, 'MMMM yyyy', { locale: he })}
+                {calendarViewType === 'week' && weekRange && (
+                  <>
+                    {format(weekRange.start, 'd', { locale: he })} - {format(weekRange.end, 'd בMMMM yyyy', { locale: he })}
+                  </>
+                )}
+                {calendarViewType === 'day' && format(currentDay, 'EEEE, d בMMMM yyyy', { locale: he })}
+              </>
+            )}
             {viewMode === 'month' && (
               <span 
                 className="cursor-pointer hover:text-blue-600"
@@ -337,6 +588,19 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
           </h2>
         </div>
         <div className="flex items-center gap-2">
+          {/* View Type Selector */}
+          {viewMode === 'calendar' && (
+            <Select value={calendarViewType} onValueChange={(value) => setCalendarViewType(value as CalendarViewType)}>
+              <SelectTrigger className="w-24 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent dir="rtl">
+                <SelectItem value="month">חודש</SelectItem>
+                <SelectItem value="week">שבוע</SelectItem>
+                <SelectItem value="day">יום</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <SettingsPopover>
             <SettingsPopoverTrigger asChild>
               <Button
@@ -350,21 +614,29 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
             <SettingsPopoverContent className="w-64" dir="rtl">
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm mb-3">שדות להצגה בכרטיסי פגישות</h4>
-                {availableFields.map((field) => (
-                  <div key={field.id} className="flex items-center space-x-2 space-x-reverse">
-                    <Checkbox
-                      id={`field-${field.id}`}
-                      checked={visibleFields[field.id] || false}
-                      onCheckedChange={() => toggleFieldVisibility(field.id)}
-                    />
-                    <Label
-                      htmlFor={`field-${field.id}`}
-                      className="text-sm font-normal cursor-pointer flex-1"
-                    >
-                      {field.label}
-                    </Label>
-                  </div>
-                ))}
+                {availableFields.map((field) => {
+                  const isChecked = visibleFields[field.id] ?? field.default;
+                  return (
+                    <div key={field.id} className="flex items-center space-x-2 space-x-reverse">
+                      <Checkbox
+                        id={`field-${field.id}`}
+                        checked={isChecked}
+                        onCheckedChange={(checked) => {
+                          setVisibleFields(prev => ({
+                            ...prev,
+                            [field.id]: checked === true
+                          }));
+                        }}
+                      />
+                      <Label
+                        htmlFor={`field-${field.id}`}
+                        className="text-sm font-normal cursor-pointer flex-1"
+                      >
+                        {field.label}
+                      </Label>
+                    </div>
+                  );
+                })}
               </div>
             </SettingsPopoverContent>
           </SettingsPopover>
@@ -380,93 +652,99 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
       </div>
 
       {/* Calendar Content */}
-      <div className="flex-1 overflow-auto p-4">
-        {viewMode === 'calendar' && (
-          <div className="w-full">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex-1 overflow-auto p-4">
+          {viewMode === 'calendar' && (
+            <div className="w-full">
             {/* Days of week header */}
-            <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-t-lg">
-              {weekDays.map((day) => (
-                <div
-                  key={day}
-                  className="bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-600 border-b border-gray-200"
-                >
-                  {day}
-                </div>
-              ))}
-            </div>
+            {calendarViewType !== 'day' && (
+              <div className={cn(
+                "grid gap-px bg-gray-200 border border-gray-200 rounded-t-lg",
+                calendarViewType === 'month' && "grid-cols-7",
+                calendarViewType === 'week' && "grid-cols-7"
+              )}>
+                {weekDays.map((day) => (
+                  <div
+                    key={day}
+                    className="bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-600 border-b border-gray-200"
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Calendar days grid */}
-            <div className="grid grid-cols-7 gap-px bg-gray-200 border-x border-b border-gray-200 rounded-b-lg">
+            <div className={cn(
+              "grid gap-px bg-gray-200 border-x border-b border-gray-200 rounded-b-lg",
+              calendarViewType === 'month' && "grid-cols-7",
+              calendarViewType === 'week' && "grid-cols-7",
+              calendarViewType === 'day' && "grid-cols-1"
+            )}>
               {calendarDays.map((date, index) => {
+                const dateKey = format(date, 'yyyy-MM-dd');
                 const dayMeetings = getMeetingsForDate(date);
                 const hasMeetings = dayMeetings.length > 0;
                 const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
                 const isToday = isSameDay(date, today);
                 const firstMeeting = dayMeetings[0];
                 const firstMeetingTime = firstMeeting ? getMeetingTimeDisplayValue(firstMeeting) : null;
+                
+                // Create a key that includes visibleFields to force re-render
+                const fieldsKey = Object.entries(visibleFields)
+                  .filter(([_, visible]) => visible)
+                  .map(([id]) => id)
+                  .sort()
+                  .join('-');
 
                 return (
-                  <Popover key={index}>
+                  <Popover key={`${dateKey}-${index}-${fieldsKey}`}>
                     <PopoverTrigger asChild>
-                      <div
-                        className={cn(
-                          "min-h-[100px] bg-white p-2 flex flex-col cursor-pointer transition-colors hover:bg-gray-50",
-                          !isCurrentMonth && "bg-gray-50",
-                          isToday && "bg-blue-50 border-2 border-blue-500"
-                        )}
+                      <DroppableDateCell 
+                        date={date}
+                        isCurrentMonth={isCurrentMonth}
+                        isToday={isToday}
                       >
-                            {/* Date number */}
-                            <div className={cn(
-                              "text-sm font-medium mb-1",
-                              isCurrentMonth ? "text-gray-900" : "text-gray-400",
-                              isToday && "text-blue-600 font-bold"
-                            )}>
-                              {format(date, 'd')}
-                            </div>
+                        {/* Date number */}
+                        <div className={cn(
+                          "text-sm font-medium mb-1",
+                          isCurrentMonth ? "text-gray-900" : "text-gray-400",
+                          isToday && "text-blue-600 font-bold"
+                        )}>
+                          {format(date, 'd')}
+                        </div>
 
-                            {/* Meeting content */}
-                            <div className="flex-1 flex flex-col gap-1">
-                              {hasMeetings ? (
-                                <>
-                                  {firstMeeting && (() => {
-                                    const customer = getMeetingCustomer(firstMeeting);
-                                    const time = getMeetingTimeDisplayValue(firstMeeting);
-                                    const customerName = customer?.full_name;
-                                    
-                                    return (
-                                      <>
-                                        {visibleFields.time && time && (
-                                          <div className="text-xs text-gray-600 bg-gray-100 rounded px-1 py-0.5">
-                                            {time}
-                                          </div>
-                                        )}
-                                        {visibleFields.customer_name && customerName && (
-                                          <div className="text-xs text-gray-700 font-medium truncate">
-                                            {customerName}
-                                          </div>
-                                        )}
-                                        {dayMeetings.length > 1 && (
-                                          <div className="text-xs text-gray-500">
-                                            +{dayMeetings.length - 1} נוספות
-                                          </div>
-                                        )}
-                                      </>
-                                    );
-                                  })()}
-                                </>
-                              ) : (
-                                <div className="flex items-center justify-center flex-1">
-                                  <Plus className="h-4 w-4 text-gray-300" />
+                        {/* Meeting content */}
+                        <div className="flex-1 flex flex-col gap-1">
+                          {hasMeetings ? (
+                            <>
+                              {dayMeetings.slice(0, 3).map((meeting) => (
+                                <DraggableMeetingCard key={meeting.id} meeting={meeting} date={date} />
+                              ))}
+                              {dayMeetings.length > 3 && (
+                                <div className="text-xs text-gray-500">
+                                  +{dayMeetings.length - 3} נוספות
                                 </div>
                               )}
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-center flex-1">
+                              <Plus className="h-4 w-4 text-gray-300" />
                             </div>
-                          </div>
-                        </PopoverTrigger>
+                          )}
+                        </div>
+                      </DroppableDateCell>
+                    </PopoverTrigger>
                         <PopoverContent className="w-80 p-0" align="start" dir="rtl">
                           {hasMeetings ? (
                             <>
                               <div className="p-3 border-b border-gray-200">
-                                <h3 className="font-semibold text-gray-900">
+                                <h3 className="text-lg font-semibold text-gray-900">
                                   {format(date, 'EEEE, d בMMMM yyyy', { locale: he })}
                                 </h3>
                                 <p className="text-sm text-gray-500 mt-1">
@@ -531,6 +809,18 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                                   );
                                 })}
                               </div>
+                              {/* Always show "Create Appointment" button */}
+                              <div className="p-3 border-t border-gray-200">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full"
+                                  onClick={() => onAddMeeting?.(date)}
+                                >
+                                  <Plus className="h-4 w-4 ml-2" />
+                                  צור פגישה חדשה
+                                </Button>
+                              </div>
                             </>
                           ) : (
                             <div className="p-3 text-center space-y-3">
@@ -593,7 +883,23 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
             ))}
           </div>
         )}
-      </div>
+
+        {/* Drag Overlay */}
+        <DragOverlay>
+          {draggedMeeting && (
+            <div className="text-xs text-gray-600 bg-gray-100 rounded px-2 py-1 shadow-lg flex items-center gap-1">
+              <GripVertical className="h-3 w-3 text-gray-400" />
+              {getMeetingTimeDisplayValue(draggedMeeting) && (
+                <span>{getMeetingTimeDisplayValue(draggedMeeting)}</span>
+              )}
+              {getMeetingCustomer(draggedMeeting)?.full_name && (
+                <span className="font-medium">{getMeetingCustomer(draggedMeeting)?.full_name}</span>
+              )}
+            </div>
+          )}
+        </DragOverlay>
+        </div>
+      </DndContext>
 
       {/* Footer with record count */}
       <div className="px-4 py-2 border-t border-gray-200 text-sm text-gray-600">

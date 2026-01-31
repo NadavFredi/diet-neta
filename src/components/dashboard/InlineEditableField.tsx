@@ -104,9 +104,10 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
     // Only update editValue if we're not currently editing or saving
     // This prevents the value from reverting while saving
     if (!isEditing && !isSaving) {
+      console.log('[InlineEditableField] Value changed from external source:', { oldValue: editValue, newValue: value, type });
       setEditValue(String(value));
     }
-  }, [value, isEditing, isSaving]);
+  }, [value, isEditing, isSaving, editValue, type]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
@@ -114,7 +115,16 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
   }, [value]);
 
   const handleSave = useCallback(async () => {
+    console.log('[InlineEditableField] handleSave called', {
+      editValue,
+      value,
+      type,
+      isTypingMode,
+      editValueType: typeof editValue
+    });
+
     if (editValue === String(value)) {
+      console.log('[InlineEditableField] No change detected, skipping save');
       setIsEditing(false);
       return;
     }
@@ -122,6 +132,7 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
     setIsSaving(true);
     try {
       let finalValue: string | number = editValue;
+
       if (type === 'number') {
         finalValue = Number(editValue);
         if (isNaN(finalValue)) {
@@ -131,29 +142,91 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
         if (Math.abs(finalValue) > 1000000) {
           throw new Error('המספר גדול מדי');
         }
+      } else if (type === 'date') {
+        console.log('[InlineEditableField] Processing date type', { editValue, editValueLength: editValue?.length });
+
+        // Parse the date value before saving
+        if (editValue && editValue.trim()) {
+          const formats = ['dd/MM/yyyy', 'd/M/yyyy', 'dd-MM-yyyy', 'd-M-yyyy', 'dd.MM.yyyy', 'd.M.yyyy', 'yyyy-MM-dd', 'd/M/yy', 'dd/MM/yy'];
+          let parsed: Date | null = null;
+
+          console.log('[InlineEditableField] Trying to parse date with formats:', formats);
+
+          for (const fmt of formats) {
+            try {
+              const attempt = parse(editValue, fmt, new Date());
+              console.log('[InlineEditableField] Parse attempt', { format: fmt, result: attempt, isValid: isValid(attempt) });
+              if (isValid(attempt)) {
+                parsed = attempt;
+                console.log('[InlineEditableField] Successfully parsed date:', parsed);
+                break;
+              }
+            } catch (err) {
+              console.log('[InlineEditableField] Parse failed for format', fmt, err);
+              continue;
+            }
+          }
+
+          // If parsed successfully, format it as YYYY-MM-DD for storage
+          if (parsed && isValid(parsed)) {
+            const year = parsed.getFullYear();
+            const month = String(parsed.getMonth() + 1).padStart(2, '0');
+            const day = String(parsed.getDate()).padStart(2, '0');
+            finalValue = `${year}-${month}-${day}`;
+            console.log('[InlineEditableField] Formatted date for storage:', finalValue);
+          } else {
+            console.log('[InlineEditableField] Date parsing failed, trying YYYY-MM-DD format');
+            // Invalid date - try to parse as YYYY-MM-DD directly
+            if (/^\d{4}-\d{2}-\d{2}$/.test(editValue)) {
+              const date = new Date(editValue);
+              console.log('[InlineEditableField] Direct Date constructor result:', date, 'isValid:', isValid(date));
+              if (isValid(date)) {
+                finalValue = editValue;
+                console.log('[InlineEditableField] Using direct YYYY-MM-DD format:', finalValue);
+              } else {
+                console.error('[InlineEditableField] Invalid date format');
+                throw new Error('תאריך לא תקין');
+              }
+            } else {
+              console.error('[InlineEditableField] No valid date format found for:', editValue);
+              throw new Error('תאריך לא תקין');
+            }
+          }
+        } else {
+          // Empty date - allow it
+          console.log('[InlineEditableField] Empty date value, allowing');
+          finalValue = '';
+        }
       }
+
+      console.log('[InlineEditableField] Final value to save:', finalValue);
 
       // Update local state optimistically
       setEditValue(String(finalValue));
       setIsEditing(false);
+      setIsTypingMode(false);
 
       // Await the save to ensure it completes
       try {
+        console.log('[InlineEditableField] Calling onSave with:', finalValue);
         await onSave(finalValue);
+        console.log('[InlineEditableField] onSave completed successfully');
       } catch (error) {
+        console.error('[InlineEditableField] onSave failed:', error);
         // On error, revert to original value
         setEditValue(String(value));
         setIsEditing(true);
         throw error;
       }
     } catch (error) {
+      console.error('[InlineEditableField] Save error:', error);
       setEditValue(String(value));
       setIsSaving(false);
       throw error;
     } finally {
       setIsSaving(false);
     }
-  }, [editValue, value, type, onSave]);
+  }, [editValue, value, type, onSave, isTypingMode]);
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
@@ -233,30 +306,41 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
   }, [dateValue, handleDateSelect]);
 
   // Format date value for display in input (dd/mm/yyyy)
+  // When typing, show raw input; when not typing, show formatted date
   const displayDateValue = useMemo(() => {
-    if (type === 'date' && editValue) {
-      // Try to parse and format
-      const formats = ['dd/MM/yyyy', 'd/M/yyyy', 'yyyy-MM-dd', 'dd-MM-yyyy'];
-      for (const fmt of formats) {
-        try {
-          const parsed = parse(editValue, fmt, new Date());
-          if (isValid(parsed)) {
-            return format(parsed, 'dd/MM/yyyy');
-          }
-        } catch {
-          continue;
-        }
+    if (type === 'date') {
+      // If user is actively typing, show the raw input value
+      if (isTypingMode) {
+        return editValue;
       }
-      // If it's already in YYYY-MM-DD format, convert it
-      if (/^\d{4}-\d{2}-\d{2}$/.test(editValue)) {
-        const date = new Date(editValue);
-        if (isValid(date)) {
-          return format(date, 'dd/MM/yyyy');
+
+      // Otherwise, format the date for display
+      if (editValue) {
+        // Try to parse and format
+        const formats = ['dd/MM/yyyy', 'd/M/yyyy', 'yyyy-MM-dd', 'dd-MM-yyyy', 'd/M/yy', 'dd/MM/yy'];
+        for (const fmt of formats) {
+          try {
+            const parsed = parse(editValue, fmt, new Date());
+            if (isValid(parsed)) {
+              return format(parsed, 'dd/MM/yyyy');
+            }
+          } catch {
+            continue;
+          }
         }
+        // If it's already in YYYY-MM-DD format, convert it
+        if (/^\d{4}-\d{2}-\d{2}$/.test(editValue)) {
+          const date = new Date(editValue);
+          if (isValid(date)) {
+            return format(date, 'dd/MM/yyyy');
+          }
+        }
+        // If it looks like a partial date being typed, return as-is
+        return editValue;
       }
     }
     return editValue;
-  }, [editValue, type]);
+  }, [editValue, type, isTypingMode]);
 
   if (isEditing) {
     return (
@@ -279,7 +363,11 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
                         if (isCalendarOpen) {
                           setIsCalendarOpen(false);
                         }
-                        setEditValue(e.target.value);
+                        // Allow free typing - don't restrict or format while typing
+                        const rawValue = e.target.value;
+                        // Only allow digits, slashes, dashes, and dots
+                        const sanitized = rawValue.replace(/[^\d./-]/g, '');
+                        setEditValue(sanitized);
                       }}
                       onKeyDown={(e) => {
                         // Enter typing mode on any printable key
@@ -308,19 +396,52 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
                         }
                       }}
                       onBlur={(e) => {
+                        console.log('[InlineEditableField] onBlur triggered', {
+                          isTypingMode,
+                          editValue,
+                          relatedTarget: e.relatedTarget
+                        });
+
                         // Don't close calendar if clicking inside it
                         const relatedTarget = e.relatedTarget as HTMLElement | null;
                         if (relatedTarget && relatedTarget.closest('[data-date-picker-portal]')) {
+                          console.log('[InlineEditableField] Blur caused by calendar click, ignoring');
                           return;
                         }
                         // If in typing mode, parse and validate the date
-                        if (isTypingMode) {
-                          const parsed = dateValue;
+                        if (isTypingMode && editValue) {
+                          console.log('[InlineEditableField] Processing blur in typing mode');
+                          // Try to parse the typed value
+                          const formats = ['dd/MM/yyyy', 'd/M/yyyy', 'dd-MM-yyyy', 'd-M-yyyy', 'dd.MM.yyyy', 'd.M.yyyy', 'yyyy-MM-dd', 'd/M/yy', 'dd/MM/yy'];
+                          let parsed: Date | null = null;
+
+                          for (const fmt of formats) {
+                            try {
+                              const attempt = parse(editValue, fmt, new Date());
+                              if (isValid(attempt)) {
+                                parsed = attempt;
+                                console.log('[InlineEditableField] Parsed date in blur:', parsed);
+                                break;
+                              }
+                            } catch {
+                              continue;
+                            }
+                          }
+
+                          // If parsed successfully, format it properly
                           if (parsed && isValid(parsed)) {
                             const year = parsed.getFullYear();
                             const month = String(parsed.getMonth() + 1).padStart(2, '0');
                             const day = String(parsed.getDate()).padStart(2, '0');
-                            setEditValue(`${year}-${month}-${day}`);
+                            const formatted = `${year}-${month}-${day}`;
+                            console.log('[InlineEditableField] Formatted date in blur:', formatted);
+                            setEditValue(formatted);
+                          } else {
+                            // Invalid date - restore to last valid value
+                            console.log('[InlineEditableField] Invalid date in blur, restoring to:', value);
+                            if (value) {
+                              setEditValue(String(value));
+                            }
                           }
                           setIsTypingMode(false);
                         }
