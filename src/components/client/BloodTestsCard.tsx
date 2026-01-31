@@ -73,13 +73,13 @@ export const BloodTestsCard: React.FC<BloodTestsCardProps> = ({
             ref={fileInputRef}
             type="file"
             multiple
-            accept="application/pdf"
+            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
             onChange={handleFileInputChange}
             className="hidden"
           />
           <Upload className="h-8 w-8 mx-auto mb-3 text-gray-400" />
           <p className="text-sm text-gray-600 mb-2">
-            גרור קובץ PDF לכאן או לחץ להעלאה
+            גרור קבצים (תמונות או PDF) לכאן או לחץ להעלאה
           </p>
           <Button
             onClick={() => fileInputRef.current?.click()}
@@ -95,7 +95,7 @@ export const BloodTestsCard: React.FC<BloodTestsCardProps> = ({
             ) : (
               <>
                 <Upload className="h-4 w-4 ml-2" />
-                העלה קובץ PDF
+                העלה קבצים
               </>
             )}
           </Button>
@@ -111,7 +111,7 @@ export const BloodTestsCard: React.FC<BloodTestsCardProps> = ({
           <div className="text-center py-8 text-gray-500">
             <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
             <p className="text-sm">אין קבצי בדיקות עדיין</p>
-            <p className="text-xs text-gray-400 mt-1">העלה קובץ PDF ראשון למעלה</p>
+            <p className="text-xs text-gray-400 mt-1">העלה תמונה או קובץ PDF ראשון למעלה</p>
           </div>
         ) : (
           <div className="space-y-2">

@@ -32,11 +32,14 @@ export const useBloodTestsCard = (customerId: string, leads?: Array<{ id: string
       return;
     }
 
-    // Validate file type (PDF only)
-    if (file.type !== 'application/pdf') {
+    // Validate file type (PDF and images)
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const validDocTypes = ['application/pdf'];
+    
+    if (!validImageTypes.includes(file.type) && !validDocTypes.includes(file.type)) {
       toast({
         title: 'סוג קובץ לא נתמך',
-        description: 'אנא העלה קובץ PDF בלבד',
+        description: 'אנא העלה תמונה (JPG, PNG, GIF, WebP) או קובץ PDF',
         variant: 'destructive',
       });
       return;

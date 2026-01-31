@@ -174,9 +174,12 @@ export const useUploadBloodTest = () => {
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
 
-      // Validate file type (PDF only)
-      if (file.type !== 'application/pdf') {
-        throw new Error('רק קבצי PDF נתמכים');
+      // Validate file type (PDF and images)
+      const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      const validDocTypes = ['application/pdf'];
+      
+      if (!validImageTypes.includes(file.type) && !validDocTypes.includes(file.type)) {
+        throw new Error('רק תמונות (JPG, PNG, GIF, WebP) או קבצי PDF נתמכים');
       }
 
       // Validate file size (10MB)
