@@ -24,7 +24,7 @@ export const EditWorkoutTemplateDialog = ({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange} modal={true}>
       <DialogContent 
-        className="!max-w-[800px] !w-[800px] !h-[90vh] !max-h-[90vh] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%] !rounded-lg !m-0" 
+        className="!max-w-[1400px] !w-[1400px] !h-[90vh] !max-h-[90vh] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%] !rounded-lg !m-0" 
         dir="rtl"
         onInteractOutside={(e) => {
           // Allow drag operations to work - check if this is a drag by examining the event

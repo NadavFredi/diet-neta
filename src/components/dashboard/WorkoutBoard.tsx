@@ -244,6 +244,12 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
                 <Input
                   value={exercise.name}
                   onChange={(e) => onUpdate({ name: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
                   className="h-7 text-sm font-semibold border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-gray-900 placeholder:text-gray-400 w-full"
                   placeholder="שם התרגיל"
                   dir="rtl"
@@ -387,6 +393,12 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
                   type="number"
                   value={exercise.sets}
                   onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 0 })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
                   className="h-6 w-12 text-center border-gray-300 text-xs font-medium bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                   dir="ltr"
                 />
@@ -395,10 +407,32 @@ const ExerciseCard = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exer
               <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md border border-gray-200">
                 <Input
                   type="number"
-                  value={exercise.reps}
-                  onChange={(e) => onUpdate({ reps: parseInt(e.target.value) || 0 })}
-                  className="h-6 w-12 text-center border-gray-300 text-xs font-medium bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                  value={exercise.reps_min ?? exercise.reps ?? ''}
+                  onChange={(e) => onUpdate({ reps_min: e.target.value ? parseInt(e.target.value) : undefined })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
+                  className="h-6 w-10 text-center border-gray-300 text-xs font-medium bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                   dir="ltr"
+                  placeholder="מינ'"
+                />
+                <span className="text-gray-400 text-xs">-</span>
+                <Input
+                  type="number"
+                  value={exercise.reps_max ?? exercise.reps ?? ''}
+                  onChange={(e) => onUpdate({ reps_max: e.target.value ? parseInt(e.target.value) : undefined })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
+                  className="h-6 w-10 text-center border-gray-300 text-xs font-medium bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                  dir="ltr"
+                  placeholder="מקס'"
                 />
                 <span className="text-xs font-medium whitespace-nowrap">חזרות</span>
               </div>
@@ -906,6 +940,12 @@ const ExerciseRow = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exerc
           <Input
             value={exercise.name}
             onChange={(e) => onUpdate({ name: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
             className="h-8 text-sm border-gray-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
             placeholder="שם התרגיל"
             dir="rtl"
@@ -916,18 +956,48 @@ const ExerciseRow = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exerc
             type="number"
             value={exercise.sets}
             onChange={(e) => onUpdate({ sets: parseInt(e.target.value) || 0 })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
             className="h-8 w-16 text-center border-gray-300 text-xs font-medium focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
             dir="ltr"
           />
         </TableCell>
-        <TableCell className="w-[100px]">
-          <Input
-            type="number"
-            value={exercise.reps}
-            onChange={(e) => onUpdate({ reps: parseInt(e.target.value) || 0 })}
-            className="h-8 w-16 text-center border-gray-300 text-xs font-medium focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
-            dir="ltr"
-          />
+        <TableCell className="w-[150px]">
+          <div className="flex items-center gap-1">
+            <Input
+              type="number"
+              value={exercise.reps_min ?? exercise.reps ?? ''}
+              onChange={(e) => onUpdate({ reps_min: e.target.value ? parseInt(e.target.value) : undefined })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
+              className="h-8 w-14 text-center border-gray-300 text-xs font-medium focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+              dir="ltr"
+              placeholder="מינ'"
+            />
+            <span className="text-gray-400 text-xs">-</span>
+            <Input
+              type="number"
+              value={exercise.reps_max ?? exercise.reps ?? ''}
+              onChange={(e) => onUpdate({ reps_max: e.target.value ? parseInt(e.target.value) : undefined })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
+              className="h-8 w-14 text-center border-gray-300 text-xs font-medium focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+              dir="ltr"
+              placeholder="מקס'"
+            />
+          </div>
         </TableCell>
         <TableCell className="w-[120px]">
           <Input
@@ -1298,11 +1368,14 @@ const DayColumn = ({
         <div className="p-2 border-t border-gray-200 bg-white flex-shrink-0 space-y-2">
           <SelectExerciseFromDatabase
             onSelect={(exercise) => {
+              const reps = exercise.repetitions || 10;
               onAddExercise({
                 id: `${Date.now()}-${Math.random()}`,
                 name: exercise.name,
                 sets: 3,
-                reps: exercise.repetitions || 10,
+                reps: reps, // For backward compatibility
+                reps_min: reps,
+                reps_max: reps,
                 order: '',
                 image_url: exercise.image || undefined,
                 video_url: exercise.video_link || undefined,
@@ -1317,7 +1390,9 @@ const DayColumn = ({
                   id: `${Date.now()}-${Math.random()}`,
                   name: name.trim(),
                   sets: 3,
-                  reps: 10,
+                  reps: 10, // For backward compatibility
+                  reps_min: 10,
+                  reps_max: 10,
                   order: '',
                 });
               }
@@ -1551,7 +1626,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
                   dir="rtl"
                 />
                 {goalTags.length > 0 && (
-                  <div className="flex gap-1 flex-wrap">
+                  <div className="flex gap-1 flex-wrap max-h-24 overflow-y-auto">
                     {goalTags.map((tag, idx) => (
                       <Badge key={idx} variant="outline" className="text-xs">
                         {tag}
@@ -1568,7 +1643,7 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
 
 
       {/* Days Accordion List */}
-      <div className="flex-1 min-h-0" style={{ flexGrow: 1, minHeight: 0 }}>
+      <div className="flex-1 min-h-0 overflow-y-auto" style={{ flexGrow: 1, minHeight: 0, maxHeight: 'calc(100vh - 400px)' }}>
         <DndContext
           sensors={dndContext.sensors}
           collisionDetection={dndContext.collisionDetection}
@@ -1630,7 +1705,9 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
               <Card className="p-3 bg-white border-2 border-blue-400 w-64">
                 <div className="font-medium text-sm">{activeExercise.name}</div>
                 <div className="text-xs text-gray-600 mt-1">
-                  {activeExercise.sets} סטים × {activeExercise.reps} חזרות
+                  {activeExercise.sets} סטים × {activeExercise.reps_min !== undefined && activeExercise.reps_max !== undefined 
+                    ? `${activeExercise.reps_min}-${activeExercise.reps_max}` 
+                    : activeExercise.reps} חזרות
                 </div>
               </Card>
             )}

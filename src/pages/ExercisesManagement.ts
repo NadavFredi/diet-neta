@@ -137,14 +137,17 @@ export const useExercisesManagement = () => {
   };
 
   const handleSaveExercise = async (
-    data: Partial<Exercise> | { name: string; repetitions?: number | null; weight?: number | null; image?: string | null; video_link?: string | null }
+    data: Partial<Exercise> | { name: string; repetitions?: number | null; repetitions_min?: number | null; repetitions_max?: number | null; weight?: number | null; image?: string | null; video_link?: string | null }
   ) => {
     try {
+      // For backward compatibility: use repetitions_max if available, otherwise use repetitions_min, otherwise use repetitions
+      const repetitions = (data as any).repetitions_max ?? (data as any).repetitions_min ?? data.repetitions;
+      
       if (editingExercise) {
         await updateExercise.mutateAsync({
           exerciseId: editingExercise.id,
           name: data.name,
-          repetitions: data.repetitions,
+          repetitions: repetitions,
           weight: data.weight,
           image: data.image,
           video_link: data.video_link,
@@ -158,7 +161,7 @@ export const useExercisesManagement = () => {
       } else {
         await createExercise.mutateAsync({
           name: data.name,
-          repetitions: data.repetitions,
+          repetitions: repetitions,
           weight: data.weight,
           image: data.image,
           video_link: data.video_link,

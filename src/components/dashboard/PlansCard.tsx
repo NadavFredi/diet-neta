@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, FileText, Send, ChevronDown, ChevronUp, ListOrdered, ScrollText, Save, X, Check, ArrowLeft, Heart, MoreVertical } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, FileText, Send, ChevronDown, ChevronUp, ListOrdered, ScrollText, Save, X, Check, ArrowLeft, Heart, MoreVertical, Printer } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
@@ -950,6 +950,15 @@ export const PlansCard = ({
                 >
                   <Edit className="h-4 w-4" />
                   <span>ערוך תכנית פעולה</span>
+                </DropdownMenuItem>
+              )}
+              {effectiveBudgetId && (
+                <DropdownMenuItem
+                  onClick={() => navigate(`/dashboard/print/budget/${effectiveBudgetId}`)}
+                  className="gap-2 cursor-pointer"
+                >
+                  <Printer className="h-4 w-4" />
+                  <span>הדפס דוח</span>
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

@@ -98,7 +98,7 @@ const PrintBudgetPage = () => {
         <div className="max-w-4xl mx-auto bg-white print:shadow-none shadow-xl rounded-xl print:rounded-none overflow-hidden">
           
           {/* Header */}
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-8 print:p-6 print:bg-purple-600">
+          <div className="text-white p-8 print:p-6 print-header-bg" style={{ backgroundColor: '#E96A8F' }}>
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-3 mb-2">
@@ -455,6 +455,10 @@ const PrintBudgetPage = () => {
           
           .print\\:p-6 {
             padding: 1.5rem !important;
+          }
+          
+          .print-header-bg {
+            background: #E96A8F !important;
           }
           
           .print\\:break-inside-avoid {

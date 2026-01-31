@@ -29,7 +29,9 @@ export interface Exercise {
   id: string;
   name: string;
   sets: number;
-  reps: number;
+  reps: number; // For backward compatibility
+  reps_min?: number;
+  reps_max?: number;
   order?: string;
   notes?: string;
   image_url?: string;
