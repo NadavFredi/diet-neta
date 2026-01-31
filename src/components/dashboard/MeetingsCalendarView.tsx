@@ -15,19 +15,30 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Popover as SettingsPopover,
+  PopoverContent as SettingsPopoverContent,
+  PopoverTrigger as SettingsPopoverTrigger,
+} from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 interface MeetingsCalendarViewProps {
   meetings: Meeting[];
   onAddMeeting?: (date: Date) => void;
 }
+
+// Available fields for calendar cards
+const availableFields = [
+  { id: 'customer_name', label: 'שם לקוח', default: true },
+  { id: 'time', label: 'שעה', default: true },
+  { id: 'status', label: 'סטטוס', default: true },
+  { id: 'type', label: 'סוג פגישה', default: false },
+  { id: 'phone', label: 'טלפון', default: false },
+  { id: 'email', label: 'אימייל', default: false },
+];
 
 // Helper functions from meetingColumns.tsx
 const getMeetingCustomer = (meeting: Meeting) => meeting.customer || (meeting.lead as any)?.customer;
@@ -155,6 +166,15 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  
+  // Field visibility state - initialize with defaults
+  const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>(() => {
+    const defaults: Record<string, boolean> = {};
+    availableFields.forEach(field => {
+      defaults[field.id] = field.default;
+    });
+    return defaults;
+  });
 
   // Group meetings by date
   const meetingsByDate = useMemo(() => {
@@ -226,11 +246,11 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
     setViewMode('calendar');
   };
 
-  const handleDateRightClick = (date: Date, e: React.MouseEvent) => {
-    e.preventDefault();
-    if (onAddMeeting) {
-      onAddMeeting(date);
-    }
+  const toggleFieldVisibility = (fieldId: string) => {
+    setVisibleFields(prev => ({
+      ...prev,
+      [fieldId]: !prev[fieldId]
+    }));
   };
 
   const today = new Date();
@@ -316,14 +336,47 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
             {viewMode === 'year' && 'בחר שנה'}
           </h2>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={goToToday}
-          className="h-8 px-3 text-sm"
-        >
-          היום
-        </Button>
+        <div className="flex items-center gap-2">
+          <SettingsPopover>
+            <SettingsPopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 p-0"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </SettingsPopoverTrigger>
+            <SettingsPopoverContent className="w-64" dir="rtl">
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm mb-3">שדות להצגה בכרטיסי פגישות</h4>
+                {availableFields.map((field) => (
+                  <div key={field.id} className="flex items-center space-x-2 space-x-reverse">
+                    <Checkbox
+                      id={`field-${field.id}`}
+                      checked={visibleFields[field.id] || false}
+                      onCheckedChange={() => toggleFieldVisibility(field.id)}
+                    />
+                    <Label
+                      htmlFor={`field-${field.id}`}
+                      className="text-sm font-normal cursor-pointer flex-1"
+                    >
+                      {field.label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </SettingsPopoverContent>
+          </SettingsPopover>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToToday}
+            className="h-8 px-3 text-sm"
+          >
+            היום
+          </Button>
+        </div>
       </div>
 
       {/* Calendar Content */}
@@ -353,18 +406,15 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                 const firstMeetingTime = firstMeeting ? getMeetingTimeDisplayValue(firstMeeting) : null;
 
                 return (
-                  <ContextMenu key={index}>
-                    <ContextMenuTrigger>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <div
-                            className={cn(
-                              "min-h-[100px] bg-white p-2 flex flex-col cursor-pointer transition-colors hover:bg-gray-50",
-                              !isCurrentMonth && "bg-gray-50",
-                              isToday && "bg-blue-50 border-2 border-blue-500"
-                            )}
-                            onContextMenu={(e) => handleDateRightClick(date, e)}
-                          >
+                  <Popover key={index}>
+                    <PopoverTrigger asChild>
+                      <div
+                        className={cn(
+                          "min-h-[100px] bg-white p-2 flex flex-col cursor-pointer transition-colors hover:bg-gray-50",
+                          !isCurrentMonth && "bg-gray-50",
+                          isToday && "bg-blue-50 border-2 border-blue-500"
+                        )}
+                      >
                             {/* Date number */}
                             <div className={cn(
                               "text-sm font-medium mb-1",
@@ -378,16 +428,31 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                             <div className="flex-1 flex flex-col gap-1">
                               {hasMeetings ? (
                                 <>
-                                  {firstMeetingTime && (
-                                    <div className="text-xs text-gray-600 bg-gray-100 rounded px-1 py-0.5">
-                                      {firstMeetingTime}
-                                    </div>
-                                  )}
-                                  {dayMeetings.length > 1 && (
-                                    <div className="text-xs text-gray-500">
-                                      +{dayMeetings.length - 1} נוספות
-                                    </div>
-                                  )}
+                                  {firstMeeting && (() => {
+                                    const customer = getMeetingCustomer(firstMeeting);
+                                    const time = getMeetingTimeDisplayValue(firstMeeting);
+                                    const customerName = customer?.full_name;
+                                    
+                                    return (
+                                      <>
+                                        {visibleFields.time && time && (
+                                          <div className="text-xs text-gray-600 bg-gray-100 rounded px-1 py-0.5">
+                                            {time}
+                                          </div>
+                                        )}
+                                        {visibleFields.customer_name && customerName && (
+                                          <div className="text-xs text-gray-700 font-medium truncate">
+                                            {customerName}
+                                          </div>
+                                        )}
+                                        {dayMeetings.length > 1 && (
+                                          <div className="text-xs text-gray-500">
+                                            +{dayMeetings.length - 1} נוספות
+                                          </div>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
                                 </>
                               ) : (
                                 <div className="flex items-center justify-center flex-1">
@@ -414,6 +479,8 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                                   const time = getMeetingTimeDisplayValue(meeting);
                                   const status = getMeetingStatusValue(meeting);
                                   const type = getMeetingTypeValue(meeting);
+                                  const phone = customer?.phone || '-';
+                                  const email = customer?.email || '-';
 
                                   const getStatusColor = (status: string) => {
                                     if (status.includes('בוטל') || status.includes('מבוטל')) return 'bg-red-50 text-red-700 border-red-200';
@@ -431,21 +498,31 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                                       }}
                                     >
                                       <div className="flex items-start justify-between gap-2">
-                                        <div className="flex-1 min-w-0">
-                                          <div className="font-medium text-gray-900 truncate">
-                                            {customer?.full_name || '-'}
-                                          </div>
-                                          {time && (
-                                            <div className="text-sm text-gray-600 mt-1">
+                                        <div className="flex-1 min-w-0 space-y-1">
+                                          {visibleFields.customer_name && (
+                                            <div className="font-medium text-gray-900 truncate">
+                                              {customer?.full_name || '-'}
+                                            </div>
+                                          )}
+                                          {visibleFields.time && time && (
+                                            <div className="text-sm text-gray-600">
                                               {time}
                                             </div>
                                           )}
-                                          <div className="flex items-center gap-2 mt-2">
-                                            <Badge variant="outline" className={cn("text-xs", getStatusColor(status))}>
-                                              {status}
-                                            </Badge>
-                                            {type && (
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            {visibleFields.status && (
+                                              <Badge variant="outline" className={cn("text-xs", getStatusColor(status))}>
+                                                {status}
+                                              </Badge>
+                                            )}
+                                            {visibleFields.type && type && (
                                               <span className="text-xs text-gray-500">{type}</span>
+                                            )}
+                                            {visibleFields.phone && phone !== '-' && (
+                                              <span className="text-xs text-gray-500">{phone}</span>
+                                            )}
+                                            {visibleFields.email && email !== '-' && (
+                                              <span className="text-xs text-gray-500 truncate max-w-[150px]">{email}</span>
                                             )}
                                           </div>
                                         </div>
@@ -456,20 +533,23 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                               </div>
                             </>
                           ) : (
-                            <div className="p-3 text-center text-gray-500">
-                              <p className="text-sm">אין פגישות בתאריך זה</p>
+                            <div className="p-3 text-center space-y-3">
+                              <p className="text-sm text-gray-500">אין פגישות בתאריך זה</p>
+                              {onAddMeeting && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full"
+                                  onClick={() => onAddMeeting(date)}
+                                >
+                                  <Plus className="h-4 w-4 ml-2" />
+                                  צור פגישה חדשה
+                                </Button>
+                              )}
                             </div>
                           )}
                         </PopoverContent>
                       </Popover>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent dir="rtl">
-                      <ContextMenuItem onClick={() => onAddMeeting?.(date)}>
-                        <Plus className="h-4 w-4 ml-2" />
-                        צור פגישה חדשה
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
                 );
               })}
             </div>
