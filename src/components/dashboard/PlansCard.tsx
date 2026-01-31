@@ -1239,7 +1239,7 @@ export const PlansCard = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Nutrition Plan Card */}
             <div
               className={`border rounded-xl p-5 relative hover:shadow-md transition-all cursor-pointer ${activeNutrition ? 'bg-orange-50/30 border-orange-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
@@ -1653,70 +1653,201 @@ export const PlansCard = ({
               )}
             </div>
 
-            {/* Steps and Aerobic Activity Column - Shared Height */}
-            <div className="flex flex-col gap-4 h-full">
-              {/* Steps Plan Card */}
-              <div
-                className={`border rounded-xl p-3 relative hover:shadow-md transition-all flex-1 flex flex-col ${activeSteps || overviewBudget?.steps_goal ? 'bg-cyan-50/30 border-cyan-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={`p-1.5 rounded-md ${activeSteps || overviewBudget?.steps_goal ? 'bg-cyan-100 text-cyan-600' : 'bg-gray-200 text-gray-500'}`}>
-                    <Footprints className="h-4 w-4" />
-                  </div>
-                  <span className={`text-sm font-semibold ${activeSteps || overviewBudget?.steps_goal ? 'text-gray-900' : 'text-gray-500'}`}>צעדים</span>
+            {/* Steps Plan Card */}
+            <div
+              className={`border rounded-xl p-3 relative hover:shadow-md transition-all ${activeSteps || overviewBudget?.steps_goal ? 'bg-cyan-50/30 border-cyan-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`p-1.5 rounded-md ${activeSteps || overviewBudget?.steps_goal ? 'bg-cyan-100 text-cyan-600' : 'bg-gray-200 text-gray-500'}`}>
+                  <Footprints className="h-4 w-4" />
                 </div>
-                {activeSteps || overviewBudget?.steps_goal ? (
-                  <div className="space-y-2 py-2 flex-1 overflow-y-auto min-h-0">
-                    <div className="text-center">
-                      {editingField === 'steps_goal' ? (
+                <span className={`text-sm font-semibold ${activeSteps || overviewBudget?.steps_goal ? 'text-gray-900' : 'text-gray-500'}`}>צעדים</span>
+              </div>
+              {activeSteps || overviewBudget?.steps_goal ? (
+                <div className="space-y-2 py-2">
+                  <div className="text-center">
+                    {editingField === 'steps_goal' ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-center gap-2">
+                          {previousValues.steps_goal !== undefined && previousValues.steps_goal !== editValues.steps_goal && (
+                            <>
+                              <span className="text-xl text-slate-400 line-through opacity-70">
+                                {previousValues.steps_goal.toLocaleString()}
+                              </span>
+                              <ArrowLeft className="h-4 w-4 text-slate-300" />
+                            </>
+                          )}
+                          <Input
+                            type="number"
+                            value={editValues.steps_goal !== undefined ? editValues.steps_goal : (activeSteps?.target ?? overviewBudget?.steps_goal ?? 0)}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const numValue = value === '' ? undefined : parseInt(value, 10);
+                              setEditValues({ ...editValues, steps_goal: numValue !== undefined && !isNaN(numValue) ? numValue : undefined });
+                            }}
+                            className="text-2xl font-bold text-center border-2 border-cyan-500 focus:border-cyan-600"
+                            dir="ltr"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (!effectiveBudgetId || !overviewBudget) {
+                                toast({ title: 'שגיאה', description: 'חסר מזהה תכנית פעולה', variant: 'destructive' });
+                                return;
+                              }
+                              try {
+                                const newStepsGoal = editValues.steps_goal !== undefined
+                                  ? editValues.steps_goal
+                                  : (activeSteps?.target ?? overviewBudget?.steps_goal ?? 0);
+
+                                if (newStepsGoal === undefined || isNaN(newStepsGoal) || newStepsGoal < 0) {
+                                  toast({ title: 'שגיאה', description: 'אנא הזן ערך תקין ליעד הצעדים', variant: 'destructive' });
+                                  return;
+                                }
+                                await updateBudget.mutateAsync({
+                                  budgetId: effectiveBudgetId,
+                                  name: overviewBudget.name,
+                                  description: overviewBudget.description || null,
+                                  nutrition_template_id: overviewBudget.nutrition_template_id,
+                                  nutrition_targets: overviewBudget.nutrition_targets,
+                                  steps_goal: newStepsGoal,
+                                  steps_instructions: overviewBudget.steps_instructions || null,
+                                  workout_template_id: overviewBudget.workout_template_id,
+                                  supplement_template_id: overviewBudget.supplement_template_id,
+                                  supplements: overviewBudget.supplements || [],
+                                  eating_order: overviewBudget.eating_order || null,
+                                  eating_rules: overviewBudget.eating_rules || null,
+                                  cardio_training: overviewBudget.cardio_training || null,
+                                  interval_training: overviewBudget.interval_training || null,
+                                });
+
+                                // Sync steps plans with the updated budget
+                                await syncStepsPlansFromBudgetUpdate(
+                                  effectiveBudgetId,
+                                  overviewBudget.name,
+                                  newStepsGoal,
+                                  overviewBudget.steps_instructions || null
+                                );
+
+                                // Get updated budget and templates for snapshot
+                                const { data: updatedBudget } = await supabase
+                                  .from('budgets')
+                                  .select('*')
+                                  .eq('id', effectiveBudgetId)
+                                  .single();
+
+                                let nutritionTemplate = null;
+                                if (updatedBudget?.nutrition_template_id) {
+                                  const { data } = await supabase.from('nutrition_templates').select('*').eq('id', updatedBudget.nutrition_template_id).single();
+                                  nutritionTemplate = data;
+                                }
+
+                                let workoutTemplate = null;
+                                if (updatedBudget?.workout_template_id) {
+                                  const { data } = await supabase.from('workout_templates').select('*').eq('id', updatedBudget.workout_template_id).single();
+                                  workoutTemplate = data;
+                                }
+
+                                if (updatedBudget && effectiveBudgetId) {
+                                  const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
+                                  await saveActionPlan.mutateAsync({
+                                    budget_id: effectiveBudgetId,
+                                    lead_id: leadId,
+                                    name: updatedBudget.name,
+                                    description: updatedBudget.description || null,
+                                    snapshot,
+                                  });
+                                }
+
+                                toast({ title: 'הצלחה', description: 'יעד הצעדים עודכן ונשמר ביומן' });
+                                setEditingField(null);
+                                setEditValues({ ...editValues, steps_goal: undefined });
+                                setPreviousValues({ ...previousValues, steps_goal: undefined });
+                                await queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] });
+                                await queryClient.invalidateQueries({ queryKey: ['budgets'] });
+                                await queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+                                await queryClient.invalidateQueries({ queryKey: ['steps-plans'] });
+                                // Refetch to ensure UI updates immediately
+                                await queryClient.refetchQueries({ queryKey: ['budget', effectiveBudgetId] });
+                                await queryClient.refetchQueries({ queryKey: ['plans-history'] });
+                              } catch (error: any) {
+                                toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון יעד הצעדים', variant: 'destructive' });
+                              }
+                            }}
+                            className="h-7 px-2"
+                          >
+                            <Check className="h-3 w-3 ml-1" />
+                            שמור
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingField(null);
+                              setEditValues({ ...editValues, steps_goal: undefined });
+                              setPreviousValues({ ...previousValues, steps_goal: undefined });
+                            }}
+                            className="h-7 px-2"
+                          >
+                            <X className="h-3 w-3 ml-1" />
+                            ביטול
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p
+                        className="text-2xl font-bold text-cyan-700 leading-none cursor-pointer hover:text-cyan-800 hover:bg-cyan-50/50 rounded p-2 transition-colors"
+                        onClick={() => {
+                          const currentValue = activeSteps?.target ?? overviewBudget?.steps_goal ?? 0;
+                          setEditingField('steps_goal');
+                          setEditValues({ ...editValues, steps_goal: currentValue });
+                          setPreviousValues({ ...previousValues, steps_goal: currentValue });
+                        }}
+                        title="לחץ לעריכה"
+                      >
+                        {(activeSteps?.target ?? overviewBudget?.steps_goal ?? 0).toLocaleString()}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-gray-500 mt-1">צעדים ליום</p>
+                  </div>
+                  {(overviewBudget?.steps_instructions?.trim() || editingField === 'steps_instructions') && (
+                    <div className="mt-2 pt-2 border-t border-cyan-100/60">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">הוראות צעדים</p>
+                      </div>
+                      {editingField === 'steps_instructions' ? (
                         <div className="space-y-2">
-                          <div className="flex items-center justify-center gap-2">
-                            {previousValues.steps_goal !== undefined && previousValues.steps_goal !== editValues.steps_goal && (
-                              <>
-                                <span className="text-xl text-slate-400 line-through opacity-70">
-                                  {previousValues.steps_goal.toLocaleString()}
-                                </span>
-                                <ArrowLeft className="h-4 w-4 text-slate-300" />
-                              </>
-                            )}
-                            <Input
-                              type="number"
-                              value={editValues.steps_goal !== undefined ? editValues.steps_goal : (activeSteps?.target ?? overviewBudget?.steps_goal ?? 0)}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                const numValue = value === '' ? undefined : parseInt(value, 10);
-                                setEditValues({ ...editValues, steps_goal: numValue !== undefined && !isNaN(numValue) ? numValue : undefined });
-                              }}
-                              className="text-2xl font-bold text-center border-2 border-cyan-500 focus:border-cyan-600"
-                              dir="ltr"
-                              autoFocus
-                            />
-                          </div>
-                          <div className="flex gap-2 justify-center">
+                          {previousValues.steps_instructions !== undefined && previousValues.steps_instructions !== (editValues.steps_instructions ?? '') && previousValues.steps_instructions.trim() && (
+                            <div className="flex items-center gap-2 text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                              <span className="text-slate-400 line-through opacity-70 flex-1 truncate">
+                                {previousValues.steps_instructions}
+                              </span>
+                              <ArrowLeft className="h-3 w-3 text-slate-300 shrink-0" />
+                            </div>
+                          )}
+                          <Textarea
+                            value={editValues.steps_instructions ?? (overviewBudget?.steps_instructions || '')}
+                            onChange={(e) => setEditValues({ ...editValues, steps_instructions: e.target.value })}
+                            className="text-sm min-h-[80px]"
+                            dir="rtl"
+                          />
+                          <div className="flex gap-2">
                             <Button
                               size="sm"
                               onClick={async () => {
-                                if (!effectiveBudgetId || !overviewBudget) {
-                                  toast({ title: 'שגיאה', description: 'חסר מזהה תכנית פעולה', variant: 'destructive' });
-                                  return;
-                                }
+                                if (!effectiveBudgetId || !overviewBudget) return;
                                 try {
-                                  const newStepsGoal = editValues.steps_goal !== undefined
-                                    ? editValues.steps_goal
-                                    : (activeSteps?.target ?? overviewBudget?.steps_goal ?? 0);
-
-                                  if (newStepsGoal === undefined || isNaN(newStepsGoal) || newStepsGoal < 0) {
-                                    toast({ title: 'שגיאה', description: 'אנא הזן ערך תקין ליעד הצעדים', variant: 'destructive' });
-                                    return;
-                                  }
                                   await updateBudget.mutateAsync({
                                     budgetId: effectiveBudgetId,
                                     name: overviewBudget.name,
                                     description: overviewBudget.description || null,
                                     nutrition_template_id: overviewBudget.nutrition_template_id,
                                     nutrition_targets: overviewBudget.nutrition_targets,
-                                    steps_goal: newStepsGoal,
-                                    steps_instructions: overviewBudget.steps_instructions || null,
+                                    steps_goal: overviewBudget.steps_goal,
+                                    steps_instructions: editValues.steps_instructions || null,
                                     workout_template_id: overviewBudget.workout_template_id,
                                     supplement_template_id: overviewBudget.supplement_template_id,
                                     supplements: overviewBudget.supplements || [],
@@ -1727,12 +1858,14 @@ export const PlansCard = ({
                                   });
 
                                   // Sync steps plans with the updated budget
-                                  await syncStepsPlansFromBudgetUpdate(
-                                    effectiveBudgetId,
-                                    overviewBudget.name,
-                                    newStepsGoal,
-                                    overviewBudget.steps_instructions || null
-                                  );
+                                  if (overviewBudget.steps_goal && overviewBudget.steps_goal > 0) {
+                                    await syncStepsPlansFromBudgetUpdate(
+                                      effectiveBudgetId,
+                                      overviewBudget.name,
+                                      overviewBudget.steps_goal,
+                                      editValues.steps_instructions || null
+                                    );
+                                  }
 
                                   // Get updated budget and templates for snapshot
                                   const { data: updatedBudget } = await supabase
@@ -1757,26 +1890,23 @@ export const PlansCard = ({
                                     const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
                                     await saveActionPlan.mutateAsync({
                                       budget_id: effectiveBudgetId,
-                                      lead_id: leadId,
                                       name: updatedBudget.name,
                                       description: updatedBudget.description || null,
                                       snapshot,
                                     });
                                   }
 
-                                  toast({ title: 'הצלחה', description: 'יעד הצעדים עודכן ונשמר ביומן' });
+                                  toast({ title: 'הצלחה', description: 'הוראות הצעדים עודכנו ונשמרו ביומן' });
                                   setEditingField(null);
-                                  setEditValues({ ...editValues, steps_goal: undefined });
-                                  setPreviousValues({ ...previousValues, steps_goal: undefined });
+                                  setEditValues({ ...editValues, steps_instructions: undefined });
+                                  setPreviousValues({ ...previousValues, steps_instructions: undefined });
                                   await queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] });
                                   await queryClient.invalidateQueries({ queryKey: ['budgets'] });
                                   await queryClient.invalidateQueries({ queryKey: ['plans-history'] });
                                   await queryClient.invalidateQueries({ queryKey: ['steps-plans'] });
-                                  // Refetch to ensure UI updates immediately
-                                  await queryClient.refetchQueries({ queryKey: ['budget', effectiveBudgetId] });
                                   await queryClient.refetchQueries({ queryKey: ['plans-history'] });
                                 } catch (error: any) {
-                                  toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון יעד הצעדים', variant: 'destructive' });
+                                  toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון הוראות הצעדים', variant: 'destructive' });
                                 }
                               }}
                               className="h-7 px-2"
@@ -1789,8 +1919,8 @@ export const PlansCard = ({
                               variant="outline"
                               onClick={() => {
                                 setEditingField(null);
-                                setEditValues({ ...editValues, steps_goal: undefined });
-                                setPreviousValues({ ...previousValues, steps_goal: undefined });
+                                setEditValues({ ...editValues, steps_instructions: undefined });
+                                setPreviousValues({ ...previousValues, steps_instructions: undefined });
                               }}
                               className="h-7 px-2"
                             >
@@ -1801,255 +1931,125 @@ export const PlansCard = ({
                         </div>
                       ) : (
                         <p
-                          className="text-2xl font-bold text-cyan-700 leading-none cursor-pointer hover:text-cyan-800 hover:bg-cyan-50/50 rounded p-2 transition-colors"
+                          className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap cursor-pointer hover:text-blue-600 hover:bg-blue-50/30 rounded p-2 transition-colors"
                           onClick={() => {
-                            const currentValue = activeSteps?.target ?? overviewBudget?.steps_goal ?? 0;
-                            setEditingField('steps_goal');
-                            setEditValues({ ...editValues, steps_goal: currentValue });
-                            setPreviousValues({ ...previousValues, steps_goal: currentValue });
+                            const currentValue = overviewBudget?.steps_instructions || '';
+                            setEditingField('steps_instructions');
+                            setEditValues({ ...editValues, steps_instructions: currentValue });
+                            setPreviousValues({ ...previousValues, steps_instructions: currentValue });
                           }}
                           title="לחץ לעריכה"
                         >
-                          {(activeSteps?.target ?? overviewBudget?.steps_goal ?? 0).toLocaleString()}
+                          {overviewBudget?.steps_instructions}
                         </p>
                       )}
-                      <p className="text-[10px] text-gray-500 mt-1">צעדים ליום</p>
                     </div>
-                    {(overviewBudget?.steps_instructions?.trim() || editingField === 'steps_instructions') && (
-                      <div className="mt-2 pt-2 border-t border-cyan-100/60">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">הוראות צעדים</p>
+                  )}
+
+                  {/* Cardio and Interval Training Summary */}
+                  {(overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0) ||
+                    (overviewBudget?.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0) ? (
+                    <div className="mt-2 pt-2 border-t border-cyan-100/60 space-y-1.5">
+                      {overviewBudget.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 && (
+                        <div>
+                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אירובי:</span>
+                          <div className="mt-1 space-y-1">
+                            {overviewBudget.cardio_training.map((cardio: any, idx: number) => (
+                              <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-red-100">
+                                <span className="font-medium">{cardio.name || 'אירובי'}</span>
+                                {cardio.duration_minutes && <span className="mr-1"> • {cardio.duration_minutes} דקות</span>}
+                                {cardio.period_type && <span className="mr-1"> • {cardio.period_type}</span>}
+                                {cardio.notes && <span className="mr-1 text-slate-500"> • ({cardio.notes})</span>}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        {editingField === 'steps_instructions' ? (
-                          <div className="space-y-2">
-                            {previousValues.steps_instructions !== undefined && previousValues.steps_instructions !== (editValues.steps_instructions ?? '') && previousValues.steps_instructions.trim() && (
-                              <div className="flex items-center gap-2 text-xs bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                                <span className="text-slate-400 line-through opacity-70 flex-1 truncate">
-                                  {previousValues.steps_instructions}
-                                </span>
-                                <ArrowLeft className="h-3 w-3 text-slate-300 shrink-0" />
+                      )}
+                      {overviewBudget.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0 && (
+                        <div>
+                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אינטרוולים:</span>
+                          <div className="mt-1 space-y-1">
+                            {overviewBudget.interval_training.map((interval: any, idx: number) => (
+                              <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-yellow-100">
+                                <span className="font-medium">{interval.name || 'אינטרוול'}</span>
+                                {interval.duration_minutes && <span className="mr-1"> • {interval.duration_minutes} דקות</span>}
+                                {interval.period_type && <span className="mr-1"> • {interval.period_type}</span>}
+                                {interval.notes && <span className="mr-1 text-slate-500"> • ({interval.notes})</span>}
                               </div>
-                            )}
-                            <Textarea
-                              value={editValues.steps_instructions ?? (overviewBudget?.steps_instructions || '')}
-                              onChange={(e) => setEditValues({ ...editValues, steps_instructions: e.target.value })}
-                              className="text-sm min-h-[80px]"
-                              dir="rtl"
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={async () => {
-                                  if (!effectiveBudgetId || !overviewBudget) return;
-                                  try {
-                                    await updateBudget.mutateAsync({
-                                      budgetId: effectiveBudgetId,
-                                      name: overviewBudget.name,
-                                      description: overviewBudget.description || null,
-                                      nutrition_template_id: overviewBudget.nutrition_template_id,
-                                      nutrition_targets: overviewBudget.nutrition_targets,
-                                      steps_goal: overviewBudget.steps_goal,
-                                      steps_instructions: editValues.steps_instructions || null,
-                                      workout_template_id: overviewBudget.workout_template_id,
-                                      supplement_template_id: overviewBudget.supplement_template_id,
-                                      supplements: overviewBudget.supplements || [],
-                                      eating_order: overviewBudget.eating_order || null,
-                                      eating_rules: overviewBudget.eating_rules || null,
-                                      cardio_training: overviewBudget.cardio_training || null,
-                                      interval_training: overviewBudget.interval_training || null,
-                                    });
-
-                                    // Sync steps plans with the updated budget
-                                    if (overviewBudget.steps_goal && overviewBudget.steps_goal > 0) {
-                                      await syncStepsPlansFromBudgetUpdate(
-                                        effectiveBudgetId,
-                                        overviewBudget.name,
-                                        overviewBudget.steps_goal,
-                                        editValues.steps_instructions || null
-                                      );
-                                    }
-
-                                    // Get updated budget and templates for snapshot
-                                    const { data: updatedBudget } = await supabase
-                                      .from('budgets')
-                                      .select('*')
-                                      .eq('id', effectiveBudgetId)
-                                      .single();
-
-                                    let nutritionTemplate = null;
-                                    if (updatedBudget?.nutrition_template_id) {
-                                      const { data } = await supabase.from('nutrition_templates').select('*').eq('id', updatedBudget.nutrition_template_id).single();
-                                      nutritionTemplate = data;
-                                    }
-
-                                    let workoutTemplate = null;
-                                    if (updatedBudget?.workout_template_id) {
-                                      const { data } = await supabase.from('workout_templates').select('*').eq('id', updatedBudget.workout_template_id).single();
-                                      workoutTemplate = data;
-                                    }
-
-                                    if (updatedBudget && effectiveBudgetId) {
-                                      const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
-                                      await saveActionPlan.mutateAsync({
-                                        budget_id: effectiveBudgetId,
-                                        name: updatedBudget.name,
-                                        description: updatedBudget.description || null,
-                                        snapshot,
-                                      });
-                                    }
-
-                                    toast({ title: 'הצלחה', description: 'הוראות הצעדים עודכנו ונשמרו ביומן' });
-                                    setEditingField(null);
-                                    setEditValues({ ...editValues, steps_instructions: undefined });
-                                    setPreviousValues({ ...previousValues, steps_instructions: undefined });
-                                    await queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] });
-                                    await queryClient.invalidateQueries({ queryKey: ['budgets'] });
-                                    await queryClient.invalidateQueries({ queryKey: ['plans-history'] });
-                                    await queryClient.invalidateQueries({ queryKey: ['steps-plans'] });
-                                    await queryClient.refetchQueries({ queryKey: ['plans-history'] });
-                                  } catch (error: any) {
-                                    toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון הוראות הצעדים', variant: 'destructive' });
-                                  }
-                                }}
-                                className="h-7 px-2"
-                              >
-                                <Check className="h-3 w-3 ml-1" />
-                                שמור
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setEditingField(null);
-                                  setEditValues({ ...editValues, steps_instructions: undefined });
-                                  setPreviousValues({ ...previousValues, steps_instructions: undefined });
-                                }}
-                                className="h-7 px-2"
-                              >
-                                <X className="h-3 w-3 ml-1" />
-                                ביטול
-                              </Button>
-                            </div>
+                            ))}
                           </div>
-                        ) : (
-                          <p
-                            className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap cursor-pointer hover:text-blue-600 hover:bg-blue-50/30 rounded p-2 transition-colors"
-                            onClick={() => {
-                              const currentValue = overviewBudget?.steps_instructions || '';
-                              setEditingField('steps_instructions');
-                              setEditValues({ ...editValues, steps_instructions: currentValue });
-                              setPreviousValues({ ...previousValues, steps_instructions: currentValue });
-                            }}
-                            title="לחץ לעריכה"
-                          >
-                            {overviewBudget?.steps_instructions}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Cardio and Interval Training Summary */}
-                    {(overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0) ||
-                      (overviewBudget?.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0) ? (
-                      <div className="mt-2 pt-2 border-t border-cyan-100/60 space-y-1.5">
-                        {overviewBudget.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 && (
-                          <div>
-                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אירובי:</span>
-                            <div className="mt-1 space-y-1">
-                              {overviewBudget.cardio_training.map((cardio: any, idx: number) => (
-                                <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-red-100">
-                                  <span className="font-medium">{cardio.name || 'אירובי'}</span>
-                                  {cardio.duration_minutes && <span className="mr-1"> • {cardio.duration_minutes} דקות</span>}
-                                  {cardio.period_type && <span className="mr-1"> • {cardio.period_type}</span>}
-                                  {cardio.notes && <span className="mr-1 text-slate-500"> • ({cardio.notes})</span>}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {overviewBudget.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0 && (
-                          <div>
-                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אינטרוולים:</span>
-                            <div className="mt-1 space-y-1">
-                              {overviewBudget.interval_training.map((interval: any, idx: number) => (
-                                <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-yellow-100">
-                                  <span className="font-medium">{interval.name || 'אינטרוול'}</span>
-                                  {interval.duration_minutes && <span className="mr-1"> • {interval.duration_minutes} דקות</span>}
-                                  {interval.period_type && <span className="mr-1"> • {interval.period_type}</span>}
-                                  {interval.notes && <span className="mr-1 text-slate-500"> • ({interval.notes})</span>}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="h-16 flex items-center justify-center text-xs text-gray-400">אין יעד פעיל</div>
-                )}
-              </div>
-
-              {/* Aerobic Activity Card */}
-              <div
-                className={`border rounded-xl p-3 relative hover:shadow-md transition-all flex-1 flex flex-col cursor-pointer ${overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? 'bg-red-50/30 border-red-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
-                onClick={() => {
-                  if (effectiveBudgetId) {
-                    setIsAerobicActivityModalOpen(true);
-                  }
-                }}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={`p-1.5 rounded-md ${overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? 'bg-red-100 text-red-600' : 'bg-gray-200 text-gray-500'}`}>
-                    <Heart className="h-4 w-4" />
-                  </div>
-                  <span className={`text-sm font-semibold ${overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? 'text-gray-900' : 'text-gray-500'}`}>פעילות אירובית</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
-                {overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? (
-                  <div className="space-y-2 py-2 flex-1 overflow-y-auto min-h-0">
-                    <div className="space-y-1.5">
-                      {overviewBudget.cardio_training.map((cardio: any, idx: number) => (
-                        <div key={idx} className="bg-white rounded-md p-2 border border-red-100">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <p className="text-sm font-semibold text-gray-900 mb-1">
-                                {cardio.name || 'פעילות אירובית'}
-                              </p>
-                              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
-                                {cardio.duration_minutes && (
-                                  <span className="flex items-center gap-1">
-                                    <span className="text-gray-500">דקות:</span>
-                                    <span className="font-medium dir-ltr">{cardio.duration_minutes}</span>
-                                  </span>
-                                )}
-                                {cardio.period_type && (
-                                  <span className="flex items-center gap-1">
-                                    <span className="text-gray-500">תדירות:</span>
-                                    <span className="font-medium">{cardio.period_type}</span>
-                                  </span>
-                                )}
-                                {cardio.workouts_per_week && (
-                                  <span className="flex items-center gap-1">
-                                    <span className="text-gray-500">פעמים בשבוע:</span>
-                                    <span className="font-medium dir-ltr">{cardio.workouts_per_week}</span>
-                                  </span>
-                                )}
-                              </div>
-                              {cardio.notes && (
-                                <p className="text-xs text-gray-500 mt-1.5 pt-1.5 border-t border-red-50">
-                                  {cardio.notes}
-                                </p>
+              ) : (
+                <div className="h-16 flex items-center justify-center text-xs text-gray-400">אין יעד פעיל</div>
+              )}
+            </div>
+          </div>
+
+          {/* Second Row: 2 Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Aerobic Activity Card */}
+            <div
+              className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? 'bg-red-50/30 border-red-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
+              onClick={() => {
+                if (effectiveBudgetId) {
+                  setIsAerobicActivityModalOpen(true);
+                }
+              }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`p-1.5 rounded-md ${overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? 'bg-red-100 text-red-600' : 'bg-gray-200 text-gray-500'}`}>
+                  <Heart className="h-4 w-4" />
+                </div>
+                <span className={`text-sm font-semibold ${overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? 'text-gray-900' : 'text-gray-500'}`}>פעילות אירובית</span>
+              </div>
+              {overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? (
+                <div className="space-y-2 py-2">
+                  <div className="space-y-1.5">
+                    {overviewBudget.cardio_training.map((cardio: any, idx: number) => (
+                      <div key={idx} className="bg-white rounded-md p-2 border border-red-100">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-gray-900 mb-1">
+                              {cardio.name || 'פעילות אירובית'}
+                            </p>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
+                              {cardio.duration_minutes && (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-gray-500">דקות:</span>
+                                  <span className="font-medium dir-ltr">{cardio.duration_minutes}</span>
+                                </span>
+                              )}
+                              {cardio.period_type && (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-gray-500">תדירות:</span>
+                                  <span className="font-medium">{cardio.period_type}</span>
+                                </span>
+                              )}
+                              {cardio.workouts_per_week && (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-gray-500">פעמים בשבוע:</span>
+                                  <span className="font-medium dir-ltr">{cardio.workouts_per_week}</span>
+                                </span>
                               )}
                             </div>
+                            {cardio.notes && (
+                              <p className="text-xs text-gray-500 mt-1.5 pt-1.5 border-t border-red-50">
+                                {cardio.notes}
+                              </p>
+                            )}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <div className="h-16 flex items-center justify-center text-xs text-gray-400">לחץ להוספה</div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="h-16 flex items-center justify-center text-xs text-gray-400">לחץ להוספה</div>
+              )}
             </div>
 
             {/* Supplements Plan Card */}
