@@ -436,6 +436,76 @@ export const PlansCard = ({
   // Effective budget name
   const effectiveBudgetName = activeAssignment?.budget_name || fallbackBudget?.name || 'תכנית פעולה פעילה';
 
+  // Helper function to update nutrition plan directly (plan is source of truth)
+  const updateNutritionPlanTarget = async (field: 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber', value: number) => {
+    if (!activeNutrition?.id) {
+      toast({ title: 'שגיאה', description: 'לא נמצאה תוכנית תזונה לעדכון', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      // Get current targets and preserve _calculator_inputs and _manual_override
+      const currentTargets = activeNutrition.targets || {
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        fiber: 0,
+      };
+
+      // Extract metadata from targets if they exist
+      const { _calculator_inputs, _manual_override, ...cleanTargets } = currentTargets as any;
+
+      // Update the specific field
+      const updatedTargets = {
+        ...cleanTargets,
+        [field]: value,
+        // Preserve metadata
+        ...(_calculator_inputs && { _calculator_inputs }),
+        ...(_manual_override && { _manual_override }),
+      };
+
+      // Update the nutrition plan directly
+      const { error: updateError } = await supabase
+        .from('nutrition_plans')
+        .update({ targets: updatedTargets })
+        .eq('id', activeNutrition.id);
+
+      if (updateError) throw updateError;
+
+      // Optionally sync to budget if plan is linked to a budget (but plan is source of truth)
+      if (activeNutrition.budget_id) {
+        try {
+          // Map plan targets (fiber) to budget targets (fiber_min)
+          const budgetTargets = {
+            calories: updatedTargets.calories || 0,
+            protein: updatedTargets.protein || 0,
+            carbs: updatedTargets.carbs || 0,
+            fat: updatedTargets.fat || 0,
+            fiber_min: updatedTargets.fiber || 0,
+          };
+
+          await supabase
+            .from('budgets')
+            .update({ nutrition_targets: budgetTargets })
+            .eq('id', activeNutrition.budget_id);
+        } catch (syncError) {
+          console.error('[updateNutritionPlanTarget] Error syncing to budget:', syncError);
+          // Don't throw - plan update succeeded, budget sync is secondary
+        }
+      }
+
+      // Invalidate queries to refresh UI
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+        queryClient.invalidateQueries({ queryKey: ['budget', activeNutrition.budget_id] }),
+        queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+      ]);
+    } catch (error: any) {
+      throw error;
+    }
+  };
+
   // Handlers
   const handleDeleteClick = (assignment: BudgetAssignmentItem) => {
     setAssignmentToDelete(assignment);
@@ -1260,54 +1330,8 @@ export const PlansCard = ({
                             type="number"
                             onSave={async (newValue) => {
                               const value = typeof newValue === 'number' ? newValue : parseInt(String(newValue)) || 0;
-                              if (!effectiveBudgetId || !overviewBudget) return;
                               try {
-                                const updatedTargets = {
-                                  calories: value,
-                                  protein: overviewBudget.nutrition_targets?.protein || 0,
-                                  carbs: overviewBudget.nutrition_targets?.carbs || 0,
-                                  fat: overviewBudget.nutrition_targets?.fat || 0,
-                                  fiber_min: overviewBudget.nutrition_targets?.fiber_min || 0,
-                                };
-
-                                await updateBudget.mutateAsync({
-                                  budgetId: effectiveBudgetId,
-                                  name: overviewBudget.name,
-                                  description: overviewBudget.description || null,
-                                  nutrition_template_id: overviewBudget.nutrition_template_id,
-                                  nutrition_targets: updatedTargets,
-                                  steps_goal: overviewBudget.steps_goal,
-                                  steps_instructions: overviewBudget.steps_instructions || null,
-                                  workout_template_id: overviewBudget.workout_template_id,
-                                  supplement_template_id: overviewBudget.supplement_template_id,
-                                  supplements: overviewBudget.supplements || [],
-                                  eating_order: overviewBudget.eating_order || null,
-                                  eating_rules: overviewBudget.eating_rules || null,
-                                  cardio_training: overviewBudget.cardio_training || null,
-                                  interval_training: overviewBudget.interval_training || null,
-                                });
-
-                                // Sync nutrition plans with updated targets
-                                if (activeAssignment) {
-                                  const { data: { user: authUser } } = await supabase.auth.getUser();
-                                  if (authUser) {
-                                    await syncPlansFromBudget({
-                                      budget: { ...overviewBudget, nutrition_targets: updatedTargets },
-                                      customerId: customerId || null,
-                                      leadId: leadId || null,
-                                      userId: authUser.id,
-                                    });
-                                  }
-                                }
-
-                                // Invalidate all budget-related queries to ensure UI updates everywhere
-                                await Promise.all([
-                                  queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] }),
-                                  queryClient.invalidateQueries({ queryKey: ['budgets'] }),
-                                  queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-                                ]);
-                                // Force refetch to ensure immediate update
-                                await queryClient.refetchQueries({ queryKey: ['budget', effectiveBudgetId] });
+                                await updateNutritionPlanTarget('calories', value);
                               } catch (error: any) {
                                 toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון הקלוריות', variant: 'destructive' });
                               }
@@ -1323,54 +1347,8 @@ export const PlansCard = ({
                             type="number"
                             onSave={async (newValue) => {
                               const value = typeof newValue === 'number' ? newValue : parseInt(String(newValue)) || 0;
-                              if (!effectiveBudgetId || !overviewBudget) return;
                               try {
-                                const updatedTargets = {
-                                  calories: overviewBudget.nutrition_targets?.calories || 0,
-                                  protein: value,
-                                  carbs: overviewBudget.nutrition_targets?.carbs || 0,
-                                  fat: overviewBudget.nutrition_targets?.fat || 0,
-                                  fiber_min: overviewBudget.nutrition_targets?.fiber_min || 0,
-                                };
-
-                                await updateBudget.mutateAsync({
-                                  budgetId: effectiveBudgetId,
-                                  name: overviewBudget.name,
-                                  description: overviewBudget.description || null,
-                                  nutrition_template_id: overviewBudget.nutrition_template_id,
-                                  nutrition_targets: updatedTargets,
-                                  steps_goal: overviewBudget.steps_goal,
-                                  steps_instructions: overviewBudget.steps_instructions || null,
-                                  workout_template_id: overviewBudget.workout_template_id,
-                                  supplement_template_id: overviewBudget.supplement_template_id,
-                                  supplements: overviewBudget.supplements || [],
-                                  eating_order: overviewBudget.eating_order || null,
-                                  eating_rules: overviewBudget.eating_rules || null,
-                                  cardio_training: overviewBudget.cardio_training || null,
-                                  interval_training: overviewBudget.interval_training || null,
-                                });
-
-                                // Sync nutrition plans with updated targets
-                                if (activeAssignment) {
-                                  const { data: { user: authUser } } = await supabase.auth.getUser();
-                                  if (authUser) {
-                                    await syncPlansFromBudget({
-                                      budget: { ...overviewBudget, nutrition_targets: updatedTargets },
-                                      customerId: customerId || null,
-                                      leadId: leadId || null,
-                                      userId: authUser.id,
-                                    });
-                                  }
-                                }
-
-                                // Invalidate all budget-related queries to ensure UI updates everywhere
-                                await Promise.all([
-                                  queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] }),
-                                  queryClient.invalidateQueries({ queryKey: ['budgets'] }),
-                                  queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-                                ]);
-                                // Force refetch to ensure immediate update
-                                await queryClient.refetchQueries({ queryKey: ['budget', effectiveBudgetId] });
+                                await updateNutritionPlanTarget('protein', value);
                               } catch (error: any) {
                                 toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון החלבון', variant: 'destructive' });
                               }
@@ -1386,54 +1364,8 @@ export const PlansCard = ({
                             type="number"
                             onSave={async (newValue) => {
                               const value = typeof newValue === 'number' ? newValue : parseInt(String(newValue)) || 0;
-                              if (!effectiveBudgetId || !overviewBudget) return;
                               try {
-                                const updatedTargets = {
-                                  calories: overviewBudget.nutrition_targets?.calories || 0,
-                                  protein: overviewBudget.nutrition_targets?.protein || 0,
-                                  carbs: value,
-                                  fat: overviewBudget.nutrition_targets?.fat || 0,
-                                  fiber_min: overviewBudget.nutrition_targets?.fiber_min || 0,
-                                };
-
-                                await updateBudget.mutateAsync({
-                                  budgetId: effectiveBudgetId,
-                                  name: overviewBudget.name,
-                                  description: overviewBudget.description || null,
-                                  nutrition_template_id: overviewBudget.nutrition_template_id,
-                                  nutrition_targets: updatedTargets,
-                                  steps_goal: overviewBudget.steps_goal,
-                                  steps_instructions: overviewBudget.steps_instructions || null,
-                                  workout_template_id: overviewBudget.workout_template_id,
-                                  supplement_template_id: overviewBudget.supplement_template_id,
-                                  supplements: overviewBudget.supplements || [],
-                                  eating_order: overviewBudget.eating_order || null,
-                                  eating_rules: overviewBudget.eating_rules || null,
-                                  cardio_training: overviewBudget.cardio_training || null,
-                                  interval_training: overviewBudget.interval_training || null,
-                                });
-
-                                // Sync nutrition plans with updated targets
-                                if (activeAssignment) {
-                                  const { data: { user: authUser } } = await supabase.auth.getUser();
-                                  if (authUser) {
-                                    await syncPlansFromBudget({
-                                      budget: { ...overviewBudget, nutrition_targets: updatedTargets },
-                                      customerId: customerId || null,
-                                      leadId: leadId || null,
-                                      userId: authUser.id,
-                                    });
-                                  }
-                                }
-
-                                // Invalidate all budget-related queries to ensure UI updates everywhere
-                                await Promise.all([
-                                  queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] }),
-                                  queryClient.invalidateQueries({ queryKey: ['budgets'] }),
-                                  queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-                                ]);
-                                // Force refetch to ensure immediate update
-                                await queryClient.refetchQueries({ queryKey: ['budget', effectiveBudgetId] });
+                                await updateNutritionPlanTarget('carbs', value);
                               } catch (error: any) {
                                 toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון הפחמימות', variant: 'destructive' });
                               }
@@ -1449,54 +1381,8 @@ export const PlansCard = ({
                             type="number"
                             onSave={async (newValue) => {
                               const value = typeof newValue === 'number' ? newValue : parseInt(String(newValue)) || 0;
-                              if (!effectiveBudgetId || !overviewBudget) return;
                               try {
-                                const updatedTargets = {
-                                  calories: overviewBudget.nutrition_targets?.calories || 0,
-                                  protein: overviewBudget.nutrition_targets?.protein || 0,
-                                  carbs: overviewBudget.nutrition_targets?.carbs || 0,
-                                  fat: value,
-                                  fiber_min: overviewBudget.nutrition_targets?.fiber_min || 0,
-                                };
-
-                                await updateBudget.mutateAsync({
-                                  budgetId: effectiveBudgetId,
-                                  name: overviewBudget.name,
-                                  description: overviewBudget.description || null,
-                                  nutrition_template_id: overviewBudget.nutrition_template_id,
-                                  nutrition_targets: updatedTargets,
-                                  steps_goal: overviewBudget.steps_goal,
-                                  steps_instructions: overviewBudget.steps_instructions || null,
-                                  workout_template_id: overviewBudget.workout_template_id,
-                                  supplement_template_id: overviewBudget.supplement_template_id,
-                                  supplements: overviewBudget.supplements || [],
-                                  eating_order: overviewBudget.eating_order || null,
-                                  eating_rules: overviewBudget.eating_rules || null,
-                                  cardio_training: overviewBudget.cardio_training || null,
-                                  interval_training: overviewBudget.interval_training || null,
-                                });
-
-                                // Sync nutrition plans with updated targets
-                                if (activeAssignment) {
-                                  const { data: { user: authUser } } = await supabase.auth.getUser();
-                                  if (authUser) {
-                                    await syncPlansFromBudget({
-                                      budget: { ...overviewBudget, nutrition_targets: updatedTargets },
-                                      customerId: customerId || null,
-                                      leadId: leadId || null,
-                                      userId: authUser.id,
-                                    });
-                                  }
-                                }
-
-                                // Invalidate all budget-related queries to ensure UI updates everywhere
-                                await Promise.all([
-                                  queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] }),
-                                  queryClient.invalidateQueries({ queryKey: ['budgets'] }),
-                                  queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-                                ]);
-                                // Force refetch to ensure immediate update
-                                await queryClient.refetchQueries({ queryKey: ['budget', effectiveBudgetId] });
+                                await updateNutritionPlanTarget('fat', value);
                               } catch (error: any) {
                                 toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון השומן', variant: 'destructive' });
                               }
@@ -1508,58 +1394,12 @@ export const PlansCard = ({
                         <div className="flex flex-col bg-white rounded-lg p-2.5 border border-orange-100 items-center col-start-2" onClick={(e) => e.stopPropagation()}>
                           <InlineEditableField
                             label="סיבים"
-                            value={overviewBudget?.nutrition_targets?.fiber_min ?? activeNutrition?.targets?.fiber ?? 0}
+                            value={activeNutrition?.targets?.fiber ?? 0}
                             type="number"
                             onSave={async (newValue) => {
                               const value = typeof newValue === 'number' ? newValue : parseInt(String(newValue)) || 0;
-                              if (!effectiveBudgetId || !overviewBudget) return;
                               try {
-                                const updatedTargets = {
-                                  calories: overviewBudget.nutrition_targets?.calories || 0,
-                                  protein: overviewBudget.nutrition_targets?.protein || 0,
-                                  carbs: overviewBudget.nutrition_targets?.carbs || 0,
-                                  fat: overviewBudget.nutrition_targets?.fat || 0,
-                                  fiber_min: value,
-                                };
-
-                                await updateBudget.mutateAsync({
-                                  budgetId: effectiveBudgetId,
-                                  name: overviewBudget.name,
-                                  description: overviewBudget.description || null,
-                                  nutrition_template_id: overviewBudget.nutrition_template_id,
-                                  nutrition_targets: updatedTargets,
-                                  steps_goal: overviewBudget.steps_goal,
-                                  steps_instructions: overviewBudget.steps_instructions || null,
-                                  workout_template_id: overviewBudget.workout_template_id,
-                                  supplement_template_id: overviewBudget.supplement_template_id,
-                                  supplements: overviewBudget.supplements || [],
-                                  eating_order: overviewBudget.eating_order || null,
-                                  eating_rules: overviewBudget.eating_rules || null,
-                                  cardio_training: overviewBudget.cardio_training || null,
-                                  interval_training: overviewBudget.interval_training || null,
-                                });
-
-                                // Sync nutrition plans with updated targets
-                                if (activeAssignment) {
-                                  const { data: { user: authUser } } = await supabase.auth.getUser();
-                                  if (authUser) {
-                                    await syncPlansFromBudget({
-                                      budget: { ...overviewBudget, nutrition_targets: updatedTargets },
-                                      customerId: customerId || null,
-                                      leadId: leadId || null,
-                                      userId: authUser.id,
-                                    });
-                                  }
-                                }
-
-                                // Invalidate all budget-related queries to ensure UI updates everywhere
-                                await Promise.all([
-                                  queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] }),
-                                  queryClient.invalidateQueries({ queryKey: ['budgets'] }),
-                                  queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-                                ]);
-                                // Force refetch to ensure immediate update
-                                await queryClient.refetchQueries({ queryKey: ['budget', effectiveBudgetId] });
+                                await updateNutritionPlanTarget('fiber', value);
                               } catch (error: any) {
                                 toast({ title: 'שגיאה', description: error?.message || 'נכשל בעדכון הסיבים', variant: 'destructive' });
                               }

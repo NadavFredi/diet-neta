@@ -33,6 +33,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import type { NutritionPlan } from '@/hooks/useNutritionPlan';
+import { supabase } from '@/lib/supabaseClient';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface NutritionPlanCardProps {
   nutritionPlan: NutritionPlan;
@@ -57,6 +59,7 @@ export const NutritionPlanCard = ({
 }: NutritionPlanCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const queryClient = useQueryClient();
   
   const startDate = new Date(nutritionPlan.start_date);
   const today = new Date();
@@ -146,12 +149,93 @@ export const NutritionPlanCard = ({
                     <NutritionTemplateForm
                       mode="user"
                       initialData={nutritionPlan}
-                      onSave={(data) => {
-                        onUpdate?.({
-                          ...nutritionPlan,
-                          ...data,
-                        });
-                        setIsEditOpen(false);
+                      onSave={async (data) => {
+                        try {
+                          // The data from getNutritionData for user mode is { targets, calculator_inputs }
+                          // Extract targets and calculator_inputs
+                          const { targets, calculator_inputs } = data;
+                          
+                          // Prepare targets with calculator_inputs and manual_override if they exist
+                          let targetsToSave = targets || nutritionPlan.targets || {
+                            calories: 2000,
+                            protein: 150,
+                            carbs: 200,
+                            fat: 65,
+                            fiber: 30,
+                          };
+                          
+                          // If calculator_inputs exists, store it in targets as _calculator_inputs
+                          if (calculator_inputs) {
+                            const { _calculator_inputs, _manual_override, ...cleanTargets } = targetsToSave as any;
+                            targetsToSave = {
+                              ...cleanTargets,
+                              _calculator_inputs: calculator_inputs,
+                              ...(_manual_override && { _manual_override }),
+                            } as any;
+                          }
+                          
+                          // Update the nutrition plan in the database
+                          const { data: updatedPlan, error: updateError } = await supabase
+                            .from('nutrition_plans')
+                            .update({
+                              targets: targetsToSave,
+                            })
+                            .eq('id', nutritionPlan.id)
+                            .select()
+                            .single();
+                          
+                          if (updateError) throw updateError;
+                          
+                          // Sync changes back to budget if plan is linked to a budget
+                          const budgetId = updatedPlan?.budget_id || nutritionPlan.budget_id;
+                          if (budgetId && targets) {
+                            try {
+                              // Map nutrition plan targets (which uses fiber) to budget nutrition_targets (which uses fiber_min)
+                              const budgetTargets = {
+                                calories: targets.calories || 0,
+                                protein: targets.protein || 0,
+                                carbs: targets.carbs || 0,
+                                fat: targets.fat || 0,
+                                fiber_min: targets.fiber || 0,
+                              };
+                              
+                              // Update the budget's nutrition_targets
+                              const { error: budgetUpdateError } = await supabase
+                                .from('budgets')
+                                .update({ nutrition_targets: budgetTargets })
+                                .eq('id', budgetId);
+                              
+                              if (budgetUpdateError) {
+                                console.error('[NutritionPlanCard] Error syncing to budget:', budgetUpdateError);
+                              } else {
+                                console.log('[NutritionPlanCard] Successfully synced nutrition targets to budget:', budgetId);
+                                // Invalidate and refetch budget queries to refresh UI immediately
+                                queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
+                                queryClient.invalidateQueries({ queryKey: ['budgets'] });
+                                queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+                                await queryClient.refetchQueries({ queryKey: ['budget', budgetId] });
+                              }
+                            } catch (syncError) {
+                              console.error('[NutritionPlanCard] Error syncing to budget:', syncError);
+                            }
+                          }
+                          
+                          // Call the external onUpdate callback if provided (for backward compatibility)
+                          if (updatedPlan) {
+                            const { _calculator_inputs: savedCalcInputs, _manual_override: savedManualOverride, ...savedCleanTargets } = (updatedPlan.targets || {}) as any;
+                            onUpdate?.({
+                              ...nutritionPlan,
+                              targets: savedCleanTargets,
+                              calculator_inputs: savedCalcInputs,
+                            });
+                          }
+                          
+                          setIsEditOpen(false);
+                        } catch (error) {
+                          console.error('[NutritionPlanCard] Error updating plan:', error);
+                          // Still close the modal even if there's an error
+                          setIsEditOpen(false);
+                        }
                       }}
                       onCancel={() => setIsEditOpen(false)}
                     />
