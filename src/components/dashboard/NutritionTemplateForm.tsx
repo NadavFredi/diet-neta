@@ -572,6 +572,7 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('height', parseFloat(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
+                        step="0.1"
                         className="h-9 text-base rounded-lg flex-1"
                       />
                     </div>
@@ -583,9 +584,10 @@ export const NutritionTemplateForm = ({
                         id="calc-age"
                         type="number"
                         value={calculatorInputs.age || ''}
-                        onChange={(e) => setCalculatorInput('age', parseInt(e.target.value) || 0)}
+                        onChange={(e) => setCalculatorInput('age', parseFloat(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
+                        step="0.1"
                         className="h-9 text-base rounded-lg flex-1"
                       />
                     </div>
@@ -635,6 +637,7 @@ export const NutritionTemplateForm = ({
                           onChange={(e) => setCalculatorInput('waist', parseFloat(e.target.value) || 0)}
                           dir="ltr"
                           min="0"
+                          step="0.1"
                           className="h-9 text-base rounded-lg flex-1"
                         />
                       </div>
@@ -649,6 +652,7 @@ export const NutritionTemplateForm = ({
                           onChange={(e) => setCalculatorInput('neck', parseFloat(e.target.value) || 0)}
                           dir="ltr"
                           min="0"
+                          step="0.1"
                           className="h-9 text-base rounded-lg flex-1"
                         />
                       </div>
@@ -663,6 +667,7 @@ export const NutritionTemplateForm = ({
                           onChange={(e) => setCalculatorInput('hip', parseFloat(e.target.value) || 0)}
                           dir="ltr"
                           min="0"
+                          step="0.1"
                           className="h-9 text-base rounded-lg flex-1"
                         />
                       </div>
