@@ -906,7 +906,7 @@ export const PlansCard = ({
               {overviewBudget && (overviewBudget.description?.trim() || overviewBudget.eating_order?.trim() || overviewBudget.eating_rules?.trim() || editingField) && (
                 <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     {(overviewBudget.description?.trim() || editingField === 'description') && (
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -918,7 +918,7 @@ export const PlansCard = ({
                             <Textarea
                               value={editValues.description || ''}
                               onChange={(e) => setEditValues({ ...editValues, description: e.target.value })}
-                              className="text-sm min-h-[80px]"
+                              className="text-sm min-h-[80px] w-full"
                               dir="rtl"
                             />
                             <div className="flex gap-2">
