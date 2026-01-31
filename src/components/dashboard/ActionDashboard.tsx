@@ -63,6 +63,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 
 interface LeadData {
   id: string;
@@ -1557,10 +1563,19 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
 
         {/* Row 3: Progress Gallery & Blood Tests - Full Width Grid */}
         {customer?.id && (
-          <div className="mb-3 sm:mb-4 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-            <ProgressGalleryCard customerId={customer.id} />
-            <BloodTestsGalleryCard leadId={activeLead.id} customerId={customer.id} />
-          </div>
+          <Accordion type="single" collapsible className="w-full mb-3 sm:mb-4">
+            <AccordionItem value="gallery-tests" className="border-0">
+              <AccordionTrigger className="bg-white rounded-lg shadow-md border-2 border-slate-200/60 px-4 py-3 hover:no-underline hover:bg-slate-50/50 hover:shadow-lg transition-all duration-200 w-full">
+                <span className="text-sm font-semibold text-gray-900">גלריית התקדמות ובדיקות דם</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 pt-2">
+                  <ProgressGalleryCard customerId={customer.id} />
+                  <BloodTestsGalleryCard leadId={activeLead.id} customerId={customer.id} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         )}
 
         {/* Workout, Steps, Nutrition & Supplements History Tabs - Full Width - Always Visible */}
