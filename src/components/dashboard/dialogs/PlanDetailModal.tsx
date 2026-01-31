@@ -299,7 +299,7 @@ export const PlanDetailModal = ({
         const startDate = supplementForm.startDate || supplementData.startDate;
         const endDate = supplementForm.endDate || supplementData.endDate || null;
         const description = supplementForm.description || supplementData.description || null;
-        
+
         // Ensure supplements array is properly formatted
         const formattedSupplements = validSupplements.map(s => ({
           name: s.name || '',
@@ -308,7 +308,7 @@ export const PlanDetailModal = ({
           ...(s.link1 && { link1: s.link1 }),
           ...(s.link2 && { link2: s.link2 }),
         }));
-        
+
         const { error } = await supabase
           .from('supplement_plans')
           .update({
@@ -367,9 +367,9 @@ export const PlanDetailModal = ({
       const next = [...prev.supplements];
       if (!next[index]) return prev;
       // Preserve existing supplement data including optional fields (link1, link2)
-      next[index] = { 
-        ...next[index], 
-        [field]: value 
+      next[index] = {
+        ...next[index],
+        [field]: value
       };
       return { ...prev, supplements: next };
     });
@@ -385,10 +385,10 @@ export const PlanDetailModal = ({
     const nextSupplements: Supplement[] =
       idx !== null
         ? (() => {
-            const updated = [...supplementForm.supplements];
-            if (updated[idx]) updated[idx] = supplement;
-            return updated;
-          })()
+          const updated = [...supplementForm.supplements];
+          if (updated[idx]) updated[idx] = supplement;
+          return updated;
+        })()
         : [...supplementForm.supplements, supplement];
 
     setSupplementForm((prev) => {
