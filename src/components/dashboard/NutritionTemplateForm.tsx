@@ -1086,7 +1086,7 @@ export const NutritionTemplateForm = ({
                       unit="קק״ל"
                       color={MACRO_COLORS.calories}
                       isManual={manualOverride.calories}
-                      onLockToggle={mode === 'template' ? () => setManualOverride('calories', !manualOverride.calories) : undefined}
+                      onLockToggle={() => setManualOverride('calories', !manualOverride.calories)}
                     />
                     <MacroInputCard
                       label="חלבון"
@@ -1096,7 +1096,7 @@ export const NutritionTemplateForm = ({
                       unit="גרם"
                       color={MACRO_COLORS.protein}
                       isManual={manualOverride.protein}
-                      onLockToggle={mode === 'template' ? () => setManualOverride('protein', !manualOverride.protein) : undefined}
+                      onLockToggle={() => setManualOverride('protein', !manualOverride.protein)}
                     />
                     <MacroInputCard
                       label="פחמימות"
@@ -1106,7 +1106,7 @@ export const NutritionTemplateForm = ({
                       unit="גרם"
                       color={MACRO_COLORS.carbs}
                       isManual={manualOverride.carbs}
-                      onLockToggle={mode === 'template' ? () => setManualOverride('carbs', !manualOverride.carbs) : undefined}
+                      onLockToggle={() => setManualOverride('carbs', !manualOverride.carbs)}
                     />
                     <MacroInputCard
                       label="שומן"
@@ -1116,7 +1116,7 @@ export const NutritionTemplateForm = ({
                       unit="גרם"
                       color={MACRO_COLORS.fat}
                       isManual={manualOverride.fat}
-                      onLockToggle={mode === 'template' ? () => setManualOverride('fat', !manualOverride.fat) : undefined}
+                      onLockToggle={() => setManualOverride('fat', !manualOverride.fat)}
                     />
                     <MacroInputCard
                       label="סיבים"
@@ -1126,7 +1126,7 @@ export const NutritionTemplateForm = ({
                       unit="גרם"
                       color={MACRO_COLORS.fiber}
                       isManual={manualOverride.fiber}
-                      onLockToggle={mode === 'template' ? () => setManualOverride('fiber', !manualOverride.fiber) : undefined}
+                      onLockToggle={() => setManualOverride('fiber', !manualOverride.fiber)}
                     />
                   </div>
                 </CardContent>

@@ -719,6 +719,16 @@ export const useNutritionBuilder = (
     });
   }, [calculateMacros, manualOverride]);
 
+  // Recalculate targets when manualOverride changes (e.g., when user unlocks a field)
+  useEffect(() => {
+    applyCalculatedValues();
+  }, [manualOverride, applyCalculatedValues]);
+
+  // Recalculate targets when calculator inputs change (e.g., weight, height, etc.)
+  useEffect(() => {
+    applyCalculatedValues();
+  }, [calculatorInputs, applyCalculatedValues]);
+
   const getNutritionData = useCallback((mode: NutritionBuilderMode) => {
     console.log('[getNutritionData] mode:', mode);
     console.log('[getNutritionData] calculatorInputs:', calculatorInputs);
