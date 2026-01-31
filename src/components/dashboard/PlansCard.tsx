@@ -1865,21 +1865,7 @@ export const PlansCard = ({
                       {(overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0) ||
                         (overviewBudget?.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0) ? (
                         <div className="mt-2 pt-2 border-t border-cyan-100/60 space-y-1.5">
-                          {overviewBudget.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 && (
-                            <div>
-                              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אירובי:</span>
-                              <div className="mt-1 space-y-1">
-                                {overviewBudget.cardio_training.map((cardio: any, idx: number) => (
-                                  <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-red-100">
-                                    <span className="font-medium">{cardio.name || 'אירובי'}</span>
-                                    {cardio.duration_minutes && <span className="mr-1"> • {cardio.duration_minutes} דקות</span>}
-                                    {cardio.period_type && <span className="mr-1"> • {cardio.period_type}</span>}
-                                    {cardio.notes && <span className="mr-1 text-slate-500"> • ({cardio.notes})</span>}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+
                           {overviewBudget.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0 && (
                             <div>
                               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אינטרוולים:</span>
