@@ -39,12 +39,12 @@ export interface CardioTraining {
 
 export interface IntervalTraining {
   id?: string; // Unique identifier for list items
-  name: string;
-  type: string; // e.g., "HIIT", "Tabata", "Circuit"
-  duration_minutes: number;
-  workouts_per_week: number; // 1-7
-  period_type?: string; // 'לשבוע' or 'ליום'
-  notes: string;
+  activity_type: string; // איזו פעילות - free text
+  activity_duration_seconds: number; // כמה זמן פעילות - seconds
+  rest_duration_seconds: number; // כמה זמן מנוחה - seconds
+  sets: number; // כמה סטים
+  workouts_per_week: number; // כמה פעמים בשבוע
+  notes?: string; // Optional notes
 }
 
 export interface Budget {

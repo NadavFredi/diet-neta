@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, FileText, Send, ChevronDown, ChevronUp, ListOrdered, ScrollText, Save, X, Check, ArrowLeft, Heart, MoreVertical, Printer } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, FileText, Send, ChevronDown, ChevronUp, ListOrdered, ScrollText, Save, X, Check, ArrowLeft, Heart, MoreVertical, Printer, Zap } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
@@ -16,6 +16,7 @@ import { SendBudgetModal } from './SendBudgetModal';
 import { InlineEditableField } from './InlineEditableField';
 import { EditBudgetDialog } from './dialogs/EditBudgetDialog';
 import { AerobicActivityModal } from './dialogs/AerobicActivityModal';
+import { IntervalActivityModal } from './dialogs/IntervalActivityModal';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -382,6 +383,7 @@ export const PlansCard = ({
   const [editingWorkoutPlan, setEditingWorkoutPlan] = useState<any>(null);
   const [editingNutritionPlan, setEditingNutritionPlan] = useState<any>(null);
   const [isAerobicActivityModalOpen, setIsAerobicActivityModalOpen] = useState(false);
+  const [isIntervalActivityModalOpen, setIsIntervalActivityModalOpen] = useState(false);
 
   // Modal states for details
   const [selectedWorkoutPlan, setSelectedWorkoutPlan] = useState<WorkoutHistoryItem | null>(null);
@@ -1890,8 +1892,8 @@ export const PlansCard = ({
                 </div>
               </div>
 
-              {/* Second Row: 2 Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Second Row: 3 Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Aerobic Activity Card */}
                 <div
                   className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? 'bg-red-100/60 border-red-200' : 'bg-gray-100 border-gray-200 border-dashed'}`}
@@ -1940,6 +1942,73 @@ export const PlansCard = ({
                                 {cardio.notes && (
                                   <p className="text-xs text-gray-500 mt-1.5 pt-1.5 border-t border-red-50">
                                     {cardio.notes}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-16 flex items-center justify-center text-xs text-gray-400">לחץ להוספה</div>
+                  )}
+                </div>
+
+                {/* Interval Activity Card */}
+                <div
+                  className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${overviewBudget?.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0 ? 'bg-yellow-100/60 border-yellow-200' : 'bg-gray-100 border-gray-200 border-dashed'}`}
+                  onClick={() => {
+                    if (effectiveBudgetId) {
+                      setIsIntervalActivityModalOpen(true);
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`p-1.5 rounded-md ${overviewBudget?.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0 ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-200 text-gray-500'}`}>
+                      <Zap className="h-4 w-4" />
+                    </div>
+                    <span className={`text-sm font-semibold ${overviewBudget?.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0 ? 'text-gray-900' : 'text-gray-500'}`}>אימוני אינטרוולים</span>
+                  </div>
+                  {overviewBudget?.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0 ? (
+                    <div className="space-y-2 py-2">
+                      <div className="space-y-1.5">
+                        {overviewBudget.interval_training.map((interval: any, idx: number) => (
+                          <div key={idx} className="bg-white rounded-md p-2 border border-yellow-100">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-gray-900 mb-1">
+                                  {interval.activity_type || 'אימון אינטרוולים'}
+                                </p>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
+                                  {interval.activity_duration_seconds && (
+                                    <span className="flex items-center gap-1">
+                                      <span className="text-gray-500">זמן פעילות:</span>
+                                      <span className="font-medium dir-ltr">{interval.activity_duration_seconds} שניות</span>
+                                    </span>
+                                  )}
+                                  {interval.rest_duration_seconds && (
+                                    <span className="flex items-center gap-1">
+                                      <span className="text-gray-500">זמן מנוחה:</span>
+                                      <span className="font-medium dir-ltr">{interval.rest_duration_seconds} שניות</span>
+                                    </span>
+                                  )}
+                                  {interval.sets && (
+                                    <span className="flex items-center gap-1">
+                                      <span className="text-gray-500">סטים:</span>
+                                      <span className="font-medium dir-ltr">{interval.sets}</span>
+                                    </span>
+                                  )}
+                                  {interval.workouts_per_week && (
+                                    <span className="flex items-center gap-1">
+                                      <span className="text-gray-500">פעמים בשבוע:</span>
+                                      <span className="font-medium dir-ltr">{interval.workouts_per_week}</span>
+                                    </span>
+                                  )}
+                                </div>
+                                {interval.notes && (
+                                  <p className="text-xs text-gray-500 mt-1.5 pt-1.5 border-t border-yellow-50">
+                                    {interval.notes}
                                   </p>
                                 )}
                               </div>
@@ -2152,6 +2221,14 @@ export const PlansCard = ({
         onClose={() => setIsAerobicActivityModalOpen(false)}
         budgetId={effectiveBudgetId}
         cardioTraining={overviewBudget?.cardio_training || null}
+        leadId={leadId}
+      />
+
+      <IntervalActivityModal
+        isOpen={isIntervalActivityModalOpen}
+        onClose={() => setIsIntervalActivityModalOpen(false)}
+        budgetId={effectiveBudgetId}
+        intervalTraining={overviewBudget?.interval_training || null}
         leadId={leadId}
       />
 
