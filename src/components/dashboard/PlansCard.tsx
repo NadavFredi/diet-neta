@@ -473,33 +473,12 @@ export const PlansCard = ({
 
       if (updateError) throw updateError;
 
-      // Optionally sync to budget if plan is linked to a budget (but plan is source of truth)
-      if (activeNutrition.budget_id) {
-        try {
-          // Map plan targets (fiber) to budget targets (fiber_min)
-          const budgetTargets = {
-            calories: updatedTargets.calories || 0,
-            protein: updatedTargets.protein || 0,
-            carbs: updatedTargets.carbs || 0,
-            fat: updatedTargets.fat || 0,
-            fiber_min: updatedTargets.fiber || 0,
-          };
-
-          await supabase
-            .from('budgets')
-            .update({ nutrition_targets: budgetTargets })
-            .eq('id', activeNutrition.budget_id);
-        } catch (syncError) {
-          console.error('[updateNutritionPlanTarget] Error syncing to budget:', syncError);
-          // Don't throw - plan update succeeded, budget sync is secondary
-        }
-      }
+      // Plan is the source of truth - no need to sync back to budget
+      // Budget nutrition_targets is only used for initial plan creation
 
       // Invalidate queries to refresh UI
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-        queryClient.invalidateQueries({ queryKey: ['budget', activeNutrition.budget_id] }),
-        queryClient.invalidateQueries({ queryKey: ['budgets'] }),
       ]);
     } catch (error: any) {
       throw error;

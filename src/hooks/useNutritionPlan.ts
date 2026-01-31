@@ -269,46 +269,13 @@ export const useNutritionPlan = (customerId?: string) => {
         };
         setNutritionPlan(updatedPlan);
         
-        // Sync changes back to budget if plan is linked to a budget
-        const budgetId = data.budget_id || nutritionPlan.budget_id;
-        if (budgetId && savedCleanTargets) {
-          try {
-            // Map nutrition plan targets (which uses fiber) to budget nutrition_targets (which uses fiber_min)
-            const budgetTargets = {
-              calories: savedCleanTargets.calories || 0,
-              protein: savedCleanTargets.protein || 0,
-              carbs: savedCleanTargets.carbs || 0,
-              fat: savedCleanTargets.fat || 0,
-              fiber_min: savedCleanTargets.fiber || 0,
-            };
-            
-            // Update the budget's nutrition_targets
-            const { error: budgetUpdateError } = await supabase
-              .from('budgets')
-              .update({ nutrition_targets: budgetTargets })
-              .eq('id', budgetId);
-            
-            if (budgetUpdateError) {
-              console.error('[updateNutritionPlan] Error syncing to budget:', budgetUpdateError);
-            } else {
-              console.log('[updateNutritionPlan] Successfully synced nutrition targets to budget:', budgetId);
-              // Invalidate and refetch budget queries to refresh UI immediately
-              queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
-              queryClient.invalidateQueries({ queryKey: ['budgets'] });
-              queryClient.invalidateQueries({ queryKey: ['plans-history'] });
-              // Force immediate refetch
-              await queryClient.refetchQueries({ queryKey: ['budget', budgetId] });
-            }
-          } catch (syncError) {
-            console.error('[updateNutritionPlan] Error syncing to budget:', syncError);
-            // Don't throw - plan update succeeded, budget sync is secondary
-          }
-        }
+        // Plan is the source of truth - no need to sync back to budget
+        // Budget nutrition_targets is only used for initial plan creation
         
-        // Invalidate budget history query if the plan is linked to a budget
-        if (budgetId) {
+        // Invalidate queries to refresh UI
+        queryClient.invalidateQueries({ queryKey: ['plans-history'] });
+        if (updatedPlan.budget_id) {
           queryClient.invalidateQueries({ queryKey: ['budget-history'] });
-          queryClient.invalidateQueries({ queryKey: ['plans-history'] });
         }
         
         return updatedPlan;
