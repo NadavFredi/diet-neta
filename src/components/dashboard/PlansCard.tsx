@@ -1508,7 +1508,7 @@ export const PlansCard = ({
                         <div className="flex flex-col bg-white rounded-lg p-2.5 border border-orange-100 items-center col-start-2" onClick={(e) => e.stopPropagation()}>
                           <InlineEditableField
                             label="סיבים"
-                            value={activeNutrition.targets?.fiber || 0}
+                            value={overviewBudget?.nutrition_targets?.fiber_min ?? activeNutrition?.targets?.fiber ?? 0}
                             type="number"
                             onSave={async (newValue) => {
                               const value = typeof newValue === 'number' ? newValue : parseInt(String(newValue)) || 0;
