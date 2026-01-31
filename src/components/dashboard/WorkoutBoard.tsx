@@ -1585,8 +1585,8 @@ export const WorkoutBoard = ({ mode, initialData, leadId, customerId, onSave, on
               };
 
               return (
-                <AccordionItem key={day.key} value={day.key} className="border-b">
-                  <AccordionTrigger className="hover:no-underline px-4 py-3 bg-gray-50 hover:bg-gray-100">
+                <AccordionItem key={day.key} value={day.key} className="border-0 mb-2">
+                  <AccordionTrigger className="hover:no-underline px-4 py-3 bg-[#5B6FB9]/10 border border-[#5B6FB9]/20 rounded-lg hover:bg-[#5B6FB9]/15 hover:border-[#5B6FB9]/30 transition-all shadow-sm hover:shadow">
                     <div className="flex items-center justify-between w-full mr-4">
                       <div className="flex items-center gap-3">
                         <div>

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, FileText, Send, ChevronDown, ChevronUp, ListOrdered, ScrollText, Save, X, Check, ArrowLeft, Heart } from 'lucide-react';
+import { Dumbbell, Footprints, UtensilsCrossed, Pill, Plus, Wallet, Edit, Trash2, FileText, Send, ChevronDown, ChevronUp, ListOrdered, ScrollText, Save, X, Check, ArrowLeft, Heart, MoreVertical } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { BudgetLinkBadge } from './BudgetLinkBadge';
 import { PlanDetailModal } from './dialogs/PlanDetailModal';
@@ -46,6 +46,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Interfaces (copied from LeadHistoryTabs to avoid circular deps or refactoring for now)
 interface WorkoutHistoryItem {
@@ -725,141 +731,147 @@ export const PlansCard = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCreateBlankPlans}
-            className="gap-2 h-8 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>צור תכנית ריקה</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onAssignBudget}
-            className="gap-2 h-8 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>הקצה תכנית פעולה</span>
-          </Button>
-          {activeAssignment && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                if (!activeAssignment) return;
-                try {
-                  // Use the same logic as useDeleteBudgetAssignment - completely delete assignment and all plans
-                  const assignmentId = activeAssignment.id;
-                  const assignmentBudgetId = activeAssignment.budget_id;
-                  const finalCustomerId = customerId || null;
-                  const finalLeadId = leadId || null;
-
-                  // Delete the assignment completely (not just deactivate)
-                  await supabase
-                    .from('budget_assignments')
-                    .delete()
-                    .eq('id', assignmentId);
-
-                  // Delete all associated plans (matching both budget_id and lead_id/customer_id)
-                  // This matches the logic from useDeleteBudgetAssignment
-                  if (finalLeadId) {
-                    await Promise.all([
-                      supabase
-                        .from('workout_plans')
-                        .delete()
-                        .eq('lead_id', finalLeadId)
-                        .eq('budget_id', assignmentBudgetId),
-                      supabase
-                        .from('nutrition_plans')
-                        .delete()
-                        .eq('lead_id', finalLeadId)
-                        .eq('budget_id', assignmentBudgetId),
-                      supabase
-                        .from('supplement_plans')
-                        .delete()
-                        .eq('lead_id', finalLeadId)
-                        .eq('budget_id', assignmentBudgetId),
-                      supabase
-                        .from('steps_plans')
-                        .delete()
-                        .eq('lead_id', finalLeadId)
-                        .eq('budget_id', assignmentBudgetId),
-                    ]);
-                  }
-                  if (finalCustomerId) {
-                    await Promise.all([
-                      supabase
-                        .from('workout_plans')
-                        .delete()
-                        .eq('customer_id', finalCustomerId)
-                        .eq('budget_id', assignmentBudgetId),
-                      supabase
-                        .from('nutrition_plans')
-                        .delete()
-                        .eq('customer_id', finalCustomerId)
-                        .eq('budget_id', assignmentBudgetId),
-                      supabase
-                        .from('supplement_plans')
-                        .delete()
-                        .eq('customer_id', finalCustomerId)
-                        .eq('budget_id', assignmentBudgetId),
-                      supabase
-                        .from('steps_plans')
-                        .delete()
-                        .eq('customer_id', finalCustomerId)
-                        .eq('budget_id', assignmentBudgetId),
-                    ]);
-                  }
-
-                  // Invalidate queries to refresh UI and return to empty state
-                  await Promise.all([
-                    queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-                    queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] }),
-                    queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId] }),
-                    queryClient.invalidateQueries({ queryKey: ['plans-history', null, finalLeadId] }),
-                    queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
-                    queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
-                    queryClient.invalidateQueries({ queryKey: ['budgets'] }),
-                    queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
-                    queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
-                  ]);
-
-                  // Force refetch to ensure UI updates immediately
-                  await queryClient.refetchQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] });
-                  await queryClient.refetchQueries({ queryKey: ['budgetAssignment'] });
-
-                  toast({
-                    title: 'הצלחה',
-                    description: 'תכנית הפעולה והתכניות המקושרות נמחקו בהצלחה',
-                  });
-                } catch (error: any) {
-                  toast({
-                    title: 'שגיאה',
-                    description: error?.message || 'נכשל בניקוי תכנית הפעולה',
-                    variant: 'destructive',
-                  });
-                }
-              }}
-              className="gap-2 h-8 bg-white hover:bg-orange-50 text-orange-600 border-orange-200 hover:text-orange-700"
-            >
-              <X className="h-3.5 w-3.5" />
-              <span>נקה תכנית</span>
-            </Button>
-          )}
-          {effectiveBudgetId && (
-            <div className="flex items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => activeAssignment ? handleEditBudgetFromLead(activeAssignment) : handleEditBudgetById(effectiveBudgetId)}
-                className="gap-2 h-8 ml-2 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+                className="h-8 w-8 p-0 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
               >
-                <Edit className="h-3.5 w-3.5" />
-                <span>ערוך תכנית פעולה</span>
+                <MoreVertical className="h-4 w-4" />
               </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={handleCreateBlankPlans}
+                className="gap-2 cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>צור תכנית ריקה</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onAssignBudget}
+                className="gap-2 cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>הקצה תכנית פעולה</span>
+              </DropdownMenuItem>
+              {activeAssignment && (
+                <DropdownMenuItem
+                  onClick={async () => {
+                    if (!activeAssignment) return;
+                    try {
+                      // Use the same logic as useDeleteBudgetAssignment - completely delete assignment and all plans
+                      const assignmentId = activeAssignment.id;
+                      const assignmentBudgetId = activeAssignment.budget_id;
+                      const finalCustomerId = customerId || null;
+                      const finalLeadId = leadId || null;
 
+                      // Delete the assignment completely (not just deactivate)
+                      await supabase
+                        .from('budget_assignments')
+                        .delete()
+                        .eq('id', assignmentId);
+
+                      // Delete all associated plans (matching both budget_id and lead_id/customer_id)
+                      // This matches the logic from useDeleteBudgetAssignment
+                      if (finalLeadId) {
+                        await Promise.all([
+                          supabase
+                            .from('workout_plans')
+                            .delete()
+                            .eq('lead_id', finalLeadId)
+                            .eq('budget_id', assignmentBudgetId),
+                          supabase
+                            .from('nutrition_plans')
+                            .delete()
+                            .eq('lead_id', finalLeadId)
+                            .eq('budget_id', assignmentBudgetId),
+                          supabase
+                            .from('supplement_plans')
+                            .delete()
+                            .eq('lead_id', finalLeadId)
+                            .eq('budget_id', assignmentBudgetId),
+                          supabase
+                            .from('steps_plans')
+                            .delete()
+                            .eq('lead_id', finalLeadId)
+                            .eq('budget_id', assignmentBudgetId),
+                        ]);
+                      }
+                      if (finalCustomerId) {
+                        await Promise.all([
+                          supabase
+                            .from('workout_plans')
+                            .delete()
+                            .eq('customer_id', finalCustomerId)
+                            .eq('budget_id', assignmentBudgetId),
+                          supabase
+                            .from('nutrition_plans')
+                            .delete()
+                            .eq('customer_id', finalCustomerId)
+                            .eq('budget_id', assignmentBudgetId),
+                          supabase
+                            .from('supplement_plans')
+                            .delete()
+                            .eq('customer_id', finalCustomerId)
+                            .eq('budget_id', assignmentBudgetId),
+                          supabase
+                            .from('steps_plans')
+                            .delete()
+                            .eq('customer_id', finalCustomerId)
+                            .eq('budget_id', assignmentBudgetId),
+                        ]);
+                      }
+
+                      // Invalidate queries to refresh UI and return to empty state
+                      await Promise.all([
+                        queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+                        queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] }),
+                        queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId] }),
+                        queryClient.invalidateQueries({ queryKey: ['plans-history', null, finalLeadId] }),
+                        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
+                        queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
+                        queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+                        queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+                        queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
+                      ]);
+
+                      // Force refetch to ensure UI updates immediately
+                      await queryClient.refetchQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] });
+                      await queryClient.refetchQueries({ queryKey: ['budgetAssignment'] });
+
+                      toast({
+                        title: 'הצלחה',
+                        description: 'תכנית הפעולה והתכניות המקושרות נמחקו בהצלחה',
+                      });
+                    } catch (error: any) {
+                      toast({
+                        title: 'שגיאה',
+                        description: error?.message || 'נכשל בניקוי תכנית הפעולה',
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                  className="gap-2 cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50"
+                >
+                  <X className="h-4 w-4" />
+                  <span>נקה תכנית</span>
+                </DropdownMenuItem>
+              )}
+              {effectiveBudgetId && (
+                <DropdownMenuItem
+                  onClick={() => activeAssignment ? handleEditBudgetFromLead(activeAssignment) : handleEditBudgetById(effectiveBudgetId)}
+                  className="gap-2 cursor-pointer"
+                >
+                  <Edit className="h-4 w-4" />
+                  <span>ערוך תכנית פעולה</span>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {effectiveBudgetId && (
+            <div className="flex items-center gap-1">
               <Button
                 variant="default"
                 size="sm"
@@ -1056,7 +1068,7 @@ export const PlansCard = ({
                           </div>
                         ) : (
                           <p
-                            className="text-sm text-slate-800 leading-relaxed cursor-pointer hover:text-blue-600 hover:bg-blue-50/30 rounded p-2 transition-colors"
+                            className="text-sm text-slate-800 leading-relaxed cursor-pointer hover:text-blue-600 hover:bg-blue-100/60 rounded p-2 transition-colors"
                             onClick={() => {
                               setEditingField('description');
                               setEditValues({ ...editValues, description: overviewBudget.description || '' });
@@ -1291,7 +1303,7 @@ export const PlansCard = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Nutrition Plan Card */}
                 <div
-                  className={`border rounded-xl p-5 relative hover:shadow-md transition-all cursor-pointer ${activeNutrition ? 'bg-orange-50/30 border-orange-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
+                  className={`border rounded-xl p-5 relative hover:shadow-md transition-all cursor-pointer ${activeNutrition ? 'bg-orange-100/60 border-orange-200' : 'bg-gray-100 border-gray-200 border-dashed'}`}
                   onClick={() => activeNutrition ? handleEditNutrition(activeNutrition) : onAddDietPlan()}
                 >
                   <div className="flex items-center gap-3 mb-3">
@@ -1400,7 +1412,7 @@ export const PlansCard = ({
 
                 {/* Workout Plan Card */}
                 <div
-                  className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeWorkout ? 'bg-blue-50/30 border-blue-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
+                  className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeWorkout ? 'bg-blue-100/60 border-blue-200' : 'bg-gray-100 border-gray-200 border-dashed'}`}
                   onClick={() => activeWorkout ? handleEditWorkout(activeWorkout) : onAddWorkoutPlan()}
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -1429,7 +1441,7 @@ export const PlansCard = ({
 
                             return (
                               <AccordionItem value={dayKey} key={dayKey} className="border-b-0 mb-1 last:mb-0">
-                                <AccordionTrigger className={`py-2 px-2 hover:no-underline hover:bg-blue-50 rounded-md ${isActive ? 'bg-blue-50/50' : ''}`}>
+                                <AccordionTrigger className={`py-2 px-2 hover:no-underline hover:bg-blue-100 rounded-md ${isActive ? 'bg-blue-100/70' : ''}`}>
                                   <div className="flex items-center gap-2">
                                     <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-blue-400' : 'bg-gray-200'}`} />
                                     <span className="text-sm text-gray-900">
@@ -1474,7 +1486,7 @@ export const PlansCard = ({
 
                 {/* Steps Plan Card */}
                 <div
-                  className={`border rounded-xl p-3 relative hover:shadow-md transition-all ${activeSteps || overviewBudget?.steps_goal ? 'bg-cyan-50/30 border-cyan-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
+                  className={`border rounded-xl p-3 relative hover:shadow-md transition-all ${activeSteps || overviewBudget?.steps_goal ? 'bg-cyan-100/60 border-cyan-200' : 'bg-gray-100 border-gray-200 border-dashed'}`}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <div className={`p-1.5 rounded-md ${activeSteps || overviewBudget?.steps_goal ? 'bg-cyan-100 text-cyan-600' : 'bg-gray-200 text-gray-500'}`}>
@@ -1664,7 +1676,7 @@ export const PlansCard = ({
                           </div>
                         ) : (
                           <p
-                            className="text-2xl font-bold text-cyan-700 leading-none cursor-pointer hover:text-cyan-800 hover:bg-cyan-50/50 rounded p-2 transition-colors"
+                            className="text-2xl font-bold text-cyan-700 leading-none cursor-pointer hover:text-cyan-800 hover:bg-cyan-100/70 rounded p-2 transition-colors"
                             onClick={() => {
                               // Get current values - support both new format (min/max) and old format (steps_goal)
                               const currentMin = overviewBudget?.steps_min ?? null;
@@ -1890,7 +1902,7 @@ export const PlansCard = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Aerobic Activity Card */}
                 <div
-                  className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? 'bg-red-50/30 border-red-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
+                  className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0 ? 'bg-red-100/60 border-red-200' : 'bg-gray-100 border-gray-200 border-dashed'}`}
                   onClick={() => {
                     if (effectiveBudgetId) {
                       setIsAerobicActivityModalOpen(true);
@@ -1951,7 +1963,7 @@ export const PlansCard = ({
 
                 {/* Supplements Plan Card */}
                 <div
-                  className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeSupplements ? 'bg-green-50/30 border-green-100' : 'bg-gray-50 border-gray-100 border-dashed'}`}
+                  className={`border rounded-xl p-3 relative hover:shadow-md transition-all cursor-pointer ${activeSupplements ? 'bg-green-100/60 border-green-200' : 'bg-gray-100 border-gray-200 border-dashed'}`}
                   onClick={() => activeSupplements ? setSelectedSupplementPlan(activeSupplements) : onAddSupplementsPlan()}
                 >
                   <div className="flex items-center gap-2 mb-2">

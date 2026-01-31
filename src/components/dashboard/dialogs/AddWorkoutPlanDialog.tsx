@@ -26,7 +26,7 @@ export const AddWorkoutPlanDialog = ({
 }: AddWorkoutPlanDialogProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%] !rounded-none !m-0" dir="rtl">
+      <DialogContent className="!max-w-2xl !w-full !max-h-[90vh] flex flex-col p-0 overflow-hidden" dir="rtl">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle>{initialData ? 'עריכת תוכנית אימונים' : 'יצירת תוכנית אימונים חדשה'}</DialogTitle>
         </DialogHeader>
