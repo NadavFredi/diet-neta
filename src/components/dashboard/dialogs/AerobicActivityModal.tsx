@@ -263,12 +263,12 @@ export const AerobicActivityModal = ({
                         <div className="border rounded-lg overflow-hidden">
                             <Table>
                                 <TableHeader>
-                                    <TableRow>
+                                    <TableRow className="[&>th]:py-2">
                                         <TableHead className="text-right w-[120px] px-2">סוג</TableHead>
                                         <TableHead className="text-right px-2">שם האימון</TableHead>
-                                        <TableHead className="text-center w-[80px] px-2">דקות</TableHead>
+                                        <TableHead className="text-center w-[120px] px-2">דקות</TableHead>
                                         <TableHead className="text-right w-[120px] px-2">תדירות</TableHead>
-                                        <TableHead className="text-center w-[100px] px-2">פעמים בשבוע</TableHead>
+                                        <TableHead className="text-center w-[80px] px-2">פעמים בשבוע</TableHead>
                                         <TableHead className="text-right px-4">הנחיות</TableHead>
                                         <TableHead className="text-center w-[50px] px-2"></TableHead>
                                     </TableRow>
@@ -277,7 +277,7 @@ export const AerobicActivityModal = ({
                                     {workoutTrainings
                                         .filter((w) => w.type === 'erobi')
                                         .map((workout) => (
-                                            <TableRow key={workout.id}>
+                                            <TableRow key={workout.id} className="[&>td]:py-1.5">
                                                 <TableCell className="px-2">
                                                     <Select
                                                         value={workout.type || 'erobi'}

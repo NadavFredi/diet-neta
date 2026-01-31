@@ -72,6 +72,7 @@ export const BloodTestsCard: React.FC<BloodTestsCardProps> = ({
           <input
             ref={fileInputRef}
             type="file"
+            multiple
             accept="application/pdf"
             onChange={handleFileInputChange}
             className="hidden"

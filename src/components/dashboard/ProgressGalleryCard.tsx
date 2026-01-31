@@ -211,11 +211,14 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
     }
   };
 
-  // Handle file input change
+  // Handle file input change (multiple files)
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileUpload(file);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      // Upload all selected files
+      Array.from(files).forEach((file) => {
+        handleFileUpload(file);
+      });
     }
     // Reset input
     if (fileInputRef.current) {
@@ -242,9 +245,12 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
 
     if (!isManager) return;
 
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      handleFileUpload(file);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      // Upload all dropped files
+      Array.from(files).forEach((file) => {
+        handleFileUpload(file);
+      });
     }
   };
 
@@ -327,6 +333,7 @@ export const ProgressGalleryCard: React.FC<ProgressGalleryCardProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                 onChange={handleFileInputChange}
                 className="hidden"
