@@ -42,17 +42,17 @@ export const DraggableMeetingCard = ({
           onClick?.();
         }}
         className={cn(
-          "bg-gray-100 border-l-2 border-gray-400 rounded-sm px-2 py-1.5 cursor-pointer hover:bg-gray-200 transition-colors shadow-sm h-full",
+          "bg-[#E8EBF7] border-r-4 border-primary rounded-sm px-2 py-1.5 cursor-pointer hover:bg-[#D9DDF0] transition-colors shadow-sm h-full",
           isDragging && "opacity-50 z-50"
         )}
       >
         {customerName && (
-          <div className="text-sm font-medium text-gray-900 truncate">
+          <div className="text-sm font-semibold text-primary truncate">
             {customerName}
           </div>
         )}
         {time && (
-          <div className="text-xs text-gray-600 mt-0.5">
+          <div className="text-xs text-primary/80 mt-0.5 font-medium">
             {time}
           </div>
         )}
@@ -67,13 +67,13 @@ export const DraggableMeetingCard = ({
       {...listeners}
       {...attributes}
       className={cn(
-        "text-xs text-gray-600 bg-gray-100 rounded px-1 py-0.5 cursor-grab active:cursor-grabbing flex items-center gap-1",
+        "text-xs text-primary bg-[#E8EBF7] border-r-2 border-primary rounded px-1 py-0.5 cursor-grab active:cursor-grabbing flex items-center gap-1",
         isDragging && "opacity-50"
       )}
     >
-      <GripVertical className="h-3 w-3 text-gray-400" />
-      {time && <span>{time}</span>}
-      {customerName && <span className="font-medium">{customerName}</span>}
+      <GripVertical className="h-3 w-3 text-primary/60" />
+      {time && <span className="font-medium">{time}</span>}
+      {customerName && <span>{customerName}</span>}
     </div>
   );
 };

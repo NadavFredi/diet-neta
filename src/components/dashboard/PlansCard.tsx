@@ -183,7 +183,6 @@ export const PlansCard = ({
           carbs: 200,
           fat: 65,
           fiber_min: 30,
-          water_min: 2.5,
         },
         steps_goal: 0,
         steps_instructions: null,
@@ -689,19 +688,11 @@ export const PlansCard = ({
             <Plus className="h-3.5 w-3.5" />
             <span>הקצה תכנית פעולה</span>
           </Button>
-          {(effectiveBudgetId || workoutHistory?.length || nutritionHistory?.length || supplementsHistory?.length || stepsHistory?.length) && (
+          {effectiveBudgetId && (
             <Button
               variant="outline"
               size="sm"
               onClick={async () => {
-                if (!effectiveBudgetId) {
-                  toast({
-                    title: 'שגיאה',
-                    description: 'אין תכנית פעולה לנקות',
-                    variant: 'destructive',
-                  });
-                  return;
-                }
                 try {
                   // If there's an active assignment, deactivate it
                   if (activeAssignment) {
@@ -711,15 +702,15 @@ export const PlansCard = ({
                       .eq('id', activeAssignment.id);
                   }
 
-                  // Clear budget_id from all associated plans
+                  // Delete all associated plans completely (not just clear budget_id)
                   const finalCustomerId = customerId || null;
                   const finalLeadId = leadId || null;
 
-                  // Build queries based on customer_id or lead_id
-                  const buildPlanQuery = (table: string) => {
+                  // Build delete queries based on customer_id or lead_id
+                  const buildDeleteQuery = (table: string) => {
                     let query = supabase
                       .from(table)
-                      .update({ budget_id: null })
+                      .delete()
                       .eq('budget_id', effectiveBudgetId);
 
                     if (finalCustomerId && finalLeadId) {
@@ -734,10 +725,10 @@ export const PlansCard = ({
                   };
 
                   await Promise.all([
-                    buildPlanQuery('workout_plans'),
-                    buildPlanQuery('nutrition_plans'),
-                    buildPlanQuery('supplement_plans'),
-                    buildPlanQuery('steps_plans'),
+                    buildDeleteQuery('workout_plans'),
+                    buildDeleteQuery('nutrition_plans'),
+                    buildDeleteQuery('supplement_plans'),
+                    buildDeleteQuery('steps_plans'),
                   ]);
 
                   // Invalidate queries to refresh UI (plans will remain, but budget association is cleared)
