@@ -721,7 +721,7 @@ export const PlansCard = ({
                       .from(table)
                       .update({ budget_id: null })
                       .eq('budget_id', effectiveBudgetId);
-                    
+
                     if (finalCustomerId && finalLeadId) {
                       query = query.or(`customer_id.eq.${finalCustomerId},lead_id.eq.${finalLeadId}`);
                     } else if (finalCustomerId) {
@@ -729,7 +729,7 @@ export const PlansCard = ({
                     } else if (finalLeadId) {
                       query = query.eq('lead_id', finalLeadId);
                     }
-                    
+
                     return query;
                   };
 
@@ -740,7 +740,7 @@ export const PlansCard = ({
                     buildPlanQuery('steps_plans'),
                   ]);
 
-                  // Invalidate queries to refresh UI and return to empty state
+                  // Invalidate queries to refresh UI (plans will remain, but budget association is cleared)
                   await Promise.all([
                     queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
                     queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] }),
@@ -752,6 +752,7 @@ export const PlansCard = ({
 
                   // Force refetch to ensure UI updates immediately
                   await queryClient.refetchQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] });
+                  await queryClient.refetchQueries({ queryKey: ['budgetAssignment'] });
 
                   toast({
                     title: 'הצלחה',
@@ -1007,7 +1008,7 @@ export const PlansCard = ({
                         </div>
                       </div>
                     ) : (
-                      <p 
+                      <p
                         className="text-sm text-slate-800 leading-relaxed cursor-pointer hover:text-blue-600 hover:bg-blue-50/30 rounded p-2 transition-colors"
                         onClick={() => {
                           setEditingField('description');
@@ -1115,7 +1116,7 @@ export const PlansCard = ({
                         </div>
                       </div>
                     ) : (
-                      <p 
+                      <p
                         className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap cursor-pointer hover:text-blue-600 hover:bg-blue-50/30 rounded p-2 transition-colors"
                         onClick={() => {
                           setEditingField('eating_order');
@@ -1223,7 +1224,7 @@ export const PlansCard = ({
                         </div>
                       </div>
                     ) : (
-                      <p 
+                      <p
                         className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap cursor-pointer hover:text-blue-600 hover:bg-blue-50/30 rounded p-2 transition-colors"
                         onClick={() => {
                           setEditingField('eating_rules');
@@ -1405,10 +1406,10 @@ export const PlansCard = ({
                                 return;
                               }
                               try {
-                                const newStepsGoal = editValues.steps_goal !== undefined 
-                                  ? editValues.steps_goal 
+                                const newStepsGoal = editValues.steps_goal !== undefined
+                                  ? editValues.steps_goal
                                   : (activeSteps?.target ?? overviewBudget?.steps_goal ?? 0);
-                                
+
                                 if (newStepsGoal === undefined || isNaN(newStepsGoal) || newStepsGoal < 0) {
                                   toast({ title: 'שגיאה', description: 'אנא הזן ערך תקין ליעד הצעדים', variant: 'destructive' });
                                   return;
@@ -1504,7 +1505,7 @@ export const PlansCard = ({
                         </div>
                       </div>
                     ) : (
-                      <p 
+                      <p
                         className="text-2xl font-bold text-cyan-700 leading-none cursor-pointer hover:text-cyan-800 hover:bg-cyan-50/50 rounded p-2 transition-colors"
                         onClick={() => {
                           const currentValue = activeSteps?.target ?? overviewBudget?.steps_goal ?? 0;
@@ -1636,7 +1637,7 @@ export const PlansCard = ({
                           </div>
                         </div>
                       ) : (
-                        <p 
+                        <p
                           className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap cursor-pointer hover:text-blue-600 hover:bg-blue-50/30 rounded p-2 transition-colors"
                           onClick={() => {
                             const currentValue = overviewBudget?.steps_instructions || '';
