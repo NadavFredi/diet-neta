@@ -312,8 +312,15 @@ const PrintBudgetPage = () => {
                   )}
                   <div className="space-y-4 text-sm">
                     {(() => {
-                      const daysEntries = Object.entries(workoutData.weeklyWorkout.days || {});
-                      console.log('Rendering days entries:', daysEntries);
+                      const dayOrder = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                      const days = workoutData.weeklyWorkout.days || {};
+                      
+                      // Sort days by the predefined order
+                      const daysEntries = dayOrder
+                        .map(dayKey => [dayKey, days[dayKey]] as [string, any])
+                        .filter(([_, dayData]) => dayData); // Only include days that exist
+                      
+                      console.log('Rendering days entries (ordered):', daysEntries);
                       return daysEntries.map(([dayKey, dayData]: [string, any]) => {
                         // Show exercises if they exist, even if isActive is not explicitly true
                         console.log(`Checking day ${dayKey}:`, dayData);
