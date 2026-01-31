@@ -98,8 +98,11 @@ export const AddMeetingDialog = ({
   // Reset form when dialog opens/closes or IDs change
   useEffect(() => {
     if (isOpen) {
-      const dateToUse = initialDate || new Date();
-      dateToUse.setHours(0, 0, 0, 0);
+      const dateToUse = initialDate ? new Date(initialDate) : new Date();
+      // Only reset hours if initialDate wasn't provided (preserve hour from click)
+      if (!initialDate) {
+        dateToUse.setHours(0, 0, 0, 0);
+      }
       const dateStr = format(dateToUse, 'yyyy-MM-dd');
       const defaultTime = format(dateToUse, 'HH:mm');
       

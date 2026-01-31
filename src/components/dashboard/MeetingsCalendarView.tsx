@@ -918,10 +918,13 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                 <div className="grid grid-cols-8 gap-px bg-gray-200 border-x border-b border-gray-200">
                   {/* Time column */}
                   <div className="bg-gray-50 border-r border-gray-200">
-                    {generateHours().map((hour) => (
+                    {generateHours().map((hour, index) => (
                       <div
                         key={hour}
-                        className="h-16 border-b border-gray-200 px-2 py-1 text-xs text-gray-500"
+                        className={cn(
+                          "h-16 border-b border-gray-200 px-2 py-1 text-xs text-gray-500",
+                          index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                        )}
                       >
                         {hour}:00
                       </div>
@@ -943,10 +946,13 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                       >
                         <div className="relative h-full min-h-[1152px]">
                           {/* Hour slots */}
-                          {generateHours().map((hour) => (
+                          {generateHours().map((hour, index) => (
                             <div
                               key={hour}
-                              className="h-16 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                              className={cn(
+                                "h-16 border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors",
+                                index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                              )}
                               onClick={() => {
                                 const clickedDate = new Date(date);
                                 clickedDate.setHours(hour, 0, 0, 0);
@@ -1007,10 +1013,13 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                 <div className="grid grid-cols-2 gap-px bg-gray-200 border-x border-b border-gray-200">
                   {/* Time column */}
                   <div className="bg-gray-50 border-r border-gray-200">
-                    {generateHours().map((hour) => (
+                    {generateHours().map((hour, index) => (
                       <div
                         key={hour}
-                        className="h-16 border-b border-gray-200 px-2 py-1 text-xs text-gray-500"
+                        className={cn(
+                          "h-16 border-b border-gray-200 px-2 py-1 text-xs text-gray-500",
+                          index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                        )}
                       >
                         {hour}:00
                       </div>
@@ -1025,10 +1034,13 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                   >
                     <div className="relative h-full min-h-[1152px]">
                       {/* Hour slots */}
-                      {generateHours().map((hour) => (
+                      {generateHours().map((hour, index) => (
                         <div
                           key={hour}
-                          className="h-16 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                          className={cn(
+                            "h-16 border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors",
+                            index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                          )}
                           onClick={() => {
                             const clickedDate = new Date(currentDay);
                             clickedDate.setHours(hour, 0, 0, 0);
