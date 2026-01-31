@@ -35,7 +35,7 @@ export const EditBudgetDialog = ({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange} modal={true}>
       <DialogContent 
-        className="!max-w-3xl !w-full !max-h-[90vh] flex flex-col p-0 overflow-hidden" 
+        className="!max-w-4xl !w-full !max-h-[90vh] flex flex-col p-0 overflow-hidden" 
         dir="rtl"
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
