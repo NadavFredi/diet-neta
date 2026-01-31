@@ -143,7 +143,22 @@ export const useDeleteSavedActionPlan = () => {
  * Create a complete snapshot of a budget for saving
  */
 export const createBudgetSnapshot = (budget: Budget, nutritionTemplate?: any, workoutTemplate?: any): any => {
-  return {
+  console.log('[createBudgetSnapshot] Budget data:', {
+    id: budget.id,
+    name: budget.name,
+    supplements: budget.supplements,
+    supplementsType: typeof budget.supplements,
+    supplementsIsArray: Array.isArray(budget.supplements),
+    supplementsLength: Array.isArray(budget.supplements) ? budget.supplements.length : 'N/A',
+    workout_template_id: budget.workout_template_id,
+    workoutTemplate: workoutTemplate ? {
+      id: workoutTemplate.id,
+      name: workoutTemplate.name,
+      hasRoutineData: !!workoutTemplate.routine_data,
+    } : null,
+  });
+
+  const snapshot = {
     // Basic info
     id: budget.id,
     name: budget.name,
@@ -200,4 +215,18 @@ export const createBudgetSnapshot = (budget: Budget, nutritionTemplate?: any, wo
     created_at: budget.created_at,
     updated_at: budget.updated_at,
   };
+
+  console.log('[createBudgetSnapshot] Created snapshot:', {
+    supplements: snapshot.supplements,
+    supplementsType: typeof snapshot.supplements,
+    supplementsIsArray: Array.isArray(snapshot.supplements),
+    supplementsLength: Array.isArray(snapshot.supplements) ? snapshot.supplements.length : 'N/A',
+    workout_template_id: snapshot.workout_template_id,
+    workout_template: snapshot.workout_template ? {
+      id: snapshot.workout_template.id,
+      name: snapshot.workout_template.name,
+    } : null,
+  });
+
+  return snapshot;
 };

@@ -786,20 +786,92 @@ export const PlansCard = ({
                   if (!workoutTemplate && budget.id) {
                     const { data: workoutPlan } = await supabase
                       .from('workout_plans')
-                      .select('*, template_id')
+                      .select('*, template_id, custom_attributes')
                       .eq('budget_id', budget.id)
                       .eq('is_active', true)
                       .order('created_at', { ascending: false })
                       .limit(1)
                       .maybeSingle();
 
+                    console.log('[PlansCard] Workout plan found:', {
+                      hasWorkoutPlan: !!workoutPlan,
+                      template_id: workoutPlan?.template_id,
+                      hasCustomAttributes: !!workoutPlan?.custom_attributes,
+                      hasRoutineData: !!workoutPlan?.custom_attributes?.data?.weeklyWorkout,
+                    });
+
                     if (workoutPlan?.template_id) {
                       const { data: templateData } = await supabase.from('workout_templates').select('*').eq('id', workoutPlan.template_id).single();
                       workoutTemplate = templateData;
+                    } else if (workoutPlan?.custom_attributes?.data?.weeklyWorkout) {
+                      // If no template but has custom workout data, create a synthetic template
+                      workoutTemplate = {
+                        id: workoutPlan.id,
+                        name: workoutPlan.name || 'תכנית אימונים מותאמת',
+                        description: workoutPlan.description || null,
+                        goal_tags: null,
+                        routine_data: {
+                          weeklyWorkout: workoutPlan.custom_attributes.data.weeklyWorkout,
+                        },
+                      };
+                      console.log('[PlansCard] Created synthetic workout template from workout plan');
                     }
                   }
 
-                  const snapshot = createBudgetSnapshot(budget, nutritionTemplate, workoutTemplate);
+                  // Fetch supplements from supplement_plans table if budget.supplements is empty
+                  let supplementsFromPlans: any[] = [];
+                  if (budget.id && (!budget.supplements || (Array.isArray(budget.supplements) && budget.supplements.length === 0))) {
+                    const { data: supplementPlans } = await supabase
+                      .from('supplement_plans')
+                      .select('supplements')
+                      .eq('budget_id', budget.id)
+                      .eq('is_active', true)
+                      .order('created_at', { ascending: false })
+                      .limit(1)
+                      .maybeSingle();
+
+                    if (supplementPlans?.supplements && Array.isArray(supplementPlans.supplements) && supplementPlans.supplements.length > 0) {
+                      supplementsFromPlans = supplementPlans.supplements;
+                      console.log('[PlansCard] Found supplements from supplement_plans:', supplementsFromPlans);
+                    }
+                  }
+
+                  // Merge supplements: prefer budget.supplements, fallback to supplement_plans
+                  const finalSupplements = (budget.supplements && Array.isArray(budget.supplements) && budget.supplements.length > 0)
+                    ? budget.supplements
+                    : supplementsFromPlans;
+
+                  console.log('[PlansCard] Before creating snapshot:', {
+                    budgetId: budget.id,
+                    budgetName: budget.name,
+                    budgetSupplements: budget.supplements,
+                    supplementsFromPlans: supplementsFromPlans,
+                    finalSupplements: finalSupplements,
+                    supplementsType: typeof finalSupplements,
+                    supplementsIsArray: Array.isArray(finalSupplements),
+                    supplementsLength: Array.isArray(finalSupplements) ? finalSupplements.length : 'N/A',
+                    workout_template_id: budget.workout_template_id,
+                    workoutTemplate: workoutTemplate ? {
+                      id: workoutTemplate.id,
+                      name: workoutTemplate.name,
+                    } : null,
+                  });
+
+                  // Create a modified budget object with merged supplements
+                  const budgetWithMergedSupplements = {
+                    ...budget,
+                    supplements: finalSupplements,
+                  };
+
+                  const snapshot = createBudgetSnapshot(budgetWithMergedSupplements, nutritionTemplate, workoutTemplate);
+
+                  console.log('[PlansCard] Snapshot created, saving action plan:', {
+                    snapshotSupplements: snapshot.supplements,
+                    snapshotWorkoutTemplate: snapshot.workout_template ? {
+                      id: snapshot.workout_template.id,
+                      name: snapshot.workout_template.name,
+                    } : null,
+                  });
 
                   await saveActionPlan.mutateAsync({
                     budget_id: budget.id,

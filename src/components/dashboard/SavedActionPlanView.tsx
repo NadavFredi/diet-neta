@@ -23,6 +23,27 @@ export const SavedActionPlanView = ({ planId, isOpen, onClose }: SavedActionPlan
 
   const snapshot = plan?.snapshot || {};
 
+  // Debug logging
+  console.log('[SavedActionPlanView] Plan data:', {
+    planId,
+    planName: plan?.name,
+    hasSnapshot: !!plan?.snapshot,
+  });
+
+  console.log('[SavedActionPlanView] Snapshot data:', {
+    supplements: snapshot.supplements,
+    supplementsType: typeof snapshot.supplements,
+    supplementsIsArray: Array.isArray(snapshot.supplements),
+    supplementsLength: Array.isArray(snapshot.supplements) ? snapshot.supplements.length : 'N/A',
+    supplementsRaw: JSON.stringify(snapshot.supplements),
+    workout_template_id: snapshot.workout_template_id,
+    workout_template: snapshot.workout_template ? {
+      id: snapshot.workout_template.id,
+      name: snapshot.workout_template.name,
+      hasRoutineData: !!snapshot.workout_template.routine_data,
+    } : null,
+  });
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose} modal={true}>
       <DialogContent 
@@ -75,63 +96,83 @@ export const SavedActionPlanView = ({ planId, isOpen, onClose }: SavedActionPlan
                   <Dumbbell className="h-4 w-4 text-blue-600 shrink-0" />
                   <h3 className="text-sm font-bold text-slate-900">תוכנית אימונים</h3>
                 </div>
-                {snapshot.workout_template || snapshot.workout_template_id ? (
-                  <div className="space-y-2">
-                    {snapshot.workout_template && (
-                      <>
-                        <div>
-                          <span className="text-sm font-semibold text-slate-500">שם: </span>
-                          <span className="text-base font-semibold text-slate-900">{snapshot.workout_template.name}</span>
-                        </div>
-                        {snapshot.workout_template.description && (
-                          <div>
-                            <span className="text-sm font-semibold text-slate-500">תיאור: </span>
-                            <span className="text-base text-slate-700">{snapshot.workout_template.description}</span>
-                          </div>
-                        )}
-                        {snapshot.workout_template.routine_data?.weeklyWorkout?.days && (
-                          <div>
-                            <span className="text-sm font-semibold text-slate-500 block mb-1.5">לוח זמנים שבועי:</span>
-                            <div className="space-y-1.5">
-                              {(() => {
-                                const days = snapshot.workout_template.routine_data.weeklyWorkout.days;
-                                const dayLabels: Record<string, string> = {
-                                  sunday: 'ראשון', monday: 'שני', tuesday: 'שלישי', wednesday: 'רביעי',
-                                  thursday: 'חמישי', friday: 'שישי', saturday: 'שבת',
-                                };
-                                const activeDays = Object.keys(days).filter(day =>
-                                  days[day]?.isActive && days[day]?.exercises?.length > 0
-                                ).map(day => {
-                                  const dayData = days[day];
-                                  const dayName = dayLabels[day] || day;
-                                  const exercises = dayData.exercises || [];
-                                  const exerciseNames = exercises.map((ex: any) => ex.name || ex.exercise_name || 'תרגיל').filter(Boolean);
-                                  return { dayName, exerciseNames };
-                                });
+                {(() => {
+                  console.log('[SavedActionPlanView] Workout check:', {
+                    workout_template_id: snapshot.workout_template_id,
+                    has_workout_template: !!snapshot.workout_template,
+                    workout_template: snapshot.workout_template ? {
+                      id: snapshot.workout_template.id,
+                      name: snapshot.workout_template.name,
+                      hasRoutineData: !!snapshot.workout_template.routine_data,
+                      hasWeeklyWorkout: !!snapshot.workout_template.routine_data?.weeklyWorkout,
+                      hasDays: !!snapshot.workout_template.routine_data?.weeklyWorkout?.days,
+                    } : null,
+                  });
 
-                                if (activeDays.length === 0) {
-                                  return <p className="text-base text-slate-500">אין ימים פעילים</p>;
-                                }
-
-                                return activeDays.map(({ dayName, exerciseNames }, idx) => (
-                                  <div key={idx} className="text-base text-slate-700">
-                                    <span className="font-semibold">{dayName}:</span>
-                                    <span className="mr-1"> {exerciseNames.join(', ')}</span>
-                                  </div>
-                                ));
-                              })()}
+                  if (snapshot.workout_template || snapshot.workout_template_id) {
+                    return (
+                      <div className="space-y-2">
+                        {snapshot.workout_template && (
+                          <>
+                            <div>
+                              <span className="text-sm font-semibold text-slate-500">שם: </span>
+                              <span className="text-base font-semibold text-slate-900">{snapshot.workout_template.name}</span>
                             </div>
-                          </div>
+                            {snapshot.workout_template.description && (
+                              <div>
+                                <span className="text-sm font-semibold text-slate-500">תיאור: </span>
+                                <span className="text-base text-slate-700">{snapshot.workout_template.description}</span>
+                              </div>
+                            )}
+                            {snapshot.workout_template.routine_data?.weeklyWorkout?.days && (
+                              <div>
+                                <span className="text-sm font-semibold text-slate-500 block mb-1.5">לוח זמנים שבועי:</span>
+                                <div className="space-y-1.5">
+                                  {(() => {
+                                    const days = snapshot.workout_template.routine_data.weeklyWorkout.days;
+                                    console.log('[SavedActionPlanView] Workout days:', Object.keys(days));
+                                    const dayLabels: Record<string, string> = {
+                                      sunday: 'ראשון', monday: 'שני', tuesday: 'שלישי', wednesday: 'רביעי',
+                                      thursday: 'חמישי', friday: 'שישי', saturday: 'שבת',
+                                    };
+                                    const activeDays = Object.keys(days).filter(day =>
+                                      days[day]?.isActive && days[day]?.exercises?.length > 0
+                                    ).map(day => {
+                                      const dayData = days[day];
+                                      const dayName = dayLabels[day] || day;
+                                      const exercises = dayData.exercises || [];
+                                      const exerciseNames = exercises.map((ex: any) => ex.name || ex.exercise_name || 'תרגיל').filter(Boolean);
+                                      return { dayName, exerciseNames };
+                                    });
+
+                                    console.log('[SavedActionPlanView] Active days:', activeDays.length, activeDays);
+
+                                    if (activeDays.length === 0) {
+                                      return <p className="text-base text-slate-500">אין ימים פעילים</p>;
+                                    }
+
+                                    return activeDays.map(({ dayName, exerciseNames }, idx) => (
+                                      <div key={idx} className="text-base text-slate-700">
+                                        <span className="font-semibold">{dayName}:</span>
+                                        <span className="mr-1"> {exerciseNames.join(', ')}</span>
+                                      </div>
+                                    ));
+                                  })()}
+                                </div>
+                              </div>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                    {!snapshot.workout_template && snapshot.workout_template_id && (
-                      <p className="text-base text-slate-700">תכנית אימונים (מזהה: {snapshot.workout_template_id})</p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-base text-slate-500">אין תוכנית אימונים</p>
-                )}
+                        {!snapshot.workout_template && snapshot.workout_template_id && (
+                          <p className="text-base text-slate-700">תכנית אימונים (מזהה: {snapshot.workout_template_id})</p>
+                        )}
+                      </div>
+                    );
+                  } else {
+                    console.log('[SavedActionPlanView] No workout template or ID');
+                    return <p className="text-base text-slate-500">אין תוכנית אימונים</p>;
+                  }
+                })()}
               </div>
 
               {/* Cardio */}
@@ -230,24 +271,59 @@ export const SavedActionPlanView = ({ planId, isOpen, onClose }: SavedActionPlan
                 {(() => {
                   // Check if supplements exist and are valid
                   const supplements = snapshot.supplements;
+                  
+                  console.log('[SavedActionPlanView] Supplements check:', {
+                    supplements,
+                    supplementsType: typeof supplements,
+                    supplementsIsArray: Array.isArray(supplements),
+                    supplementsLength: Array.isArray(supplements) ? supplements.length : 'N/A',
+                    supplementsRaw: JSON.stringify(supplements),
+                  });
+                  
                   if (!supplements) {
+                    console.log('[SavedActionPlanView] No supplements (null/undefined)');
                     return <p className="text-base text-slate-500">אין תוספים</p>;
                   }
                   
                   // Handle array format
                   if (Array.isArray(supplements)) {
+                    console.log('[SavedActionPlanView] Supplements is array, length:', supplements.length);
+                    console.log('[SavedActionPlanView] Supplements items:', supplements.map((sup: any, idx: number) => ({
+                      index: idx,
+                      type: typeof sup,
+                      value: sup,
+                      isString: typeof sup === 'string',
+                      isObject: typeof sup === 'object',
+                      hasName: typeof sup === 'object' && sup?.name,
+                      name: typeof sup === 'object' ? sup?.name : (typeof sup === 'string' ? sup : 'N/A'),
+                    })));
+                    
                     // Filter out empty objects and null values
                     const validSupplements = supplements.filter((sup: any) => {
-                      if (!sup) return false;
-                      if (typeof sup === 'string') return sup.trim().length > 0;
+                      if (!sup) {
+                        console.log('[SavedActionPlanView] Filtering out null/undefined supplement');
+                        return false;
+                      }
+                      if (typeof sup === 'string') {
+                        const isValid = sup.trim().length > 0;
+                        console.log('[SavedActionPlanView] String supplement:', sup, 'isValid:', isValid);
+                        return isValid;
+                      }
                       if (typeof sup === 'object') {
                         // Check if it has at least a name or is not an empty object
-                        return sup.name || Object.keys(sup).length > 0;
+                        const hasName = !!sup.name;
+                        const hasKeys = Object.keys(sup).length > 0;
+                        const isValid = hasName || hasKeys;
+                        console.log('[SavedActionPlanView] Object supplement:', sup, 'hasName:', hasName, 'hasKeys:', hasKeys, 'isValid:', isValid);
+                        return isValid;
                       }
                       return false;
                     });
                     
+                    console.log('[SavedActionPlanView] Valid supplements after filter:', validSupplements.length, validSupplements);
+                    
                     if (validSupplements.length === 0) {
+                      console.log('[SavedActionPlanView] No valid supplements after filtering');
                       return <p className="text-base text-slate-500">אין תוספים</p>;
                     }
                     
@@ -259,8 +335,11 @@ export const SavedActionPlanView = ({ planId, isOpen, onClose }: SavedActionPlan
                           const dosage = typeof supplement === 'object' && supplement.dosage ? supplement.dosage : null;
                           const timing = typeof supplement === 'object' && supplement.timing ? supplement.timing : null;
                           
+                          console.log('[SavedActionPlanView] Rendering supplement:', { idx, name, dosage, timing, supplement });
+                          
                           // Skip if name is empty or just a dash
                           if (!name || name === '—' || name.trim() === '') {
+                            console.log('[SavedActionPlanView] Skipping supplement with empty name:', name);
                             return null;
                           }
                           
@@ -277,6 +356,7 @@ export const SavedActionPlanView = ({ planId, isOpen, onClose }: SavedActionPlan
                   }
                   
                   // If not an array, show no supplements
+                  console.log('[SavedActionPlanView] Supplements is not an array');
                   return <p className="text-base text-slate-500">אין תוספים</p>;
                 })()}
               </div>

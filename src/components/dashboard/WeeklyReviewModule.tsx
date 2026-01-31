@@ -826,11 +826,28 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     actionPlan,
   ]);
 
+  // Helper function to strip HTML tags and clean message
+  const cleanMessage = useCallback((msg: string): string => {
+    // Remove HTML tags
+    let cleaned = msg.replace(/<[^>]*>/g, '');
+    // Decode HTML entities
+    cleaned = cleaned
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+    // Ensure proper line breaks
+    cleaned = cleaned.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    return cleaned.trim();
+  }, []);
+
   // Initialize message on mount or when customerPhone becomes available
   useEffect(() => {
     if (customerPhone && !whatsappMessage) {
       const { message, processedButtons, media } = generateMessageFromData();
-      setWhatsappMessage(message);
+      setWhatsappMessage(cleanMessage(message));
       setWhatsappButtons(processedButtons);
       setWhatsappMedia(media);
     }
@@ -839,7 +856,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
 
   const handleUpdateMessageFromData = () => {
     const { message, processedButtons, media } = generateMessageFromData();
-    setWhatsappMessage(message);
+    setWhatsappMessage(cleanMessage(message));
     setWhatsappButtons(processedButtons);
     setWhatsappMedia(media);
     toast({
@@ -860,9 +877,10 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
 
     setIsSendingWhatsApp(true);
     try {
+      const cleanedMessage = cleanMessage(whatsappMessage);
       const result = await sendWhatsAppMessage({
         phoneNumber: customerPhone,
-        message: whatsappMessage,
+        message: cleanedMessage,
         buttons: whatsappButtons,
         media: whatsappMedia,
       });
@@ -1227,8 +1245,8 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
         {/* WhatsApp Message Preview and Editor */}
         {customerPhone && (
           <div className="space-y-3 pt-4 border-t">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="whatsapp-message" className="text-sm font-semibold">
+            <div className="flex items-center justify-between mb-2">
+              <Label htmlFor="whatsapp-message" className="text-sm font-semibold text-gray-700">
                 הודעת WhatsApp
               </Label>
               <Button
@@ -1236,22 +1254,26 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={handleUpdateMessageFromData}
-                className="gap-2"
+                className="gap-2 border-gray-300 hover:bg-gray-50"
               >
                 <MessageSquare className="h-4 w-4" />
                 עדכן טקסט מהנתונים
               </Button>
             </div>
-            <Textarea
-              id="whatsapp-message"
-              value={whatsappMessage}
-              onChange={(e) => setWhatsappMessage(e.target.value)}
-              placeholder="ההודעה תיווצר אוטומטית מהתבנית והנתונים..."
-              className="min-h-[200px] font-mono text-sm"
-              dir="rtl"
-            />
-            <div className="text-xs text-gray-500">
-              💡 תוכל לערוך את ההודעה ולהוסיף הערות אישיות לפני השליחה
+            <div className="relative">
+              <Textarea
+                id="whatsapp-message"
+                value={whatsappMessage}
+                onChange={(e) => setWhatsappMessage(e.target.value)}
+                placeholder="ההודעה תיווצר אוטומטית מהתבנית והנתונים..."
+                className="min-h-[280px] text-sm whitespace-pre-wrap leading-relaxed resize-y border-gray-300 focus:border-green-500 focus:ring-green-500/20 bg-white"
+                style={{ fontFamily: 'system-ui, -apple-system, sans-serif', lineHeight: '1.6' }}
+                dir="rtl"
+              />
+            </div>
+            <div className="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded-md">
+              <span className="text-base">💡</span>
+              <span>תוכל לערוך את ההודעה ולהוסיף הערות אישיות לפני השליחה</span>
             </div>
           </div>
         )}
