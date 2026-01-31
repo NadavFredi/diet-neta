@@ -776,18 +776,18 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
       message = `📊 סיכום שבועי - שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}\n\n`;
       
       message += `🎯 יעדים:\n`;
-      if (targetCalories) message += `קלוריות: ${Math.round(parseFloat(targetCalories))} קק"ל\n`;
-      if (targetProtein) message += `חלבון: ${Math.round(parseFloat(targetProtein))} גרם\n`;
-      if (targetFiber) message += `סיבים: ${Math.round(parseFloat(targetFiber))} גרם\n`;
-      if (targetSteps) message += `צעדים: ${Math.round(parseFloat(targetSteps))}\n`;
+      message += `קלוריות: ${targetCalories ? Math.round(parseFloat(targetCalories)).toString() : '-'} קק"ל\n`;
+      message += `חלבון: ${targetProtein ? Math.round(parseFloat(targetProtein)).toString() : '-'} גרם\n`;
+      message += `סיבים: ${targetFiber ? Math.round(parseFloat(targetFiber)).toString() : '-'} גרם\n`;
+      message += `צעדים: ${targetSteps ? Math.round(parseFloat(targetSteps)).toString() : '-'}\n`;
       
       message += `\n`;
       
       message += `📈 בפועל (ממוצע):\n`;
-      if (actualCalories) message += `קלוריות: ${Math.round(parseFloat(actualCalories))} קק"ל\n`;
-      if (actualProtein) message += `חלבון: ${Math.round(parseFloat(actualProtein))} גרם\n`;
-      if (actualFiber) message += `סיבים: ${Math.round(parseFloat(actualFiber))} גרם\n`;
-      if (actualWeight) message += `משקל ממוצע: ${parseFloat(actualWeight).toFixed(1)} ק"ג\n`;
+      message += `קלוריות: ${actualCalories ? Math.round(parseFloat(actualCalories)).toString() : '-'} קק"ל\n`;
+      message += `חלבון: ${actualProtein ? Math.round(parseFloat(actualProtein)).toString() : '-'} גרם\n`;
+      message += `סיבים: ${actualFiber ? Math.round(parseFloat(actualFiber)).toString() : '-'} גרם\n`;
+      message += `משקל ממוצע: ${actualWeight ? parseFloat(actualWeight).toFixed(1) : '-'} ק"ג\n`;
       
       message += `\n`;
       

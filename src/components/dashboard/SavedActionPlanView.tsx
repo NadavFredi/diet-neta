@@ -227,26 +227,58 @@ export const SavedActionPlanView = ({ planId, isOpen, onClose }: SavedActionPlan
                   <Pill className="h-4 w-4 text-purple-600 shrink-0" />
                   <h3 className="text-sm font-bold text-slate-900">תוספים</h3>
                 </div>
-                {snapshot.supplements && Array.isArray(snapshot.supplements) && snapshot.supplements.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {snapshot.supplements.map((supplement: any, idx: number) => {
-                      // Handle both object format {name, dosage, timing} and string format
-                      const name = typeof supplement === 'string' ? supplement : (supplement.name || '—');
-                      const dosage = typeof supplement === 'object' ? supplement.dosage : null;
-                      const timing = typeof supplement === 'object' ? supplement.timing : null;
-                      
-                      return (
-                        <div key={idx} className="text-base text-slate-700">
-                          <span className="font-semibold">{name}</span>
-                          {dosage && <span className="mr-1"> • מינון: {dosage}</span>}
-                          {timing && <span className="mr-1"> • זמן: {timing}</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-base text-slate-500">אין תוספים</p>
-                )}
+                {(() => {
+                  // Check if supplements exist and are valid
+                  const supplements = snapshot.supplements;
+                  if (!supplements) {
+                    return <p className="text-base text-slate-500">אין תוספים</p>;
+                  }
+                  
+                  // Handle array format
+                  if (Array.isArray(supplements)) {
+                    // Filter out empty objects and null values
+                    const validSupplements = supplements.filter((sup: any) => {
+                      if (!sup) return false;
+                      if (typeof sup === 'string') return sup.trim().length > 0;
+                      if (typeof sup === 'object') {
+                        // Check if it has at least a name or is not an empty object
+                        return sup.name || Object.keys(sup).length > 0;
+                      }
+                      return false;
+                    });
+                    
+                    if (validSupplements.length === 0) {
+                      return <p className="text-base text-slate-500">אין תוספים</p>;
+                    }
+                    
+                    return (
+                      <div className="space-y-1.5">
+                        {validSupplements.map((supplement: any, idx: number) => {
+                          // Handle both object format {name, dosage, timing} and string format
+                          const name = typeof supplement === 'string' ? supplement : (supplement.name || '—');
+                          const dosage = typeof supplement === 'object' && supplement.dosage ? supplement.dosage : null;
+                          const timing = typeof supplement === 'object' && supplement.timing ? supplement.timing : null;
+                          
+                          // Skip if name is empty or just a dash
+                          if (!name || name === '—' || name.trim() === '') {
+                            return null;
+                          }
+                          
+                          return (
+                            <div key={idx} className="text-base text-slate-700">
+                              <span className="font-semibold">{name}</span>
+                              {dosage && dosage.trim() && <span className="mr-1"> • מינון: {dosage}</span>}
+                              {timing && timing.trim() && <span className="mr-1"> • זמן: {timing}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+                  
+                  // If not an array, show no supplements
+                  return <p className="text-base text-slate-500">אין תוספים</p>;
+                })()}
               </div>
 
               {/* Eating Guidelines */}

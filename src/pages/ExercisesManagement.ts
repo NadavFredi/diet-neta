@@ -14,6 +14,7 @@ import {
   useDeleteExercise,
   useCreateExercise,
   useUpdateExercise,
+  useBulkUpdateExercises,
   type Exercise,
 } from '@/hooks/useExercises';
 import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
@@ -97,6 +98,7 @@ export const useExercisesManagement = () => {
   const createExercise = useCreateExercise();
   const updateExercise = useUpdateExercise();
   const deleteExercise = useDeleteExercise();
+  const bulkUpdateExercises = useBulkUpdateExercises();
   const bulkDeleteExercises = useBulkDeleteRecords({
     table: 'exercises',
     invalidateKeys: [['exercises']],
@@ -217,6 +219,49 @@ export const useExercisesManagement = () => {
     });
   };
 
+  const handleBulkEdit = async (payload: {
+    ids: string[];
+    selectAllAcrossPages: boolean;
+    totalCount: number;
+    updates: Record<string, any>;
+  }) => {
+    try {
+      // Only allow category updates in bulk edit
+      const categoryUpdate = payload.updates.category;
+      
+      if (categoryUpdate === undefined && !('category' in payload.updates)) {
+        toast({
+          title: 'שגיאה',
+          description: 'ניתן לערוך רק את שדה הקטגוריה בעריכה מרוכזת',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Convert empty string to null
+      const categoryValue = categoryUpdate === '' || categoryUpdate === null ? null : String(categoryUpdate).trim() || null;
+
+      await bulkUpdateExercises.mutateAsync({
+        exerciseIds: payload.ids,
+        updates: {
+          category: categoryValue,
+        },
+      });
+
+      toast({
+        title: 'הצלחה',
+        description: `הקטגוריה עודכנה עבור ${payload.ids.length} תרגילים`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון הקטגוריה',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
   const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
     dispatch(setSortBy({ resourceKey: 'exercises', sortBy: columnId }));
     dispatch(setSortOrder({ resourceKey: 'exercises', sortOrder: order }));
@@ -271,6 +316,7 @@ export const useExercisesManagement = () => {
     handleDeleteClick,
     handleConfirmDelete,
     handleBulkDelete,
+    handleBulkEdit,
     handleSortChange,
     handleSaveViewClick,
     getCurrentFilterConfig,

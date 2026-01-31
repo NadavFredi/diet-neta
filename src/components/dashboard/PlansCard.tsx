@@ -776,9 +776,27 @@ export const PlansCard = ({
                     }
                   }
 
+                  // Try to get workout template
                   if (workoutTemplateId) {
                     const { data } = await supabase.from('workout_templates').select('*').eq('id', workoutTemplateId).single();
                     workoutTemplate = data;
+                  }
+
+                  // If still no template, try to get workout plan data directly
+                  if (!workoutTemplate && budget.id) {
+                    const { data: workoutPlan } = await supabase
+                      .from('workout_plans')
+                      .select('*, template_id')
+                      .eq('budget_id', budget.id)
+                      .eq('is_active', true)
+                      .order('created_at', { ascending: false })
+                      .limit(1)
+                      .maybeSingle();
+
+                    if (workoutPlan?.template_id) {
+                      const { data: templateData } = await supabase.from('workout_templates').select('*').eq('id', workoutPlan.template_id).single();
+                      workoutTemplate = templateData;
+                    }
                   }
 
                   const snapshot = createBudgetSnapshot(budget, nutritionTemplate, workoutTemplate);

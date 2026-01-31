@@ -274,3 +274,40 @@ export const useDeleteExercise = () => {
     },
   });
 };
+
+// Bulk update exercises (for category assignment)
+export const useBulkUpdateExercises = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+
+  return useMutation({
+    mutationFn: async ({
+      exerciseIds,
+      updates,
+    }: {
+      exerciseIds: string[];
+      updates: { category?: string | null };
+    }) => {
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const updateData: Partial<Exercise> = {};
+      if (updates.category !== undefined) {
+        updateData.category = updates.category;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        throw new Error('No valid updates provided');
+      }
+
+      const { error } = await supabase
+        .from('exercises')
+        .update(updateData)
+        .in('id', exerciseIds);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exercises'] });
+    },
+  });
+};

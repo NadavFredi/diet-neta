@@ -134,6 +134,7 @@ export interface DataTableProps<T> {
   singularLabel?: string;
   pluralLabel?: string;
   meta?: Record<string, any>;
+  bulkEditAllowedFields?: string[];
 }
 
 interface GroupedData<T> {
@@ -344,6 +345,7 @@ export function DataTable<T extends Record<string, any>>({
   singularLabel = 'פריט',
   pluralLabel = 'פריטים',
   meta,
+  bulkEditAllowedFields,
 }: DataTableProps<T>) {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
@@ -876,7 +878,7 @@ export function DataTable<T extends Record<string, any>>({
           <TableContent table={tableInstance} tableColumns={tableColumns} dir={dir} enableColumnReordering={enableColumnReordering} onRowClick={onRowClick} handleHeaderClick={handleHeaderClick} getSortIcon={getSortIcon} handleResizeStart={handleResizeStart} getCellContent={getCellContent} onHideColumn={handleHideColumn} isResizing={isResizing} columnSizing={derivedColumnSizing} groupedData={paginatedGroupedData as any} groupByKey={resolvedGroupByKey} groupByKeys={resolvedGroupByKeys} originalGroupByKey={groupByKey || null} originalGroupByKeys={groupByKeys} columns={columns} collapsedGroupsSet={collapsedGroupsSet} onToggleGroup={handleToggleGroup} getGroupColumnHeader={getGroupColumnHeader} enableRowSelection={enableRowSelection} getRowIdValue={getRowIdValue} handleToggleRow={handleToggleRow} handleToggleGroupRows={handleToggleGroupRows} selectedRowIds={selectedRowIds} selectAllAcrossPages={selectAllAcrossPages} getVisibleRowIdsInOrder={getVisibleRowIdsInOrder} singularLabel={singularLabel} pluralLabel={pluralLabel} emptyMessage={emptyMessage} />
         </DndContext>
       </div>
-      {onBulkEdit && <BulkEditModal open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen} onConfirm={handleConfirmBulkEdit} columns={columns} selectedCount={selectedCount} totalItems={totalItems} selectAllAcrossPages={selectAllAcrossPages} selectionLabel={selectionLabel} isEditing={isBulkEditing} dir={dir} />}
+      {onBulkEdit && <BulkEditModal open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen} onConfirm={handleConfirmBulkEdit} columns={columns} selectedCount={selectedCount} totalItems={totalItems} selectAllAcrossPages={selectAllAcrossPages} selectionLabel={selectionLabel} isEditing={isBulkEditing} dir={dir} allowedFields={bulkEditAllowedFields} />}
       {onBulkDelete && <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>מחיקת {selectionLabel}</AlertDialogTitle><AlertDialogDescription>{selectAllAcrossPages ? `את/ה עומד/ת למחוק ${totalItems} ${selectionLabel}.` : `את/ה עומד/ת למחוק ${selectedCount} ${selectionLabel}.`} פעולה זו אינה ניתנת לשחזור.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogAction onClick={handleConfirmBulkDelete} className="bg-red-600 hover:bg-red-600/90 text-white" disabled={isBulkDeleting}>{isBulkDeleting ? 'מוחק...' : 'אישור מחיקה'}</AlertDialogAction><AlertDialogCancel disabled={isBulkDeleting}>ביטול</AlertDialogCancel></AlertDialogFooter></AlertDialogContent></AlertDialog>}
     </div>
   );

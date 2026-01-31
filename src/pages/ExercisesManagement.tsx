@@ -51,6 +51,7 @@ const ExercisesManagement = () => {
     handleDeleteClick,
     handleConfirmDelete,
     handleBulkDelete,
+    handleBulkEdit,
     handleSaveViewClick,
     getCurrentFilterConfig,
     deleteExercise,
@@ -149,6 +150,7 @@ const ExercisesManagement = () => {
                 onEdit={handleEditExercise}
                 onDelete={handleDeleteClick}
                 onBulkDelete={handleBulkDelete}
+                onBulkEdit={handleBulkEdit}
                 onSortChange={handleSortChange}
                 sortBy={sortBy || undefined}
                 sortOrder={sortOrder || undefined}

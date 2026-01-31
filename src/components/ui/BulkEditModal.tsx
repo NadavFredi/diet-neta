@@ -38,6 +38,7 @@ interface BulkEditModalProps<T> {
     selectionLabel: string;
     isEditing?: boolean;
     dir?: 'ltr' | 'rtl';
+    allowedFields?: string[]; // Optional: restrict which fields can be edited
 }
 
 export function BulkEditModal<T extends Record<string, any>>({
@@ -51,13 +52,22 @@ export function BulkEditModal<T extends Record<string, any>>({
     selectionLabel,
     isEditing = false,
     dir = 'rtl',
+    allowedFields,
 }: BulkEditModalProps<T>) {
     // Get editable columns (exclude selection column and columns without accessorKey)
-    const editableColumns = columns.filter((col) => {
+    let editableColumns = columns.filter((col) => {
         if (col.id === '__select__') return false;
         if (!col.accessorKey && !col.accessorFn) return false;
         return true;
     });
+
+    // Filter to only allowed fields if specified
+    if (allowedFields && allowedFields.length > 0) {
+        editableColumns = editableColumns.filter((col) => {
+            const fieldName = col.accessorKey ? String(col.accessorKey) : col.id;
+            return allowedFields.includes(fieldName);
+        });
+    }
 
     const [pairs, setPairs] = useState<FieldValuePair[]>([
         { id: '1', field: '', value: '' },
