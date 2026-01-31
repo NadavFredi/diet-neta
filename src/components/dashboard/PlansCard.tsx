@@ -2167,7 +2167,18 @@ export const PlansCard = ({
         onSave={async (data) => {
           if (editingNutritionPlan?.id) {
             try {
-              const { error } = await supabase.from('nutrition_plans').update({ targets: data, updated_at: new Date().toISOString() }).eq('id', editingNutritionPlan.id);
+              // NutritionTemplateForm in user mode returns { targets: { ...targets, _manual_override, _calculator_inputs } }
+              // Extract targets from data if it's wrapped, otherwise use data directly
+              const targetsToSave = data.targets || data;
+
+              const { error } = await supabase
+                .from('nutrition_plans')
+                .update({
+                  targets: targetsToSave,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', editingNutritionPlan.id);
+
               if (error) throw error;
               queryClient.invalidateQueries({ queryKey: ['plans-history'] });
               queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });

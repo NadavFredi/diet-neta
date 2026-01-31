@@ -46,7 +46,7 @@ import { BloodTestsGalleryCard } from './BloodTestsGalleryCard.tsx';
 import { CreateSubscriptionModal } from './dialogs/CreateSubscriptionModal';
 import { useMeetings, useDeleteMeeting } from '@/hooks/useMeetings';
 import { usePaymentHistory, useDeletePayment } from '@/hooks/usePaymentHistory';
-import { CreditCard, Plus, Trash2, RotateCcw } from 'lucide-react';
+import { CreditCard, Plus, Trash2, RotateCcw, Images, Stethoscope } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -1566,7 +1566,15 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
           <Accordion type="single" collapsible className="w-full mb-3 sm:mb-4">
             <AccordionItem value="gallery-tests" className="border-0">
               <AccordionTrigger className="bg-white rounded-lg shadow-md border-2 border-slate-200/60 px-4 py-3 hover:no-underline hover:bg-slate-50/50 hover:shadow-lg transition-all duration-200 w-full">
-                <span className="text-sm font-semibold text-gray-900">גלריית התקדמות ובדיקות דם</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-blue-100">
+                    <Images className="h-3.5 w-3.5 text-blue-600" />
+                  </div>
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-red-100">
+                    <Stethoscope className="h-3.5 w-3.5 text-red-600" />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900">גלריית התקדמות ובדיקות דם</span>
+                </div>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 pt-2">

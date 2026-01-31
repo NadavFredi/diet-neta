@@ -286,12 +286,9 @@ const calculateMacrosValue = (
 const initializeTargets = (initialData?: NutritionTemplate | { targets?: NutritionTargets | any }): NutritionTargets => {
   if (initialData && 'targets' in initialData && initialData.targets) {
     const targets = initialData.targets as any;
-    // Remove _manual_override from targets if it exists (it's stored separately)
-    if (targets._manual_override) {
-      const { _manual_override, ...cleanTargets } = targets;
-      return cleanTargets;
-    }
-    return initialData.targets;
+    // Remove _manual_override and _calculator_inputs from targets if they exist (they're stored separately)
+    const { _manual_override, _calculator_inputs, ...cleanTargets } = targets;
+    return cleanTargets;
   }
   
   return {
@@ -368,7 +365,7 @@ const initializeActivityEntries = (initialData?: NutritionTemplate | { activity_
   return defaultEntries;
 };
 
-const initializeCalculatorInputs = (initialData?: NutritionTemplate | { calculator_inputs?: NutritionBuilderState['calculatorInputs'] }): NutritionBuilderState['calculatorInputs'] => {
+const initializeCalculatorInputs = (initialData?: NutritionTemplate | { calculator_inputs?: NutritionBuilderState['calculatorInputs']; targets?: any }): NutritionBuilderState['calculatorInputs'] => {
   console.log('[initializeCalculatorInputs] initialData:', initialData);
   console.log('[initializeCalculatorInputs] has calculator_inputs?', initialData && 'calculator_inputs' in initialData);
   
@@ -389,6 +386,7 @@ const initializeCalculatorInputs = (initialData?: NutritionTemplate | { calculat
     carbsPerKg: 2.0,
   };
 
+  // First check for direct calculator_inputs (templates)
   if (initialData && 'calculator_inputs' in initialData) {
     const calcInputs = (initialData as any).calculator_inputs;
     console.log('[initializeCalculatorInputs] calculator_inputs value:', calcInputs);
@@ -406,13 +404,25 @@ const initializeCalculatorInputs = (initialData?: NutritionTemplate | { calculat
       console.log('[initializeCalculatorInputs] Final weight value:', result.weight);
       return result;
     } else {
-      console.log('[initializeCalculatorInputs] calculator_inputs is empty/null/undefined, using defaults');
+      console.log('[initializeCalculatorInputs] calculator_inputs is empty/null/undefined, checking targets');
     }
-  } else {
-    console.log('[initializeCalculatorInputs] No calculator_inputs key in initialData');
   }
   
-  console.log('[initializeCalculatorInputs] Returning defaults:', defaults);
+  // Then check for _calculator_inputs inside targets (nutrition plans)
+  if (initialData && 'targets' in initialData && initialData.targets && typeof initialData.targets === 'object') {
+    const targets = initialData.targets as any;
+    if (targets._calculator_inputs && typeof targets._calculator_inputs === 'object' && Object.keys(targets._calculator_inputs).length > 0) {
+      const result = {
+        ...defaults,
+        ...targets._calculator_inputs,
+      };
+      console.log('[initializeCalculatorInputs] Found _calculator_inputs in targets, returning merged result:', result);
+      console.log('[initializeCalculatorInputs] Final weight value:', result.weight);
+      return result;
+    }
+  }
+  
+  console.log('[initializeCalculatorInputs] No calculator_inputs found, returning defaults:', defaults);
   return defaults;
 };
 
@@ -451,18 +461,47 @@ export const useNutritionBuilder = (
       if ('description' in initialData && initialData.description !== undefined) {
         setDescription(initialData.description || '');
       }
+      // Track if we found calculator_inputs in targets (for nutrition plans)
+      let foundCalculatorInputsInTargets = false;
+      
       // Update targets if they exist
       if ('targets' in initialData && initialData.targets) {
         const targetsData = initialData.targets as any;
-        // Extract _manual_override from targets if it exists (for nutrition plans)
-        if (targetsData._manual_override) {
-          setManualOverrideState(targetsData._manual_override);
-          // Remove _manual_override from targets before setting (clean targets)
-          const { _manual_override, ...cleanTargets } = targetsData;
-          setTargetsState(cleanTargets);
-        } else {
-          setTargetsState(initialData.targets);
+        // Extract _manual_override and _calculator_inputs from targets if they exist (for nutrition plans)
+        const { _manual_override, _calculator_inputs, ...cleanTargets } = targetsData;
+        
+        if (_manual_override) {
+          setManualOverrideState(_manual_override);
         }
+        
+        if (_calculator_inputs && typeof _calculator_inputs === 'object' && Object.keys(_calculator_inputs).length > 0) {
+          foundCalculatorInputsInTargets = true;
+          const defaults: NutritionBuilderState['calculatorInputs'] = {
+            weight: 70,
+            height: 170,
+            age: 30,
+            gender: 'male',
+            waist: 80,
+            hip: 95,
+            neck: 35,
+            pal: 1.4,
+            caloricDeficitMode: 'percent' as 'percent' | 'calories',
+            caloricDeficitPercent: 0,
+            caloricDeficitCalories: 0,
+            proteinPerKg: 2.0,
+            fatPerKg: 1.0,
+            carbsPerKg: 2.0,
+          };
+          const merged = {
+            ...defaults,
+            ..._calculator_inputs,
+          };
+          console.log('[useEffect] Found _calculator_inputs in targets, updating calculatorInputs:', merged);
+          setCalculatorInputsState(merged);
+        }
+        
+        // Set clean targets (without _manual_override and _calculator_inputs)
+        setTargetsState(cleanTargets);
       }
       // Update manual override if it exists directly (for templates)
       if ('manual_override' in initialData && initialData.manual_override) {
@@ -480,8 +519,9 @@ export const useNutritionBuilder = (
         }));
         setActivityEntries(entries);
       }
-      // Update calculator inputs if they exist
-      if ('calculator_inputs' in initialData) {
+      // Update calculator inputs if they exist (only if not already found in targets)
+      // This is for templates which have calculator_inputs as a top-level field
+      if (!foundCalculatorInputsInTargets && 'calculator_inputs' in initialData) {
         const calcInputs = (initialData as any).calculator_inputs;
         console.log('[useEffect] calculator_inputs from initialData:', calcInputs);
         console.log('[useEffect] calculator_inputs type:', typeof calcInputs);
@@ -710,8 +750,8 @@ export const useNutritionBuilder = (
         templateData,
       };
     } else {
-      // For user mode (nutrition plans), store manual_override inside targets JSONB
-      // since nutrition_plans table doesn't have a separate manual_override column
+      // For user mode (nutrition plans), store manual_override and calculator_inputs inside targets JSONB
+      // since nutrition_plans table doesn't have separate columns for these
       const userData = {
         targets: {
           ...targets,
@@ -723,10 +763,13 @@ export const useNutritionBuilder = (
             fat: false,
             fiber: false,
           },
+          // Store calculator_inputs inside targets JSONB for nutrition plans
+          _calculator_inputs: calculatorInputs || null,
         },
       };
-      console.log('[getNutritionData] userData to save (with manual_override in targets):', userData);
+      console.log('[getNutritionData] userData to save (with manual_override and calculator_inputs in targets):', userData);
       console.log('[getNutritionData] manual_override being saved in targets:', userData.targets._manual_override);
+      console.log('[getNutritionData] calculator_inputs being saved in targets:', userData.targets._calculator_inputs);
       return {
         userData,
       };

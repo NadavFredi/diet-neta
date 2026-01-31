@@ -30,6 +30,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateBudget } from '@/hooks/useBudgets';
 import { useSaveActionPlan, createBudgetSnapshot } from '@/hooks/useSavedActionPlans';
 import type { CardioTraining } from '@/store/slices/budgetSlice';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 
 interface CardioTrainingWithId extends CardioTraining {
     id: string;
@@ -43,93 +51,6 @@ interface AerobicActivityModalProps {
     leadId?: string | null;
 }
 
-const WorkoutRow = ({
-    workout,
-    onUpdate,
-    onRemove
-}: {
-    workout: CardioTrainingWithId;
-    onUpdate: (id: string, field: string, value: string | number) => void;
-    onRemove: (id: string) => void;
-}) => {
-    return (
-        <div className="flex gap-3 items-start p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <div className="flex-1 grid grid-cols-5 gap-3">
-                <Select
-                    value={workout.type || 'erobi'}
-                    onValueChange={(value) => onUpdate(workout.id, 'type', value)}
-                >
-                    <SelectTrigger className="h-9 bg-white border-0 text-sm justify-between" dir="rtl">
-                        <SelectValue>{workout.type === 'intervals' ? 'אינטרוולים' : 'אירובי'}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent dir="rtl">
-                        <SelectItem value="erobi">אירובי</SelectItem>
-                        <SelectItem value="intervals">אינטרוולים</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Input
-                    value={workout.name}
-                    onChange={(e) => onUpdate(workout.id, 'name', e.target.value)}
-                    placeholder="שם האימון"
-                    className="h-9 bg-white border-0 text-sm"
-                    dir="rtl"
-                />
-                <Input
-                    type="number"
-                    min="0"
-                    value={workout.duration_minutes || ''}
-                    onChange={(e) => onUpdate(workout.id, 'duration_minutes', parseInt(e.target.value) || 0)}
-                    placeholder="דקות"
-                    className="h-9 bg-white border-0 text-sm"
-                    dir="ltr"
-                />
-                <Select
-                    value={workout.period_type || 'לשבוע'}
-                    onValueChange={(value) => onUpdate(workout.id, 'period_type', value)}
-                >
-                    <SelectTrigger className="h-9 bg-white border-0 text-sm justify-between" dir="rtl">
-                        <SelectValue>{workout.period_type || 'לשבוע'}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent dir="rtl">
-                        <SelectItem value="לשבוע">לשבוע</SelectItem>
-                        <SelectItem value="ליום">ליום</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Input
-                    type="number"
-                    min="0"
-                    value={workout.workouts_per_week || ''}
-                    onChange={(e) => onUpdate(workout.id, 'workouts_per_week', parseInt(e.target.value) || 0)}
-                    placeholder="פעמים בשבוע"
-                    className="h-9 bg-white border-0 text-sm"
-                    dir="ltr"
-                />
-            </div>
-            <div className="flex flex-col gap-2 min-w-[200px]">
-                <Textarea
-                    value={workout.notes}
-                    onChange={(e) => onUpdate(workout.id, 'notes', e.target.value)}
-                    placeholder="הנחיות"
-                    className="bg-white border-0 text-sm min-h-[36px] resize-none w-full"
-                    dir="rtl"
-                />
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onRemove(workout.id);
-                    }}
-                    className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                >
-                    <Trash2 className="h-4 w-4" />
-                </Button>
-            </div>
-        </div>
-    );
-};
 
 export const AerobicActivityModal = ({
     isOpen,
@@ -311,8 +232,8 @@ export const AerobicActivityModal = ({
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} dir="rtl">
-            <DialogContent className="max-w-[90vw] w-full max-h-[90vh] overflow-y-auto min-w-[900px]" dir="rtl">
+        <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+            <DialogContent className="max-w-[90vw] w-full max-h-[90vh] overflow-y-auto min-w-[1200px]" dir="rtl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Heart className="h-5 w-5 text-red-600" />
@@ -324,33 +245,127 @@ export const AerobicActivityModal = ({
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                        {workoutTrainings.length === 0 ? (
-                            <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-lg">
-                                <p className="text-sm text-slate-400 mb-3">אין פעילות אירובית</p>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={addWorkoutTraining}
-                                    className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                                >
-                                    <Plus className="h-4 w-4 ml-1" />
-                                    הוסף פעילות אירובית
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {workoutTrainings
-                                    .filter((w) => w.type === 'erobi')
-                                    .map((workout) => (
-                                        <WorkoutRow
-                                            key={workout.id}
-                                            workout={workout}
-                                            onUpdate={updateWorkoutTraining}
-                                            onRemove={removeWorkoutTraining}
-                                        />
-                                    ))}
+                    {workoutTrainings.filter((w) => w.type === 'erobi').length === 0 ? (
+                        <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-lg">
+                            <p className="text-sm text-slate-400 mb-3">אין פעילות אירובית</p>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={addWorkoutTraining}
+                                className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                            >
+                                <Plus className="h-4 w-4 ml-1" />
+                                הוסף פעילות אירובית
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="border rounded-lg overflow-hidden">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="text-right w-[120px] px-2">סוג</TableHead>
+                                        <TableHead className="text-right px-2">שם האימון</TableHead>
+                                        <TableHead className="text-center w-[80px] px-2">דקות</TableHead>
+                                        <TableHead className="text-right w-[120px] px-2">תדירות</TableHead>
+                                        <TableHead className="text-center w-[100px] px-2">פעמים בשבוע</TableHead>
+                                        <TableHead className="text-right px-4">הנחיות</TableHead>
+                                        <TableHead className="text-center w-[50px] px-2"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {workoutTrainings
+                                        .filter((w) => w.type === 'erobi')
+                                        .map((workout) => (
+                                            <TableRow key={workout.id}>
+                                                <TableCell className="px-2">
+                                                    <Select
+                                                        value={workout.type || 'erobi'}
+                                                        onValueChange={(value) => updateWorkoutTraining(workout.id, 'type', value)}
+                                                    >
+                                                        <SelectTrigger className="h-9 text-sm" dir="rtl">
+                                                            <SelectValue>{workout.type === 'intervals' ? 'אינטרוולים' : 'אירובי'}</SelectValue>
+                                                        </SelectTrigger>
+                                                        <SelectContent dir="rtl">
+                                                            <SelectItem value="erobi">אירובי</SelectItem>
+                                                            <SelectItem value="intervals">אינטרוולים</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell className="px-2">
+                                                    <Input
+                                                        value={workout.name}
+                                                        onChange={(e) => updateWorkoutTraining(workout.id, 'name', e.target.value)}
+                                                        placeholder="שם האימון"
+                                                        className="h-9 text-sm"
+                                                        dir="rtl"
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2">
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        value={workout.duration_minutes || ''}
+                                                        onChange={(e) => updateWorkoutTraining(workout.id, 'duration_minutes', parseInt(e.target.value) || 0)}
+                                                        placeholder="דקות"
+                                                        className="h-9 text-sm text-center w-full"
+                                                        dir="ltr"
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2">
+                                                    <Select
+                                                        value={workout.period_type || 'לשבוע'}
+                                                        onValueChange={(value) => updateWorkoutTraining(workout.id, 'period_type', value)}
+                                                    >
+                                                        <SelectTrigger className="h-9 text-sm" dir="rtl">
+                                                            <SelectValue>{workout.period_type || 'לשבוע'}</SelectValue>
+                                                        </SelectTrigger>
+                                                        <SelectContent dir="rtl">
+                                                            <SelectItem value="לשבוע">לשבוע</SelectItem>
+                                                            <SelectItem value="ליום">ליום</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell className="px-2">
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        value={workout.workouts_per_week || ''}
+                                                        onChange={(e) => updateWorkoutTraining(workout.id, 'workouts_per_week', parseInt(e.target.value) || 0)}
+                                                        placeholder="פעמים בשבוע"
+                                                        className="h-9 text-sm text-center w-full"
+                                                        dir="ltr"
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-4">
+                                                    <Textarea
+                                                        value={workout.notes}
+                                                        onChange={(e) => updateWorkoutTraining(workout.id, 'notes', e.target.value)}
+                                                        placeholder="הנחיות"
+                                                        className="text-sm min-h-[36px] resize-none w-full"
+                                                        dir="rtl"
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            removeWorkoutTraining(workout.id);
+                                                        }}
+                                                        className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                </TableBody>
+                            </Table>
+                            <div className="p-3 border-t">
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -362,8 +377,8 @@ export const AerobicActivityModal = ({
                                     הוסף פעילות אירובית נוספת
                                 </Button>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-row-reverse justify-end gap-2 pt-4 border-t">
