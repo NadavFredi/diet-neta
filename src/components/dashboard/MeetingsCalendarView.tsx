@@ -70,7 +70,7 @@ const availableFields = [
 ];
 
 // Draggable Meeting Component
-const DraggableMeetingCard = ({ meeting, date }: { meeting: Meeting; date: Date }) => {
+const DraggableMeetingCard = ({ meeting, date, isTimeBased = false }: { meeting: Meeting; date: Date; isTimeBased?: boolean }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: meeting.id,
   });
@@ -82,6 +82,31 @@ const DraggableMeetingCard = ({ meeting, date }: { meeting: Meeting; date: Date 
   const customer = getMeetingCustomer(meeting);
   const time = getMeetingTimeDisplayValue(meeting);
   const customerName = customer?.full_name;
+
+  if (isTimeBased) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...listeners}
+        {...attributes}
+        className={cn(
+          "bg-blue-100 border border-blue-300 rounded px-2 py-1 cursor-grab active:cursor-grabbing shadow-sm",
+          isDragging && "opacity-50"
+        )}
+      >
+        <div className="flex items-center gap-1">
+          <GripVertical className="h-3 w-3 text-blue-600" />
+          {time && <span className="text-xs font-medium text-blue-900">{time}</span>}
+        </div>
+        {customerName && (
+          <div className="text-xs font-semibold text-blue-900 truncate mt-0.5">
+            {customerName}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -250,6 +275,39 @@ const getMeetingTypeValue = (meeting: Meeting) => {
     meetingData.type ||
     'פגישת הכרות'
   );
+};
+
+// Get meeting hour for positioning in time-based views
+const getMeetingHour = (meeting: Meeting): number | null => {
+  const meetingData = meeting.meeting_data || {};
+  const schedulingData = getMeetingSchedulingData(meetingData);
+  
+  if (schedulingData?.eventStartTime) {
+    const startDate = new Date(schedulingData.eventStartTime);
+    if (!isNaN(startDate.getTime())) {
+      return startDate.getHours() + startDate.getMinutes() / 60;
+    }
+  }
+  
+  // Try to parse time from other fields
+  const timeStr = meetingData.meeting_time_start || meetingData['שעת התחלה'] || meetingData['שעה'];
+  if (timeStr) {
+    const timeMatch = String(timeStr).match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      return parseInt(timeMatch[1]) + parseInt(timeMatch[2]) / 60;
+    }
+  }
+  
+  return null;
+};
+
+// Generate hours array (6 AM to 11 PM)
+const generateHours = () => {
+  const hours = [];
+  for (let i = 6; i <= 23; i++) {
+    hours.push(i);
+  }
+  return hours;
 };
 
 type ViewMode = 'calendar' | 'month' | 'year';
@@ -659,33 +717,22 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
         onDragEnd={handleDragEnd}
       >
         <div className="flex-1 overflow-auto p-4">
-          {viewMode === 'calendar' && (
+          {viewMode === 'calendar' && calendarViewType === 'month' && (
             <div className="w-full">
             {/* Days of week header */}
-            {calendarViewType !== 'day' && (
-              <div className={cn(
-                "grid gap-px bg-gray-200 border border-gray-200 rounded-t-lg",
-                calendarViewType === 'month' && "grid-cols-7",
-                calendarViewType === 'week' && "grid-cols-7"
-              )}>
-                {weekDays.map((day) => (
-                  <div
-                    key={day}
-                    className="bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-600 border-b border-gray-200"
-                  >
-                    {day}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-t-lg">
+              {weekDays.map((day) => (
+                <div
+                  key={day}
+                  className="bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-600 border-b border-gray-200"
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
 
             {/* Calendar days grid */}
-            <div className={cn(
-              "grid gap-px bg-gray-200 border-x border-b border-gray-200 rounded-b-lg",
-              calendarViewType === 'month' && "grid-cols-7",
-              calendarViewType === 'week' && "grid-cols-7",
-              calendarViewType === 'day' && "grid-cols-1"
-            )}>
+            <div className="grid grid-cols-7 gap-px bg-gray-200 border-x border-b border-gray-200 rounded-b-lg">
               {calendarDays.map((date, index) => {
                 const dateKey = format(date, 'yyyy-MM-dd');
                 const dayMeetings = getMeetingsForDate(date);
@@ -844,7 +891,179 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
               })}
             </div>
           </div>
-        )}
+          )}
+
+          {/* Week View with Time Axis */}
+          {viewMode === 'calendar' && calendarViewType === 'week' && (
+            <div className="w-full h-full flex flex-col">
+              {/* Day headers */}
+              <div className="grid grid-cols-8 gap-px bg-gray-200 border border-gray-200">
+                <div className="bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-600 border-b border-gray-200"></div>
+                {calendarDays.map((date) => (
+                  <div
+                    key={format(date, 'yyyy-MM-dd')}
+                    className={cn(
+                      "bg-gray-50 px-2 py-2 text-center text-xs font-medium border-b border-gray-200",
+                      isSameDay(date, today) && "bg-blue-50 text-blue-600 font-bold"
+                    )}
+                  >
+                    <div>{weekDays[date.getDay()]}</div>
+                    <div className="text-sm font-semibold">{format(date, 'd')}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Time grid */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="grid grid-cols-8 gap-px bg-gray-200 border-x border-b border-gray-200">
+                  {/* Time column */}
+                  <div className="bg-gray-50 border-r border-gray-200">
+                    {generateHours().map((hour) => (
+                      <div
+                        key={hour}
+                        className="h-16 border-b border-gray-200 px-2 py-1 text-xs text-gray-500"
+                      >
+                        {hour}:00
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Day columns */}
+                  {calendarDays.map((date) => {
+                    const dateKey = format(date, 'yyyy-MM-dd');
+                    const dayMeetings = getMeetingsForDate(date);
+                    const isToday = isSameDay(date, today);
+
+                    return (
+                      <DroppableDateCell
+                        key={dateKey}
+                        date={date}
+                        isCurrentMonth={true}
+                        isToday={isToday}
+                      >
+                        <div className="relative h-full min-h-[1152px]">
+                          {/* Hour slots */}
+                          {generateHours().map((hour) => (
+                            <div
+                              key={hour}
+                              className="h-16 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                              onClick={() => {
+                                const clickedDate = new Date(date);
+                                clickedDate.setHours(hour, 0, 0, 0);
+                                onAddMeeting?.(clickedDate);
+                              }}
+                            />
+                          ))}
+
+                          {/* Meetings positioned by time */}
+                          {dayMeetings.map((meeting) => {
+                            const meetingHour = getMeetingHour(meeting);
+                            if (meetingHour === null) return null;
+
+                            const customer = getMeetingCustomer(meeting);
+                            const time = getMeetingTimeDisplayValue(meeting);
+                            // Calculate position: each hour is 64px (h-16), starting from hour 6
+                            const hoursFromStart = meetingHour - 6;
+                            const topPosition = hoursFromStart * 64; // 64px per hour
+
+                            return (
+                              <div
+                                key={meeting.id}
+                                className="absolute left-0 right-0 mx-1 z-10"
+                                style={{ top: `${topPosition}px` }}
+                              >
+                                <DraggableMeetingCard meeting={meeting} date={date} isTimeBased={true} />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </DroppableDateCell>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Day View with Time Axis */}
+          {viewMode === 'calendar' && calendarViewType === 'day' && (
+            <div className="w-full h-full flex flex-col">
+              {/* Day header */}
+              <div className="grid grid-cols-2 gap-px bg-gray-200 border border-gray-200">
+                <div className="bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-600 border-b border-gray-200"></div>
+                <div
+                  className={cn(
+                    "bg-gray-50 px-2 py-2 text-center text-xs font-medium border-b border-gray-200",
+                    isSameDay(currentDay, today) && "bg-blue-50 text-blue-600 font-bold"
+                  )}
+                >
+                  <div>{weekDays[currentDay.getDay()]}</div>
+                  <div className="text-sm font-semibold">{format(currentDay, 'd בMMMM yyyy', { locale: he })}</div>
+                </div>
+              </div>
+
+              {/* Time grid */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-px bg-gray-200 border-x border-b border-gray-200">
+                  {/* Time column */}
+                  <div className="bg-gray-50 border-r border-gray-200">
+                    {generateHours().map((hour) => (
+                      <div
+                        key={hour}
+                        className="h-16 border-b border-gray-200 px-2 py-1 text-xs text-gray-500"
+                      >
+                        {hour}:00
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Day column */}
+                  <DroppableDateCell
+                    date={currentDay}
+                    isCurrentMonth={true}
+                    isToday={isSameDay(currentDay, today)}
+                  >
+                    <div className="relative h-full min-h-[1152px]">
+                      {/* Hour slots */}
+                      {generateHours().map((hour) => (
+                        <div
+                          key={hour}
+                          className="h-16 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                          onClick={() => {
+                            const clickedDate = new Date(currentDay);
+                            clickedDate.setHours(hour, 0, 0, 0);
+                            onAddMeeting?.(clickedDate);
+                          }}
+                        />
+                      ))}
+
+                      {/* Meetings positioned by time */}
+                      {getMeetingsForDate(currentDay).map((meeting) => {
+                        const meetingHour = getMeetingHour(meeting);
+                        if (meetingHour === null) return null;
+
+                        const customer = getMeetingCustomer(meeting);
+                        const time = getMeetingTimeDisplayValue(meeting);
+                        // Calculate position: each hour is 64px (h-16), starting from hour 6
+                        const hoursFromStart = meetingHour - 6;
+                        const topPosition = hoursFromStart * 64; // 64px per hour
+
+                        return (
+                          <div
+                            key={meeting.id}
+                            className="absolute left-0 right-0 mx-1 z-10"
+                            style={{ top: `${topPosition}px` }}
+                          >
+                            <DraggableMeetingCard meeting={meeting} date={currentDay} isTimeBased={true} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </DroppableDateCell>
+                </div>
+              </div>
+            </div>
+          )}
 
         {/* Month Picker */}
         {viewMode === 'month' && (

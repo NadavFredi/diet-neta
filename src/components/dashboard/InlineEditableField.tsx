@@ -155,9 +155,19 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
           for (const fmt of formats) {
             try {
               const attempt = parse(editValue, fmt, new Date());
-              console.log('[InlineEditableField] Parse attempt', { format: fmt, result: attempt, isValid: isValid(attempt) });
+              console.log('[InlineEditableField] Parse attempt', { format: fmt, result: attempt, isValid: isValid(attempt), year: attempt.getFullYear() });
+
               if (isValid(attempt)) {
-                parsed = attempt;
+                // Fix 2-digit years - if year is less than 100, assume 20XX
+                let fixedDate = attempt;
+                const year = fixedDate.getFullYear();
+                if (year < 100) {
+                  // Interpret 2-digit years as 20XX (00-99 -> 2000-2099)
+                  fixedDate = new Date(year + 2000, fixedDate.getMonth(), fixedDate.getDate());
+                  console.log('[InlineEditableField] Fixed 2-digit year:', { originalYear: year, fixedYear: fixedDate.getFullYear() });
+                }
+
+                parsed = fixedDate;
                 console.log('[InlineEditableField] Successfully parsed date:', parsed);
                 break;
               }
@@ -419,7 +429,14 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
                             try {
                               const attempt = parse(editValue, fmt, new Date());
                               if (isValid(attempt)) {
-                                parsed = attempt;
+                                // Fix 2-digit years - if year is less than 100, assume 20XX
+                                let fixedDate = attempt;
+                                const year = fixedDate.getFullYear();
+                                if (year < 100) {
+                                  // Interpret 2-digit years as 20XX (00-99 -> 2000-2099)
+                                  fixedDate = new Date(year + 2000, fixedDate.getMonth(), fixedDate.getDate());
+                                }
+                                parsed = fixedDate;
                                 console.log('[InlineEditableField] Parsed date in blur:', parsed);
                                 break;
                               }
@@ -456,9 +473,31 @@ export const InlineEditableField = forwardRef<InlineEditableFieldRef, InlineEdit
                       )}
                       disabled={isSaving}
                       dir="rtl"
-                      onClick={() => {
-                        if (!isSaving && !isTypingMode) {
-                          setIsCalendarOpen(true);
+                      onClick={(e) => {
+                        if (!isSaving) {
+                          // If clicking on existing text, allow typing by selecting all
+                          // Double-click or click when already focused should allow typing
+                          if (e.detail === 2 || document.activeElement === inputRef.current) {
+                            // Double-click or already focused - enter typing mode
+                            setIsTypingMode(true);
+                            setIsCalendarOpen(false);
+                            requestAnimationFrame(() => {
+                              inputRef.current?.select();
+                            });
+                          } else if (!isTypingMode) {
+                            // Single click - open calendar
+                            setIsCalendarOpen(true);
+                          }
+                        }
+                      }}
+                      onDoubleClick={(e) => {
+                        // Double-click always enters typing mode
+                        if (!isSaving) {
+                          setIsTypingMode(true);
+                          setIsCalendarOpen(false);
+                          requestAnimationFrame(() => {
+                            inputRef.current?.select();
+                          });
                         }
                       }}
                     />
