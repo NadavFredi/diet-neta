@@ -17,7 +17,7 @@ import { EditBudgetDialog } from './dialogs/EditBudgetDialog';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget, type BudgetWithTemplates } from '@/hooks/useBudgets';
+import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget, useAssignBudgetToLead, useAssignBudgetToCustomer, type BudgetWithTemplates } from '@/hooks/useBudgets';
 import { useSaveActionPlan, createBudgetSnapshot } from '@/hooks/useSavedActionPlans';
 import { useBudgetDetails } from '@/hooks/useBudgetDetails';
 import { useNavigate } from 'react-router-dom';
@@ -147,6 +147,199 @@ export const PlansCard = ({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const deleteBudgetAssignment = useDeleteBudgetAssignment();
+  const createBudget = useCreateBudget();
+  const assignToLead = useAssignBudgetToLead();
+  const assignToCustomer = useAssignBudgetToCustomer();
+
+  // Function to create blank plans (workout, nutrition, supplements, steps)
+  const handleCreateBlankPlans = async () => {
+    if (!leadId && !customerId) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא נמצא ליד או לקוח',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const finalCustomerId = customerId || null;
+      const finalLeadId = leadId || null;
+
+      // First, create a blank budget
+      const newBudget = await createBudget.mutateAsync({
+        name: 'תכנית פעולה ריקה',
+        description: 'תכנית פעולה ריקה שנוצרה אוטומטית',
+        nutrition_template_id: null,
+        nutrition_targets: {
+          calories: 2000,
+          protein: 150,
+          carbs: 200,
+          fat: 65,
+          fiber_min: 30,
+          water_min: 2.5,
+        },
+        steps_goal: 0,
+        steps_instructions: null,
+        workout_template_id: null,
+        supplement_template_id: null,
+        supplements: [],
+        eating_order: null,
+        eating_rules: null,
+        cardio_training: null,
+        interval_training: null,
+        is_public: false,
+      });
+
+      // Assign the budget to the lead or customer
+      if (finalLeadId) {
+        await assignToLead.mutateAsync({
+          budgetId: newBudget.id,
+          leadId: finalLeadId,
+        });
+      } else if (finalCustomerId) {
+        await assignToCustomer.mutateAsync({
+          budgetId: newBudget.id,
+          customerId: finalCustomerId,
+        });
+      }
+
+      // Now create all plans with the budget_id
+      // Create workout plan
+      const { data: workoutPlan, error: workoutError } = await supabase
+        .from('workout_plans')
+        .insert({
+          user_id: user.id,
+          customer_id: finalCustomerId,
+          lead_id: finalLeadId,
+          budget_id: newBudget.id,
+          name: 'תכנית אימונים חדשה',
+          start_date: today,
+          description: 'תכנית אימונים ריקה',
+          strength: 0,
+          cardio: 0,
+          intervals: 0,
+          custom_attributes: { schema: [], data: {} },
+          is_active: true,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (workoutError) {
+        console.error('Error creating workout plan:', workoutError);
+      }
+
+      // Create nutrition plan
+      const { data: nutritionPlan, error: nutritionError } = await supabase
+        .from('nutrition_plans')
+        .insert({
+          user_id: user.id,
+          customer_id: finalCustomerId,
+          lead_id: finalLeadId,
+          budget_id: newBudget.id,
+          name: 'תכנית תזונה חדשה',
+          start_date: today,
+          description: 'תכנית תזונה ריקה',
+          targets: {
+            calories: 2000,
+            protein: 150,
+            carbs: 200,
+            fat: 65,
+            fiber: 30,
+          },
+          is_active: true,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (nutritionError) {
+        console.error('Error creating nutrition plan:', nutritionError);
+      }
+
+      // Create supplement plan
+      const { data: supplementPlan, error: supplementError } = await supabase
+        .from('supplement_plans')
+        .insert({
+          user_id: user.id,
+          customer_id: finalCustomerId,
+          lead_id: finalLeadId,
+          budget_id: newBudget.id,
+          start_date: today,
+          description: 'תכנית תוספים ריקה',
+          supplements: [],
+          is_active: true,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (supplementError) {
+        console.error('Error creating supplement plan:', supplementError);
+      }
+
+      // Create steps plan
+      const { data: stepsPlan, error: stepsError } = await supabase
+        .from('steps_plans')
+        .insert({
+          user_id: user.id,
+          customer_id: finalCustomerId,
+          lead_id: finalLeadId,
+          budget_id: newBudget.id,
+          start_date: today,
+          description: 'תכנית צעדים ריקה',
+          steps_goal: 0,
+          steps_instructions: null,
+          is_active: true,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (stepsError) {
+        console.error('Error creating steps plan:', stepsError);
+      }
+
+      // Invalidate queries to refresh the UI - invalidate all variations
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history', null, finalLeadId] }),
+        queryClient.invalidateQueries({ queryKey: ['workout-plan'] }),
+        queryClient.invalidateQueries({ queryKey: ['workout-plan', finalCustomerId] }),
+        queryClient.invalidateQueries({ queryKey: ['nutrition-plan'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutrition-plan', finalCustomerId] }),
+        queryClient.invalidateQueries({ queryKey: ['supplement-plan'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+        queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
+      ]);
+
+      // Force refetch by refetching the plans-history query
+      await queryClient.refetchQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] });
+
+      toast({
+        title: 'תכניות נוצרו בהצלחה',
+        description: 'נוצרו תכנית פעולה ריקה ותכניות ריקות לאימונים, תזונה, תוספים וצעדים',
+      });
+    } catch (error: any) {
+      console.error('Error creating blank plans:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת התכניות',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // States
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -188,8 +381,6 @@ export const PlansCard = ({
   const { data: sendingBudget } = useBudget(sendingBudgetId);
   const { data: editingBudget, refetch: refetchEditingBudget } = useBudget(editingBudgetId);
   const updateBudget = useUpdateBudget();
-  const createBudget = useCreateBudget();
-
   useEffect(() => {
     if (editingBudgetId) {
       refetchEditingBudget();
@@ -432,7 +623,7 @@ export const PlansCard = ({
     // No longer needed - using inline editing instead
   };
 
-  if (!activeAssignment && !effectiveBudgetId && !workoutHistory?.length && !nutritionHistory?.length) {
+  if (!activeAssignment && !effectiveBudgetId && !workoutHistory?.length && !nutritionHistory?.length && !supplementsHistory?.length && !stepsHistory?.length) {
     return (
       <Card className="p-6 border border-slate-100 rounded-lg shadow-sm bg-white mt-3 text-center">
         <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[#E8EDF7] flex items-center justify-center">
@@ -470,6 +661,105 @@ export const PlansCard = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCreateBlankPlans}
+            className="gap-2 h-8 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>צור תכניות ריקות</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAssignBudget}
+            className="gap-2 h-8 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>הקצה תכנית פעולה</span>
+          </Button>
+          {activeAssignment && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!activeAssignment) return;
+                  try {
+                    // Deactivate the assignment
+                    await supabase
+                      .from('budget_assignments')
+                      .update({ is_active: false })
+                      .eq('id', activeAssignment.id);
+
+                    // Clear budget_id from all associated plans
+                    const finalCustomerId = customerId || null;
+                    const finalLeadId = leadId || null;
+
+                    // Build queries based on customer_id or lead_id
+                    const buildPlanQuery = (table: string) => {
+                      let query = supabase
+                        .from(table)
+                        .update({ budget_id: null })
+                        .eq('budget_id', activeAssignment.budget_id);
+                      
+                      if (finalCustomerId && finalLeadId) {
+                        query = query.or(`customer_id.eq.${finalCustomerId},lead_id.eq.${finalLeadId}`);
+                      } else if (finalCustomerId) {
+                        query = query.eq('customer_id', finalCustomerId);
+                      } else if (finalLeadId) {
+                        query = query.eq('lead_id', finalLeadId);
+                      }
+                      
+                      return query;
+                    };
+
+                    await Promise.all([
+                      buildPlanQuery('workout_plans'),
+                      buildPlanQuery('nutrition_plans'),
+                      buildPlanQuery('supplement_plans'),
+                      buildPlanQuery('steps_plans'),
+                    ]);
+
+                    // Invalidate queries
+                    await Promise.all([
+                      queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+                      queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
+                      queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+                    ]);
+
+                    toast({
+                      title: 'הצלחה',
+                      description: 'תכנית הפעולה נוקתה בהצלחה',
+                    });
+                  } catch (error: any) {
+                    toast({
+                      title: 'שגיאה',
+                      description: error?.message || 'נכשל בניקוי תכנית הפעולה',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
+                className="gap-2 h-8 bg-white hover:bg-orange-50 text-orange-600 border-orange-200 hover:text-orange-700"
+              >
+                <X className="h-3.5 w-3.5" />
+                <span>נקה תכנית</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setAssignmentToDelete(activeAssignment);
+                  setDeleteDialogOpen(true);
+                }}
+                className="gap-2 h-8 bg-white hover:bg-red-50 text-red-600 border-red-200 hover:text-red-700"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>מחק הקצאה</span>
+              </Button>
+            </>
+          )}
           {effectiveBudgetId && (
             <div className="flex items-center gap-1">
               <Button
@@ -653,7 +943,7 @@ export const PlansCard = ({
                                   workoutTemplate = data;
                                 }
 
-                                if (updatedBudget) {
+                                if (updatedBudget && effectiveBudgetId) {
                                   const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
                                   await saveActionPlan.mutateAsync({
                                     budget_id: effectiveBudgetId,
@@ -761,7 +1051,7 @@ export const PlansCard = ({
                                   workoutTemplate = data;
                                 }
 
-                                if (updatedBudget) {
+                                if (updatedBudget && effectiveBudgetId) {
                                   const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
                                   await saveActionPlan.mutateAsync({
                                     budget_id: effectiveBudgetId,
@@ -869,7 +1159,7 @@ export const PlansCard = ({
                                   workoutTemplate = data;
                                 }
 
-                                if (updatedBudget) {
+                                if (updatedBudget && effectiveBudgetId) {
                                   const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
                                   await saveActionPlan.mutateAsync({
                                     budget_id: effectiveBudgetId,
@@ -1142,7 +1432,7 @@ export const PlansCard = ({
                                   workoutTemplate = data;
                                 }
 
-                                if (updatedBudget) {
+                                if (updatedBudget && effectiveBudgetId) {
                                   const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
                                   await saveActionPlan.mutateAsync({
                                     budget_id: effectiveBudgetId,
@@ -1277,7 +1567,7 @@ export const PlansCard = ({
                                     workoutTemplate = data;
                                   }
 
-                                  if (updatedBudget) {
+                                  if (updatedBudget && effectiveBudgetId) {
                                     const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
                                     await saveActionPlan.mutateAsync({
                                       budget_id: effectiveBudgetId,

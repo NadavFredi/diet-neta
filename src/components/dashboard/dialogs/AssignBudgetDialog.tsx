@@ -56,6 +56,200 @@ export const AssignBudgetDialog = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Function to create blank plans (workout, nutrition, supplements, steps)
+  const handleCreateBlankPlans = async () => {
+    if (!leadId && !customerId) {
+      toast({
+        title: 'שגיאה',
+        description: 'לא נמצא ליד או לקוח',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const finalCustomerId = customerId || null;
+      const finalLeadId = leadId || null;
+
+      // First, create a blank budget
+      const newBudget = await createBudget.mutateAsync({
+        name: 'תכנית פעולה ריקה',
+        description: 'תכנית פעולה ריקה שנוצרה אוטומטית',
+        nutrition_template_id: null,
+        nutrition_targets: {
+          calories: 2000,
+          protein: 150,
+          carbs: 200,
+          fat: 65,
+          fiber_min: 30,
+          water_min: 2.5,
+        },
+        steps_goal: 0,
+        steps_instructions: null,
+        workout_template_id: null,
+        supplement_template_id: null,
+        supplements: [],
+        eating_order: null,
+        eating_rules: null,
+        cardio_training: null,
+        interval_training: null,
+        is_public: false,
+      });
+
+      // Assign the budget to the lead or customer
+      if (finalLeadId) {
+        await assignToLead.mutateAsync({
+          budgetId: newBudget.id,
+          leadId: finalLeadId,
+        });
+      } else if (finalCustomerId) {
+        await assignToCustomer.mutateAsync({
+          budgetId: newBudget.id,
+          customerId: finalCustomerId,
+        });
+      }
+
+      // Now create all plans with the budget_id
+      // Create workout plan
+      const { data: workoutPlan, error: workoutError } = await supabase
+        .from('workout_plans')
+        .insert({
+          user_id: user.id,
+          customer_id: finalCustomerId,
+          lead_id: finalLeadId,
+          budget_id: newBudget.id,
+          name: 'תכנית אימונים חדשה',
+          start_date: today,
+          description: 'תכנית אימונים ריקה',
+          strength: 0,
+          cardio: 0,
+          intervals: 0,
+          custom_attributes: { schema: [], data: {} },
+          is_active: true,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (workoutError) {
+        console.error('Error creating workout plan:', workoutError);
+      }
+
+      // Create nutrition plan
+      const { data: nutritionPlan, error: nutritionError } = await supabase
+        .from('nutrition_plans')
+        .insert({
+          user_id: user.id,
+          customer_id: finalCustomerId,
+          lead_id: finalLeadId,
+          budget_id: newBudget.id,
+          name: 'תכנית תזונה חדשה',
+          start_date: today,
+          description: 'תכנית תזונה ריקה',
+          targets: {
+            calories: 2000,
+            protein: 150,
+            carbs: 200,
+            fat: 65,
+            fiber: 30,
+          },
+          is_active: true,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (nutritionError) {
+        console.error('Error creating nutrition plan:', nutritionError);
+      }
+
+      // Create supplement plan
+      const { data: supplementPlan, error: supplementError } = await supabase
+        .from('supplement_plans')
+        .insert({
+          user_id: user.id,
+          customer_id: finalCustomerId,
+          lead_id: finalLeadId,
+          budget_id: newBudget.id,
+          start_date: today,
+          description: 'תכנית תוספים ריקה',
+          supplements: [],
+          is_active: true,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (supplementError) {
+        console.error('Error creating supplement plan:', supplementError);
+      }
+
+      // Create steps plan
+      const { data: stepsPlan, error: stepsError } = await supabase
+        .from('steps_plans')
+        .insert({
+          user_id: user.id,
+          customer_id: finalCustomerId,
+          lead_id: finalLeadId,
+          budget_id: newBudget.id,
+          start_date: today,
+          description: 'תכנית צעדים ריקה',
+          steps_goal: 0,
+          steps_instructions: null,
+          is_active: true,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (stepsError) {
+        console.error('Error creating steps plan:', stepsError);
+      }
+
+      // Invalidate queries to refresh the UI - invalidate all variations
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId] }),
+        queryClient.invalidateQueries({ queryKey: ['plans-history', null, finalLeadId] }),
+        queryClient.invalidateQueries({ queryKey: ['workout-plan'] }),
+        queryClient.invalidateQueries({ queryKey: ['workout-plan', finalCustomerId] }),
+        queryClient.invalidateQueries({ queryKey: ['nutrition-plan'] }),
+        queryClient.invalidateQueries({ queryKey: ['nutrition-plan', finalCustomerId] }),
+        queryClient.invalidateQueries({ queryKey: ['supplement-plan'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplementPlan'] }),
+        queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+        queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
+      ]);
+
+      // Force refetch by refetching the plans-history query
+      await queryClient.refetchQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] });
+
+      toast({
+        title: 'תכניות נוצרו בהצלחה',
+        description: 'נוצרו תכנית פעולה ריקה ותכניות ריקות לאימונים, תזונה, תוספים וצעדים',
+      });
+
+      // Close dialog and call onSuccess if provided
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (error: any) {
+      console.error('Error creating blank plans:', error);
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל ביצירת התכניות',
+        variant: 'destructive',
+      });
+    }
+  };
+
   useEffect(() => {
     if (!isOpen) {
       setSelectedBudgetId('');
@@ -215,17 +409,30 @@ export const AssignBudgetDialog = ({
                 <Label htmlFor="budget" className="text-sm font-semibold">
                   תכנית פעולה *
                 </Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsAddBudgetDialogOpen(true)}
-                  disabled={isSubmitting}
-                  className="h-8 px-2"
-                >
-                  <Plus className="h-4 w-4 ml-1" />
-                  תכנית פעולה חדשה
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCreateBlankPlans}
+                    disabled={isSubmitting}
+                    className="h-8 px-2"
+                  >
+                    <Plus className="h-4 w-4 ml-1" />
+                    צור תכניות ריקות
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddBudgetDialogOpen(true)}
+                    disabled={isSubmitting}
+                    className="h-8 px-2"
+                  >
+                    <Plus className="h-4 w-4 ml-1" />
+                    תכנית פעולה חדשה
+                  </Button>
+                </div>
               </div>
               <Select
                 value={selectedBudgetId}
