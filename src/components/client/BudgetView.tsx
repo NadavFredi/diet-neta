@@ -38,6 +38,7 @@ import {
   ListOrdered,
   ScrollText,
   Link as LinkIcon,
+  Printer,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -218,19 +219,42 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
     ? supplementPlan.supplements
     : ((budget.supplements || []) as any[]);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-4">
+      {/* Print Button - Only visible on screen */}
+      {fullBudget && (
+        <div className="print:hidden fixed bottom-6 left-6 z-50">
+          <Button
+            onClick={handlePrint}
+            size="lg"
+            className="text-white shadow-lg hover:opacity-90 transition-opacity"
+            style={{
+              backgroundColor: "#5B6FB9",
+            }}
+          >
+            <Printer className="h-5 w-5 mr-2" />
+            הדפס עכשיו
+          </Button>
+        </div>
+      )}
+
       {/* Use BudgetPrintContent component directly */}
       {fullBudget && (
-        <BudgetPrintContent
-          budget={fullBudget}
-          nutritionTemplate={nutritionTemplate}
-          workoutTemplate={workoutTemplate}
-          workoutPlan={workoutPlanForPrint}
-          workoutData={workoutData}
-          clientName={clientName}
-          assignedDate={budgetAssignment?.assigned_at || null}
-        />
+        <div className="budget-print-content">
+          <BudgetPrintContent
+            budget={fullBudget}
+            nutritionTemplate={nutritionTemplate}
+            workoutTemplate={workoutTemplate}
+            workoutPlan={workoutPlanForPrint}
+            workoutData={workoutData}
+            clientName={clientName}
+            assignedDate={budgetAssignment?.assigned_at || null}
+          />
+        </div>
       )}
       
       {/* Legacy content - Hidden for now */}
@@ -403,6 +427,187 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
           )}
         </div>
       )}
+      
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4;
+            margin: 0.5cm;
+          }
+          
+          /* Hide all fixed/sticky elements (buttons, sidebars, etc.) */
+          [class*="fixed"],
+          [class*="sticky"],
+          button,
+          nav,
+          aside,
+          .print\\:hidden {
+            display: none !important;
+          }
+          
+          /* Hide everything by default, then show only budget print content */
+          /* Use a more specific approach - hide parent containers */
+          body > div:first-child {
+            display: contents !important;
+          }
+          
+          /* Show only the budget print content */
+          .budget-print-content {
+            display: block !important;
+            position: relative !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            page-break-inside: auto !important;
+          }
+          
+          /* Hide all siblings of budget-print-content */
+          .budget-print-content ~ * {
+            display: none !important;
+          }
+          
+          /* Hide parent wrappers that don't contain budget-print-content */
+          /* This targets the space-y-4 div and other wrappers */
+          div.space-y-4 > *:not(.budget-print-content) {
+            display: none !important;
+          }
+          
+          /* Remove all margins and padding from body/html when printing */
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Ensure parent containers don't interfere */
+          body > div,
+          body > div > div {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          .print\\:hidden {
+            display: none !important;
+          }
+          
+          .print\\:bg-white {
+            background: white !important;
+          }
+          
+          .print\\:bg-gray-50 {
+            background: #f9fafb !important;
+          }
+          
+          .print\\:shadow-xl {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+          }
+          
+          .print\\:rounded-xl {
+            border-radius: 0.75rem !important;
+          }
+          
+          .print\\:p-4 {
+            padding: 1rem !important;
+          }
+          
+          .print\\:p-6 {
+            padding: 1.5rem !important;
+          }
+          
+          .print-header-bg {
+            background: #E96A8F !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Preserve all colors and backgrounds */
+          [class*="bg-"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Preserve borders */
+          [class*="border"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Preserve text colors */
+          [class*="text-"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          .print\\:break-inside-avoid {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          
+          .print\\:break-inside-auto {
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+          
+          .print\\:break-after-avoid {
+            break-after: avoid;
+            page-break-after: avoid;
+          }
+          
+          .print\\:break-after-auto {
+            break-after: auto;
+            page-break-after: auto;
+          }
+          
+          .print\\:w-24 {
+            width: 6rem !important;
+          }
+          
+          .print\\:h-24 {
+            height: 6rem !important;
+          }
+          
+          /* Allow tables to break across pages but keep rows together */
+          table {
+            page-break-inside: auto;
+          }
+          
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          
+          thead {
+            display: table-header-group;
+          }
+          
+          tfoot {
+            display: table-footer-group;
+          }
+          
+          .page-number::after {
+            content: counter(page);
+          }
+          
+          /* Page counter setup */
+          body {
+            counter-reset: page;
+          }
+          
+          @page {
+            counter-increment: page;
+          }
+        }
+      `}</style>
     </div>
   );
 };
