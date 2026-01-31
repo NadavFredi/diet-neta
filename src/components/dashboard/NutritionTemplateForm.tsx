@@ -381,58 +381,101 @@ export const NutritionTemplateForm = ({
     color: string;
     isManual?: boolean;
     onLockToggle?: () => void;
-  }) => (
-    <Card className={cn(
-      "border border-slate-200 hover:border-opacity-80 transition-colors rounded-2xl shadow-sm flex flex-col",
-      isManual && "ring-2 ring-amber-400/50"
-    )} style={{ borderColor: color }}>
-      <CardHeader className="pb-1.5 pt-2 px-2.5 flex-shrink-0">
-        <div className="flex items-center justify-between gap-1.5">
-          <div className="flex items-center gap-1.5 flex-1">
-            <div className="p-0.5 rounded" style={{ backgroundColor: `${color}15` }}>
-              <Icon className="h-3 w-3" style={{ color }} />
+  }) => {
+    const [localValue, setLocalValue] = useState<string>(value != null ? String(value) : '');
+    const [isFocused, setIsFocused] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Sync local value when prop value changes (but not while user is typing)
+    useEffect(() => {
+      if (!isFocused) {
+        setLocalValue(value != null ? String(value) : '');
+      }
+    }, [value, isFocused]);
+
+    const handleBlur = () => {
+      setIsFocused(false);
+      const numVal = localValue === '' ? 0 : parseFloat(localValue);
+      const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+      onChange(finalVal);
+      setLocalValue(finalVal === 0 ? '' : String(finalVal));
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        inputRef.current?.blur();
+      }
+    };
+
+    return (
+      <Card className={cn(
+        "border border-slate-200 hover:border-opacity-80 transition-colors rounded-2xl shadow-sm flex flex-col",
+        isManual && "ring-2 ring-amber-400/50"
+      )} style={{ borderColor: color }}>
+        <CardHeader className="pb-1.5 pt-2 px-2.5 flex-shrink-0">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 flex-1">
+              <div className="p-0.5 rounded" style={{ backgroundColor: `${color}15` }}>
+                <Icon className="h-3 w-3" style={{ color }} />
+              </div>
+              <CardTitle className="text-lg font-semibold">{label}</CardTitle>
             </div>
-            <CardTitle className="text-lg font-semibold">{label}</CardTitle>
+            {onLockToggle && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onLockToggle}
+                    className="h-6 w-6 p-0"
+                  >
+                    {isManual ? (
+                      <Lock className="h-3 w-3 text-amber-600" />
+                    ) : (
+                      <Unlock className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  {isManual ? 'נלחץ ידנית - לחץ לשחרור' : 'חישוב אוטומטי - לחץ לנעילה'}
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
-          {onLockToggle && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={onLockToggle}
-                  className="h-6 w-6 p-0"
-                >
-                  {isManual ? (
-                    <Lock className="h-3 w-3 text-amber-600" />
-                  ) : (
-                    <Unlock className="h-3 w-3 text-muted-foreground" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                {isManual ? 'נלחץ ידנית - לחץ לשחרור' : 'חישוב אוטומטי - לחץ לנעילה'}
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="px-2.5 pb-2.5 pt-0 flex-1 flex items-center">
-        <div className="flex items-center gap-1.5 w-full">
-          <Input
-            type="number"
-            value={value || ''}
-            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-            className="text-xl font-bold text-center h-12 rounded-lg flex-1"
-            dir="ltr"
-            min="0"
-          />
-          <span className="text-base font-semibold text-muted-foreground whitespace-nowrap">{unit}</span>
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardHeader>
+        <CardContent className="px-2.5 pb-2.5 pt-0 flex-1 flex items-center">
+          <div className="flex items-center gap-1.5 w-full">
+            <Input
+              ref={inputRef}
+              type="text"
+              inputMode="decimal"
+              value={localValue}
+              onFocus={() => {
+                setIsFocused(true);
+                // Ensure we have the current value when focusing
+                setLocalValue(value != null ? String(value) : '');
+              }}
+              onChange={(e) => {
+                const val = e.target.value;
+                // Allow empty string, numbers, and decimal point while typing
+                if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                  setLocalValue(val);
+                }
+              }}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              className="text-xl font-bold text-center h-12 rounded-lg flex-1"
+              dir="ltr"
+              placeholder="0"
+            />
+            <span className="text-base font-semibold text-muted-foreground whitespace-nowrap">{unit}</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <TooltipProvider>
