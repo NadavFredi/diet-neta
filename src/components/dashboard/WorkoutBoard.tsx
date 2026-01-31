@@ -1003,6 +1003,12 @@ const ExerciseRow = ({ exercise, dayKey, onUpdate, onRemove, isDragging }: Exerc
           <Input
             value={exercise.order || ''}
             onChange={(e) => onUpdate({ order: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
             className="h-8 text-sm border-gray-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
             placeholder="סדר"
             dir="rtl"
