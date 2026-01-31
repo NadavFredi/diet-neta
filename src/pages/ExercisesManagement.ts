@@ -137,7 +137,7 @@ export const useExercisesManagement = () => {
   };
 
   const handleSaveExercise = async (
-    data: Partial<Exercise> | { name: string; repetitions?: number | null; repetitions_min?: number | null; repetitions_max?: number | null; weight?: number | null; image?: string | null; video_link?: string | null }
+    data: Partial<Exercise> | { name: string; repetitions?: number | null; repetitions_min?: number | null; repetitions_max?: number | null; weight?: number | null; image?: string | null; video_link?: string | null; category?: string | null }
   ) => {
     try {
       // For backward compatibility: use repetitions_max if available, otherwise use repetitions_min, otherwise use repetitions
@@ -151,6 +151,7 @@ export const useExercisesManagement = () => {
           weight: data.weight,
           image: data.image,
           video_link: data.video_link,
+          category: (data as any).category ?? null,
         });
         toast({
           title: 'הצלחה',
@@ -165,6 +166,7 @@ export const useExercisesManagement = () => {
           weight: data.weight,
           image: data.image,
           video_link: data.video_link,
+          category: (data as any).category ?? null,
         });
         toast({
           title: 'הצלחה',
@@ -178,6 +180,22 @@ export const useExercisesManagement = () => {
         description: error?.message || 'נכשל בשמירת התרגיל',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleCategoryUpdate = async (exerciseId: string, category: string | null) => {
+    try {
+      await updateExercise.mutateAsync({
+        exerciseId,
+        category: category || null,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון הקטגוריה',
+        variant: 'destructive',
+      });
+      throw error;
     }
   };
 
@@ -270,6 +288,7 @@ export const useExercisesManagement = () => {
     handleBulkDelete,
     handleSortChange,
     handleSaveViewClick,
+    handleCategoryUpdate,
     getCurrentFilterConfig,
     
     // Mutations

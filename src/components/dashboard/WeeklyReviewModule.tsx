@@ -619,6 +619,11 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
 
   // Send WhatsApp mutation
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  
+  // Message state for preview and editing
+  const [whatsappMessage, setWhatsappMessage] = useState('');
+  const [whatsappButtons, setWhatsappButtons] = useState<Array<{ id: string; text: string }> | undefined>(undefined);
+  const [whatsappMedia, setWhatsappMedia] = useState<{ type: 'image' | 'video' | 'gif'; url: string } | undefined>(undefined);
 
   // Helper function to parse number from string
   const parseNumber = useCallback((value: string | null | undefined): number | null => {
@@ -710,6 +715,139 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
     }
   }, [saveReviewMutation.isPending, onSaveStateChange]);
 
+  // Generate message from template/data
+  const generateMessageFromData = useCallback(() => {
+    const weekLabel = `שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}`;
+    
+    // Check if there's a custom template for weekly_review
+    const weeklyReviewTemplate = templates['weekly_review'];
+    let message: string;
+    let processedButtons: Array<{ id: string; text: string }> | undefined;
+    let media: { type: 'image' | 'video' | 'gif'; url: string } | undefined;
+    
+    if (weeklyReviewTemplate?.template_content?.trim()) {
+      // Use custom template with placeholders
+      const placeholders: Record<string, string> = {
+        // Week info
+        '{{week_label}}': weekLabel,
+        '{{week_start}}': format(weekStart, 'dd/MM', { locale: he }),
+        '{{week_end}}': format(weekEnd, 'dd/MM', { locale: he }),
+        
+        // Customer info
+        '{{first_name}}': customerName?.split(' ')[0] || '',
+        '{{full_name}}': customerName || '',
+        
+        // Targets
+        '{{target_calories}}': targetCalories ? Math.round(parseFloat(targetCalories)).toString() : '-',
+        '{{target_protein}}': targetProtein ? Math.round(parseFloat(targetProtein)).toString() : '-',
+        '{{target_fiber}}': targetFiber ? Math.round(parseFloat(targetFiber)).toString() : '-',
+        '{{target_steps}}': targetSteps ? Math.round(parseFloat(targetSteps)).toString() : '-',
+        
+        // Actuals
+        '{{actual_calories}}': actualCalories ? Math.round(parseFloat(actualCalories)).toString() : '-',
+        '{{actual_protein}}': actualProtein ? Math.round(parseFloat(actualProtein)).toString() : '-',
+        '{{actual_fiber}}': actualFiber ? Math.round(parseFloat(actualFiber)).toString() : '-',
+        '{{actual_weight}}': actualWeight ? parseFloat(actualWeight).toFixed(1) : '-',
+        
+        // Trainer feedback
+        '{{trainer_summary}}': trainerSummary || '',
+        '{{action_plan}}': actionPlan || '',
+      };
+      
+      message = replacePlaceholders(weeklyReviewTemplate.template_content, placeholders);
+      
+      // Process buttons if they exist
+      if (weeklyReviewTemplate.buttons?.length) {
+        processedButtons = weeklyReviewTemplate.buttons.map(btn => ({
+          id: btn.id,
+          text: replacePlaceholders(btn.text, placeholders),
+        }));
+      }
+      
+      // Process media if it exists
+      if (weeklyReviewTemplate.media?.url) {
+        media = {
+          type: weeklyReviewTemplate.media.type as 'image' | 'video' | 'gif',
+          url: weeklyReviewTemplate.media.url,
+        };
+      }
+    } else {
+      // Use default message format (matches the format from WhatsApp automation)
+      message = `📊 סיכום שבועי - שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}\n\n`;
+      
+      message += `🎯 יעדים:\n`;
+      if (targetCalories) message += `קלוריות: ${Math.round(parseFloat(targetCalories))} קק"ל\n`;
+      if (targetProtein) message += `חלבון: ${Math.round(parseFloat(targetProtein))} גרם\n`;
+      if (targetFiber) message += `סיבים: ${Math.round(parseFloat(targetFiber))} גרם\n`;
+      if (targetSteps) message += `צעדים: ${Math.round(parseFloat(targetSteps))}\n`;
+      
+      message += `\n`;
+      
+      message += `📈 בפועל (ממוצע):\n`;
+      if (actualCalories) message += `קלוריות: ${Math.round(parseFloat(actualCalories))} קק"ל\n`;
+      if (actualProtein) message += `חלבון: ${Math.round(parseFloat(actualProtein))} גרם\n`;
+      if (actualFiber) message += `סיבים: ${Math.round(parseFloat(actualFiber))} גרם\n`;
+      if (actualWeight) message += `משקל ממוצע: ${parseFloat(actualWeight).toFixed(1)} ק"ג\n`;
+      
+      message += `\n`;
+      
+      message += `💬 סיכום ומסקנות:\n`;
+      if (trainerSummary) {
+        message += `${trainerSummary}\n`;
+      } else {
+        message += `(ניתן להוסיף הערות כאן)\n`;
+      }
+      
+      message += `\n`;
+      
+      message += `🎯 דגשים לשבוע הקרוב:\n`;
+      if (actionPlan) {
+        message += `${actionPlan}\n`;
+      } else {
+        message += `(ניתן להוסיף דגשים כאן)\n`;
+      }
+    }
+    
+    return { message, processedButtons, media };
+  }, [
+    weekStart,
+    weekEnd,
+    templates,
+    customerName,
+    targetCalories,
+    targetProtein,
+    targetFiber,
+    targetSteps,
+    actualCalories,
+    actualProtein,
+    actualFiber,
+    actualWeight,
+    trainerSummary,
+    actionPlan,
+  ]);
+
+  // Initialize message on mount or when customerPhone becomes available
+  useEffect(() => {
+    if (customerPhone && !whatsappMessage) {
+      const { message, processedButtons, media } = generateMessageFromData();
+      setWhatsappMessage(message);
+      setWhatsappButtons(processedButtons);
+      setWhatsappMedia(media);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerPhone]); // Only initialize once when customerPhone is available
+
+  const handleUpdateMessageFromData = () => {
+    const { message, processedButtons, media } = generateMessageFromData();
+    setWhatsappMessage(message);
+    setWhatsappButtons(processedButtons);
+    setWhatsappMedia(media);
+    toast({
+      title: 'עודכן',
+      description: 'הטקסט עודכן מהנתונים',
+    });
+  };
+
   const handleSendWhatsApp = async () => {
     if (!customerPhone) {
       toast({
@@ -722,87 +860,11 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
 
     setIsSendingWhatsApp(true);
     try {
-      const weekLabel = `שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}`;
-      
-      // Check if there's a custom template for weekly_review
-      const weeklyReviewTemplate = templates['weekly_review'];
-      let message: string;
-      let processedButtons: Array<{ id: string; text: string }> | undefined;
-      let media: { type: 'image' | 'video' | 'gif'; url: string } | undefined;
-      
-      if (weeklyReviewTemplate?.template_content?.trim()) {
-        // Use custom template with placeholders
-        const placeholders: Record<string, string> = {
-          // Week info
-          '{{week_label}}': weekLabel,
-          '{{week_start}}': format(weekStart, 'dd/MM', { locale: he }),
-          '{{week_end}}': format(weekEnd, 'dd/MM', { locale: he }),
-          
-          // Customer info
-          '{{first_name}}': customerName?.split(' ')[0] || '',
-          '{{full_name}}': customerName || '',
-          
-          // Targets
-          '{{target_calories}}': targetCalories ? Math.round(parseFloat(targetCalories)).toString() : '-',
-          '{{target_protein}}': targetProtein ? Math.round(parseFloat(targetProtein)).toString() : '-',
-          '{{target_fiber}}': targetFiber ? Math.round(parseFloat(targetFiber)).toString() : '-',
-          '{{target_steps}}': targetSteps ? Math.round(parseFloat(targetSteps)).toString() : '-',
-          
-          // Actuals
-          '{{actual_calories}}': actualCalories ? Math.round(parseFloat(actualCalories)).toString() : '-',
-          '{{actual_protein}}': actualProtein ? Math.round(parseFloat(actualProtein)).toString() : '-',
-          '{{actual_fiber}}': actualFiber ? Math.round(parseFloat(actualFiber)).toString() : '-',
-          '{{actual_weight}}': actualWeight ? parseFloat(actualWeight).toFixed(1) : '-',
-          
-          // Trainer feedback
-          '{{trainer_summary}}': trainerSummary || '',
-          '{{action_plan}}': actionPlan || '',
-        };
-        
-        message = replacePlaceholders(weeklyReviewTemplate.template_content, placeholders);
-        
-        // Process buttons if they exist
-        if (weeklyReviewTemplate.buttons?.length) {
-          processedButtons = weeklyReviewTemplate.buttons.map(btn => ({
-            id: btn.id,
-            text: replacePlaceholders(btn.text, placeholders),
-          }));
-        }
-        
-        // Process media if it exists
-        if (weeklyReviewTemplate.media?.url) {
-          media = {
-            type: weeklyReviewTemplate.media.type as 'image' | 'video' | 'gif',
-            url: weeklyReviewTemplate.media.url,
-          };
-        }
-      } else {
-        // Use default message format (matches the format from WhatsApp automation)
-        message = `📊 סיכום שבועי - שבוע ${format(weekStart, 'dd/MM', { locale: he })} - ${format(weekEnd, 'dd/MM', { locale: he })}\n\n`;
-        message += `🎯 יעדים:\n`;
-        if (targetCalories) message += `קלוריות: ${Math.round(parseFloat(targetCalories))} קק"ל\n`;
-        if (targetProtein) message += `חלבון: ${Math.round(parseFloat(targetProtein))} גרם\n`;
-        if (targetFiber) message += `סיבים: ${Math.round(parseFloat(targetFiber))} גרם\n`;
-        if (targetSteps) message += `צעדים: ${Math.round(parseFloat(targetSteps))}\n`;
-        
-        message += `\n📈 בפועל (ממוצע):\n`;
-        if (actualCalories) message += `קלוריות: ${Math.round(parseFloat(actualCalories))} קק"ל\n`;
-        if (actualWeight) message += `משקל ממוצע: ${parseFloat(actualWeight).toFixed(1)} ק"ג\n`;
-        
-        if (trainerSummary) {
-          message += `\n💬 סיכום ומסקנות:\n${trainerSummary}\n`;
-        }
-        
-        if (actionPlan) {
-          message += `\n🎯 דגשים לשבוע הקרוב:\n${actionPlan}\n`;
-        }
-      }
-
       const result = await sendWhatsAppMessage({
         phoneNumber: customerPhone,
-        message,
-        buttons: processedButtons,
-        media,
+        message: whatsappMessage,
+        buttons: whatsappButtons,
+        media: whatsappMedia,
       });
 
       if (result.success) {
@@ -1162,6 +1224,38 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
             </div>
           </div>
 
+        {/* WhatsApp Message Preview and Editor */}
+        {customerPhone && (
+          <div className="space-y-3 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="whatsapp-message" className="text-sm font-semibold">
+                הודעת WhatsApp
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleUpdateMessageFromData}
+                className="gap-2"
+              >
+                <MessageSquare className="h-4 w-4" />
+                עדכן טקסט מהנתונים
+              </Button>
+            </div>
+            <Textarea
+              id="whatsapp-message"
+              value={whatsappMessage}
+              onChange={(e) => setWhatsappMessage(e.target.value)}
+              placeholder="ההודעה תיווצר אוטומטית מהתבנית והנתונים..."
+              className="min-h-[200px] font-mono text-sm"
+              dir="rtl"
+            />
+            <div className="text-xs text-gray-500">
+              💡 תוכל לערוך את ההודעה ולהוסיף הערות אישיות לפני השליחה
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons - Save button on left, WhatsApp on right */}
         <div className="flex gap-3 pt-4 border-t items-center justify-between">
           {/* Save button on the left */}
@@ -1188,7 +1282,7 @@ export const WeeklyReviewModule: React.FC<WeeklyReviewModuleProps> = ({
           {customerPhone && (
             <Button
               onClick={handleSendWhatsApp}
-              disabled={isSendingWhatsApp || saveReviewMutation.isPending}
+              disabled={isSendingWhatsApp || saveReviewMutation.isPending || !whatsappMessage.trim()}
               variant="default"
               className="gap-2 bg-green-600 hover:bg-green-700"
             >

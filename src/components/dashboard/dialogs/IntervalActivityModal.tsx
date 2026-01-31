@@ -21,7 +21,6 @@ import { Loader2, Save, X, Trash2, Plus, Zap } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateBudget } from '@/hooks/useBudgets';
-import { useSaveActionPlan, createBudgetSnapshot } from '@/hooks/useSavedActionPlans';
 import type { IntervalTraining } from '@/store/slices/budgetSlice';
 import {
     Table,
@@ -55,7 +54,6 @@ export const IntervalActivityModal = ({
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const updateBudget = useUpdateBudget();
-    const saveActionPlan = useSaveActionPlan();
     const [isSaving, setIsSaving] = useState(false);
     const [intervalTrainings, setIntervalTrainings] = useState<IntervalTrainingWithId[]>([]);
 
@@ -168,45 +166,6 @@ export const IntervalActivityModal = ({
                 cardio_training: currentBudget.cardio_training || null,
                 interval_training: intervalTrainingData.length > 0 ? intervalTrainingData : null,
             });
-
-            // Get updated budget and templates for snapshot
-            const { data: updatedBudget } = await supabase
-                .from('budgets')
-                .select('*')
-                .eq('id', budgetId)
-                .single();
-
-            let nutritionTemplate = null;
-            if (updatedBudget?.nutrition_template_id) {
-                const { data } = await supabase
-                    .from('nutrition_templates')
-                    .select('*')
-                    .eq('id', updatedBudget.nutrition_template_id)
-                    .single();
-                nutritionTemplate = data;
-            }
-
-            let workoutTemplate = null;
-            if (updatedBudget?.workout_template_id) {
-                const { data } = await supabase
-                    .from('workout_templates')
-                    .select('*')
-                    .eq('id', updatedBudget.workout_template_id)
-                    .single();
-                workoutTemplate = data;
-            }
-
-            // Save action plan snapshot
-            if (updatedBudget) {
-                const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
-                await saveActionPlan.mutateAsync({
-                    budget_id: budgetId,
-                    lead_id: leadId,
-                    name: updatedBudget.name,
-                    description: updatedBudget.description || null,
-                    snapshot,
-                });
-            }
 
             // Invalidate queries
             await Promise.all([

@@ -133,6 +133,7 @@ export interface DataTableProps<T> {
   groupPageSize?: number;
   singularLabel?: string;
   pluralLabel?: string;
+  meta?: Record<string, any>;
 }
 
 interface GroupedData<T> {
@@ -342,6 +343,7 @@ export function DataTable<T extends Record<string, any>>({
   groupPageSize = 100,
   singularLabel = 'פריט',
   pluralLabel = 'פריטים',
+  meta,
 }: DataTableProps<T>) {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
@@ -618,6 +620,7 @@ export function DataTable<T extends Record<string, any>>({
   const tableInstance = useReactTable({
     data,
     columns: tableColumns,
+    meta,
     state: {
       sorting,
       columnVisibility: derivedColumnVisibility,

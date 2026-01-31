@@ -6,7 +6,6 @@
 
 import { usePrintBudgetPage } from './PrintBudgetPage';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import { 
   FileText, 
   Printer,
@@ -19,27 +18,6 @@ import { BudgetPrintContent } from '@/components/dashboard/BudgetPrintContent';
 const PrintBudgetPage = () => {
   const navigate = useNavigate();
   const { budget, nutritionTemplate, workoutTemplate, workoutPlan, workoutData, clientName, assignedDate, isLoading } = usePrintBudgetPage();
-
-  // Debug logs for workout template
-  useEffect(() => {
-    console.log('=== PrintBudgetPage Debug ===');
-    console.log('Budget:', budget);
-    console.log('Budget workout_template_id:', budget?.workout_template_id);
-    console.log('WorkoutTemplate:', workoutTemplate);
-    console.log('WorkoutPlan:', workoutPlan);
-    console.log('WorkoutData:', workoutData);
-    console.log('WorkoutData weeklyWorkout:', workoutData?.weeklyWorkout);
-    if (workoutData?.weeklyWorkout) {
-      console.log('WeeklyWorkout days:', workoutData.weeklyWorkout.days);
-      console.log('Days entries:', Object.entries(workoutData.weeklyWorkout.days || {}));
-      Object.entries(workoutData.weeklyWorkout.days || {}).forEach(([dayKey, dayData]: [string, any]) => {
-        console.log(`Day ${dayKey}:`, dayData);
-        console.log(`Day ${dayKey} exercises:`, dayData?.exercises);
-        console.log(`Day ${dayKey} exercises length:`, dayData?.exercises?.length);
-      });
-    }
-    console.log('===========================');
-  }, [budget, workoutTemplate, workoutPlan, workoutData]);
 
   const handlePrint = () => {
     window.print();

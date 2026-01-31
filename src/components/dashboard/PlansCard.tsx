@@ -1019,36 +1019,6 @@ export const PlansCard = ({
                                       interval_training: overviewBudget.interval_training || null,
                                     });
 
-                                    // Get updated budget and templates for snapshot
-                                    const { data: updatedBudget } = await supabase
-                                      .from('budgets')
-                                      .select('*')
-                                      .eq('id', effectiveBudgetId)
-                                      .single();
-
-                                    let nutritionTemplate = null;
-                                    if (updatedBudget?.nutrition_template_id) {
-                                      const { data } = await supabase.from('nutrition_templates').select('*').eq('id', updatedBudget.nutrition_template_id).single();
-                                      nutritionTemplate = data;
-                                    }
-
-                                    let workoutTemplate = null;
-                                    if (updatedBudget?.workout_template_id) {
-                                      const { data } = await supabase.from('workout_templates').select('*').eq('id', updatedBudget.workout_template_id).single();
-                                      workoutTemplate = data;
-                                    }
-
-                                    if (updatedBudget && effectiveBudgetId) {
-                                      const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
-                                      await saveActionPlan.mutateAsync({
-                                        budget_id: effectiveBudgetId,
-                                        lead_id: leadId,
-                                        name: updatedBudget.name,
-                                        description: updatedBudget.description || null,
-                                        snapshot,
-                                      });
-                                    }
-
                                     toast({ title: 'הצלחה', description: 'התיאור עודכן ונשמר ביומן' });
                                     setEditingField(null);
                                     await queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] });
@@ -1127,36 +1097,6 @@ export const PlansCard = ({
                                       interval_training: overviewBudget.interval_training || null,
                                     });
 
-                                    // Get updated budget and templates for snapshot
-                                    const { data: updatedBudget } = await supabase
-                                      .from('budgets')
-                                      .select('*')
-                                      .eq('id', effectiveBudgetId)
-                                      .single();
-
-                                    let nutritionTemplate = null;
-                                    if (updatedBudget?.nutrition_template_id) {
-                                      const { data } = await supabase.from('nutrition_templates').select('*').eq('id', updatedBudget.nutrition_template_id).single();
-                                      nutritionTemplate = data;
-                                    }
-
-                                    let workoutTemplate = null;
-                                    if (updatedBudget?.workout_template_id) {
-                                      const { data } = await supabase.from('workout_templates').select('*').eq('id', updatedBudget.workout_template_id).single();
-                                      workoutTemplate = data;
-                                    }
-
-                                    if (updatedBudget && effectiveBudgetId) {
-                                      const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
-                                      await saveActionPlan.mutateAsync({
-                                        budget_id: effectiveBudgetId,
-                                        lead_id: leadId,
-                                        name: updatedBudget.name,
-                                        description: updatedBudget.description || null,
-                                        snapshot,
-                                      });
-                                    }
-
                                     toast({ title: 'הצלחה', description: 'סדר האכילה עודכן ונשמר ביומן' });
                                     setEditingField(null);
                                     await queryClient.invalidateQueries({ queryKey: ['budget', effectiveBudgetId] });
@@ -1234,36 +1174,6 @@ export const PlansCard = ({
                                       cardio_training: overviewBudget.cardio_training || null,
                                       interval_training: overviewBudget.interval_training || null,
                                     });
-
-                                    // Get updated budget and templates for snapshot
-                                    const { data: updatedBudget } = await supabase
-                                      .from('budgets')
-                                      .select('*')
-                                      .eq('id', effectiveBudgetId)
-                                      .single();
-
-                                    let nutritionTemplate = null;
-                                    if (updatedBudget?.nutrition_template_id) {
-                                      const { data } = await supabase.from('nutrition_templates').select('*').eq('id', updatedBudget.nutrition_template_id).single();
-                                      nutritionTemplate = data;
-                                    }
-
-                                    let workoutTemplate = null;
-                                    if (updatedBudget?.workout_template_id) {
-                                      const { data } = await supabase.from('workout_templates').select('*').eq('id', updatedBudget.workout_template_id).single();
-                                      workoutTemplate = data;
-                                    }
-
-                                    if (updatedBudget && effectiveBudgetId) {
-                                      const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
-                                      await saveActionPlan.mutateAsync({
-                                        budget_id: effectiveBudgetId,
-                                        lead_id: leadId,
-                                        name: updatedBudget.name,
-                                        description: updatedBudget.description || null,
-                                        snapshot,
-                                      });
-                                    }
 
                                     toast({ title: 'הצלחה', description: 'כללי האכילה עודכנו ונשמרו ביומן' });
                                     setEditingField(null);
@@ -1724,36 +1634,6 @@ export const PlansCard = ({
                                       overviewBudget.steps_instructions || null
                                     );
 
-                                    // Get updated budget and templates for snapshot
-                                    const { data: updatedBudget } = await supabase
-                                      .from('budgets')
-                                      .select('*')
-                                      .eq('id', effectiveBudgetId)
-                                      .single();
-
-                                    let nutritionTemplate = null;
-                                    if (updatedBudget?.nutrition_template_id) {
-                                      const { data } = await supabase.from('nutrition_templates').select('*').eq('id', updatedBudget.nutrition_template_id).single();
-                                      nutritionTemplate = data;
-                                    }
-
-                                    let workoutTemplate = null;
-                                    if (updatedBudget?.workout_template_id) {
-                                      const { data } = await supabase.from('workout_templates').select('*').eq('id', updatedBudget.workout_template_id).single();
-                                      workoutTemplate = data;
-                                    }
-
-                                    if (updatedBudget && effectiveBudgetId) {
-                                      const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
-                                      await saveActionPlan.mutateAsync({
-                                        budget_id: effectiveBudgetId,
-                                        lead_id: leadId,
-                                        name: updatedBudget.name,
-                                        description: updatedBudget.description || null,
-                                        snapshot,
-                                      });
-                                    }
-
                                     toast({ title: 'הצלחה', description: 'יעד הצעדים עודכן ונשמר ביומן' });
                                     setEditingField(null);
                                     setEditValues({ ...editValues, steps_min: undefined, steps_max: undefined });
@@ -1889,35 +1769,6 @@ export const PlansCard = ({
                                           overviewBudget.steps_goal,
                                           editValues.steps_instructions || null
                                         );
-                                      }
-
-                                      // Get updated budget and templates for snapshot
-                                      const { data: updatedBudget } = await supabase
-                                        .from('budgets')
-                                        .select('*')
-                                        .eq('id', effectiveBudgetId)
-                                        .single();
-
-                                      let nutritionTemplate = null;
-                                      if (updatedBudget?.nutrition_template_id) {
-                                        const { data } = await supabase.from('nutrition_templates').select('*').eq('id', updatedBudget.nutrition_template_id).single();
-                                        nutritionTemplate = data;
-                                      }
-
-                                      let workoutTemplate = null;
-                                      if (updatedBudget?.workout_template_id) {
-                                        const { data } = await supabase.from('workout_templates').select('*').eq('id', updatedBudget.workout_template_id).single();
-                                        workoutTemplate = data;
-                                      }
-
-                                      if (updatedBudget && effectiveBudgetId) {
-                                        const snapshot = createBudgetSnapshot(updatedBudget, nutritionTemplate, workoutTemplate);
-                                        await saveActionPlan.mutateAsync({
-                                          budget_id: effectiveBudgetId,
-                                          name: updatedBudget.name,
-                                          description: updatedBudget.description || null,
-                                          snapshot,
-                                        });
                                       }
 
                                       toast({ title: 'הצלחה', description: 'הוראות הצעדים עודכנו ונשמרו ביומן' });

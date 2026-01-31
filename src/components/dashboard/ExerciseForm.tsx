@@ -10,7 +10,7 @@ import type { Exercise } from '@/hooks/useExercises';
 interface ExerciseFormProps {
   mode: 'create' | 'edit';
   initialData?: Exercise | null;
-  onSave: (data: { name: string; repetitions_min?: number | null; repetitions_max?: number | null; weight?: number | null; image?: string | null; video_link?: string | null }) => void;
+  onSave: (data: { name: string; repetitions_min?: number | null; repetitions_max?: number | null; weight?: number | null; image?: string | null; video_link?: string | null; category?: string | null }) => void;
   onCancel: () => void;
 }
 
@@ -29,6 +29,7 @@ export const ExerciseForm = ({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [videoLink, setVideoLink] = useState('');
+  const [category, setCategory] = useState('');
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export const ExerciseForm = ({
       setImage(initialData.image || '');
       setImagePreview(initialData.image || null);
       setVideoLink(initialData.video_link || '');
+      setCategory(initialData.category || '');
     } else {
       setName('');
       setRepetitionsMin(null);
@@ -50,6 +52,7 @@ export const ExerciseForm = ({
       setImage('');
       setImagePreview(null);
       setVideoLink('');
+      setCategory('');
     }
   }, [initialData]);
 
@@ -151,6 +154,7 @@ export const ExerciseForm = ({
       weight: weight || null,
       image: image.trim() || null,
       video_link: videoLink.trim() || null,
+      category: category.trim() || null,
     });
   };
 
@@ -313,6 +317,22 @@ export const ExerciseForm = ({
             dir="rtl"
             className="w-full"
           />
+        </div>
+
+        <div>
+          <Label htmlFor="category" className="text-sm font-medium mb-2 block">
+            קטגוריה
+          </Label>
+          <Input
+            id="category"
+            type="text"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="הכנס קטגוריה (למשל: חזה, רגליים, גב)"
+            dir="rtl"
+            className="w-full"
+          />
+          <p className="text-xs text-gray-500 mt-1">קטגוריה עוזרת לארגן ולסנן תרגילים</p>
         </div>
       </div>
 

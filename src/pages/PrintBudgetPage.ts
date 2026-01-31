@@ -29,30 +29,6 @@ export const usePrintBudgetPage = () => {
     budget?.workout_template_id || null
   );
 
-  // Debug logs for data fetching
-  useEffect(() => {
-    console.log('=== PrintBudgetPage Hook Debug ===');
-    console.log('Budget ID:', budget?.id);
-    console.log('Budget workout_template_id:', budget?.workout_template_id);
-    console.log('IsLoadingWorkout:', isLoadingWorkout);
-    console.log('WorkoutTemplate data:', workoutTemplate);
-    if (workoutTemplate) {
-      console.log('WorkoutTemplate ID:', workoutTemplate.id);
-      console.log('WorkoutTemplate name:', workoutTemplate.name);
-      console.log('WorkoutTemplate routine_data type:', typeof workoutTemplate.routine_data);
-      console.log('WorkoutTemplate routine_data:', workoutTemplate.routine_data);
-      if (workoutTemplate.routine_data) {
-        console.log('routine_data keys:', Object.keys(workoutTemplate.routine_data));
-        console.log('weeklyWorkout:', workoutTemplate.routine_data.weeklyWorkout);
-        if (workoutTemplate.routine_data.weeklyWorkout) {
-          console.log('weeklyWorkout keys:', Object.keys(workoutTemplate.routine_data.weeklyWorkout));
-          console.log('days:', workoutTemplate.routine_data.weeklyWorkout.days);
-        }
-      }
-    }
-    console.log('================================');
-  }, [budget?.id, budget?.workout_template_id, workoutTemplate, isLoadingWorkout]);
-
   const [clientInfo, setClientInfo] = useState<{ name: string | null; assignedDate: string | null; leadId: string | null; customerId: string | null }>({
     name: null,
     assignedDate: null,
@@ -157,17 +133,12 @@ export const usePrintBudgetPage = () => {
         const { data: plans, error } = await query.maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching workout plan:', error);
+          // Silent failure
         } else if (plans) {
-          console.log('Found workout plan:', plans);
-          console.log('Workout plan custom_attributes:', plans.custom_attributes);
-          console.log('Workout plan weeklyWorkout:', plans.custom_attributes?.data?.weeklyWorkout);
           setWorkoutPlan(plans);
-        } else {
-          console.log('No workout plan found for budget:', budget.id);
         }
       } catch (error) {
-        console.error('Error in fetchWorkoutPlan:', error);
+        // Silent failure
       } finally {
         setIsLoadingWorkoutPlan(false);
       }

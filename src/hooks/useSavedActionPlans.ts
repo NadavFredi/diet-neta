@@ -188,6 +188,8 @@ export const createBudgetSnapshot = (budget: Budget, nutritionTemplate?: any, wo
     
     // Steps
     steps_goal: budget.steps_goal || 0,
+    steps_min: budget.steps_min || null,
+    steps_max: budget.steps_max || null,
     steps_instructions: budget.steps_instructions || null,
     
     // Guidelines

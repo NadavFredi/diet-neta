@@ -4,6 +4,7 @@ import { he } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { Image, Video, ExternalLink } from 'lucide-react';
+import { InlineEditableField } from '@/components/dashboard/InlineEditableField';
 
 /**
  * Strict column definitions for Exercises table.
@@ -25,6 +26,52 @@ export const exerciseColumns: DataTableColumn<Exercise>[] = [
     cell: ({ getValue }) => {
       const value = getValue() as string;
       return <span className="font-medium text-gray-900">{value}</span>;
+    },
+  },
+  {
+    id: 'category',
+    header: 'קטגוריה',
+    accessorKey: 'category',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
+    size: 150,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ row, table }) => {
+      const exercise = row.original;
+      const value = exercise.category;
+      
+      // Get onCategoryUpdate handler from table meta if available
+      const onCategoryUpdate = (table.options.meta as any)?.onCategoryUpdate;
+      
+      if (onCategoryUpdate) {
+        return (
+          <InlineEditableField
+            label="קטגוריה"
+            value={value || ''}
+            onSave={async (newValue) => {
+              const categoryValue = (newValue as string).trim() || null;
+              await onCategoryUpdate(exercise.id, categoryValue);
+            }}
+            type="text"
+            formatValue={(val) => val || ''}
+            className="min-w-[120px]"
+          />
+        );
+      }
+      
+      // Fallback: display as badge
+      if (!value || value.trim() === '') {
+        return <span className="text-gray-400">-</span>;
+      }
+      
+      return (
+        <Badge variant="secondary" className="text-xs">
+          {value}
+        </Badge>
+      );
     },
   },
   {

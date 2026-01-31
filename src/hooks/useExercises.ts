@@ -13,6 +13,7 @@ export interface Exercise {
   weight: number | null;
   image: string | null;
   video_link: string | null;
+  category: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -44,6 +45,7 @@ export const useExercises = (filters?: {
         name: { column: 'name', type: 'text' },
         repetitions: { column: 'repetitions', type: 'number' },
         weight: { column: 'weight', type: 'number' },
+        category: { column: 'category', type: 'text' },
       };
 
       const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name']) : null;
@@ -53,6 +55,7 @@ export const useExercises = (filters?: {
       const groupByMap: Record<string, string> = {
         name: 'name',
         created_at: 'created_at',
+        category: 'category',
       };
       const sortMap: Record<string, string | string[]> = {
         name: 'name',
@@ -60,6 +63,7 @@ export const useExercises = (filters?: {
         weight: 'weight',
         media: ['image', 'video_link'],
         created_at: 'created_at',
+        category: 'category',
       };
 
       let query = supabase
@@ -158,12 +162,14 @@ export const useCreateExercise = () => {
       weight,
       image,
       video_link,
+      category,
     }: {
       name: string;
       repetitions?: number | null;
       weight?: number | null;
       image?: string | null;
       video_link?: string | null;
+      category?: string | null;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
 
@@ -177,6 +183,7 @@ export const useCreateExercise = () => {
           weight: weight ?? null,
           image: image ?? null,
           video_link: video_link ?? null,
+          category: category ?? null,
           created_by: userId,
         })
         .select()
@@ -209,6 +216,7 @@ export const useUpdateExercise = () => {
       weight,
       image,
       video_link,
+      category,
     }: {
       exerciseId: string;
       name?: string;
@@ -216,6 +224,7 @@ export const useUpdateExercise = () => {
       weight?: number | null;
       image?: string | null;
       video_link?: string | null;
+      category?: string | null;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
 
@@ -225,6 +234,7 @@ export const useUpdateExercise = () => {
       if (weight !== undefined) updateData.weight = weight;
       if (image !== undefined) updateData.image = image;
       if (video_link !== undefined) updateData.video_link = video_link;
+      if (category !== undefined) updateData.category = category;
 
       const { data, error } = await supabase
         .from('exercises')
