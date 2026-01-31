@@ -1863,28 +1863,7 @@ export const PlansCard = ({
                         </div>
                       )}
 
-                      {/* Cardio and Interval Training Summary */}
-                      {(overviewBudget?.cardio_training && Array.isArray(overviewBudget.cardio_training) && overviewBudget.cardio_training.length > 0) ||
-                        (overviewBudget?.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0) ? (
-                        <div className="mt-2 pt-2 border-t border-cyan-100/60 space-y-1.5">
 
-                          {overviewBudget.interval_training && Array.isArray(overviewBudget.interval_training) && overviewBudget.interval_training.length > 0 && (
-                            <div>
-                              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אינטרוולים:</span>
-                              <div className="mt-1 space-y-1">
-                                {overviewBudget.interval_training.map((interval: any, idx: number) => (
-                                  <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-yellow-100">
-                                    <span className="font-medium">{interval.name || 'אינטרוול'}</span>
-                                    {interval.duration_minutes && <span className="mr-1"> • {interval.duration_minutes} דקות</span>}
-                                    {interval.period_type && <span className="mr-1"> • {interval.period_type}</span>}
-                                    {interval.notes && <span className="mr-1 text-slate-500"> • ({interval.notes})</span>}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
                     </div>
                   ) : (
                     <div className="h-16 flex items-center justify-center text-xs text-gray-400">אין יעד פעיל</div>

@@ -411,7 +411,7 @@ export const PlanDetailModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} dir="rtl">
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" dir="rtl">
+      <DialogContent className="min-w-[1000px] max-w-7xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
           <DialogTitle>
             {planType === 'workout' && 'פרטי תוכנית אימונים'}
@@ -711,7 +711,7 @@ export const PlanDetailModal = ({
           successToastDescription={planType === 'supplements' ? 'התוסף נוסף ונשמר' : undefined}
         />
 
-        <div className="flex justify-end gap-3 pt-4 border-t">
+        <div className="flex  gap-3 pt-4 border-t">
           {planType === 'supplements' ? (
             <>
               <Button

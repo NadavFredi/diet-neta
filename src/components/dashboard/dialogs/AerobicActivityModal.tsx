@@ -264,7 +264,6 @@ export const AerobicActivityModal = ({
                             <Table>
                                 <TableHeader>
                                     <TableRow className="[&>th]:py-2">
-                                        <TableHead className="text-right w-[120px] px-2">סוג</TableHead>
                                         <TableHead className="text-right px-2">שם האימון</TableHead>
                                         <TableHead className="text-center w-[120px] px-2">דקות/אימון</TableHead>
                                         <TableHead className="text-center w-[80px] px-2">פעמים בשבוע</TableHead>
@@ -277,20 +276,6 @@ export const AerobicActivityModal = ({
                                         .filter((w) => w.type === 'erobi')
                                         .map((workout) => (
                                             <TableRow key={workout.id} className="[&>td]:py-1.5">
-                                                <TableCell className="px-2">
-                                                    <Select
-                                                        value={workout.type || 'erobi'}
-                                                        onValueChange={(value) => updateWorkoutTraining(workout.id, 'type', value)}
-                                                    >
-                                                        <SelectTrigger className="h-9 text-sm" dir="rtl">
-                                                            <SelectValue>{workout.type === 'intervals' ? 'אינטרוולים' : 'אירובי'}</SelectValue>
-                                                        </SelectTrigger>
-                                                        <SelectContent dir="rtl">
-                                                            <SelectItem value="erobi">אירובי</SelectItem>
-                                                            <SelectItem value="intervals">אינטרוולים</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </TableCell>
                                                 <TableCell className="px-2">
                                                     <Input
                                                         value={workout.name}
