@@ -70,7 +70,17 @@ const availableFields = [
 ];
 
 // Draggable Meeting Component
-const DraggableMeetingCard = ({ meeting, date, isTimeBased = false }: { meeting: Meeting; date: Date; isTimeBased?: boolean }) => {
+const DraggableMeetingCard = ({ 
+  meeting, 
+  date, 
+  isTimeBased = false,
+  onClick
+}: { 
+  meeting: Meeting; 
+  date: Date; 
+  isTimeBased?: boolean;
+  onClick?: () => void;
+}) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: meeting.id,
   });
@@ -90,18 +100,23 @@ const DraggableMeetingCard = ({ meeting, date, isTimeBased = false }: { meeting:
         style={style}
         {...listeners}
         {...attributes}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick?.();
+        }}
         className={cn(
-          "bg-blue-100 border border-blue-300 rounded px-2 py-1 cursor-grab active:cursor-grabbing shadow-sm",
-          isDragging && "opacity-50"
+          "bg-gray-100 border-l-2 border-gray-400 rounded-sm px-2 py-1.5 cursor-pointer hover:bg-gray-200 transition-colors shadow-sm",
+          isDragging && "opacity-50 z-50"
         )}
       >
-        <div className="flex items-center gap-1">
-          <GripVertical className="h-3 w-3 text-blue-600" />
-          {time && <span className="text-xs font-medium text-blue-900">{time}</span>}
-        </div>
         {customerName && (
-          <div className="text-xs font-semibold text-blue-900 truncate mt-0.5">
+          <div className="text-sm font-medium text-gray-900 truncate">
             {customerName}
+          </div>
+        )}
+        {time && (
+          <div className="text-xs text-gray-600 mt-0.5">
+            {time}
           </div>
         )}
       </div>
@@ -147,10 +162,8 @@ const DroppableDateCell = ({
     <div
       ref={setNodeRef}
       className={cn(
-        "min-h-[100px] bg-white p-2 flex flex-col transition-colors",
-        !isCurrentMonth && "bg-gray-50",
-        isToday && "bg-blue-50 border-2 border-blue-500",
-        isOver && "bg-blue-100 border-2 border-blue-400"
+        "bg-white transition-colors",
+        isOver && "bg-blue-50/50"
       )}
     >
       {children}
@@ -299,6 +312,32 @@ const getMeetingHour = (meeting: Meeting): number | null => {
   }
   
   return null;
+};
+
+// Get meeting end hour for duration calculation
+const getMeetingEndHour = (meeting: Meeting): number | null => {
+  const meetingData = meeting.meeting_data || {};
+  const schedulingData = getMeetingSchedulingData(meetingData);
+  
+  if (schedulingData?.eventEndTime) {
+    const endDate = new Date(schedulingData.eventEndTime);
+    if (!isNaN(endDate.getTime())) {
+      return endDate.getHours() + endDate.getMinutes() / 60;
+    }
+  }
+  
+  // Try to parse end time from other fields
+  const timeStr = meetingData.meeting_time_end || meetingData['שעת סיום'];
+  if (timeStr) {
+    const timeMatch = String(timeStr).match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      return parseInt(timeMatch[1]) + parseInt(timeMatch[2]) / 60;
+    }
+  }
+  
+  // Default to 1 hour duration if no end time
+  const startHour = getMeetingHour(meeting);
+  return startHour !== null ? startHour + 1 : null;
 };
 
 // Generate hours array (6 AM to 11 PM)
@@ -895,34 +934,40 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
 
           {/* Week View with Time Axis */}
           {viewMode === 'calendar' && calendarViewType === 'week' && (
-            <div className="w-full h-full flex flex-col">
-              {/* Day headers */}
-              <div className="grid grid-cols-8 gap-px bg-gray-200 border border-gray-200">
-                <div className="bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-600 border-b border-gray-200"></div>
-                {calendarDays.map((date) => (
-                  <div
-                    key={format(date, 'yyyy-MM-dd')}
-                    className={cn(
-                      "bg-gray-50 px-2 py-2 text-center text-xs font-medium border-b border-gray-200",
-                      isSameDay(date, today) && "bg-blue-50 text-blue-600 font-bold"
-                    )}
-                  >
-                    <div>{weekDays[date.getDay()]}</div>
-                    <div className="text-sm font-semibold">{format(date, 'd')}</div>
-                  </div>
-                ))}
-              </div>
+            <div className="w-full h-full flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto relative">
+                {/* Day headers */}
+                <div className="grid grid-cols-8 border border-gray-200 sticky top-0 z-20 bg-white shadow-sm">
+                  <div className="px-3 py-3 text-center text-xs font-medium text-gray-600 bg-white border-r border-gray-200"></div>
+                  {calendarDays.map((date) => (
+                    <div
+                      key={format(date, 'yyyy-MM-dd')}
+                      className={cn(
+                        "px-3 py-3 text-center bg-white border-r border-gray-200",
+                        isSameDay(date, today) && "bg-blue-50",
+                        calendarDays.indexOf(date) === calendarDays.length - 1 && "border-r-0"
+                      )}
+                    >
+                      <div className="text-xs text-gray-500 mb-1">{weekDays[date.getDay()]}</div>
+                      <div className={cn(
+                        "text-base font-semibold",
+                        isSameDay(date, today) ? "text-blue-600" : "text-gray-900"
+                      )}>
+                        {format(date, 'd')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-              {/* Time grid */}
-              <div className="flex-1 overflow-y-auto">
-                <div className="grid grid-cols-8 gap-px bg-gray-200 border-x border-b border-gray-200">
+                {/* Time grid */}
+                <div className="grid grid-cols-8 border-l border-r border-b border-gray-200">
                   {/* Time column */}
-                  <div className="bg-gray-50 border-r border-gray-200">
+                  <div className="bg-white border-r border-gray-200">
                     {generateHours().map((hour, index) => (
                       <div
                         key={hour}
                         className={cn(
-                          "h-16 border-b border-gray-200 px-2 py-1 text-xs text-gray-500",
+                          "h-16 border-b border-gray-100 px-3 py-2 text-xs text-gray-500",
                           index % 2 === 0 ? "bg-gray-50" : "bg-white"
                         )}
                       >
@@ -932,7 +977,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                   </div>
 
                   {/* Day columns */}
-                  {calendarDays.map((date) => {
+                  {calendarDays.map((date, dayIndex) => {
                     const dateKey = format(date, 'yyyy-MM-dd');
                     const dayMeetings = getMeetingsForDate(date);
                     const isToday = isSameDay(date, today);
@@ -944,13 +989,17 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                         isCurrentMonth={true}
                         isToday={isToday}
                       >
-                        <div className="relative h-full min-h-[1152px]">
+                        <div className={cn(
+                          "relative h-full min-h-[1152px]",
+                          dayIndex < calendarDays.length - 1 && "border-r border-gray-200"
+                        )}>
                           {/* Hour slots */}
                           {generateHours().map((hour, index) => (
                             <div
                               key={hour}
                               className={cn(
-                                "h-16 border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors",
+                                "h-16 border-b border-gray-100 cursor-pointer transition-colors",
+                                "hover:bg-primary/10",
                                 index % 2 === 0 ? "bg-gray-50" : "bg-white"
                               )}
                               onClick={() => {
@@ -964,21 +1013,31 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                           {/* Meetings positioned by time */}
                           {dayMeetings.map((meeting) => {
                             const meetingHour = getMeetingHour(meeting);
+                            const meetingEndHour = getMeetingEndHour(meeting);
                             if (meetingHour === null) return null;
 
-                            const customer = getMeetingCustomer(meeting);
-                            const time = getMeetingTimeDisplayValue(meeting);
+                            const duration = meetingEndHour ? (meetingEndHour - meetingHour) : 1; // Default to 1 hour
                             // Calculate position: each hour is 64px (h-16), starting from hour 6
                             const hoursFromStart = meetingHour - 6;
                             const topPosition = hoursFromStart * 64; // 64px per hour
+                            const height = duration * 64; // Height based on duration
 
                             return (
                               <div
                                 key={meeting.id}
-                                className="absolute left-0 right-0 mx-1 z-10"
-                                style={{ top: `${topPosition}px` }}
+                                className="absolute left-1 right-1 z-10"
+                                style={{ 
+                                  top: `${topPosition}px`,
+                                  height: `${height}px`,
+                                  minHeight: '48px'
+                                }}
                               >
-                                <DraggableMeetingCard meeting={meeting} date={date} isTimeBased={true} />
+                                <DraggableMeetingCard 
+                                  meeting={meeting} 
+                                  date={date} 
+                                  isTimeBased={true}
+                                  onClick={() => navigate(`/dashboard/meetings/${meeting.id}`)}
+                                />
                               </div>
                             );
                           })}
@@ -993,31 +1052,36 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
 
           {/* Day View with Time Axis */}
           {viewMode === 'calendar' && calendarViewType === 'day' && (
-            <div className="w-full h-full flex flex-col">
-              {/* Day header */}
-              <div className="grid grid-cols-2 gap-px bg-gray-200 border border-gray-200">
-                <div className="bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-600 border-b border-gray-200"></div>
-                <div
-                  className={cn(
-                    "bg-gray-50 px-2 py-2 text-center text-xs font-medium border-b border-gray-200",
-                    isSameDay(currentDay, today) && "bg-blue-50 text-blue-600 font-bold"
-                  )}
-                >
-                  <div>{weekDays[currentDay.getDay()]}</div>
-                  <div className="text-sm font-semibold">{format(currentDay, 'd בMMMM yyyy', { locale: he })}</div>
+            <div className="w-full h-full flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto relative">
+                {/* Day header */}
+                <div className="grid grid-cols-2 border border-gray-200 sticky top-0 z-20 bg-white shadow-sm">
+                  <div className="px-3 py-3 text-center text-xs font-medium text-gray-600 bg-white border-r border-gray-200"></div>
+                  <div
+                    className={cn(
+                      "px-3 py-3 text-center bg-white",
+                      isSameDay(currentDay, today) && "bg-blue-50"
+                    )}
+                  >
+                    <div className="text-xs text-gray-500 mb-1">{weekDays[currentDay.getDay()]}</div>
+                    <div className={cn(
+                      "text-base font-semibold",
+                      isSameDay(currentDay, today) ? "text-blue-600" : "text-gray-900"
+                    )}>
+                      {format(currentDay, 'd בMMMM yyyy', { locale: he })}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Time grid */}
-              <div className="flex-1 overflow-y-auto">
-                <div className="grid grid-cols-2 gap-px bg-gray-200 border-x border-b border-gray-200">
+                {/* Time grid */}
+                <div className="grid grid-cols-2 border-l border-r border-b border-gray-200">
                   {/* Time column */}
-                  <div className="bg-gray-50 border-r border-gray-200">
+                  <div className="bg-white border-r border-gray-200">
                     {generateHours().map((hour, index) => (
                       <div
                         key={hour}
                         className={cn(
-                          "h-16 border-b border-gray-200 px-2 py-1 text-xs text-gray-500",
+                          "h-16 border-b border-gray-100 px-3 py-2 text-xs text-gray-500",
                           index % 2 === 0 ? "bg-gray-50" : "bg-white"
                         )}
                       >
@@ -1038,7 +1102,8 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                         <div
                           key={hour}
                           className={cn(
-                            "h-16 border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors",
+                            "h-16 border-b border-gray-100 cursor-pointer transition-colors",
+                            "hover:bg-primary/10",
                             index % 2 === 0 ? "bg-gray-50" : "bg-white"
                           )}
                           onClick={() => {
@@ -1052,21 +1117,31 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                       {/* Meetings positioned by time */}
                       {getMeetingsForDate(currentDay).map((meeting) => {
                         const meetingHour = getMeetingHour(meeting);
+                        const meetingEndHour = getMeetingEndHour(meeting);
                         if (meetingHour === null) return null;
 
-                        const customer = getMeetingCustomer(meeting);
-                        const time = getMeetingTimeDisplayValue(meeting);
+                        const duration = meetingEndHour ? (meetingEndHour - meetingHour) : 1; // Default to 1 hour
                         // Calculate position: each hour is 64px (h-16), starting from hour 6
                         const hoursFromStart = meetingHour - 6;
                         const topPosition = hoursFromStart * 64; // 64px per hour
+                        const height = duration * 64; // Height based on duration
 
                         return (
                           <div
                             key={meeting.id}
-                            className="absolute left-0 right-0 mx-1 z-10"
-                            style={{ top: `${topPosition}px` }}
+                            className="absolute left-1 right-1 z-10"
+                            style={{ 
+                              top: `${topPosition}px`,
+                              height: `${height}px`,
+                              minHeight: '48px'
+                            }}
                           >
-                            <DraggableMeetingCard meeting={meeting} date={currentDay} isTimeBased={true} />
+                            <DraggableMeetingCard 
+                              meeting={meeting} 
+                              date={currentDay} 
+                              isTimeBased={true}
+                              onClick={() => navigate(`/dashboard/meetings/${meeting.id}`)}
+                            />
                           </div>
                         );
                       })}
