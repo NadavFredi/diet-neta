@@ -103,9 +103,15 @@ export const MonthView: React.FC<MonthViewProps> = ({ meetings, onAddMeeting }) 
                   date={date}
                   isCurrentMonth={isCurrentMonth}
                   isToday={isToday}
-                  className="p-1"
+                  className="p-1 cursor-pointer"
+                  onClick={(e) => {
+                    // Only trigger if we're not clicking a meeting card or the plus button (which has its own handler)
+                    if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('flex-1')) {
+                      onAddMeeting?.(date);
+                    }
+                  }}
                 >
-                  <div className="h-full flex flex-col">
+                  <div className="h-full flex flex-col pointer-events-none">
                       {/* Date number */}
                       <div className={cn(
                         "text-sm font-medium mb-1",
@@ -120,7 +126,9 @@ export const MonthView: React.FC<MonthViewProps> = ({ meetings, onAddMeeting }) 
                         {hasMeetings ? (
                           <>
                             {dayMeetings.slice(0, 3).map((meeting) => (
-                              <DraggableMeetingCard key={meeting.id} meeting={meeting} date={date} />
+                              <div key={meeting.id} className="pointer-events-auto">
+                                <DraggableMeetingCard meeting={meeting} date={date} />
+                              </div>
                             ))}
                             {dayMeetings.length > 3 && (
                               <div className="text-xs text-gray-500">
@@ -130,10 +138,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ meetings, onAddMeeting }) 
                           </>
                         ) : (
                           <div className="flex items-center justify-center flex-1 opacity-0 hover:opacity-100 transition-opacity">
-                            <Plus className="h-4 w-4 text-gray-300 cursor-pointer" onClick={(e) => {
-                                e.stopPropagation();
-                                onAddMeeting?.(date);
-                            }} />
+                            <Plus className="h-4 w-4 text-gray-300" />
                           </div>
                         )}
                       </div>

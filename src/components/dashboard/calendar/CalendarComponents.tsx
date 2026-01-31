@@ -84,16 +84,16 @@ interface DroppableDateCellProps {
   isCurrentMonth: boolean;
   isToday: boolean;
   className?: string;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
 export const DroppableDateCell = forwardRef<HTMLDivElement, DroppableDateCellProps>(
-  ({ date, children, isCurrentMonth, isToday, className }, ref) => {
+  ({ date, children, isCurrentMonth, isToday, className, onClick }, ref) => {
     const dateKey = format(date, 'yyyy-MM-dd');
     const { setNodeRef, isOver } = useDroppable({
       id: `date-${dateKey}`,
     });
 
-    // Merge refs
     const setRefs = (node: HTMLDivElement) => {
       setNodeRef(node);
       if (typeof ref === 'function') {
@@ -106,10 +106,11 @@ export const DroppableDateCell = forwardRef<HTMLDivElement, DroppableDateCellPro
     return (
       <div
         ref={setRefs}
+        onClick={onClick}
         className={cn(
           "bg-white transition-colors h-full",
           isOver && "bg-primary/20",
-          !isOver && "hover:bg-primary/5",
+          !isOver && "hover:bg-primary/50",
           className
         )}
       >
@@ -135,7 +136,6 @@ export const DroppableTimeSlot = forwardRef<HTMLDivElement, DroppableTimeSlotPro
     const id = `slot:${dateKey}:${hour}`;
     const { setNodeRef, isOver } = useDroppable({ id });
 
-    // Merge refs
     const setRefs = (node: HTMLDivElement) => {
       setNodeRef(node);
       if (typeof ref === 'function') {
@@ -152,7 +152,7 @@ export const DroppableTimeSlot = forwardRef<HTMLDivElement, DroppableTimeSlotPro
         className={cn(
           "h-16 border-b border-gray-100 cursor-pointer transition-colors",
           isOver ? "bg-primary/30 ring-inset ring-2 ring-primary" : (isEven ? "bg-gray-50" : "bg-white"),
-          !isOver && "hover:bg-primary/20"
+          !isOver && "hover:bg-primary/50"
         )}
       >
         {children}

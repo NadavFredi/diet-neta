@@ -679,86 +679,95 @@ export const PlansCard = ({
             <Plus className="h-3.5 w-3.5" />
             <span>הקצה תכנית פעולה</span>
           </Button>
-          {activeAssignment && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  if (!activeAssignment) return;
-                  try {
-                    // Deactivate the assignment
+          {(effectiveBudgetId || workoutHistory?.length || nutritionHistory?.length || supplementsHistory?.length || stepsHistory?.length) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                if (!effectiveBudgetId) {
+                  toast({
+                    title: 'שגיאה',
+                    description: 'אין תכנית פעולה לנקות',
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                try {
+                  // If there's an active assignment, deactivate it
+                  if (activeAssignment) {
                     await supabase
                       .from('budget_assignments')
                       .update({ is_active: false })
                       .eq('id', activeAssignment.id);
-
-                    // Clear budget_id from all associated plans
-                    const finalCustomerId = customerId || null;
-                    const finalLeadId = leadId || null;
-
-                    // Build queries based on customer_id or lead_id
-                    const buildPlanQuery = (table: string) => {
-                      let query = supabase
-                        .from(table)
-                        .update({ budget_id: null })
-                        .eq('budget_id', activeAssignment.budget_id);
-                      
-                      if (finalCustomerId && finalLeadId) {
-                        query = query.or(`customer_id.eq.${finalCustomerId},lead_id.eq.${finalLeadId}`);
-                      } else if (finalCustomerId) {
-                        query = query.eq('customer_id', finalCustomerId);
-                      } else if (finalLeadId) {
-                        query = query.eq('lead_id', finalLeadId);
-                      }
-                      
-                      return query;
-                    };
-
-                    await Promise.all([
-                      buildPlanQuery('workout_plans'),
-                      buildPlanQuery('nutrition_plans'),
-                      buildPlanQuery('supplement_plans'),
-                      buildPlanQuery('steps_plans'),
-                    ]);
-
-                    // Invalidate queries
-                    await Promise.all([
-                      queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-                      queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
-                      queryClient.invalidateQueries({ queryKey: ['budgets'] }),
-                    ]);
-
-                    toast({
-                      title: 'הצלחה',
-                      description: 'תכנית הפעולה נוקתה בהצלחה',
-                    });
-                  } catch (error: any) {
-                    toast({
-                      title: 'שגיאה',
-                      description: error?.message || 'נכשל בניקוי תכנית הפעולה',
-                      variant: 'destructive',
-                    });
                   }
-                }}
-                className="gap-2 h-8 bg-white hover:bg-orange-50 text-orange-600 border-orange-200 hover:text-orange-700"
-              >
-                <X className="h-3.5 w-3.5" />
-                <span>נקה תכנית</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setAssignmentToDelete(activeAssignment);
-                  setDeleteDialogOpen(true);
-                }}
-                className="gap-2 h-8 bg-white hover:bg-red-50 text-red-600 border-red-200 hover:text-red-700"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>מחק הקצאה</span>
-              </Button>
-            </>
+
+                  // Clear budget_id from all associated plans
+                  const finalCustomerId = customerId || null;
+                  const finalLeadId = leadId || null;
+
+                  // Build queries based on customer_id or lead_id
+                  const buildPlanQuery = (table: string) => {
+                    let query = supabase
+                      .from(table)
+                      .update({ budget_id: null })
+                      .eq('budget_id', effectiveBudgetId);
+                    
+                    if (finalCustomerId && finalLeadId) {
+                      query = query.or(`customer_id.eq.${finalCustomerId},lead_id.eq.${finalLeadId}`);
+                    } else if (finalCustomerId) {
+                      query = query.eq('customer_id', finalCustomerId);
+                    } else if (finalLeadId) {
+                      query = query.eq('lead_id', finalLeadId);
+                    }
+                    
+                    return query;
+                  };
+
+                  await Promise.all([
+                    buildPlanQuery('workout_plans'),
+                    buildPlanQuery('nutrition_plans'),
+                    buildPlanQuery('supplement_plans'),
+                    buildPlanQuery('steps_plans'),
+                  ]);
+
+                  // Invalidate queries
+                  await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+                    queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
+                    queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+                  ]);
+
+                  toast({
+                    title: 'הצלחה',
+                    description: 'תכנית הפעולה נוקתה בהצלחה',
+                  });
+                } catch (error: any) {
+                  toast({
+                    title: 'שגיאה',
+                    description: error?.message || 'נכשל בניקוי תכנית הפעולה',
+                    variant: 'destructive',
+                  });
+                }
+              }}
+              className="gap-2 h-8 bg-white hover:bg-orange-50 text-orange-600 border-orange-200 hover:text-orange-700"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span>נקה תכנית</span>
+            </Button>
+          )}
+          {activeAssignment && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setAssignmentToDelete(activeAssignment);
+                setDeleteDialogOpen(true);
+              }}
+              className="gap-2 h-8 bg-white hover:bg-red-50 text-red-600 border-red-200 hover:text-red-700"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>מחק הקצאה</span>
+            </Button>
           )}
           {effectiveBudgetId && (
             <div className="flex items-center gap-1">

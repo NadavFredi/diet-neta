@@ -99,7 +99,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
     return null;
   }, [currentDate, calendarViewType]);
 
-  const updateMeetingDate = async (meetingId: string, newDate: Date) => {
+  const updateMeetingDate = async (meetingId: string, newDate: Date, preserveTime: boolean = false) => {
     try {
       // Get the meeting to preserve existing data
       const { data: meeting, error: fetchError } = await supabase
@@ -113,23 +113,38 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
       const meetingData = meeting.meeting_data || {};
       const schedulingData = getMeetingSchedulingData(meetingData);
       
-      // Preserve the time from existing meeting
-      let newStartTime = newDate;
-      let newEndTime = newDate;
+      let newStartTime = new Date(newDate);
+      let newEndTime = new Date(newDate);
       
       if (schedulingData?.eventStartTime) {
         const oldStart = new Date(schedulingData.eventStartTime);
-        newStartTime = new Date(newDate);
-        newStartTime.setHours(oldStart.getHours(), oldStart.getMinutes(), oldStart.getSeconds());
         
-        if (schedulingData?.eventEndTime) {
-          const oldEnd = new Date(schedulingData.eventEndTime);
-          newEndTime = new Date(newDate);
-          newEndTime.setHours(oldEnd.getHours(), oldEnd.getMinutes(), oldEnd.getSeconds());
+        if (preserveTime) {
+          // Keep the original time from the meeting
+          newStartTime.setHours(oldStart.getHours(), oldStart.getMinutes(), oldStart.getSeconds());
+          
+          if (schedulingData?.eventEndTime) {
+            const oldEnd = new Date(schedulingData.eventEndTime);
+            newEndTime = new Date(newDate);
+            newEndTime.setHours(oldEnd.getHours(), oldEnd.getMinutes(), oldEnd.getSeconds());
+          }
+        } else {
+          // Use the time from newDate (which has the new hour) and preserve duration
+          if (schedulingData?.eventEndTime) {
+            const oldEnd = new Date(schedulingData.eventEndTime);
+            const durationMs = oldEnd.getTime() - oldStart.getTime();
+            newEndTime = new Date(newStartTime.getTime() + durationMs);
+          } else {
+            // Default 1 hour duration
+            newEndTime = new Date(newStartTime.getTime() + 60 * 60 * 1000);
+          }
         }
+      } else if (!preserveTime) {
+        // No existing scheduling data, use newDate time and 1 hour duration
+        newEndTime = new Date(newStartTime.getTime() + 60 * 60 * 1000);
       }
 
-      // Update meeting_data with new dates
+      // Update meeting_data with new dates and times
       const updatedMeetingData = {
         ...meetingData,
         'תאריך': format(newDate, 'yyyy-MM-dd'),
@@ -140,6 +155,10 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
         eventStartTime: newStartTime.toISOString(),
         event_end_time: newEndTime.toISOString(),
         eventEndTime: newEndTime.toISOString(),
+        meeting_time_start: format(newStartTime, 'HH:mm'),
+        meeting_time_end: format(newEndTime, 'HH:mm'),
+        'שעת התחלה': format(newStartTime, 'HH:mm'),
+        'שעת סיום': format(newEndTime, 'HH:mm'),
       };
 
       const { error: updateError } = await supabase
@@ -153,7 +172,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
       
       toast({
         title: 'הצלחה',
-        description: 'תאריך הפגישה עודכן בהצלחה',
+        description: 'תאריך ושעת הפגישה עודכנו בהצלחה',
       });
     } catch (error: any) {
       toast({
@@ -195,7 +214,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
         if (isValid(targetDate) && !isNaN(hour)) {
           // Set the time to the specific hour dropped on
           targetDate.setHours(hour, 0, 0, 0);
-          updateMeetingDate(meetingId, targetDate);
+          updateMeetingDate(meetingId, targetDate, false);
           return;
         }
       }
@@ -207,7 +226,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
       const targetDate = parseISO(dateStr);
       
       if (isValid(targetDate)) {
-        updateMeetingDate(meetingId, targetDate);
+        updateMeetingDate(meetingId, targetDate, true);
       }
     }
   };
