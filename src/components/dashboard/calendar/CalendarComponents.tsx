@@ -42,7 +42,7 @@ export const DraggableMeetingCard = ({
           onClick?.();
         }}
         className={cn(
-          "bg-gray-100 border-l-2 border-gray-400 rounded-sm px-2 py-1.5 cursor-pointer hover:bg-gray-200 transition-colors shadow-sm",
+          "bg-gray-100 border-l-2 border-gray-400 rounded-sm px-2 py-1.5 cursor-pointer hover:bg-gray-200 transition-colors shadow-sm h-full",
           isDragging && "opacity-50 z-50"
         )}
       >

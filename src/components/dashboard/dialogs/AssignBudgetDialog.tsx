@@ -234,7 +234,7 @@ export const AssignBudgetDialog = ({
 
       toast({
         title: 'תכניות נוצרו בהצלחה',
-        description: 'נוצרו תכנית פעולה ריקה ותכניות ריקות לאימונים, תזונה, תוספים וצעדים',
+        description: 'נוצרו תכנית פעולה ריקה ותכנית ריקה לאימונים, תזונה, תוספים וצעדים',
       });
 
       // Close dialog and call onSuccess if provided
@@ -325,14 +325,14 @@ export const AssignBudgetDialog = ({
         queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
         queryClient.invalidateQueries({ queryKey: ['steps-plans'] }),
       ]);
-      
+
       // Force refetch the specific plans-history query with correct parameters
       // This ensures the UI updates immediately
-      await queryClient.refetchQueries({ 
+      await queryClient.refetchQueries({
         queryKey: ['plans-history', finalCustomerId, leadId || undefined],
-        exact: false 
+        exact: false
       });
-      
+
 
       toast({
         title: 'הצלחה',
@@ -419,7 +419,7 @@ export const AssignBudgetDialog = ({
                     className="h-8 px-2"
                   >
                     <Plus className="h-4 w-4 ml-1" />
-                    צור תכניות ריקות
+                    צור תכנית ריקה
                   </Button>
                   <Button
                     type="button"
@@ -453,57 +453,57 @@ export const AssignBudgetDialog = ({
               </Select>
             </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes" className="text-sm font-semibold">
-              הערות (אופציונלי)
-            </Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="הערות נוספות על ההקצאה..."
-              rows={3}
-              className="border-slate-200"
-              dir="rtl"
-              disabled={isSubmitting}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-sm font-semibold">
+                הערות (אופציונלי)
+              </Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="הערות נוספות על ההקצאה..."
+                rows={3}
+                className="border-slate-200"
+                dir="rtl"
+                disabled={isSubmitting}
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-          >
-            ביטול
-          </Button>
-          <Button
-            type="button"
-            onClick={handleAssign}
-            disabled={!selectedBudgetId || isSubmitting}
-            className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                מקצה...
-              </>
-            ) : (
-              'הקצה תכנית פעולה'
-            )}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              ביטול
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAssign}
+              disabled={!selectedBudgetId || isSubmitting}
+              className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                  מקצה...
+                </>
+              ) : (
+                'הקצה תכנית פעולה'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-    {/* Add Budget Dialog */}
-    <AddBudgetDialog
-      isOpen={isAddBudgetDialogOpen}
-      onOpenChange={setIsAddBudgetDialogOpen}
-      onSave={handleSaveBudget}
-    />
+      {/* Add Budget Dialog */}
+      <AddBudgetDialog
+        isOpen={isAddBudgetDialogOpen}
+        onOpenChange={setIsAddBudgetDialogOpen}
+        onSave={handleSaveBudget}
+      />
     </>
   );
 };

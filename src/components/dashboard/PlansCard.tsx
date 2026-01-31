@@ -329,7 +329,7 @@ export const PlansCard = ({
 
       toast({
         title: 'תכניות נוצרו בהצלחה',
-        description: 'נוצרו תכנית פעולה ריקה ותכניות ריקות לאימונים, תזונה, תוספים וצעדים',
+        description: 'נוצרו תכנית פעולה ריקה ותכנית ריקה לאימונים, תזונה, תוספים וצעדים',
       });
     } catch (error: any) {
       console.error('Error creating blank plans:', error);
@@ -631,13 +631,23 @@ export const PlansCard = ({
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">אין תכניות פעילות</h3>
         <p className="text-gray-500 text-sm mb-4">הקצה תכנית פעולה כדי ליצור תכניות אימון, תזונה וצעדים</p>
-        <Button
-          onClick={onAssignBudget}
-          className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
-        >
-          <Plus className="h-4 w-4" />
-          הקצה תכנית פעולה
-        </Button>
+        <div className="flex gap-2 justify-center">
+          <Button
+            onClick={onAssignBudget}
+            className="gap-2 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white"
+          >
+            <Plus className="h-4 w-4" />
+            הקצה תכנית פעולה
+          </Button>
+          <Button
+            onClick={handleCreateBlankPlans}
+            variant="outline"
+            className="gap-2 border-slate-300 hover:bg-slate-50"
+          >
+            <Plus className="h-4 w-4" />
+            צור תכנית ריקה
+          </Button>
+        </div>
       </Card>
     );
   }
@@ -668,7 +678,7 @@ export const PlansCard = ({
             className="gap-2 h-8 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
           >
             <Plus className="h-3.5 w-3.5" />
-            <span>צור תכניות ריקות</span>
+            <span>צור תכנית ריקה</span>
           </Button>
           <Button
             variant="outline"
@@ -730,12 +740,18 @@ export const PlansCard = ({
                     buildPlanQuery('steps_plans'),
                   ]);
 
-                  // Invalidate queries
+                  // Invalidate queries to refresh UI and return to empty state
                   await Promise.all([
                     queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
+                    queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] }),
+                    queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId] }),
+                    queryClient.invalidateQueries({ queryKey: ['plans-history', null, finalLeadId] }),
                     queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
                     queryClient.invalidateQueries({ queryKey: ['budgets'] }),
                   ]);
+
+                  // Force refetch to ensure UI updates immediately
+                  await queryClient.refetchQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] });
 
                   toast({
                     title: 'הצלחה',
