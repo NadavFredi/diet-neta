@@ -92,6 +92,11 @@ export const NutritionTemplateForm = ({
   onSave,
   onCancel,
 }: NutritionTemplateFormProps) => {
+  console.log('[NutritionTemplateForm] initialData received:', initialData);
+  console.log('[NutritionTemplateForm] initialData keys:', initialData ? Object.keys(initialData) : 'N/A');
+  console.log('[NutritionTemplateForm] has calculator_inputs?', initialData && 'calculator_inputs' in initialData);
+  console.log('[NutritionTemplateForm] calculator_inputs value:', initialData && 'calculator_inputs' in initialData ? (initialData as any).calculator_inputs : 'N/A');
+  
   const {
     name,
     description,
@@ -121,8 +126,18 @@ export const NutritionTemplateForm = ({
     getNutritionData,
     macroPercentages,
   } = useNutritionBuilder(mode, initialData);
+  
+  console.log('[NutritionTemplateForm] calculatorInputs from hook:', calculatorInputs);
+  console.log('[NutritionTemplateForm] calculatorInputs.weight:', calculatorInputs?.weight);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Log when calculatorInputs changes
+  useEffect(() => {
+    console.log('[NutritionTemplateForm] calculatorInputs changed:', calculatorInputs);
+    console.log('[NutritionTemplateForm] calculatorInputs.weight:', calculatorInputs?.weight);
+    console.log('[NutritionTemplateForm] Input will render with weight value:', calculatorInputs?.weight || '');
+  }, [calculatorInputs]);
 
   // Local state for input values to prevent focus loss while typing
   const [localInputValues, setLocalInputValues] = useState<Record<string, { mets?: string; minutes?: string }>>({});
@@ -328,9 +343,13 @@ export const NutritionTemplateForm = ({
       await new Promise(resolve => setTimeout(resolve, 50));
 
       const data = getNutritionData(mode);
+      console.log('[handleSubmit] getNutritionData result:', data);
       if (mode === 'template' && data.templateData) {
+        console.log('[handleSubmit] Saving template data:', data.templateData);
         onSave(data.templateData);
       } else if (mode === 'user' && data.userData) {
+        console.log('[handleSubmit] Saving user data:', data.userData);
+        console.log('[handleSubmit] userData.calculator_inputs:', data.userData.calculator_inputs);
         onSave(data.userData);
       } else {
         throw new Error('Invalid data structure');
@@ -523,9 +542,14 @@ export const NutritionTemplateForm = ({
                         id="calc-weight"
                         type="number"
                         value={calculatorInputs.weight || ''}
-                        onChange={(e) => setCalculatorInput('weight', parseFloat(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const newValue = parseFloat(e.target.value) || 0;
+                          console.log('[calc-weight] onChange - newValue:', newValue, 'raw:', e.target.value);
+                          setCalculatorInput('weight', newValue);
+                        }}
                         dir="ltr"
                         min="1"
+                        step="0.1"
                         className="h-9 text-base rounded-lg flex-1"
                       />
                     </div>
@@ -1062,7 +1086,7 @@ export const NutritionTemplateForm = ({
                       unit="קק״ל"
                       color={MACRO_COLORS.calories}
                       isManual={manualOverride.calories}
-                      onLockToggle={() => setManualOverride('calories', !manualOverride.calories)}
+                      onLockToggle={mode === 'template' ? () => setManualOverride('calories', !manualOverride.calories) : undefined}
                     />
                     <MacroInputCard
                       label="חלבון"
@@ -1072,7 +1096,7 @@ export const NutritionTemplateForm = ({
                       unit="גרם"
                       color={MACRO_COLORS.protein}
                       isManual={manualOverride.protein}
-                      onLockToggle={() => setManualOverride('protein', !manualOverride.protein)}
+                      onLockToggle={mode === 'template' ? () => setManualOverride('protein', !manualOverride.protein) : undefined}
                     />
                     <MacroInputCard
                       label="פחמימות"
@@ -1082,7 +1106,7 @@ export const NutritionTemplateForm = ({
                       unit="גרם"
                       color={MACRO_COLORS.carbs}
                       isManual={manualOverride.carbs}
-                      onLockToggle={() => setManualOverride('carbs', !manualOverride.carbs)}
+                      onLockToggle={mode === 'template' ? () => setManualOverride('carbs', !manualOverride.carbs) : undefined}
                     />
                     <MacroInputCard
                       label="שומן"
@@ -1092,7 +1116,7 @@ export const NutritionTemplateForm = ({
                       unit="גרם"
                       color={MACRO_COLORS.fat}
                       isManual={manualOverride.fat}
-                      onLockToggle={() => setManualOverride('fat', !manualOverride.fat)}
+                      onLockToggle={mode === 'template' ? () => setManualOverride('fat', !manualOverride.fat) : undefined}
                     />
                     <MacroInputCard
                       label="סיבים"
@@ -1102,7 +1126,7 @@ export const NutritionTemplateForm = ({
                       unit="גרם"
                       color={MACRO_COLORS.fiber}
                       isManual={manualOverride.fiber}
-                      onLockToggle={() => setManualOverride('fiber', !manualOverride.fiber)}
+                      onLockToggle={mode === 'template' ? () => setManualOverride('fiber', !manualOverride.fiber) : undefined}
                     />
                   </div>
                 </CardContent>

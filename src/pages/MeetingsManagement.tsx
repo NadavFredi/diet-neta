@@ -17,7 +17,7 @@ import { useMeetingsManagement } from './MeetingsManagement';
 import { getMeetingFilterFields } from '@/hooks/useTableFilters';
 import { useDefaultView } from '@/hooks/useDefaultView';
 import { useSavedView } from '@/hooks/useSavedViews';
-import { AddMeetingDialog } from '@/components/dashboard/dialogs/AddMeetingDialog';
+import { MeetingDialog } from '@/components/dashboard/dialogs/MeetingDialog';
 import { Button } from '@/components/ui/button';
 import { Plus, Table2, Calendar as CalendarIcon } from 'lucide-react';
 import { MeetingsCalendarView } from '@/components/dashboard/MeetingsCalendarView';
@@ -47,7 +47,7 @@ const MeetingsManagement = () => {
   const { data: savedView } = useSavedView(viewId);
   const [isSaveViewModalOpen, setIsSaveViewModalOpen] = useState(false);
   const [saveViewResourceKey, setSaveViewResourceKey] = useState<string>('meetings');
-  const [isAddMeetingDialogOpen, setIsAddMeetingDialogOpen] = useState(false);
+  const [isMeetingDialogOpen, setIsMeetingDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
   const [initialMeetingDate, setInitialMeetingDate] = useState<Date | null>(null);
 
@@ -160,7 +160,7 @@ const MeetingsManagement = () => {
                 </ToggleGroupItem>
               </ToggleGroup>
               <Button
-                onClick={() => setIsAddMeetingDialogOpen(true)}
+                onClick={() => setIsMeetingDialogOpen(true)}
                 className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white rounded-lg flex items-center gap-1.5 sm:gap-2 flex-shrink-0 h-10 sm:h-11 px-3 sm:px-4 text-sm sm:text-base"
                 size="sm"
               >
@@ -214,7 +214,7 @@ const MeetingsManagement = () => {
                     meetings={filteredMeetings}
                     onAddMeeting={(date) => {
                       setInitialMeetingDate(date);
-                      setIsAddMeetingDialogOpen(true);
+                      setIsMeetingDialogOpen(true);
                     }}
                   />
                 </div>
@@ -255,11 +255,11 @@ const MeetingsManagement = () => {
         filterConfig={getCurrentFilterConfig(activeFilters)}
       />
 
-      {/* Add Meeting Dialog */}
-      <AddMeetingDialog
-        isOpen={isAddMeetingDialogOpen}
+      {/* Meeting Dialog */}
+      <MeetingDialog
+        isOpen={isMeetingDialogOpen}
         onOpenChange={(open) => {
-          setIsAddMeetingDialogOpen(open);
+          setIsMeetingDialogOpen(open);
           if (!open) {
             setInitialMeetingDate(null);
           }

@@ -29,6 +29,8 @@ import {
   User, 
   Handshake,
   Trash2,
+  ChevronRight,
+  Pencil
 } from 'lucide-react';
 import { formatDate } from '@/utils/dashboard';
 import { cn } from '@/lib/utils';
@@ -49,6 +51,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { MeetingDialog } from '@/components/dashboard/dialogs/MeetingDialog';
 
 // Meeting type configuration
 const MEETING_TYPES = {
@@ -88,13 +91,13 @@ const MeetingDetailView = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const sidebarWidth = useSidebarWidth();
-  const { data: meeting, isLoading } = useMeeting(id || null);
+  const { data: meeting, isLoading, error: meetingError } = useMeeting(id || null);
   const deleteMeeting = useDeleteMeeting();
   const { toast } = useToast();
 
   // Get customer from meeting
-  const customerId = meeting?.customer_id || meeting?.lead?.customer_id;
-  const { data: customer } = useCustomer(customerId || null);
+  const customerId = meeting?.customer_id || (meeting as any)?.lead?.customer_id;
+  const { data: customer, isLoading: isCustomerLoading, error: customerError } = useCustomer(customerId || null);
 
   // Get lead data for ClientHero
   const { data: leadData } = useQuery({
@@ -105,7 +108,7 @@ const MeetingDetailView = () => {
         .from('leads')
         .select('*')
         .eq('id', meeting.lead_id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -184,7 +187,7 @@ const MeetingDetailView = () => {
 
   const handleViewCustomerProfile = () => {
     if (customer?.id) {
-      navigate(`/leads/${meeting.lead_id || customer.id}`);
+      navigate(`/leads/${meeting?.lead_id || customer.id}`);
     }
   };
 
@@ -212,7 +215,7 @@ const MeetingDetailView = () => {
   const getStatusColor = (status: string) => {
     const statusStr = String(status);
     if (statusStr.includes('בוטל') || statusStr.includes('מבוטל')) return 'bg-red-50 text-red-700 border-red-200';
-    if (statusStr.includes('הושלם') || statusStr.includes('הושלם')) return 'bg-green-50 text-green-700 border-green-200';
+    if (statusStr.includes('הושלם')) return 'bg-green-50 text-green-700 border-green-200';
     if (statusStr.includes('מתוכנן') || statusStr.includes('תוכנן')) return 'bg-blue-50 text-blue-700 border-blue-200';
     return 'bg-gray-50 text-gray-700 border-gray-200';
   };
@@ -226,6 +229,7 @@ const MeetingDetailView = () => {
   const [isTraineeSettingsOpen, setIsTraineeSettingsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Get notes count for the customer
   // Memoize the selector to prevent creating a new selector on every render
@@ -236,6 +240,28 @@ const MeetingDetailView = () => {
   const notes = useAppSelector(customerNotesSelector);
   const notesCount = notes?.length || 0;
 
+  // Calculate meeting duration
+  const meetingDuration = useMemo(() => {
+    if (!meeting?.meeting_data) return null;
+    const mData = meeting.meeting_data;
+    const start = mData.eventStartTime || mData.event_start_time;
+    const end = mData.eventEndTime || mData.event_end_time;
+    
+    if (start && end) {
+      const startTime = new Date(start);
+      const endTime = new Date(end);
+      if (!isNaN(startTime.getTime()) && !isNaN(endTime.getTime())) {
+        const diffMs = endTime.getTime() - startTime.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 0) return null;
+        const hrs = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        return hrs > 0 ? `${hrs} שעות ו-${mins} דקות` : `${mins} דקות`;
+      }
+    }
+    return null;
+  }, [meeting]);
+
   // Fetch notes when customer changes - MUST be before early returns
   useEffect(() => {
     if (customer?.id) {
@@ -245,7 +271,7 @@ const MeetingDetailView = () => {
 
   const HEADER_HEIGHT_LOADING = 60;
 
-  if (isLoading) {
+  if (isLoading || isCustomerLoading) {
     return (
       <>
         <div
@@ -280,7 +306,8 @@ const MeetingDetailView = () => {
     );
   }
 
-  if (!meeting || !customer) {
+  // Only fail if the meeting record itself is missing
+  if (!meeting) {
     return (
       <>
         <div
@@ -406,6 +433,12 @@ const MeetingDetailView = () => {
       }
     } catch (e) {
     }
+  } else if (meetingData.date || meetingData.meeting_date || meetingData['תאריך']) {
+    // Fallback to manual date/time fields if scheduling data is missing
+    const dateStr = meetingData.date || meetingData.meeting_date || meetingData['תאריך'];
+    meetingDate = formatDate(dateStr);
+    meetingStartTime = meetingData.meeting_time_start || meetingData['שעת התחלה'] || meetingData.time || meetingData['שעה'];
+    meetingEndTime = meetingData.meeting_time_end || meetingData['שעת סיום'];
   }
 
   if (schedulingData?.eventEndTime) {
@@ -472,7 +505,23 @@ const MeetingDetailView = () => {
                 isExpanded={isExpanded}
                 notesCount={notesCount}
               />
-            ) : undefined
+            ) : (
+              <div className="flex items-center h-full px-4 border-r border-gray-200">
+                <Button variant="ghost" size="sm" onClick={handleBack} className="mr-2">
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                  חזור
+                </Button>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+                    <User className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-gray-900 leading-none">פגישה ללא לקוח משויך</h2>
+                    <p className="text-xs text-gray-500 mt-1">פגישה כללית או אורח</p>
+                  </div>
+                </div>
+              </div>
+            )
           }
         />
       </div>
@@ -525,7 +574,7 @@ const MeetingDetailView = () => {
           dir="rtl"
         >
             {/* Notes Panel - Opens from header button, same as customer page */}
-            {notesOpen && (
+            {notesOpen && customer && (
               <ResizableNotesPanel 
                 customerId={customer?.id || null} 
                 leads={leadData ? [{
@@ -534,7 +583,7 @@ const MeetingDetailView = () => {
                   fitness_goal: leadData.fitness_goal,
                   status_main: leadData.status_main,
                 }] : []}
-                activeLeadId={meeting.lead_id || null}
+                activeLeadId={meeting?.lead_id || null}
               />
             )}
 
@@ -551,13 +600,13 @@ const MeetingDetailView = () => {
                 dir="rtl"
               >
                 {/* Left Side: History or Submission Sidebar */}
-                {leftSidebar === 'history' && (
+                {leftSidebar === 'history' && customer && (
                   <LeadSidebarContainer
                     leads={sortedLeads}
-                    activeLeadId={meeting.lead_id || null}
+                    activeLeadId={meeting?.lead_id || null}
                     onLeadSelect={(leadId) => {
                       // Navigate to the lead page if different lead is selected
-                      if (leadId !== meeting.lead_id) {
+                      if (leadId !== meeting?.lead_id) {
                         navigate(`/leads/${leadId}`);
                       }
                     }}
@@ -579,50 +628,66 @@ const MeetingDetailView = () => {
                   <div 
                     className="grid gap-4 w-full" 
                     style={{ 
-                      gridTemplateColumns: '1fr 1fr',
+                      gridTemplateColumns: customer ? '1fr 1fr' : '1fr',
                       display: 'grid',
                       width: '100%',
                       gridAutoFlow: 'row'
                     }}
                   >
                     {/* Left Panel: Client Details */}
-                    <Card className="p-4 border border-slate-200 rounded-xl shadow-sm bg-white" style={{ minWidth: 0 }}>
-                      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                          <User className="h-4 w-4 text-purple-600" />
-                        </div>
-                        <h3 className="text-sm font-bold text-gray-900">פרטי לקוח</h3>
-                      </div>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 block mb-1">שם מלא</label>
-                          <p className="text-sm text-gray-900">
-                            {customer.full_name || '-'}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 block mb-1">אימייל</label>
-                          <p className="text-sm text-gray-900">
-                            {customer.email || '-'}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 block mb-1">טלפון</label>
-                          <p className="text-sm text-gray-900">
-                            {customer.phone || '-'}
-                          </p>
-                        </div>
-                        {schedulingData?.scheduledUserName && (
-                          <div>
-                            <label className="text-xs font-semibold text-gray-500 block mb-1">מתזמן הפגישה</label>
-                            <p className="text-sm text-gray-900">{schedulingData.scheduledUserName}</p>
-                            {schedulingData.scheduledUserEmail && (
-                              <p className="text-xs text-gray-600">{schedulingData.scheduledUserEmail}</p>
-                            )}
+                    {customer ? (
+                      <Card className="p-4 border border-slate-200 rounded-xl shadow-sm bg-white" style={{ minWidth: 0 }}>
+                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+                          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <User className="h-4 w-4 text-purple-600" />
                           </div>
-                        )}
-                      </div>
-                    </Card>
+                          <h3 className="text-sm font-bold text-gray-900">פרטי לקוח</h3>
+                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">שם מלא</label>
+                            <p className="text-sm text-gray-900">
+                              {customer.full_name || '-'}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">אימייל</label>
+                            <p className="text-sm text-gray-900">
+                              {customer.email || '-'}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">טלפון</label>
+                            <p className="text-sm text-gray-900">
+                              {customer.phone || '-'}
+                            </p>
+                          </div>
+                          {schedulingData?.scheduledUserName && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 block mb-1">מתזמן הפגישה</label>
+                              <p className="text-sm text-gray-900">{schedulingData.scheduledUserName}</p>
+                              {schedulingData.scheduledUserEmail && (
+                                <p className="text-xs text-gray-600">{schedulingData.scheduledUserEmail}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    ) : (
+                      <Card className="p-4 border border-slate-200 rounded-xl shadow-sm bg-white overflow-hidden relative">
+                        <div className="absolute top-0 right-0 w-1 bg-amber-400 h-full" />
+                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+                          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                            <User className="h-4 w-4 text-amber-600" />
+                          </div>
+                          <h3 className="text-sm font-bold text-gray-900">פרטי אורח / כללי</h3>
+                        </div>
+                        <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
+                          <p className="text-sm text-amber-800 font-medium">פגישה זו אינה משויכת ללקוח או ליד במערכת.</p>
+                          <p className="text-xs text-amber-600 mt-1">כל פרטי הפגישה מופיעים בלוח השנה.</p>
+                        </div>
+                      </Card>
+                    )}
 
                     {/* Right Panel: Meeting Details */}
                     <Card className="p-4 border border-slate-200 rounded-xl shadow-sm bg-white" style={{ minWidth: 0 }}>
@@ -633,52 +698,89 @@ const MeetingDetailView = () => {
                           </div>
                           <h3 className="text-sm font-bold text-gray-900">פרטי פגישה</h3>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsDeleteDialogOpen(true)}
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsEditDialogOpen(true)}
+                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsDeleteDialogOpen(true)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                       <div className="space-y-3">
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 block mb-1">סוג פגישה</label>
-                          <div className="flex items-center gap-2">
-                            <Handshake className="h-4 w-4 text-gray-400" />
-                            <p className="text-sm text-gray-900">
-                              {meetingType.label}
-                            </p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">סוג פגישה</label>
+                            <div className="flex items-center gap-2">
+                              <Handshake className="h-4 w-4 text-gray-400" />
+                              <p className="text-sm text-gray-900 truncate">
+                                {meetingType.label}
+                              </p>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך</label>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-gray-400" />
+                              <p className="text-sm text-gray-900">
+                                {meetingDate || '-'}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך</label>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-gray-400" />
-                            <p className="text-sm text-gray-900">
-                              {meetingDate || '-'}
-                            </p>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">שעה</label>
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-gray-400" />
+                              <p className="text-sm text-gray-900">
+                                {formatTimeRange() || '-'}
+                              </p>
+                            </div>
                           </div>
+                          {meetingDuration && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 block mb-1">משך הפגישה</label>
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-gray-400" />
+                                <p className="text-sm text-gray-900">
+                                  {meetingDuration}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 block mb-1">שעה</label>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            <p className="text-sm text-gray-900">
-                              {formatTimeRange() || '-'}
-                            </p>
-                          </div>
-                        </div>
+
                         <div>
                           <label className="text-xs font-semibold text-gray-500 block mb-1">תאריך יצירה</label>
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-gray-400" />
                             <p className="text-sm text-gray-900">
-                              {meeting.created_at ? formatDate(meeting.created_at) : '-'}
+                              {meeting?.created_at ? formatDate(meeting.created_at) : '-'}
                             </p>
                           </div>
                         </div>
+
+                        {meetingData.notes && (
+                          <div className="mt-4 pt-3 border-t border-slate-100">
+                            <label className="text-xs font-semibold text-gray-500 block mb-1">הערות פגישה</label>
+                            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 italic text-sm text-gray-700 whitespace-pre-wrap">
+                              {meetingData.notes}
+                            </div>
+                          </div>
+                        )}
+
                         {schedulingData?.timezone && (
                           <div>
                             <label className="text-xs font-semibold text-gray-500 block mb-1">אזור זמן</label>
@@ -715,6 +817,16 @@ const MeetingDetailView = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Meeting Dialog */}
+      <MeetingDialog
+        isOpen={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        meeting={meeting}
+        onMeetingSaved={() => {
+          // Data will refresh via query invalidation in useMeeting
+        }}
+      />
     </>
   );
 };

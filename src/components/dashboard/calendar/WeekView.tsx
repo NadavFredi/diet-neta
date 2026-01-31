@@ -17,9 +17,10 @@ import { DraggableMeetingCard, DroppableDateCell, DroppableTimeSlot } from './Ca
 interface WeekViewProps {
   meetings: Meeting[];
   onAddMeeting?: (date: Date) => void;
+  onEditMeeting?: (meeting: Meeting) => void;
 }
 
-export const WeekView: React.FC<WeekViewProps> = ({ meetings, onAddMeeting }) => {
+export const WeekView: React.FC<WeekViewProps> = ({ meetings, onAddMeeting, onEditMeeting }) => {
   const navigate = useNavigate();
   const { currentDate } = useSelector((state: RootState) => state.calendar);
   const currentWeek = useMemo(() => new Date(currentDate), [currentDate]);
@@ -153,6 +154,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ meetings, onAddMeeting }) =>
                             date={date} 
                             isTimeBased={true}
                             onClick={() => navigate(`/dashboard/meetings/${meeting.id}`)}
+                            onEdit={onEditMeeting}
                           />
                         </div>
                       </div>

@@ -14,6 +14,7 @@ export interface NutritionPlan {
   start_date: string;
   description?: string;
   targets: NutritionTargets;
+  calculator_inputs?: any; // Calculator inputs (weight, height, age, etc.)
   created_at: string;
   updated_at: string;
 }
@@ -66,6 +67,8 @@ export const useNutritionPlan = (customerId?: string) => {
       }
 
       if (data) {
+        console.log('[useNutritionPlan] Fetched data from DB:', data);
+        console.log('[useNutritionPlan] calculator_inputs from DB:', data.calculator_inputs);
         setNutritionPlan({
           id: data.id,
           user_id: data.user_id,
@@ -83,6 +86,7 @@ export const useNutritionPlan = (customerId?: string) => {
             fat: 65,
             fiber: 30,
           },
+          calculator_inputs: data.calculator_inputs || undefined,
           created_at: data.created_at,
           updated_at: data.updated_at,
         });
@@ -173,6 +177,9 @@ export const useNutritionPlan = (customerId?: string) => {
     try {
       setError(null);
 
+      console.log('[updateNutritionPlan] planData received:', planData);
+      console.log('[updateNutritionPlan] calculator_inputs:', (planData as any).calculator_inputs);
+      
       const { data, error: updateError } = await supabase
         .from('nutrition_plans')
         .update({
@@ -180,10 +187,14 @@ export const useNutritionPlan = (customerId?: string) => {
           start_date: planData.start_date,
           description: planData.description,
           targets: planData.targets,
+          calculator_inputs: (planData as any).calculator_inputs || null,
         })
         .eq('id', nutritionPlan.id)
         .select()
         .single();
+      
+      console.log('[updateNutritionPlan] Updated data from DB:', data);
+      console.log('[updateNutritionPlan] calculator_inputs after update:', data?.calculator_inputs);
 
       if (updateError) throw updateError;
 
@@ -202,6 +213,7 @@ export const useNutritionPlan = (customerId?: string) => {
             fat: 65,
             fiber: 30,
           },
+          calculator_inputs: data.calculator_inputs || undefined,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };

@@ -137,11 +137,13 @@ export const useNutritionTemplatesManagement = () => {
   };
 
   const handleSaveTemplate = async (
-    data: Partial<NutritionTemplate> | { name: string; description: string; targets: any; manual_override?: any; manual_fields?: any; activity_entries?: any }
+    data: Partial<NutritionTemplate> | { name: string; description: string; targets: any; manual_override?: any; manual_fields?: any; activity_entries?: any; calculator_inputs?: any }
   ) => {
+    console.log('[handleSaveTemplate] data received:', data);
+    console.log('[handleSaveTemplate] calculator_inputs:', (data as any).calculator_inputs);
     try {
       if (editingTemplate) {
-        await updateTemplate.mutateAsync({
+        const updatePayload = {
           templateId: editingTemplate.id,
           name: data.name,
           description: data.description,
@@ -149,7 +151,10 @@ export const useNutritionTemplatesManagement = () => {
           manual_override: (data as any).manual_override,
           manual_fields: (data as any).manual_fields,
           activity_entries: (data as any).activity_entries,
-        });
+          calculator_inputs: (data as any).calculator_inputs,
+        };
+        console.log('[handleSaveTemplate] updatePayload:', updatePayload);
+        await updateTemplate.mutateAsync(updatePayload);
         toast({
           title: 'הצלחה',
           description: 'התבנית עודכנה בהצלחה',
@@ -157,15 +162,18 @@ export const useNutritionTemplatesManagement = () => {
         setIsEditDialogOpen(false);
         setEditingTemplate(null);
       } else {
-        await createTemplate.mutateAsync({
+        const createPayload = {
           name: data.name,
           description: data.description,
           targets: data.targets,
           manual_override: (data as any).manual_override,
           manual_fields: (data as any).manual_fields,
           activity_entries: (data as any).activity_entries,
+          calculator_inputs: (data as any).calculator_inputs,
           is_public: false,
-        });
+        };
+        console.log('[handleSaveTemplate] createPayload:', createPayload);
+        await createTemplate.mutateAsync(createPayload);
         toast({
           title: 'הצלחה',
           description: 'התבנית נוצרה בהצלחה',

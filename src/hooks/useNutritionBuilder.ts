@@ -283,8 +283,14 @@ const calculateMacrosValue = (
   };
 };
 
-const initializeTargets = (initialData?: NutritionTemplate | { targets?: NutritionTargets }): NutritionTargets => {
+const initializeTargets = (initialData?: NutritionTemplate | { targets?: NutritionTargets | any }): NutritionTargets => {
   if (initialData && 'targets' in initialData && initialData.targets) {
+    const targets = initialData.targets as any;
+    // Remove _manual_override from targets if it exists (it's stored separately)
+    if (targets._manual_override) {
+      const { _manual_override, ...cleanTargets } = targets;
+      return cleanTargets;
+    }
     return initialData.targets;
   }
   
@@ -297,9 +303,18 @@ const initializeTargets = (initialData?: NutritionTemplate | { targets?: Nutriti
   };
 };
 
-const initializeManualOverride = (initialData?: NutritionTemplate | { manual_override?: ManualOverride }): ManualOverride => {
+const initializeManualOverride = (initialData?: NutritionTemplate | { manual_override?: ManualOverride; targets?: any }): ManualOverride => {
+  // First check for direct manual_override (templates)
   if (initialData && 'manual_override' in initialData && initialData.manual_override) {
     return initialData.manual_override;
+  }
+  
+  // Then check for _manual_override inside targets (nutrition plans)
+  if (initialData && 'targets' in initialData && initialData.targets && typeof initialData.targets === 'object') {
+    const targets = initialData.targets as any;
+    if (targets._manual_override && typeof targets._manual_override === 'object') {
+      return targets._manual_override;
+    }
   }
   
   return {
@@ -353,6 +368,54 @@ const initializeActivityEntries = (initialData?: NutritionTemplate | { activity_
   return defaultEntries;
 };
 
+const initializeCalculatorInputs = (initialData?: NutritionTemplate | { calculator_inputs?: NutritionBuilderState['calculatorInputs'] }): NutritionBuilderState['calculatorInputs'] => {
+  console.log('[initializeCalculatorInputs] initialData:', initialData);
+  console.log('[initializeCalculatorInputs] has calculator_inputs?', initialData && 'calculator_inputs' in initialData);
+  
+  const defaults: NutritionBuilderState['calculatorInputs'] = {
+    weight: 70,
+    height: 170,
+    age: 30,
+    gender: 'male',
+    waist: 80,
+    hip: 95,
+    neck: 35,
+    pal: 1.4,
+    caloricDeficitMode: 'percent' as 'percent' | 'calories',
+    caloricDeficitPercent: 0,
+    caloricDeficitCalories: 0,
+    proteinPerKg: 2.0,
+    fatPerKg: 1.0,
+    carbsPerKg: 2.0,
+  };
+
+  if (initialData && 'calculator_inputs' in initialData) {
+    const calcInputs = (initialData as any).calculator_inputs;
+    console.log('[initializeCalculatorInputs] calculator_inputs value:', calcInputs);
+    console.log('[initializeCalculatorInputs] calculator_inputs type:', typeof calcInputs);
+    console.log('[initializeCalculatorInputs] calculator_inputs is null?', calcInputs === null);
+    console.log('[initializeCalculatorInputs] calculator_inputs is undefined?', calcInputs === undefined);
+    console.log('[initializeCalculatorInputs] calculator_inputs keys:', calcInputs && typeof calcInputs === 'object' ? Object.keys(calcInputs) : 'N/A');
+    
+    if (calcInputs && typeof calcInputs === 'object' && Object.keys(calcInputs).length > 0) {
+      const result = {
+        ...defaults,
+        ...calcInputs,
+      };
+      console.log('[initializeCalculatorInputs] Returning merged result (DB values override defaults):', result);
+      console.log('[initializeCalculatorInputs] Final weight value:', result.weight);
+      return result;
+    } else {
+      console.log('[initializeCalculatorInputs] calculator_inputs is empty/null/undefined, using defaults');
+    }
+  } else {
+    console.log('[initializeCalculatorInputs] No calculator_inputs key in initialData');
+  }
+  
+  console.log('[initializeCalculatorInputs] Returning defaults:', defaults);
+  return defaults;
+};
+
 export const useNutritionBuilder = (
   mode: NutritionBuilderMode,
   initialData?: NutritionTemplate | { targets?: NutritionTargets }
@@ -369,27 +432,17 @@ export const useNutritionBuilder = (
   
   const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>(() => initializeActivityEntries(initialData as any));
   
-  const [calculatorInputs, setCalculatorInputsState] = useState<NutritionBuilderState['calculatorInputs']>({
-    weight: 70,
-    height: 170,
-    age: 30,
-    gender: 'male',
-    waist: 80,
-    hip: 95,
-    neck: 35,
-    pal: 1.4, // Moderately active
-    caloricDeficitMode: 'percent' as 'percent' | 'calories',
-    caloricDeficitPercent: 0, // No deficit/surplus by default
-    caloricDeficitCalories: 0, // No deficit/surplus by default
-    proteinPerKg: 2.0,
-    fatPerKg: 1.0,
-    carbsPerKg: 2.0,
-  });
+  const [calculatorInputs, setCalculatorInputsState] = useState<NutritionBuilderState['calculatorInputs']>(() => initializeCalculatorInputs(initialData as any));
   
   const [calculatorOpen, setCalculatorOpen] = useState(true); // Open by default in diagnostic mode
 
   // Update state when initialData changes (e.g., when editing a different plan)
   useEffect(() => {
+    console.log('[useEffect] initialData changed:', initialData);
+    console.log('[useEffect] initialData keys:', initialData ? Object.keys(initialData) : 'N/A');
+    console.log('[useEffect] has calculator_inputs?', initialData && 'calculator_inputs' in initialData);
+    console.log('[useEffect] calculator_inputs value:', initialData && 'calculator_inputs' in initialData ? (initialData as any).calculator_inputs : 'N/A');
+    
     if (initialData) {
       // Update name and description
       if ('name' in initialData && initialData.name !== undefined) {
@@ -400,9 +453,18 @@ export const useNutritionBuilder = (
       }
       // Update targets if they exist
       if ('targets' in initialData && initialData.targets) {
-        setTargetsState(initialData.targets);
+        const targetsData = initialData.targets as any;
+        // Extract _manual_override from targets if it exists (for nutrition plans)
+        if (targetsData._manual_override) {
+          setManualOverrideState(targetsData._manual_override);
+          // Remove _manual_override from targets before setting (clean targets)
+          const { _manual_override, ...cleanTargets } = targetsData;
+          setTargetsState(cleanTargets);
+        } else {
+          setTargetsState(initialData.targets);
+        }
       }
-      // Update manual override and fields if they exist
+      // Update manual override if it exists directly (for templates)
       if ('manual_override' in initialData && initialData.manual_override) {
         setManualOverrideState(initialData.manual_override);
       }
@@ -417,6 +479,46 @@ export const useNutritionBuilder = (
           minutesPerWeek: typeof entry.minutesPerWeek === 'number' ? entry.minutesPerWeek : parseInt(String(entry.minutesPerWeek), 10) || 0,
         }));
         setActivityEntries(entries);
+      }
+      // Update calculator inputs if they exist
+      if ('calculator_inputs' in initialData) {
+        const calcInputs = (initialData as any).calculator_inputs;
+        console.log('[useEffect] calculator_inputs from initialData:', calcInputs);
+        console.log('[useEffect] calculator_inputs type:', typeof calcInputs);
+        console.log('[useEffect] calculator_inputs is null?', calcInputs === null);
+        console.log('[useEffect] calculator_inputs is undefined?', calcInputs === undefined);
+        
+        if (calcInputs && typeof calcInputs === 'object' && Object.keys(calcInputs).length > 0) {
+          console.log('[useEffect] Updating calculatorInputs with:', calcInputs);
+          // Use the database values, merging with defaults only for missing fields
+          const defaults: NutritionBuilderState['calculatorInputs'] = {
+            weight: 70,
+            height: 170,
+            age: 30,
+            gender: 'male',
+            waist: 80,
+            hip: 95,
+            neck: 35,
+            pal: 1.4,
+            caloricDeficitMode: 'percent' as 'percent' | 'calories',
+            caloricDeficitPercent: 0,
+            caloricDeficitCalories: 0,
+            proteinPerKg: 2.0,
+            fatPerKg: 1.0,
+            carbsPerKg: 2.0,
+          };
+          const merged = {
+            ...defaults,
+            ...calcInputs,
+          };
+          console.log('[useEffect] Merged calculatorInputs (DB values override defaults):', merged);
+          console.log('[useEffect] Final weight value:', merged.weight);
+          setCalculatorInputsState(merged);
+        } else {
+          console.log('[useEffect] calculator_inputs is empty/null/undefined, keeping current state');
+        }
+      } else {
+        console.log('[useEffect] No calculator_inputs key found in initialData');
       }
     }
   }, [initialData]);
@@ -578,23 +680,58 @@ export const useNutritionBuilder = (
   }, [calculateMacros, manualOverride]);
 
   const getNutritionData = useCallback((mode: NutritionBuilderMode) => {
+    console.log('[getNutritionData] mode:', mode);
+    console.log('[getNutritionData] calculatorInputs:', calculatorInputs);
+    console.log('[getNutritionData] manualOverride:', manualOverride);
+    
     if (mode === 'template') {
+      const templateData = {
+        name,
+        description,
+        targets,
+        manual_override: manualOverride || {
+          calories: false,
+          protein: false,
+          carbs: false,
+          fat: false,
+          fiber: false,
+        }, // Always include manual_override, default to all false if undefined
+        manual_fields: manualFields || {
+          steps: null,
+          workouts: null,
+          supplements: null,
+        }, // Always include manual_fields
+        activity_entries: activityEntries || [], // Include activity entries
+        calculator_inputs: calculatorInputs || null, // Include calculator inputs
+      };
+      console.log('[getNutritionData] templateData to save:', templateData);
+      console.log('[getNutritionData] manual_override being saved:', templateData.manual_override);
       return {
-        templateData: {
-          name,
-          description,
-          targets,
-          manual_override: manualOverride,
-          manual_fields: manualFields,
-          activity_entries: activityEntries, // Include activity entries
-        },
+        templateData,
       };
     } else {
+      // For user mode (nutrition plans), store manual_override inside targets JSONB
+      // since nutrition_plans table doesn't have a separate manual_override column
+      const userData = {
+        targets: {
+          ...targets,
+          // Store manual_override inside targets JSONB for nutrition plans
+          _manual_override: manualOverride || {
+            calories: false,
+            protein: false,
+            carbs: false,
+            fat: false,
+            fiber: false,
+          },
+        },
+      };
+      console.log('[getNutritionData] userData to save (with manual_override in targets):', userData);
+      console.log('[getNutritionData] manual_override being saved in targets:', userData.targets._manual_override);
       return {
-        userData: targets,
+        userData,
       };
     }
-  }, [name, description, targets, manualOverride, manualFields, activityEntries]);
+  }, [name, description, targets, manualOverride, manualFields, activityEntries, calculatorInputs]);
 
   const reset = useCallback(() => {
     setName('');

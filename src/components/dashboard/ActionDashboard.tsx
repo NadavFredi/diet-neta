@@ -51,7 +51,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AddPaymentDialog } from './dialogs/AddPaymentDialog';
-import { AddMeetingDialog } from './dialogs/AddMeetingDialog';
+import { MeetingDialog } from './dialogs/MeetingDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -111,9 +111,11 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+  const [isMeetingDialogOpen, setIsMeetingDialogOpen] = useState(false);
+  const [isCreateCustomerDialogOpen, setIsCreateCustomerDialogOpen] = useState(false);
   const [isCreateSubscriptionModalOpen, setIsCreateSubscriptionModalOpen] = useState(false);
   const [isAddPaymentDialogOpen, setIsAddPaymentDialogOpen] = useState(false);
-  const [isAddMeetingDialogOpen, setIsAddMeetingDialogOpen] = useState(false);
 
   // Selection state for meetings and payments
   const [selectedMeetings, setSelectedMeetings] = useState<Set<string>>(new Set());
@@ -1401,7 +1403,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
                   )}
                   <Button
                     size="sm"
-                    onClick={() => setIsAddMeetingDialogOpen(true)}
+                    onClick={() => setIsMeetingDialogOpen(true)}
                     className="h-8 text-xs"
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" />
@@ -1662,12 +1664,12 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({
         }}
       />
 
-      {/* Add Meeting Dialog */}
-      <AddMeetingDialog
-        isOpen={isAddMeetingDialogOpen}
-        onOpenChange={setIsAddMeetingDialogOpen}
+      {/* Meeting Dialog */}
+      <MeetingDialog
+        isOpen={isMeetingDialogOpen}
+        onOpenChange={setIsMeetingDialogOpen}
         leadId={leadId}
-        onMeetingCreated={() => {
+        onMeetingSaved={() => {
           // Meetings will refresh automatically via query invalidation
         }}
       />

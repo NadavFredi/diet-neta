@@ -59,6 +59,7 @@ import {
 import { MonthView } from './calendar/MonthView';
 import { WeekView } from './calendar/WeekView';
 import { DayView } from './calendar/DayView';
+import { MeetingDialog } from './dialogs/MeetingDialog';
 
 interface MeetingsCalendarViewProps {
   meetings: Meeting[];
@@ -80,6 +81,13 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
 
   const currentDate = useMemo(() => new Date(currentDateStr), [currentDateStr]);
   const [draggedMeeting, setDraggedMeeting] = useState<Meeting | null>(null);
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  const handleEditMeeting = (meeting: Meeting) => {
+    setEditingMeeting(meeting);
+    setIsEditDialogOpen(true);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -445,13 +453,25 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
           {viewMode === 'calendar' && (
             <>
               {calendarViewType === 'month' && (
-                <MonthView meetings={meetings} onAddMeeting={onAddMeeting} />
+                <MonthView 
+                  meetings={meetings} 
+                  onAddMeeting={onAddMeeting} 
+                  onEditMeeting={handleEditMeeting}
+                />
               )}
               {calendarViewType === 'week' && (
-                <WeekView meetings={meetings} onAddMeeting={onAddMeeting} />
+                <WeekView 
+                  meetings={meetings} 
+                  onAddMeeting={onAddMeeting} 
+                  onEditMeeting={handleEditMeeting}
+                />
               )}
               {calendarViewType === 'day' && (
-                <DayView meetings={meetings} onAddMeeting={onAddMeeting} />
+                <DayView 
+                  meetings={meetings} 
+                  onAddMeeting={onAddMeeting} 
+                  onEditMeeting={handleEditMeeting}
+                />
               )}
             </>
           )}
@@ -511,6 +531,16 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
       <div className="px-4 py-2 border-t border-gray-200 text-sm text-gray-600">
         {meetings.length} {meetings.length === 1 ? 'פגישה' : 'פגישות'}
       </div>
+
+      {/* Edit Meeting Dialog */}
+      <MeetingDialog
+        isOpen={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) setEditingMeeting(null);
+        }}
+        meeting={editingMeeting}
+      />
     </div>
   );
 };

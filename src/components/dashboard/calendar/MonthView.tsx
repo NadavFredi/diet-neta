@@ -22,9 +22,10 @@ import { DraggableMeetingCard, DroppableDateCell } from './CalendarComponents';
 interface MonthViewProps {
   meetings: Meeting[];
   onAddMeeting?: (date: Date) => void;
+  onEditMeeting?: (meeting: Meeting) => void;
 }
 
-export const MonthView: React.FC<MonthViewProps> = ({ meetings, onAddMeeting }) => {
+export const MonthView: React.FC<MonthViewProps> = ({ meetings, onAddMeeting, onEditMeeting }) => {
   const navigate = useNavigate();
   const { currentDate, visibleFields } = useSelector((state: RootState) => state.calendar);
   const currentMonth = useMemo(() => new Date(currentDate), [currentDate]);
@@ -127,7 +128,11 @@ export const MonthView: React.FC<MonthViewProps> = ({ meetings, onAddMeeting }) 
                           <>
                             {dayMeetings.slice(0, 3).map((meeting) => (
                               <div key={meeting.id} className="pointer-events-auto">
-                                <DraggableMeetingCard meeting={meeting} date={date} />
+                                <DraggableMeetingCard 
+                                  meeting={meeting} 
+                                  date={date} 
+                                  onEdit={onEditMeeting}
+                                />
                               </div>
                             ))}
                             {dayMeetings.length > 3 && (
@@ -209,8 +214,18 @@ export const MonthView: React.FC<MonthViewProps> = ({ meetings, onAddMeeting }) 
                                   )}
                                 </div>
                               </div>
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity pt-1">
-                                <Pencil className="h-4 w-4 text-gray-400" />
+                              <div 
+                                className="opacity-0 group-hover:opacity-100 transition-opacity pt-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onEditMeeting) {
+                                    onEditMeeting(meeting);
+                                  } else {
+                                    navigate(`/dashboard/meetings/${meeting.id}`);
+                                  }
+                                }}
+                              >
+                                <Pencil className="h-4 w-4 text-gray-400 hover:text-blue-600" />
                               </div>
                             </div>
                           </div>

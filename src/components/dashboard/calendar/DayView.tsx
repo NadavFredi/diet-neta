@@ -17,9 +17,10 @@ import { DraggableMeetingCard, DroppableDateCell, DroppableTimeSlot } from './Ca
 interface DayViewProps {
   meetings: Meeting[];
   onAddMeeting?: (date: Date) => void;
+  onEditMeeting?: (meeting: Meeting) => void;
 }
 
-export const DayView: React.FC<DayViewProps> = ({ meetings, onAddMeeting }) => {
+export const DayView: React.FC<DayViewProps> = ({ meetings, onAddMeeting, onEditMeeting }) => {
   const navigate = useNavigate();
   const { currentDate } = useSelector((state: RootState) => state.calendar);
   const currentDay = useMemo(() => new Date(currentDate), [currentDate]);
@@ -132,6 +133,7 @@ export const DayView: React.FC<DayViewProps> = ({ meetings, onAddMeeting }) => {
                           date={currentDay} 
                           isTimeBased={true}
                           onClick={() => navigate(`/dashboard/meetings/${meeting.id}`)}
+                          onEdit={onEditMeeting}
                         />
                       </div>
                     </div>

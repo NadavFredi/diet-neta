@@ -20,12 +20,14 @@ export const DraggableMeetingCard = ({
   meeting, 
   date, 
   isTimeBased = false,
-  onClick
+  onClick,
+  onEdit
 }: { 
   meeting: Meeting; 
   date: Date; 
   isTimeBased?: boolean;
   onClick?: () => void;
+  onEdit?: (meeting: Meeting) => void;
 }) => {
   const navigate = useNavigate();
   const { visibleFields } = useSelector((state: RootState) => state.calendar);
@@ -72,7 +74,11 @@ export const DraggableMeetingCard = ({
           className="absolute left-1 top-1 p-1 rounded-full bg-white/80 opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-white z-20"
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/dashboard/meetings/${meeting.id}`);
+            if (onEdit) {
+              onEdit(meeting);
+            } else {
+              navigate(`/dashboard/meetings/${meeting.id}`);
+            }
           }}
         >
           <Pencil className="h-3 w-3 text-primary" />
@@ -128,7 +134,11 @@ export const DraggableMeetingCard = ({
         className="absolute left-0.5 top-0.5 p-0.5 rounded-full bg-white/80 opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-white z-20"
         onClick={(e) => {
           e.stopPropagation();
-          navigate(`/dashboard/meetings/${meeting.id}`);
+          if (onEdit) {
+            onEdit(meeting);
+          } else {
+            navigate(`/dashboard/meetings/${meeting.id}`);
+          }
         }}
       >
         <Pencil className="h-2.5 w-2.5 text-primary" />
