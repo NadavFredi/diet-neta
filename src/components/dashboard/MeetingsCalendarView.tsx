@@ -70,14 +70,14 @@ const availableFields = [
 ];
 
 // Draggable Meeting Component
-const DraggableMeetingCard = ({ 
-  meeting, 
-  date, 
+const DraggableMeetingCard = ({
+  meeting,
+  date,
   isTimeBased = false,
   onClick
-}: { 
-  meeting: Meeting; 
-  date: Date; 
+}: {
+  meeting: Meeting;
+  date: Date;
   isTimeBased?: boolean;
   onClick?: () => void;
 }) => {
@@ -142,13 +142,13 @@ const DraggableMeetingCard = ({
 };
 
 // Droppable Date Cell Component
-const DroppableDateCell = ({ 
-  date, 
-  children, 
-  isCurrentMonth, 
-  isToday 
-}: { 
-  date: Date; 
+const DroppableDateCell = ({
+  date,
+  children,
+  isCurrentMonth,
+  isToday
+}: {
+  date: Date;
   children: React.ReactNode;
   isCurrentMonth: boolean;
   isToday: boolean;
@@ -208,7 +208,7 @@ const getMeetingSchedulingData = (meetingData: Record<string, any>) => {
 const getMeetingDate = (meeting: Meeting): Date | null => {
   const meetingData = meeting.meeting_data || {};
   const schedulingData = getMeetingSchedulingData(meetingData);
-  
+
   // First try to get date from scheduling data
   if (schedulingData?.eventStartTime) {
     const startDate = new Date(schedulingData.eventStartTime);
@@ -294,14 +294,14 @@ const getMeetingTypeValue = (meeting: Meeting) => {
 const getMeetingHour = (meeting: Meeting): number | null => {
   const meetingData = meeting.meeting_data || {};
   const schedulingData = getMeetingSchedulingData(meetingData);
-  
+
   if (schedulingData?.eventStartTime) {
     const startDate = new Date(schedulingData.eventStartTime);
     if (!isNaN(startDate.getTime())) {
       return startDate.getHours() + startDate.getMinutes() / 60;
     }
   }
-  
+
   // Try to parse time from other fields
   const timeStr = meetingData.meeting_time_start || meetingData['שעת התחלה'] || meetingData['שעה'];
   if (timeStr) {
@@ -310,7 +310,7 @@ const getMeetingHour = (meeting: Meeting): number | null => {
       return parseInt(timeMatch[1]) + parseInt(timeMatch[2]) / 60;
     }
   }
-  
+
   return null;
 };
 
@@ -318,14 +318,14 @@ const getMeetingHour = (meeting: Meeting): number | null => {
 const getMeetingEndHour = (meeting: Meeting): number | null => {
   const meetingData = meeting.meeting_data || {};
   const schedulingData = getMeetingSchedulingData(meetingData);
-  
+
   if (schedulingData?.eventEndTime) {
     const endDate = new Date(schedulingData.eventEndTime);
     if (!isNaN(endDate.getTime())) {
       return endDate.getHours() + endDate.getMinutes() / 60;
     }
   }
-  
+
   // Try to parse end time from other fields
   const timeStr = meetingData.meeting_time_end || meetingData['שעת סיום'];
   if (timeStr) {
@@ -334,7 +334,7 @@ const getMeetingEndHour = (meeting: Meeting): number | null => {
       return parseInt(timeMatch[1]) + parseInt(timeMatch[2]) / 60;
     }
   }
-  
+
   // Default to 1 hour duration if no end time
   const startHour = getMeetingHour(meeting);
   return startHour !== null ? startHour + 1 : null;
@@ -363,7 +363,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
   const [calendarViewType, setCalendarViewType] = useState<CalendarViewType>('month');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [draggedMeeting, setDraggedMeeting] = useState<Meeting | null>(null);
-  
+
   // Field visibility state - initialize with defaults
   const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>(() => {
     const defaults: Record<string, boolean> = {};
@@ -386,7 +386,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
   // Group meetings by date
   const meetingsByDate = useMemo(() => {
     const grouped: Record<string, Meeting[]> = {};
-    
+
     meetings.forEach((meeting) => {
       const meetingDate = getMeetingDate(meeting);
       if (meetingDate) {
@@ -449,16 +449,16 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
 
       const meetingData = meeting.meeting_data || {};
       const schedulingData = getMeetingSchedulingData(meetingData);
-      
+
       // Preserve the time from existing meeting
       let newStartTime = newDate;
       let newEndTime = newDate;
-      
+
       if (schedulingData?.eventStartTime) {
         const oldStart = new Date(schedulingData.eventStartTime);
         newStartTime = new Date(newDate);
         newStartTime.setHours(oldStart.getHours(), oldStart.getMinutes(), oldStart.getSeconds());
-        
+
         if (schedulingData?.eventEndTime) {
           const oldEnd = new Date(schedulingData.eventEndTime);
           newEndTime = new Date(newDate);
@@ -487,7 +487,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
       if (updateError) throw updateError;
 
       queryClient.invalidateQueries({ queryKey: ['meetings'] });
-      
+
       toast({
         title: 'הצלחה',
         description: 'תאריך הפגישה עודכן בהצלחה',
@@ -524,7 +524,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
     if (targetDateStr.startsWith('date-')) {
       const dateStr = targetDateStr.replace('date-', '');
       const targetDate = parseISO(dateStr);
-      
+
       if (isValid(targetDate)) {
         updateMeetingDate(meetingId, targetDate);
       }
@@ -655,7 +655,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
               {selectedYear - 10} - {selectedYear + 10}
             </Button>
           )}
-          <h2 
+          <h2
             className={cn(
               "text-lg font-semibold text-gray-900 min-w-[180px] text-center transition-colors",
               viewMode === 'calendar' && "cursor-pointer hover:text-blue-600"
@@ -674,7 +674,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
               </>
             )}
             {viewMode === 'month' && (
-              <span 
+              <span
                 className="cursor-pointer hover:text-blue-600"
                 onClick={handleYearClick}
               >
@@ -758,178 +758,178 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
         <div className="flex-1 overflow-auto p-4">
           {viewMode === 'calendar' && calendarViewType === 'month' && (
             <div className="w-full">
-            {/* Days of week header */}
-            <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-t-lg">
-              {weekDays.map((day) => (
-                <div
-                  key={day}
-                  className="bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-600 border-b border-gray-200"
-                >
-                  {day}
-                </div>
-              ))}
-            </div>
+              {/* Days of week header */}
+              <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-t-lg">
+                {weekDays.map((day) => (
+                  <div
+                    key={day}
+                    className="bg-gray-50 px-2 py-2 text-center text-xs font-medium text-gray-600 border-b border-gray-200"
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
 
-            {/* Calendar days grid */}
-            <div className="grid grid-cols-7 gap-px bg-gray-200 border-x border-b border-gray-200 rounded-b-lg">
-              {calendarDays.map((date, index) => {
-                const dateKey = format(date, 'yyyy-MM-dd');
-                const dayMeetings = getMeetingsForDate(date);
-                const hasMeetings = dayMeetings.length > 0;
-                const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
-                const isToday = isSameDay(date, today);
-                const firstMeeting = dayMeetings[0];
-                const firstMeetingTime = firstMeeting ? getMeetingTimeDisplayValue(firstMeeting) : null;
-                
-                // Create a key that includes visibleFields to force re-render
-                const fieldsKey = Object.entries(visibleFields)
-                  .filter(([_, visible]) => visible)
-                  .map(([id]) => id)
-                  .sort()
-                  .join('-');
+              {/* Calendar days grid */}
+              <div className="grid grid-cols-7 gap-px bg-gray-200 border-x border-b border-gray-200 rounded-b-lg">
+                {calendarDays.map((date, index) => {
+                  const dateKey = format(date, 'yyyy-MM-dd');
+                  const dayMeetings = getMeetingsForDate(date);
+                  const hasMeetings = dayMeetings.length > 0;
+                  const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+                  const isToday = isSameDay(date, today);
+                  const firstMeeting = dayMeetings[0];
+                  const firstMeetingTime = firstMeeting ? getMeetingTimeDisplayValue(firstMeeting) : null;
 
-                return (
-                  <Popover key={`${dateKey}-${index}-${fieldsKey}`}>
-                    <PopoverTrigger asChild>
-                      <DroppableDateCell 
-                        date={date}
-                        isCurrentMonth={isCurrentMonth}
-                        isToday={isToday}
-                      >
-                        {/* Date number */}
-                        <div className={cn(
-                          "text-sm font-medium mb-1",
-                          isCurrentMonth ? "text-gray-900" : "text-gray-400",
-                          isToday && "text-blue-600 font-bold"
-                        )}>
-                          {format(date, 'd')}
-                        </div>
+                  // Create a key that includes visibleFields to force re-render
+                  const fieldsKey = Object.entries(visibleFields)
+                    .filter(([_, visible]) => visible)
+                    .map(([id]) => id)
+                    .sort()
+                    .join('-');
 
-                        {/* Meeting content */}
-                        <div className="flex-1 flex flex-col gap-1">
-                          {hasMeetings ? (
-                            <>
-                              {dayMeetings.slice(0, 3).map((meeting) => (
-                                <DraggableMeetingCard key={meeting.id} meeting={meeting} date={date} />
-                              ))}
-                              {dayMeetings.length > 3 && (
-                                <div className="text-xs text-gray-500">
-                                  +{dayMeetings.length - 3} נוספות
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className="flex items-center justify-center flex-1">
-                              <Plus className="h-4 w-4 text-gray-300" />
-                            </div>
-                          )}
-                        </div>
-                      </DroppableDateCell>
-                    </PopoverTrigger>
-                        <PopoverContent className="w-80 p-0" align="start" dir="rtl">
-                          {hasMeetings ? (
-                            <>
-                              <div className="p-3 border-b border-gray-200">
-                                <h3 className="text-lg font-semibold text-gray-900">
-                                  {format(date, 'EEEE, d בMMMM yyyy', { locale: he })}
-                                </h3>
-                                <p className="text-sm text-gray-500 mt-1">
-                                  {dayMeetings.length} {dayMeetings.length === 1 ? 'פגישה' : 'פגישות'}
-                                </p>
+                  return (
+                    <Popover key={`${dateKey}-${index}-${fieldsKey}`}>
+                      <PopoverTrigger asChild>
+                        <DroppableDateCell
+                          date={date}
+                          isCurrentMonth={isCurrentMonth}
+                          isToday={isToday}
+                        >
+                          {/* Date number */}
+                          <div className={cn(
+                            "text-sm font-medium mb-1",
+                            isCurrentMonth ? "text-gray-900" : "text-gray-400",
+                            isToday && "text-blue-600 font-bold"
+                          )}>
+                            {format(date, 'd')}
+                          </div>
+
+                          {/* Meeting content */}
+                          <div className="flex-1 flex flex-col gap-1">
+                            {hasMeetings ? (
+                              <>
+                                {dayMeetings.slice(0, 3).map((meeting) => (
+                                  <DraggableMeetingCard key={meeting.id} meeting={meeting} date={date} />
+                                ))}
+                                {dayMeetings.length > 3 && (
+                                  <div className="text-xs text-gray-500">
+                                    +{dayMeetings.length - 3} נוספות
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="flex items-center justify-center flex-1">
+                                <Plus className="h-4 w-4 text-gray-300" />
                               </div>
-                              <div className="max-h-96 overflow-y-auto">
-                                {dayMeetings.map((meeting) => {
-                                  const customer = getMeetingCustomer(meeting);
-                                  const time = getMeetingTimeDisplayValue(meeting);
-                                  const status = getMeetingStatusValue(meeting);
-                                  const type = getMeetingTypeValue(meeting);
-                                  const phone = customer?.phone || '-';
-                                  const email = customer?.email || '-';
+                            )}
+                          </div>
+                        </DroppableDateCell>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-0" align="start" dir="rtl">
+                        {hasMeetings ? (
+                          <>
+                            <div className="p-3 border-b border-gray-200">
+                              <h3 className="text-lg font-semibold text-gray-900">
+                                {format(date, 'EEEE, d בMMMM yyyy', { locale: he })}
+                              </h3>
+                              <p className="text-sm text-gray-500 mt-1">
+                                {dayMeetings.length} {dayMeetings.length === 1 ? 'פגישה' : 'פגישות'}
+                              </p>
+                            </div>
+                            <div className="max-h-96 overflow-y-auto">
+                              {dayMeetings.map((meeting) => {
+                                const customer = getMeetingCustomer(meeting);
+                                const time = getMeetingTimeDisplayValue(meeting);
+                                const status = getMeetingStatusValue(meeting);
+                                const type = getMeetingTypeValue(meeting);
+                                const phone = customer?.phone || '-';
+                                const email = customer?.email || '-';
 
-                                  const getStatusColor = (status: string) => {
-                                    if (status.includes('בוטל') || status.includes('מבוטל')) return 'bg-red-50 text-red-700 border-red-200';
-                                    if (status.includes('הושלם') || status.includes('הושלם')) return 'bg-green-50 text-green-700 border-green-200';
-                                    if (status.includes('מתוכנן') || status.includes('תוכנן')) return 'bg-blue-50 text-blue-700 border-blue-200';
-                                    return 'bg-gray-50 text-gray-700 border-gray-200';
-                                  };
+                                const getStatusColor = (status: string) => {
+                                  if (status.includes('בוטל') || status.includes('מבוטל')) return 'bg-red-50 text-red-700 border-red-200';
+                                  if (status.includes('הושלם') || status.includes('הושלם')) return 'bg-green-50 text-green-700 border-green-200';
+                                  if (status.includes('מתוכנן') || status.includes('תוכנן')) return 'bg-blue-50 text-blue-700 border-blue-200';
+                                  return 'bg-gray-50 text-gray-700 border-gray-200';
+                                };
 
-                                  return (
-                                    <div
-                                      key={meeting.id}
-                                      className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
-                                      onClick={() => {
-                                        navigate(`/dashboard/meetings/${meeting.id}`);
-                                      }}
-                                    >
-                                      <div className="flex items-start justify-between gap-2">
-                                        <div className="flex-1 min-w-0 space-y-1">
-                                          {visibleFields.customer_name && (
-                                            <div className="font-medium text-gray-900 truncate">
-                                              {customer?.full_name || '-'}
-                                            </div>
-                                          )}
-                                          {visibleFields.time && time && (
-                                            <div className="text-sm text-gray-600">
-                                              {time}
-                                            </div>
-                                          )}
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            {visibleFields.status && (
-                                              <Badge variant="outline" className={cn("text-xs", getStatusColor(status))}>
-                                                {status}
-                                              </Badge>
-                                            )}
-                                            {visibleFields.type && type && (
-                                              <span className="text-xs text-gray-500">{type}</span>
-                                            )}
-                                            {visibleFields.phone && phone !== '-' && (
-                                              <span className="text-xs text-gray-500">{phone}</span>
-                                            )}
-                                            {visibleFields.email && email !== '-' && (
-                                              <span className="text-xs text-gray-500 truncate max-w-[150px]">{email}</span>
-                                            )}
+                                return (
+                                  <div
+                                    key={meeting.id}
+                                    className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+                                    onClick={() => {
+                                      navigate(`/dashboard/meetings/${meeting.id}`);
+                                    }}
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1 min-w-0 space-y-1">
+                                        {visibleFields.customer_name && (
+                                          <div className="font-medium text-gray-900 truncate">
+                                            {customer?.full_name || '-'}
                                           </div>
+                                        )}
+                                        {visibleFields.time && time && (
+                                          <div className="text-sm text-gray-600">
+                                            {time}
+                                          </div>
+                                        )}
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {visibleFields.status && (
+                                            <Badge variant="outline" className={cn("text-xs", getStatusColor(status))}>
+                                              {status}
+                                            </Badge>
+                                          )}
+                                          {visibleFields.type && type && (
+                                            <span className="text-xs text-gray-500">{type}</span>
+                                          )}
+                                          {visibleFields.phone && phone !== '-' && (
+                                            <span className="text-xs text-gray-500">{phone}</span>
+                                          )}
+                                          {visibleFields.email && email !== '-' && (
+                                            <span className="text-xs text-gray-500 truncate max-w-[150px]">{email}</span>
+                                          )}
                                         </div>
                                       </div>
                                     </div>
-                                  );
-                                })}
-                              </div>
-                              {/* Always show "Create Appointment" button */}
-                              <div className="p-3 border-t border-gray-200">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full"
-                                  onClick={() => onAddMeeting?.(date)}
-                                >
-                                  <Plus className="h-4 w-4 ml-2" />
-                                  צור פגישה חדשה
-                                </Button>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="p-3 text-center space-y-3">
-                              <p className="text-sm text-gray-500">אין פגישות בתאריך זה</p>
-                              {onAddMeeting && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full"
-                                  onClick={() => onAddMeeting(date)}
-                                >
-                                  <Plus className="h-4 w-4 ml-2" />
-                                  צור פגישה חדשה
-                                </Button>
-                              )}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          )}
-                        </PopoverContent>
-                      </Popover>
-                );
-              })}
+                            {/* Always show "Create Appointment" button */}
+                            <div className="p-3 border-t border-gray-200">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => onAddMeeting?.(date)}
+                              >
+                                <Plus className="h-4 w-4 ml-2" />
+                                צור פגישה חדשה
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="p-3 text-center space-y-3">
+                            <p className="text-sm text-gray-500">אין פגישות בתאריך זה</p>
+                            {onAddMeeting && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => onAddMeeting(date)}
+                              >
+                                <Plus className="h-4 w-4 ml-2" />
+                                צור פגישה חדשה
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  );
+                })}
+              </div>
             </div>
-          </div>
           )}
 
           {/* Week View with Time Axis */}
@@ -999,7 +999,7 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                               key={hour}
                               className={cn(
                                 "h-16 border-b border-gray-100 cursor-pointer transition-colors",
-                                "hover:bg-primary/10",
+                                "hover:bg-primary/50",
                                 index % 2 === 0 ? "bg-gray-50" : "bg-white"
                               )}
                               onClick={() => {
@@ -1026,15 +1026,15 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                               <div
                                 key={meeting.id}
                                 className="absolute left-1 right-1 z-10"
-                                style={{ 
+                                style={{
                                   top: `${topPosition}px`,
                                   height: `${height}px`,
                                   minHeight: '48px'
                                 }}
                               >
-                                <DraggableMeetingCard 
-                                  meeting={meeting} 
-                                  date={date} 
+                                <DraggableMeetingCard
+                                  meeting={meeting}
+                                  date={date}
                                   isTimeBased={true}
                                   onClick={() => navigate(`/dashboard/meetings/${meeting.id}`)}
                                 />
@@ -1055,11 +1055,11 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
             <div className="w-full h-full flex flex-col overflow-hidden">
               <div className="flex-1 overflow-y-auto relative">
                 {/* Day header */}
-                <div className="grid grid-cols-2 border border-gray-200 sticky top-0 z-20 bg-white shadow-sm">
-                  <div className="px-3 py-3 text-center text-xs font-medium text-gray-600 bg-white border-r border-gray-200"></div>
+                <div className="flex border border-gray-200 sticky top-0 z-20 bg-white shadow-sm">
+                  <div className="w-16 px-2 py-3 text-center text-xs font-medium text-gray-600 bg-white border-r border-gray-200 shrink-0"></div>
                   <div
                     className={cn(
-                      "px-3 py-3 text-center bg-white",
+                      "flex-1 px-3 py-3 text-center bg-white border-r border-gray-200",
                       isSameDay(currentDay, today) && "bg-blue-50"
                     )}
                   >
@@ -1074,14 +1074,14 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                 </div>
 
                 {/* Time grid */}
-                <div className="grid grid-cols-2 border-l border-r border-b border-gray-200">
-                  {/* Time column */}
-                  <div className="bg-white border-r border-gray-200">
+                <div className="flex border-l border-r border-b border-gray-200">
+                  {/* Time column - way narrower */}
+                  <div className="w-16 bg-white border-r border-gray-200 shrink-0">
                     {generateHours().map((hour, index) => (
                       <div
                         key={hour}
                         className={cn(
-                          "h-16 border-b border-gray-100 px-3 py-2 text-xs text-gray-500",
+                          "h-16 border-b border-gray-100 px-2 py-2 text-xs text-gray-500 text-center",
                           index % 2 === 0 ? "bg-gray-50" : "bg-white"
                         )}
                       >
@@ -1091,119 +1091,121 @@ export const MeetingsCalendarView: React.FC<MeetingsCalendarViewProps> = ({ meet
                   </div>
 
                   {/* Day column */}
-                  <DroppableDateCell
-                    date={currentDay}
-                    isCurrentMonth={true}
-                    isToday={isSameDay(currentDay, today)}
-                  >
-                    <div className="relative h-full min-h-[1152px]">
-                      {/* Hour slots */}
-                      {generateHours().map((hour, index) => (
-                        <div
-                          key={hour}
-                          className={cn(
-                            "h-16 border-b border-gray-100 cursor-pointer transition-colors",
-                            "hover:bg-primary/10",
-                            index % 2 === 0 ? "bg-gray-50" : "bg-white"
-                          )}
-                          onClick={() => {
-                            const clickedDate = new Date(currentDay);
-                            clickedDate.setHours(hour, 0, 0, 0);
-                            onAddMeeting?.(clickedDate);
-                          }}
-                        />
-                      ))}
-
-                      {/* Meetings positioned by time */}
-                      {getMeetingsForDate(currentDay).map((meeting) => {
-                        const meetingHour = getMeetingHour(meeting);
-                        const meetingEndHour = getMeetingEndHour(meeting);
-                        if (meetingHour === null) return null;
-
-                        const duration = meetingEndHour ? (meetingEndHour - meetingHour) : 1; // Default to 1 hour
-                        // Calculate position: each hour is 64px (h-16), starting from hour 6
-                        const hoursFromStart = meetingHour - 6;
-                        const topPosition = hoursFromStart * 64; // 64px per hour
-                        const height = duration * 64; // Height based on duration
-
-                        return (
+                  <div className="flex-1">
+                    <DroppableDateCell
+                      date={currentDay}
+                      isCurrentMonth={true}
+                      isToday={isSameDay(currentDay, today)}
+                    >
+                      <div className="relative h-full min-h-[1152px] border-r border-gray-200">
+                        {/* Hour slots */}
+                        {generateHours().map((hour, index) => (
                           <div
-                            key={meeting.id}
-                            className="absolute left-1 right-1 z-10"
-                            style={{ 
-                              top: `${topPosition}px`,
-                              height: `${height}px`,
-                              minHeight: '48px'
+                            key={hour}
+                            className={cn(
+                              "h-16 border-b border-gray-100 cursor-pointer transition-colors",
+                              "hover:bg-primary/50",
+                              index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                            )}
+                            onClick={() => {
+                              const clickedDate = new Date(currentDay);
+                              clickedDate.setHours(hour, 0, 0, 0);
+                              onAddMeeting?.(clickedDate);
                             }}
-                          >
-                            <DraggableMeetingCard 
-                              meeting={meeting} 
-                              date={currentDay} 
-                              isTimeBased={true}
-                              onClick={() => navigate(`/dashboard/meetings/${meeting.id}`)}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </DroppableDateCell>
+                          />
+                        ))}
+
+                        {/* Meetings positioned by time */}
+                        {getMeetingsForDate(currentDay).map((meeting) => {
+                          const meetingHour = getMeetingHour(meeting);
+                          const meetingEndHour = getMeetingEndHour(meeting);
+                          if (meetingHour === null) return null;
+
+                          const duration = meetingEndHour ? (meetingEndHour - meetingHour) : 1; // Default to 1 hour
+                          // Calculate position: each hour is 64px (h-16), starting from hour 6
+                          const hoursFromStart = meetingHour - 6;
+                          const topPosition = hoursFromStart * 64; // 64px per hour
+                          const height = duration * 64; // Height based on duration
+
+                          return (
+                            <div
+                              key={meeting.id}
+                              className="absolute left-1 right-1 z-10"
+                              style={{
+                                top: `${topPosition}px`,
+                                height: `${height}px`,
+                                minHeight: '48px'
+                              }}
+                            >
+                              <DraggableMeetingCard
+                                meeting={meeting}
+                                date={currentDay}
+                                isTimeBased={true}
+                                onClick={() => navigate(`/dashboard/meetings/${meeting.id}`)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </DroppableDateCell>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-        {/* Month Picker */}
-        {viewMode === 'month' && (
-          <div className="grid grid-cols-3 gap-2">
-            {monthNames.map((monthName, index) => (
-              <Button
-                key={index}
-                variant={currentMonth.getMonth() === index ? "default" : "outline"}
-                className={cn(
-                  "h-16 text-sm",
-                  currentMonth.getMonth() === index && "bg-[#5B6FB9] text-white"
-                )}
-                onClick={() => handleMonthSelect(index)}
-              >
-                {monthName}
-              </Button>
-            ))}
-          </div>
-        )}
-
-        {/* Year Picker */}
-        {viewMode === 'year' && (
-          <div className="grid grid-cols-4 gap-2">
-            {years.map((year) => (
-              <Button
-                key={year}
-                variant={selectedYear === year ? "default" : "outline"}
-                className={cn(
-                  "h-16 text-sm",
-                  selectedYear === year && "bg-[#5B6FB9] text-white"
-                )}
-                onClick={() => handleYearSelect(year)}
-              >
-                {year}
-              </Button>
-            ))}
-          </div>
-        )}
-
-        {/* Drag Overlay */}
-        <DragOverlay>
-          {draggedMeeting && (
-            <div className="text-xs text-gray-600 bg-gray-100 rounded px-2 py-1 shadow-lg flex items-center gap-1">
-              <GripVertical className="h-3 w-3 text-gray-400" />
-              {getMeetingTimeDisplayValue(draggedMeeting) && (
-                <span>{getMeetingTimeDisplayValue(draggedMeeting)}</span>
-              )}
-              {getMeetingCustomer(draggedMeeting)?.full_name && (
-                <span className="font-medium">{getMeetingCustomer(draggedMeeting)?.full_name}</span>
-              )}
+          {/* Month Picker */}
+          {viewMode === 'month' && (
+            <div className="grid grid-cols-3 gap-2">
+              {monthNames.map((monthName, index) => (
+                <Button
+                  key={index}
+                  variant={currentMonth.getMonth() === index ? "default" : "outline"}
+                  className={cn(
+                    "h-16 text-sm",
+                    currentMonth.getMonth() === index && "bg-[#5B6FB9] text-white"
+                  )}
+                  onClick={() => handleMonthSelect(index)}
+                >
+                  {monthName}
+                </Button>
+              ))}
             </div>
           )}
-        </DragOverlay>
+
+          {/* Year Picker */}
+          {viewMode === 'year' && (
+            <div className="grid grid-cols-4 gap-2">
+              {years.map((year) => (
+                <Button
+                  key={year}
+                  variant={selectedYear === year ? "default" : "outline"}
+                  className={cn(
+                    "h-16 text-sm",
+                    selectedYear === year && "bg-[#5B6FB9] text-white"
+                  )}
+                  onClick={() => handleYearSelect(year)}
+                >
+                  {year}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          {/* Drag Overlay */}
+          <DragOverlay>
+            {draggedMeeting && (
+              <div className="text-xs text-gray-600 bg-gray-100 rounded px-2 py-1 shadow-lg flex items-center gap-1">
+                <GripVertical className="h-3 w-3 text-gray-400" />
+                {getMeetingTimeDisplayValue(draggedMeeting) && (
+                  <span>{getMeetingTimeDisplayValue(draggedMeeting)}</span>
+                )}
+                {getMeetingCustomer(draggedMeeting)?.full_name && (
+                  <span className="font-medium">{getMeetingCustomer(draggedMeeting)?.full_name}</span>
+                )}
+              </div>
+            )}
+          </DragOverlay>
         </div>
       </DndContext>
 
