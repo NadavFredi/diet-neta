@@ -688,57 +688,87 @@ export const PlansCard = ({
             <Plus className="h-3.5 w-3.5" />
             <span>הקצה תכנית פעולה</span>
           </Button>
-          {effectiveBudgetId && (
+          {activeAssignment && (
             <Button
               variant="outline"
               size="sm"
               onClick={async () => {
+                if (!activeAssignment) return;
                 try {
-                  // If there's an active assignment, deactivate it
-                  if (activeAssignment) {
-                    await supabase
-                      .from('budget_assignments')
-                      .update({ is_active: false })
-                      .eq('id', activeAssignment.id);
-                  }
-
-                  // Delete all associated plans completely (not just clear budget_id)
+                  // Use the same logic as useDeleteBudgetAssignment - completely delete assignment and all plans
+                  const assignmentId = activeAssignment.id;
+                  const assignmentBudgetId = activeAssignment.budget_id;
                   const finalCustomerId = customerId || null;
                   const finalLeadId = leadId || null;
 
-                  // Build delete queries based on customer_id or lead_id
-                  const buildDeleteQuery = (table: string) => {
-                    let query = supabase
-                      .from(table)
-                      .delete()
-                      .eq('budget_id', effectiveBudgetId);
+                  // Delete the assignment completely (not just deactivate)
+                  await supabase
+                    .from('budget_assignments')
+                    .delete()
+                    .eq('id', assignmentId);
 
-                    if (finalCustomerId && finalLeadId) {
-                      query = query.or(`customer_id.eq.${finalCustomerId},lead_id.eq.${finalLeadId}`);
-                    } else if (finalCustomerId) {
-                      query = query.eq('customer_id', finalCustomerId);
-                    } else if (finalLeadId) {
-                      query = query.eq('lead_id', finalLeadId);
-                    }
+                  // Delete all associated plans (matching both budget_id and lead_id/customer_id)
+                  // This matches the logic from useDeleteBudgetAssignment
+                  if (finalLeadId) {
+                    await Promise.all([
+                      supabase
+                        .from('workout_plans')
+                        .delete()
+                        .eq('lead_id', finalLeadId)
+                        .eq('budget_id', assignmentBudgetId),
+                      supabase
+                        .from('nutrition_plans')
+                        .delete()
+                        .eq('lead_id', finalLeadId)
+                        .eq('budget_id', assignmentBudgetId),
+                      supabase
+                        .from('supplement_plans')
+                        .delete()
+                        .eq('lead_id', finalLeadId)
+                        .eq('budget_id', assignmentBudgetId),
+                      supabase
+                        .from('steps_plans')
+                        .delete()
+                        .eq('lead_id', finalLeadId)
+                        .eq('budget_id', assignmentBudgetId),
+                    ]);
+                  }
+                  if (finalCustomerId) {
+                    await Promise.all([
+                      supabase
+                        .from('workout_plans')
+                        .delete()
+                        .eq('customer_id', finalCustomerId)
+                        .eq('budget_id', assignmentBudgetId),
+                      supabase
+                        .from('nutrition_plans')
+                        .delete()
+                        .eq('customer_id', finalCustomerId)
+                        .eq('budget_id', assignmentBudgetId),
+                      supabase
+                        .from('supplement_plans')
+                        .delete()
+                        .eq('customer_id', finalCustomerId)
+                        .eq('budget_id', assignmentBudgetId),
+                      supabase
+                        .from('steps_plans')
+                        .delete()
+                        .eq('customer_id', finalCustomerId)
+                        .eq('budget_id', assignmentBudgetId),
+                    ]);
+                  }
 
-                    return query;
-                  };
-
-                  await Promise.all([
-                    buildDeleteQuery('workout_plans'),
-                    buildDeleteQuery('nutrition_plans'),
-                    buildDeleteQuery('supplement_plans'),
-                    buildDeleteQuery('steps_plans'),
-                  ]);
-
-                  // Invalidate queries to refresh UI (plans will remain, but budget association is cleared)
+                  // Invalidate queries to refresh UI and return to empty state
                   await Promise.all([
                     queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
                     queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] }),
                     queryClient.invalidateQueries({ queryKey: ['plans-history', finalCustomerId] }),
                     queryClient.invalidateQueries({ queryKey: ['plans-history', null, finalLeadId] }),
+                    queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
                     queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
                     queryClient.invalidateQueries({ queryKey: ['budgets'] }),
+                    queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
+                    queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
                   ]);
 
                   // Force refetch to ensure UI updates immediately
@@ -747,7 +777,7 @@ export const PlansCard = ({
 
                   toast({
                     title: 'הצלחה',
-                    description: 'תכנית הפעולה נוקתה בהצלחה',
+                    description: 'תכנית הפעולה והתכניות המקושרות נמחקו בהצלחה',
                   });
                 } catch (error: any) {
                   toast({
@@ -761,20 +791,6 @@ export const PlansCard = ({
             >
               <X className="h-3.5 w-3.5" />
               <span>נקה תכנית</span>
-            </Button>
-          )}
-          {activeAssignment && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setAssignmentToDelete(activeAssignment);
-                setDeleteDialogOpen(true);
-              }}
-              className="gap-2 h-8 bg-white hover:bg-red-50 text-red-600 border-red-200 hover:text-red-700"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>מחק הקצאה</span>
             </Button>
           )}
           {effectiveBudgetId && (
@@ -872,18 +888,6 @@ export const PlansCard = ({
                 )}
               </Button>
 
-              <TooltipProvider>
-                {activeAssignment && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(activeAssignment)} className="h-8 w-8 p-0 hover:text-red-600">
-                        <Trash2 className="h-4 w-4 text-gray-500" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>מחק תכנית פעולה</p></TooltipContent>
-                  </Tooltip>
-                )}
-              </TooltipProvider>
             </div>
           )}
           <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} className="h-8 w-8 p-0">

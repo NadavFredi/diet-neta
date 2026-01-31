@@ -6,7 +6,7 @@ import { he } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RootState } from '@/store/store';
 import { Meeting } from '@/hooks/useMeetings';
@@ -175,7 +175,7 @@ export const MonthView: React.FC<MonthViewProps> = ({ meetings, onAddMeeting }) 
                         return (
                           <div
                             key={meeting.id}
-                            className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+                            className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors group"
                             onClick={() => {
                               navigate(`/dashboard/meetings/${meeting.id}`);
                             }}
@@ -208,6 +208,9 @@ export const MonthView: React.FC<MonthViewProps> = ({ meetings, onAddMeeting }) 
                                     <span className="text-xs text-gray-500 truncate max-w-[150px]">{email}</span>
                                   )}
                                 </div>
+                              </div>
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity pt-1">
+                                <Pencil className="h-4 w-4 text-gray-400" />
                               </div>
                             </div>
                           </div>
