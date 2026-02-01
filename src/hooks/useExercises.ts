@@ -45,7 +45,7 @@ export const useExercises = (filters?: {
         name: { column: 'name', type: 'text' },
         repetitions: { column: 'repetitions', type: 'number' },
         weight: { column: 'weight', type: 'number' },
-        category: { column: 'category', type: 'text' },
+        category: { column: 'category', type: 'select' },
       };
 
       const searchGroup = filters?.search ? createSearchGroup(filters.search, ['name']) : null;
