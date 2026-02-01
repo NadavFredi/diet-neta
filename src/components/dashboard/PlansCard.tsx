@@ -675,7 +675,59 @@ export const PlansCard = ({
   const handleEditNutrition = async (plan: NutritionHistoryItem) => {
     // Use the plan data directly from React Query cache (same source as PlansCard displays)
     // The modal will also use the same cache via usePlansHistory hook
-    setEditingNutritionPlan(plan);
+
+    // If plan has a budget_id, merge budget's manual override settings into plan targets
+    // This ensures macro cards are locked (not auto-calculated) when opened from PlansCard
+    let planWithManualOverride = { ...plan };
+    const planTargets = (plan.targets || {}) as any;
+
+    if (plan.budget_id && overviewBudget?.nutrition_targets) {
+      const budgetTargets = overviewBudget.nutrition_targets as any;
+
+      // If budget has manual_override, merge it into plan's targets._manual_override
+      if (budgetTargets._manual_override) {
+        planWithManualOverride = {
+          ...plan,
+          targets: {
+            ...planTargets,
+            _manual_override: budgetTargets._manual_override,
+          } as any,
+        };
+      } else {
+        // If budget doesn't have manual_override but we're opening from PlansCard,
+        // set all fields to locked (true) so they can be manually edited without auto-calculation
+        planWithManualOverride = {
+          ...plan,
+          targets: {
+            ...planTargets,
+            _manual_override: {
+              calories: true,
+              protein: true,
+              carbs: true,
+              fat: true,
+              fiber: true,
+            },
+          } as any,
+        };
+      }
+    } else if (!planTargets._manual_override) {
+      // If no budget and no existing manual_override, set all to locked when opening from PlansCard
+      planWithManualOverride = {
+        ...plan,
+        targets: {
+          ...planTargets,
+          _manual_override: {
+            calories: true,
+            protein: true,
+            carbs: true,
+            fat: true,
+            fiber: true,
+          },
+        } as any,
+      };
+    }
+
+    setEditingNutritionPlan(planWithManualOverride);
     setIsNutritionPlanDialogOpen(true);
   };
 
