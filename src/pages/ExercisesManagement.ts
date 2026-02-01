@@ -14,6 +14,7 @@ import {
   useDeleteExercise,
   useCreateExercise,
   useUpdateExercise,
+  useBulkUpdateExercises,
   type Exercise,
 } from '@/hooks/useExercises';
 import { useBulkDeleteRecords } from '@/hooks/useBulkDeleteRecords';
@@ -97,6 +98,7 @@ export const useExercisesManagement = () => {
   const createExercise = useCreateExercise();
   const updateExercise = useUpdateExercise();
   const deleteExercise = useDeleteExercise();
+  const bulkUpdateExercises = useBulkUpdateExercises();
   const bulkDeleteExercises = useBulkDeleteRecords({
     table: 'exercises',
     invalidateKeys: [['exercises']],
@@ -137,17 +139,21 @@ export const useExercisesManagement = () => {
   };
 
   const handleSaveExercise = async (
-    data: Partial<Exercise> | { name: string; repetitions?: number | null; weight?: number | null; image?: string | null; video_link?: string | null }
+    data: Partial<Exercise> | { name: string; repetitions?: number | null; repetitions_min?: number | null; repetitions_max?: number | null; weight?: number | null; image?: string | null; video_link?: string | null; category?: string | null }
   ) => {
     try {
+      // For backward compatibility: use repetitions_max if available, otherwise use repetitions_min, otherwise use repetitions
+      const repetitions = (data as any).repetitions_max ?? (data as any).repetitions_min ?? data.repetitions;
+      
       if (editingExercise) {
         await updateExercise.mutateAsync({
           exerciseId: editingExercise.id,
           name: data.name,
-          repetitions: data.repetitions,
+          repetitions: repetitions,
           weight: data.weight,
           image: data.image,
           video_link: data.video_link,
+          category: (data as any).category ?? null,
         });
         toast({
           title: 'הצלחה',
@@ -158,10 +164,11 @@ export const useExercisesManagement = () => {
       } else {
         await createExercise.mutateAsync({
           name: data.name,
-          repetitions: data.repetitions,
+          repetitions: repetitions,
           weight: data.weight,
           image: data.image,
           video_link: data.video_link,
+          category: (data as any).category ?? null,
         });
         toast({
           title: 'הצלחה',
@@ -177,6 +184,7 @@ export const useExercisesManagement = () => {
       });
     }
   };
+
 
   const handleDeleteClick = (exercise: Exercise) => {
     setExerciseToDelete(exercise);
@@ -209,6 +217,49 @@ export const useExercisesManagement = () => {
       title: 'הצלחה',
       description: 'התרגילים נמחקו בהצלחה',
     });
+  };
+
+  const handleBulkEdit = async (payload: {
+    ids: string[];
+    selectAllAcrossPages: boolean;
+    totalCount: number;
+    updates: Record<string, any>;
+  }) => {
+    try {
+      // Only allow category updates in bulk edit
+      const categoryUpdate = payload.updates.category;
+      
+      if (categoryUpdate === undefined && !('category' in payload.updates)) {
+        toast({
+          title: 'שגיאה',
+          description: 'ניתן לערוך רק את שדה הקטגוריה בעריכה מרוכזת',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Convert empty string to null
+      const categoryValue = categoryUpdate === '' || categoryUpdate === null ? null : String(categoryUpdate).trim() || null;
+
+      await bulkUpdateExercises.mutateAsync({
+        exerciseIds: payload.ids,
+        updates: {
+          category: categoryValue,
+        },
+      });
+
+      toast({
+        title: 'הצלחה',
+        description: `הקטגוריה עודכנה עבור ${payload.ids.length} תרגילים`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'שגיאה',
+        description: error?.message || 'נכשל בעדכון הקטגוריה',
+        variant: 'destructive',
+      });
+      throw error;
+    }
   };
 
   const handleSortChange = (columnId: string, order: 'ASC' | 'DESC') => {
@@ -265,6 +316,7 @@ export const useExercisesManagement = () => {
     handleDeleteClick,
     handleConfirmDelete,
     handleBulkDelete,
+    handleBulkEdit,
     handleSortChange,
     handleSaveViewClick,
     getCurrentFilterConfig,

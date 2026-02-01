@@ -96,8 +96,8 @@ export const ViewAsClientButton: React.FC<ViewAsClientButtonProps> = ({
         })
       );
 
-      // Navigate to client dashboard
-      navigate('/client/dashboard');
+      // Navigate to client dashboard with customerId in URL for refresh support
+      navigate(`/client/dashboard/${customerId}`);
       
       toast({
         title: 'מצב תצוגה פעיל',

@@ -29,11 +29,15 @@ export const usePrintBudgetPage = () => {
     budget?.workout_template_id || null
   );
 
-  const [clientInfo, setClientInfo] = useState<{ name: string | null; assignedDate: string | null }>({
+  const [clientInfo, setClientInfo] = useState<{ name: string | null; assignedDate: string | null; leadId: string | null; customerId: string | null }>({
     name: null,
     assignedDate: null,
+    leadId: null,
+    customerId: null,
   });
   const [isLoadingClient, setIsLoadingClient] = useState(false);
+  const [workoutPlan, setWorkoutPlan] = useState<any>(null);
+  const [isLoadingWorkoutPlan, setIsLoadingWorkoutPlan] = useState(false);
 
   // Fetch client/lead information from active budget assignment
   useEffect(() => {
@@ -58,14 +62,19 @@ export const usePrintBudgetPage = () => {
 
         if (assignment) {
           let name: string | null = null;
+          let leadId: string | null = null;
+          let customerId: string | null = null;
           
           // Prefer customer name, fallback to lead info
           if (assignment.customer) {
             name = (assignment.customer as any).full_name;
+            customerId = (assignment.customer as any).id;
           } else if (assignment.lead) {
             // Try to get customer name from lead
             const lead = assignment.lead as any;
+            leadId = lead.id;
             if (lead.customer_id) {
+              customerId = lead.customer_id;
               const { data: customer } = await supabase
                 .from('customers')
                 .select('full_name')
@@ -80,6 +89,8 @@ export const usePrintBudgetPage = () => {
           setClientInfo({
             name,
             assignedDate: assignment.assigned_at || null,
+            leadId,
+            customerId,
           });
         }
       } catch (error) {
@@ -92,12 +103,75 @@ export const usePrintBudgetPage = () => {
     fetchClientInfo();
   }, [budget?.id]);
 
-  const isLoading = isLoadingBudget || isLoadingNutrition || isLoadingWorkout || isLoadingClient;
+  // Fetch workout plan associated with budget if no template exists
+  useEffect(() => {
+    const fetchWorkoutPlan = async () => {
+      // Only fetch if there's no workout template and we have budget + client info
+      if (workoutTemplate || !budget?.id || isLoadingClient) {
+        setWorkoutPlan(null);
+        return;
+      }
+
+      setIsLoadingWorkoutPlan(true);
+      try {
+        // Build query for workout plans
+        let query = supabase
+          .from('workout_plans')
+          .select('*')
+          .eq('budget_id', budget.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        // Add customer_id or lead_id filter if available
+        if (clientInfo.customerId) {
+          query = query.eq('customer_id', clientInfo.customerId);
+        } else if (clientInfo.leadId) {
+          query = query.eq('lead_id', clientInfo.leadId);
+        }
+
+        const { data: plans, error } = await query.maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          // Silent failure
+        } else if (plans) {
+          setWorkoutPlan(plans);
+        }
+      } catch (error) {
+        // Silent failure
+      } finally {
+        setIsLoadingWorkoutPlan(false);
+      }
+    };
+
+    fetchWorkoutPlan();
+  }, [budget?.id, workoutTemplate, clientInfo.customerId, clientInfo.leadId, isLoadingClient]);
+
+  const isLoading = isLoadingBudget || isLoadingNutrition || isLoadingWorkout || isLoadingClient || isLoadingWorkoutPlan;
+
+  // Determine which workout data to use: template or plan
+  const workoutData = workoutTemplate 
+    ? {
+        name: workoutTemplate.name,
+        description: workoutTemplate.description,
+        goal_tags: workoutTemplate.goal_tags,
+        weeklyWorkout: workoutTemplate.routine_data?.weeklyWorkout,
+      }
+    : workoutPlan
+    ? {
+        name: workoutPlan.name || 'תוכנית אימונים',
+        description: workoutPlan.description,
+        goal_tags: [],
+        weeklyWorkout: workoutPlan.custom_attributes?.data?.weeklyWorkout,
+      }
+    : null;
 
   return {
     budget,
     nutritionTemplate,
     workoutTemplate,
+    workoutPlan,
+    workoutData,
     clientName: clientInfo.name,
     assignedDate: clientInfo.assignedDate,
     isLoading,

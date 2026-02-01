@@ -4,6 +4,7 @@
  * Self-contained dialog for adding/editing a workout plan for a customer/lead.
  */
 
+import { useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { WorkoutBuilderForm } from '@/components/dashboard/WorkoutBuilderForm';
 
@@ -24,13 +25,27 @@ export const AddWorkoutPlanDialog = ({
   leadId,
   initialData,
 }: AddWorkoutPlanDialogProps) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && scrollContainerRef.current) {
+      // Ensure the scrollable container can receive focus for wheel events
+      scrollContainerRef.current.focus();
+    }
+  }, [isOpen]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] flex flex-col p-0 overflow-hidden !translate-x-[-50%] !translate-y-[-50%] !left-[50%] !top-[50%] !rounded-none !m-0" dir="rtl">
+      <DialogContent className="!max-w-[1400px] !w-[1400px] !max-h-[90vh] !overflow-hidden flex flex-col p-0" dir="rtl">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle>{initialData ? 'עריכת תוכנית אימונים' : 'יצירת תוכנית אימונים חדשה'}</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden px-6 pb-6 min-h-0">
+        <div 
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-6" 
+          style={{ minHeight: 0 }}
+          tabIndex={0}
+        >
           <WorkoutBuilderForm
             mode="user"
             customerId={customerId}

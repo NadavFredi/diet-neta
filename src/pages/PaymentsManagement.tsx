@@ -48,6 +48,7 @@ const PaymentsManagement = () => {
     totalPayments,
     handlePageChange,
     handlePageSizeChange,
+    handleBulkDelete,
   } = usePaymentsManagement();
 
   // Generate filter fields with all renderable columns
@@ -171,6 +172,7 @@ const PaymentsManagement = () => {
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 totalCount={totalPayments}
+                onBulkDelete={handleBulkDelete}
               />
             </div>
           ) : (

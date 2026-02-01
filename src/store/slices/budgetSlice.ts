@@ -39,12 +39,12 @@ export interface CardioTraining {
 
 export interface IntervalTraining {
   id?: string; // Unique identifier for list items
-  name: string;
-  type: string; // e.g., "HIIT", "Tabata", "Circuit"
-  duration_minutes: number;
-  workouts_per_week: number; // 1-7
-  period_type?: string; // 'לשבוע' or 'ליום'
-  notes: string;
+  activity_type: string; // איזו פעילות - free text
+  activity_duration_seconds: number; // כמה זמן פעילות - seconds
+  rest_duration_seconds: number; // כמה זמן מנוחה - seconds
+  sets: number; // כמה סטים
+  workouts_per_week: number; // כמה פעמים בשבוע
+  notes?: string; // Optional notes
 }
 
 export interface Budget {
@@ -54,6 +54,8 @@ export interface Budget {
   nutrition_template_id: string | null;
   nutrition_targets: NutritionTargets;
   steps_goal: number;
+  steps_min?: number | null;
+  steps_max?: number | null;
   steps_instructions: string | null;
   workout_template_id: string | null;
   supplement_template_id: string | null;
@@ -62,6 +64,7 @@ export interface Budget {
   eating_rules: string | null;
   cardio_training: CardioTraining[] | null;
   interval_training: IntervalTraining[] | null;
+  other_notes?: string | null; // Other notes for the plan
   is_public: boolean;
   created_at: string;
   updated_at: string;

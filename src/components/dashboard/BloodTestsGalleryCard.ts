@@ -34,29 +34,32 @@ export const useBloodTestsGalleryCard = (leadId: string | null, customerId: stri
     }
   };
 
-  // Handle file upload (for managers)
+  // Handle file upload (for managers) - multiple files
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !leadId || !customerId || !isManager) return;
+    const files = e.target.files;
+    if (!files || files.length === 0 || !leadId || !customerId || !isManager) return;
 
-    uploadMutation.mutate(
-      { leadId, file, customerId },
-      {
-        onSuccess: () => {
-          toast({
-            title: 'הצלחה',
-            description: 'קובץ הבדיקה הועלה בהצלחה',
-          });
-        },
-        onError: (error: any) => {
-          toast({
-            title: 'שגיאה',
-            description: error?.message || 'לא ניתן היה להעלות את הקובץ',
-            variant: 'destructive',
-          });
-        },
-      }
-    );
+    // Upload all selected files
+    Array.from(files).forEach((file) => {
+      uploadMutation.mutate(
+        { leadId, file, customerId },
+        {
+          onSuccess: () => {
+            toast({
+              title: 'הצלחה',
+              description: 'קובץ הבדיקה הועלה בהצלחה',
+            });
+          },
+          onError: (error: any) => {
+            toast({
+              title: 'שגיאה',
+              description: error?.message || `לא ניתן היה להעלות את הקובץ "${file.name}"`,
+              variant: 'destructive',
+            });
+          },
+        }
+      );
+    });
 
     // Reset input
     if (fileInputRef.current) {
@@ -83,26 +86,29 @@ export const useBloodTestsGalleryCard = (leadId: string | null, customerId: stri
 
     if (!isManager || !leadId || !customerId) return;
 
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      uploadMutation.mutate(
-        { leadId, file, customerId },
-        {
-          onSuccess: () => {
-            toast({
-              title: 'הצלחה',
-              description: 'קובץ הבדיקה הועלה בהצלחה',
-            });
-          },
-          onError: (error: any) => {
-            toast({
-              title: 'שגיאה',
-              description: error?.message || 'לא ניתן היה להעלות את הקובץ',
-              variant: 'destructive',
-            });
-          },
-        }
-      );
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      // Upload all dropped files
+      Array.from(files).forEach((file) => {
+        uploadMutation.mutate(
+          { leadId, file, customerId },
+          {
+            onSuccess: () => {
+              toast({
+                title: 'הצלחה',
+                description: 'קובץ הבדיקה הועלה בהצלחה',
+              });
+            },
+            onError: (error: any) => {
+              toast({
+                title: 'שגיאה',
+                description: error?.message || `לא ניתן היה להעלות את הקובץ "${file.name}"`,
+                variant: 'destructive',
+              });
+            },
+          }
+        );
+      });
     }
   };
 

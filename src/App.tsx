@@ -61,7 +61,7 @@ const AppContent = () => {
   const isLoginPage = location.pathname === '/login';
   const isDashboardPage = location.pathname === '/dashboard' || location.pathname.startsWith('/leads');
   const isClientDashboard = location.pathname === '/client/dashboard';
-  
+
   // Check if we're on a route that uses the right panel (notes panel)
   const isRightPanelRoute =
     location.pathname.startsWith('/leads/') ||
@@ -77,14 +77,14 @@ const AppContent = () => {
     location.pathname.startsWith('/leads/') ||
     location.pathname.startsWith('/profile/') ||
     location.pathname.startsWith('/client/dashboard');
-  
+
   // Get notesOpen state from Redux
   const notesOpen = useAppSelector((state) => state.leadView.notesOpen);
-  
+
   // Hide footer when dashboard sidebar is visible, or when notes panel is open on right panel routes
   const shouldShowFooter =
     !isLoginPage && !isDashboardSidebarRoute && (!isRightPanelRoute || !notesOpen);
-  
+
   return (
     <div className={isClientDashboard ? "h-screen flex flex-col overflow-hidden" : "min-h-screen flex flex-col"}>
       <main className={isClientDashboard ? "flex-1 overflow-hidden" : "flex-1"}>
@@ -311,6 +311,10 @@ const AppContent = () => {
             element={<ClientDashboard />}
           />
           <Route
+            path="/client/dashboard/:customerId?"
+            element={<ClientDashboard />}
+          />
+          <Route
             path="/client/knowledge-base/article/:id"
             element={<ArticlePage />}
           />
@@ -318,8 +322,8 @@ const AppContent = () => {
         </Routes>
       </main>
       {shouldShowFooter && (
-        <AppFooter 
-          className={isClientDashboard ? "mt-0 flex-shrink-0" : undefined} 
+        <AppFooter
+          className={isClientDashboard ? "mt-0 flex-shrink-0" : undefined}
         />
       )}
       {/* Login page handles its own footer via AppFooter component */}

@@ -36,6 +36,8 @@ export interface NutritionTemplate {
   manual_override?: ManualOverride;
   manual_fields?: ManualFields;
   activity_entries?: any[]; // Activity entries for METs calculation
+  calculator_inputs?: any; // Calculator inputs (weight, height, age, etc.)
+  nutrition_notes?: string | null; // Additional notes and instructions for nutrition
   is_public: boolean;
   created_at: string;
   updated_at: string;
@@ -240,6 +242,8 @@ export const useNutritionTemplate = (templateId: string | null) => {
         .single();
 
       if (error) throw error;
+      console.log('[useNutritionTemplate] fetched data:', data);
+      console.log('[useNutritionTemplate] calculator_inputs:', data?.calculator_inputs);
       return data as NutritionTemplate | null;
     },
     enabled: !!templateId && !!user?.id,
@@ -261,6 +265,7 @@ export const useCreateNutritionTemplate = () => {
       manual_override,
       manual_fields,
       activity_entries,
+      calculator_inputs,
       is_public = false,
     }: {
       name: string;
@@ -269,6 +274,7 @@ export const useCreateNutritionTemplate = () => {
       manual_override?: ManualOverride;
       manual_fields?: ManualFields;
       activity_entries?: any[]; // Activity entries for METs calculation
+      calculator_inputs?: any; // Calculator inputs (weight, height, age, etc.)
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -285,13 +291,20 @@ export const useCreateNutritionTemplate = () => {
         manual_override: manual_override ?? {},
         manual_fields: manual_fields ?? {},
         activity_entries: activity_entries ?? [],
+        calculator_inputs: calculator_inputs ?? null,
       };
+      
+      console.log('[useCreateNutritionTemplate] insertData:', insertData);
+      console.log('[useCreateNutritionTemplate] calculator_inputs:', calculator_inputs);
 
       const { data, error } = await supabase
         .from('nutrition_templates')
         .insert(insertData)
         .select()
         .single();
+      
+      console.log('[useCreateNutritionTemplate] response data:', data);
+      console.log('[useCreateNutritionTemplate] response calculator_inputs:', data?.calculator_inputs);
 
       if (error) {
         if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
@@ -324,6 +337,7 @@ export const useUpdateNutritionTemplate = () => {
       manual_override,
       manual_fields,
       activity_entries,
+      calculator_inputs,
       is_public,
     }: {
       templateId: string;
@@ -333,6 +347,7 @@ export const useUpdateNutritionTemplate = () => {
       manual_override?: ManualOverride;
       manual_fields?: ManualFields;
       activity_entries?: any[]; // Activity entries for METs calculation
+      calculator_inputs?: any; // Calculator inputs (weight, height, age, etc.)
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -346,7 +361,11 @@ export const useUpdateNutritionTemplate = () => {
       if (manual_override !== undefined) updateData.manual_override = manual_override;
       if (manual_fields !== undefined) updateData.manual_fields = manual_fields;
       if (activity_entries !== undefined) updateData.activity_entries = activity_entries;
+      if (calculator_inputs !== undefined) updateData.calculator_inputs = calculator_inputs;
       if (is_public !== undefined) updateData.is_public = is_public;
+      
+      console.log('[useUpdateNutritionTemplate] updateData:', updateData);
+      console.log('[useUpdateNutritionTemplate] calculator_inputs:', calculator_inputs);
 
       const { data, error } = await supabase
         .from('nutrition_templates')
@@ -355,6 +374,9 @@ export const useUpdateNutritionTemplate = () => {
         .eq('created_by', userId)
         .select()
         .single();
+      
+      console.log('[useUpdateNutritionTemplate] response data:', data);
+      console.log('[useUpdateNutritionTemplate] response calculator_inputs:', data?.calculator_inputs);
 
       if (error) throw error;
       return data as NutritionTemplate;

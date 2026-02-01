@@ -226,6 +226,21 @@ export async function syncPlansFromBudget({
         existingPlan = data;
       } catch (err) {}
 
+      // Map budget nutrition_targets (which uses fiber_min) to nutrition plan targets (which uses fiber)
+      const mappedTargets = nutritionTargets ? (() => {
+        const { fiber_min, ...rest } = nutritionTargets as any;
+        return {
+          ...rest,
+          fiber: fiber_min ?? nutritionTargets.fiber ?? 30,
+        };
+      })() : {
+        calories: 2000,
+        protein: 150,
+        carbs: 200,
+        fat: 65,
+        fiber: 30,
+      };
+
       const planData: any = {
         user_id: userId,
         customer_id: finalCustomerId || null,
@@ -233,13 +248,7 @@ export async function syncPlansFromBudget({
         template_id: budget.nutrition_template_id || null,
         budget_id: budget.id,
         description: `תוכנית תזונה מתכנית פעולה: ${budget.name}`,
-        targets: nutritionTargets || {
-          calories: 2000,
-          protein: 150,
-          carbs: 200,
-          fat: 65,
-          fiber: 30,
-        },
+        targets: mappedTargets,
         is_active: true,
         updated_at: new Date().toISOString(),
       };

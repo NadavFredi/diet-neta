@@ -5,8 +5,8 @@
  * Optimized for minimal scrolling with high-density layout.
  */
 
-import React, { useEffect, useMemo } from 'react';
-import { useActiveBudgetForLead, useActiveBudgetForCustomer, useActiveBudgetForCustomerOrLeads } from '@/hooks/useBudgets';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useActiveBudgetForLead, useActiveBudgetForCustomer, useActiveBudgetForCustomerOrLeads, useBudget } from '@/hooks/useBudgets';
 import { useSupplementTemplates } from '@/hooks/useSupplementTemplates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,10 @@ import { useSupplementPlan } from '@/hooks/useSupplementPlan';
 import { usePlansHistory } from '@/hooks/usePlansHistory';
 import { NutritionPlanCard } from '@/components/dashboard/NutritionPlanCard';
 import { useNavigate } from 'react-router-dom';
+import { useNutritionTemplate } from '@/hooks/useNutritionTemplates';
+import { useWorkoutTemplate } from '@/hooks/useWorkoutTemplates';
+import { supabase } from '@/lib/supabaseClient';
+import { BudgetPrintContent } from '@/components/dashboard/BudgetPrintContent';
 import {
   Target,
   Flame,
@@ -34,6 +38,7 @@ import {
   ListOrdered,
   ScrollText,
   Link as LinkIcon,
+  Printer,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
@@ -59,11 +64,94 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   const budgetAssignment = leadBudget || customerOrLeadsBudget;
   const budget = budgetAssignment?.budget;
 
+  // Fetch full budget data for print content
+  const { data: fullBudget } = useBudget(budget?.id || null);
+  
+  // Fetch templates
+  const { data: nutritionTemplate } = useNutritionTemplate(
+    fullBudget?.nutrition_template_id || null
+  );
+  const { data: workoutTemplate } = useWorkoutTemplate(
+    fullBudget?.workout_template_id || null
+  );
+
   // Fetch workout plan for customer
   const { workoutPlan, isLoading: isLoadingWorkoutPlan } = useWorkoutPlan(customerId || null);
 
   // Fetch nutrition plan for customer
   const { nutritionPlan, isLoading: isLoadingNutritionPlan } = useNutritionPlan(customerId || null);
+  
+  // State for workout plan and client info for print content
+  const [workoutPlanForPrint, setWorkoutPlanForPrint] = useState<any>(null);
+  const [clientName, setClientName] = useState<string | null>(null);
+  
+  // Fetch workout plan associated with budget if no template exists
+  useEffect(() => {
+    const fetchWorkoutPlanForPrint = async () => {
+      if (!fullBudget?.id || workoutTemplate) {
+        setWorkoutPlanForPrint(null);
+        return;
+      }
+
+      try {
+        let query = supabase
+          .from('workout_plans')
+          .select('*')
+          .eq('budget_id', fullBudget.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (customerId) {
+          query = query.eq('customer_id', customerId);
+        } else if (leadId) {
+          query = query.eq('lead_id', leadId);
+        }
+
+        const { data: plans } = await query.maybeSingle();
+        if (plans) {
+          setWorkoutPlanForPrint(plans);
+        }
+      } catch (error) {
+        console.error('Error fetching workout plan for print:', error);
+      }
+    };
+
+    fetchWorkoutPlanForPrint();
+  }, [fullBudget?.id, workoutTemplate, customerId, leadId]);
+  
+  // Set client name
+  useEffect(() => {
+    if (customerId) {
+      supabase
+        .from('customers')
+        .select('full_name')
+        .eq('id', customerId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setClientName(data.full_name);
+          }
+        });
+    }
+  }, [customerId]);
+  
+  // Determine which workout data to use: template or plan
+  const workoutData = workoutTemplate 
+    ? {
+        name: workoutTemplate.name,
+        description: workoutTemplate.description,
+        goal_tags: workoutTemplate.goal_tags,
+        weeklyWorkout: workoutTemplate.routine_data?.weeklyWorkout,
+      }
+    : workoutPlanForPrint
+    ? {
+        name: workoutPlanForPrint.name || 'תוכנית אימונים',
+        description: workoutPlanForPrint.description,
+        goal_tags: [],
+        weeklyWorkout: workoutPlanForPrint.custom_attributes?.data?.weeklyWorkout,
+      }
+    : null;
 
   // Fetch supplement plan for customer
   const { supplementPlan } = useSupplementPlan(customerId || null);
@@ -131,171 +219,46 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
     ? supplementPlan.supplements
     : ((budget.supplements || []) as any[]);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-4">
-      {/* Single Compact Card with All Information */}
-      <Card className="rounded-3xl border border-slate-200 shadow-sm">
-        <CardHeader className="pb-3 pt-4 px-5">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Target className="h-5 w-5 text-[#5B6FB9]" />
-              {budget.name}
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className="bg-slate-50 text-slate-600 border-slate-300 text-xs px-2 py-0.5"
-              >
-                <Calendar className="h-3 w-3 mr-1" />
-                {format(new Date(budgetAssignment.assigned_at), 'dd/MM/yyyy', { locale: he })}
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  navigate(`/dashboard/print/budget/${budget.id}`);
-                }}
-                className="h-8 px-3 text-xs border-[#5B6FB9] text-[#5B6FB9] hover:bg-[#5B6FB9] hover:text-white"
-              >
-                <FileText className="h-3.5 w-3.5 ml-1.5" />
-                הדפס תכנית פעולה
-              </Button>
-            </div>
-          </div>
-          {budget.description && (
-            <p className="text-sm text-slate-600 mt-2 leading-relaxed" dir="rtl">
-              {budget.description}
-            </p>
-          )}
-          {budgetAssignment.notes && (
-            <p className="text-xs text-blue-600 mt-2" dir="rtl">
-              {budgetAssignment.notes}
-            </p>
-          )}
-        </CardHeader>
+      {/* Print Button - Only visible on screen */}
+      {fullBudget && (
+        <div className="print:hidden fixed bottom-6 left-6 z-50">
+          <Button
+            onClick={handlePrint}
+            size="lg"
+            className="text-white shadow-lg hover:opacity-90 transition-opacity"
+            style={{
+              backgroundColor: "#5B6FB9",
+            }}
+          >
+            <Printer className="h-5 w-5 mr-2" />
+            הדפס עכשיו
+          </Button>
+        </div>
+      )}
 
-        <CardContent className="px-5 pb-5 space-y-4">
-          {/* Action Plan Details - Full Length Display (Read-Only) */}
-          {/* Always show the section when budget exists, show fields conditionally */}
-          <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200/60">
-              <div className="w-8 h-8 rounded-lg bg-[#E8EDF7] flex items-center justify-center">
-                <FileText className="h-4 w-4 text-[#5B6FB9]" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-800">פרטי תכנית פעולה</h4>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {budget.description?.trim() && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    <FileText className="h-3 w-3" />
-                    תיאור
-                  </div>
-                  <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                    {budget.description}
-                  </p>
-                </div>
-              )}
-              {budget.eating_order?.trim() && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    <ListOrdered className="h-3 w-3" />
-                    סדר האכילה
-                  </div>
-                  <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                    {budget.eating_order}
-                  </p>
-                </div>
-              )}
-              {budget.eating_rules?.trim() && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    <ScrollText className="h-3 w-3" />
-                    כללי אכילה
-                  </div>
-                  <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                    {budget.eating_rules}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Steps Goal, Instructions, Cardio and Intervals - In Same Row */}
-            {((stepsGoal || stepsInstructions?.trim()) ||
-              (budget.cardio_training && Array.isArray(budget.cardio_training) && budget.cardio_training.length > 0) ||
-              (budget.interval_training && Array.isArray(budget.interval_training) && budget.interval_training.length > 0)) && (
-              <div className="mt-4 pt-4 border-t border-slate-200/60">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Steps Goal and Instructions - Left Side */}
-                  {(stepsGoal || stepsInstructions?.trim()) && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Footprints className="h-4 w-4 text-cyan-600" />
-                        <span className="text-sm font-semibold text-slate-800">יעד צעדים</span>
-                      </div>
-                      {stepsGoal && (
-                        <div className="mb-3">
-                          <p className="text-2xl font-bold text-cyan-700 leading-none">
-                            {stepsGoal.toLocaleString()}
-                          </p>
-                          <p className="text-[10px] text-gray-500 mt-1">צעדים ליום</p>
-                        </div>
-                      )}
-                      {stepsInstructions?.trim() && (
-                        <div className="mt-2 pt-2 border-t border-cyan-100/60">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">הוראות צעדים</p>
-                          </div>
-                          <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap" dir="rtl">
-                            {stepsInstructions}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Cardio and Interval Training Summary - Right Side */}
-                  {((budget.cardio_training && Array.isArray(budget.cardio_training) && budget.cardio_training.length > 0) ||
-                    (budget.interval_training && Array.isArray(budget.interval_training) && budget.interval_training.length > 0)) && (
-                    <div className="space-y-1.5">
-                      {budget.cardio_training && Array.isArray(budget.cardio_training) && budget.cardio_training.length > 0 && (
-                        <div>
-                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אירובי:</span>
-                          <div className="mt-1 space-y-1">
-                            {budget.cardio_training.map((cardio: any, idx: number) => (
-                              <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-red-100">
-                                <span className="font-medium">{cardio.name || 'אירובי'}</span>
-                                {cardio.duration_minutes && <span className="mr-1"> • {cardio.duration_minutes} דקות</span>}
-                                {cardio.period_type && <span className="mr-1"> • {cardio.period_type}</span>}
-                                {cardio.notes && <span className="mr-1 text-slate-500"> • ({cardio.notes})</span>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {budget.interval_training && Array.isArray(budget.interval_training) && budget.interval_training.length > 0 && (
-                        <div>
-                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">אינטרוולים:</span>
-                          <div className="mt-1 space-y-1">
-                            {budget.interval_training.map((interval: any, idx: number) => (
-                              <div key={idx} className="text-sm text-slate-700 bg-white rounded px-2 py-1.5 border border-yellow-100">
-                                <span className="font-medium">{interval.name || 'אינטרוול'}</span>
-                                {interval.duration_minutes && <span className="mr-1"> • {interval.duration_minutes} דקות</span>}
-                                {interval.period_type && <span className="mr-1"> • {interval.period_type}</span>}
-                                {interval.notes && <span className="mr-1 text-slate-500"> • ({interval.notes})</span>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Nutrition Targets and Supplements - Side by Side */}
+      {/* Use BudgetPrintContent component directly */}
+      {fullBudget && (
+        <div className="budget-print-content">
+          <BudgetPrintContent
+            budget={fullBudget}
+            nutritionTemplate={nutritionTemplate}
+            workoutTemplate={workoutTemplate}
+            workoutPlan={workoutPlanForPrint}
+            workoutData={workoutData}
+            clientName={clientName}
+            assignedDate={budgetAssignment?.assigned_at || null}
+          />
+        </div>
+      )}
+      
+      {/* Legacy content - Hidden for now */}
+      <div className="hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Nutrition Targets - Left Side */}
             <div>
@@ -432,8 +395,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Workout Plan Section */}
       {budget.workout_template_id && (
@@ -465,6 +427,187 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
           )}
         </div>
       )}
+      
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4;
+            margin: 0.5cm;
+          }
+          
+          /* Hide all fixed/sticky elements (buttons, sidebars, etc.) */
+          [class*="fixed"],
+          [class*="sticky"],
+          button,
+          nav,
+          aside,
+          .print\\:hidden {
+            display: none !important;
+          }
+          
+          /* Hide everything by default, then show only budget print content */
+          /* Use a more specific approach - hide parent containers */
+          body > div:first-child {
+            display: contents !important;
+          }
+          
+          /* Show only the budget print content */
+          .budget-print-content {
+            display: block !important;
+            position: relative !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            page-break-inside: auto !important;
+          }
+          
+          /* Hide all siblings of budget-print-content */
+          .budget-print-content ~ * {
+            display: none !important;
+          }
+          
+          /* Hide parent wrappers that don't contain budget-print-content */
+          /* This targets the space-y-4 div and other wrappers */
+          div.space-y-4 > *:not(.budget-print-content) {
+            display: none !important;
+          }
+          
+          /* Remove all margins and padding from body/html when printing */
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Ensure parent containers don't interfere */
+          body > div,
+          body > div > div {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          .print\\:hidden {
+            display: none !important;
+          }
+          
+          .print\\:bg-white {
+            background: white !important;
+          }
+          
+          .print\\:bg-gray-50 {
+            background: #f9fafb !important;
+          }
+          
+          .print\\:shadow-xl {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+          }
+          
+          .print\\:rounded-xl {
+            border-radius: 0.75rem !important;
+          }
+          
+          .print\\:p-4 {
+            padding: 1rem !important;
+          }
+          
+          .print\\:p-6 {
+            padding: 1.5rem !important;
+          }
+          
+          .print-header-bg {
+            background: #E96A8F !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Preserve all colors and backgrounds */
+          [class*="bg-"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Preserve borders */
+          [class*="border"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Preserve text colors */
+          [class*="text-"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          .print\\:break-inside-avoid {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          
+          .print\\:break-inside-auto {
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+          
+          .print\\:break-after-avoid {
+            break-after: avoid;
+            page-break-after: avoid;
+          }
+          
+          .print\\:break-after-auto {
+            break-after: auto;
+            page-break-after: auto;
+          }
+          
+          .print\\:w-24 {
+            width: 6rem !important;
+          }
+          
+          .print\\:h-24 {
+            height: 6rem !important;
+          }
+          
+          /* Allow tables to break across pages but keep rows together */
+          table {
+            page-break-inside: auto;
+          }
+          
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          
+          thead {
+            display: table-header-group;
+          }
+          
+          tfoot {
+            display: table-footer-group;
+          }
+          
+          .page-number::after {
+            content: counter(page);
+          }
+          
+          /* Page counter setup */
+          body {
+            counter-reset: page;
+          }
+          
+          @page {
+            counter-increment: page;
+          }
+        }
+      `}</style>
     </div>
   );
 };

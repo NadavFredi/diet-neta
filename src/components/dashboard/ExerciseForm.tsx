@@ -10,7 +10,7 @@ import type { Exercise } from '@/hooks/useExercises';
 interface ExerciseFormProps {
   mode: 'create' | 'edit';
   initialData?: Exercise | null;
-  onSave: (data: { name: string; repetitions?: number | null; weight?: number | null; image?: string | null; video_link?: string | null }) => void;
+  onSave: (data: { name: string; repetitions_min?: number | null; repetitions_max?: number | null; weight?: number | null; image?: string | null; video_link?: string | null; category?: string | null }) => void;
   onCancel: () => void;
 }
 
@@ -22,29 +22,37 @@ export const ExerciseForm = ({
 }: ExerciseFormProps) => {
   const { toast } = useToast();
   const [name, setName] = useState('');
-  const [repetitions, setRepetitions] = useState<number | null>(null);
+  const [repetitionsMin, setRepetitionsMin] = useState<number | null>(null);
+  const [repetitionsMax, setRepetitionsMax] = useState<number | null>(null);
   const [weight, setWeight] = useState<number | null>(null);
   const [image, setImage] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [videoLink, setVideoLink] = useState('');
+  const [category, setCategory] = useState('');
   const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initialData) {
       setName(initialData.name || '');
-      setRepetitions(initialData.repetitions ?? null);
+      // For backward compatibility, if repetitions exists, use it as both min and max
+      const reps = initialData.repetitions ?? null;
+      setRepetitionsMin(reps);
+      setRepetitionsMax(reps);
       setWeight(initialData.weight ?? null);
       setImage(initialData.image || '');
       setImagePreview(initialData.image || null);
       setVideoLink(initialData.video_link || '');
+      setCategory(initialData.category || '');
     } else {
       setName('');
-      setRepetitions(null);
+      setRepetitionsMin(null);
+      setRepetitionsMax(null);
       setWeight(null);
       setImage('');
       setImagePreview(null);
       setVideoLink('');
+      setCategory('');
     }
   }, [initialData]);
 
@@ -141,10 +149,12 @@ export const ExerciseForm = ({
 
     onSave({
       name: name.trim(),
-      repetitions: repetitions || null,
+      repetitions_min: repetitionsMin || null,
+      repetitions_max: repetitionsMax || null,
       weight: weight || null,
       image: image.trim() || null,
       video_link: videoLink.trim() || null,
+      category: category.trim() || null,
     });
   };
 
@@ -169,18 +179,35 @@ export const ExerciseForm = ({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="repetitions" className="text-sm font-medium mb-2 block">
-              חזרות
+              חזרות (טווח)
             </Label>
-            <Input
-              id="repetitions"
-              type="number"
-              min="0"
-              value={repetitions ?? ''}
-              onChange={(e) => setRepetitions(e.target.value ? parseInt(e.target.value) : null)}
-              placeholder="מספר חזרות"
-              dir="rtl"
-              className="w-full"
-            />
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Input
+                  id="repetitions_min"
+                  type="number"
+                  min="0"
+                  value={repetitionsMin ?? ''}
+                  onChange={(e) => setRepetitionsMin(e.target.value ? parseInt(e.target.value) : null)}
+                  placeholder="מינימום"
+                  dir="rtl"
+                  className="w-full"
+                />
+              </div>
+              <span className="text-gray-500">-</span>
+              <div className="flex-1">
+                <Input
+                  id="repetitions_max"
+                  type="number"
+                  min="0"
+                  value={repetitionsMax ?? ''}
+                  onChange={(e) => setRepetitionsMax(e.target.value ? parseInt(e.target.value) : null)}
+                  placeholder="מקסימום"
+                  dir="rtl"
+                  className="w-full"
+                />
+              </div>
+            </div>
           </div>
 
           <div>
@@ -290,6 +317,22 @@ export const ExerciseForm = ({
             dir="rtl"
             className="w-full"
           />
+        </div>
+
+        <div>
+          <Label htmlFor="category" className="text-sm font-medium mb-2 block">
+            קטגוריה
+          </Label>
+          <Input
+            id="category"
+            type="text"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="הכנס קטגוריה (למשל: חזה, רגליים, גב)"
+            dir="rtl"
+            className="w-full"
+          />
+          <p className="text-xs text-gray-500 mt-1">קטגוריה עוזרת לארגן ולסנן תרגילים</p>
         </div>
       </div>
 

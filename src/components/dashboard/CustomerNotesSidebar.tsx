@@ -115,13 +115,13 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
   const [newNoteContent, setNewNoteContent] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
-  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [attachmentPreviews, setAttachmentPreviews] = useState<Map<number, string>>(new Map());
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
-  const [editingAttachmentFile, setEditingAttachmentFile] = useState<File | null>(null);
-  const [editingAttachmentPreview, setEditingAttachmentPreview] = useState<string | null>(null);
-  const [editingExistingAttachmentUrl, setEditingExistingAttachmentUrl] = useState<string | null>(null);
-  const [originalAttachmentUrl, setOriginalAttachmentUrl] = useState<string | null>(null);
+  const [editingAttachmentFiles, setEditingAttachmentFiles] = useState<File[]>([]);
+  const [editingAttachmentPreviews, setEditingAttachmentPreviews] = useState<Map<number, string>>(new Map());
+  const [editingExistingAttachmentUrls, setEditingExistingAttachmentUrls] = useState<string[]>([]);
+  const [originalAttachmentUrls, setOriginalAttachmentUrls] = useState<string[]>([]);
   const [isUploadingEditAttachment, setIsUploadingEditAttachment] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -149,76 +149,99 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Handle file selection
-  const handleFileSelect = async (file: File) => {
-    // Validate file type
+  // Handle file selection (multiple files)
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
     const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     const validDocTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     
-    if (!validImageTypes.includes(file.type) && !validDocTypes.includes(file.type)) {
-      toast({
-        title: 'סוג קובץ לא נתמך',
-        description: 'אנא העלה תמונה או מסמך (PDF, Word)',
-        variant: 'destructive',
-      });
-      return;
-    }
+    const newFiles: File[] = [];
+    const newPreviews = new Map(attachmentPreviews);
+    
+    Array.from(files).forEach((file, index) => {
+      // Validate file type
+      if (!validImageTypes.includes(file.type) && !validDocTypes.includes(file.type)) {
+        toast({
+          title: 'סוג קובץ לא נתמך',
+          description: `הקובץ "${file.name}" אינו נתמך. אנא העלה תמונה או מסמך (PDF, Word)`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
-    // Validate file size (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'קובץ גדול מדי',
-        description: 'גודל הקובץ לא יכול לעלות על 10MB',
-        variant: 'destructive',
-      });
-      return;
-    }
+      // Validate file size (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: 'קובץ גדול מדי',
+          description: `הקובץ "${file.name}" גדול מדי. גודל הקובץ לא יכול לעלות על 10MB`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
-    setAttachmentFile(file);
+      newFiles.push(file);
+      const fileIndex = attachmentFiles.length + newFiles.length - 1;
 
-    // Create preview for images
-    if (validImageTypes.includes(file.type)) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setAttachmentPreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setAttachmentPreview(null);
+      // Create preview for images
+      if (validImageTypes.includes(file.type)) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          newPreviews.set(fileIndex, e.target?.result as string);
+          setAttachmentPreviews(new Map(newPreviews));
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    if (newFiles.length > 0) {
+      setAttachmentFiles([...attachmentFiles, ...newFiles]);
     }
   };
 
-  // Upload attachment to Supabase Storage
-  const uploadAttachment = async (file: File): Promise<string | null> => {
-    if (!customerId) return null;
+  // Upload multiple attachments to Supabase Storage
+  const uploadAttachments = async (files: File[]): Promise<string[]> => {
+    if (!customerId || files.length === 0) return [];
 
     try {
       setIsUploadingAttachment(true);
+      const uploadedPaths: string[] = [];
 
-      // Generate unique filename
-      const timestamp = Date.now();
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${timestamp}.${fileExt}`;
-      const filePath = `${customerId}/notes/${fileName}`;
+      for (const file of files) {
+        // Generate unique filename
+        const timestamp = Date.now() + Math.random();
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${timestamp}.${fileExt}`;
+        const filePath = `${customerId}/notes/${fileName}`;
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('client-assets')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('client-assets')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
 
-      if (uploadError) throw uploadError;
+        if (uploadError) {
+          toast({
+            title: 'שגיאה',
+            description: `נכשל בהעלאת "${file.name}": ${uploadError.message}`,
+            variant: 'destructive',
+          });
+          continue;
+        }
 
-      return filePath;
+        uploadedPaths.push(filePath);
+      }
+
+      return uploadedPaths;
     } catch (error: any) {
       toast({
         title: 'שגיאה',
-        description: error?.message || 'לא ניתן היה להעלות את הקובץ',
+        description: error?.message || 'לא ניתן היה להעלות את הקבצים',
         variant: 'destructive',
       });
-      return null;
+      return [];
     } finally {
       setIsUploadingAttachment(false);
     }
@@ -261,19 +284,21 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
       e.stopPropagation();
     }
     
-    if (!customerId || (!newNoteContent.trim() && !attachmentFile) || isSubmitting) return;
+    if (!customerId || (!newNoteContent.trim() && attachmentFiles.length === 0) || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
-      // Upload attachment if present
+      // Upload attachments if present
       let attachmentUrl: string | null = null;
-      if (attachmentFile) {
-        attachmentUrl = await uploadAttachment(attachmentFile);
-        if (!attachmentUrl && attachmentFile) {
-          // If upload failed, don't create the note
+      if (attachmentFiles.length > 0) {
+        const uploadedPaths = await uploadAttachments(attachmentFiles);
+        if (uploadedPaths.length === 0 && attachmentFiles.length > 0) {
+          // If all uploads failed, don't create the note
           setIsSubmitting(false);
           return;
         }
+        // Store as JSON array
+        attachmentUrl = JSON.stringify(uploadedPaths);
       }
 
       // When adding a note:
@@ -301,8 +326,8 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
       ).unwrap();
       
       setNewNoteContent('');
-      setAttachmentFile(null);
-      setAttachmentPreview(null);
+      setAttachmentFiles([]);
+      setAttachmentPreviews(new Map());
       
       // Clear textarea focus
       if (textareaRef.current) {
@@ -333,64 +358,86 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
   const handleStartEdit = (note: CustomerNote) => {
     setEditingNoteId(note.id);
     setEditingContent(note.content);
-    setEditingAttachmentFile(null);
-    setEditingAttachmentPreview(null);
-    setEditingExistingAttachmentUrl(note.attachment_url || null);
-    setOriginalAttachmentUrl(note.attachment_url || null);
+    setEditingAttachmentFiles([]);
+    setEditingAttachmentPreviews(new Map());
+    
+    // Parse existing attachment URLs (could be single string or JSON array)
+    let existingUrls: string[] = [];
+    if (note.attachment_url) {
+      try {
+        const parsed = JSON.parse(note.attachment_url);
+        existingUrls = Array.isArray(parsed) ? parsed : [note.attachment_url];
+      } catch {
+        existingUrls = [note.attachment_url];
+      }
+    }
+    setEditingExistingAttachmentUrls(existingUrls);
+    setOriginalAttachmentUrls(existingUrls);
   };
 
   const handleCancelEdit = () => {
     setEditingNoteId(null);
     setEditingContent('');
-    setEditingAttachmentFile(null);
-    setEditingAttachmentPreview(null);
-    setEditingExistingAttachmentUrl(null);
-    setOriginalAttachmentUrl(null);
+    setEditingAttachmentFiles([]);
+    setEditingAttachmentPreviews(new Map());
+    setEditingExistingAttachmentUrls([]);
+    setOriginalAttachmentUrls([]);
     if (editFileInputRef.current) {
       editFileInputRef.current.value = '';
     }
   };
 
-  const handleEditFileSelect = async (file: File) => {
-    // Validate file type
+  const handleEditFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
     const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     const validDocTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     
-    if (!validImageTypes.includes(file.type) && !validDocTypes.includes(file.type)) {
-      toast({
-        title: 'סוג קובץ לא נתמך',
-        description: 'אנא העלה תמונה או מסמך (PDF, Word)',
-        variant: 'destructive',
-      });
-      return;
-    }
+    const newFiles: File[] = [];
+    const newPreviews = new Map(editingAttachmentPreviews);
+    
+    Array.from(files).forEach((file, index) => {
+      // Validate file type
+      if (!validImageTypes.includes(file.type) && !validDocTypes.includes(file.type)) {
+        toast({
+          title: 'סוג קובץ לא נתמך',
+          description: `הקובץ "${file.name}" אינו נתמך. אנא העלה תמונה או מסמך (PDF, Word)`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
-    // Validate file size (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'קובץ גדול מדי',
-        description: 'גודל הקובץ לא יכול לעלות על 10MB',
-        variant: 'destructive',
-      });
-      return;
-    }
+      // Validate file size (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: 'קובץ גדול מדי',
+          description: `הקובץ "${file.name}" גדול מדי. גודל הקובץ לא יכול לעלות על 10MB`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
-    setEditingAttachmentFile(file);
+      newFiles.push(file);
+      const fileIndex = editingAttachmentFiles.length + newFiles.length - 1;
 
-    // Create preview for images
-    if (validImageTypes.includes(file.type)) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setEditingAttachmentPreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setEditingAttachmentPreview(null);
+      // Create preview for images
+      if (validImageTypes.includes(file.type)) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          newPreviews.set(fileIndex, e.target?.result as string);
+          setEditingAttachmentPreviews(new Map(newPreviews));
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    if (newFiles.length > 0) {
+      setEditingAttachmentFiles([...editingAttachmentFiles, ...newFiles]);
     }
   };
 
   const handleSaveEdit = async (noteId: string) => {
-    if (!editingContent.trim() && !editingAttachmentFile && !editingExistingAttachmentUrl) {
+    if (!editingContent.trim() && editingAttachmentFiles.length === 0 && editingExistingAttachmentUrls.length === 0) {
       handleCancelEdit();
       return;
     }
@@ -398,32 +445,30 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
     try {
       setIsUploadingEditAttachment(true);
       
-      // Handle attachment: upload new file, keep existing, or remove
+      // Handle attachments: upload new files, keep existing, or remove
       let attachmentUrl: string | null = null;
+      const allAttachmentUrls: string[] = [...editingExistingAttachmentUrls];
       
-      if (editingAttachmentFile) {
-        // New file selected - upload it
-        attachmentUrl = await uploadAttachment(editingAttachmentFile);
-        if (!attachmentUrl && editingAttachmentFile) {
-          // If upload failed, don't update the note
-          setIsUploadingEditAttachment(false);
-          return;
-        }
-        
-        // Delete old attachment if it existed originally
-        if (originalAttachmentUrl) {
-          await deleteAttachment(originalAttachmentUrl);
-        }
-      } else if (editingExistingAttachmentUrl) {
-        // Keep existing attachment
-        attachmentUrl = editingExistingAttachmentUrl;
+      if (editingAttachmentFiles.length > 0) {
+        // Upload new files
+        const uploadedPaths = await uploadAttachments(editingAttachmentFiles);
+        allAttachmentUrls.push(...uploadedPaths);
+      }
+      
+      // Delete old attachments that were removed
+      const removedUrls = originalAttachmentUrls.filter(url => !editingExistingAttachmentUrls.includes(url));
+      for (const url of removedUrls) {
+        await deleteAttachment(url);
+      }
+      
+      // Store as JSON array if there are attachments
+      if (allAttachmentUrls.length > 0) {
+        attachmentUrl = JSON.stringify(allAttachmentUrls);
       } else {
-        // No attachment - explicitly set to null to remove if it existed
         attachmentUrl = null;
-        
-        // Delete old attachment if it existed originally
-        if (originalAttachmentUrl) {
-          await deleteAttachment(originalAttachmentUrl);
+        // Delete all original attachments if no attachments remain
+        for (const url of originalAttachmentUrls) {
+          await deleteAttachment(url);
         }
       }
 
@@ -437,10 +482,10 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
       
       setEditingNoteId(null);
       setEditingContent('');
-      setEditingAttachmentFile(null);
-      setEditingAttachmentPreview(null);
-      setEditingExistingAttachmentUrl(null);
-      setOriginalAttachmentUrl(null);
+      setEditingAttachmentFiles([]);
+      setEditingAttachmentPreviews(new Map());
+      setEditingExistingAttachmentUrls([]);
+      setOriginalAttachmentUrls([]);
       
       if (editFileInputRef.current) {
         editFileInputRef.current.value = '';
@@ -460,18 +505,31 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
     }
   };
 
-  const handleDeleteAttachment = async (note: CustomerNote) => {
+  const handleDeleteAttachment = async (note: CustomerNote, attachmentUrlToDelete: string) => {
     if (!note.attachment_url) return;
 
     if (!confirm('האם אתה בטוח שברצונך למחוק את הקובץ המצורף?')) return;
 
     try {
+      // Parse attachment URLs
+      let attachmentUrls: string[] = [];
+      try {
+        const parsed = JSON.parse(note.attachment_url);
+        attachmentUrls = Array.isArray(parsed) ? parsed : [note.attachment_url];
+      } catch {
+        attachmentUrls = [note.attachment_url];
+      }
+      
+      // Remove the specific attachment
+      const remainingUrls = attachmentUrls.filter(url => url !== attachmentUrlToDelete);
+      
       // Delete from storage
-      await deleteAttachment(note.attachment_url!);
+      await deleteAttachment(attachmentUrlToDelete);
 
-      // Update note to remove attachment_url
+      // Update note with remaining attachments
+      const newAttachmentUrl = remainingUrls.length > 0 ? JSON.stringify(remainingUrls) : null;
       await dispatch(
-        updateCustomerNote({ noteId: note.id, content: note.content, attachmentUrl: null })
+        updateCustomerNote({ noteId: note.id, content: note.content, attachmentUrl: newAttachmentUrl })
       ).unwrap();
 
       toast({
@@ -670,12 +728,10 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    handleFileSelect(file);
-                  }
+                  handleFileSelect(e.target.files);
                 }}
                 className="hidden"
               />
@@ -691,52 +747,56 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
               </Button>
             </div>
 
-            {/* Attachment Preview */}
-            {attachmentPreview && (
-              <div className="relative inline-block rounded-md border border-gray-200 p-2">
-                <img
-                  src={attachmentPreview}
-                  alt="Preview"
-                  className="h-20 w-20 object-cover rounded"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setAttachmentFile(null);
-                    setAttachmentPreview(null);
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = '';
-                    }
-                  }}
-                  className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 hover:bg-red-600 text-white rounded-full"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            )}
-
-            {attachmentFile && !attachmentPreview && (
-              <div className="relative inline-flex items-center gap-2 rounded-md border border-gray-200 p-2">
-                <File className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-700 truncate max-w-[200px]">
-                  {attachmentFile.name}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setAttachmentFile(null);
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = '';
-                    }
-                  }}
-                  className="h-6 w-6 text-red-500 hover:text-red-600"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+            {/* Attachment Previews */}
+            {attachmentFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {attachmentFiles.map((file, index) => {
+                  const preview = attachmentPreviews.get(index);
+                  return (
+                    <div key={index} className="relative inline-block rounded-md border border-gray-200 p-2">
+                      {preview ? (
+                        <img
+                          src={preview}
+                          alt="Preview"
+                          className="h-20 w-20 object-cover rounded"
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2 h-20 px-2">
+                          <File className="h-4 w-4 text-gray-500" />
+                          <span className="text-xs text-gray-700 truncate max-w-[120px]">
+                            {file.name}
+                          </span>
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const newFiles = attachmentFiles.filter((_, i) => i !== index);
+                          const newPreviews = new Map(attachmentPreviews);
+                          newPreviews.delete(index);
+                          // Reindex previews
+                          const reindexedPreviews = new Map<number, string>();
+                          newFiles.forEach((_, i) => {
+                            const oldIndex = i >= index ? i + 1 : i;
+                            if (attachmentPreviews.has(oldIndex)) {
+                              reindexedPreviews.set(i, attachmentPreviews.get(oldIndex)!);
+                            }
+                          });
+                          setAttachmentFiles(newFiles);
+                          setAttachmentPreviews(reindexedPreviews);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
+                        }}
+                        className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 hover:bg-red-600 text-white rounded-full"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -747,7 +807,7 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
               type="button"
               size="sm"
               onClick={(e) => handleAddNote(e)}
-              disabled={(!newNoteContent.trim() && !attachmentFile) || isLoading || isSubmitting || isUploadingAttachment}
+              disabled={(!newNoteContent.trim() && attachmentFiles.length === 0) || isLoading || isSubmitting || isUploadingAttachment}
               className="bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white border-0 rounded-md h-8 px-4 text-xs font-medium w-full flex items-center justify-center gap-1.5"
             >
               {isSubmitting || isUploadingAttachment ? (
@@ -820,12 +880,10 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                         <input
                           ref={editFileInputRef}
                           type="file"
+                          multiple
                           accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                           onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              handleEditFileSelect(file);
-                            }
+                            handleEditFileSelect(e.target.files);
                           }}
                           className="hidden"
                         />
@@ -841,68 +899,77 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                         </Button>
                       </div>
 
-                      {/* Existing Attachment Display in Edit Mode */}
-                      {editingExistingAttachmentUrl && !editingAttachmentFile && (
-                        <div className="relative">
-                          <AttachmentDisplay
-                            attachmentUrl={editingExistingAttachmentUrl}
-                            onDelete={() => {
-                              setEditingExistingAttachmentUrl(null);
-                            }}
-                            onViewImage={(url) => {
-                              setLightboxImage(url);
-                              setLightboxOpen(true);
-                            }}
-                          />
+                      {/* Existing Attachments Display in Edit Mode */}
+                      {editingExistingAttachmentUrls.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {editingExistingAttachmentUrls.map((url, index) => (
+                            <div key={index} className="relative">
+                              <AttachmentDisplay
+                                attachmentUrl={url}
+                                onDelete={() => {
+                                  const newUrls = editingExistingAttachmentUrls.filter((_, i) => i !== index);
+                                  setEditingExistingAttachmentUrls(newUrls);
+                                }}
+                                onViewImage={(url) => {
+                                  setLightboxImage(url);
+                                  setLightboxOpen(true);
+                                }}
+                              />
+                            </div>
+                          ))}
                         </div>
                       )}
 
-                      {/* New Attachment Preview in Edit Mode */}
-                      {editingAttachmentPreview && (
-                        <div className="relative inline-block rounded-md border border-gray-200 p-2">
-                          <img
-                            src={editingAttachmentPreview}
-                            alt="Preview"
-                            className="h-20 w-20 object-cover rounded"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setEditingAttachmentFile(null);
-                              setEditingAttachmentPreview(null);
-                              if (editFileInputRef.current) {
-                                editFileInputRef.current.value = '';
-                              }
-                            }}
-                            className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 hover:bg-red-600 text-white rounded-full"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
-
-                      {editingAttachmentFile && !editingAttachmentPreview && (
-                        <div className="relative inline-flex items-center gap-2 rounded-md border border-gray-200 p-2">
-                          <File className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm text-gray-700 truncate max-w-[200px]">
-                            {editingAttachmentFile.name}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setEditingAttachmentFile(null);
-                              if (editFileInputRef.current) {
-                                editFileInputRef.current.value = '';
-                              }
-                            }}
-                            className="h-6 w-6 text-red-500 hover:text-red-600"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
+                      {/* New Attachment Previews in Edit Mode */}
+                      {editingAttachmentFiles.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {editingAttachmentFiles.map((file, index) => {
+                            const preview = editingAttachmentPreviews.get(index);
+                            return (
+                              <div key={index} className="relative inline-block rounded-md border border-gray-200 p-2">
+                                {preview ? (
+                                  <img
+                                    src={preview}
+                                    alt="Preview"
+                                    className="h-20 w-20 object-cover rounded"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-2 h-20 px-2">
+                                    <File className="h-4 w-4 text-gray-500" />
+                                    <span className="text-xs text-gray-700 truncate max-w-[120px]">
+                                      {file.name}
+                                    </span>
+                                  </div>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    const newFiles = editingAttachmentFiles.filter((_, i) => i !== index);
+                                    const newPreviews = new Map(editingAttachmentPreviews);
+                                    newPreviews.delete(index);
+                                    // Reindex previews
+                                    const reindexedPreviews = new Map<number, string>();
+                                    newFiles.forEach((_, i) => {
+                                      const oldIndex = i >= index ? i + 1 : i;
+                                      if (editingAttachmentPreviews.has(oldIndex)) {
+                                        reindexedPreviews.set(i, editingAttachmentPreviews.get(oldIndex)!);
+                                      }
+                                    });
+                                    setEditingAttachmentFiles(newFiles);
+                                    setEditingAttachmentPreviews(reindexedPreviews);
+                                    if (editFileInputRef.current) {
+                                      editFileInputRef.current.value = '';
+                                    }
+                                  }}
+                                  className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 hover:bg-red-600 text-white rounded-full"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 
@@ -919,7 +986,7 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                         <Button
                           size="sm"
                           onClick={() => handleSaveEdit(note.id)}
-                          disabled={(!editingContent.trim() && !editingAttachmentFile && !editingExistingAttachmentUrl) || isUploadingEditAttachment}
+                          disabled={(!editingContent.trim() && editingAttachmentFiles.length === 0 && editingExistingAttachmentUrls.length === 0) || isUploadingEditAttachment}
                           className="h-7 px-3 bg-[#5B6FB9] hover:bg-[#5B6FB9]/90 text-white text-xs"
                         >
                           {isUploadingEditAttachment ? (
@@ -953,17 +1020,40 @@ export const CustomerNotesSidebar: React.FC<CustomerNotesSidebarProps> = ({
                           </p>
                         )}
 
-                        {/* Attachment Display */}
-                        {note.attachment_url && (
-                          <AttachmentDisplay
-                            attachmentUrl={note.attachment_url}
-                            onDelete={() => handleDeleteAttachment(note)}
-                            onViewImage={(url) => {
-                              setLightboxImage(url);
-                              setLightboxOpen(true);
-                            }}
-                          />
-                        )}
+                        {/* Attachments Display */}
+                        {note.attachment_url && (() => {
+                          // Parse attachment URLs (could be single string or JSON array)
+                          let attachmentUrls: string[] = [];
+                          try {
+                            const parsed = JSON.parse(note.attachment_url);
+                            attachmentUrls = Array.isArray(parsed) ? parsed : [note.attachment_url];
+                          } catch {
+                            attachmentUrls = [note.attachment_url];
+                          }
+                          
+                          return (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {attachmentUrls.map((url, index) => (
+                                <AttachmentDisplay
+                                  key={index}
+                                  attachmentUrl={url}
+                                  onDelete={() => {
+                                    // Remove this specific attachment
+                                    const remainingUrls = attachmentUrls.filter((_, i) => i !== index);
+                                    const newAttachmentUrl = remainingUrls.length > 0 ? JSON.stringify(remainingUrls) : null;
+                                    dispatch(updateCustomerNote({ noteId: note.id, content: note.content, attachmentUrl: newAttachmentUrl }));
+                                    // Delete from storage
+                                    deleteAttachment(url);
+                                  }}
+                                  onViewImage={(url) => {
+                                    setLightboxImage(url);
+                                    setLightboxOpen(true);
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          );
+                        })()}
 
                         {/* Edited indicator if applicable - RTL aligned */}
                         {note.updated_at !== note.created_at && (

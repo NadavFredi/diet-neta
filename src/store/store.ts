@@ -15,6 +15,7 @@ import paymentReducer from './slices/paymentSlice';
 import budgetReducer from './slices/budgetSlice';
 import subscriptionTypesReducer from './slices/subscriptionTypesSlice';
 import notificationReducer from './slices/notificationSlice';
+import calendarReducer from './slices/calendarSlice';
 
 export const store = configureStore({
   reducer: {
@@ -33,6 +34,7 @@ export const store = configureStore({
     budget: budgetReducer,
     subscriptionTypes: subscriptionTypesReducer,
     notifications: notificationReducer,
+    calendar: calendarReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => {

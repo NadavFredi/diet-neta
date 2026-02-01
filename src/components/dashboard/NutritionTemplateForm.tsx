@@ -92,9 +92,15 @@ export const NutritionTemplateForm = ({
   onSave,
   onCancel,
 }: NutritionTemplateFormProps) => {
+  console.log('[NutritionTemplateForm] initialData received:', initialData);
+  console.log('[NutritionTemplateForm] initialData keys:', initialData ? Object.keys(initialData) : 'N/A');
+  console.log('[NutritionTemplateForm] has calculator_inputs?', initialData && 'calculator_inputs' in initialData);
+  console.log('[NutritionTemplateForm] calculator_inputs value:', initialData && 'calculator_inputs' in initialData ? (initialData as any).calculator_inputs : 'N/A');
+  
   const {
     name,
     description,
+    nutrition_notes,
     targets,
     manualOverride,
     manualFields,
@@ -103,6 +109,7 @@ export const NutritionTemplateForm = ({
     calculatorOpen,
     setName,
     setDescription,
+    setNutritionNotes,
     setTarget,
     setManualOverride,
     setManualField,
@@ -121,8 +128,18 @@ export const NutritionTemplateForm = ({
     getNutritionData,
     macroPercentages,
   } = useNutritionBuilder(mode, initialData);
+  
+  console.log('[NutritionTemplateForm] calculatorInputs from hook:', calculatorInputs);
+  console.log('[NutritionTemplateForm] calculatorInputs.weight:', calculatorInputs?.weight);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Log when calculatorInputs changes
+  useEffect(() => {
+    console.log('[NutritionTemplateForm] calculatorInputs changed:', calculatorInputs);
+    console.log('[NutritionTemplateForm] calculatorInputs.weight:', calculatorInputs?.weight);
+    console.log('[NutritionTemplateForm] Input will render with weight value:', calculatorInputs?.weight || '');
+  }, [calculatorInputs]);
 
   // Local state for input values to prevent focus loss while typing
   const [localInputValues, setLocalInputValues] = useState<Record<string, { mets?: string; minutes?: string }>>({});
@@ -328,9 +345,13 @@ export const NutritionTemplateForm = ({
       await new Promise(resolve => setTimeout(resolve, 50));
 
       const data = getNutritionData(mode);
+      console.log('[handleSubmit] getNutritionData result:', data);
       if (mode === 'template' && data.templateData) {
+        console.log('[handleSubmit] Saving template data:', data.templateData);
         onSave(data.templateData);
       } else if (mode === 'user' && data.userData) {
+        console.log('[handleSubmit] Saving user data:', data.userData);
+        console.log('[handleSubmit] userData.calculator_inputs:', data.userData.calculator_inputs);
         onSave(data.userData);
       } else {
         throw new Error('Invalid data structure');
@@ -361,27 +382,29 @@ export const NutritionTemplateForm = ({
     isManual?: boolean;
     onLockToggle?: () => void;
   }) => {
-    const inputRef = useRef<HTMLInputElement>(null);
     const [localValue, setLocalValue] = useState<string>(value != null ? String(value) : '');
+    const [isFocused, setIsFocused] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Sync local value when prop value changes (but not while user is typing)
     useEffect(() => {
-      if (document.activeElement !== inputRef.current) {
+      if (!isFocused) {
         setLocalValue(value != null ? String(value) : '');
       }
-    }, [value]);
+    }, [value, isFocused]);
 
-    const handleLockToggle = () => {
-      // Save current input value when lock is clicked
-      if (inputRef.current) {
-        const val = inputRef.current.value.trim();
-        const numVal = val === '' ? 0 : parseFloat(val);
-        const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
-        onChange(finalVal);
-        setLocalValue(finalVal === 0 ? '' : String(finalVal));
-      }
-      if (onLockToggle) {
-        onLockToggle();
+    const handleBlur = () => {
+      setIsFocused(false);
+      const numVal = localValue === '' ? 0 : parseFloat(localValue);
+      const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+      onChange(finalVal);
+      setLocalValue(finalVal === 0 ? '' : String(finalVal));
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        inputRef.current?.blur();
       }
     };
 
@@ -405,7 +428,7 @@ export const NutritionTemplateForm = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={handleLockToggle}
+                    onClick={onLockToggle}
                     className="h-6 w-6 p-0"
                   >
                     {isManual ? (
@@ -429,31 +452,20 @@ export const NutritionTemplateForm = ({
               type="text"
               inputMode="decimal"
               value={localValue}
+              onFocus={() => {
+                setIsFocused(true);
+                // Ensure we have the current value when focusing
+                setLocalValue(value != null ? String(value) : '');
+              }}
               onChange={(e) => {
-                const val = (e.target as HTMLInputElement).value;
+                const val = e.target.value;
                 // Allow empty string, numbers, and decimal point while typing
                 if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                  // Update local state only (no parent re-render)
                   setLocalValue(val);
                 }
               }}
-              onKeyDown={(e) => {
-                // Save on Enter key
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  const target = e.target as HTMLInputElement;
-                  const val = target.value.trim();
-                  const numVal = val === '' ? 0 : parseFloat(val);
-                  const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
-                  onChange(finalVal);
-                  setLocalValue(finalVal === 0 ? '' : String(finalVal));
-                  target.blur();
-                }
-              }}
-              onBlur={(e) => {
-                // Don't save on blur - restore original value
-                setLocalValue(value != null ? String(value) : '');
-              }}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
               className="text-xl font-bold text-center h-12 rounded-lg flex-1"
               dir="ltr"
               placeholder="0"
@@ -500,6 +512,21 @@ export const NutritionTemplateForm = ({
             </div>
           </div>
 
+          {/* Nutrition Notes and Instructions */}
+          <div className="mb-3 flex-shrink-0">
+            <Label htmlFor="nutrition_notes" className="text-base font-semibold mb-2 block text-right">
+              הערות והנחיות תזונה
+            </Label>
+            <Textarea
+              id="nutrition_notes"
+              value={nutrition_notes || ''}
+              onChange={(e) => setNutritionNotes(e.target.value)}
+              placeholder="הוסף הערות והנחיות נוספות על התזונה..."
+              className="text-base min-h-[100px] rounded-3xl"
+              dir="rtl"
+            />
+          </div>
+
           {/* Main 3-Column Bento Grid - Fine Grid Layout */}
           <div className="grid grid-cols-3 gap-3 min-h-[600px] auto-rows-fr">
             {/* Right Column: Biometrics + Chart */}
@@ -523,9 +550,14 @@ export const NutritionTemplateForm = ({
                         id="calc-weight"
                         type="number"
                         value={calculatorInputs.weight || ''}
-                        onChange={(e) => setCalculatorInput('weight', parseFloat(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const newValue = parseFloat(e.target.value) || 0;
+                          console.log('[calc-weight] onChange - newValue:', newValue, 'raw:', e.target.value);
+                          setCalculatorInput('weight', newValue);
+                        }}
                         dir="ltr"
                         min="1"
+                        step="0.1"
                         className="h-9 text-base rounded-lg flex-1"
                       />
                     </div>
@@ -540,6 +572,7 @@ export const NutritionTemplateForm = ({
                         onChange={(e) => setCalculatorInput('height', parseFloat(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
+                        step="0.1"
                         className="h-9 text-base rounded-lg flex-1"
                       />
                     </div>
@@ -551,9 +584,10 @@ export const NutritionTemplateForm = ({
                         id="calc-age"
                         type="number"
                         value={calculatorInputs.age || ''}
-                        onChange={(e) => setCalculatorInput('age', parseInt(e.target.value) || 0)}
+                        onChange={(e) => setCalculatorInput('age', parseFloat(e.target.value) || 0)}
                         dir="ltr"
                         min="1"
+                        step="0.1"
                         className="h-9 text-base rounded-lg flex-1"
                       />
                     </div>
@@ -603,6 +637,7 @@ export const NutritionTemplateForm = ({
                           onChange={(e) => setCalculatorInput('waist', parseFloat(e.target.value) || 0)}
                           dir="ltr"
                           min="0"
+                          step="0.1"
                           className="h-9 text-base rounded-lg flex-1"
                         />
                       </div>
@@ -617,6 +652,7 @@ export const NutritionTemplateForm = ({
                           onChange={(e) => setCalculatorInput('neck', parseFloat(e.target.value) || 0)}
                           dir="ltr"
                           min="0"
+                          step="0.1"
                           className="h-9 text-base rounded-lg flex-1"
                         />
                       </div>
@@ -631,6 +667,7 @@ export const NutritionTemplateForm = ({
                           onChange={(e) => setCalculatorInput('hip', parseFloat(e.target.value) || 0)}
                           dir="ltr"
                           min="0"
+                          step="0.1"
                           className="h-9 text-base rounded-lg flex-1"
                         />
                       </div>

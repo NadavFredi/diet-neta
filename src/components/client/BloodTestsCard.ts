@@ -32,11 +32,14 @@ export const useBloodTestsCard = (customerId: string, leads?: Array<{ id: string
       return;
     }
 
-    // Validate file type (PDF only)
-    if (file.type !== 'application/pdf') {
+    // Validate file type (PDF and images)
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const validDocTypes = ['application/pdf'];
+    
+    if (!validImageTypes.includes(file.type) && !validDocTypes.includes(file.type)) {
       toast({
         title: 'סוג קובץ לא נתמך',
-        description: 'אנא העלה קובץ PDF בלבד',
+        description: 'אנא העלה תמונה (JPG, PNG, GIF, WebP) או קובץ PDF',
         variant: 'destructive',
       });
       return;
@@ -72,11 +75,14 @@ export const useBloodTestsCard = (customerId: string, leads?: Array<{ id: string
     }
   };
 
-  // Handle file input change
+  // Handle file input change (multiple files)
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileUpload(file);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      // Upload all selected files
+      Array.from(files).forEach((file) => {
+        handleFileUpload(file);
+      });
     }
     // Reset input
     if (fileInputRef.current) {
@@ -99,9 +105,12 @@ export const useBloodTestsCard = (customerId: string, leads?: Array<{ id: string
     e.preventDefault();
     setIsDragging(false);
 
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      handleFileUpload(file);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      // Upload all dropped files
+      Array.from(files).forEach((file) => {
+        handleFileUpload(file);
+      });
     }
   };
 

@@ -28,6 +28,29 @@ export const exerciseColumns: DataTableColumn<Exercise>[] = [
     },
   },
   {
+    id: 'category',
+    header: 'קטגוריה',
+    accessorKey: 'category',
+    enableSorting: true,
+    enableResizing: true,
+    enableHiding: true,
+    size: 150,
+    meta: {
+      align: 'right',
+    },
+    cell: ({ getValue }) => {
+      const value = getValue() as string | null;
+      if (!value || value.trim() === '') {
+        return <span className="text-gray-400">-</span>;
+      }
+      return (
+        <span className="text-gray-600">
+          {value}
+        </span>
+      );
+    },
+  },
+  {
     id: 'repetitions',
     header: 'חזרות',
     accessorKey: 'repetitions',

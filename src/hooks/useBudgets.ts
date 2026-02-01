@@ -457,6 +457,8 @@ export const useUpdateBudget = () => {
       nutrition_template_id?: string | null;
       nutrition_targets?: NutritionTargets;
       steps_goal?: number;
+      steps_min?: number | null;
+      steps_max?: number | null;
       steps_instructions?: string | null;
       workout_template_id?: string | null;
       supplement_template_id?: string | null;
@@ -465,6 +467,7 @@ export const useUpdateBudget = () => {
       eating_rules?: string | null;
       cardio_training?: CardioTraining[] | null;
       interval_training?: IntervalTraining[] | null;
+      other_notes?: string | null;
       is_public?: boolean;
     }) => {
       if (!user?.id) throw new Error('User not authenticated');

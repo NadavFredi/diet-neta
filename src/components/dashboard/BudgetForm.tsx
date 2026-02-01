@@ -12,6 +12,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -56,6 +62,7 @@ interface BudgetFormProps {
   onSave: (data: any) => Promise<Budget | void> | void;
   onCancel: () => void;
   enableAssignment?: boolean; // Deprecated: kept for backwards compatibility, always allows lead assignment
+  useAccordion?: boolean; // Use accordion layout for narrow modals
 }
 
 // Macro Split Bar Component
@@ -246,18 +253,15 @@ const WorkoutRow = ({ workout, onUpdate, onRemove }: WorkoutRowProps) => {
           className="h-8 bg-white border-0 text-xs"
           dir="ltr"
         />
-        <Select
-          value={workout.period_type || 'לשבוע'}
-          onValueChange={(value) => onUpdate(workout.id, 'period_type', value)}
-        >
-          <SelectTrigger className="h-8 bg-white border-0 text-xs justify-between" dir="rtl">
-            <SelectValue>{workout.period_type || 'לשבוע'}</SelectValue>
-          </SelectTrigger>
-          <SelectContent dir="rtl">
-            <SelectItem value="לשבוע">לשבוע</SelectItem>
-            <SelectItem value="ליום">ליום</SelectItem>
-          </SelectContent>
-        </Select>
+        <Input
+          type="number"
+          min="0"
+          value={workout.workouts_per_week || ''}
+          onChange={(e) => onUpdate(workout.id, 'workouts_per_week', parseInt(e.target.value) || 0)}
+          placeholder="פעמים בשבוע"
+          className="h-8 bg-white border-0 text-xs"
+          dir="ltr"
+        />
         <Input
           value={workout.notes}
           onChange={(e) => onUpdate(workout.id, 'notes', e.target.value)}
@@ -283,7 +287,7 @@ const WorkoutRow = ({ workout, onUpdate, onRemove }: WorkoutRowProps) => {
   );
 };
 
-export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignment = false }: BudgetFormProps) => {
+export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignment = false, useAccordion = false }: BudgetFormProps) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -345,7 +349,8 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
   });
 
   // Steps
-  const [stepsGoal, setStepsGoal] = useState(0);
+  const [stepsMin, setStepsMin] = useState<number | null>(null);
+  const [stepsMax, setStepsMax] = useState<number | null>(null);
   const [stepsInstructions, setStepsInstructions] = useState('');
 
   // Workout
@@ -401,7 +406,19 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         fat: 0,
         fiber_min: 20,
       });
-      setStepsGoal(initialData.steps_goal || 0);
+      // Handle steps - support both old format (steps_goal) and new format (steps_min/steps_max)
+      // For backward compatibility, if steps_goal exists, use it as stepsMax
+      if ((initialData as any).steps_min !== undefined || (initialData as any).steps_max !== undefined) {
+        setStepsMin((initialData as any).steps_min || null);
+        setStepsMax((initialData as any).steps_max || null);
+      } else if (initialData.steps_goal) {
+        // Backward compatibility: use steps_goal as max
+        setStepsMin(null);
+        setStepsMax(initialData.steps_goal);
+      } else {
+        setStepsMin(null);
+        setStepsMax(null);
+      }
       setStepsInstructions(initialData.steps_instructions || '');
       setWorkoutTemplateId(initialData.workout_template_id ?? null);
       setSupplementTemplateId(initialData.supplement_template_id ?? null);
@@ -685,7 +702,9 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
         description: description || null,
         nutrition_template_id: safeNutritionTemplateId,
         nutrition_targets: nutritionTargets,
-        steps_goal: stepsGoal,
+        steps_goal: stepsMax || 0, // Keep for backward compatibility
+        steps_min: stepsMin,
+        steps_max: stepsMax,
         steps_instructions: stepsInstructions || null,
         workout_template_id: safeWorkoutTemplateId,
         supplement_template_id: safeSupplementTemplateId,
@@ -894,18 +913,36 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
 
 
 
+  // Helper functions for accordion previews
+  const getWorkoutTemplateName = () => {
+    if (!workoutTemplateId) return null;
+    const template = workoutTemplates.find(t => t.id === workoutTemplateId) ||
+      (linkedWorkoutTemplate ? linkedWorkoutTemplate : null);
+    return template?.name || null;
+  };
+
+  const getNutritionTemplateName = () => {
+    if (!nutritionTemplateId) return null;
+    const template = nutritionTemplates.find(t => t.id === nutritionTemplateId) ||
+      (linkedNutritionTemplate ? linkedNutritionTemplate : null);
+    return template?.name || null;
+  };
+
+  const getAerobicActivitiesCount = () => {
+    return workoutTrainings.filter(w => w.type === 'erobi' && (w.name.trim() || w.duration_minutes > 0)).length;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-2.5" dir="rtl" style={{ fontFamily: 'Assistant, Heebo, sans-serif' }}>
-      {/* Bento Grid Layout */}
-      <div className="grid grid-cols-2 gap-2.5">
-        {/* Left Column: Basic Info + Eating Guidelines */}
-        <div className="flex flex-col gap-2.5">
-          {/* Card A: General Identity */}
-          <Card className="bg-white border-0 shadow-sm rounded-xl">
-            <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-base font-semibold text-slate-900">מידע בסיסי</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4">
+      {useAccordion ? (
+        /* Accordion Layout for Narrow Modals */
+        <Accordion type="multiple" className="w-full space-y-2 px-2">
+          {/* Basic Info Section */}
+          <AccordionItem value="basic-info" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+            <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
+              מידע בסיסי
+            </AccordionTrigger>
+            <AccordionContent className="space-y-3 pb-4 px-4">
               <div className="space-y-1.5">
                 <Label htmlFor="name" className="text-sm font-medium text-slate-500">שם תכנית הפעולה *</Label>
                 <Input
@@ -921,7 +958,6 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   dir="rtl"
                 />
               </div>
-
               <div className="space-y-1.5">
                 <Label htmlFor="description" className="text-sm font-medium text-slate-500">תיאור</Label>
                 <Textarea
@@ -936,17 +972,17 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   dir="rtl"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </AccordionContent>
+          </AccordionItem>
 
-          {/* Guidelines Card - Moved here */}
-          <Card className="bg-white border-0 shadow-sm rounded-xl">
-            <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-base font-semibold text-slate-900">הנחיות אכילה</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="flex flex-row gap-4">
-                <div className="flex-1 space-y-1.5">
+          {/* Eating Guidelines Section */}
+          <AccordionItem value="eating-guidelines" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+            <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
+              הנחיות אכילה
+            </AccordionTrigger>
+            <AccordionContent className="pb-4 px-4">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
                   <Label htmlFor="eating_order" className="text-sm font-medium text-slate-500">סדר האכילה</Label>
                   <Textarea
                     id="eating_order"
@@ -960,7 +996,7 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                     dir="rtl"
                   />
                 </div>
-                <div className="flex-1 space-y-1.5">
+                <div className="space-y-1.5">
                   <Label htmlFor="eating_rules" className="text-sm font-medium text-slate-500">כללי אכילה</Label>
                   <Textarea
                     id="eating_rules"
@@ -975,35 +1011,64 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   />
                 </div>
               </div>
+            </AccordionContent>
+          </AccordionItem>
 
-            </CardContent>
-          </Card>
-
-          {/* Steps Section - Moved to Left Column */}
-          <Card className="bg-white border-0 shadow-sm rounded-xl">
-            <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                <Footprints className="h-4 w-4 text-slate-400" />
-                יעד צעדים יומי
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-500">יעד צעדים</Label>
-                  <Input
-                    type="number"
-                    value={stepsGoal || ''}
-                    onChange={(e) => setStepsGoal(parseInt(e.target.value) || 0)}
-                    placeholder="לדוגמה: 7000"
-                    className={cn(
-                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
-                      "text-slate-900 font-medium text-sm"
-                    )}
-                    dir="ltr"
-                  />
+          {/* Steps Section */}
+          <AccordionItem value="steps" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+            <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Footprints className="h-4 w-4 text-slate-400" />
+                  יעד צעדים יומי
                 </div>
-
+                <span className="text-sm font-normal text-slate-500">
+                  {stepsMin !== null && stepsMax !== null
+                    ? stepsMin === stepsMax
+                      ? stepsMax.toLocaleString()
+                      : `${stepsMin.toLocaleString()} - ${stepsMax.toLocaleString()}`
+                    : stepsMax !== null
+                      ? `${stepsMax.toLocaleString()}`
+                      : stepsMin !== null
+                        ? `מינימום: ${stepsMin.toLocaleString()}`
+                        : 'לא הוגדר'}
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-3 pb-4 px-4">
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-slate-500">מינימום צעדים</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={stepsMin !== null ? stepsMin : ''}
+                      onChange={(e) => setStepsMin(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="לדוגמה: 5000"
+                      className={cn(
+                        "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                        "text-slate-900 font-medium text-sm"
+                      )}
+                      dir="ltr"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-slate-500">מקסימום צעדים</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={stepsMax !== null ? stepsMax : ''}
+                      onChange={(e) => setStepsMax(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="לדוגמה: 10000"
+                      className={cn(
+                        "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                        "text-slate-900 font-medium text-sm"
+                      )}
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="steps_instructions" className="text-sm font-medium text-slate-500">הוראות צעדים</Label>
                   <Textarea
@@ -1019,218 +1084,626 @@ export const BudgetForm = ({ mode, initialData, onSave, onCancel, enableAssignme
                   />
                 </div>
               </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Training Plan Section */}
+          <AccordionItem value="workout-plan" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+            <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Dumbbell className="h-4 w-4 text-slate-400" />
+                  תכנית אימונים
+                </div>
+                <span className="text-sm font-normal text-slate-500">
+                  {getWorkoutTemplateName() || 'ללא תבנית'}
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-3 pb-4 px-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-500">בחר תבנית אימונים</Label>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={workoutTemplateId || 'none'}
+                    onValueChange={(value) => setWorkoutTemplateId(value === 'none' ? null : value || null)}
+                  >
+                    <SelectTrigger className={cn(
+                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
+                      "text-slate-900 font-medium text-sm"
+                    )} dir="rtl">
+                      <SelectValue placeholder="בחר תבנית אימונים" />
+                    </SelectTrigger>
+                    <SelectContent dir="rtl">
+                      <SelectItem value="none">ללא תבנית</SelectItem>
+                      {workoutOptions.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {workoutTemplateId && canEditTemplates && workoutTemplates.some((t) => t.id === workoutTemplateId) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleEditWorkoutTemplate}
+                      className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                      title="ערוך תבנית אימונים"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsWorkoutTemplateDialogOpen(true)}
+                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                    title="צור תבנית אימונים חדשה"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Nutrition Plan Section */}
+          <AccordionItem value="nutrition-plan" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+            <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Apple className="h-4 w-4 text-slate-400" />
+                  תבנית תזונה
+                </div>
+                <span className="text-sm font-normal text-slate-500">
+                  {getNutritionTemplateName() || 'ללא תבנית'}
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-3 pb-4 px-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-500">בחר תבנית תזונה</Label>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={nutritionTemplateId || 'none'}
+                    onValueChange={handleNutritionTemplateChange}
+                  >
+                    <SelectTrigger className={cn(
+                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
+                      "text-slate-900 font-medium text-sm"
+                    )} dir="rtl">
+                      <SelectValue placeholder="בחר תבנית תזונה" />
+                    </SelectTrigger>
+                    <SelectContent dir="rtl">
+                      <SelectItem value="none">ללא תבנית</SelectItem>
+                      {nutritionOptions.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {nutritionTemplateId && canEditTemplates && nutritionTemplates.some((t) => t.id === nutritionTemplateId) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleEditNutritionTemplate}
+                      className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                      title="ערוך תבנית תזונה"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsNutritionTemplateDialogOpen(true)}
+                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                    title="צור תבנית תזונה חדשה"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Supplements Section */}
+          <AccordionItem value="supplements" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+            <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Pill className="h-4 w-4 text-slate-400" />
+                  תוספים
+                </div>
+                <span className="text-sm font-normal text-slate-500">
+                  {supplements.filter(s => s && s.name && s.name.trim()).length > 0
+                    ? `${supplements.filter(s => s && s.name && s.name.trim()).length} תוספים`
+                    : 'ללא תוספים'}
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-2 pb-4 px-4">
+              {supplements.length === 0 ? (
+                <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
+                  <p className="text-xs text-slate-400 mb-2">אין תוספים</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={addSupplement}
+                    className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                  >
+                    <Plus className="h-4 w-4 ml-1" />
+                    הוסף תוסף
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {supplements.map((supplement, index) => {
+                    if (!supplement || !supplement.name) {
+                      return null;
+                    }
+                    return (
+                      <SupplementRow
+                        key={`supplement-${index}-${supplement.name}-${Date.now()}`}
+                        index={index}
+                        supplement={supplement}
+                        templates={supplementTemplates}
+                        onUpdate={updateSupplement}
+                        onRemove={removeSupplement}
+                        onEdit={handleEditSupplement}
+                      />
+                    );
+                  })}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={addSupplement}
+                    className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                  >
+                    <Plus className="h-4 w-4 ml-1" />
+                    הוסף תוסף נוסף
+                  </Button>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Aerobic Activity Section */}
+          <AccordionItem value="aerobic-activity" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+            <AccordionTrigger className="text-base font-semibold text-slate-900 hover:no-underline py-3 px-4 bg-slate-200 hover:bg-slate-300 transition-colors">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-slate-400" />
+                  פעילות גופנית
+                </div>
+                <span className="text-sm font-normal text-slate-500">
+                  {getAerobicActivitiesCount() > 0
+                    ? `${getAerobicActivitiesCount()} פעילויות`
+                    : 'ללא פעילויות'}
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-2 pb-4 px-4">
+              {workoutTrainings.length === 0 ? (
+                <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
+                  <p className="text-xs text-slate-400 mb-2">אין פעילות גופנית</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={addWorkoutTraining}
+                    className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                  >
+                    <Plus className="h-4 w-4 ml-1" />
+                    הוסף פעילות גופנית
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2 mt-4">
+                  <div className="flex gap-2 items-center px-2 pb-1">
+                    <div className="flex-1 grid grid-cols-5 gap-1.5">
+                      <div className="text-xs font-medium text-slate-600 text-right">סוג</div>
+                      <div className="text-xs font-medium text-slate-600 text-right">שם האימון</div>
+                      <div className="text-xs font-medium text-slate-600 text-center">דקות/אימון</div>
+                      <div className="text-xs font-medium text-slate-600 text-center">פעמים בשבוע</div>
+                      <div className="text-xs font-medium text-slate-600 text-right">הנחיות</div>
+                    </div>
+                    <div className="w-8"></div>
+                  </div>
+                  {workoutTrainings.map((workout) => (
+                    <WorkoutRow
+                      key={workout.id}
+                      workout={workout}
+                      onUpdate={updateWorkoutTraining}
+                      onRemove={removeWorkoutTraining}
+                    />
+                  ))}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={addWorkoutTraining}
+                    className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                  >
+                    <Plus className="h-4 w-4 ml-1" />
+                    הוסף פעילות גופנית נוספת
+                  </Button>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      ) : (
+        /* Original Bento Grid Layout */
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* Left Column: Basic Info + Eating Guidelines */}
+          <div className="flex flex-col gap-2.5">
+            {/* Card A: General Identity */}
+            <Card className="bg-white border-0 shadow-sm rounded-xl">
+              <CardHeader className="pb-2 pt-3 px-4">
+                <CardTitle className="text-base font-semibold text-slate-900">מידע בסיסי</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-sm font-medium text-slate-500">שם תכנית הפעולה *</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="לדוגמה: תכנית פעולה 1700 קלוריות"
+                    required
+                    className={cn(
+                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all",
+                      "text-slate-900 font-medium text-sm"
+                    )}
+                    dir="rtl"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="description" className="text-sm font-medium text-slate-500">תיאור</Label>
+                  <Textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="תיאור קצר של תכנית הפעולה"
+                    className={cn(
+                      "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
+                      "text-slate-900 font-medium text-sm"
+                    )}
+                    dir="rtl"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Guidelines Card - Moved here */}
+            <Card className="bg-white border-0 shadow-sm rounded-xl">
+              <CardHeader className="pb-2 pt-3 px-4">
+                <CardTitle className="text-base font-semibold text-slate-900">הנחיות אכילה</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="flex flex-row gap-4">
+                  <div className="flex-1 space-y-1.5">
+                    <Label htmlFor="eating_order" className="text-sm font-medium text-slate-500">סדר האכילה</Label>
+                    <Textarea
+                      id="eating_order"
+                      value={eatingOrder}
+                      onChange={(e) => setEatingOrder(e.target.value)}
+                      placeholder="לדוגמה: מתחילה בירקות, ממשיכה לחלבון ומסיימת בפחמימה"
+                      className={cn(
+                        "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
+                        "text-slate-900 font-medium text-sm"
+                      )}
+                      dir="rtl"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <Label htmlFor="eating_rules" className="text-sm font-medium text-slate-500">כללי אכילה</Label>
+                    <Textarea
+                      id="eating_rules"
+                      value={eatingRules}
+                      onChange={(e) => setEatingRules(e.target.value)}
+                      placeholder="לדוגמה: לא תאכלי פחמימה לבדה - עם חלבון, סיבים ושומן"
+                      className={cn(
+                        "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 resize-none",
+                        "text-slate-900 font-medium text-sm"
+                      )}
+                      dir="rtl"
+                    />
+                  </div>
+                </div>
+
+              </CardContent>
+            </Card>
+
+            {/* Steps Section - Moved to Left Column */}
+            <Card className="bg-white border-0 shadow-sm rounded-xl">
+              <CardHeader className="pb-2 pt-3 px-4">
+                <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                  <Footprints className="h-4 w-4 text-slate-400" />
+                  יעד צעדים יומי
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-slate-500">מינימום צעדים</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={stepsMin !== null ? stepsMin : ''}
+                      onChange={(e) => setStepsMin(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="לדוגמה: 5000"
+                      className={cn(
+                        "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                        "text-slate-900 font-medium text-sm"
+                      )}
+                      dir="ltr"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium text-slate-500">מקסימום צעדים</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={stepsMax !== null ? stepsMax : ''}
+                      onChange={(e) => setStepsMax(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="לדוגמה: 10000"
+                      className={cn(
+                        "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20",
+                        "text-slate-900 font-medium text-sm"
+                      )}
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="steps_instructions" className="text-sm font-medium text-slate-500">הוראות צעדים</Label>
+                  <Textarea
+                    id="steps_instructions"
+                    value={stepsInstructions}
+                    onChange={(e) => setStepsInstructions(e.target.value)}
+                    placeholder="הוראות והנחיות נוספות לגבי הצעדים היומיים"
+                    className={cn(
+                      "min-h-[50px] bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 transition-all resize-none",
+                      "text-slate-900 font-medium text-sm"
+                    )}
+                    dir="rtl"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Card B: Plan Integration (Top Right) */}
+          <Card className="bg-white border-0 shadow-sm rounded-xl">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <CardTitle className="text-base font-semibold text-slate-900">אינטגרציית תכניות</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 px-4 pb-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                  <Dumbbell className="h-3.5 w-3.5 text-slate-400" />
+                  תכנית אימונים
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={workoutTemplateId || 'none'}
+                    onValueChange={(value) => setWorkoutTemplateId(value === 'none' ? null : value || null)}
+                  >
+                    <SelectTrigger className={cn(
+                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
+                      "text-slate-900 font-medium text-sm"
+                    )} dir="rtl">
+                      <SelectValue placeholder="בחר תבנית אימונים" />
+                    </SelectTrigger>
+                    <SelectContent dir="rtl">
+                      <SelectItem value="none">ללא תבנית</SelectItem>
+                      {workoutOptions.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {workoutTemplateId && canEditTemplates && workoutTemplates.some((t) => t.id === workoutTemplateId) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleEditWorkoutTemplate}
+                      className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                      title="ערוך תבנית אימונים"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsWorkoutTemplateDialogOpen(true)}
+                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                    title="צור תבנית אימונים חדשה"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                  <Apple className="h-3.5 w-3.5 text-slate-400" />
+                  תבנית תזונה
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={nutritionTemplateId || 'none'}
+                    onValueChange={handleNutritionTemplateChange}
+                  >
+                    <SelectTrigger className={cn(
+                      "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
+                      "text-slate-900 font-medium text-sm"
+                    )} dir="rtl">
+                      <SelectValue placeholder="בחר תבנית תזונה" />
+                    </SelectTrigger>
+                    <SelectContent dir="rtl">
+                      <SelectItem value="none">ללא תבנית</SelectItem>
+                      {nutritionOptions.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {nutritionTemplateId && canEditTemplates && nutritionTemplates.some((t) => t.id === nutritionTemplateId) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleEditNutritionTemplate}
+                      className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                      title="ערוך תבנית תזונה"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsNutritionTemplateDialogOpen(true)}
+                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
+                    title="צור תבנית תזונה חדשה"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                  <Pill className="h-3.5 w-3.5 text-slate-400" />
+                  תוספים
+                </Label>
+                <div className="space-y-2">
+                  {supplements.length === 0 ? (
+                    <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
+                      <p className="text-xs text-slate-400 mb-2">אין תוספים</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={addSupplement}
+                        className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                      >
+                        <Plus className="h-4 w-4 ml-1" />
+                        הוסף תוסף
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {supplements.map((supplement, index) => {
+                        // Safety check - ensure supplement has required fields
+                        if (!supplement || !supplement.name) {
+                          return null;
+                        }
+                        return (
+                          <SupplementRow
+                            key={`supplement-${index}-${supplement.name}-${Date.now()}`}
+                            index={index}
+                            supplement={supplement}
+                            templates={supplementTemplates}
+                            onUpdate={updateSupplement}
+                            onRemove={removeSupplement}
+                            onEdit={handleEditSupplement}
+                          />
+                        );
+                      })}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={addSupplement}
+                        className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                      >
+                        <Plus className="h-4 w-4 ml-1" />
+                        הוסף תוסף נוסף
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Unified Workout Training Section - Under Supplements */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                  <Heart className="h-3.5 w-3.5 text-slate-400" />
+                  פעילות גופנית
+                </Label>
+                <div className="space-y-2">
+                  {workoutTrainings.length === 0 ? (
+                    <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
+                      <p className="text-xs text-slate-400 mb-2">אין פעילות גופנית</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={addWorkoutTraining}
+                        className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                      >
+                        <Plus className="h-4 w-4 ml-1" />
+                        הוסף פעילות גופנית
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 mt-4">
+                      {/* Header Row */}
+                      <div className="flex gap-2 items-center px-2 pb-1">
+                        <div className="flex-1 grid grid-cols-5 gap-1.5">
+                          <div className="text-xs font-medium text-slate-600 text-right">סוג</div>
+                          <div className="text-xs font-medium text-slate-600 text-right">שם האימון</div>
+                          <div className="text-xs font-medium text-slate-600 text-center">דקות/אימון</div>
+                          <div className="text-xs font-medium text-slate-600 text-center">פעמים בשבוע</div>
+                          <div className="text-xs font-medium text-slate-600 text-right">הנחיות</div>
+                        </div>
+                        <div className="w-8"></div>
+                      </div>
+                      {workoutTrainings.map((workout) => (
+                        <WorkoutRow
+                          key={workout.id}
+                          workout={workout}
+                          onUpdate={updateWorkoutTraining}
+                          onRemove={removeWorkoutTraining}
+                        />
+                      ))}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={addWorkoutTraining}
+                        className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
+                      >
+                        <Plus className="h-4 w-4 ml-1" />
+                        הוסף פעילות גופנית נוספת
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Card B: Plan Integration (Top Right) */}
-        <Card className="bg-white border-0 shadow-sm rounded-xl">
-          <CardHeader className="pb-2 pt-3 px-4">
-            <CardTitle className="text-base font-semibold text-slate-900">אינטגרציית תכניות</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 px-4 pb-4">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Dumbbell className="h-3.5 w-3.5 text-slate-400" />
-                תכנית אימונים
-              </Label>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={workoutTemplateId || 'none'}
-                  onValueChange={(value) => setWorkoutTemplateId(value === 'none' ? null : value || null)}
-                >
-                  <SelectTrigger className={cn(
-                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
-                    "text-slate-900 font-medium text-sm"
-                  )} dir="rtl">
-                    <SelectValue placeholder="בחר תבנית אימונים" />
-                  </SelectTrigger>
-                  <SelectContent dir="rtl">
-                    <SelectItem value="none">ללא תבנית</SelectItem>
-                    {workoutOptions.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {workoutTemplateId && canEditTemplates && workoutTemplates.some((t) => t.id === workoutTemplateId) && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleEditWorkoutTemplate}
-                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
-                    title="ערוך תבנית אימונים"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsWorkoutTemplateDialogOpen(true)}
-                  className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
-                  title="צור תבנית אימונים חדשה"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Apple className="h-3.5 w-3.5 text-slate-400" />
-                תבנית תזונה
-              </Label>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={nutritionTemplateId || 'none'}
-                  onValueChange={handleNutritionTemplateChange}
-                >
-                  <SelectTrigger className={cn(
-                    "h-9 bg-slate-50 border-0 focus:border focus:border-[#5B6FB9] focus:ring-2 focus:ring-[#5B6FB9]/20 flex-1",
-                    "text-slate-900 font-medium text-sm"
-                  )} dir="rtl">
-                    <SelectValue placeholder="בחר תבנית תזונה" />
-                  </SelectTrigger>
-                  <SelectContent dir="rtl">
-                    <SelectItem value="none">ללא תבנית</SelectItem>
-                    {nutritionOptions.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {nutritionTemplateId && canEditTemplates && nutritionTemplates.some((t) => t.id === nutritionTemplateId) && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleEditNutritionTemplate}
-                    className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
-                    title="ערוך תבנית תזונה"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsNutritionTemplateDialogOpen(true)}
-                  className="h-9 w-9 text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10 border border-[#5B6FB9]/20"
-                  title="צור תבנית תזונה חדשה"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Pill className="h-3.5 w-3.5 text-slate-400" />
-                תוספים
-              </Label>
-              <div className="space-y-2">
-                {supplements.length === 0 ? (
-                  <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
-                    <p className="text-xs text-slate-400 mb-2">אין תוספים</p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={addSupplement}
-                      className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                    >
-                      <Plus className="h-4 w-4 ml-1" />
-                      הוסף תוסף
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {supplements.map((supplement, index) => {
-                      // Safety check - ensure supplement has required fields
-                      if (!supplement || !supplement.name) {
-                        return null;
-                      }
-                      return (
-                        <SupplementRow
-                          key={`supplement-${index}-${supplement.name}-${Date.now()}`}
-                          index={index}
-                          supplement={supplement}
-                          templates={supplementTemplates}
-                          onUpdate={updateSupplement}
-                          onRemove={removeSupplement}
-                          onEdit={handleEditSupplement}
-                        />
-                      );
-                    })}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={addSupplement}
-                      className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                    >
-                      <Plus className="h-4 w-4 ml-1" />
-                      הוסף תוסף נוסף
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Unified Workout Training Section - Under Supplements */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                <Heart className="h-3.5 w-3.5 text-slate-400" />
-                פעילות גופנית
-              </Label>
-              <div className="space-y-2">
-                {workoutTrainings.length === 0 ? (
-                  <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-lg">
-                    <p className="text-xs text-slate-400 mb-2">אין פעילות גופנית</p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={addWorkoutTraining}
-                      className="text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                    >
-                      <Plus className="h-4 w-4 ml-1" />
-                      הוסף פעילות גופנית
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {workoutTrainings.map((workout) => (
-                      <WorkoutRow
-                        key={workout.id}
-                        workout={workout}
-                        onUpdate={updateWorkoutTraining}
-                        onRemove={removeWorkoutTraining}
-                      />
-                    ))}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={addWorkoutTraining}
-                      className="w-full text-[#5B6FB9] hover:text-[#5B6FB9]/80 hover:bg-[#5B6FB9]/10"
-                    >
-                      <Plus className="h-4 w-4 ml-1" />
-                      הוסף פעילות גופנית נוספת
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      )}
 
       {/* Footer Actions - Bottom Right (RTL) */}
       <div className="flex flex-row-reverse justify-end gap-2 pt-2.5 pb-1 border-t border-slate-100">

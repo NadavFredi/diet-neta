@@ -81,13 +81,14 @@ export const BloodTestsGalleryCard: React.FC<BloodTestsGalleryCardProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept="application/pdf"
+              multiple
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
               onChange={handleFileInputChange}
               className="hidden"
             />
             <Upload className="h-6 w-6 mx-auto mb-2 text-gray-400" />
             <p className="text-xs text-gray-600 mb-2">
-              גרור קובץ PDF לכאן או לחץ להעלאה
+              גרור קבצים (תמונות או PDF) לכאן או לחץ להעלאה
             </p>
             <Button
               onClick={() => fileInputRef.current?.click()}
@@ -104,7 +105,7 @@ export const BloodTestsGalleryCard: React.FC<BloodTestsGalleryCardProps> = ({
               ) : (
                 <>
                   <Upload className="h-3 w-3 ml-1" />
-                  העלה קובץ PDF
+                  העלה קבצים
                 </>
               )}
             </Button>
