@@ -58,6 +58,51 @@ export const api = createApi({
       providesTags: (result, error, id) => [{ type: 'NutritionPlan', id }],
     }),
     
+    createNutritionPlan: builder.mutation<any, { 
+      customerId?: string; 
+      leadId?: string; 
+      targets: any; 
+      name?: string;
+      description?: string;
+      start_date?: string;
+      budget_id?: string;
+      template_id?: string;
+    }>({
+      queryFn: async ({ customerId, leadId, targets, name, description, start_date, budget_id, template_id }) => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('User not authenticated');
+
+          const { data, error } = await supabase
+            .from('nutrition_plans')
+            .insert({
+              user_id: user.id,
+              customer_id: customerId || null,
+              lead_id: leadId || null,
+              template_id: template_id || null,
+              budget_id: budget_id || null,
+              name: name || '',
+              start_date: start_date || new Date().toISOString().split('T')[0],
+              description: description || '',
+              targets: targets,
+              is_active: true,
+              created_by: user.id,
+            })
+            .select()
+            .single();
+          
+          if (error) throw error;
+          return { data };
+        } catch (error: any) {
+          return { error: { status: 'CUSTOM_ERROR', error: error.message } };
+        }
+      },
+      invalidatesTags: (result, error, { customerId, leadId }) => [
+        { type: 'PlansHistory', id: `${customerId || 'null'}-${leadId || 'null'}` },
+        'PlansHistory', // Invalidate all plans history
+      ],
+    }),
+    
     updateNutritionPlan: builder.mutation<any, { id: string; targets: any; customerId?: string; leadId?: string }>({
       queryFn: async ({ id, targets }) => {
         try {
@@ -127,6 +172,7 @@ export const api = createApi({
 export const {
   useGetNutritionPlansQuery,
   useGetNutritionPlanQuery,
+  useCreateNutritionPlanMutation,
   useUpdateNutritionPlanMutation,
 } = api;
 

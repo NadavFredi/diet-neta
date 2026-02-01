@@ -20,7 +20,8 @@ import { IntervalActivityModal } from './dialogs/IntervalActivityModal';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { useUpdateNutritionPlanMutation, useGetNutritionPlansQuery } from '@/store/api/apiSlice';
+import { useUpdateNutritionPlanMutation, useCreateNutritionPlanMutation, useGetNutritionPlansQuery, api } from '@/store/api/apiSlice';
+import { useAppDispatch } from '@/store/hooks';
 import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget, useAssignBudgetToLead, useAssignBudgetToCustomer, type BudgetWithTemplates } from '@/hooks/useBudgets';
 import { useSaveActionPlan, createBudgetSnapshot } from '@/hooks/useSavedActionPlans';
 import { useBudgetDetails } from '@/hooks/useBudgetDetails';
@@ -157,7 +158,9 @@ export const PlansCard = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [updateNutritionPlan] = useUpdateNutritionPlanMutation();
+  const [createNutritionPlan] = useCreateNutritionPlanMutation();
 
   // Use RTK Query to get nutrition plans (same cache as modal)
   const { data: rtkNutritionPlans } = useGetNutritionPlansQuery({ customerId, leadId });
@@ -973,6 +976,15 @@ export const PlansCard = ({
                         queryClient.invalidateQueries({ queryKey: ['workoutPlan'] }),
                         queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] }),
                       ]);
+
+                      // Invalidate RTK Query cache for nutrition plans
+                      dispatch(
+                        api.util.invalidateTags([
+                          { type: 'NutritionPlan' },
+                          { type: 'PlansHistory', id: `${finalCustomerId || 'null'}-${finalLeadId || 'null'}` },
+                          'PlansHistory',
+                        ])
+                      );
 
                       // Force refetch to ensure UI updates immediately
                       await queryClient.refetchQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] });
@@ -2147,7 +2159,28 @@ export const PlansCard = ({
               toast({ title: 'שגיאה', description: error?.error || error?.message || 'נכשל בעדכון תוכנית התזונה', variant: 'destructive' });
             }
           } else {
-            onAddDietPlan();
+            // Creating new plan - use RTK Query mutation
+            try {
+              // NutritionTemplateForm in user mode calls onSave with { targets: { ...targets, _manual_override, _calculator_inputs } }
+              // Extract targets from data
+              const targetsToSave = data.targets || data;
+
+              await createNutritionPlan({
+                customerId: customerId || undefined,
+                leadId: leadId || undefined,
+                targets: targetsToSave,
+                name: data.name || '',
+                description: data.description || '',
+                start_date: data.start_date || new Date().toISOString().split('T')[0],
+                budget_id: effectiveBudgetId || undefined,
+              }).unwrap();
+
+              toast({ title: 'הצלחה', description: 'תוכנית התזונה נוצרה בהצלחה' });
+              setIsNutritionPlanDialogOpen(false);
+              setEditingNutritionPlan(null);
+            } catch (error: any) {
+              toast({ title: 'שגיאה', description: error?.error || error?.message || 'נכשל ביצירת תוכנית התזונה', variant: 'destructive' });
+            }
           }
         }}
         customerId={customerId}
