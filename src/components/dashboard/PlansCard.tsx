@@ -340,6 +340,8 @@ export const PlansCard = ({
         queryClient.invalidateQueries({ queryKey: ['supplement-plans'] }),
         queryClient.invalidateQueries({ queryKey: ['budgets'] }),
         queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
+        queryClient.invalidateQueries({ queryKey: ['budget-assignments'] }),
+        queryClient.invalidateQueries({ queryKey: ['budget-assignments', finalLeadId, finalCustomerId] }),
       ]);
 
       // Invalidate RTK Query cache for nutrition plans
