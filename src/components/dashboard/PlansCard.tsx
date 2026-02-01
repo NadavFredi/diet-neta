@@ -342,6 +342,15 @@ export const PlansCard = ({
         queryClient.invalidateQueries({ queryKey: ['budgetAssignment'] }),
       ]);
 
+      // Invalidate RTK Query cache for nutrition plans
+      dispatch(
+        api.util.invalidateTags([
+          { type: 'NutritionPlan' },
+          { type: 'PlansHistory', id: `${finalCustomerId || 'null'}-${finalLeadId || 'null'}` },
+          'PlansHistory',
+        ])
+      );
+
       // Force refetch by refetching the plans-history query
       await queryClient.refetchQueries({ queryKey: ['plans-history', finalCustomerId, finalLeadId] });
 
