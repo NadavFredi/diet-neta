@@ -20,6 +20,7 @@ import { IntervalActivityModal } from './dialogs/IntervalActivityModal';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useUpdateNutritionPlanMutation, useGetNutritionPlansQuery } from '@/store/api/apiSlice';
 import { useDeleteBudgetAssignment, useBudget, useUpdateBudget, useCreateBudget, useAssignBudgetToLead, useAssignBudgetToCustomer, type BudgetWithTemplates } from '@/hooks/useBudgets';
 import { useSaveActionPlan, createBudgetSnapshot } from '@/hooks/useSavedActionPlans';
 import { useBudgetDetails } from '@/hooks/useBudgetDetails';
@@ -156,6 +157,11 @@ export const PlansCard = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [updateNutritionPlan] = useUpdateNutritionPlanMutation();
+
+  // Use RTK Query to get nutrition plans (same cache as modal)
+  const { data: rtkNutritionPlans } = useGetNutritionPlansQuery({ customerId, leadId });
+
   const deleteBudgetAssignment = useDeleteBudgetAssignment();
   const createBudget = useCreateBudget();
   const assignToLead = useAssignBudgetToLead();
@@ -413,10 +419,13 @@ export const PlansCard = ({
     return workoutHistory.find(w => w.is_active) || workoutHistory[0];
   }, [workoutHistory]);
 
+  // Use ONLY RTK Query cache (single source of truth, same as modal)
   const activeNutrition = useMemo(() => {
-    if (!nutritionHistory?.length) return null;
-    return nutritionHistory.find(n => n.is_active) || nutritionHistory[0];
-  }, [nutritionHistory]);
+    if (rtkNutritionPlans?.length) {
+      return rtkNutritionPlans.find(n => n.is_active) || rtkNutritionPlans[0];
+    }
+    return null;
+  }, [rtkNutritionPlans]);
 
   const activeSteps = useMemo(() => {
     if (!stepsHistory?.length) return null;
@@ -451,6 +460,7 @@ export const PlansCard = ({
   const effectiveBudgetName = activeAssignment?.budget_name || fallbackBudget?.name || 'תכנית פעולה פעילה';
 
   // Helper function to update nutrition plan directly (plan is source of truth)
+  // Now uses RTK Query for consistency and optimistic updates
   const updateNutritionPlanTarget = async (field: 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber', value: number) => {
     if (!activeNutrition?.id) {
       toast({ title: 'שגיאה', description: 'לא נמצאה תוכנית תזונה לעדכון', variant: 'destructive' });
@@ -479,21 +489,14 @@ export const PlansCard = ({
         ...(_manual_override && { _manual_override }),
       };
 
-      // Update the nutrition plan directly
-      const { error: updateError } = await supabase
-        .from('nutrition_plans')
-        .update({ targets: updatedTargets })
-        .eq('id', activeNutrition.id);
-
-      if (updateError) throw updateError;
-
-      // Plan is the source of truth - no need to sync back to budget
-      // Budget nutrition_targets is only used for initial plan creation
-
-      // Invalidate queries to refresh UI
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['plans-history'] }),
-      ]);
+      // Use RTK Query mutation for consistency and optimistic updates
+      // RTK Query handles cache invalidation automatically via tags
+      await updateNutritionPlan({
+        id: activeNutrition.id,
+        targets: updatedTargets,
+        customerId: customerId || undefined,
+        leadId: leadId || undefined,
+      }).unwrap();
     } catch (error: any) {
       throw error;
     }
@@ -656,31 +659,10 @@ export const PlansCard = ({
   };
 
   const handleEditNutrition = async (plan: NutritionHistoryItem) => {
-    if (plan.id) {
-      try {
-        const { data, error } = await supabase
-          .from('nutrition_plans')
-          .select('*')
-          .eq('id', plan.id)
-          .single();
-        if (error) throw error;
-
-        // Ensure targets are properly formatted (handle JSONB from database)
-        const formattedData = data ? {
-          ...data,
-          targets: data.targets || plan.targets || {},
-        } : null;
-
-        setEditingNutritionPlan(formattedData);
-        setIsNutritionPlanDialogOpen(true);
-      } catch (error: any) {
-        toast({ title: 'שגיאה', description: error?.message || 'נכשל בטעינת תוכנית התזונה', variant: 'destructive' });
-      }
-    } else {
-      // If no ID, use the plan data directly (it already has targets from nutritionHistory)
-      setEditingNutritionPlan(plan);
-      setIsNutritionPlanDialogOpen(true);
-    }
+    // Use the plan data directly from React Query cache (same source as PlansCard displays)
+    // The modal will also use the same cache via usePlansHistory hook
+    setEditingNutritionPlan(plan);
+    setIsNutritionPlanDialogOpen(true);
   };
 
   const handleEditSteps = async (step: any) => {
@@ -2149,22 +2131,20 @@ export const PlansCard = ({
               // Extract targets from data if it's wrapped, otherwise use data directly
               const targetsToSave = data.targets || data;
 
-              const { error } = await supabase
-                .from('nutrition_plans')
-                .update({
-                  targets: targetsToSave,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', editingNutritionPlan.id);
+              // Use RTK Query mutation with optimistic updates
+              // RTK Query handles cache invalidation automatically via tags
+              await updateNutritionPlan({
+                id: editingNutritionPlan.id,
+                targets: targetsToSave,
+                customerId: customerId || undefined,
+                leadId: leadId || undefined,
+              }).unwrap();
 
-              if (error) throw error;
-              queryClient.invalidateQueries({ queryKey: ['plans-history'] });
-              queryClient.invalidateQueries({ queryKey: ['nutritionPlan'] });
               toast({ title: 'הצלחה', description: 'תוכנית התזונה עודכנה בהצלחה' });
               setIsNutritionPlanDialogOpen(false);
               setEditingNutritionPlan(null);
             } catch (error: any) {
-              toast({ title: 'שגיאה', description: error?.message, variant: 'destructive' });
+              toast({ title: 'שגיאה', description: error?.error || error?.message || 'נכשל בעדכון תוכנית התזונה', variant: 'destructive' });
             }
           } else {
             onAddDietPlan();
